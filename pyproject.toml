@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tere4ai"
+version = "0.1.0"
+description = "Trustworthy Ethical Requirements Engineering for AI - REFSQ 2026"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Jose"}
+]
+keywords = ["AI", "requirements engineering", "EU AI Act", "HLEG", "trustworthy AI"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "neo4j>=5.0",
+    "pydantic>=2.0",
+    "pydantic-ai>=0.1",
+    "python-dotenv>=1.0",
+    "openai>=1.0",
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
+    "fastmcp>=0.1.0",
+    "httpx>=0.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "black>=23.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+tere4ai-ingest = "tere4ai.ingestion.scripts.ingest_all:main"
+tere4ai-api = "tere4ai.api.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tere4ai*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312']
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]

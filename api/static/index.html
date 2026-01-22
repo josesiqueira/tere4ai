@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERE4AI - Trustworthy Ethical Requirements Engineering for AI</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>TERE4AI</h1>
+            <p class="subtitle">Trustworthy Ethical Requirements Engineering for AI</p>
+            <p class="venue">REFSQ 2026</p>
+        </header>
+
+        <!-- Input Section -->
+        <section class="input-section" id="input-section">
+            <div class="card">
+                <h2>Describe Your AI System</h2>
+                <p class="description">
+                    Enter a natural language description of your AI system. TERE4AI will analyze it
+                    against the EU AI Act and AI HLEG Trustworthy AI Guidelines to generate
+                    ethically-anchored requirements with full legal citations.
+                </p>
+
+                <div class="form-group">
+                    <label for="system-description">System Description</label>
+                    <textarea
+                        id="system-description"
+                        placeholder="Describe your AI system here... For example: 'An AI system for hospital emergency room triage that analyzes patient symptoms, vital signs, and medical history to prioritize patients and recommend initial treatment protocols.'"
+                        rows="6"
+                        aria-label="AI system description"
+                        aria-describedby="description-hint"
+                        aria-required="true"
+                    ></textarea>
+                    <p id="description-hint" class="description" style="font-size: 0.75rem; color: #718096; margin-top: 0.25rem;">Minimum 10 characters required</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="additional-context">Additional Context (optional)</label>
+                    <textarea
+                        id="additional-context"
+                        placeholder="Any additional context about deployment, users, or specific concerns..."
+                        rows="3"
+                        aria-label="Additional context for AI system analysis"
+                    ></textarea>
+                </div>
+
+                <div class="button-row">
+                    <div class="example-dropdown">
+                        <label for="example-select">Load Example:</label>
+                        <select id="example-select">
+                            <option value="">-- Select an example --</option>
+                        </select>
+                    </div>
+                    <div class="action-buttons">
+                        <button id="clear-btn" class="btn btn-secondary">Clear</button>
+                        <button id="analyze-btn" class="btn btn-primary">Analyze System</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Progress Section -->
+        <section class="progress-section hidden" id="progress-section">
+            <div class="card">
+                <h2>Processing</h2>
+                <div class="progress-container">
+                    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Analysis progress" id="progress-bar-container">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span class="progress-percent" id="progress-percent" aria-live="polite">0%</span>
+                        <span class="progress-phase" id="progress-phase" aria-live="polite">Initializing...</span>
+                    </div>
+                </div>
+                <div class="phase-indicators">
+                    <div class="phase" data-phase="elicitation">
+                        <span class="phase-dot"></span>
+                        <span class="phase-label">Elicitation</span>
+                    </div>
+                    <div class="phase" data-phase="analysis">
+                        <span class="phase-dot"></span>
+                        <span class="phase-label">Analysis</span>
+                    </div>
+                    <div class="phase" data-phase="specification">
+                        <span class="phase-dot"></span>
+                        <span class="phase-label">Specification</span>
+                    </div>
+                    <div class="phase" data-phase="validation">
+                        <span class="phase-dot"></span>
+                        <span class="phase-label">Validation</span>
+                    </div>
+                </div>
+                <p class="progress-message" id="progress-message">Starting analysis...</p>
+            </div>
+        </section>
+
+        <!-- Error Section -->
+        <section class="error-section hidden" id="error-section">
+            <div class="card error-card">
+                <h2>Error</h2>
+                <p id="error-message"></p>
+                <button id="retry-btn" class="btn btn-primary">Try Again</button>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section hidden" id="results-section">
+            <!-- Risk Classification Banner -->
+            <div class="risk-banner" id="risk-banner" role="status" aria-live="polite" aria-atomic="true">
+                <div class="risk-level">
+                    <span class="risk-label">Risk Classification:</span>
+                    <span class="risk-value" id="risk-level" aria-label="Risk level">HIGH</span>
+                </div>
+                <div class="risk-basis" id="risk-basis" aria-label="Legal basis for classification"></div>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="export-row">
+                <button id="export-json-btn" class="btn btn-outline">Export JSON</button>
+                <button id="export-md-btn" class="btn btn-outline">Export Markdown</button>
+                <button id="new-analysis-btn" class="btn btn-secondary">New Analysis</button>
+            </div>
+
+            <!-- System Description Summary -->
+            <div class="card" id="system-summary-card">
+                <h3>System Analysis</h3>
+                <div class="summary-grid" id="system-summary"></div>
+            </div>
+
+            <!-- Prohibited Warning (shown only for UNACCEPTABLE) -->
+            <div class="card prohibited-warning hidden" id="prohibited-warning">
+                <h3>System Prohibited</h3>
+                <p>This AI system is <strong>PROHIBITED</strong> under the EU AI Act.</p>
+                <div class="prohibition-details" id="prohibition-details"></div>
+                <p class="prohibition-note">
+                    No requirements are generated for prohibited systems.
+                    This system cannot be legally developed or deployed under EU jurisdiction.
+                </p>
+            </div>
+
+            <!-- Requirements List (hidden for UNACCEPTABLE) -->
+            <div class="card" id="requirements-card">
+                <div class="requirements-header">
+                    <h3>Generated Requirements</h3>
+                    <div class="requirements-stats" id="requirements-stats"></div>
+                </div>
+                <div class="requirements-list" id="requirements-list"></div>
+            </div>
+
+            <!-- Coverage Matrix -->
+            <div class="card" id="coverage-card">
+                <h3>Coverage Analysis</h3>
+                <div class="coverage-grid" id="coverage-grid"></div>
+            </div>
+
+            <!-- Validation Results -->
+            <div class="card" id="validation-card">
+                <h3>Validation Results</h3>
+                <div class="validation-results" id="validation-results"></div>
+            </div>
+
+            <!-- Metrics -->
+            <div class="card" id="metrics-card">
+                <h3>Report Metrics</h3>
+                <div class="metrics-grid" id="metrics-grid"></div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>TERE4AI - Trustworthy Ethical Requirements Engineering for AI</p>
+            <p>Grounded in EU AI Act (Regulation 2024/1689) and AI HLEG Trustworthy AI Guidelines</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

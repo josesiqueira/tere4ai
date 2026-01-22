@@ -1,0 +1,77 @@
+version: 1
+tasks:
+  - description: >
+      Expand EU→HLEG mapping coverage to all paragraphs, add contextual prompting,
+      and keep deterministic ingestion. Increase transparency and controls for testing.
+    changes:
+      - path: run_map_eu_to_hleg.py
+        type: update
+        content: |
+          # Functional goals:
+          # 1) Candidate selection: default to ALL paragraphs of the document.
+          #    Add optional controls (regex, chapter filter, max count) for dry runs.
+          # 2) Rich context: fetch and include chapter title, section title (if any),
+          #    article title, and neighboring paragraphs (prev/next) in the prompt,
+          #    clearly marking only the target paragraph for labeling.
+          # 3) Prompt clarity: instruct the agent to return links ONLY for the target
+          #    paragraph; neighbors are context only; returning an empty links list is OK.
+          # 4) Logging: print counts for found candidates, processed, successes, failures,
+          #    and created links; log per-paragraph errors.
+          # 5) Safety: small concurrency semaphore (e.g., 3) and a max_tokens cap per call.
+          #
+          # Implementation steps:
+          # - Add configuration knobs at the top:
+          #     DOCUMENT_ID = "eu_ai_act_2024"
+          #     CANDIDATE_REGEX = None  # or '(?i).*(shall|must|prohibited|risk management|conformity|quality management).*'
+          #     LIMIT_CHAPTERS = None    # e.g., ['II','III','IV'] or None for all
+          #     MAX_PARAGRAPHS = None    # e.g., 50 for dry runs
+          #     MAX_CONCURRENCY = 3
+          #     MODEL_MAX_TOKENS = 4096  # completion cap per call
+          # - Update fetch_candidate_paragraphs to:
+          #     * Query all paragraphs for DOCUMENT_ID.
+          #     * Optionally filter by LIMIT_CHAPTERS and CANDIDATE_REGEX.
+          #     * Gather: chapter_number, chapter_title, section_number/title (if any),
+          #       article_number/title, paragraph_index, paragraph_text,
+          #       prev_paragraph_text, next_paragraph_text.
+          # - Build prompt per paragraph:
+          #     * Include headings and context block with clear labels:
+          #         "TARGET PARAGRAPH (label only this): ..."
+          #         "PREVIOUS PARAGRAPH (context only): ..." (if exists)
+          #         "NEXT PARAGRAPH (context only): ..." (if exists)
+          #     * Restate the seven HLEG requirements (can keep from agent instructions) or rely on agent instructions as-is.
+          # - Call eu_hleg_mapping_agent.run with model_settings={'max_tokens': MODEL_MAX_TOKENS}.
+          # - After run, ingest via ingest_eu_hleg_mapping(mapping).
+          # - Logging:
+          #     * On start: print total candidates.
+          #     * For each paragraph: print index/total and heading info.
+          #     * After processing: print counts of processed, failures, total links created (sum of len(mapping.links)).
+          # - Keep ingestion deterministic; no schema change.
+
+      - path: agent_eu_hleg_mapping.py
+        type: update
+        content: |
+          # Clarify instructions to support context-aware mapping while scoping output:
+          # - Add guidance that the caller may provide neighboring paragraphs and headings.
+          # - Explicitly state: "Only produce links for the TARGET paragraph; neighbors/headings are context only."
+          # - Keep schema unchanged (links to the 7 requirements only; no subtopic links).
+          # - Emphasize: returning an empty links list is correct when not relevant.
+          # - Keep model config the same (gpt-5-nano), but note completion cap is set by caller.
+
+      - path: README.md
+        type: update
+        content: |
+          # Add a short section "EU→HLEG Mapping (Contextual, Full-Corpus Mode)"
+          # - Describe the new default behavior: maps all paragraphs with added structural + neighbor context.
+          # - Document the tuning knobs: CANDIDATE_REGEX, LIMIT_CHAPTERS, MAX_PARAGRAPHS, MAX_CONCURRENCY, MODEL_MAX_TOKENS.
+          # - Note logging expectations and how to verify mappings:
+          #     * MATCH (p:Paragraph)-[r:ALIGNS_WITH_HLEG_REQUIREMENT]->(h:HLEGRequirement) RETURN count(r);
+          #     * Sample edges: MATCH (p:Paragraph)-[r:ALIGNS_WITH_HLEG_REQUIREMENT]->(h) RETURN p.index, p.text, h.id, r.relevance, r.rationale LIMIT 10;
+          # - Reiterate trustworthiness: LLM does semantic link choice; ingestion is deterministic/idempotent.
+
+  - description: >
+      (Optional) Add a small “dry-run” flag to skip ingestion and only log what would be mapped.
+    changes:
+      - path: run_map_eu_to_hleg.py
+        type: update
+        content: |
+          # Add DRY_RUN = False at top. When True, skip ingest_eu_hleg_mapping and just log the mapping output counts.
