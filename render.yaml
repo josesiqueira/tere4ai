@@ -1,0 +1,22 @@
+# Render Blueprint
+# Deploy with: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: tere4ai
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: NEO4J_URI
+        sync: false  # Set manually in dashboard
+      - key: NEO4J_USER
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true

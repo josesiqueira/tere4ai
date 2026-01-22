@@ -1,0 +1,64 @@
+# TERE4AI Docker Compose
+# Run: docker-compose up -d
+# Access: http://localhost:8000
+
+services:
+  # Neo4j Knowledge Graph Database
+  neo4j:
+    image: neo4j:5
+    container_name: tere4ai_neo4j
+    ports:
+      - "7474:7474"  # Browser
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/tere4ai_password
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # TERE4AI API Server
+  api:
+    build: .
+    container_name: tere4ai_api
+    ports:
+      - "8000:8000"
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=tere4ai_password
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TERE4AI_HOST=0.0.0.0
+      - TERE4AI_PORT=8000
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Data Ingestion (run once to populate database)
+  ingestion:
+    build: .
+    container_name: tere4ai_ingestion
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=tere4ai_password
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    command: python -m ingestion.scripts.ingest_all
+    profiles:
+      - ingestion  # Only runs with: docker-compose --profile ingestion up
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
