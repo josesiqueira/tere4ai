@@ -14,7 +14,7 @@ const API_BASE = '';
 
 // Configuration
 const POLL_INTERVAL_MS = 1000;
-const POLL_TIMEOUT_MS = 180000; // 3 minute timeout
+const POLL_TIMEOUT_MS = 600000; // 10 minute timeout (high-risk cases take ~5 min)
 const MAX_POLL_RETRIES = 3;
 
 // State
@@ -233,7 +233,7 @@ async function pollStatus() {
     // Check for timeout
     if (pollStartTime && (Date.now() - pollStartTime) > POLL_TIMEOUT_MS) {
         stopPolling();
-        showError('Analysis timed out. The server may be busy or the request is too complex. Please try again.');
+        showError('Analysis timed out after 10 minutes. High-risk systems typically take 4-5 minutes. Please check your server logs or try again.');
         return;
     }
 
