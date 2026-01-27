@@ -6,7 +6,7 @@ a chunked approach with PARALLEL PROCESSING and large context windows:
 
 1. Reads and merges raw text from eu_ai_act_part_1.txt and eu_ai_act_part_2.txt
 2. Splits it deterministically into chunks (recitals, chapters, annexes)
-3. Uses gpt-5-nano (400k input / 128k output) to extract structure from each chunk IN PARALLEL
+3. Uses gpt-5-nano to extract structure from each chunk IN PARALLEL
 4. Merges all chunks into a single PreprocessedLegalDocument
 5. Ingests the structured data into Neo4j deterministically
 6. Prints a summary of what was extracted
@@ -21,8 +21,9 @@ speed up the preprocessing. A semaphore limits concurrent API calls to avoid
 rate limits.
 
 MODEL CAPABILITIES (gpt-5-nano):
-  - Input context: 400k tokens (handles very large chunks)
-  - Output context: 128k tokens (handles complex structures like CHAPTER III)
+  - Fastest, most cost-efficient GPT-5 variant
+  - $0.05/1M input, $0.40/1M output tokens
+  - Ideal for high-volume structural extraction
 
 The preprocessing is split into two phases:
   - LLM phase: agent_preprocess_eu_ai_act.py extracts structure from each chunk
@@ -105,14 +106,13 @@ def count_articles_in_text(text: str) -> int:
 
 
 # Max tokens we allow for the *input* (messages) for a single LLM call.
-# The gpt-5-nano model has a 400k input context window and 128k output window.
+# The gpt-5-nano model is optimized for speed and cost-efficiency.
 # We use conservative limits to allow for instructions, schema, and completion:
 #
-# With gpt-5-nano and max_tokens=128000 for output, we budget:
-#   - ~350k tokens for input text (very generous)
-#   - ~128k tokens for completion (full output capacity)
+# With gpt-5-nano we budget:
+#   - ~350k tokens for input text (generous)
+#   - ~128k tokens for completion
 #   - ~10k tokens for instructions/schema/overhead
-#   = ~488k total, well under the 400k input + overhead
 MAX_INPUT_TOKENS_PER_CHUNK = 350_000
 
 # Maximum number of concurrent API calls
@@ -1115,7 +1115,7 @@ if __name__ == "__main__":
     - Adjust MAX_CONCURRENT_CHUNKS based on your API rate limits
 
     MODEL CAPABILITIES (gpt-5-nano):
-    - Input: 400k tokens (handles very large chunks)
-    - Output: 128k tokens (handles complex structures like CHAPTER III)
+    - Fastest, most cost-efficient GPT-5 variant
+    - $0.05/1M input, $0.40/1M output tokens
     """
     asyncio.run(main())

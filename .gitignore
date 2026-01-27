@@ -42,3 +42,14 @@ Thumbs.db
 
 # Project specific
 *.log
+
+# Archive (legacy code, not used)
+archive/
+
+# Documentation (keep only README.md visible)
+docs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/

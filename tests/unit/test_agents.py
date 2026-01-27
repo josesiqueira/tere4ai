@@ -57,7 +57,7 @@ from shared.models import (
 def agent_config():
     """Test configuration for agents."""
     return AgentConfig(
-        model="gpt-4o",
+        model="gpt-5.2",
         temperature=0.1,
         max_tokens=4096,
         max_retries=1,
@@ -328,7 +328,7 @@ class TestAgentConfig:
     def test_default_values(self):
         """Test default configuration values."""
         config = AgentConfig()
-        assert config.model == "gpt-4o"
+        assert config.model == "gpt-5.2"
         assert config.temperature == 0.1
         assert config.max_tokens == 4096
         assert config.max_retries == 3

@@ -60,7 +60,7 @@ from models.hleg_preprocess import HlegPreprocessDeps
 # Load environment variables from .env file (for OPENAI_API_KEY)
 load_dotenv()
 
-# Use GPT-5-nano for high-context, cost-effective preprocessing
+# Use gpt-5-nano for high-context, cost-effective preprocessing
 model = OpenAIChatModel(
     model_name="gpt-5-nano",
 )

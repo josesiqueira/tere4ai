@@ -40,7 +40,7 @@ from models.eu_hleg_mapping_deps import EuHlegMappingDeps
 # Load environment variables for OPENAI_API_KEY
 load_dotenv()
 
-# Model configuration: use gpt-5-nano (large context, cost-effective)
+# Model configuration: use gpt-5-nano (fastest, most cost-efficient GPT-5 variant)
 model = OpenAIChatModel(
     model_name="gpt-5-nano",
 )

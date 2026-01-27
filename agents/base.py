@@ -45,7 +45,7 @@ class AgentConfig:
     """Configuration for RE agents."""
 
     # LLM settings
-    model: str = "gpt-4o"
+    model: str = "gpt-5.2"
     temperature: float = 0.1  # Low temperature for deterministic outputs
     max_tokens: int = 4096
 
@@ -61,7 +61,7 @@ class AgentConfig:
     def from_env(cls) -> AgentConfig:
         """Load configuration from environment variables."""
         return cls(
-            model=os.getenv("TERE4AI_MODEL", "gpt-4o"),
+            model=os.getenv("TERE4AI_MODEL", "gpt-5.2"),
             temperature=float(os.getenv("TERE4AI_TEMPERATURE", "0.1")),
             max_tokens=int(os.getenv("TERE4AI_MAX_TOKENS", "4096")),
             max_retries=int(os.getenv("TERE4AI_MAX_RETRIES", "3")),
