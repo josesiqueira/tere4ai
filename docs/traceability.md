@@ -14,6 +14,6 @@
 | DEC-07 | REF-24 | src/tere4ai/extract_norms/model_clients.py, src/tere4ai/judge/config.py | tests/unit/test_model_config.py | implemented |
 | DEC-08 | REF-16, REF-17, REF-15 | src/tere4ai/mcp_server/server.py, src/tere4ai/mcp_server/tools.py | tests/unit/test_mcp_tools.py | implemented |
 | DEC-09 | REF-20, REF-21, REF-22, REF-08, REF-23 | src/tere4ai/graph_store/store.py | tests/integration/test_neo4j_load.py, tests/unit/test_graph_store_offline.py | partial (Neo4j store; RDF export via n10s deferred to a later milestone) |
-| DEC-10 | REF-16, REF-17, REF-15, REF-27, REF-26 | src/tere4ai/mcp_server/server.py, src/tere4ai/mcp_server/tools.py, src/tere4ai/validate_graph/gates.py, scripts/export_ui_data.py | tests/unit/test_mcp_tools.py | partial (structural gates; deep-extraction gates activate with M2 data; M1 structural coverage view only) |
+| DEC-10 | REF-16, REF-17, REF-15, REF-27, REF-26 | src/tere4ai/mcp_server/server.py, src/tere4ai/mcp_server/tools.py, src/tere4ai/validate_graph/gates.py, scripts/export_ui_data.py, scripts/publish_layer23.py | tests/unit/test_mcp_tools.py | partial (structural gates; deep-extraction gates activate with M2 data; M1 structural coverage view only; publication gating for Layer 2/3) |
 | DEC-11 |  |  |  | not_started |
 | DEC-12 | REF-01, REF-02, REF-04 | src/tere4ai/ingest/sources.py | tests/meta/test_traceability.py, tests/unit/test_sources.py | implemented |

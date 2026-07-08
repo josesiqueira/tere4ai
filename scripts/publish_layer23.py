@@ -1,0 +1,108 @@
+"""Publish judged Layer 2/3 results into Neo4j, gated by Section 13.
+
+@implements: DEC-10 (partial: publication gating for Layer 2/3)
+@grounded_by: REF-27
+
+Usage:
+  .venv/bin/python scripts/publish_layer23.py --norms data/graph_dumps/norms_core.json
+  .venv/bin/python scripts/publish_layer23.py --norms ... --alignments data/graph_dumps/alignments_core.json
+
+Runs the critical validation gates over the layer1 dump plus the given norms
+(and alignments when provided); refuses to load anything into Neo4j if a gate
+fails (a build that fails critical validation is not published). Connection:
+NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD env vars, defaulting to the local v2
+container (bolt://localhost:7688, neo4j).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes  # noqa: E402
+from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
+from tere4ai.graph_store.store import GraphStore  # noqa: E402
+from tere4ai.validate_graph.gates import validate_build  # noqa: E402
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--norms", type=Path, required=True)
+    parser.add_argument("--alignments", type=Path, default=None)
+    parser.add_argument(
+        "--dump", type=Path, default=ROOT / "data" / "graph_dumps" / "layer1.json"
+    )
+    parser.add_argument(
+        "--gates-only", action="store_true", help="validate, do not load into Neo4j"
+    )
+    args = parser.parse_args(argv)
+
+    layer1 = json.loads(args.dump.read_text(encoding="utf-8"))
+    norms_payload = json.loads(args.norms.read_text(encoding="utf-8"))
+    norms = norms_payload.get("norms", [])
+    alignments_payload = None
+    assertions = None
+    if args.alignments:
+        alignments_payload = json.loads(args.alignments.read_text(encoding="utf-8"))
+        assertions = alignments_payload.get("assertions", [])
+
+    report = validate_build(layer1, norms=norms, alignments=assertions)
+    print(f"gates: {'PASS' if report.passed else 'FAIL'} | stats {report.stats}")
+    if not report.passed:
+        for failure in report.failures[:20]:
+            print(f"  GATE FAIL {failure}", file=sys.stderr)
+        print("NOT published: critical validation failed", file=sys.stderr)
+        return 1
+
+    accepted = sum(1 for n in norms if n.get("judge_verdict") == "accepted")
+    print(f"norms: {len(norms)} total, {accepted} judge-accepted")
+    if assertions is not None:
+        acc_a = sum(1 for a in assertions if a.get("judge_verdict") == "accepted")
+        print(f"assertions: {len(assertions)} total, {acc_a} judge-accepted")
+
+    if args.gates_only:
+        return 0
+
+    from neo4j import GraphDatabase
+
+    uri = os.environ.get("NEO4J_URI", "bolt://localhost:7688")
+    user = os.environ.get("NEO4J_USER", "neo4j")
+    password = os.environ.get("NEO4J_PASSWORD", "change_me")
+    driver = GraphDatabase.driver(uri, auth=(user, password))
+    store = GraphStore()
+
+    build_id = norms_payload.get("build", {}).get("build_id", "layer2-adhoc")
+    graph = norms_to_graph(norms_payload, build_id=build_id)
+    if alignments_payload is not None:
+        g3 = alignments_to_graph(alignments_payload, build_hleg_nodes(), build_id=build_id)
+        graph["nodes"].extend(g3["nodes"])
+        graph["edges"].extend(g3["edges"])
+
+    pseudo_dump = {
+        "build": {
+            "build_id": build_id,
+            "built_at": norms_payload.get("build", {}).get("built_at", ""),
+            "tere4ai_version": norms_payload.get("build", {}).get("tere4ai_version", ""),
+            "snapshots": norms_payload.get("build", {}).get("snapshots", []),
+        },
+        "nodes": graph["nodes"],
+        "edges": graph["edges"],
+    }
+    counts = store.load_dump(pseudo_dump, driver)
+    nodes = sum(v for k, v in counts.items() if k.startswith("node:"))
+    edges = sum(v for k, v in counts.items() if k.startswith("edge:"))
+    print(f"published to {uri}: {nodes} nodes, {edges} edges")
+    for k in sorted(counts):
+        print(f"  {k}: {counts[k]}")
+    driver.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
