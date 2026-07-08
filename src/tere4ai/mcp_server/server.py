@@ -1,13 +1,20 @@
-"""FastMCP server exposing the M1 read-only tools over the offline dump.
+"""FastMCP server exposing the read-only TERE4AI tools over the offline dumps.
 
-Wraps the pure functions in tools.py as read-only MCP tools. The dump is
-read from data/graph_dumps/layer1.json (the versioned build artifact); no
-running Neo4j is required to answer the M1 tools. If the dump has not been
-built, the tools return a degraded envelope instead of failing silently
-(architecture.md Section 13).
+Wraps the pure functions in tools.py, classify.py, requirements.py,
+evidence.py, and backlog.py as read-only MCP tools (no write surface,
+architecture.md Section 8). The Layer 0+1 dump is read from
+data/graph_dumps/layer1.json and the judged norms payload from
+data/graph_dumps/norms_core.json (versioned build artifacts); no running
+Neo4j is required. If a dump has not been built, the tools return a
+degraded envelope instead of failing silently (Section 13).
+
+evaluate_project_evidence and generate_control_backlog perform PAID model
+calls (OpenAI generator plus Anthropic runtime grounding judge); their
+descriptions say so, and a missing model configuration surfaces as a clean
+degraded envelope, never a traceback.
 
 @implements: DEC-08, DEC-10
-@grounded_by: REF-16, REF-17, REF-15
+@grounded_by: REF-16, REF-17, REF-15, REF-31
 """
 
 from __future__ import annotations
@@ -18,57 +25,261 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from tere4ai.judge.config import ModelConfigError, load_model_config
+from tere4ai.mcp_server import backlog as backlog_rules
+from tere4ai.mcp_server import classify as classify_rules
+from tere4ai.mcp_server import evidence as evidence_rules
+from tere4ai.mcp_server import requirements as requirements_rules
 from tere4ai.mcp_server import tools
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DUMP_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "layer1.json"
+NORMS_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "norms_core.json"
 SNAPSHOTS_DIR = _PROJECT_ROOT / "data" / "snapshots"
 
+# Facade-parity cap on backlog input norms (http_facade.app.MAX_BACKLOG_NORMS).
+MAX_BACKLOG_NORMS = 10
+
 _READ_ONLY = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False}
+# Paid tools stay read-only against the graph but reach external model APIs.
+_READ_ONLY_PAID = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": True}
 
 mcp = FastMCP(
     name="tere4ai",
     instructions=(
-        "TERE4AI v2 M1 tools over the EU AI Act Layer 0+1 structural graph. "
-        "Read-only. " + tools.NON_LEGAL_ADVICE_NOTICE
+        "TERE4AI v2 tools over the EU AI Act graph: M1 structural tools "
+        "(coverage_report, source_trace) plus M3 runtime tools "
+        "(classify_ai_system, get_applicable_requirements, "
+        "evaluate_project_evidence, generate_control_backlog). Read-only; "
+        "evaluate_project_evidence and generate_control_backlog perform paid "
+        "model calls. " + tools.NON_LEGAL_ADVICE_NOTICE
     ),
 )
 
 
-def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:
-    if not dump_path.is_file():
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
         return None
     try:
-        return json.loads(dump_path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+
+
+def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:
+    return _read_json(dump_path)
+
+
+def _dump_missing_envelope() -> dict[str, Any]:
+    return tools.dump_unavailable_envelope(
+        f"graph dump not available at {DUMP_PATH}; build it with "
+        "python -m tere4ai.parse_legal_structure"
+    )
+
+
+def _norms_missing_envelope() -> dict[str, Any]:
+    return tools.dump_unavailable_envelope(
+        f"judged norms payload not available at {NORMS_PATH}; build it with "
+        "python -m tere4ai.extract_norms"
+    )
+
+
+def _graph_version(dump: dict[str, Any]) -> str:
+    return str(dump.get("build", {}).get("build_id", "unknown"))
+
+
+def _norm_by_id(norms_payload: dict[str, Any], norm_id: str) -> dict[str, Any] | None:
+    return next(
+        (
+            n
+            for n in norms_payload.get("norms", [])
+            if isinstance(n, dict) and n.get("norm_id") == norm_id
+        ),
+        None,
+    )
+
+
+def _paid_clients_or_envelope() -> tuple[Any, Any] | dict[str, Any]:
+    """Real generator and judge, or a clean degraded envelope on config error."""
+    try:
+        from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+
+        cfg = load_model_config()
+        return OpenAIGenerator(cfg), AnthropicJudge(cfg)
+    except ModelConfigError as exc:
+        return tools.make_envelope(
+            answer=None,
+            status="requires_human_review",
+            graph_version="unavailable",
+            confidence=0.0,
+            missing_facts=[str(exc)],
+        )
 
 
 @mcp.tool(annotations=_READ_ONLY)
 def coverage_report() -> dict[str, Any]:
     """Structural coverage of the Layer 0+1 graph against the M1 acceptance
     (113 articles, 180 recitals, 13 annexes, chapters I to XIII, high-risk
-    core presence), with per-chapter article listing and layer 2/3 status."""
+    core presence), with per-chapter article listing and layer 2/3 status.
+    Deterministic and free."""
     dump = _read_dump()
     if dump is None:
-        return tools.dump_unavailable_envelope(
-            f"graph dump not available at {DUMP_PATH}; build it with "
-            "python -m tere4ai.parse_legal_structure"
-        )
+        return _dump_missing_envelope()
     return tools.coverage_report(dump)
 
 
 @mcp.tool(annotations=_READ_ONLY)
 def source_trace(node_id: str) -> dict[str, Any]:
     """Trace a graph node to its frozen source snapshot: file, sha256, span
-    start/end, HTML anchor, and a text excerpt."""
+    start/end, HTML anchor, and a text excerpt. Deterministic and free."""
     dump = _read_dump()
     if dump is None:
-        return tools.dump_unavailable_envelope(
-            f"graph dump not available at {DUMP_PATH}; build it with "
-            "python -m tere4ai.parse_legal_structure"
-        )
+        return _dump_missing_envelope()
     return tools.source_trace(dump, node_id, snapshots_dir=SNAPSHOTS_DIR)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic EU AI Act risk classification of a described AI system.
+
+    Consumes structured system features (system_features.schema.json) and
+    returns risk_category (prohibited, high_risk, transparency_only,
+    minimal_or_none, uncertain) with cited Article 5 / Article 6 / Annex III
+    / Article 50 nodes. A fixed rule ladder decides, never a model; unknown
+    prohibition-relevant facts surface in missing_facts and lower the status
+    to requires_human_review. Free, no model calls."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    return classify_rules.classify_ai_system(features, dump)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def get_applicable_requirements(
+    classification: dict[str, Any], actor: str | None = None
+) -> dict[str, Any]:
+    """Judge-accepted engineering requirements applicable to a classified
+    system, grouped by source article.
+
+    classification is the classify_ai_system envelope (or its bare answer).
+    Only judge-ACCEPTED NormativeStatements are returned; prohibited systems
+    get zero requirements, only the prohibition citation. The optional actor
+    filter uses the canonical actor vocabulary (provider, deployer, ...).
+    Deterministic selection over the judged build artifact; free, no model
+    calls."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    norms_payload = _read_json(NORMS_PATH)
+    if norms_payload is None:
+        return _norms_missing_envelope()
+    return requirements_rules.get_applicable_requirements(
+        classification, norms_payload, dump, actor=actor
+    )
+
+
+@mcp.tool(annotations=_READ_ONLY_PAID)
+def evaluate_project_evidence(
+    norm_id: str,
+    artifact_type: str,
+    content: str,
+    artifact_id: str | None = None,
+) -> dict[str, Any]:
+    """Evaluate ONE untrusted project evidence artifact against ONE
+    judge-accepted norm from the graph.
+
+    PAID: this tool performs paid model calls (one OpenAI generator call
+    plus one Anthropic runtime grounding judge call) on every invocation.
+
+    norm_id must be a judge-accepted NormativeStatement id from
+    get_applicable_requirements. Returns the assessment (satisfied,
+    partially_satisfied, missing, contradicted, cannot_assess), the
+    surviving verbatim quotes, the gaps, and the judge verdict and
+    rationale; a non-accepting judge verdict degrades the status to
+    requires_human_review, never silently."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    norms_payload = _read_json(NORMS_PATH)
+    if norms_payload is None:
+        return _norms_missing_envelope()
+    norm = _norm_by_id(norms_payload, norm_id)
+    if norm is None:
+        return tools.make_envelope(
+            answer={"norm_id": norm_id, "found": False},
+            status="not_applicable",
+            graph_version=_graph_version(dump),
+            confidence=0.0,
+            missing_facts=[
+                f"norm_id '{norm_id}' is not present in the judged norms payload"
+            ],
+        )
+    clients = _paid_clients_or_envelope()
+    if isinstance(clients, dict):
+        return clients
+    generator, judge = clients
+    return evidence_rules.evaluate_project_evidence(
+        norm,
+        {"artifact_type": artifact_type, "content": content, "artifact_id": artifact_id},
+        generator,
+        judge,
+        graph_version=_graph_version(dump),
+    )
+
+
+@mcp.tool(annotations=_READ_ONLY_PAID)
+def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[str, Any]:
+    """Generate a judged engineering control backlog from judge-accepted
+    norms.
+
+    PAID: this tool performs paid model calls (one OpenAI generator call
+    plus one Anthropic runtime grounding judge call) on every invocation.
+
+    norm_ids are NormativeStatement ids from get_applicable_requirements
+    (capped at 10; any truncation is noted in the answer, never silent).
+    Every backlog item cites only input norm ids; items citing anything else
+    are dropped and counted. The judge verdict gates the whole backlog."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    norms_payload = _read_json(NORMS_PATH)
+    if norms_payload is None:
+        return _norms_missing_envelope()
+    if not norm_ids:
+        return tools.make_envelope(
+            answer=None,
+            status="not_applicable",
+            graph_version=_graph_version(dump),
+            confidence=0.0,
+            missing_facts=["norm_ids is empty; at least one judge-accepted norm id is required"],
+        )
+    unknown = [
+        norm_id for norm_id in norm_ids if _norm_by_id(norms_payload, norm_id) is None
+    ]
+    if unknown:
+        return tools.make_envelope(
+            answer={"unknown_norm_ids": unknown},
+            status="not_applicable",
+            graph_version=_graph_version(dump),
+            confidence=0.0,
+            missing_facts=[
+                f"norm_id '{n}' is not present in the judged norms payload"
+                for n in unknown
+            ],
+        )
+    norms = [_norm_by_id(norms_payload, norm_id) for norm_id in norm_ids]
+    clients = _paid_clients_or_envelope()
+    if isinstance(clients, dict):
+        return clients
+    generator, judge = clients
+    return backlog_rules.generate_control_backlog(
+        norms,
+        system_context,
+        generator,
+        judge,
+        max_norms=MAX_BACKLOG_NORMS,
+        graph_version=_graph_version(dump),
+    )
 
 
 if __name__ == "__main__":

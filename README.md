@@ -50,13 +50,48 @@ docker compose up -d
 cd web && npm install && npm run build && npx next start
 ```
 
+## Demo flow (M3)
+
+The full demo flow (classify, requirements, evidence evaluation, backlog)
+runs against the thin HTTP facade, which calls the same pure functions the
+MCP server exposes. The UI never touches the database or model APIs
+directly.
+
+```bash
+# 1. facade on port 8008 (loopback; CORS only for localhost:3111)
+.venv/bin/uvicorn tere4ai.http_facade.app:app --port 8008
+
+# 2. demo UI on port 3111, then open http://localhost:3111/assess
+cd web && npm run build && npx next start -p 3111
+```
+
+/api/classify and /api/requirements are deterministic and free.
+/api/evidence and /api/backlog perform PAID model calls (OpenAI generator
+plus Anthropic runtime grounding judge; keys in .env, see .env.example) and
+mark their responses with the X-TERE4AI-Paid-Call header.
+
 ## Status
 
-M1 in progress: deterministic Layer 1 structural mirror over the full Act,
-version pin (base Act in force, Digital Omnibus as an amending source),
-coverage_report and source_trace tools, traceability gate. Deep normative
-extraction (Layer 2/3) and the judges arrive in M2/M3; see
-docs/architecture.md Section 14.
+M1 to M3 implemented, M4 harness ready (see docs/architecture.md Section 14
+and docs/traceability.md, which is generated from code tags):
+
+- M1: deterministic Layer 1 mirror of the full Act (113 articles, 180
+  recitals, 13 annexes, 467 points, 217 annex items), version pin (base Act
+  in force, Digital Omnibus as an amending source), crossrefs, coverage and
+  trace tools, traceability gate.
+- M2: judged Layer 2/3 over the high-risk core. 434 extracted norms (339
+  judge-accepted), 620 reified HLEG alignment assertions (475 accepted),
+  independent judge family (OpenAI generator, Anthropic judges), all in
+  Neo4j with per-edge provenance and full audit logs.
+- M3: runtime tools. Deterministic classify_ai_system (rules over real
+  Article 5 and Annex III nodes, never an LLM) and
+  get_applicable_requirements; judged evaluate_project_evidence and
+  generate_control_backlog gated by the runtime grounding judge; all six
+  tools on the MCP server; HTTP facade plus the /assess demo flow.
+- M4: evaluation harness with the five-condition ablation ladder, Section 12
+  metrics, a 10-item seed gold set, and the located REF-15 benchmark. Live
+  ablation runs and the full 60-80 item gold set are pending research work
+  (cost-gated; see eval/README.md).
 
 ## License
 

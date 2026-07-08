@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -25,8 +26,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
               TERE4AI v2
             </span>
-            <span className="text-xs text-muted-foreground ml-auto">
-              M1 structural mirror, read-only demo
+            <nav className="ml-auto flex items-center gap-4 text-sm font-medium">
+              <Link href="/" className="transition-colors hover:text-primary">
+                Coverage
+              </Link>
+              <Link href="/assess" className="transition-colors hover:text-primary">
+                Assess
+              </Link>
+            </nav>
+            <span className="hidden sm:inline text-xs text-muted-foreground">
+              thin read-only demo
             </span>
           </div>
         </header>

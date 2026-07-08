@@ -1,0 +1,278 @@
+"""Thin HTTP facade for the M3 demo web UI.
+
+@implements: DEC-08
+@grounded_by: REF-31
+
+Loopback-only intent (architecture.md Section 9): the demo UI never touches
+the database or model APIs directly. This facade calls the same pure
+functions the MCP server exposes (classify_ai_system,
+get_applicable_requirements, evaluate_project_evidence,
+generate_control_backlog) over the versioned offline graph dumps.
+
+Behavioral contract:
+- The Layer 0+1 dump (layer1.json) and the judged norms payload
+  (norms_core.json) are loaded once at startup. If either is missing, every
+  endpoint returns a clean 503 JSON payload, never a traceback (no silent
+  degradation, Section 13).
+- /api/classify and /api/requirements are deterministic and free.
+- /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
+  plus Anthropic runtime grounding judge). Model clients are built lazily
+  per request; a missing key surfaces the ModelConfigError message as a
+  clean JSON error. Paid responses carry the header X-TERE4AI-Paid-Call.
+- The backlog endpoint caps the norms used at MAX_BACKLOG_NORMS (10)
+  regardless of the tool's own maximum; the cap is never silent (the tool
+  notes the truncation in the answer).
+- CORS is open only to the local demo UI origin (localhost:3111).
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+from tere4ai.judge.config import ModelConfigError, load_model_config
+from tere4ai.mcp_server import backlog as backlog_tool
+from tere4ai.mcp_server import classify as classify_tool
+from tere4ai.mcp_server import evidence as evidence_tool
+from tere4ai.mcp_server import requirements as requirements_tool
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_DUMP_DIR = _PROJECT_ROOT / "data" / "graph_dumps"
+DUMP_DIR_ENV = "TERE4AI_DUMP_DIR"
+
+# Default facade port for the demo flow (README, web/src/app/assess).
+FACADE_PORT = 8008
+
+# The demo UI's local origin; the facade is loopback-intended, so nothing else.
+ALLOWED_ORIGINS = ("http://localhost:3111", "http://127.0.0.1:3111")
+
+# Facade-level cap on backlog input norms, regardless of the tool's own max.
+MAX_BACKLOG_NORMS = 10
+
+PAID_HEADER = "X-TERE4AI-Paid-Call"
+
+
+class ClassifyRequest(BaseModel):
+    features: dict[str, Any]
+
+
+class RequirementsRequest(BaseModel):
+    classification: dict[str, Any]
+    actor: str | None = None
+
+
+class EvidenceRequest(BaseModel):
+    norm_id: str
+    artifact_type: str
+    content: str
+    artifact_id: str | None = None
+
+
+class BacklogRequest(BaseModel):
+    norm_ids: list[str] = Field(min_length=1)
+    system_context: str
+
+
+def _load_json(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _build_paid_clients() -> tuple[Any, Any]:
+    """Construct the real generator and judge lazily, per paid request.
+
+    Raises ModelConfigError when keys or model ids are missing; the caller
+    turns that into a clean JSON error, never a traceback.
+    """
+    cfg = load_model_config()
+    return OpenAIGenerator(cfg), AnthropicJudge(cfg)
+
+
+def create_app(dump_dir: Path | str | None = None) -> FastAPI:
+    """Facade app factory. dump_dir overrides the graph dump location
+    (also settable via the TERE4AI_DUMP_DIR environment variable)."""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        base = Path(dump_dir or os.environ.get(DUMP_DIR_ENV) or DEFAULT_DUMP_DIR)
+        app.state.dump = _load_json(base / "layer1.json")
+        app.state.norms = _load_json(base / "norms_core.json")
+        missing = [
+            name
+            for name, payload in (("layer1.json", app.state.dump), ("norms_core.json", app.state.norms))
+            if payload is None
+        ]
+        app.state.load_error = (
+            f"graph dumps unavailable: missing or unreadable {', '.join(missing)} "
+            f"under {base}; build them with python -m tere4ai.parse_legal_structure "
+            "and python -m tere4ai.extract_norms"
+            if missing
+            else None
+        )
+        yield
+
+    app = FastAPI(title="TERE4AI v2 demo facade", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(ALLOWED_ORIGINS),
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+        expose_headers=[PAID_HEADER],
+    )
+
+    def _unavailable(request: Request) -> JSONResponse | None:
+        error = request.app.state.load_error
+        if error is None:
+            return None
+        return JSONResponse(status_code=503, content={"error": error})
+
+    def _graph_version(request: Request) -> str:
+        dump = request.app.state.dump or {}
+        return str(dump.get("build", {}).get("build_id", "unknown"))
+
+    def _norms_by_id(request: Request) -> dict[str, dict[str, Any]]:
+        payload = request.app.state.norms or {}
+        return {
+            n["norm_id"]: n
+            for n in payload.get("norms", [])
+            if isinstance(n, dict) and "norm_id" in n
+        }
+
+    @app.get("/api/health")
+    def health(request: Request) -> JSONResponse:
+        error = request.app.state.load_error
+        if error is not None:
+            return JSONResponse(status_code=503, content={"ok": False, "error": error})
+        norms_build = str(
+            (request.app.state.norms or {}).get("build", {}).get("build_id", "unknown")
+        )
+        return JSONResponse(
+            content={
+                "ok": True,
+                "graph_version": _graph_version(request),
+                "norms_build": norms_build,
+            }
+        )
+
+    @app.post("/api/classify")
+    def classify(request: Request, body: ClassifyRequest) -> JSONResponse:
+        # Deterministic and free; invalid features come back as a
+        # not_applicable envelope with the schema errors in missing_facts.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        envelope = classify_tool.classify_ai_system(body.features, request.app.state.dump)
+        return JSONResponse(content=envelope)
+
+    @app.post("/api/requirements")
+    def requirements(request: Request, body: RequirementsRequest) -> JSONResponse:
+        # Deterministic and free; consumes the /api/classify envelope.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        envelope = requirements_tool.get_applicable_requirements(
+            body.classification,
+            request.app.state.norms,
+            request.app.state.dump,
+            actor=body.actor,
+        )
+        return JSONResponse(content=envelope)
+
+    @app.post("/api/evidence")
+    def evidence(request: Request, body: EvidenceRequest) -> JSONResponse:
+        # PAID: one generator call plus one runtime grounding judge call.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        norm = _norms_by_id(request).get(body.norm_id)
+        if norm is None:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": f"unknown norm_id {body.norm_id!r}: not present in the "
+                    "judged norms payload (norms_core.json)",
+                    "norm_id": body.norm_id,
+                },
+            )
+        try:
+            generator, judge = _build_paid_clients()
+        except ModelConfigError as exc:
+            return JSONResponse(status_code=503, content={"error": str(exc)})
+        try:
+            envelope = evidence_tool.evaluate_project_evidence(
+                norm,
+                {
+                    "artifact_type": body.artifact_type,
+                    "content": body.content,
+                    "artifact_id": body.artifact_id,
+                },
+                generator,
+                judge,
+                graph_version=_graph_version(request),
+            )
+        except ValueError as exc:
+            return JSONResponse(status_code=422, content={"error": str(exc)})
+        except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
+            return JSONResponse(
+                status_code=502, content={"error": f"model call failed: {exc}"}
+            )
+        return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
+
+    @app.post("/api/backlog")
+    def backlog(request: Request, body: BacklogRequest) -> JSONResponse:
+        # PAID: one generator call plus one runtime grounding judge call.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        norms_by_id = _norms_by_id(request)
+        unknown = [norm_id for norm_id in body.norm_ids if norm_id not in norms_by_id]
+        if unknown:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "unknown norm_ids: not present in the judged norms "
+                    "payload (norms_core.json)",
+                    "unknown_norm_ids": unknown,
+                },
+            )
+        norms = [norms_by_id[norm_id] for norm_id in body.norm_ids]
+        try:
+            generator, judge = _build_paid_clients()
+        except ModelConfigError as exc:
+            return JSONResponse(status_code=503, content={"error": str(exc)})
+        try:
+            envelope = backlog_tool.generate_control_backlog(
+                norms,
+                body.system_context,
+                generator,
+                judge,
+                # Facade-level cap; the tool notes any truncation, never silent.
+                max_norms=MAX_BACKLOG_NORMS,
+                graph_version=_graph_version(request),
+            )
+        except ValueError as exc:
+            return JSONResponse(status_code=422, content={"error": str(exc)})
+        except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
+            return JSONResponse(
+                status_code=502, content={"error": f"model call failed: {exc}"}
+            )
+        return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
+
+    return app
+
+
+# Default instance for `uvicorn tere4ai.http_facade.app:app --port 8008`.
+app = create_app()
