@@ -23,8 +23,8 @@ type UiData = {
       expected: Record<string, number | string[]>;
       actual: Record<string, number | string[]>;
       high_risk_core: { expected_articles: number[]; present: number[]; missing: number[] };
-      layer2_nodes: { count: number; status: string };
-      layer3_nodes: { count: number; status: string };
+      layer2_nodes: { count: number; status: string; verdicts?: Record<string, number> };
+      layer3_nodes: { count: number; status: string; verdicts?: Record<string, number> };
       checks: Record<string, boolean>;
     };
     status: string;
@@ -128,19 +128,23 @@ export default function Page() {
                 </tr>
               ))}
               <tr className="border-t border-border">
-                <td className="py-1.5">Layer 2 normative nodes</td>
-                <td className="py-1.5 font-mono">0 (M1)</td>
+                <td className="py-1.5">Layer 2 judged norms (high-risk core)</td>
+                <td className="py-1.5 font-mono">-</td>
                 <td className="py-1.5 font-mono">{a.layer2_nodes.count}</td>
                 <td className="py-1.5 text-muted-foreground">
-                  {a.layer2_nodes.status} (M2)
+                  {a.layer2_nodes.verdicts
+                    ? `accepted ${a.layer2_nodes.verdicts.accepted ?? 0} / rejected ${a.layer2_nodes.verdicts.rejected ?? 0} / review ${a.layer2_nodes.verdicts.needs_human_review ?? 0}`
+                    : a.layer2_nodes.status}
                 </td>
               </tr>
               <tr className="border-t border-border">
-                <td className="py-1.5">Layer 3 ethics nodes</td>
-                <td className="py-1.5 font-mono">0 (M1)</td>
+                <td className="py-1.5">Layer 3 judged alignments (reified)</td>
+                <td className="py-1.5 font-mono">-</td>
                 <td className="py-1.5 font-mono">{a.layer3_nodes.count}</td>
                 <td className="py-1.5 text-muted-foreground">
-                  {a.layer3_nodes.status} (M2)
+                  {a.layer3_nodes.verdicts
+                    ? `accepted ${a.layer3_nodes.verdicts.accepted ?? 0} / rejected ${a.layer3_nodes.verdicts.rejected ?? 0}`
+                    : a.layer3_nodes.status}
                 </td>
               </tr>
             </tbody>

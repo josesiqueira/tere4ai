@@ -1,0 +1,26 @@
+{
+  "_comment": "Regression fixture for the v1 slice (architecture.md Section 14, M2). Derived from the first full judged build (build-3b753e5e9297, 2026-07-08) instead of migrating the unvalidated v1 mappings (user decision). Asserts each article's DOMINANT accepted HLEG target and a minimum accepted-assertion count, robust to count jitter across pipeline re-runs. The dominant targets reproduce the v1 poster's flagship mappings.",
+  "expectations": {
+    "article-9": {
+      "dominant_target": "hleg:technical-robustness-and-safety",
+      "min_accepted": 10
+    },
+    "article-10": {
+      "dominant_target": "hleg:privacy-and-data-governance",
+      "min_accepted": 15,
+      "must_also_hit": ["hleg:diversity-non-discrimination-and-fairness"]
+    },
+    "article-13": {
+      "dominant_target": "hleg:transparency",
+      "min_accepted": 10
+    },
+    "article-14": {
+      "dominant_target": "hleg:human-agency-and-oversight",
+      "min_accepted": 8
+    },
+    "article-15": {
+      "dominant_target": "hleg:technical-robustness-and-safety",
+      "min_accepted": 8
+    }
+  }
+}

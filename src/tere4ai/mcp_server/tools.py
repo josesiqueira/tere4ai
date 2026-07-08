@@ -109,14 +109,61 @@ def _legal_status_notes(nodes: list[dict[str, Any]]) -> list[str]:
     ]
 
 
-def coverage_report(dump: dict[str, Any]) -> dict[str, Any]:
+def _verdict_breakdown(items: list[dict[str, Any]]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for item in items:
+        verdict = item.get("judge_verdict", "unknown")
+        out[verdict] = out.get(verdict, 0) + 1
+    return out
+
+
+def _layer2_block(dump_count: int, norms_payload: dict[str, Any] | None) -> dict[str, Any]:
+    if norms_payload is None:
+        return {
+            "count": dump_count,
+            "status": "not_started" if dump_count == 0 else "in_progress",
+        }
+    norms = norms_payload.get("norms", [])
+    return {
+        "count": len(norms),
+        "status": "populated_high_risk_core",
+        "verdicts": _verdict_breakdown(norms),
+    }
+
+
+def _layer3_block(
+    dump_count: int, alignments_payload: dict[str, Any] | None
+) -> dict[str, Any]:
+    if alignments_payload is None:
+        return {
+            "count": dump_count,
+            "status": "not_started" if dump_count == 0 else "in_progress",
+        }
+    assertions = alignments_payload.get("assertions", [])
+    return {
+        "count": len(assertions),
+        "status": "populated_high_risk_core",
+        "verdicts": _verdict_breakdown(assertions),
+        "hleg_requirements": 7,
+    }
+
+
+def coverage_report(
+    dump: dict[str, Any],
+    norms_payload: dict[str, Any] | None = None,
+    alignments_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Structural coverage of the Layer 0+1 dump against the M1 acceptance.
 
     Checks the expected counts (113 articles, 180 recitals, 13 annexes,
     chapters I to XIII, a nonzero paragraph count), lists articles per
-    chapter, reports layer 2 and layer 3 node counts (0 and not_started in
-    M1), and verifies structural presence of the Section 10 high-risk core
-    article set.
+    chapter, reports layer 2 and layer 3 node counts, and verifies structural
+    presence of the Section 10 high-risk core article set.
+
+    When the judged M2 build artifacts are passed (norms_payload from
+    extract_norms, alignments_payload from align_hleg_altai), the layer 2 and
+    3 blocks report the real judged counts with verdict breakdowns instead of
+    the dump-derived zeros.
     """
     nodes = dump.get("nodes", [])
     edges = dump.get("edges", [])
@@ -222,14 +269,8 @@ def coverage_report(dump: dict[str, Any]) -> dict[str, Any]:
             "present": [a for a in HIGH_RISK_CORE_ARTICLES if a in article_numbers],
             "missing": missing_core,
         },
-        "layer2_nodes": {
-            "count": layer2_count,
-            "status": "not_started" if layer2_count == 0 else "in_progress",
-        },
-        "layer3_nodes": {
-            "count": layer3_count,
-            "status": "not_started" if layer3_count == 0 else "in_progress",
-        },
+        "layer2_nodes": _layer2_block(layer2_count, norms_payload),
+        "layer3_nodes": _layer3_block(layer3_count, alignments_payload),
         "checks": checks,
     }
 

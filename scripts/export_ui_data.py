@@ -112,8 +112,16 @@ def build_structure(dump: dict) -> dict:
 
 def main() -> None:
     dump = json.loads(DUMP_PATH.read_text(encoding="utf-8"))
+    norms_payload = None
+    alignments_payload = None
+    norms_path = DUMP_PATH.parent / "norms_core.json"
+    alignments_path = DUMP_PATH.parent / "alignments_core.json"
+    if norms_path.exists():
+        norms_payload = json.loads(norms_path.read_text(encoding="utf-8"))
+    if alignments_path.exists():
+        alignments_payload = json.loads(alignments_path.read_text(encoding="utf-8"))
     payload = {
-        "coverage": coverage_report(dump),
+        "coverage": coverage_report(dump, norms_payload, alignments_payload),
         "structure": build_structure(dump),
         "build": dump["build"],
         "review_queue_count": len(dump.get("review_queue", [])),
