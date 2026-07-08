@@ -1,0 +1,5 @@
+{
+  "milestone": "M1",
+  "expected": ["DEC-01", "DEC-02", "DEC-08", "DEC-09", "DEC-10", "DEC-12"],
+  "note": "Decisions whose absence fails CI at this milestone. Full Section 17 enforcement (all decisions) arrives by M4. This gating is the practical reading of Section 17 so early milestones can build; documented deviation."
+}

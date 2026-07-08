@@ -5,10 +5,12 @@ services:
     image: neo4j:5
     container_name: tere4ai2_neo4j
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      # bind to loopback only; this is a self-hosted single-machine deployment
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
     environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-tere4ai2_dev_password}
+      # no default: compose fails fast if NEO4J_PASSWORD is unset (set it in .env)
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in .env}
       - NEO4J_PLUGINS=["apoc", "n10s"]
     volumes:
       - neo4j_data:/data
