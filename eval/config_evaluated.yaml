@@ -1,0 +1,24 @@
+# Model configuration of record for evaluated builds (DEC-07 verify target).
+# Generated values must match the .env used for the run; the eval harness
+# (M4) refuses to report results whose config does not match this file.
+generator:
+  family: openai
+  model: gpt-5.2
+  temperature: 0
+judges:
+  family: anthropic          # independent non-OpenAI family (DEC-07, 2026-07-08)
+  model: claude-opus-4-8
+  temperature: 0
+  kinds: [extraction, mapping, runtime_grounding]
+prompt_versions:
+  extract_norms: v1
+  judge_norms: v1
+  align_hleg: v1
+  judge_alignment: v1
+  evaluate_evidence: v1
+  generate_backlog: v1
+  runtime_grounding: v1
+builds:
+  layer1: build-3b753e5e9297
+  norms: norms_core.json (2026-07-08, 434 norms, 339 accepted)
+  alignments: alignments_core.json (2026-07-08, 620 assertions, 475 accepted)

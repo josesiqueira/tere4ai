@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai.org/schema/system_features.schema.json",
+  "title": "TERE4AI v2 runtime input: AI system features",
+  "description": "Structured facts about the consumer's AI system, provided by the human or coding agent. classify_ai_system consumes this; it never guesses missing facts, it reports them in missing_facts (docs/architecture.md Sections 7 and 8). Free-text description is context only; classification decisions rest on the structured fields.",
+  "type": "object",
+  "required": ["description"],
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Plain-language description of the system (context; not the decision basis)"
+    },
+    "domain": {
+      "type": ["string", "null"],
+      "description": "Primary domain, free vocabulary (e.g. healthcare, education, employment, law_enforcement, migration, justice, banking, insurance, critical_infrastructure, consumer)"
+    },
+    "purposes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What the system is intended to do, short phrases"
+    },
+    "autonomy": {
+      "enum": ["advisory", "partial", "full", null],
+      "description": "Does the output merely inform a human decision (advisory) or drive it"
+    },
+    "flags": {
+      "type": "object",
+      "description": "Boolean facts. Absent flag = unknown, which is NOT treated as false for prohibition-relevant flags; unknowns surface in missing_facts.",
+      "properties": {
+        "biometric_identification": { "type": "boolean" },
+        "biometric_categorisation": { "type": "boolean" },
+        "real_time_remote_biometric_public": { "type": "boolean" },
+        "emotion_recognition": { "type": "boolean" },
+        "emotion_recognition_workplace_or_education": { "type": "boolean" },
+        "social_scoring": { "type": "boolean" },
+        "subliminal_or_manipulative": { "type": "boolean" },
+        "exploits_vulnerabilities": { "type": "boolean" },
+        "predictive_policing_profiling": { "type": "boolean" },
+        "facial_image_scraping": { "type": "boolean" },
+        "law_enforcement_use": { "type": "boolean" },
+        "migration_asylum_border_use": { "type": "boolean" },
+        "justice_democratic_use": { "type": "boolean" },
+        "education_scoring_or_access": { "type": "boolean" },
+        "employment_decisions": { "type": "boolean" },
+        "essential_services_access": { "type": "boolean" },
+        "critical_infrastructure_safety": { "type": "boolean" },
+        "medical_or_safety_component": { "type": "boolean" },
+        "interacts_with_natural_persons": { "type": "boolean" },
+        "generates_synthetic_content": { "type": "boolean" },
+        "profiling_of_natural_persons": { "type": "boolean" },
+        "preparatory_or_narrow_procedural_task": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "affected_persons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "deployer_actor": {
+      "type": ["string", "null"],
+      "description": "Who operates it (e.g. public_authority, private_company, individual)"
+    }
+  },
+  "additionalProperties": false
+}
