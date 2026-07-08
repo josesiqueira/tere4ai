@@ -1,6 +1,37 @@
 # TERE4AI v2, Phase 1 self-hosted (docs/architecture.md Section 9, Mode B)
-# Run: docker compose up -d
+# Neo4j only:       docker compose up -d
+# Full demo stack:  docker compose --profile demo up -d
+#   facade http://localhost:8008 (llms.txt, /.well-known/tere4ai.json)
+#   web    http://localhost:3111 (/assess needs OPENAI/ANTHROPIC keys in .env
+#   for the paid endpoints; classify and requirements work without them)
 services:
+  facade:
+    build:
+      context: .
+      target: core
+    container_name: tere4ai2_facade
+    profiles: [demo]
+    ports:
+      - "127.0.0.1:8008:8008"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - TERE4AI_GENERATOR_MODEL=${TERE4AI_GENERATOR_MODEL:-gpt-5.2}
+      - TERE4AI_JUDGE_MODEL=${TERE4AI_JUDGE_MODEL:-claude-opus-4-8}
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: web
+    container_name: tere4ai2_web
+    profiles: [demo]
+    ports:
+      - "127.0.0.1:3111:3111"
+    depends_on:
+      - facade
+    restart: unless-stopped
+
   neo4j:
     image: neo4j:5
     container_name: tere4ai2_neo4j
