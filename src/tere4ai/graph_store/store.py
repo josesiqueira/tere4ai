@@ -37,6 +37,11 @@ NODE_LABELS = frozenset(
         "AnnexItem",
         "Definition",
         "CrossReference",
+        "NormativeStatement",
+        "HLEGRequirement",
+        "AlignmentAssertion",
+        "MappingRun",
+        "JudgeRun",
     }
 )
 
@@ -54,6 +59,11 @@ EDGE_TYPES = frozenset(
         "AMENDS",
         "HAS_VERSION",
         "DERIVED_FROM_SOURCE",
+        "DERIVED_FROM",
+        "ASSERTS_ALIGNMENT_OF",
+        "ASSERTS_ALIGNMENT_TO",
+        "PRODUCED_BY_MAPPING_RUN",
+        "JUDGED_BY",
     }
 )
 
