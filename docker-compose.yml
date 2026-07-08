@@ -1,0 +1,25 @@
+# TERE4AI v2, Phase 1 self-hosted (docs/architecture.md Section 9, Mode B)
+# Run: docker compose up -d
+services:
+  neo4j:
+    image: neo4j:5
+    container_name: tere4ai2_neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-tere4ai2_dev_password}
+      - NEO4J_PLUGINS=["apoc", "n10s"]
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:
+  neo4j_logs:

@@ -1,0 +1,17 @@
+{
+  "snapshots": [
+    {
+      "file": "eu_ai_act_32024R1689_eurlex_html_2026-07-08.html",
+      "sha256": "3b753e5e9297ec27ede1324e670dc23ad4ac7c47a75374b6cdd9eb9e0db2993d",
+      "source_document": "eu-ai-act",
+      "celex": "32024R1689",
+      "eli": "http://data.europa.eu/eli/reg/2024/1689/oj",
+      "cellar_work_uuid": "dc8116a1-3fe6-11ef-865a-01aa75ed71a1",
+      "manifestation": "eurlex-html",
+      "language": "en",
+      "retrieved_at": "2026-07-08",
+      "legal_status": "in_force",
+      "notes": "Coarse Layer 1 source: article (art_N), recital (rct_N), annex (anx_R), paragraph (NNN.MMM) anchors. No point or annex-item anchors; Formex fmx4 (M2) covers that depth. See docs/architecture.md Section 6."
+    }
+  ]
+}

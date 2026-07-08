@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai.org/schema/edges.schema.json",
+  "title": "TERE4AI v2 graph edges",
+  "description": "No edge exists without provenance (docs/architecture.md Section 2). Every edge carries provenance_class plus a source span or derivation id.",
+  "type": "object",
+  "required": ["edge_id", "edge_type", "from", "to", "provenance_class", "method", "review_status", "build_id"],
+  "properties": {
+    "edge_id": { "type": "string" },
+    "edge_type": {
+      "enum": [
+        "HAS_CHAPTER",
+        "HAS_SECTION",
+        "HAS_ARTICLE",
+        "HAS_PARAGRAPH",
+        "HAS_POINT",
+        "HAS_RECITAL",
+        "HAS_ANNEX",
+        "HAS_ANNEX_ITEM",
+        "REFERS_TO",
+        "AMENDS",
+        "HAS_VERSION",
+        "DERIVED_FROM_SOURCE"
+      ]
+    },
+    "from": { "type": "string" },
+    "to": { "type": "string" },
+    "provenance_class": {
+      "enum": [
+        "EXTRACTED_SOURCE",
+        "EXTRACTED_CROSS_REFERENCE",
+        "RESOLVED_DETERMINISTIC",
+        "LLM_CANDIDATE",
+        "LLM_JUDGED_ACCEPTED",
+        "LLM_JUDGED_REJECTED",
+        "HUMAN_REVIEWED_ACCEPTED",
+        "HUMAN_REVIEWED_REJECTED",
+        "AMBIGUOUS_NEEDS_REVIEW"
+      ]
+    },
+    "source_span_id": { "type": "string" },
+    "derivation_id": { "type": "string" },
+    "method": { "type": "string", "description": "e.g. html_anchor_hierarchy, crossref_rule_v1" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "review_status": { "enum": ["auto_accepted", "needs_review", "accepted", "rejected"] },
+    "build_id": { "type": "string" },
+    "citation_text": { "type": "string", "description": "For REFERS_TO: the literal reference text, e.g. 'Annex III'" }
+  },
+  "anyOf": [
+    { "required": ["source_span_id"] },
+    { "required": ["derivation_id"] }
+  ],
+  "additionalProperties": false
+}

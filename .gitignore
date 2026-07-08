@@ -1,0 +1,34 @@
+# Cypher scratch (per user rules; never remove this entry)
+_queries.cypher
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# Neo4j local data
+neo4j_data/
+neo4j_logs/
+
+# Web
+web/node_modules/
+web/.next/
+
+# Large generated artifacts (dumps are published releases, not tracked)
+data/graph_dumps/*.json
+data/graph_dumps/*.dump
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

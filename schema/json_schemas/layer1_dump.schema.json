@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai.org/schema/layer1_dump.schema.json",
+  "title": "TERE4AI v2 Layer 0+1 graph dump",
+  "description": "The versioned build artifact produced by the deterministic pipeline and consumed by graph_store and the MCP tools. This is the contract between parser, resolver, store, and tools.",
+  "type": "object",
+  "required": ["build", "nodes", "edges"],
+  "properties": {
+    "build": {
+      "type": "object",
+      "required": ["build_id", "built_at", "tere4ai_version", "snapshots"],
+      "properties": {
+        "build_id": { "type": "string" },
+        "built_at": { "type": "string" },
+        "tere4ai_version": { "type": "string" },
+        "snapshots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "sha256"],
+            "properties": {
+              "file": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            }
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "https://tere4ai.org/schema/nodes.schema.json" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "https://tere4ai.org/schema/edges.schema.json" }
+    },
+    "review_queue": {
+      "type": "array",
+      "description": "Unresolved or ambiguous cross-references awaiting judgement (AMBIGUOUS_NEEDS_REVIEW).",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "kind", "citation_text", "source_span_id"],
+        "properties": {
+          "item_id": { "type": "string" },
+          "kind": { "enum": ["cross_reference"] },
+          "citation_text": { "type": "string" },
+          "source_span_id": { "type": "string" },
+          "from_node_id": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}

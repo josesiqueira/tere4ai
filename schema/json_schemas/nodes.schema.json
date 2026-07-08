@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai.org/schema/nodes.schema.json",
+  "title": "TERE4AI v2 graph nodes (Layers 0 and 1)",
+  "description": "Machine-readable source of truth for node shapes (docs/architecture.md Section 2). Layer 2+ node schemas are added in M2.",
+  "$defs": {
+    "nodeId": {
+      "type": "string",
+      "description": "ELI-like ID constructed deterministically by the parser from source structure (no eIds are served for this Regulation), e.g. eu-ai-act:article-9:paragraph-1",
+      "pattern": "^[a-z0-9][a-z0-9:._-]*$"
+    },
+    "sourceSpan": {
+      "type": "object",
+      "description": "Byte/char range in a frozen snapshot; the provenance anchor for every source-derived node.",
+      "required": ["span_id", "snapshot_file", "snapshot_sha256", "start", "end"],
+      "properties": {
+        "span_id": { "type": "string" },
+        "snapshot_file": { "type": "string" },
+        "snapshot_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 },
+        "anchor": { "type": "string", "description": "The HTML anchor id this span was located by, e.g. art_9, rct_12, 009.001" }
+      },
+      "additionalProperties": false
+    },
+    "legalStatus": {
+      "enum": ["in_force", "adopted_not_yet_applicable", "proposed", "draft", "non_binding", "superseded", "unknown_needs_review"]
+    },
+    "baseNode": {
+      "type": "object",
+      "required": ["id", "layer", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nodeId" },
+        "layer": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "type": { "type": "string" },
+        "source_span": { "$ref": "#/$defs/sourceSpan" }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "title": "SourceDocument (Layer 0)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "SourceDocument" },
+        "layer": { "const": 0 },
+        "title": { "type": "string" },
+        "celex": { "type": "string" },
+        "eli": { "type": "string" },
+        "legal_status": { "$ref": "#/$defs/legalStatus" },
+        "notes": { "type": "string" }
+      },
+      "required": ["title", "legal_status"]
+    },
+    {
+      "title": "SourceFile (Layer 0)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "SourceFile" },
+        "layer": { "const": 0 },
+        "file": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "manifestation": { "type": "string" },
+        "language": { "type": "string" },
+        "retrieved_at": { "type": "string" }
+      },
+      "required": ["file", "sha256"]
+    },
+    {
+      "title": "BuildRun (Layer 0)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "BuildRun" },
+        "layer": { "const": 0 },
+        "build_id": { "type": "string" },
+        "built_at": { "type": "string" },
+        "tere4ai_version": { "type": "string" }
+      },
+      "required": ["build_id", "built_at"]
+    },
+    {
+      "title": "Regulation (Layer 1)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Regulation" },
+        "layer": { "const": 1 },
+        "title": { "type": "string" }
+      }
+    },
+    {
+      "title": "Chapter (Layer 1)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Chapter" },
+        "layer": { "const": 1 },
+        "number": { "type": "string", "description": "Roman numeral string, e.g. 'III'" },
+        "title": { "type": "string" }
+      },
+      "required": ["number"]
+    },
+    {
+      "title": "Section (Layer 1)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Section" },
+        "layer": { "const": 1 },
+        "number": { "type": "integer" },
+        "title": { "type": "string" }
+      },
+      "required": ["number"]
+    },
+    {
+      "title": "Article (Layer 1)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Article" },
+        "layer": { "const": 1 },
+        "number": { "type": "integer", "minimum": 1, "maximum": 113 },
+        "title": { "type": "string" }
+      },
+      "required": ["number", "source_span"]
+    },
+    {
+      "title": "Paragraph (Layer 1)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Paragraph" },
+        "layer": { "const": 1 },
+        "index": { "type": "integer", "minimum": 1 },
+        "text": { "type": "string" }
+      },
+      "required": ["index", "source_span"]
+    },
+    {
+      "title": "Point (Layer 1; populated from Formex in M2)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Point" },
+        "layer": { "const": 1 },
+        "marker": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "required": ["marker", "source_span"]
+    },
+    {
+      "title": "Recital (Layer 1)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Recital" },
+        "layer": { "const": 1 },
+        "number": { "type": "integer", "minimum": 1, "maximum": 180 },
+        "text": { "type": "string" },
+        "binding": { "const": false, "description": "Recitals are context only, never binding (architecture.md Section 1)" }
+      },
+      "required": ["number", "source_span"]
+    },
+    {
+      "title": "Annex (Layer 1)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Annex" },
+        "layer": { "const": 1 },
+        "number": { "type": "string", "description": "Roman numeral string, e.g. 'III'" },
+        "title": { "type": "string" }
+      },
+      "required": ["number", "source_span"]
+    },
+    {
+      "title": "AnnexItem (Layer 1; populated from Formex in M2)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "AnnexItem" },
+        "layer": { "const": 1 },
+        "marker": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "required": ["marker", "source_span"]
+    }
+  ]
+}
