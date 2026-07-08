@@ -150,7 +150,6 @@ def main() -> int:
             if results.get(bi["id"], {}).get("risk_category")
             == bi["gold"].get("risk_category")
         )
-        bench_results = {k: v for k, v in results.items() if k.startswith("bench:")}
         # benchmark citation completeness at the benchmark's own granularity
         # (article level; predicted paragraph/point ids credit their article)
         found = required = 0
