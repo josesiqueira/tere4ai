@@ -5,13 +5,13 @@
 
 | decision_id | grounded_by | code_paths | test_ids | status |
 | --- | --- | --- | --- | --- |
-| DEC-01 | REF-27, REF-08 | src/tere4ai/parse_legal_structure/__main__.py, src/tere4ai/parse_legal_structure/parser.py | tests/integration/test_acceptance_m1.py, tests/meta/test_traceability.py | implemented |
+| DEC-01 | REF-27, REF-08, REF-05 | src/tere4ai/parse_legal_structure/__main__.py, src/tere4ai/parse_legal_structure/formex.py, src/tere4ai/parse_legal_structure/parser.py | tests/integration/test_acceptance_formex.py, tests/integration/test_acceptance_m1.py, tests/meta/test_traceability.py | partial (Formex point and annex-item depth) |
 | DEC-02 | REF-26, REF-29 | src/tere4ai/resolve_crossrefs/resolver.py | tests/integration/test_acceptance_m1.py, tests/meta/test_traceability.py | implemented |
 | DEC-03 |  |  |  | not_started |
 | DEC-04 |  |  |  | not_started |
 | DEC-05 |  |  |  | not_started |
 | DEC-06 |  |  |  | not_started |
-| DEC-07 |  |  |  | not_started |
+| DEC-07 | REF-24 | src/tere4ai/judge/config.py | tests/unit/test_model_config.py | implemented |
 | DEC-08 | REF-16, REF-17, REF-15 | src/tere4ai/mcp_server/server.py, src/tere4ai/mcp_server/tools.py | tests/unit/test_mcp_tools.py | implemented |
 | DEC-09 | REF-20, REF-21, REF-22, REF-08, REF-23 | src/tere4ai/graph_store/store.py | tests/unit/test_graph_store_offline.py | partial (Neo4j store; RDF export via n10s deferred to a later milestone) |
 | DEC-10 | REF-16, REF-17, REF-15 | src/tere4ai/mcp_server/server.py, src/tere4ai/mcp_server/tools.py, scripts/export_ui_data.py | tests/unit/test_mcp_tools.py | partial (M1 structural coverage view only) |

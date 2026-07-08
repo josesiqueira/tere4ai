@@ -138,12 +138,14 @@ by checksum:
     113 / 180 / 13 acceptance.
 (b) Formex 4 (fmx4) manifestation from CELLAR, for point, subparagraph, and
     annex-item granularity, which the HTML lacks and the high-risk core needs.
-    Retrieval is not on the ELI path: resolve CELEX 32024R1689 to the CELLAR work
-    UUID (dc8116a1-3fe6-11ef-865a-01aa75ed71a1), then fetch the English fmx4
-    manifestation. This is a scoped M2 task with its own acceptance test (Article
-    5(1)(c) and Annex III point 5(a) individually addressable); fmx4 existence is
-    confirmed, retrieving the exact English manifestation is CELLAR plumbing, not
-    simple content negotiation.
+    Retrieval (verified 2026-07-08): GET the CELLAR work URI
+    `http://publications.europa.eu/resource/cellar/dc8116a1-3fe6-11ef-865a-01aa75ed71a1`
+    with headers `Accept: application/zip;mtype=fmx4` and `Accept-Language: eng`.
+    The zip holds the main body (113 ARTICLE with IDENTIFIER attributes, 509
+    PARAG, points as NP with NO.P markers) plus one file per annex. Point and
+    annex-item markup is confirmed present: Article 5(1) points (a) to (d) with
+    nested romanettes, and Annex III point 5(a), both individually addressable.
+    The package is frozen under data/snapshots/formex/ with per-file checksums.
 Node IDs are derived deterministically by the parser from this structure
 (Section 2); this Regulation carries no eId attributes to lift. HTML and PDF
 renderings are also kept for human verification. Do not plan to download clean
@@ -178,9 +180,10 @@ Model configuration (updated per @USER.md, supersedes the earlier OVR-4
 recommendation):
 - TERE4AI internal models default to OpenAI, carried from v1. This is the
   generator for extraction, alignment, and runtime generation.
-- Judge model family is an OPEN decision (see Section 15). Recommendation:
-  keep the generator on OpenAI and use a non-OpenAI judge, because same-family
-  judges have correlated failure modes, which weakens the control (REF-24).
+- Judge model family (DECIDED 2026-07-08, was OPEN-JUDGE): generator on OpenAI,
+  judge on an independent non-OpenAI family (Anthropic Claude), because
+  same-family judges have correlated failure modes, which weakens the control
+  (REF-24). Both are config values in .env / eval config, never hardcoded.
 - All judge models are config values, never hardcoded. Every judge decision is
   logged (input, verdict, scores, rationale, model, prompt version, timestamp).
 - Note: the coding agents that BUILD the software (Opus 4.8 planning, Fable 5
@@ -360,9 +363,8 @@ Highest-risk components (evaluate explicitly, do not fold into general numbers):
   and one evaluation paper.
 
 Open decisions:
-- OPEN-JUDGE: judge model family. OpenAI-only (simpler, correlated failure
-  modes) versus OpenAI generator plus a non-OpenAI judge (stronger trust claim).
-  Recommendation: the latter.
+- OPEN-JUDGE: RESOLVED 2026-07-08. OpenAI generator plus an independent
+  non-OpenAI judge (Anthropic Claude); see Section 7.
 - OPEN-VENUE: exact target venue and deadline per planned paper.
 - OPEN-LICENSE: server AGPL-3.0-or-later; graph metadata CC BY 4.0 or CC0; EU
   legal text under EU reuse terms (do not claim ownership); ALTAI redistribution
@@ -402,8 +404,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-06: dual/triple judges. grounded_by REF-16, REF-24, REF-27.
   Defense: unjudged legal grounding is only 50 to 68 percent correct.
   verify: src/judge/ three entry points; runtime_grounding test asserts no answer without a verdict.
-- DEC-07: OpenAI generator, judge family open (recommend independent). grounded_by REF-24.
-  Defense: same-family judge failure modes correlate; user chose OpenAI internals.
+- DEC-07: OpenAI generator, independent non-OpenAI judge (decided 2026-07-08).
+  grounded_by REF-24.
+  Defense: same-family judge failure modes correlate; an independent judge
+  family strengthens the control and the thesis claim.
   verify: eval/config_evaluated.yaml records generator and judge models.
 - DEC-08: calibrated vocabulary, never "compliant". grounded_by REF-16, and the
   legal non-goal (Section 0). Defense: measured grounding limits and the legal

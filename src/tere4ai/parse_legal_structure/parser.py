@@ -465,6 +465,12 @@ def build_layer1(
     dump["nodes"] = l0_nodes + dump["nodes"]
     dump["edges"] = l0_edges + dump["edges"]
 
+    # Formex 4 pass: Point and AnnexItem depth from the frozen fmx4 member
+    # files (docs/architecture.md Section 6, route b). Deterministic, no LLM.
+    from tere4ai.parse_legal_structure.formex import enrich_with_formex
+
+    dump = enrich_with_formex(dump, manifest_path.parent / "formex", manifest_path)
+
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai.org/schema/norms.schema.json",
+  "title": "TERE4AI v2 Layer 2 normative statement",
+  "description": "Machine-readable contract for NormativeStatement nodes (docs/architecture.md Section 3, grounded in Institutional Grammar: actor = Attribute, deontic_type and modal = Deontic, action/object/conditions = Aim). An Article is not one requirement; each extracted norm is one node. No norm exists without a source span, and no norm is accepted without a judge verdict.",
+  "$defs": {
+    "deonticType": {
+      "enum": ["obligation", "prohibition", "permission", "right", "exemption"]
+    },
+    "modal": {
+      "description": "The literal modal signal in the text",
+      "enum": ["shall", "shall_not", "may", "may_not", "must", "should", "is_prohibited", "other_explicit"]
+    },
+    "actorRole": {
+      "description": "Canonical actor vocabulary (Section 3); extend only via canonicalize/, never ad hoc",
+      "enum": [
+        "provider",
+        "deployer",
+        "importer",
+        "distributor",
+        "authorised_representative",
+        "product_manufacturer",
+        "notified_body",
+        "notifying_authority",
+        "market_surveillance_authority",
+        "commission",
+        "ai_office",
+        "member_state",
+        "affected_person",
+        "operator_general",
+        "unspecified_needs_review"
+      ]
+    },
+    "lifecyclePhase": {
+      "enum": [
+        "design_development",
+        "data_and_training",
+        "verification_validation",
+        "placing_on_market",
+        "putting_into_service",
+        "operation_monitoring",
+        "substantial_modification",
+        "post_market",
+        "decommissioning",
+        "cross_phase"
+      ]
+    },
+    "judgeVerdict": {
+      "enum": ["accepted", "rejected", "needs_human_review", "pending"]
+    }
+  },
+  "type": "object",
+  "required": [
+    "norm_id",
+    "source_node_id",
+    "source_span_id",
+    "deontic_type",
+    "modal",
+    "actor_explicit",
+    "action",
+    "object",
+    "extraction_method",
+    "extractor_model",
+    "confidence",
+    "judge_verdict",
+    "review_status"
+  ],
+  "properties": {
+    "norm_id": {
+      "type": "string",
+      "description": "e.g. norm:eu-ai-act:article-9:paragraph-1:n1",
+      "pattern": "^norm:[a-z0-9][a-z0-9:._-]*$"
+    },
+    "layer": { "const": 2 },
+    "type": { "const": "NormativeStatement" },
+    "source_node_id": {
+      "type": "string",
+      "description": "Operative Layer 1 node (article, paragraph, point, annex item). NEVER a recital (Section 1)."
+    },
+    "source_span_id": { "type": "string" },
+    "deontic_type": { "$ref": "#/$defs/deonticType" },
+    "modal": { "$ref": "#/$defs/modal" },
+    "actor_explicit": {
+      "type": ["string", "null"],
+      "description": "Actor as literally named in the text, null when absent"
+    },
+    "actor_inferred": {
+      "anyOf": [{ "$ref": "#/$defs/actorRole" }, { "type": "null" }]
+    },
+    "actor_inference_source_node_id": {
+      "type": ["string", "null"],
+      "description": "Required when actor_inferred is set, e.g. eu-ai-act:article-16 (provider duties)"
+    },
+    "action": { "type": "string", "minLength": 1 },
+    "object": { "type": "string", "minLength": 1 },
+    "target_system_category": {
+      "type": ["string", "null"],
+      "description": "e.g. high_risk, gpai, prohibited_practice, any"
+    },
+    "condition_ids": { "type": "array", "items": { "type": "string" } },
+    "exception_ids": { "type": "array", "items": { "type": "string" } },
+    "lifecycle_phase_ids": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecyclePhase" }
+    },
+    "required_artifact_ids": { "type": "array", "items": { "type": "string" } },
+    "evidence_expectation_ids": { "type": "array", "items": { "type": "string" } },
+    "extraction_method": { "type": "string", "description": "e.g. llm_extract_v1" },
+    "extractor_model": { "type": "string", "description": "exact model id, never 'latest'" },
+    "extractor_prompt_version": { "type": "string" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "judge_verdict": { "$ref": "#/$defs/judgeVerdict" },
+    "judge_run_id": { "type": ["string", "null"] },
+    "review_status": {
+      "enum": ["auto_accepted", "needs_review", "accepted", "rejected"]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "actor_inferred": { "type": "string" } }, "required": ["actor_inferred"] },
+      "then": {
+        "properties": { "actor_inference_source_node_id": { "type": "string", "minLength": 1 } },
+        "required": ["actor_inference_source_node_id"]
+      }
+    }
+  ],
+  "additionalProperties": true
+}

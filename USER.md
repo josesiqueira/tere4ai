@@ -27,7 +27,7 @@ The whole value rests on **traceability and correctness of citations**. A wrong 
 - **Core:** a headless, transport-agnostic Python service layer (FastAPI plus FastMCP). Thin entry points call it in-process.
 - **Store:** Neo4j as the primary graph (labeled property graph, provenance on every edge), with RDF/OWL export via neosemantics for interop. Not Postgres, not a triplestore.
 - **Demo UI:** a thin, read-only Next.js interface (per @docs/DESIGN.md) for demos and paper screenshots. Phase 2+ adds REST, Remote MCP, and multi-tenancy over the same core.
-- **Models:** OpenAI for runtime internals (the generator); the judge family is still open (OPEN-JUDGE). The build agents (Opus plan, Fable implement) are a separate layer.
+- **Models:** OpenAI for runtime internals (the generator); the judges run on an independent non-OpenAI family (Anthropic Claude), decided 2026-07-08. The build agents (Opus plan, Fable implement) are a separate layer.
 
 ## How I like to work with you
 
@@ -47,5 +47,5 @@ The whole value rests on **traceability and correctness of citations**. A wrong 
 
 - [ ] Exact academic title and current role
 - [ ] Target venue and deadline per paper (OPEN-VENUE)
-- [ ] Judge model family (OPEN-JUDGE): OpenAI-only vs. an independent non-OpenAI judge
+- [x] Judge model family (OPEN-JUDGE): decided 2026-07-08, independent non-OpenAI judge (Claude)
 - [ ] Licensing (OPEN-LICENSE) and standards-mapping timing (OPEN-STANDARDS)

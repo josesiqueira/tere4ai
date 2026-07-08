@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai.org/schema/alignments.schema.json",
+  "title": "TERE4AI v2 Layer 3 reified alignments",
+  "description": "Machine-readable contract for the ethics/alignment layer (docs/architecture.md Section 4). A mapping is an auditable claim, not law: never a bare truth edge, always a reified AlignmentAssertion with evidence spans on both sides, a MappingRun, and a JudgeRun. An accepted alignment without evidence spans on both sides is a validation-gate failure (Section 13).",
+  "$defs": {
+    "relationType": {
+      "enum": [
+        "directly_operationalizes",
+        "partially_operationalizes",
+        "supports",
+        "related_to",
+        "conflicts_with",
+        "no_clear_relation"
+      ]
+    },
+    "judgeVerdict": { "enum": ["accepted", "rejected", "needs_human_review", "pending"] },
+    "scoreDimensions": {
+      "type": "object",
+      "required": [
+        "semantic_similarity",
+        "normative_relevance",
+        "operational_utility",
+        "evidence_strength",
+        "judge_confidence"
+      ],
+      "properties": {
+        "semantic_similarity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "normative_relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "operational_utility": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "judge_confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "title": "HLEGRequirement (Layer 3; closed set of 7)",
+      "type": "object",
+      "required": ["id", "type", "layer", "order", "name"],
+      "properties": {
+        "id": {
+          "description": "Canonical closed set; do not invent new principle ids",
+          "enum": [
+            "hleg:human-agency-and-oversight",
+            "hleg:technical-robustness-and-safety",
+            "hleg:privacy-and-data-governance",
+            "hleg:transparency",
+            "hleg:diversity-non-discrimination-and-fairness",
+            "hleg:societal-and-environmental-well-being",
+            "hleg:accountability"
+          ]
+        },
+        "type": { "const": "HLEGRequirement" },
+        "layer": { "const": 3 },
+        "order": { "type": "integer", "minimum": 1, "maximum": 7 },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "source_span": { "type": "object" }
+      }
+    },
+    {
+      "title": "ALTAIQuestion (Layer 3; license check pending, OPEN-LICENSE)",
+      "type": "object",
+      "required": ["id", "type", "layer", "hleg_requirement_id", "text"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^altai:[a-z0-9:._-]+$" },
+        "type": { "const": "ALTAIQuestion" },
+        "layer": { "const": 3 },
+        "hleg_requirement_id": { "type": "string" },
+        "text": { "type": "string" },
+        "source_span": { "type": "object" }
+      }
+    },
+    {
+      "title": "MappingRun (Layer 3 provenance)",
+      "type": "object",
+      "required": ["id", "type", "generator_model", "prompt_version", "started_at", "build_id"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mappingrun:[a-z0-9:._-]+$" },
+        "type": { "const": "MappingRun" },
+        "layer": { "const": 3 },
+        "generator_model": { "type": "string", "description": "exact model id" },
+        "prompt_version": { "type": "string" },
+        "started_at": { "type": "string" },
+        "completed_at": { "type": "string" },
+        "build_id": { "type": "string" }
+      }
+    },
+    {
+      "title": "JudgeRun (Layer 3 provenance; every judge decision is logged, Section 7)",
+      "type": "object",
+      "required": ["id", "type", "judge_model", "prompt_version", "verdict", "rationale", "started_at", "build_id"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^judgerun:[a-z0-9:._-]+$" },
+        "type": { "const": "JudgeRun" },
+        "layer": { "const": 3 },
+        "judge_kind": { "enum": ["extraction", "mapping", "runtime_grounding"] },
+        "judge_model": { "type": "string", "description": "config value, never hardcoded (Section 7)" },
+        "prompt_version": { "type": "string" },
+        "verdict": { "$ref": "#/$defs/judgeVerdict" },
+        "scores": { "$ref": "#/$defs/scoreDimensions" },
+        "rationale": { "type": "string", "minLength": 1 },
+        "corrected_relation_type": {
+          "anyOf": [{ "$ref": "#/$defs/relationType" }, { "type": "null" }]
+        },
+        "started_at": { "type": "string" },
+        "completed_at": { "type": "string" },
+        "build_id": { "type": "string" }
+      }
+    },
+    {
+      "title": "AlignmentAssertion (reified; Section 4)",
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "layer",
+        "source_norm_id",
+        "target_id",
+        "relation_type",
+        "source_evidence_span_ids",
+        "target_evidence_span_ids",
+        "mapping_run_id",
+        "judge_run_id",
+        "final_score",
+        "judge_verdict",
+        "review_status"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^align:[a-z0-9:._-]+$" },
+        "type": { "const": "AlignmentAssertion" },
+        "layer": { "const": 3 },
+        "source_norm_id": {
+          "type": "string",
+          "description": "NormativeStatement norm_id (Layer 2 source side)"
+        },
+        "target_id": {
+          "type": "string",
+          "description": "HLEGRequirement or ALTAIQuestion id (Layer 3 target side)"
+        },
+        "relation_type": { "$ref": "#/$defs/relationType" },
+        "source_evidence_span_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Evidence spans on the LEGAL side; an accepted assertion with an empty list must fail graph validation"
+        },
+        "target_evidence_span_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Evidence spans on the ETHICS side"
+        },
+        "scores": { "$ref": "#/$defs/scoreDimensions" },
+        "final_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mapping_run_id": { "type": "string" },
+        "judge_run_id": { "type": "string" },
+        "judge_verdict": { "$ref": "#/$defs/judgeVerdict" },
+        "rationale": { "type": "string" },
+        "review_status": {
+          "enum": ["auto_accepted", "needs_review", "accepted", "rejected"]
+        }
+      }
+    }
+  ]
+}
