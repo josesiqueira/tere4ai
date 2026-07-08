@@ -1,0 +1,54 @@
+# TERE4AI v2 CI: the offline quality gates on every push.
+# Live model tests are excluded by design (TERE4AI_LIVE_TESTS unset).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install -e ".[dev]"
+      - name: Ruff
+        run: ruff check src scripts tests
+      - name: Tests (offline; live and Neo4j tests skip without their env)
+        run: python -m pytest -q
+      - name: Traceability gate (includes the dash check)
+        run: python scripts/check_traceability.py
+      - name: Traceability matrix is current
+        run: |
+          git diff --exit-code docs/traceability.md || {
+            echo "docs/traceability.md is stale; regenerate with scripts/check_traceability.py";
+            exit 1;
+          }
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install python core (for the UI data export)
+        run: python -m pip install -e .
+      - name: Build layer1 dump and UI data
+        run: |
+          python -m tere4ai.parse_legal_structure
+          python scripts/export_ui_data.py
+      - name: Build web
+        working-directory: web
+        run: |
+          npm ci
+          npm run build

@@ -1,0 +1,545 @@
+{
+ "provenance": "llm_elicited",
+ "elicitor_model": "gpt-5.2",
+ "prompt_version": "v1",
+ "note": "Machine-elicited features for benchmark free-text scenarios. The deterministic classifier still decides; elicitation only supplies facts, and omitted flags surface as missing_facts. Human-verified features per the annotation protocol supersede these.",
+ "features_by_item": {
+  "bench:scenario:0": {
+   "domain": "consumer",
+   "purposes": [
+    "deploy hidden-audio influence to nudge shoppers toward high-margin purchases",
+    "use audio streams, browsing history, purchase records, and demographic profiles to tailor influence"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "shoppers"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "profiling_of_natural_persons": true,
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Deploy a hidden‑audio influence platform that subtly nudges shoppers to purchase high‑margin products without their conscious awareness. System type: Subconscious influence engine. Input data: Audio streams, browsing history, purchase records, demographic profiles. Domain: Retail."
+  },
+  "bench:scenario:1": {
+   "domain": "consumer",
+   "purposes": [
+    "embed subliminal images in online news feeds",
+    "sway political opinions using visual cue manipulation"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "online news feed users"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: Use a visual cue manipulation system that embeds subliminal images in online news feeds to sway political opinions. System type: Subliminal visual persuasion tool. Input data: News article content, user click data, location data, political affiliation indicators. Domain: Media."
+  },
+  "bench:scenario:2": {
+   "domain": "consumer",
+   "purposes": [
+    "generate background music with embedded low-frequency tones to increase impulse buying in supermarkets",
+    "use in-store audio feeds, sales data, shopper movement patterns, and age data to tailor behavioral audio influence"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "supermarket shoppers"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "profiling_of_natural_persons": true,
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Offer a background music AI that embeds low‑frequency tones to increase impulse buying in supermarkets. System type: Behavioral audio influence platform. Input data: In‑store audio feeds, sales data, shopper movement patterns, age data. Domain: Supermarket."
+  },
+  "bench:scenario:3": {
+   "domain": "banking",
+   "purposes": [
+    "use hidden haptic feedback to encourage users to accept higher-interest loans"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "mobile app users considering loans"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: Implement a mobile app that uses hidden haptic feedback to encourage users to accept higher‑interest loans. System type: Subliminal haptic persuasion system. Input data: Touchscreen interactions, credit scores, financial history, device sensor data. Domain: Finance."
+  },
+  "bench:scenario:4": {
+   "domain": "consumer",
+   "purposes": [
+    "stream video content",
+    "insert barely perceptible visual prompts to increase subscription upgrades"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "video streaming users"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Provide a video streaming service that inserts barely perceptible visual prompts to increase subscription upgrades. System type: Subliminal visual cue engine. Input data: Video frames, user watch history, subscription status, demographic data. Domain: Entertainment."
+  },
+  "bench:scenario:5": {
+   "domain": "transportation",
+   "purposes": [
+    "operate an AI-driven billboard network",
+    "flash ultra-fast images to influence driver route choices"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "drivers"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: Operate an AI‑driven billboard network that flashes ultra‑fast images to influence driver route choices. System type: Subliminal visual influence system. Input data: Traffic camera feeds, driver location data, advertisement inventory, vehicle type. Domain: Transportation."
+  },
+  "bench:scenario:6": {
+   "domain": "insurance",
+   "purposes": [
+    "chat with users",
+    "use covert language patterns to steer users toward purchasing insurance policies",
+    "sell insurance policies via chatbot"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "users considering purchasing insurance policies"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Sell a chatbot that uses covert language patterns to steer users toward purchasing insurance policies. System type: Covert conversational influence AI. Input data: Chat logs, user age, income level, previous insurance claims. Domain: Insurance."
+  },
+  "bench:scenario:7": {
+   "domain": "consumer",
+   "purposes": [
+    "filter social media posts",
+    "embed subliminal emojis to increase engagement with sponsored posts"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "social media users viewing sponsored posts"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "subliminal_or_manipulative": true,
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: Run a social media filter that embeds subliminal emojis to increase engagement with sponsored posts. System type: Subliminal emoji insertion tool. Input data: Post content, user interaction data, follower demographics, ad targeting parameters. Domain: Social media."
+  },
+  "bench:scenario:70": {
+   "domain": "healthcare",
+   "purposes": [
+    "monitor surgical instrument positioning in real time",
+    "monitor force-torque sensor data for safety",
+    "monitor patient vital signs for safety",
+    "trigger emergency stop for autonomous surgical robots"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "surgical patients"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "medical_or_safety_component": true,
+    "critical_infrastructure_safety": false
+   },
+   "description": "Role: Provider. Intended use: AI safety component for autonomous surgical robots that monitors instrument positioning and triggers emergency stop. System type: Real‑time safety monitoring AI for medical robots. Input data: Live video feed, force‑torque sensor data, patient vital signs. Domain: Product safety AI systems."
+  },
+  "bench:scenario:71": {
+   "domain": "biometrics",
+   "purposes": [
+    "remote biometric identification of persons of interest in real time in public transport hubs",
+    "remote facial recognition using CCTV video and associated metadata"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "people present in public transport hubs",
+    "persons of interest"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "biometric_identification": true,
+    "real_time_remote_biometric_public": true,
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: Remote biometric identification system deployed in public transport hubs to identify persons of interest in real time. System type: Remote facial recognition system. Input data: CCTV video, facial images, gait patterns, geolocation metadata. Domain: Biometrics."
+  },
+  "bench:scenario:72": {
+   "domain": "critical_infrastructure",
+   "purposes": [
+    "control load balancing of a national electricity grid",
+    "manage and operate an electricity grid using real-time demand, generation forecasts, and substation sensor data"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "electricity consumers",
+    "people dependent on national electricity grid reliability"
+   ],
+   "deployer_actor": "public_authority",
+   "flags": {
+    "critical_infrastructure_safety": true,
+    "medical_or_safety_component": true
+   },
+   "description": "Role: Provider. Intended use: AI system controlling the load balancing of a national electricity grid, acting as a safety component subject to the EU Electricity Directive conformity assessment. System type: Critical‑infrastructure grid management AI. Input data: Real‑time power demand, generation forecasts, sensor data from substations. Domain: Management and operation of critical infrastructure."
+  },
+  "bench:scenario:73": {
+   "domain": "education",
+   "purposes": [
+    "determine admission to university programmes based on academic records and socio-economic background"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "university applicants"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "education_scoring_or_access": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: AI platform that determines admission to university programmes based on academic records and socio‑economic background. System type: Admission decision AI. Input data: Academic transcripts, standardized test scores, demographic data. Domain: Education and vocational training."
+  },
+  "bench:scenario:74": {
+   "domain": "employment",
+   "purposes": [
+    "filter job applicants",
+    "rank job applicants",
+    "automate targeting of recruitment advertisements"
+   ],
+   "autonomy": "partial",
+   "affected_persons": [
+    "job applicants"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "employment_decisions": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: AI system used by a recruitment agency to filter and rank job applicants, including automated targeting of advertisements. System type: Automated recruitment and candidate ranking AI. Input data: CVs, cover letters, online profiles, psychometric test results. Domain: Employment, workers’ management and access to self‑employment."
+  },
+  "bench:scenario:75": {
+   "domain": "consumer",
+   "purposes": [
+    "evaluate eligibility for social housing benefits",
+    "calculate benefit entitlement",
+    "assess potential benefit revocation"
+   ],
+   "affected_persons": [
+    "applicants for social housing benefits",
+    "current recipients of social housing benefits"
+   ],
+   "deployer_actor": "public_authority",
+   "flags": {
+    "essential_services_access": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: AI tool that evaluates eligibility for social housing benefits, calculating entitlement and potential revocation. System type: Public assistance eligibility AI. Input data: Income statements, household composition, rental market data. Domain: Access to and enjoyment of essential private services and essential public services and benefits."
+  },
+  "bench:scenario:76": {
+   "domain": "law_enforcement",
+   "purposes": [
+    "assess risk of a person becoming a victim of violent crime",
+    "influence police resource allocation"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "people assessed for risk of becoming victims of violent crime"
+   ],
+   "deployer_actor": "public_authority",
+   "flags": {
+    "predictive_policing_profiling": true,
+    "law_enforcement_use": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: AI system used by police to assess the risk of a person becoming a victim of violent crime, influencing resource allocation. System type: Victim risk assessment AI. Input data: Crime statistics, personal history, location data, social network analysis. Domain: Law enforcement."
+  },
+  "bench:scenario:77": {
+   "domain": "migration",
+   "purposes": [
+    "profile asylum seekers",
+    "predict likelihood of a successful asylum claim",
+    "influence asylum decision making"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "asylum seekers"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "migration_asylum_border_use": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: AI system that profiles asylum seekers to predict likelihood of successful claim, influencing decision making. System type: Asylum claim outcome prediction AI. Input data: Personal narratives, country‑of‑origin risk data, health records. Domain: Migration, asylum and border‑control management."
+  },
+  "bench:scenario:156": {
+   "domain": "logistics",
+   "purposes": [
+    "suggest optimal delivery routes for small-business couriers",
+    "avoid emergency or critical-infrastructure corridors"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "small-business couriers"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: AI tool that suggests optimal delivery routes for small‑business couriers, avoiding emergency or critical‑infrastructure corridors. System type: Predictive routing engine using anonymised traffic and weather data. Input data: Public traffic flow data, open‑source weather forecasts, anonymised GPS traces. Domain: Logistics."
+  },
+  "bench:scenario:157": {
+   "domain": "consumer",
+   "purposes": [
+    "answer non-urgent municipal service queries",
+    "provide information such as waste collection schedules"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "citizens"
+   ],
+   "deployer_actor": "public_authority",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "preparatory_or_narrow_procedural_task": true
+   },
+   "description": "Role: Deployer. Intended use: Chatbot that assists citizens with non‑urgent municipal service queries (e.g., waste collection schedules). System type: Conversational AI with predefined answer templates. Input data: Public service FAQs, anonymised user interaction logs. Domain: Public Services."
+  },
+  "bench:scenario:158": {
+   "domain": "consumer",
+   "purposes": [
+    "recommend complementary products to online retail customers"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "online retail customers"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Recommendation system for online retailers that suggests complementary products without influencing purchase decisions. System type: Collaborative filtering model. Input data: Aggregated, anonymised purchase histories, product metadata. Domain: E‑commerce."
+  },
+  "bench:scenario:159": {
+   "domain": "critical_infrastructure",
+   "purposes": [
+    "provide energy-consumption advice to residential users",
+    "offer tips to reduce electricity bills",
+    "optimize energy usage based on consumption patterns and weather data"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "residential electricity users",
+    "households"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: AI‑driven energy‑consumption advisory for residential users, offering tips to reduce bills. System type: Rule‑based optimizer using consumption patterns. Input data: Anonymised household electricity usage statistics, public weather data. Domain: Energy."
+  },
+  "bench:scenario:160": {
+   "domain": "agriculture",
+   "purposes": [
+    "forecast agricultural yield for small farms to aid planning"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "small farm operators"
+   ],
+   "flags": {
+    "profiling_of_natural_persons": false
+   },
+   "description": "Role: Provider. Intended use: Tool that forecasts agricultural yield for small farms to aid planning, not used for insurance underwriting. System type: Time‑series forecasting model. Input data: Open satellite imagery, weather forecasts, anonymised farm production records. Domain: Agriculture."
+  },
+  "bench:scenario:161": {
+   "domain": "education",
+   "purposes": [
+    "help students practice language skills through interactive exercises",
+    "generate natural language content",
+    "assess learner language performance"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "students",
+    "learners"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "generates_synthetic_content": true,
+    "preparatory_or_narrow_procedural_task": true
+   },
+   "description": "Role: Deployer. Intended use: AI assistant that helps students practice language skills through interactive exercises. System type: Natural language generation and assessment. Input data: Public language corpora, anonymised learner interaction data. Domain: Education."
+  },
+  "bench:scenario:162": {
+   "domain": "facilities_management",
+   "purposes": [
+    "predictive maintenance scheduling for non-critical office equipment",
+    "anomaly detection on device usage logs"
+   ],
+   "affected_persons": [
+    "office equipment users"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "preparatory_or_narrow_procedural_task": true
+   },
+   "description": "Role: Provider. Intended use: Predictive maintenance scheduler for non‑critical office equipment (e.g., printers). System type: Anomaly detection on usage logs. Input data: Anonymised device usage logs, manufacturer specifications. Domain: Facilities Management."
+  },
+  "bench:scenario:163": {
+   "domain": "consumer",
+   "purposes": [
+    "plan tourist itineraries",
+    "recommend attractions based on user preferences"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "tourists"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": true,
+    "preparatory_or_narrow_procedural_task": false
+   },
+   "description": "Role: Deployer. Intended use: AI‑based itinerary planner for tourists that suggests attractions based on preferences. System type: Content‑based recommendation engine. Input data: Public points‑of‑interest data, anonymised user preference surveys. Domain: Tourism."
+  },
+  "bench:scenario:240": {
+   "domain": "consumer",
+   "purposes": [
+    "answer general product faqs on an e-commerce site"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "e-commerce site users"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "preparatory_or_narrow_procedural_task": true
+   },
+   "description": "Role: Provider. Intended use: AI-powered chatbot that answers general product FAQs on an e‑commerce site. System type: Rule‑based conversational agent. Input data: User text queries, product catalogue, public FAQ documents. Domain: Customer service."
+  },
+  "bench:scenario:241": {
+   "domain": "consumer",
+   "purposes": [
+    "suggest playlist songs based on user-selected mood tags"
+   ],
+   "autonomy": "advisory",
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "preparatory_or_narrow_procedural_task": false
+   },
+   "description": "Role: Provider. Intended use: AI tool that suggests playlist songs based on user‑selected mood tags. System type: Simple recommendation engine. Input data: Public music metadata, user‑selected mood tags (non‑personal). Domain: Entertainment."
+  },
+  "bench:scenario:242": {
+   "domain": "consumer",
+   "purposes": [
+    "draft informal email replies for personal use"
+   ],
+   "autonomy": "advisory",
+   "deployer_actor": "individual",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "generates_synthetic_content": true,
+    "preparatory_or_narrow_procedural_task": true
+   },
+   "description": "Role: Deployer. Intended use: AI assistant that drafts informal email replies for personal use. System type: Generative language model with limited scope. Input data: User‑provided email text, public language corpora. Domain: Personal productivity."
+  },
+  "bench:scenario:243": {
+   "domain": "consumer",
+   "purposes": [
+    "generate cooking recipes from a user-supplied list of ingredients"
+   ],
+   "autonomy": "advisory",
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "generates_synthetic_content": true
+   },
+   "description": "Role: Provider. Intended use: AI that generates cooking recipes from a list of ingredients supplied by the user. System type: Template‑based recipe generator. Input data: User‑provided ingredient list, public recipe database. Domain: Lifestyle."
+  },
+  "bench:scenario:244": {
+   "domain": "consumer",
+   "purposes": [
+    "provide weather forecasts for a specific city using public meteorological data"
+   ],
+   "autonomy": "advisory",
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": false,
+    "generates_synthetic_content": false,
+    "profiling_of_natural_persons": false
+   },
+   "description": "Role: Deployer. Intended use: AI that provides weather forecasts for a specific city using public meteorological data. System type: Statistical forecasting model. Input data: Public weather APIs, location name. Domain: Information services."
+  },
+  "bench:scenario:245": {
+   "domain": "consumer",
+   "purposes": [
+    "create simple cartoon avatars from user-drawn sketches",
+    "apply image style transfer to user sketch images"
+   ],
+   "affected_persons": [
+    "users who submit sketches"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "generates_synthetic_content": true,
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: AI that creates simple cartoon avatars from user‑drawn sketches. System type: Image style‑transfer model. Input data: User sketch images, publicly available cartoon style datasets. Domain: Creative tools."
+  },
+  "bench:scenario:246": {
+   "domain": "health_fitness",
+   "purposes": [
+    "suggest daily workout routines based on user-selected fitness goals"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "users seeking workout routine suggestions"
+   ],
+   "deployer_actor": "individual",
+   "flags": {
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: AI that suggests daily workout routines based on user‑selected fitness goals. System type: Rule‑based fitness planner. Input data: User‑selected goals, public exercise database. Domain: Health & fitness (non‑medical)."
+  },
+  "bench:scenario:247": {
+   "domain": "communication",
+   "purposes": [
+    "translate short phrases between common languages for casual conversation"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "users"
+   ],
+   "deployer_actor": "private_company",
+   "flags": {
+    "interacts_with_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: AI that translates short phrases between common languages for casual conversation. System type: Statistical machine translation. Input data: User‑provided text, public bilingual corpora. Domain: Communication."
+  }
+ }
+}

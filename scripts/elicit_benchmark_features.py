@@ -48,7 +48,20 @@ def main() -> int:
         for item in items:
             if item["id"] in done:
                 continue
-            description = item.get("question") or item.get("description") or ""
+            description = item.get("system_text") or ""
+            if len(description) < 10:
+                entry = {
+                    "item_id": item["id"],
+                    "features": None,
+                    "notes": ["no usable system_text; skipped without a model call"],
+                    "provenance": "llm_elicited",
+                    "elicitor_model": cfg.generator_model,
+                }
+                ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                ckpt.flush()
+                done[item["id"]] = entry
+                print(f"  {item['id']}: SKIPPED (no text)", flush=True)
+                continue
             features, notes = elicit_features(description, generator)
             entry = {
                 "item_id": item["id"],
