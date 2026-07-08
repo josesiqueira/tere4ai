@@ -257,6 +257,7 @@ class GraphStrategy:
         if judged_only:
             norms = [n for n in norms if n.get("judge_verdict") == "accepted"]
         self._norms_by_id = {n["norm_id"]: n for n in norms}
+        self._norms_payload = norms_payload
         # Norms are ranked lexically against the question over their
         # normative content; the same naive index as vector_rag, applied to
         # Layer 2 instead of raw Layer 1 text.
@@ -333,15 +334,45 @@ class GraphStrategy:
             f"Deterministic classification: {json.dumps(summary, sort_keys=True)}"
         )
         generated = _parse_result(self._generator.complete(_GEN_SYSTEM, user))
+        # Work item from the first ablation sweep: the classification basis
+        # alone under-cites relative to a scenario's full obligation set.
+        # Add the source articles of the applicable judged requirements
+        # (deterministic, resolved against the dump, never model-invented).
+        citations = list(envelope["source_nodes"])
+        citations.extend(self._applicable_requirement_articles(envelope))
+        seen: set[str] = set()
+        citations = [c for c in citations if not (c in seen or seen.add(c))]
         return {
             "answer_text": generated["answer_text"],
-            # Citations come from the deterministic envelope (already
-            # resolved against the dump), never from the model.
-            "citations": list(envelope["source_nodes"]),
+            # Citations from the deterministic envelope plus the applicable
+            # requirements articles, never from the model.
+            "citations": citations,
             "risk_category": answer["risk_category"],
             "notes": generated.get("notes", []),
             "status": envelope["status"],
         }
+
+    def _applicable_requirement_articles(self, envelope: dict[str, Any]) -> list[str]:
+        """Article-level node ids of the judged requirements applicable to
+        the classified system. Deterministic; empty for categories that
+        carry no requirements."""
+        if envelope["answer"].get("risk_category") not in (
+            "high_risk",
+            "transparency_only",
+        ):
+            return []
+        from tere4ai.mcp_server.requirements import get_applicable_requirements
+
+        req = get_applicable_requirements(envelope, self._norms_payload, self._dump)
+        groups = req["answer"].get("requirements_by_article") or {}
+        entries = [e for group in groups.values() for e in group]
+        articles: set[str] = set()
+        for entry in entries:
+            source = str(entry.get("source_node_id", ""))
+            m = re.match(r"(eu-ai-act:(?:article|annex)-[a-z0-9]+)", source)
+            if m and m.group(1) in self._node_ids:
+                articles.add(m.group(1))
+        return sorted(articles)
 
     def _answer_from_norms(self, item: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         question = _item_question(item)

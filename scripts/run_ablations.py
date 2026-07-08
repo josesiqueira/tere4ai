@@ -34,6 +34,20 @@ BATCH_SIZE = 10
 def load_items() -> list[dict]:
     gold = harness.load_gold_items()
     bench = harness.load_benchmark_items()
+    # enrich free-text scenarios with cached elicited features when present
+    # (scripts/elicit_benchmark_features.py); provenance kept per item
+    features_path = ROOT / "eval" / "gold" / "benchmark_features.json"
+    if features_path.exists():
+        cache = json.loads(features_path.read_text(encoding="utf-8"))
+        by_item = cache.get("features_by_item", {})
+        enriched = 0
+        for item in bench:
+            feats = by_item.get(item["id"])
+            if feats and not item.get("system_features"):
+                item["system_features"] = feats
+                item["features_provenance"] = "llm_elicited"
+                enriched += 1
+        print(f"elicited features attached to {enriched} benchmark item(s)")
     items = list(gold) + list(bench)
     for item in items:
         assert item.get("id"), "every item needs an id"
