@@ -278,3 +278,16 @@ def test_model_config_error_returns_clean_json_error(client, monkeypatch):
     body = response.json()
     assert body["error"] == message
     assert "Traceback" not in response.text
+
+
+def test_discovery_endpoints(client):
+    r = client.get("/llms.txt")
+    assert r.status_code == 200
+    assert "does not certify" in r.text and "classify" in r.text
+
+    r = client.get("/.well-known/tere4ai.json")
+    assert r.status_code == 200
+    doc = r.json()
+    assert doc["endpoints"]["evidence"]["paid"] is True
+    assert doc["endpoints"]["classify"]["paid"] is False
+    assert "compliant" not in " ".join(doc["status_vocabulary"])

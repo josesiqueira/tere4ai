@@ -35,8 +35,10 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
+
+from tere4ai.mcp_server.tools import STATUS_VOCABULARY
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.judge.config import ModelConfigError, load_model_config
@@ -150,6 +152,53 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             for n in payload.get("norms", [])
             if isinstance(n, dict) and "norm_id" in n
         }
+
+    @app.get("/llms.txt", response_class=PlainTextResponse)
+    def llms_txt() -> str:
+        """Agent discovery: what this service is and how to consume it."""
+        skill = _PROJECT_ROOT / "SKILL.md"
+        header = (
+            "# TERE4AI v2\n"
+            "Evidence-gated EU AI Act engineering support. Deterministic risk "
+            "classification, judged requirements with span-level citations, "
+            "evidence evaluation behind a runtime grounding judge. Not legal "
+            "advice; never claims compliance.\n\n"
+            "Endpoints: POST /api/classify, /api/requirements (free, "
+            "deterministic); POST /api/evidence, /api/backlog (paid model "
+            "calls, marked with X-TERE4AI-Paid-Call); GET /api/health.\n"
+            "Input schema: schema/json_schemas/system_features.schema.json\n\n"
+        )
+        return header + (skill.read_text(encoding="utf-8") if skill.exists() else "")
+
+    @app.get("/.well-known/tere4ai.json")
+    def well_known(request: Request) -> JSONResponse:
+        """Machine-readable discovery document."""
+        return JSONResponse(
+            content={
+                "name": "tere4ai",
+                "version": "2.0.0a0",
+                "graph_version": _graph_version(request),
+                "status_vocabulary": list(STATUS_VOCABULARY),
+                "endpoints": {
+                    "classify": {"method": "POST", "path": "/api/classify", "paid": False},
+                    "requirements": {
+                        "method": "POST",
+                        "path": "/api/requirements",
+                        "paid": False,
+                    },
+                    "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
+                    "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
+                    "health": {"method": "GET", "path": "/api/health", "paid": False},
+                },
+                "skill": "/llms.txt",
+                "non_legal_advice_notice": (
+                    "TERE4AI provides engineering and documentation support. It "
+                    "does not certify EU AI Act compliance and does not replace "
+                    "legal review, conformity assessment, or competent-authority "
+                    "interpretation."
+                ),
+            }
+        )
 
     @app.get("/api/health")
     def health(request: Request) -> JSONResponse:
