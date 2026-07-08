@@ -61,6 +61,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="list the norms that would be aligned, without model calls",
     )
+    parser.add_argument(
+        "--out", type=Path, default=None,
+        help="output path (default data/graph_dumps/alignments_<slug>.json)",
+    )
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="skip norm batches already present in the checkpoint file",
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=20,
+        help="norms per checkpointed batch (default 20)",
+    )
     args = parser.parse_args(argv)
 
     payload = json.loads(args.norms.read_text(encoding="utf-8"))
@@ -82,21 +94,64 @@ def main(argv: list[str] | None = None) -> int:
             )
         return 0
 
+    slug = args.norms.stem.removeprefix("norms_")
+    out_path = args.out or (
+        REPO_ROOT / "data" / "graph_dumps" / f"alignments_{slug}.json"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # fail fast at zero cost if the output path is unwritable (lesson of the
+    # lost 2026-07-08 extraction run)
+    out_path.touch()
+    checkpoint_path = out_path.with_suffix(".checkpoint.jsonl")
+
+    batches: list[tuple[str, list[dict]]] = []
+    for i in range(0, len(norms), args.batch_size):
+        chunk = norms[i : i + args.batch_size]
+        batches.append((f"batch:{i}:{chunk[0]['norm_id']}", chunk))
+
+    done: set[str] = set()
+    partials: list[dict] = []
+    if args.resume and checkpoint_path.exists():
+        for line in checkpoint_path.read_text(encoding="utf-8").splitlines():
+            entry = json.loads(line)
+            done.add(entry["batch"])
+            partials.append(entry["result"])
+        print(f"resume: {len(done)} batch(es) already checkpointed")
+
     cfg = load_model_config()
     generator = OpenAIGenerator(cfg)
     judge = AnthropicJudge(cfg)
     hleg_nodes = build_hleg_nodes()
-    result = align_norms(
-        norms,
-        hleg_nodes,
-        generator,
-        judge,
-        prompt_version=args.prompt_version,
-        build_id=build_id,
-    )
 
-    slug = args.norms.stem.removeprefix("norms_")
-    out_path = REPO_ROOT / "data" / "graph_dumps" / f"alignments_{slug}.json"
+    with checkpoint_path.open("a", encoding="utf-8") as ckpt:
+        for batch_key, chunk in batches:
+            if batch_key in done:
+                continue
+            partial = align_norms(
+                chunk, hleg_nodes, generator, judge,
+                prompt_version=args.prompt_version, build_id=build_id,
+            )
+            ckpt.write(json.dumps({"batch": batch_key, "result": partial}) + "\n")
+            ckpt.flush()
+            partials.append(partial)
+            print(f"  {batch_key}: {len(partial['assertions'])} assertions, "
+                  f"verdicts {partial['stats'].get('verdicts', {})}", flush=True)
+
+    result: dict = {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}
+    for partial in partials:
+        result["assertions"].extend(partial["assertions"])
+        result["mapping_runs"].extend(partial["mapping_runs"])
+        result["judge_runs"].extend(partial["judge_runs"])
+        for key, value in partial["stats"].items():
+            if isinstance(value, int):
+                result["stats"][key] = result["stats"].get(key, 0) + value
+            elif isinstance(value, list):
+                result["stats"].setdefault(key, []).extend(value)
+            elif isinstance(value, dict):
+                bucket = result["stats"].setdefault(key, {})
+                for k, v in value.items():
+                    bucket[k] = bucket.get(k, 0) + v
+
     out_payload = {
         "build": {
             **payload.get("build", {}),
@@ -105,27 +160,29 @@ def main(argv: list[str] | None = None) -> int:
         },
         **result,
     }
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(
+    tmp_path = out_path.with_suffix(".writing.json")
+    tmp_path.write_text(
         json.dumps(out_payload, ensure_ascii=False, indent=1), encoding="utf-8"
     )
+    tmp_path.replace(out_path)
+    checkpoint_path.unlink(missing_ok=True)
 
     stats = result["stats"]
     print(f"wrote {out_path}")
     print(
-        f"norms: {stats['norms_total']} total, "
-        f"{stats['norms_skipped_not_accepted']} skipped (not accepted), "
-        f"{stats['zero_alignment_norms']} with zero alignments"
+        f"norms: {stats.get('norms_total', 0)} total, "
+        f"{stats.get('norms_skipped_not_accepted', 0)} skipped (not accepted), "
+        f"{stats.get('zero_alignment_norms', 0)} with zero alignments"
     )
-    print(f"candidates: {stats['candidates']}, verdicts: {stats['verdicts']}")
-    if stats["mechanical_rejects"]:
+    print(f"candidates: {stats.get('candidates', 0)}, verdicts: {stats.get('verdicts', {})}")
+    if stats.get("mechanical_rejects"):
         print(f"mechanical quote-check rejects: {len(stats['mechanical_rejects'])}")
-    if stats["norms_failed"]:
+    if stats.get("norms_failed"):
         print(f"failed norms: {len(stats['norms_failed'])} (see stats in the output file)")
-    if stats["invalid_candidates"] or stats["invalid_assertions"]:
+    if stats.get("invalid_candidates") or stats.get("invalid_assertions"):
         print(
-            f"invalid candidates: {len(stats['invalid_candidates'])}, "
-            f"invalid assertions dropped: {len(stats['invalid_assertions'])}"
+            f"invalid candidates: {len(stats.get('invalid_candidates', []))}, "
+            f"invalid assertions dropped: {len(stats.get('invalid_assertions', []))}"
         )
     return 0
 
