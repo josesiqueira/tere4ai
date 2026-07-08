@@ -1,0 +1,273 @@
+{
+ "version": 1,
+ "created": "2026-07-08",
+ "description": "Seed gold set for the M4 evaluation (architecture.md Section 12). 10 hand-authored items on the v2 high-risk core; the full gold set targets 60 to 80 items with a second annotator on a 20 to 30 percent subset (see ANNOTATION_PROTOCOL.md). Every gold_citations id was verified to exist in data/graph_dumps/layer1.json (build build-3b753e5e9297), and every classification item was verified against the deterministic classify_ai_system before this file was written.",
+ "items": [
+  {
+   "id": "gold:cls-01",
+   "kind": "classification",
+   "system_features": {
+    "description": "Generator of deepfake intimate content designed to manipulate targets into paying for its removal.",
+    "purposes": [
+     "generate intimate deepfakes",
+     "coerce targets"
+    ],
+    "flags": {
+     "social_scoring": false,
+     "subliminal_or_manipulative": true,
+     "generates_synthetic_content": true
+    }
+   },
+   "gold": {
+    "risk_category": "prohibited",
+    "prohibited": true
+   },
+   "gold_citations": [
+    "eu-ai-act:article-5:paragraph-1:point-a"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Canonical scenario A (tests/unit/test_classify.py). Article 5(1)(a) manipulative technique."
+  },
+  {
+   "id": "gold:cls-02",
+   "kind": "classification",
+   "system_features": {
+    "description": "Hospital emergency department triage support system ranking incoming patients.",
+    "domain": "healthcare",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": true,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": true,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "annex_iii_category": "eu-ai-act:annex-iii:point-5"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-5",
+    "eu-ai-act:article-6:paragraph-2"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Canonical scenario B with prohibition flags known false: settled high risk under Annex III point 5."
+  },
+  {
+   "id": "gold:cls-03",
+   "kind": "classification",
+   "system_features": {
+    "description": "Customer service chatbot for an e-commerce shop answering delivery questions.",
+    "domain": "consumer",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": true,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false
+    }
+   },
+   "gold": {
+    "risk_category": "transparency_only"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-50:paragraph-1"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Canonical scenario C: Article 50(1) transparency only."
+  },
+  {
+   "id": "gold:cls-04",
+   "kind": "classification",
+   "system_features": {
+    "description": "Movie recommendation engine for a streaming service.",
+    "domain": "consumer",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false
+    }
+   },
+   "gold": {
+    "risk_category": "minimal_or_none"
+   },
+   "gold_citations": [],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Canonical scenario D: minimal risk; no citation is required, so this item is excluded from citation completeness."
+  },
+  {
+   "id": "gold:cls-05",
+   "kind": "classification",
+   "system_features": {
+    "description": "Assistant that pre-sorts incoming CVs into the order a human recruiter reviews them, without scoring or filtering anyone out.",
+    "domain": "employment",
+    "autonomy": "advisory",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": true,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": true
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": true
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-4",
+    "eu-ai-act:article-6:paragraph-2",
+    "eu-ai-act:article-6:paragraph-3"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Edge case: Article 6(3) derogation candidate; stays high_risk pending human legal review, never auto-downgraded."
+  },
+  {
+   "id": "gold:cls-06",
+   "kind": "classification",
+   "system_features": {
+    "description": "A system described with no structured facts at all beyond this sentence."
+   },
+   "gold": {
+    "risk_category": "uncertain"
+   },
+   "gold_citations": [],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Edge case: unknown flags; absence is never treated as false, so the outcome is uncertain and needs human review."
+  },
+  {
+   "id": "gold:ret-01",
+   "kind": "retrieval",
+   "question": "Which Annex III item covers AI systems intended to be used for the recruitment or selection of natural persons, such as filtering job applications?",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-4"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-4"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Annex III point 4 (employment, workers management and access to self-employment)."
+  },
+  {
+   "id": "gold:ret-02",
+   "kind": "retrieval",
+   "question": "Which Annex III item covers AI systems used by or on behalf of public authorities to evaluate the eligibility of natural persons for essential public assistance benefits and services, including healthcare services?",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-5:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-5:a"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Annex III point 5(a); the parent item eu-ai-act:annex-iii:point-5 is an acceptable coarser citation but the gold id is the precise one."
+  },
+  {
+   "id": "gold:qa-01",
+   "kind": "qa",
+   "question": "Under Article 9(1) of the EU AI Act, what must be established in relation to high-risk AI systems?",
+   "gold": {
+    "answer_text": "A risk management system shall be established, implemented, documented and maintained in relation to high-risk AI systems.",
+    "answer_source": "Article 9(1)"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-9"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Answerable verbatim from eu-ai-act:article-9:paragraph-1 text; the article node is the gold citation."
+  },
+  {
+   "id": "gold:qa-02",
+   "kind": "qa",
+   "question": "Under Article 14(1) of the EU AI Act, what must the design of high-risk AI systems enable natural persons to do during the period in which the systems are in use?",
+   "gold": {
+    "answer_text": "High-risk AI systems must be designed and developed, including with appropriate human-machine interface tools, so that they can be effectively overseen by natural persons during the period in which they are in use.",
+    "answer_source": "Article 14(1)"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-14"
+   ],
+   "author": "seed",
+   "second_annotator": null,
+   "note": "Answerable verbatim from eu-ai-act:article-14:paragraph-1 text; the article node is the gold citation."
+  }
+ ]
+}
