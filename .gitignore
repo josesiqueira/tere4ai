@@ -36,3 +36,6 @@ data/graph_dumps/*.dump
 # generated UI data (rebuild with scripts/export_ui_data.py)
 web/public/ui_data.json
 web/next-env.d.ts
+
+# runtime audit logs (observability artifacts, not source)
+data/review_queue/*.jsonl
