@@ -1,0 +1,830 @@
+{
+ "config": {
+  "generator_model": "gpt-5.2",
+  "judge_model": "claude-opus-4-8"
+ },
+ "items_total": 57,
+ "strategies": {
+  "plain_llm": {
+   "risk_accuracy_overall": {
+    "correct": 30,
+    "total": 38,
+    "accuracy": 0.7894736842105263,
+    "mismatches": [
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:158",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 24,
+    "total": 32,
+    "abstained": 4,
+    "note": "benchmark scenarios carry system_features null (free text); the deterministic classifier abstains rather than guesses. Mapping scenarios to structured features is annotation work (eval/gold/ANNOTATION_PROTOCOL.md)."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 0,
+    "required": 325,
+    "completeness": 0.0,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 0,
+   "citation_completeness": {
+    "macro_completeness": 0.0,
+    "micro": {
+     "found": 0,
+     "required": 336,
+     "completeness": 0.0
+    },
+    "per_item": {
+     "gold:cls-01": 0.0,
+     "gold:cls-02": 0.0,
+     "gold:cls-03": 0.0,
+     "gold:cls-05": 0.0,
+     "gold:ret-01": 0.0,
+     "gold:ret-02": 0.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:70": 0.0,
+     "bench:scenario:71": 0.0,
+     "bench:scenario:72": 0.0,
+     "bench:scenario:73": 0.0,
+     "bench:scenario:74": 0.0,
+     "bench:scenario:75": 0.0,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.0,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.0,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.0,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.0,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.0,
+     "bench:scenario:240": 0.0,
+     "bench:scenario:241": 0.0,
+     "bench:scenario:242": 0.0,
+     "bench:scenario:243": 0.0,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.0,
+     "bench:scenario:246": 0.0,
+     "bench:scenario:247": 0.0,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 0,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0,
+   "hallucination_note": "zero checkable citations emitted; a 0.0 hallucination rate here is vacuous, not a quality signal"
+  },
+  "vector_rag": {
+   "risk_accuracy_overall": {
+    "correct": 23,
+    "total": 38,
+    "accuracy": 0.6052631578947368,
+    "mismatches": [
+     {
+      "id": "gold:cls-01",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:71",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:157",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:158",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:163",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:243",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:245",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:247",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 5,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 18,
+    "total": 32,
+    "abstained": 10,
+    "note": "benchmark scenarios carry system_features null (free text); the deterministic classifier abstains rather than guesses. Mapping scenarios to structured features is annotation work (eval/gold/ANNOTATION_PROTOCOL.md)."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 19,
+    "required": 325,
+    "completeness": 0.05846153846153846,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 131,
+   "citation_completeness": {
+    "macro_completeness": 0.03636363636363636,
+    "micro": {
+     "found": 2,
+     "required": 336,
+     "completeness": 0.005952380952380952
+    },
+    "per_item": {
+     "gold:cls-01": 0.0,
+     "gold:cls-02": 0.0,
+     "gold:cls-03": 0.0,
+     "gold:cls-05": 0.0,
+     "gold:ret-01": 1.0,
+     "gold:ret-02": 1.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:70": 0.0,
+     "bench:scenario:71": 0.0,
+     "bench:scenario:72": 0.0,
+     "bench:scenario:73": 0.0,
+     "bench:scenario:74": 0.0,
+     "bench:scenario:75": 0.0,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.0,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.0,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.0,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.0,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.0,
+     "bench:scenario:240": 0.0,
+     "bench:scenario:241": 0.0,
+     "bench:scenario:242": 0.0,
+     "bench:scenario:243": 0.0,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.0,
+     "bench:scenario:246": 0.0,
+     "bench:scenario:247": 0.0,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 131,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0
+  },
+  "graph_no_judge": {
+   "risk_accuracy_overall": {
+    "correct": 24,
+    "total": 38,
+    "accuracy": 0.631578947368421,
+    "mismatches": [
+     {
+      "id": "bench:scenario:76",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:241",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:243",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:244",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:245",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:247",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 18,
+    "total": 32,
+    "abstained": 4,
+    "note": "benchmark scenarios carry system_features null (free text); the deterministic classifier abstains rather than guesses. Mapping scenarios to structured features is annotation work (eval/gold/ANNOTATION_PROTOCOL.md)."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 123,
+    "required": 325,
+    "completeness": 0.37846153846153846,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 388,
+   "citation_completeness": {
+    "macro_completeness": 0.2117553490280763,
+    "micro": {
+     "found": 115,
+     "required": 336,
+     "completeness": 0.34226190476190477
+    },
+    "per_item": {
+     "gold:cls-01": 1.0,
+     "gold:cls-02": 1.0,
+     "gold:cls-03": 1.0,
+     "gold:cls-05": 1.0,
+     "gold:ret-01": 0.0,
+     "gold:ret-02": 0.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:70": 0.75,
+     "bench:scenario:71": 0.6428571428571429,
+     "bench:scenario:72": 0.7037037037037037,
+     "bench:scenario:73": 0.6923076923076923,
+     "bench:scenario:74": 0.6785714285714286,
+     "bench:scenario:75": 0.7333333333333333,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.6923076923076923,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.3333333333333333,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.16666666666666666,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.6363636363636364,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.14285714285714285,
+     "bench:scenario:240": 0.2,
+     "bench:scenario:241": 0.2,
+     "bench:scenario:242": 0.3333333333333333,
+     "bench:scenario:243": 0.25,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.09090909090909091,
+     "bench:scenario:246": 0.2,
+     "bench:scenario:247": 0.2,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 388,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0
+  },
+  "graph_build_judge": {
+   "risk_accuracy_overall": {
+    "correct": 24,
+    "total": 38,
+    "accuracy": 0.631578947368421,
+    "mismatches": [
+     {
+      "id": "bench:scenario:76",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:241",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:243",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:244",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:245",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:247",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 18,
+    "total": 32,
+    "abstained": 4,
+    "note": "benchmark scenarios carry system_features null (free text); the deterministic classifier abstains rather than guesses. Mapping scenarios to structured features is annotation work (eval/gold/ANNOTATION_PROTOCOL.md)."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 122,
+    "required": 325,
+    "completeness": 0.37538461538461537,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 394,
+   "citation_completeness": {
+    "macro_completeness": 0.2117553490280763,
+    "micro": {
+     "found": 115,
+     "required": 336,
+     "completeness": 0.34226190476190477
+    },
+    "per_item": {
+     "gold:cls-01": 1.0,
+     "gold:cls-02": 1.0,
+     "gold:cls-03": 1.0,
+     "gold:cls-05": 1.0,
+     "gold:ret-01": 0.0,
+     "gold:ret-02": 0.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:70": 0.75,
+     "bench:scenario:71": 0.6428571428571429,
+     "bench:scenario:72": 0.7037037037037037,
+     "bench:scenario:73": 0.6923076923076923,
+     "bench:scenario:74": 0.6785714285714286,
+     "bench:scenario:75": 0.7333333333333333,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.6923076923076923,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.3333333333333333,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.16666666666666666,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.6363636363636364,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.14285714285714285,
+     "bench:scenario:240": 0.2,
+     "bench:scenario:241": 0.2,
+     "bench:scenario:242": 0.3333333333333333,
+     "bench:scenario:243": 0.25,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.09090909090909091,
+     "bench:scenario:246": 0.2,
+     "bench:scenario:247": 0.2,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 394,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0
+  },
+  "graph_full": {
+   "risk_accuracy_overall": {
+    "correct": 24,
+    "total": 38,
+    "accuracy": 0.631578947368421,
+    "mismatches": [
+     {
+      "id": "bench:scenario:76",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:241",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:243",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:244",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:245",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:247",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 18,
+    "total": 32,
+    "abstained": 4,
+    "note": "benchmark scenarios carry system_features null (free text); the deterministic classifier abstains rather than guesses. Mapping scenarios to structured features is annotation work (eval/gold/ANNOTATION_PROTOCOL.md)."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 122,
+    "required": 325,
+    "completeness": 0.37538461538461537,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 397,
+   "citation_completeness": {
+    "macro_completeness": 0.2117553490280763,
+    "micro": {
+     "found": 115,
+     "required": 336,
+     "completeness": 0.34226190476190477
+    },
+    "per_item": {
+     "gold:cls-01": 1.0,
+     "gold:cls-02": 1.0,
+     "gold:cls-03": 1.0,
+     "gold:cls-05": 1.0,
+     "gold:ret-01": 0.0,
+     "gold:ret-02": 0.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:70": 0.75,
+     "bench:scenario:71": 0.6428571428571429,
+     "bench:scenario:72": 0.7037037037037037,
+     "bench:scenario:73": 0.6923076923076923,
+     "bench:scenario:74": 0.6785714285714286,
+     "bench:scenario:75": 0.7333333333333333,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.6923076923076923,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.3333333333333333,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.16666666666666666,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.6363636363636364,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.14285714285714285,
+     "bench:scenario:240": 0.2,
+     "bench:scenario:241": 0.2,
+     "bench:scenario:242": 0.3333333333333333,
+     "bench:scenario:243": 0.25,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.09090909090909091,
+     "bench:scenario:246": 0.2,
+     "bench:scenario:247": 0.2,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 397,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0
+  }
+ }
+}
