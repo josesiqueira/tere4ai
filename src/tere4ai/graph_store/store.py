@@ -148,18 +148,33 @@ class GraphStore:
 
     def apply_constraints(
         self, driver: Any, constraints_path: Path | str = DEFAULT_CONSTRAINTS_PATH
-    ) -> int:
+    ) -> dict[str, int]:
         """Apply the uniqueness and type constraints from constraints.cypher.
 
         The file format is one full statement per line, comment lines start
-        with //, blank lines separate statements. Returns the number of
-        statements executed.
+        with //, blank lines separate statements.
+
+        Property TYPE constraints (IS :: INTEGER / STRING) require Neo4j
+        Enterprise; on Community they fail with ConstraintCreationFailed and
+        are skipped with a count, never silently: property types are already
+        enforced upstream by the JSON schemas and Pydantic (architecture.md
+        Section 5). Uniqueness constraints failing is a hard error.
+        Returns {"applied": n, "skipped_enterprise_only": m}.
         """
         statements = parse_constraint_statements(Path(constraints_path).read_text())
+        applied = 0
+        skipped = 0
         with driver.session() as session:
             for statement in statements:
-                session.run(statement)
-        return len(statements)
+                try:
+                    session.run(statement)
+                    applied += 1
+                except Exception as exc:  # neo4j DatabaseError on community
+                    if " IS :: " in statement and "ConstraintCreationFailed" in str(exc):
+                        skipped += 1
+                    else:
+                        raise
+        return {"applied": applied, "skipped_enterprise_only": skipped}
 
 
 def parse_constraint_statements(text: str) -> list[str]:
