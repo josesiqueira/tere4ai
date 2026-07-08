@@ -97,7 +97,7 @@ class _El:
     attrs: dict[str, str]
     start: int  # offset of the opening "<"
     end: int = 0  # offset just past the closing ">"
-    children: list["_El"] = field(default_factory=list)
+    children: list[_El] = field(default_factory=list)
 
 
 def _parse_xml(text: str) -> _El:
