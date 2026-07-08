@@ -42,8 +42,12 @@ python3 -m venv .venv
 # traceability gate (also generates docs/traceability.md)
 .venv/bin/python scripts/check_traceability.py
 
-# optional: load into Neo4j
+# optional: load into Neo4j (set NEO4J_PASSWORD in .env first)
 docker compose up -d
+
+# demo web UI (thin, read-only; docs/DESIGN.md)
+.venv/bin/python scripts/export_ui_data.py
+cd web && npm install && npm run build && npx next start
 ```
 
 ## Status
