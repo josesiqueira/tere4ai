@@ -327,3 +327,34 @@ def test_no_model_client_imports_in_module_source():
         assert forbidden not in source, f"classify.py must not reference {forbidden}"
     for dash in (chr(0x2014), chr(0x2013)):
         assert dash not in source, "no em or en dashes"
+
+
+def test_domain_fallback_yields_to_explicitly_false_flags(dump):
+    """Evidence-driven ladder fix (ELICITATION_ERRORS.md, scenario 161):
+    education domain with education_scoring_or_access explicitly false must
+    not gate high_risk on domain alone."""
+    features = {
+        "description": "Language learning chatbot for practicing conversation skills",
+        "domain": "education",
+        "flags": {
+            "education_scoring_or_access": False,
+            "interacts_with_natural_persons": True,
+            **{f: False for f in (
+                "social_scoring", "subliminal_or_manipulative",
+                "exploits_vulnerabilities", "predictive_policing_profiling",
+                "facial_image_scraping", "emotion_recognition_workplace_or_education",
+                "biometric_categorisation", "real_time_remote_biometric_public",
+            )},
+        },
+    }
+    envelope = classify_ai_system(features, dump)
+    assert envelope["answer"]["risk_category"] == "transparency_only"
+    assert any("scenario 161" in r for r in envelope["answer"]["rationale"])
+
+    # unknown flags keep the domain match (unknown is never false)
+    features_unknown = dict(features)
+    features_unknown["flags"] = {
+        k: v for k, v in features["flags"].items() if k != "education_scoring_or_access"
+    }
+    envelope2 = classify_ai_system(features_unknown, dump)
+    assert envelope2["answer"]["risk_category"] == "high_risk"

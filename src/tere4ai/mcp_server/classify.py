@@ -365,6 +365,24 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     for rule in ANNEX_III_RULES:
         matched_flag = next((f for f in rule["flags"] if flags.get(f) is True), None)
         matched_domain = domain if domain in rule["domains"] else None
+        # Evidence-driven fix (eval/results/ELICITATION_ERRORS.md, scenario
+        # 161): a bare domain match must YIELD when every specific flag of
+        # the category is explicitly false. Annex III categories cover
+        # specific uses within a domain, not the domain itself; with the
+        # uses explicitly ruled out, domain alone is not a basis. Unknown
+        # flags keep the match (unknown is never treated as false).
+        if matched_domain and not matched_flag:
+            all_explicitly_false = rule["flags"] and all(
+                flags.get(f) is False for f in rule["flags"]
+            )
+            if all_explicitly_false:
+                rationale.append(
+                    f"domain '{matched_domain}' matches Annex III category "
+                    f"'{rule['label']}' but every specific flag of the "
+                    "category is explicitly false; domain alone does not "
+                    "gate high-risk (ELICITATION_ERRORS.md, scenario 161)"
+                )
+                matched_domain = None
         if matched_flag or matched_domain:
             annex_match = rule
             trigger = (
