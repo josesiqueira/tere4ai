@@ -190,13 +190,16 @@ ANALYSIS: dict[str, dict[str, Any]] = {
         ),
         "counterfactual": {
             "change": "add flags.education_scoring_or_access = false (explicit rule-out)",
-            "expected_category": "high_risk",
+            "expected_category": "transparency_only",
             "note": (
-                "the ladder STILL returns high_risk because the domain "
-                "fallback fires regardless of the explicit false flag; a "
-                "prompt-side fix alone cannot repair this item, the ladder "
-                "must also stop firing an Annex III category on bare domain "
-                "when its specific use flag is explicitly false"
+                "RESOLVED 2026-07-09: the original finding was that the "
+                "ladder returned high_risk regardless of the explicit false "
+                "flag, so a prompt-side fix alone could not repair this "
+                "item. That finding drove a classifier change (commit "
+                "23f3ec0): the Annex III domain fallback now yields when "
+                "every specific flag of the category is explicitly false "
+                "(unknown flags still match). The counterfactual now "
+                "returns transparency_only, matching the benchmark gold."
             ),
         },
         "recommendation": (

@@ -129,19 +129,8 @@ The elicited domain value education is supported verbatim ('Domain: Education.')
 
 ### Counterfactual (offline, deterministic)
 
-Change: add flags.education_scoring_or_access = false (explicit rule-out). Result: `high_risk`. the ladder STILL returns high_risk because the domain fallback fires regardless of the explicit false flag; a prompt-side fix alone cannot repair this item, the ladder must also stop firing an Annex III category on bare domain when its specific use flag is explicitly false.
+Change: add flags.education_scoring_or_access = false (explicit rule-out). Result: `transparency_only`. RESOLVED 2026-07-09: the original finding was that the ladder returned high_risk regardless of the explicit false flag, so a prompt-side fix alone could not repair this item. That finding drove a classifier change (commit 23f3ec0): the Annex III domain fallback now yields when every specific flag of the category is explicitly false (unknown flags still match). The counterfactual now returns transparency_only, matching the benchmark gold..
 
 ### Prompt v2 recommendation
 
 Prompt v2: whenever the domain is education, require an explicit education_scoring_or_access decision: false when the described function is practice or support with no stated access, admission, grading, or proctoring role. Pair with a classifier change (out of prompt scope, recorded here): the Annex III domain fallback should not fire when the category's specific use flag is explicitly false.
-
-## Addendum (2026-07-09, after the ladder fix)
-
-The scenario 161 finding drove a classifier change (commit: domain fallback
-yields when every specific flag of the category is explicitly false; unknown
-flags still match). Verified: the item's counterfactual now returns
-transparency_only, matching gold. The report generator's built-in
-expectation check refused to silently regenerate this file against the new
-ladder, which is the intended integrity behavior; this addendum records the
-resolution instead. Scenarios 76 and 159 remain elicitation-prompt work
-(flag definitions, domain normalization) for prompt v2.
