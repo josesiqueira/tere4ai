@@ -28,7 +28,10 @@ sys.path.insert(0, str(ROOT / "src"))
 from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes  # noqa: E402
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
 from tere4ai.graph_store.store import GraphStore  # noqa: E402
+from tere4ai.review_queue import apply_decisions, count_applied, load_decisions  # noqa: E402
 from tere4ai.validate_graph.gates import validate_build  # noqa: E402
+
+DEFAULT_DECISIONS = ROOT / "data" / "review_queue" / "decisions.json"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,16 +44,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--gates-only", action="store_true", help="validate, do not load into Neo4j"
     )
+    parser.add_argument(
+        "--decisions", type=Path, default=DEFAULT_DECISIONS,
+        help="human review decisions file, applied before gating when present",
+    )
     args = parser.parse_args(argv)
 
     layer1 = json.loads(args.dump.read_text(encoding="utf-8"))
     norms_payload = json.loads(args.norms.read_text(encoding="utf-8"))
-    norms = norms_payload.get("norms", [])
     alignments_payload = None
-    assertions = None
     if args.alignments:
         alignments_payload = json.loads(args.alignments.read_text(encoding="utf-8"))
-        assertions = alignments_payload.get("assertions", [])
+
+    # Human review decisions are applied to in-memory copies before gating and
+    # loading; the pipeline dumps on disk stay pristine (architecture.md
+    # Section 2 provenance discipline, Section 13).
+    decisions = load_decisions(args.decisions)
+    if decisions:
+        norms_payload = apply_decisions(norms_payload, decisions)
+        applied = count_applied(norms_payload)
+        if alignments_payload is not None:
+            alignments_payload = apply_decisions(alignments_payload, decisions)
+            applied += count_applied(alignments_payload)
+        print(f"human review: {applied} decisions applied from {args.decisions}")
+
+    norms = norms_payload.get("norms", [])
+    assertions = alignments_payload.get("assertions", []) if alignments_payload else None
 
     report = validate_build(layer1, norms=norms, alignments=assertions)
     print(f"gates: {'PASS' if report.passed else 'FAIL'} | stats {report.stats}")

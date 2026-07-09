@@ -10,7 +10,9 @@ into the generic nodes-plus-edges shape that GraphStore.load_dump writes.
 Provenance rules (architecture.md Section 2) hold here too: every edge
 carries a provenance class and a derivation id. A norm's DERIVED_FROM edge is
 LLM_JUDGED_ACCEPTED only when the extraction judge accepted it, otherwise
-LLM_CANDIDATE. Reified alignment structure per Section 4: the assertion node
+LLM_CANDIDATE; when a human decision exists (a human_review record set by
+tere4ai.review_queue.apply), its provenance class (HUMAN_REVIEWED_ACCEPTED or
+HUMAN_REVIEWED_REJECTED) wins. Reified alignment structure per Section 4: the assertion node
 links to the source norm, the target HLEG requirement, its MappingRun, and
 its JudgeRun; there is no direct norm-to-HLEG truth edge.
 """
@@ -64,6 +66,18 @@ def _edge(
     }
 
 
+def _human_review_provenance(item: dict[str, Any], node: dict[str, Any]) -> str | None:
+    """Flatten a human_review record onto the node; return its provenance.
+
+    Neo4j properties are scalar, so the record becomes human_review_* fields.
+    Returns None when the item carries no human decision.
+    """
+    human = item.get("human_review") or {}
+    for k, v in human.items():
+        node[f"human_review_{k}"] = v
+    return human.get("provenance")
+
+
 def _judge_run_node(run: dict[str, Any]) -> dict[str, Any]:
     node = {"id": run["id"], "layer": 3, "type": "JudgeRun"}
     for k in (
@@ -105,6 +119,7 @@ def norms_to_graph(norms_result: dict[str, Any], build_id: str | None = None) ->
         for k in ("conditions", "exceptions"):
             if norm.get(k):
                 node[k] = [str(x) for x in norm[k]]
+        human_prov = _human_review_provenance(norm, node)
         nodes.append(node)
 
         accepted = norm.get("judge_verdict") == "accepted"
@@ -114,7 +129,7 @@ def norms_to_graph(norms_result: dict[str, Any], build_id: str | None = None) ->
                 "DERIVED_FROM",
                 norm["norm_id"],
                 norm["source_node_id"],
-                "LLM_JUDGED_ACCEPTED" if accepted else "LLM_CANDIDATE",
+                human_prov or ("LLM_JUDGED_ACCEPTED" if accepted else "LLM_CANDIDATE"),
                 norm.get("judge_run_id") or f"derivation:{norm['norm_id']}",
                 norm.get("extraction_method", "llm_extract_v1"),
                 build_id,
@@ -179,10 +194,11 @@ def alignments_to_graph(
         node["target_evidence_span_ids"] = a.get("target_evidence_span_ids", [])
         for k, v in (a.get("scores") or {}).items():
             node[f"score_{k}"] = v
+        human_prov = _human_review_provenance(a, node)
         nodes.append(node)
 
         accepted = a.get("judge_verdict") == "accepted"
-        prov = "LLM_JUDGED_ACCEPTED" if accepted else "LLM_CANDIDATE"
+        prov = human_prov or ("LLM_JUDGED_ACCEPTED" if accepted else "LLM_CANDIDATE")
         edges.append(
             _edge(
                 f"edge:{a['id']}:of",
