@@ -42,7 +42,7 @@
         "required": ["item_id", "kind", "citation_text", "source_span_id"],
         "properties": {
           "item_id": { "type": "string" },
-          "kind": { "enum": ["cross_reference"] },
+          "kind": { "enum": ["cross_reference", "recital_context"] },
           "citation_text": { "type": "string" },
           "source_span_id": { "type": "string" },
           "from_node_id": { "type": "string" },

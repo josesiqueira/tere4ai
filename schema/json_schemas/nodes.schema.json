@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tere4ai.org/schema/nodes.schema.json",
-  "title": "TERE4AI v2 graph nodes (Layers 0 and 1)",
-  "description": "Machine-readable source of truth for node shapes (docs/architecture.md Section 2). Layer 2+ node schemas are added in M2.",
+  "title": "TERE4AI v2 graph nodes (Layers 0 and 1, plus the Layer 3 HLEG subtopics)",
+  "description": "Machine-readable source of truth for node shapes (docs/architecture.md Section 2). Layer 2+ norm and alignment node schemas live in norms.schema.json and alignments.schema.json.",
   "$defs": {
     "nodeId": {
       "type": "string",
@@ -132,6 +132,30 @@
       "required": ["index", "source_span"]
     },
     {
+      "title": "Subparagraph (Layer 1; populated from Formex ALINEA)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Subparagraph" },
+        "layer": { "const": 1 },
+        "index": { "type": "integer", "minimum": 2, "description": "1-based ALINEA ordinal within the paragraph; the leading text block (ordinal 1) gets no node" },
+        "text": { "type": "string" }
+      },
+      "required": ["index", "source_span"]
+    },
+    {
+      "title": "Definition (Layer 1; Article 3 quoted terms)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "Definition" },
+        "layer": { "const": 1 },
+        "term": { "type": "string", "minLength": 1, "description": "The defined term, extracted from the QUOT.START/QUOT.END markers of the defining Article 3 point" },
+        "text": { "type": "string" },
+        "usage_count_total": { "type": "integer", "minimum": 0, "description": "All high-risk-core usage matches found; never silently capped (Section 13)" },
+        "usage_count_linked": { "type": "integer", "minimum": 0, "description": "CONTEXT_FOR usage edges actually emitted (capped)" }
+      },
+      "required": ["term", "source_span"]
+    },
+    {
       "title": "Point (Layer 1; populated from Formex in M2)",
       "allOf": [{ "$ref": "#/$defs/baseNode" }],
       "properties": {
@@ -175,6 +199,30 @@
         "text": { "type": "string" }
       },
       "required": ["marker", "source_span"]
+    },
+    {
+      "title": "HLEGRequirementSubtopic (Layer 3; sliced deterministically from the frozen HLEG text)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "HLEGRequirementSubtopic" },
+        "layer": { "const": 3 },
+        "hleg_requirement_id": {
+          "description": "Closed parent set; mirrors alignments.schema.json",
+          "enum": [
+            "hleg:human-agency-and-oversight",
+            "hleg:technical-robustness-and-safety",
+            "hleg:privacy-and-data-governance",
+            "hleg:transparency",
+            "hleg:diversity-non-discrimination-and-fairness",
+            "hleg:societal-and-environmental-well-being",
+            "hleg:accountability"
+          ]
+        },
+        "order": { "type": "integer", "minimum": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      },
+      "required": ["hleg_requirement_id", "label", "description", "source_span"]
     }
   ]
 }

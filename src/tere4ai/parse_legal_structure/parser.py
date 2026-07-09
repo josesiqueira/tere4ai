@@ -471,6 +471,18 @@ def build_layer1(
 
     dump = enrich_with_formex(dump, manifest_path.parent / "formex", manifest_path)
 
+    # Graph-depth enrichments on top of the Formex pass (all deterministic,
+    # no LLM, DEC-01): Subparagraph nodes from ALINEA, Definition nodes from
+    # the Article 3 quoted terms plus their high-risk-core usage links, and
+    # recital -> article CONTEXT_FOR context edges.
+    from tere4ai.parse_legal_structure.definitions import enrich_with_definitions
+    from tere4ai.parse_legal_structure.recital_links import add_recital_context
+    from tere4ai.parse_legal_structure.subparagraphs import enrich_with_subparagraphs
+
+    dump = enrich_with_subparagraphs(dump, manifest_path.parent / "formex", manifest_path)
+    dump = enrich_with_definitions(dump, manifest_path.parent / "formex", manifest_path)
+    dump = add_recital_context(dump)
+
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(

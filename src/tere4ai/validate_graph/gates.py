@@ -25,11 +25,20 @@ HIERARCHY_EDGES = {
     "HAS_SECTION",
     "HAS_ARTICLE",
     "HAS_PARAGRAPH",
+    "HAS_SUBPARAGRAPH",
     "HAS_POINT",
     "HAS_RECITAL",
     "HAS_ANNEX",
     "HAS_ANNEX_ITEM",
 }
+
+# Edges that make a Layer 1 node reachable for the orphan gate (G1). Beyond
+# the hierarchy, a Definition node hangs off its defining Article 3 point via
+# DEFINES_TERM (a containment edge, kept out of HIERARCHY_EDGES so the G5
+# recital rule stays strict). CONTEXT_FOR is deliberately NOT here: it is a
+# context edge, never hierarchy, so recitals remain reachable only via
+# HAS_RECITAL (recitals are context only, architecture.md Section 1).
+REACHABILITY_EDGES = HIERARCHY_EDGES | {"DEFINES_TERM"}
 
 
 @dataclass
@@ -54,7 +63,7 @@ def validate_build(
     # G1: reachability from the Regulation root over hierarchy edges
     children: dict[str, list[str]] = {}
     for e in edges:
-        if e["edge_type"] in HIERARCHY_EDGES:
+        if e["edge_type"] in REACHABILITY_EDGES:
             children.setdefault(e["from"], []).append(e["to"])
     reachable: set[str] = set()
     stack = ["eu-ai-act"]

@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes  # noqa: E402
+from tere4ai.align_hleg_altai.hleg_subtopics import build_hleg_subtopics  # noqa: E402
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
 from tere4ai.graph_store.store import GraphStore  # noqa: E402
 from tere4ai.review_queue import apply_decisions, count_applied, load_decisions  # noqa: E402
@@ -102,6 +103,21 @@ def main(argv: list[str] | None = None) -> int:
         g3 = alignments_to_graph(alignments_payload, build_hleg_nodes(), build_id=build_id)
         graph["nodes"].extend(g3["nodes"])
         graph["edges"].extend(g3["edges"])
+        # Deterministic HLEG subtopic targets (DEC-05 partial) alongside the
+        # seven requirement nodes; skipped heading candidates are printed,
+        # never silently dropped (Section 13).
+        subtopics = build_hleg_subtopics(build_id=build_id)
+        graph["nodes"].extend(subtopics["nodes"])
+        graph["edges"].extend(subtopics["edges"])
+        print(
+            f"hleg subtopics: {len(subtopics['nodes'])} nodes, "
+            f"{len(subtopics['skipped'])} skipped heading candidates"
+        )
+        for item in subtopics["skipped"]:
+            print(
+                f"  subtopic candidate skipped ({item['reason']}): "
+                f"{item['heading_candidate']!r}"
+            )
 
     pseudo_dump = {
         "build": {
