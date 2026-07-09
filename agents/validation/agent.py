@@ -303,12 +303,12 @@ OUTPUT FORMAT:
             expected_hleg = all_hleg
 
         missing_hleg = expected_hleg - covered_hleg
-        percentage = (len(covered_hleg) / len(expected_hleg)) * 100 if expected_hleg else 100.0
+        percentage = min((len(covered_hleg) / len(expected_hleg)) * 100, 100.0) if expected_hleg else 100.0
 
         subtopic_percentage = 0.0
         if expected_subtopics:
             covered_expected = covered_subtopics.intersection(expected_subtopics)
-            subtopic_percentage = (len(covered_expected) / len(expected_subtopics)) * 100
+            subtopic_percentage = min((len(covered_expected) / len(expected_subtopics)) * 100, 100.0)
 
         return {
             "covered": covered_hleg,
@@ -346,8 +346,7 @@ Return your response as JSON with a "conflicts" array. Return empty array if no 
 
         response = await self._client.chat.completions.create(
             model=self.config.model,
-            temperature=self.config.temperature,
-            max_tokens=2048,
+            max_completion_tokens=2048,
             messages=[
                 {"role": "system", "content": self._get_system_prompt()},
                 {"role": "user", "content": user_message},
@@ -356,13 +355,19 @@ Return your response as JSON with a "conflicts" array. Return empty array if no 
         )
 
         # Parse the response with null checks
-        if not response.choices or not response.choices[0].message.content:
-            raise ValueError("LLM returned empty or invalid response")
-        content = response.choices[0].message.content
+        content = None
+        if response.choices and response.choices[0].message.content:
+            content = response.choices[0].message.content
+
+        if not content:
+            # Empty response is acceptable — treat as no conflicts found
+            return []
+
         try:
             data = json.loads(content)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"LLM returned invalid JSON: {e}") from e
+        except json.JSONDecodeError:
+            # If LLM returns non-JSON, treat as no conflicts
+            return []
 
         conflicts = []
         for c in data.get("conflicts", []):

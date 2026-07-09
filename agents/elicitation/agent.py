@@ -183,8 +183,7 @@ ADDITIONAL CONTEXT:
             # Call the LLM
             response = await self._client.chat.completions.create(
                 model=self.config.model,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
+                max_completion_tokens=self.config.max_tokens,
                 messages=[
                     {"role": "system", "content": self._get_system_prompt()},
                     {"role": "user", "content": user_message},
@@ -214,6 +213,15 @@ ADDITIONAL CONTEXT:
             # Convert string enums to enum values
             data = self._convert_enums(data)
 
+            # Sanitize list-of-string fields that LLM may return as list-of-dicts
+            for field in ("intended_users", "affected_persons", "ambiguities", "assumptions"):
+                if field in data and isinstance(data[field], list):
+                    data[field] = [
+                        item if isinstance(item, str)
+                        else item.get("description") or item.get("name") or item.get("type") or str(item)
+                        for item in data[field]
+                    ]
+
             # Create the SystemDescription
             result = SystemDescription(**data)
 
@@ -229,12 +237,26 @@ ADDITIONAL CONTEXT:
 
     def _convert_enums(self, data: dict) -> dict:
         """Convert string values to enum values where needed."""
-        # Domain
-        if "domain" in data and isinstance(data["domain"], str):
-            try:
-                data["domain"] = SystemDomain(data["domain"])
-            except ValueError:
+        # Domain — handle LLM returning a list instead of a single value
+        if "domain" in data:
+            domain_val = data["domain"]
+            if isinstance(domain_val, list):
+                # Take first valid value, move rest to secondary_domains
+                extras = data.get("secondary_domains", []) or []
                 data["domain"] = SystemDomain.GENERAL
+                for d in domain_val:
+                    try:
+                        data["domain"] = SystemDomain(d)
+                        extras.extend(domain_val[domain_val.index(d) + 1:])
+                        break
+                    except ValueError:
+                        extras.append(d)
+                data["secondary_domains"] = extras
+            elif isinstance(domain_val, str):
+                try:
+                    data["domain"] = SystemDomain(domain_val)
+                except ValueError:
+                    data["domain"] = SystemDomain.GENERAL
 
         # Secondary domains
         if "secondary_domains" in data:

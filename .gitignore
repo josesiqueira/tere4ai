@@ -50,6 +50,9 @@ archive/
 # Documentation (keep only README.md visible)
 docs/
 
+# Cypher scratch queries
+_queries.cypher
+
 # Testing
 .pytest_cache/
 .coverage
