@@ -1,7 +1,7 @@
 """Critical validation gates: a build that fails these is not published.
 
 @implements: DEC-10 (partial: structural gates; deep-extraction gates activate with M2 data)
-@grounded_by: REF-27, REF-26
+@grounded_by: REF-27, REF-26, ADD-21
 
 Architecture.md Section 13. Gates implemented here:
   G1 no orphan legal nodes (every Layer 1 node reachable from the Regulation)

@@ -1,0 +1,7 @@
+# graphify-only rules for the reference corpus.
+# The repo .gitignore hides *.pdf and *.txt from git (licensing); for the
+# knowledge graph we DO want the text sidecars indexed. Last match wins.
+!*.txt
+# Keep the PDFs out of the graph anyway: each paper is indexed once via its
+# .txt sidecar; extracting the PDF too would duplicate every node.
+*.pdf

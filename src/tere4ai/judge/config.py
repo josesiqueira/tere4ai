@@ -1,7 +1,7 @@
 """Runtime model configuration: generator and judge families.
 
 @implements: DEC-07
-@grounded_by: REF-24
+@grounded_by: REF-24, ADD-16
 
 Architecture.md Section 7 (decided 2026-07-08): the generator (extraction,
 alignment, runtime generation) runs on OpenAI; the three judges (extraction,

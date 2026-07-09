@@ -78,9 +78,10 @@ Five conditions, uniform interface, in `src/tere4ai/eval/strategies.py`:
 1. `plain_llm`: generator only; the prompt holds the question only.
 2. `vector_rag`: naive in-process TF-IDF retrieval over Layer 1 node texts
    (paragraphs, points, annex items, recitals), top-k passages as context.
-   This is deliberately the weak baseline. REF-19 reports around 38
-   percent for vector-only RAG but is a PRAC source: we never cite that
-   figure as evidence and run our own baseline instead.
+   This is deliberately the weak baseline. Practitioner write-ups report
+   around 38 percent for vector-only RAG, but that figure is non-citable
+   (the source was dropped from the register in the 2026-07 consolidation):
+   we never quote it as evidence and run our own baseline instead.
 3. `graph_no_judge`: deterministic classification plus norm context with
    the build judge IGNORED (accepted, rejected, and needs_human_review
    norms are all offered).

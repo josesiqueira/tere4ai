@@ -1,7 +1,7 @@
 """M4 ablation strategies: the five conditions of the Section 12 ladder.
 
 @implements: DEC-11
-@grounded_by: REF-15, REF-16, REF-17, REF-19
+@grounded_by: REF-15, REF-16, REF-17
 
 Each strategy is a uniform callable answer(item) -> {"answer_text",
 "citations": [node ids], "risk_category"?} so the harness (harness.py) can
@@ -10,10 +10,10 @@ run any subset over the same items. The ladder (architecture.md Section 12):
 1. plain_llm        generator only, no graph; the prompt holds the question only.
 2. vector_rag       naive lexical retrieval (in-process TF-IDF, no new deps)
                     over Layer 1 node texts; top-k passages as context. This
-                    is deliberately the WEAK baseline. REF-19 reports around
-                    38 percent for vector-only RAG but is PRAC (practitioner,
-                    not citable evidence), so we run our own baseline and
-                    never quote that figure as a result.
+                    is deliberately the WEAK baseline. Practitioner write-ups
+                    report around 38 percent for vector-only RAG, but that
+                    source was dropped from the register (non-citable), so we
+                    run our own baseline and never quote that figure.
 3. graph_no_judge   deterministic classify plus ALL extracted norms as
                     context, judge verdicts ignored (accepted, rejected, and
                     needs_human_review norms are all offered).
@@ -198,7 +198,7 @@ class PlainLLM:
 class VectorRag:
     """Condition 2: naive TF-IDF retrieval over Layer 1 texts, then generate.
 
-    The weak baseline of the ladder (see the module header on REF-19).
+    The weak baseline of the ladder (see the module header).
     """
 
     name = "vector_rag"

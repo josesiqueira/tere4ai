@@ -34,11 +34,15 @@ FORBIDDEN_DASHES = {EM_DASH: "em dash (U+2014)", EN_DASH: "en dash (U+2013)"}
 DASH_RE = re.compile("[" + EN_DASH + EM_DASH + "]")
 
 DEC_ID_RE = re.compile(r"DEC-\d+")
-REF_ID_RE = re.compile(r"REF-\d+")
+# Reference ids: REF-NN (optionally a letter suffix, e.g. REF-14c), plus the
+# SELF-NN (author's own work) and ADD-NN (added literature) namespaces used by
+# the authoritative register in references.md.
+_REF_ID_ALT = r"(?:REF-\d+[a-z]?|SELF-\d+|ADD-\d+)"
+REF_ID_RE = re.compile(_REF_ID_ALT)
 # Decision lines in Section 16 of architecture.md.
 SECTION16_DEC_RE = re.compile(r"^-\s*(DEC-\d+):", re.MULTILINE)
 # Reference definition lines in references.md.
-REF_DEF_RE = re.compile(r"^\*\*\[(REF-\d+)\]\*\*", re.MULTILINE)
+REF_DEF_RE = re.compile(r"^\*\*\[(" + _REF_ID_ALT + r")\]\*\*", re.MULTILINE)
 # Tag lines in .py files (docstrings or comments; a line regex is enough).
 IMPLEMENTS_LINE_RE = re.compile(r"@implements\s*:\s*(.*)")
 GROUNDED_BY_LINE_RE = re.compile(r"@grounded_by\s*:\s*(.*)")

@@ -63,7 +63,7 @@ paragraph, point, or annex item, never a recital.
   human-readable one.
 
 ## 3. Normative statements (deontic)
-grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14
+grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
 
 - An Article is not one requirement. Each extracted norm is a NormativeStatement
   node with, at minimum: norm_id, source_node_id, source_span_id, deontic_type,
@@ -73,11 +73,11 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14
   extraction_method, extractor_model, confidence, judge_verdict, review_status.
 - Schema is grounded in Institutional Grammar (OVR-9): actor maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
-  Aim. Pull the primary sources (REF-14) before citing.
+  Aim. Pull the primary sources (REF-14c) before citing.
 - Actors are canonicalised (provider, deployer, importer, distributor,
   authorised representative, product manufacturer, and so on). Inferred actors
   record their inference source node (for example provider inferred via Article
-  16). grounded_by: REF-28
+  16). grounded_by: REF-12
 
 ## 4. Reified alignments
 grounded_by: REF-24, REF-21, REF-10
@@ -94,7 +94,7 @@ grounded_by: REF-24, REF-21, REF-10
   related_to, conflicts_with, no_clear_relation.
 
 ## 5. Store decision: Neo4j primary plus RDF export
-OVR-8. grounded_by: REF-20, REF-21, REF-22, REF-08, REF-25, REF-23
+OVR-8. grounded_by: REF-21, REF-22, REF-08, REF-25, REF-23
 
 - Operational store: Neo4j (labeled property graph). Rationale: provenance sits
   on every edge, which is native to property graphs and awkward in RDF
@@ -110,7 +110,7 @@ OVR-8. grounded_by: REF-20, REF-21, REF-22, REF-08, REF-25, REF-23
 ## 6. Build-time pipeline and ingestion
 Engineering MUST (determinism and reproducibility, see Section 13);
 corroborated by REF-27, REF-26. Structure and identifiers grounded by REF-03,
-REF-08, REF-05, REF-06.
+REF-08, REF-05.
 
 Two lanes: deterministic first, LLM-assisted second.
 
@@ -281,7 +281,7 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   text; keep them as an overlay so both versions are answerable.
 
 ## 12. Evaluation
-OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-19, REF-24
+OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
 
 - Ablation ladder: plain LLM, vector RAG over Act chunks, graph without judge,
   graph plus build judge, graph plus build and runtime judge.
@@ -378,7 +378,7 @@ Open decisions:
 - OPEN-STANDARDS: standards mapping (TAIR) deferred to v2.1.
 
 Sources to verify before the thesis (see references.md [VERIFY] tags): the
-Omnibus final OJ citation, the Institutional Grammar primaries (REF-14), the
+Omnibus final OJ citation, the Institutional Grammar primaries (REF-14c), the
 exact XTRAREG and Galli metrics, AIRO's canonical URL, and the AI Act Evaluation
 Benchmark coverage.
 
@@ -401,7 +401,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-03: NormativeStatement first-class, Institutional Grammar. grounded_by REF-11,
   REF-12, REF-13. Defense: deontic-KG practice; an article holds many norms.
   verify: src/extract_norms/ emits norm nodes; norm_extraction test.
-- DEC-04: actor inferred via Article 16, canonicalised. grounded_by REF-28, REF-11.
+- DEC-04: actor inferred via Article 16, canonicalised. grounded_by REF-11, REF-12.
   Defense: multi-party texts cause object/actor misidentification.
   verify: src/canonicalize/ actor table; actor_inference test.
 - DEC-05: reified AlignmentAssertion nodes. grounded_by REF-24, REF-21, REF-10.
@@ -419,7 +419,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   legal non-goal (Section 0). Defense: measured grounding limits and the legal
   caveat make any certified-compliance claim unsupportable.
   verify: MCP output enum lacks compliant/certified; no_compliance_claim test.
-- DEC-09: Neo4j primary plus RDF export. grounded_by REF-20, REF-21, REF-22, REF-08, REF-25, REF-23.
+- DEC-09: Neo4j primary plus RDF export. grounded_by REF-21, REF-22, REF-08, REF-25, REF-23.
   Defense: edge-native provenance and a reject-not-infer task fit property graphs.
   verify: graph_store/ uses Neo4j; rdf_export_roundtrip test.
 - DEC-10: full structural mirror, deep only on high-risk core. grounded_by REF-17, REF-15.

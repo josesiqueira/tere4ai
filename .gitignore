@@ -39,3 +39,12 @@ web/next-env.d.ts
 
 # runtime audit logs (observability artifacts, not source)
 data/review_queue/*.jsonl
+
+# Reference papers (full text): local only, do not commit (paywalled / licensing).
+data/refs/*.pdf
+data/refs/*.html
+data/refs/*.txt
+data/refs/graphify-out/
+
+# Never commit loose PDFs at the repo root (paper copies belong in data/refs, gitignored).
+/*.pdf

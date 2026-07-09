@@ -6,7 +6,7 @@ type as the label, edges are MERGEd on edge_id with the edge_type as the
 relationship type and all provenance fields as relationship properties.
 
 @implements: DEC-09 (partial: Neo4j store; RDF export via n10s deferred to a later milestone)
-@grounded_by: REF-20, REF-21, REF-22, REF-08, REF-23
+@grounded_by: REF-21, REF-22, REF-08, REF-23
 """
 
 from __future__ import annotations

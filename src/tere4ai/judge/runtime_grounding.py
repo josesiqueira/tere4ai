@@ -1,7 +1,7 @@
 """Runtime grounding judge: the third judge, gating every generated runtime answer.
 
 @implements: DEC-06 (partial: runtime grounding judge)
-@grounded_by: REF-16, REF-24, REF-31
+@grounded_by: REF-16, REF-24, REF-31, ADD-16, ADD-18
 
 Architecture.md Section 7: on every generated requirement, backlog item, or
 evidence evaluation, the runtime grounding judge (independent Claude family,
