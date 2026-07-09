@@ -1,6 +1,6 @@
 """Elicit system_features for the benchmark's free-text scenarios (paid).
 
-@implements: DEC-08 (partial: elicitation front-end)
+@implements: DEC-13
 @grounded_by: REF-17
 
 Checkpointed per item; resume by re-running. Writes

@@ -318,7 +318,7 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-19, REF-24
 
 ## 14. Milestones
 
-- M1 Structural mirror plus versioning plus coverage_report. Deterministic Layer
+- M1 (DONE 2026-07-08) Structural mirror plus versioning plus coverage_report. Deterministic Layer
   1 over the full Act from the frozen EUR-Lex HTML manifestation (Section 6;
   Formex point-depth deferred to M2); Omnibus modelled as an amending
   source; source_trace and coverage_report tools. Demo UI increment: a single
@@ -333,16 +333,22 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-19, REF-24
   missing @implements or an unknown REF id. Write the acceptance fixtures
   (113 / 180 / 13; Chapter III Section 2 equals Articles 8 to 15; Article 6 links
   Annexes I and III; Article 11 links Annex IV) first, as the target.
-- M2 High-risk-core normative graph plus reified alignments plus build judges.
+- M2 (DONE 2026-07-08; v1-slice migration replaced by regeneration through the
+  judged pipeline per user decision, regression fixture from the new graph)
+  High-risk-core normative graph plus reified alignments plus build judges.
   Layers 2 and 3 over the v2 core only. Migrate the existing v1 slice (Articles
   9, 10, 13, 14, 15 and the seven HLEG nodes) into the new judged, reified
   pipeline; keep the old poster query as a regression fixture.
-- M3 Runtime tools plus runtime judge. classify_ai_system,
+- M3 (DONE 2026-07-08/09 for the four journey tools, facade, MCP, demo flow;
+  explain_requirement and trace_alignment in progress, tasks 41-42)
+  Runtime tools plus runtime judge. classify_ai_system,
   get_applicable_requirements, evaluate_project_evidence,
   generate_control_backlog, end-to-end audit log. Demo UI increment: the full
   demo flow (describe system, see classification, requirements with citations,
   evidence evaluation, judge verdicts), screenshot-ready for the tool paper.
-- M4 Evaluation harness plus gold set plus ablations.
+- M4 (harness DONE, first two live sweeps run 2026-07-08/09; open: full gold
+  set authoring, judge FA/FR labeling, full-benchmark run, variance study)
+  Evaluation harness plus gold set plus ablations.
 - Deferred to post-thesis / v2.1: GPAI deep extraction, standards mapping (TAIR),
   full-Act deep extraction, the trust/HCI study.
 
@@ -425,6 +431,16 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02, REF-04.
   Defense: it is adopted and changes the in-force text and the dates.
   verify: SourceDocument for COM(2025)836 with AMENDS/HAS_VERSION; versioning test.
+- DEC-13: feature elicitation splits fact extraction from decision (added
+  2026-07-09). Engineering MUST (the trust split of Section 0: the LLM never
+  decides classification); corroborated by REF-17, REF-16.
+  Defense: free-text inputs need facts extracted before rules can run; the
+  elicitor emits only schema-valid facts with textual support, omits unknowns,
+  and never outputs a risk category, so the deterministic ladder and its
+  missing_facts guard stay the sole decision path.
+  verify: src/tere4ai/elicit_features/ never outputs a classification; flags
+  without textual support omitted; elicitation-vs-abstention measured in the
+  ablation artifacts (eval/results/RUN2_ANALYSIS.md).
 
 ## 17. Implementation-traceability convention
 

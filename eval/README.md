@@ -133,3 +133,17 @@ subsets while iterating.
 - The EU-to-HLEG mappings consumed anywhere in evaluation are
   LLM-generated and not expert-validated; surface that caveat when
   reporting.
+
+## Run 2 findings (2026-07-09)
+
+Elicited features (DEC-13) plus requirements-citation wiring changed the
+ladder: graph strategies went from blanket abstention (0/32) to 18/32
+correct on free-text scenarios with abstentions down to 4, and checkable
+citation completeness rose from 0.02 to 0.38 while plain_llm still emits
+zero checkable citations. Of the 14 remaining mismatches, 7 are
+minimal-vs-Article-50 taxonomy disagreements (arguably our classifier is
+the more Act-faithful reading), 4 are honest abstentions, 3 are real
+over-classifications traced to elicited flags (see
+results/ELICITATION_ERRORS.md once generated). Full analysis:
+results/RUN2_ANALYSIS.md. Treat single-run deltas of a few items as within
+provider variance until the repeat-run study (task 60) bounds it.

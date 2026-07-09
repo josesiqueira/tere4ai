@@ -1,7 +1,6 @@
 """Feature elicitation: free-text system description to system_features.
 
-@implements: DEC-08 (partial: elicitation front-end; the deterministic
-classifier still makes every classification decision)
+@implements: DEC-13
 @grounded_by: REF-17, REF-16
 
 The trust split of USER.md holds: the LLM extracts FACTS from the given

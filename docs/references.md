@@ -164,7 +164,7 @@ Reproducible Evaluation Dataset for NLP and RAG Systems", arXiv:2603.09435
 (2026). https://arxiv.org/html/2603.09435v1
 Grounds: tasks of risk-level classification, article retrieval, obligation
 generation, and QA. Primary reusable evaluation set (OVR-10, M4).
-[VERIFY coverage against the high-risk core.]
+[VERIFIED 2026-07-09: dataset located at github.com/davidath/ai-act-evaluation-benchmark, 339 scenarios + 137 QA, CC BY 4.0; coverage strong on the high-risk core, Article 7 absent, citations article-granularity only. See eval/README.md.]
 
 **[REF-17]** PRE. "Assessing High-Risk AI Systems under the EU AI Act: From
 Legal Requirements to Technical Verification", arXiv:2512.13907 (2025).
