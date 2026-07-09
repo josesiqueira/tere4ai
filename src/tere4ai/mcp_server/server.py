@@ -29,12 +29,16 @@ from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_rules
 from tere4ai.mcp_server import classify as classify_rules
 from tere4ai.mcp_server import evidence as evidence_rules
+from tere4ai.mcp_server import explain as explain_rules
 from tere4ai.mcp_server import requirements as requirements_rules
+from tere4ai.mcp_server import spans as spans_rules
 from tere4ai.mcp_server import tools
+from tere4ai.mcp_server import trace as trace_rules
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DUMP_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "layer1.json"
 NORMS_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "norms_core.json"
+ALIGNMENTS_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "alignments_core.json"
 SNAPSHOTS_DIR = _PROJECT_ROOT / "data" / "snapshots"
 
 # Facade-parity cap on backlog input norms (http_facade.app.MAX_BACKLOG_NORMS).
@@ -48,8 +52,9 @@ mcp = FastMCP(
     name="tere4ai",
     instructions=(
         "TERE4AI v2 tools over the EU AI Act graph: M1 structural tools "
-        "(coverage_report, source_trace) plus M3 runtime tools "
-        "(classify_ai_system, get_applicable_requirements, "
+        "(coverage_report, source_trace) plus explanation and trace tools "
+        "(explain_requirement, trace_alignment, resolve_span) plus M3 "
+        "runtime tools (classify_ai_system, get_applicable_requirements, "
         "evaluate_project_evidence, generate_control_backlog). Read-only; "
         "evaluate_project_evidence and generate_control_backlog perform paid "
         "model calls. " + tools.NON_LEGAL_ADVICE_NOTICE
@@ -81,6 +86,13 @@ def _norms_missing_envelope() -> dict[str, Any]:
     return tools.dump_unavailable_envelope(
         f"judged norms payload not available at {NORMS_PATH}; build it with "
         "python -m tere4ai.extract_norms"
+    )
+
+
+def _alignments_missing_envelope() -> dict[str, Any]:
+    return tools.dump_unavailable_envelope(
+        f"judged alignments payload not available at {ALIGNMENTS_PATH}; build "
+        "it with python -m tere4ai.align_hleg_altai"
     )
 
 
@@ -136,6 +148,68 @@ def source_trace(node_id: str) -> dict[str, Any]:
     if dump is None:
         return _dump_missing_envelope()
     return tools.source_trace(dump, node_id, snapshots_dir=SNAPSHOTS_DIR)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def explain_requirement(norm_id: str) -> dict[str, Any]:
+    """Explain ONE judged NormativeStatement: deontic decomposition (actor,
+    modal, action, object, conditions, exceptions), full source unit text,
+    Article 3 definitions occurring in its action/object, accepted HLEG
+    alignment targets with relation types and final scores, and a span
+    trace. Non-accepted norms are explained too, with their review status
+    stated prominently. Deterministic and free."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    norms_payload = _read_json(NORMS_PATH)
+    if norms_payload is None:
+        return _norms_missing_envelope()
+    alignments_payload = _read_json(ALIGNMENTS_PATH)
+    if alignments_payload is None:
+        return _alignments_missing_envelope()
+    return explain_rules.explain_requirement(norm_id, dump, norms_payload, alignments_payload)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def trace_alignment(id: str) -> dict[str, Any]:
+    """All reified EU-to-HLEG alignment chains for a norm_id (assertions
+    from that norm) or an HLEG requirement id (assertions targeting it).
+    Every assertion is rendered with relation type, scores, judge verdict
+    and rationale, mapping and judge runs (models, prompt versions), and
+    evidence span ids on both sides; never a bare edge. The mappings are
+    LLM-generated and not expert-validated. Deterministic and free."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    alignments_payload = _read_json(ALIGNMENTS_PATH)
+    if alignments_payload is None:
+        return _alignments_missing_envelope()
+    return trace_rules.trace_alignment(id, alignments_payload, dump)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def resolve_span(span_id: str) -> dict[str, Any]:
+    """Resolve a SourceSpan id to its checksum-verified snapshot slice:
+    snapshot file, sha256, start, end, and the exact text. Unknown span ids
+    and checksum drift come back as clean degraded envelopes, never an
+    exception. Deterministic and free."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    return spans_rules.resolve_span_envelope(
+        span_id, dump, SNAPSHOTS_DIR, extra_nodes=_hleg_nodes()
+    )
+
+
+def _hleg_nodes() -> list[dict[str, Any]]:
+    """The seven HLEG requirement nodes (target-side spans live outside the
+    Layer 0+1 dump); empty when the frozen HLEG text is unavailable."""
+    try:
+        from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
+
+        return build_hleg_nodes()
+    except Exception:  # noqa: BLE001 - degrade to dump-only span resolution
+        return []
 
 
 @mcp.tool(annotations=_READ_ONLY)

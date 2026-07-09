@@ -1,0 +1,2291 @@
+{
+ "purpose": "Gold accept/reject labels for judge FA/FR rates (eval/gold/ANNOTATION_PROTOCOL.md). Fill human_label with 'accept' or 'reject' and human_rationale with one sentence; then run scripts/sample_judge_decisions.py --compute.",
+ "labelling_rule": "accept only if ALL judge criteria hold against the source text (span exists, deontic type supported, actor explicit or a valid recorded inference, action and object grounded, conditions and exceptions not dropped; for mappings: both quotes verbatim and the relation supported by concepts present in both spans). Any single failure means reject. Do not read the judge verdict before labelling.",
+ "sampling": {
+  "method": "stratified over (judge_kind x verdict); proportional with a minimum of 3 per non-empty stratum; within a stratum, ids sorted by sha256(decision_id) and the first k taken; no random module",
+  "total": 50,
+  "population": 1054,
+  "strata": [
+   {
+    "judge_kind": "extraction",
+    "verdict": "accepted",
+    "population": 339,
+    "sampled": 16
+   },
+   {
+    "judge_kind": "extraction",
+    "verdict": "needs_human_review",
+    "population": 41,
+    "sampled": 3
+   },
+   {
+    "judge_kind": "extraction",
+    "verdict": "rejected",
+    "population": 54,
+    "sampled": 3
+   },
+   {
+    "judge_kind": "mapping",
+    "verdict": "accepted",
+    "population": 475,
+    "sampled": 22
+   },
+   {
+    "judge_kind": "mapping",
+    "verdict": "rejected",
+    "population": 145,
+    "sampled": 6
+   }
+  ],
+  "unjoinable_judge_runs_excluded": [
+   "judgerun:extraction:eu-ai-act:annex-iii:point-1:n1",
+   "judgerun:extraction:eu-ai-act:article-11:paragraph-3:n1",
+   "judgerun:extraction:eu-ai-act:article-6:paragraph-2:n1",
+   "judgerun:extraction:eu-ai-act:article-6:paragraph-6:n1",
+   "judgerun:extraction:eu-ai-act:article-73:paragraph-7:n3",
+   "judgerun:extraction:eu-ai-act:article-73:paragraph-7:n4",
+   "judgerun:extraction:eu-ai-act:article-7:paragraph-1:n1",
+   "judgerun:extraction:eu-ai-act:article-7:paragraph-3:n1",
+   "judgerun:mapping:eu-ai-act:article-12:paragraph-3:n3:privacy-and-data-governance:c3",
+   "judgerun:mapping:eu-ai-act:article-13:paragraph-3:n9:transparency:c1",
+   "judgerun:mapping:eu-ai-act:article-15:paragraph-5:n1:privacy-and-data-governance:c2",
+   "judgerun:mapping:eu-ai-act:article-16:paragraph-1:n1:accountability:c1",
+   "judgerun:mapping:eu-ai-act:article-16:paragraph-1:point-a:n1:accountability:c1",
+   "judgerun:mapping:eu-ai-act:article-17:paragraph-1:n2:transparency:c1",
+   "judgerun:mapping:eu-ai-act:article-22:paragraph-3:n1:transparency:c1",
+   "judgerun:mapping:eu-ai-act:article-23:paragraph-1:n3:accountability:c2",
+   "judgerun:mapping:eu-ai-act:article-25:paragraph-1:n2:accountability:c1",
+   "judgerun:mapping:eu-ai-act:article-25:paragraph-2:n1:transparency:c1",
+   "judgerun:mapping:eu-ai-act:article-25:paragraph-2:n3:transparency:c2",
+   "judgerun:mapping:eu-ai-act:article-5:paragraph-1:n6:human-agency-and-oversight:c2",
+   "judgerun:mapping:eu-ai-act:article-5:paragraph-1:n6:privacy-and-data-governance:c1",
+   "judgerun:mapping:eu-ai-act:article-5:paragraph-1:n9:diversity-non-discrimination-and-fairness:c2",
+   "judgerun:mapping:eu-ai-act:article-72:paragraph-4:n2:accountability:c2",
+   "judgerun:mapping:eu-ai-act:article-8:paragraph-2:n2:transparency:c1"
+  ]
+ },
+ "builds": {
+  "norms_core": "build-3b753e5e9297",
+  "alignments_core": "build-3b753e5e9297",
+  "layer1": "build-3b753e5e9297"
+ },
+ "items": [
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-26:paragraph-10:n12",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-26:paragraph-10:n12",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The final sentence states 'Member States may introduce, in accordance with Union law, more restrictive laws on the use of post-remote biometric identification systems.' The permission deontic type and modal 'may' are directly supported, the actor 'Member States' is explicitly named, and the action ('introduce') and object ('more restrictive laws on the use of post-remote biometric identification systems') are faithfully grounded. The scoping condition 'in accordance with Union law' is preserved. No exceptions apply to this sentence. Binding operative text, checks satisfied.",
+    "scores": {
+     "semantic_similarity": 0.97,
+     "normative_relevance": 0.85,
+     "operational_utility": 0.6,
+     "evidence_strength": 0.92,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-26:paragraph-10:n12",
+    "source_node_id": "eu-ai-act:article-26:paragraph-10",
+    "source_span_id": "span:026.010",
+    "deontic_type": "permission",
+    "modal": "may",
+    "actor_explicit": "member states",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "introduce",
+    "object": "more restrictive laws on the use of post-remote biometric identification systems",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "in accordance with union law"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-26:paragraph-10",
+    "text": "10. Without prejudice to Directive (EU) 2016/680, in the framework of an investigation for the targeted search of a person suspected or convicted of having committed a criminal offence, the deployer of a high-risk AI system for post-remote biometric identification shall request an authorisation, ex ante , or without undue delay and no later than 48 hours, by a judicial authority or an administrative authority whose decision is binding and subject to judicial review, for the use of that system, except when it is used for the initial identification of a potential suspect based on objective and v [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-6:paragraph-4:n1",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-6:paragraph-4:n1",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states 'A provider who considers that an AI system referred to in Annex III is not high-risk shall document its assessment before that system is placed on the market or put into service.' The obligation ('shall'), actor (the qualifying provider), action ('document'), and object ('its assessment') are all directly grounded. Both scoping conditions—the provider's consideration and the temporal 'before that system is placed on the market or put into service'—are captured. No carve-outs are present to drop. This candidate covers only the first sentence's obligation, which is a valid single-norm extraction.",
+    "scores": {
+     "semantic_similarity": 0.95,
+     "normative_relevance": 0.95,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.95,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-6:paragraph-4:n1",
+    "source_node_id": "eu-ai-act:article-6:paragraph-4",
+    "source_span_id": "span:006.004",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": "a provider who considers that an ai system referred to in annex iii is not high-risk",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "document",
+    "object": "its assessment",
+    "target_system_category": null,
+    "conditions": [
+     "who considers that an AI system referred to in Annex III is not high-risk",
+     "before that system is placed on the market or put into service"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-6:paragraph-4",
+    "text": "4. A provider who considers that an AI system referred to in Annex III is not high-risk shall document its assessment before that system is placed on the market or put into service. Such provider shall be subject to the registration obligation set out in Article 49(2). Upon request of national competent authorities, the provider shall provide the documentation of the assessment."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-10:paragraph-5:n2",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-10:paragraph-5:n2",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states that where providers exceptionally process special categories of personal data for bias detection, 'all the following conditions must be met in order for such processing to occur', including condition (a) that 'the bias detection and correction cannot be effectively fulfilled by processing other data, including synthetic or anonymised data'. The deontic 'obligation' with modal 'must' is faithfully grounded, and the object reproduces condition (a) verbatim. The actor is not explicit in this paragraph but the text specifically references 'the providers of such systems', so the inferred provider actor (via Article 16) is well-supported and indeed textually confirmed here. The condition 'in order for such processing to occur' preserves the scoping that these obligations only apply when such processing takes place; the high-risk scope is explicit. The action 'ensure' is a slight paraphrase (the condition is stated as a fact that must obtain rather than a verb), but it faithfully captures the operative requirement without broadening or narrowing it.",
+    "scores": {
+     "semantic_similarity": 0.85,
+     "normative_relevance": 0.9,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.88,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n2",
+    "source_node_id": "eu-ai-act:article-10:paragraph-5",
+    "source_span_id": "span:010.005",
+    "deontic_type": "obligation",
+    "modal": "must",
+    "actor_explicit": null,
+    "actor_inferred": "provider",
+    "actor_inference_source_node_id": "eu-ai-act:article-16",
+    "action": "ensure",
+    "object": "the bias detection and correction cannot be effectively fulfilled by processing other data, including synthetic or anonymised data",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "in order for such processing to occur"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-10:paragraph-5",
+    "text": "5. To the extent that it is strictly necessary for the purpose of ensuring bias detection and correction in relation to the high-risk AI systems in accordance with paragraph (2), points (f) and (g) of this Article, the providers of such systems may exceptionally process special categories of personal data, subject to appropriate safeguards for the fundamental rights and freedoms of natural persons. In addition to the provisions set out in Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680, all the following conditions must be met in order for such processing to occur: (a) [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-50:paragraph-7:n3",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-50:paragraph-7:n3",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states 'If it deems the code is not adequate, the Commission may adopt an implementing act specifying common rules for the implementation of those obligations in accordance with the examination procedure laid down in Article 98(2).' This directly supports the permission deontic type ('may'), the explicit actor 'the Commission', the action 'adopt an implementing act specifying', and the object 'common rules for the implementation of those obligations'. Both scoping conditions ('if it deems the code is not adequate' and 'in accordance with the examination procedure laid down in Article 98(2)') are faithfully retained. The unit is operative binding law, not a recital.",
+    "scores": {
+     "semantic_similarity": 0.95,
+     "normative_relevance": 0.85,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.92,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-50:paragraph-7:n3",
+    "source_node_id": "eu-ai-act:article-50:paragraph-7",
+    "source_span_id": "span:050.007",
+    "deontic_type": "permission",
+    "modal": "may",
+    "actor_explicit": "the commission",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "adopt an implementing act specifying",
+    "object": "common rules for the implementation of those obligations",
+    "target_system_category": null,
+    "conditions": [
+     "if it deems the code is not adequate",
+     "in accordance with the examination procedure laid down in article 98(2)"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-50:paragraph-7",
+    "text": "7. The AI Office shall encourage and facilitate the drawing up of codes of practice at Union level to facilitate the effective implementation of the obligations regarding the detection and labelling of artificially generated or manipulated content. The Commission may adopt implementing acts to approve those codes of practice in accordance with the procedure laid down in Article 56 (6). If it deems the code is not adequate, the Commission may adopt an implementing act specifying common rules for the implementation of those obligations in accordance with the examination procedure laid down in Ar [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-26:paragraph-8:n1",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-26:paragraph-8:n1",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source text states 'Deployers of high-risk AI systems that are public authorities, or Union institutions, bodies, offices or agencies shall comply with the registration obligations referred to in Article 49.' The candidate faithfully captures this obligation: actor is explicitly named and matches, the modal 'shall' appears, action 'comply with' and object 'the registration obligations referred to in Article 49' are grounded verbatim. This first sentence carries no scoping clauses or carve-outs, so no dropped conditions. The second sentence (the use prohibition when unregistered) is a separate norm and its omission does not undermine this candidate's grounding.",
+    "scores": {
+     "semantic_similarity": 0.95,
+     "normative_relevance": 0.95,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.95,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-26:paragraph-8:n1",
+    "source_node_id": "eu-ai-act:article-26:paragraph-8",
+    "source_span_id": "span:026.008",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": "deployers of high-risk ai systems that are public authorities, or union institutions, bodies, offices or agencies",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "comply with",
+    "object": "the registration obligations referred to in Article 49",
+    "target_system_category": "high_risk",
+    "conditions": [],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-26:paragraph-8",
+    "text": "8. Deployers of high-risk AI systems that are public authorities, or Union institutions, bodies, offices or agencies shall comply with the registration obligations referred to in Article 49. When such deployers find that the high-risk AI system that they envisage using has not been registered in the EU database referred to in Article 71, they shall not use that system and shall inform the provider or the distributor."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-17:paragraph-1:n16",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-17:paragraph-1:n16",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states the quality management system 'shall include at least the following aspects', enumerating point (m) 'an accountability framework setting out the responsibilities of the management and other staff with regard to all the aspects listed in this paragraph'. The obligation ('shall'), action ('include'), and object are faithfully grounded. The actor 'that system' refers to the quality management system, which the text explicitly frames as the subject of 'shall include'; while ultimately the provider bears the duty, the candidate accurately mirrors the sentence's grammatical subject. The 'at least the following aspects' condition is properly retained, and no carve-outs were dropped. Verdict is acceptance.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.9,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.9,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-17:paragraph-1:n16",
+    "source_node_id": "eu-ai-act:article-17:paragraph-1",
+    "source_span_id": "span:017.001",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": "that system",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "include",
+    "object": "an accountability framework setting out the responsibilities of the management and other staff with regard to all the aspects listed in this paragraph",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "at least the following aspects"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-17:paragraph-1",
+    "text": "1. Providers of high-risk AI systems shall put a quality management system in place that ensures compliance with this Regulation. That system shall be documented in a systematic and orderly manner in the form of written policies, procedures and instructions, and shall include at least the following aspects: (a) a strategy for regulatory compliance, including compliance with conformity assessment procedures and procedures for the management of modifications to the high-risk AI system; (b) techniques, procedures and systematic actions to be used for the design, design control and design verifica [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-24:paragraph-6:n1",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-24:paragraph-6:n1",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states 'Distributors shall cooperate with the relevant competent authorities in any action those authorities take in relation to a high-risk AI system made available on the market by the distributors,' which directly supports the obligation deontic type, the 'shall' modal, the explicit actor 'distributors', the action 'cooperate', and the object as captured. The high-risk target category and the condition regarding a high-risk AI system made available on the market by the distributors are both grounded in the text. No scoping clauses or carve-outs have been dropped, and the source is an operative article paragraph, not recital or guidance.",
+    "scores": {
+     "semantic_similarity": 0.95,
+     "normative_relevance": 0.95,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.92,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-24:paragraph-6:n1",
+    "source_node_id": "eu-ai-act:article-24:paragraph-6",
+    "source_span_id": "span:024.006",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": "distributors",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "cooperate",
+    "object": "with the relevant competent authorities in any action those authorities take",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "in relation to a high-risk AI system made available on the market by the distributors"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-24:paragraph-6",
+    "text": "6. Distributors shall cooperate with the relevant competent authorities in any action those authorities take in relation to a high-risk AI system made available on the market by the distributors, in particular to reduce or mitigate the risk posed by it."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-10:paragraph-5:n6",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-10:paragraph-5:n6",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source point (e) states that 'the special categories of personal data are deleted once the bias has been corrected or the personal data has reached the end of its retention period, whichever comes first', which grounds the deletion obligation, its object, and the timing condition. The obligation is one of the 'following conditions [that] must be met in order for such processing to occur', supporting the mandatory ('must') deontic type and the second condition. The actor is not explicitly named at the point level, but paragraph 5 identifies 'the providers of such systems' as the parties processing this data, so attributing the duty to the provider (with Article 16 inference recorded) is a valid inference. The target_system_category high_risk is grounded ('high-risk AI systems'). No scoping clause or carve-out has been dropped. Accepted.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.9,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.9,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n6",
+    "source_node_id": "eu-ai-act:article-10:paragraph-5",
+    "source_span_id": "span:010.005",
+    "deontic_type": "obligation",
+    "modal": "other_explicit",
+    "actor_explicit": null,
+    "actor_inferred": "provider",
+    "actor_inference_source_node_id": "eu-ai-act:article-16",
+    "action": "delete",
+    "object": "the special categories of personal data",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "once the bias has been corrected or the personal data has reached the end of its retention period, whichever comes first",
+     "in order for such processing to occur"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-10:paragraph-5",
+    "text": "5. To the extent that it is strictly necessary for the purpose of ensuring bias detection and correction in relation to the high-risk AI systems in accordance with paragraph (2), points (f) and (g) of this Article, the providers of such systems may exceptionally process special categories of personal data, subject to appropriate safeguards for the fundamental rights and freedoms of natural persons. In addition to the provisions set out in Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680, all the following conditions must be met in order for such processing to occur: (a) [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-5:paragraph-1:n2",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-5:paragraph-1:n2",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The candidate faithfully captures point (b): 'the placing on the market, the putting into service or the use of an AI system that exploits any of the vulnerabilities of a natural person or a specific group of persons due to their age, disability or a specific social or economic situation, with the objective, or the effect, of materially distorting the behaviour ... in a manner that causes or is reasonably likely to cause ... significant harm.' The deontic type 'prohibition' matches the chapeau 'The following AI practices shall be prohibited'. Both conditions (materially distorting behaviour; significant harm) are preserved, and there are no carve-outs in point (b) to drop. The text names no actor for the prohibition, so 'unspecified_needs_review' is acceptable. Action and object are grounded without drift.",
+    "scores": {
+     "semantic_similarity": 0.95,
+     "normative_relevance": 0.98,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.95,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-5:paragraph-1:n2",
+    "source_node_id": "eu-ai-act:article-5:paragraph-1",
+    "source_span_id": "span:005.001",
+    "deontic_type": "prohibition",
+    "modal": "shall",
+    "actor_explicit": null,
+    "actor_inferred": "unspecified_needs_review",
+    "actor_inference_source_node_id": "eu-ai-act:article-5:paragraph-1",
+    "action": "place on the market, put into service or use",
+    "object": "an AI system that exploits any of the vulnerabilities of a natural person or a specific group of persons due to their age, disability or a specific social or economic situation",
+    "target_system_category": "prohibited_practice",
+    "conditions": [
+     "with the objective, or the effect, of materially distorting the behaviour of that person or a person belonging to that group",
+     "in a manner that causes or is reasonably likely to cause that person or another person significant harm"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-5:paragraph-1",
+    "text": "1. The following AI practices shall be prohibited: (a) the placing on the market, the putting into service or the use of an AI system that deploys subliminal techniques beyond a person’s consciousness or purposefully manipulative or deceptive techniques, with the objective, or the effect of materially distorting the behaviour of a person or a group of persons by appreciably impairing their ability to make an informed decision, thereby causing them to take a decision that they would not have otherwise taken in a manner that causes or is reasonably likely to cause that person, another person or  [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-9:paragraph-8:n2",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-9:paragraph-8:n2",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states 'Testing shall be carried out against prior defined metrics and probabilistic thresholds that are appropriate to the intended purpose of the high-risk AI system', directly supporting the obligation (shall), action, and object as extracted. The text names no actor, so the inference of 'provider' via Article 16 (which assigns risk-management and testing duties to providers of high-risk AI systems) is a valid recorded inference. No scoping clauses or carve-outs were dropped; the phrase 'as appropriate' relates to timing (paragraph's first sentence) and is not part of the extracted metrics obligation. Target category high_risk is correct.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.95,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.9,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-9:paragraph-8:n2",
+    "source_node_id": "eu-ai-act:article-9:paragraph-8",
+    "source_span_id": "span:009.008",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": null,
+    "actor_inferred": "provider",
+    "actor_inference_source_node_id": "eu-ai-act:article-16",
+    "action": "be carried out against",
+    "object": "prior defined metrics and probabilistic thresholds that are appropriate to the intended purpose of the high-risk AI system",
+    "target_system_category": "high_risk",
+    "conditions": [],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-9:paragraph-8",
+    "text": "8. The testing of high-risk AI systems shall be performed, as appropriate, at any time throughout the development process, and, in any event, prior to their being placed on the market or put into service. Testing shall be carried out against prior defined metrics and probabilistic thresholds that are appropriate to the intended purpose of the high-risk AI system."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-8:paragraph-1:n2",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-8:paragraph-1:n2",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The candidate captures the second sentence: 'The risk management system referred to in Article 9 shall be taken into account when ensuring compliance with those requirements.' The 'shall' modal supports an obligation, and the action ('take into account'), object ('the risk management system referred to in Article 9'), and condition ('when ensuring compliance with those requirements') are all faithfully grounded in the text. The sentence is passive and names no actor, so actor 'unspecified_needs_review' is appropriate. The high_risk target category is grounded in the paragraph's subject ('High-risk AI systems'). All checks hold.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.85,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.85,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-8:paragraph-1:n2",
+    "source_node_id": "eu-ai-act:article-8:paragraph-1",
+    "source_span_id": "span:008.001",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": null,
+    "actor_inferred": "unspecified_needs_review",
+    "actor_inference_source_node_id": "eu-ai-act:article-8:paragraph-1",
+    "action": "take into account",
+    "object": "the risk management system referred to in Article 9",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "when ensuring compliance with those requirements"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-8:paragraph-1",
+    "text": "1. High-risk AI systems shall comply with the requirements laid down in this Section, taking into account their intended purpose as well as the generally acknowledged state of the art on AI and AI-related technologies. The risk management system referred to in Article 9 shall be taken into account when ensuring compliance with those requirements."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-26:paragraph-5:n1",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-26:paragraph-5:n1",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The candidate faithfully captures the first-sentence obligation: 'Deployers shall monitor the operation of the high-risk AI system on the basis of the instructions for use.' The deontic type (obligation via 'shall'), actor ('deployers'), action ('monitor'), object, and the condition ('on the basis of the instructions for use') are all directly grounded. The candidate scopes to only the monitoring obligation of the first subparagraph, so the later carve-outs (sensitive operational data of law enforcement deployers; deemed-fulfillment for financial institutions) arguably qualify this monitoring duty. However, those exceptions could reasonably be treated as separate norms attached to the same obligation, and the core monitoring duty as extracted is accurate and complete for its scope. Minor concern that the financial-institution deeming and law-enforcement carve-out modify this monitoring obligation, but this does not misrepresent the text, so acceptance holds.",
+    "scores": {
+     "semantic_similarity": 0.95,
+     "normative_relevance": 0.95,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.9,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-26:paragraph-5:n1",
+    "source_node_id": "eu-ai-act:article-26:paragraph-5",
+    "source_span_id": "span:026.005",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": "deployers",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "monitor",
+    "object": "the operation of the high-risk AI system",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "on the basis of the instructions for use"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-26:paragraph-5",
+    "text": "5. Deployers shall monitor the operation of the high-risk AI system on the basis of the instructions for use and, where relevant, inform providers in accordance with Article 72. Where deployers have reason to consider that the use of the high-risk AI system in accordance with the instructions may result in that AI system presenting a risk within the meaning of Article 79(1), they shall, without undue delay, inform the provider or distributor and the relevant market surveillance authority, and shall suspend the use of that system. Where deployers have identified a serious incident, they shall a [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-9:paragraph-2:n5",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-9:paragraph-2:n5",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The text states 'It shall comprise the following steps' where 'It' refers to 'The risk management system', and point (d) is 'the adoption of appropriate and targeted risk management measures designed to address the risks identified pursuant to point (a)'. The obligation and 'shall' modal are grounded, the action 'comprise' and the object faithfully reflect point (d), and the high_risk target is supported ('high-risk AI system'). The text names no actor for who must ensure the risk management system comprises these steps (Article 9(1) establishes the duty but is not in this unit), so 'unspecified_needs_review' is a defensible choice. The condition 'designed to address the risks identified pursuant to point (a)' is part of the quoted object and no scoping clause or carve-out has been dropped. Acceptable.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.9,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.88,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-9:paragraph-2:n5",
+    "source_node_id": "eu-ai-act:article-9:paragraph-2",
+    "source_span_id": "span:009.002",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": null,
+    "actor_inferred": "unspecified_needs_review",
+    "actor_inference_source_node_id": "eu-ai-act:article-9:paragraph-2",
+    "action": "comprise",
+    "object": "the adoption of appropriate and targeted risk management measures designed to address the risks identified pursuant to point (a)",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "designed to address the risks identified pursuant to point (a)"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-9:paragraph-2",
+    "text": "2. The risk management system shall be understood as a continuous iterative process planned and run throughout the entire lifecycle of a high-risk AI system, requiring regular systematic review and updating. It shall comprise the following steps: (a) the identification and analysis of the known and the reasonably foreseeable risks that the high-risk AI system can pose to health, safety or fundamental rights when the high-risk AI system is used in accordance with its intended purpose; (b) the estimation and evaluation of the risks that may emerge when the high-risk AI system is used in accordan [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-10:paragraph-5:n3",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-10:paragraph-5:n3",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states that 'all the following conditions must be met in order for such processing to occur' and lists at point (b) that 'the special categories of personal data are subject to technical limitations on the re-use of the personal data, and state-of-the-art security and privacy-preserving measures, including pseudonymisation'. This supports an obligation with modal 'must'. The actor is not explicitly named for condition (b) itself, but the paragraph concerns 'the providers of such systems' who process the data, making the provider inference via Article 16 reasonable and properly recorded. The action and object are faithfully drawn from point (b). The overarching condition ('in order for such processing to occur') is captured, and the high-risk scope matches 'high-risk AI systems'. All checks hold.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.85,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.85,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n3",
+    "source_node_id": "eu-ai-act:article-10:paragraph-5",
+    "source_span_id": "span:010.005",
+    "deontic_type": "obligation",
+    "modal": "must",
+    "actor_explicit": null,
+    "actor_inferred": "provider",
+    "actor_inference_source_node_id": "eu-ai-act:article-16",
+    "action": "subject",
+    "object": "the special categories of personal data to technical limitations on the re-use of the personal data, and state-of-the-art security and privacy-preserving measures, including pseudonymisation",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "in order for such processing to occur"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-10:paragraph-5",
+    "text": "5. To the extent that it is strictly necessary for the purpose of ensuring bias detection and correction in relation to the high-risk AI systems in accordance with paragraph (2), points (f) and (g) of this Article, the providers of such systems may exceptionally process special categories of personal data, subject to appropriate safeguards for the fundamental rights and freedoms of natural persons. In addition to the provisions set out in Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680, all the following conditions must be met in order for such processing to occur: (a) [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-73:paragraph-6:n6",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-73:paragraph-6:n6",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source states 'The provider ... shall not perform any investigation which involves altering the AI system concerned in a way which may affect any subsequent evaluation of the causes of the incident, prior to informing the competent authorities of such action.' The candidate faithfully captures this as a prohibition ('shall_not'), with actor 'the provider' explicitly named, the action 'perform' and the object grounded verbatim. The conditioning clause 'prior to informing the competent authorities of such action' is retained. The source is operative binding text (Article 73(6)), and post_market lifecycle placement is appropriate given the serious-incident reporting context. All checks hold.",
+    "scores": {
+     "semantic_similarity": 0.95,
+     "normative_relevance": 0.95,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.92,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-73:paragraph-6:n6",
+    "source_node_id": "eu-ai-act:article-73:paragraph-6",
+    "source_span_id": "span:073.006",
+    "deontic_type": "prohibition",
+    "modal": "shall_not",
+    "actor_explicit": "the provider",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "perform",
+    "object": "any investigation which involves altering the AI system concerned in a way which may affect any subsequent evaluation of the causes of the incident",
+    "target_system_category": null,
+    "conditions": [
+     "prior to informing the competent authorities of such action"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-73:paragraph-6",
+    "text": "6. Following the reporting of a serious incident pursuant to paragraph 1, the provider shall, without delay, perform the necessary investigations in relation to the serious incident and the AI system concerned. This shall include a risk assessment of the incident, and corrective action. The provider shall cooperate with the competent authorities, and where relevant with the notified body concerned, during the investigations referred to in the first subparagraph, and shall not perform any investigation which involves altering the AI system concerned in a way which may affect any subsequent eval [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-5:paragraph-1:point-e:n2",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-5:paragraph-1:point-e:n2",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "The source text lists 'the putting into service for this specific purpose ... of AI systems that create or expand facial recognition databases through the untargeted scraping of facial images from the internet or CCTV footage' among the practices governed by Article 5(1), which is the prohibition provision, so the deontic_type 'prohibition' is faithful (the chapeau 'The following AI practices shall be prohibited' supplies the modal, appropriately marked 'other_explicit'). The action 'put into service for this specific purpose' and the object are grounded verbatim, without broadening or narrowing. The point contains no scoping clause or carve-out, so the empty conditions and exceptions are correct. The text names no actor, so 'unspecified_needs_review' is acceptable here.",
+    "scores": {
+     "semantic_similarity": 0.92,
+     "normative_relevance": 0.9,
+     "operational_utility": 0.85,
+     "evidence_strength": 0.9,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-5:paragraph-1:point-e:n2",
+    "source_node_id": "eu-ai-act:article-5:paragraph-1:point-e",
+    "source_span_id": "span:fmx:art_005.parag_001.np_e",
+    "deontic_type": "prohibition",
+    "modal": "other_explicit",
+    "actor_explicit": null,
+    "actor_inferred": "unspecified_needs_review",
+    "actor_inference_source_node_id": "eu-ai-act:article-5:paragraph-1:point-e",
+    "action": "put into service for this specific purpose",
+    "object": "AI systems that create or expand facial recognition databases through the untargeted scraping of facial images from the internet or CCTV footage",
+    "target_system_category": "prohibited_practice",
+    "conditions": [],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-5:paragraph-1:point-e",
+    "text": "the placing on the market, the putting into service for this specific purpose, or the use of AI systems that create or expand facial recognition databases through the untargeted scraping of facial images from the internet or CCTV footage;"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-10:paragraph-2:point-g:n1",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "needs_human_review"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-10:paragraph-2:point-g:n1",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "needs_human_review",
+    "rationale": "The source text is a fragment enumerating an item ('appropriate measures to detect, prevent and mitigate possible biases identified according to point (f);') within Article 10(2)'s list of what data governance practices 'shall concern'. This fragment alone contains no explicit deontic modal; the obligation is carried by the chapeau of Article 10(2) ('shall concern' / data governance practices), which is not part of this verbatim unit. The candidate asserts an obligation to 'take' these measures, but the action 'take' is not grounded in this fragment and the binding modal lives in the parent chapeau not shown here. The provider-inference via Article 16 is a plausible recorded inference, but because the deontic force and the action verb depend on text outside the quoted unit, a human should confirm whether the chapeau's modal is properly attached before accepting.",
+    "scores": {
+     "semantic_similarity": 0.85,
+     "normative_relevance": 0.4,
+     "operational_utility": 0.75,
+     "evidence_strength": 0.45,
+     "judge_confidence": 0.6
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-10:paragraph-2:point-g:n1",
+    "source_node_id": "eu-ai-act:article-10:paragraph-2:point-g",
+    "source_span_id": "span:fmx:art_010.parag_002.np_g",
+    "deontic_type": "obligation",
+    "modal": "other_explicit",
+    "actor_explicit": null,
+    "actor_inferred": "provider",
+    "actor_inference_source_node_id": "eu-ai-act:article-16",
+    "action": "take",
+    "object": "appropriate measures to detect, prevent and mitigate possible biases identified according to point (f)",
+    "target_system_category": "high_risk",
+    "conditions": [],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-10:paragraph-2:point-g",
+    "text": "appropriate measures to detect, prevent and mitigate possible biases identified according to point (f);"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-26:paragraph-5:n7",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "needs_human_review"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-26:paragraph-5:n7",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "needs_human_review",
+    "rationale": "The candidate correctly captures the deemed-compliance carve-out in the final sentence: 'For deployers that are financial institutions... the monitoring obligation... shall be deemed to be fulfilled by complying with the rules on internal governance arrangements, processes and mechanisms pursuant to the relevant financial service law,' and the condition is faithfully preserved. The exemption/deemed-fulfilment characterization is defensible. However, the actor_explicit is malformed: it names the abstraction 'the monitoring obligation set out in the first subparagraph' rather than an actor. The genuine actor is the deployer that is a financial institution, and the norm should be recorded against that actor rather than treating the obligation itself as the actor. Because the substance is grounded but the actor field is incorrectly populated (neither a valid explicit actor nor a recorded inference), a human should correct the actor mapping before acceptance.",
+    "scores": {
+     "semantic_similarity": 0.82,
+     "normative_relevance": 0.75,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.7,
+     "judge_confidence": 0.6
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-26:paragraph-5:n7",
+    "source_node_id": "eu-ai-act:article-26:paragraph-5",
+    "source_span_id": "span:026.005",
+    "deontic_type": "exemption",
+    "modal": "shall",
+    "actor_explicit": "the monitoring obligation set out in the first subparagraph",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "be deemed to be fulfilled",
+    "object": "by complying with the rules on internal governance arrangements, processes and mechanisms pursuant to the relevant financial service law",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "for deployers that are financial institutions subject to requirements regarding their internal governance, arrangements or processes under Union financial services law"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-26:paragraph-5",
+    "text": "5. Deployers shall monitor the operation of the high-risk AI system on the basis of the instructions for use and, where relevant, inform providers in accordance with Article 72. Where deployers have reason to consider that the use of the high-risk AI system in accordance with the instructions may result in that AI system presenting a risk within the meaning of Article 79(1), they shall, without undue delay, inform the provider or distributor and the relevant market surveillance authority, and shall suspend the use of that system. Where deployers have identified a serious incident, they shall a [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-73:paragraph-3:n1",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "needs_human_review"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-73:paragraph-3:n1",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "needs_human_review",
+    "rationale": "The obligation, modal ('shall be provided'), object ('the report referred to in paragraph 1'), conditions, and timing ('immediately, and not later than two days') are all faithfully grounded in the source text. The concern is the actor: the candidate marks actor as 'unspecified_needs_review', but the text does in fact name potential actors ('the provider or, where applicable, the deployer becomes aware of that incident'). The reporting duty in Article 73(1) rests on providers (and deployers where applicable), and this paragraph clearly ties awareness of the incident to 'the provider or...the deployer', so a defensible inferred actor exists rather than a genuinely unspecified one. Because the candidate treats the actor as unspecified when the text arguably supports a provider/deployer inference, a human should confirm whether to record the actor as inferred rather than leaving it for review.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.95,
+     "operational_utility": 0.75,
+     "evidence_strength": 0.7,
+     "judge_confidence": 0.6
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-73:paragraph-3:n1",
+    "source_node_id": "eu-ai-act:article-73:paragraph-3",
+    "source_span_id": "span:073.003",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": null,
+    "actor_inferred": "unspecified_needs_review",
+    "actor_inference_source_node_id": "eu-ai-act:article-73:paragraph-3",
+    "action": "be provided",
+    "object": "the report referred to in paragraph 1 of this Article",
+    "target_system_category": null,
+    "conditions": [
+     "notwithstanding paragraph 2 of this Article",
+     "in the event of a widespread infringement or a serious incident as defined in Article 3, point (49)(b)",
+     "immediately",
+     "not later than two days after the provider or, where applicable, the deployer becomes aware of that incident"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-73:paragraph-3",
+    "text": "3. Notwithstanding paragraph 2 of this Article, in the event of a widespread infringement or a serious incident as defined in Article 3, point (49)(b), the report referred to in paragraph 1 of this Article shall be provided immediately, and not later than two days after the provider or, where applicable, the deployer becomes aware of that incident."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-9:paragraph-2:n1",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-9:paragraph-2:n1",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "The candidate treats the definitional clause 'The risk management system shall be understood as a continuous iterative process...' as an actor-directed obligation, but this 'shall' is interpretive/definitional rather than deontic: it defines what the risk management system is, not what a named or inferable actor must do. The action 'be understood as' is not an actionable duty and no actor is named or validly inferable from this text alone (the provider duty to establish the system sits in paragraph 1). Recording actor as 'unspecified_needs_review' with an inference source pointing back to the same paragraph does not supply a valid actor. The genuine operative content (the required steps (a)-(d)) is not captured. This fails the deontic-type and actor checks.",
+    "scores": {
+     "semantic_similarity": 0.85,
+     "normative_relevance": 0.35,
+     "operational_utility": 0.3,
+     "evidence_strength": 0.4,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-9:paragraph-2:n1",
+    "source_node_id": "eu-ai-act:article-9:paragraph-2",
+    "source_span_id": "span:009.002",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": null,
+    "actor_inferred": "unspecified_needs_review",
+    "actor_inference_source_node_id": "eu-ai-act:article-9:paragraph-2",
+    "action": "be understood as",
+    "object": "a continuous iterative process planned and run throughout the entire lifecycle of a high-risk AI system, requiring regular systematic review and updating",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "throughout the entire lifecycle of a high-risk AI system"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-9:paragraph-2",
+    "text": "2. The risk management system shall be understood as a continuous iterative process planned and run throughout the entire lifecycle of a high-risk AI system, requiring regular systematic review and updating. It shall comprise the following steps: (a) the identification and analysis of the known and the reasonably foreseeable risks that the high-risk AI system can pose to health, safety or fundamental rights when the high-risk AI system is used in accordance with its intended purpose; (b) the estimation and evaluation of the risks that may emerge when the high-risk AI system is used in accordan [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-10:paragraph-2:n3",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-10:paragraph-2:n3",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "The candidate misframes the norm. The operative obligation in paragraph 2 is that 'Training, validation and testing data sets shall be subject to data governance and management practices appropriate for the intended purpose'. Point (b) is merely an item in the list of what those practices 'shall concern in particular' — the candidate has instead reified 'concern' as the action and point (b) as the object, producing an awkward and non-actionable norm ('practices shall concern data collection processes...'). More critically, the actor is not the data set but the entity responsible; the candidate infers 'provider' via Article 16, which is defensible for high-risk data governance duties, but the action/object pairing distorts the source structure. The proper extraction should either (i) capture the top-level obligation about subjecting data sets to appropriate governance practices, or (ii) treat the point-(b) content as a required scope of those practices with the correct verb. As framed, the action 'concern' with object (b) narrows and mangles the provision, failing the action/object grounding check.",
+    "scores": {
+     "semantic_similarity": 0.5,
+     "normative_relevance": 0.6,
+     "operational_utility": 0.3,
+     "evidence_strength": 0.4,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-10:paragraph-2:n3",
+    "source_node_id": "eu-ai-act:article-10:paragraph-2",
+    "source_span_id": "span:010.002",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": null,
+    "actor_inferred": "provider",
+    "actor_inference_source_node_id": "eu-ai-act:article-16",
+    "action": "concern",
+    "object": "data collection processes and the origin of data, and in the case of personal data, the original purpose of the data collection",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "those practices",
+     "in particular",
+     "in the case of personal data"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-10:paragraph-2",
+    "text": "2. Training, validation and testing data sets shall be subject to data governance and management practices appropriate for the intended purpose of the high-risk AI system. Those practices shall concern in particular: (a) the relevant design choices; (b) data collection processes and the origin of data, and in the case of personal data, the original purpose of the data collection; (c) relevant data-preparation processing operations, such as annotation, labelling, cleaning, updating, enrichment and aggregation; (d) the formulation of assumptions, in particular with respect to the information tha [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:extraction:eu-ai-act:article-27:paragraph-1:n7",
+   "stratum": {
+    "judge_kind": "extraction",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:extraction:eu-ai-act:article-27:paragraph-1:n7",
+    "judge_kind": "extraction",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "The text supports an obligation on 'deployers' to 'perform an assessment' (shall), and item (f) grounds the object regarding measures for the materialisation of risks including internal governance and complaint mechanisms. However, the candidate drops the material scoping and carve-out from the chapeau: the obligation applies only 'Prior to deploying a high-risk AI system referred to in Article 6(2)', to specific deployers (bodies governed by public law, private entities providing public services, and deployers of Annex III points 5(b) and (c)), and expressly 'with the exception of high-risk AI systems intended to be used in the area listed in point 2 of Annex III'. This exception and the actor/scope limitations are absent from conditions/exceptions, violating check 5. Additionally the object narrows the overall assessment obligation to only element (f) while framing it as the whole assessment, causing scope drift.",
+    "scores": {
+     "semantic_similarity": 0.6,
+     "normative_relevance": 0.9,
+     "operational_utility": 0.55,
+     "evidence_strength": 0.4,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "norm_id": "norm:eu-ai-act:article-27:paragraph-1:n7",
+    "source_node_id": "eu-ai-act:article-27:paragraph-1",
+    "source_span_id": "span:027.001",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": "deployers",
+    "actor_inferred": null,
+    "actor_inference_source_node_id": null,
+    "action": "perform",
+    "object": "an assessment consisting of the measures to be taken in the case of the materialisation of those risks, including the arrangements for internal governance and complaint mechanisms",
+    "target_system_category": "high_risk",
+    "conditions": [
+     "for that purpose"
+    ],
+    "exceptions": []
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-27:paragraph-1",
+    "text": "1. Prior to deploying a high-risk AI system referred to in Article 6(2), with the exception of high-risk AI systems intended to be used in the area listed in point 2 of Annex III, deployers that are bodies governed by public law, or are private entities providing public services, and deployers of high-risk AI systems referred to in points 5 (b) and (c) of Annex III, shall perform an assessment of the impact on fundamental rights that the use of such system may produce. For that purpose, deployers shall perform an assessment consisting of: (a) a description of the deployer’s processes in which  [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-17:paragraph-1:n11:accountability:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-17:paragraph-1:n11:accountability:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim: the source requires \"the setting-up, implementation and maintenance of a post-market monitoring system\" and the target calls for \"mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use.\" The rationale rests on concepts present in both spans: a post-market monitoring system is a concrete accountability mechanism operating after deployment, aligning with the target's \"after their development, deployment and use.\" This is a specific, partial implementation of the broad accountability requirement, so partially_operationalizes is well supported.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.8,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-17:paragraph-1:n11:accountability:2",
+    "source_norm_id": "norm:eu-ai-act:article-17:paragraph-1:n11",
+    "target_id": "hleg:accountability",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "the setting-up, implementation and maintenance of a post-market monitoring system",
+    "target_quote": "mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use.",
+    "source_evidence_span_ids": [
+     "span:017.001"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-17:paragraph-1",
+    "text": "1. Providers of high-risk AI systems shall put a quality management system in place that ensures compliance with this Regulation. That system shall be documented in a systematic and orderly manner in the form of written policies, procedures and instructions, and shall include at least the following aspects: (a) a strategy for regulatory compliance, including compliance with conformity assessment procedures and procedures for the management of modifications to the high-risk AI system; (b) techniques, procedures and systematic actions to be used for the design, design control and design verifica [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-10:paragraph-5:n7:diversity-non-discrimination-and-fairness:c3",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-10:paragraph-5:n7:diversity-non-discrimination-and-fairness:c3",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim. The source span concerns documenting the reasons why processing special categories of data was strictly necessary 'to detect and correct biases', which is a concept shared with the target span 'Avoidance of unfair bias.' The relation is correctly a 'supports' one rather than a direct operationalization: this particular span is about a record-keeping condition on bias-correction data processing, an accountability measure that furthers bias avoidance without fully implementing it. The rationale rests on concepts ('detect and correct biases') present in the quoted source span, so the evidence-bounded check holds.",
+    "scores": {
+     "semantic_similarity": 0.6,
+     "normative_relevance": 0.75,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-10:paragraph-5:n7:diversity-non-discrimination-and-fairness:3",
+    "source_norm_id": "norm:eu-ai-act:article-10:paragraph-5:n7",
+    "target_id": "hleg:diversity-non-discrimination-and-fairness",
+    "relation_type": "supports",
+    "source_quote": "the records of processing activities pursuant to Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680 include the reasons why the processing of special categories of personal data was strictly necessary to detect and correct biases, and why that objective could not be achieved by processing other data.",
+    "target_quote": "Avoidance of unfair bias.",
+    "source_evidence_span_ids": [
+     "span:010.005"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req5"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-10:paragraph-5",
+    "text": "5. To the extent that it is strictly necessary for the purpose of ensuring bias detection and correction in relation to the high-risk AI systems in accordance with paragraph (2), points (f) and (g) of this Article, the providers of such systems may exceptionally process special categories of personal data, subject to appropriate safeguards for the fundamental rights and freedoms of natural persons. In addition to the provisions set out in Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680, all the following conditions must be met in order for such processing to occur: (a) [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:point-b:point-vi:n1:transparency:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:point-b:point-vi:n1:transparency:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span requires 'specifications for the input data' and 'information in terms of the training, validation and testing data sets used', which concretely maps to the HLEG traceability span requiring that 'The data sets ... should be documented ... to allow for traceability and an increase in transparency.' The rationale rests on concepts present in both spans (data sets, documentation of data). This is a concrete Article 13 documentation obligation that implements part—but not the whole—of the transparency requirement (which also covers explainability and communication), so 'partially_operationalizes' is well supported.",
+    "scores": {
+     "semantic_similarity": 0.8,
+     "normative_relevance": 0.85,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.82,
+     "judge_confidence": 0.88
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-13:paragraph-3:point-b:point-vi:n1:transparency:1",
+    "source_norm_id": "norm:eu-ai-act:article-13:paragraph-3:point-b:point-vi:n1",
+    "target_id": "hleg:transparency",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "specifications for the input data, or any other relevant information in terms of the training, validation and testing data sets used",
+    "target_quote": "The data sets and the processes that yield the AI system’s decision, including those of data gathering and data labelling as well as the algorithms used, should be documented to the best possible standard to allow for traceability and an increase in transparency.",
+    "source_evidence_span_ids": [
+     "span:fmx:art_013.parag_003.np_b.np_vi"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req4"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-13:paragraph-3:point-b:point-vi",
+    "text": "when appropriate, specifications for the input data, or any other relevant information in terms of the training, validation and testing data sets used, taking into account the intended purpose of the high-risk AI system;"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-23:paragraph-2:n2:accountability:c3",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-23:paragraph-2:n2:accountability:c3",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span imposes a duty on the importer to \"inform the provider of the system, the authorised representative and the market surveillance authorities,\" which is a concrete mechanism assigning responsibility to identified actors and notifying authorities. The target span requires \"mechanisms be put in place to ensure responsibility and accountability for AI systems.\" The mandatory information/notification duty supports (rather than fully operationalizes) the establishment of accountability mechanisms; the rationale stays bounded to the quoted concepts of informing responsible actors and ensuring responsibility. The 'supports' relation is appropriate, as this is one contributing mechanism rather than a complete operationalization of accountability.",
+    "scores": {
+     "semantic_similarity": 0.6,
+     "normative_relevance": 0.7,
+     "operational_utility": 0.65,
+     "evidence_strength": 0.7,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-23:paragraph-2:n2:accountability:3",
+    "source_norm_id": "norm:eu-ai-act:article-23:paragraph-2:n2",
+    "target_id": "hleg:accountability",
+    "relation_type": "supports",
+    "source_quote": "the importer shall inform the provider of the system, the authorised representative and the market surveillance authorities to that effect.",
+    "target_quote": "It necessitates that mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes",
+    "source_evidence_span_ids": [
+     "span:023.002"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-23:paragraph-2",
+    "text": "2. Where an importer has sufficient reason to consider that a high-risk AI system is not in conformity with this Regulation, or is falsified, or accompanied by falsified documentation, it shall not place the system on the market until it has been brought into conformity. Where the high-risk AI system presents a risk within the meaning of Article 79(1), the importer shall inform the provider of the system, the authorised representative and the market surveillance authorities to that effect."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-15:paragraph-4:n5:diversity-non-discrimination-and-fairness:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-15:paragraph-4:n5:diversity-non-discrimination-and-fairness:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim: the source span requires systems to \"eliminate or reduce as far as possible the risk of possibly biased outputs influencing input for future operations (feedback loops)\", and the target span states \"Avoidance of unfair bias.\" The rationale rests on the shared concept of bias present in both spans, without importing outside notions. The legal norm imposes a concrete development obligation (feedback loop mitigation) that partially implements the broader HLEG goal of avoiding unfair bias, but only for the specific feedback-loop mechanism rather than the full breadth of the requirement (data collection, design oversight, accessibility). Partial operationalization is therefore the correct strength.",
+    "scores": {
+     "semantic_similarity": 0.72,
+     "normative_relevance": 0.78,
+     "operational_utility": 0.75,
+     "evidence_strength": 0.78,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-15:paragraph-4:n5:diversity-non-discrimination-and-fairness:2",
+    "source_norm_id": "norm:eu-ai-act:article-15:paragraph-4:n5",
+    "target_id": "hleg:diversity-non-discrimination-and-fairness",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "shall be developed in such a way as to eliminate or reduce as far as possible the risk of possibly biased outputs influencing input for future operations (feedback loops)",
+    "target_quote": "Avoidance of unfair bias.",
+    "source_evidence_span_ids": [
+     "span:015.004"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req5"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-15:paragraph-4",
+    "text": "4. High-risk AI systems shall be as resilient as possible regarding errors, faults or inconsistencies that may occur within the system or the environment in which the system operates, in particular due to their interaction with natural persons or other systems. Technical and organisational measures shall be taken in this regard. The robustness of high-risk AI systems may be achieved through technical redundancy solutions, which may include backup or fail-safe plans. High-risk AI systems that continue to learn after being placed on the market or put into service shall be developed in such a way [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-7:paragraph-2:n1:human-agency-and-oversight:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-7:paragraph-2:n1:human-agency-and-oversight:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their sources. The source span concerns \"the possibility for a human to override a decision or recommendations\" and the AI system acting \"autonomously,\" which directly matches the HLEG requirement's \"the ability to override a decision made by a system\" under human oversight. The rationale rests on concepts (autonomy, human override) present in both spans without importing outside material. Since the source is a criterion the Commission weighs when classifying high-risk systems rather than a directly imposed oversight obligation, it operationalizes only part of the requirement's broader oversight demands, so partially_operationalizes is the supported strength.",
+    "scores": {
+     "semantic_similarity": 0.9,
+     "normative_relevance": 0.85,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.85,
+     "judge_confidence": 0.9
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-7:paragraph-2:n1:human-agency-and-oversight:1",
+    "source_norm_id": "norm:eu-ai-act:article-7:paragraph-2:n1",
+    "target_id": "hleg:human-agency-and-oversight",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "the extent to which the AI system acts autonomously and the possibility for a human to override a decision or recommendations that may lead to potential harm;",
+    "target_quote": "the ability to override a decision made by a system.",
+    "source_evidence_span_ids": [
+     "span:007.002"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req1"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-7:paragraph-2",
+    "text": "2. When assessing the condition under paragraph 1, point (b), the Commission shall take into account the following criteria: (a) the intended purpose of the AI system; (b) the extent to which an AI system has been used or is likely to be used; (c) the nature and amount of the data processed and used by the AI system, in particular whether special categories of personal data are processed; (d) the extent to which the AI system acts autonomously and the possibility for a human to override a decision or recommendations that may lead to potential harm; (e) the extent to which the use of an AI syst [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-20:paragraph-2:n3:accountability:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-20:paragraph-2:n3:accountability:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their sources. The source span imposes a concrete post-deployment mechanism: informing market surveillance authorities and the notified body of \"the nature of the non-compliance and of any relevant corrective action taken\", which directly instantiates the HLEG demand that \"mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use.\" The rationale rests on concepts present in both spans (accountability mechanisms, corrective action, post-deployment), so it is evidence-bounded. partially_operationalizes is apt: notification of non-compliance is one specific accountability mechanism, not the full scope of accountability/auditability the requirement describes.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.8,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.78,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-20:paragraph-2:n3:accountability:2",
+    "source_norm_id": "norm:eu-ai-act:article-20:paragraph-2:n3",
+    "target_id": "hleg:accountability",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "inform the market surveillance authorities competent for the high-risk AI system concerned and, where applicable, the notified body that issued a certificate for that high-risk AI system in accordance with Article 44, in particular, of the nature of the non-compliance and of any relevant corrective action taken.",
+    "target_quote": "It necessitates that mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use.",
+    "source_evidence_span_ids": [
+     "span:020.002"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-20:paragraph-2",
+    "text": "2. Where the high-risk AI system presents a risk within the meaning of Article 79(1) and the provider becomes aware of that risk, it shall immediately investigate the causes, in collaboration with the reporting deployer, where applicable, and inform the market surveillance authorities competent for the high-risk AI system concerned and, where applicable, the notified body that issued a certificate for that high-risk AI system in accordance with Article 44, in particular, of the nature of the non-compliance and of any relevant corrective action taken."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-16:paragraph-1:point-k:n1:accountability:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-16:paragraph-1:point-k:n1:accountability:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their sources. The source span requires providers to \"demonstrate the conformity of the high-risk AI system\" upon a competent authority's reasoned request, which concretely operationalizes the target's auditability concept of enabling \"the assessment of algorithms, data and design processes.\" The rationale rests on concepts present in both spans (demonstrate conformity / enablement of assessment) without importing outside notions. The relation is appropriately partial: the source is one specific obligation triggered by a reasoned request rather than a full auditability mechanism, so partially_operationalizes is well supported.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.8,
+     "operational_utility": 0.75,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-16:paragraph-1:point-k:n1:accountability:1",
+    "source_norm_id": "norm:eu-ai-act:article-16:paragraph-1:point-k:n1",
+    "target_id": "hleg:accountability",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "upon a reasoned request of a national competent authority, demonstrate the conformity of the high-risk AI system with the requirements set out in Section 2;",
+    "target_quote": "Auditability entails the enablement of the assessment of algorithms, data and design processes.",
+    "source_evidence_span_ids": [
+     "span:fmx:art_016.np_k"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-16:paragraph-1:point-k",
+    "text": "upon a reasoned request of a national competent authority, demonstrate the conformity of the high-risk AI system with the requirements set out in Section 2;"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-17:paragraph-1:n2:accountability:c3",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-17:paragraph-1:n2:accountability:c3",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their sources. The source span requires the quality management system to be \"documented in a systematic and orderly manner in the form of written policies, procedures and instructions,\" which is a concrete mechanism that supports the HLEG requirement that \"mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development.\" The rationale rests on concepts present in both spans (documented mechanisms/procedures supporting accountability). Documentation of policies and procedures is one supporting element of accountability rather than a full operationalization of the responsibility framework, so \"supports\" is the appropriate strength (note that subparagraph (m)'s accountability framework would justify a stronger relation, but that text is not the quoted span). The claimed relation is correctly calibrated.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.8,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-17:paragraph-1:n2:accountability:3",
+    "source_norm_id": "norm:eu-ai-act:article-17:paragraph-1:n2",
+    "target_id": "hleg:accountability",
+    "relation_type": "supports",
+    "source_quote": "That system shall be documented in a systematic and orderly manner in the form of written policies, procedures and instructions",
+    "target_quote": "It necessitates that mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use.",
+    "source_evidence_span_ids": [
+     "span:017.001"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-17:paragraph-1",
+    "text": "1. Providers of high-risk AI systems shall put a quality management system in place that ensures compliance with this Regulation. That system shall be documented in a systematic and orderly manner in the form of written policies, procedures and instructions, and shall include at least the following aspects: (a) a strategy for regulatory compliance, including compliance with conformity assessment procedures and procedures for the management of modifications to the high-risk AI system; (b) techniques, procedures and systematic actions to be used for the design, design control and design verifica [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-50:paragraph-4:n3:human-agency-and-oversight:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-50:paragraph-4:n3:human-agency-and-oversight:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The rationale rests on concepts present in the spans: the source's disclosure obligation ('shall disclose that the text has been artificially generated or manipulated') provides information that supports the target's aim that 'Users should be able to make informed autonomous decisions regarding AI systems.' The connection between disclosure and being 'informed' is grounded in the quoted wording without importing outside concepts. 'Supports' is the appropriate strength—the disclosure enables informed decisions but does not fully operationalize the broader human agency/oversight requirement, so a stronger relation would be unsupportable. Check 4 is satisfied: there is a clear, evidence-bounded relation.",
+    "scores": {
+     "semantic_similarity": 0.6,
+     "normative_relevance": 0.7,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-50:paragraph-4:n3:human-agency-and-oversight:2",
+    "source_norm_id": "norm:eu-ai-act:article-50:paragraph-4:n3",
+    "target_id": "hleg:human-agency-and-oversight",
+    "relation_type": "supports",
+    "source_quote": "Deployers of an AI system that generates or manipulates text which is published with the purpose of informing the public on matters of public interest shall disclose that the text has been artificially generated or manipulated.",
+    "target_quote": "Users should be able to make informed autonomous decisions regarding AI systems.",
+    "source_evidence_span_ids": [
+     "span:050.004"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req1"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-50:paragraph-4",
+    "text": "4. Deployers of an AI system that generates or manipulates image, audio or video content constituting a deep fake, shall disclose that the content has been artificially generated or manipulated. This obligation shall not apply where the use is authorised by law to detect, prevent, investigate or prosecute criminal offence. Where the content forms part of an evidently artistic, creative, satirical, fictional or analogous work or programme, the transparency obligations set out in this paragraph are limited to disclosure of the existence of such generated or manipulated content in an appropriate  [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-10:paragraph-5:point-f:n1:diversity-non-discrimination-and-fairness:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-10:paragraph-5:point-f:n1:diversity-non-discrimination-and-fairness:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim. The source span concerns documenting why processing special categories of personal data was 'strictly necessary to detect and correct biases', and the target span 'Avoidance of unfair bias' is grounded in the requirement text. The concept of bias detection/correction is shared across both spans, so the rationale stays within the quoted evidence. The claimed 'supports' relation is appropriate: the record-keeping obligation is an accountability mechanism that assists, but does not directly operationalize, the goal of avoiding unfair bias — it documents the necessity of bias-correction rather than mandating the correction itself. No stronger relation is warranted.",
+    "scores": {
+     "semantic_similarity": 0.6,
+     "normative_relevance": 0.75,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-10:paragraph-5:point-f:n1:diversity-non-discrimination-and-fairness:2",
+    "source_norm_id": "norm:eu-ai-act:article-10:paragraph-5:point-f:n1",
+    "target_id": "hleg:diversity-non-discrimination-and-fairness",
+    "relation_type": "supports",
+    "source_quote": "the records of processing activities pursuant to Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680 include the reasons why the processing of special categories of personal data was strictly necessary to detect and correct biases, and why that objective could not be achieved by processing other data.",
+    "target_quote": "Avoidance of unfair bias.",
+    "source_evidence_span_ids": [
+     "span:fmx:art_010.parag_005.np_f"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req5"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-10:paragraph-5:point-f",
+    "text": "the records of processing activities pursuant to Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680 include the reasons why the processing of special categories of personal data was strictly necessary to detect and correct biases, and why that objective could not be achieved by processing other data."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-11:paragraph-1:n5:transparency:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-11:paragraph-1:n5:transparency:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span requires technical documentation drawn up 'in a clear and comprehensive form' to demonstrate compliance and provide authorities with 'necessary information,' while the target span calls for documenting 'the data sets and the processes... to the best possible standard to allow for traceability and an increase in transparency.' The shared concept of documentation grounds the rationale within the quoted spans, and the mandatory documentation requirement gives concrete effect to part of the HLEG traceability sub-requirement without covering the full breadth of transparency (explainability, communication), so 'partially_operationalizes' is well supported.",
+    "scores": {
+     "semantic_similarity": 0.72,
+     "normative_relevance": 0.78,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-11:paragraph-1:n5:transparency:1",
+    "source_norm_id": "norm:eu-ai-act:article-11:paragraph-1:n5",
+    "target_id": "hleg:transparency",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "The technical documentation shall be drawn up in such a way as to demonstrate that the high-risk AI system complies with the requirements set out in this Section and to provide national competent authorities and notified bodies with the necessary information in a clear and comprehensive form to assess the compliance of the AI system with those requirements.",
+    "target_quote": "Traceability. The data sets and the processes that yield the AI system’s decision, including those of data gathering and data labelling as well as the algorithms used, should be documented to the best possible standard to allow for traceability and an increase in transparency.",
+    "source_evidence_span_ids": [
+     "span:011.001"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req4"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-11:paragraph-1",
+    "text": "1. The technical documentation of a high-risk AI system shall be drawn up before that system is placed on the market or put into service and shall be kept up-to date. The technical documentation shall be drawn up in such a way as to demonstrate that the high-risk AI system complies with the requirements set out in this Section and to provide national competent authorities and notified bodies with the necessary information in a clear and comprehensive form to assess the compliance of the AI system with those requirements. It shall contain, at a minimum, the elements set out in Annex IV. SMEs, i [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-9:paragraph-8:n2:privacy-and-data-governance:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-9:paragraph-8:n2:privacy-and-data-governance:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes are present verbatim. The source requires testing throughout development and before market placement; the target requires processes and data sets to be \"tested and documented at each step such as planning, training, testing and deployment.\" The shared concept of testing across the lifecycle grounds a 'supports' relation: the Article 9 testing obligation reinforces the data-governance requirement that data-related processes be tested at each step. The connection is genuine but general—the source concerns testing of AI systems against metrics/thresholds, not specifically data quality or integrity—so 'supports' (not 'operationalizes') is the correct, defensible strength, and the rationale stays within the quoted wording (\"testing\" on both sides).",
+    "scores": {
+     "semantic_similarity": 0.55,
+     "normative_relevance": 0.5,
+     "operational_utility": 0.55,
+     "evidence_strength": 0.6,
+     "judge_confidence": 0.7
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-9:paragraph-8:n2:privacy-and-data-governance:2",
+    "source_norm_id": "norm:eu-ai-act:article-9:paragraph-8:n2",
+    "target_id": "hleg:privacy-and-data-governance",
+    "relation_type": "supports",
+    "source_quote": "The testing of high-risk AI systems shall be performed, as appropriate, at any time throughout the development process, and, in any event, prior to their being placed on the market or put into service. Testing shall be carried out against prior defined metrics and probabilistic thresholds that are appropriate to the intended purpose of the high-risk AI system.",
+    "target_quote": "Processes and data sets used must be tested and documented at each step such as planning, training, testing and deployment.",
+    "source_evidence_span_ids": [
+     "span:009.008"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req3"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-9:paragraph-8",
+    "text": "8. The testing of high-risk AI systems shall be performed, as appropriate, at any time throughout the development process, and, in any event, prior to their being placed on the market or put into service. Testing shall be carried out against prior defined metrics and probabilistic thresholds that are appropriate to the intended purpose of the high-risk AI system."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:n3:technical-robustness-and-safety:c3",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:n3:technical-robustness-and-safety:c3",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span requires documenting \"any known and foreseeable circumstances that may have an impact on that expected level of accuracy, robustness and cybersecurity,\" and the target span demands AI systems be developed with a \"preventative approach to risks.\" The rationale rests on concepts present in both spans: anticipating foreseeable circumstances affecting robustness/cybersecurity is a form of preventatively addressing risks. This is genuinely a \"supports\" relation rather than direct operationalization, since the norm concerns documentation in instructions for use rather than the development approach itself, but it clearly furthers the preventative-robustness aim. The claimed relation type is appropriate.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.75,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-13:paragraph-3:n3:technical-robustness-and-safety:3",
+    "source_norm_id": "norm:eu-ai-act:article-13:paragraph-3:n3",
+    "target_id": "hleg:technical-robustness-and-safety",
+    "relation_type": "supports",
+    "source_quote": "any known and foreseeable circumstances that may have an impact on that expected level of accuracy, robustness and cybersecurity",
+    "target_quote": "Technical robustness requires that AI systems be developed with a preventative approach to risks",
+    "source_evidence_span_ids": [
+     "span:013.003"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req2"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-13:paragraph-3",
+    "text": "3. The instructions for use shall contain at least the following information: (a) the identity and the contact details of the provider and, where applicable, of its authorised representative; (b) the characteristics, capabilities and limitations of performance of the high-risk AI system, including: (i) its intended purpose; (ii) the level of accuracy, including its metrics, robustness and cybersecurity referred to in Article 15 against which the high-risk AI system has been tested and validated and which can be expected, and any known and foreseeable circumstances that may have an impact on th [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-22:paragraph-3:n1:accountability:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-22:paragraph-3:n1:accountability:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span imposes a concrete duty to 'cooperate with competent authorities, upon a reasoned request, in any action ... to reduce and mitigate the risks', which is a mechanism assigning responsibility to a named actor toward oversight authorities. The target requires 'mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes'. The rationale rests on concepts present in both spans (cooperation/responsibility mechanism), without importing outside notions. This is a concrete accountability mechanism but covers only part of the requirement (no auditability, no pre-development scope), so 'partially_operationalizes' is well-supported.",
+    "scores": {
+     "semantic_similarity": 0.62,
+     "normative_relevance": 0.75,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.7,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-22:paragraph-3:n1:accountability:2",
+    "source_norm_id": "norm:eu-ai-act:article-22:paragraph-3:n1",
+    "target_id": "hleg:accountability",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "cooperate with competent authorities, upon a reasoned request, in any action the latter take in relation to the high-risk AI system, in particular to reduce and mitigate the risks posed by the high-risk AI system;",
+    "target_quote": "It necessitates that mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes",
+    "source_evidence_span_ids": [
+     "span:022.003"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-22:paragraph-3",
+    "text": "3. The authorised representative shall perform the tasks specified in the mandate received from the provider. It shall provide a copy of the mandate to the market surveillance authorities upon request, in one of the official languages of the institutions of the Union, as indicated by the competent authority. For the purposes of this Regulation, the mandate shall empower the authorised representative to carry out the following tasks: (a) verify that the EU declaration of conformity referred to in Article 47 and the technical documentation referred to in Article 11 have been drawn up and that an [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-9:paragraph-2:n2:human-agency-and-oversight:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-9:paragraph-2:n2:human-agency-and-oversight:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes are present verbatim. The source span requires \"identification and analysis of the known and the reasonably foreseeable risks... to health, safety or fundamental rights\", and the target span calls for a \"fundamental rights impact assessment\" where \"such risks exist\". Both spans share the concept of identifying/assessing risks to fundamental rights, so the rationale rests on concepts actually quoted. The relation is genuine but the source is a general risk-management step rather than a dedicated fundamental-rights impact assessment tied to human agency/oversight, so 'supports' (rather than a stronger operationalizes) is the correct, well-grounded relation.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.75,
+     "operational_utility": 0.7,
+     "evidence_strength": 0.75,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-9:paragraph-2:n2:human-agency-and-oversight:2",
+    "source_norm_id": "norm:eu-ai-act:article-9:paragraph-2:n2",
+    "target_id": "hleg:human-agency-and-oversight",
+    "relation_type": "supports",
+    "source_quote": "the identification and analysis of the known and the reasonably foreseeable risks that the high-risk AI system can pose to health, safety or fundamental rights",
+    "target_quote": "In situations where such risks exist, a fundamental rights impact assessment should be undertaken.",
+    "source_evidence_span_ids": [
+     "span:009.002"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req1"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-9:paragraph-2",
+    "text": "2. The risk management system shall be understood as a continuous iterative process planned and run throughout the entire lifecycle of a high-risk AI system, requiring regular systematic review and updating. It shall comprise the following steps: (a) the identification and analysis of the known and the reasonably foreseeable risks that the high-risk AI system can pose to health, safety or fundamental rights when the high-risk AI system is used in accordance with its intended purpose; (b) the estimation and evaluation of the risks that may emerge when the high-risk AI system is used in accordan [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-17:paragraph-1:n5:transparency:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-17:paragraph-1:n5:transparency:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective texts. The source span requires the quality management system to \"be documented in a systematic and orderly manner in the form of written policies, procedures and instructions\", and the target span calls for the \"processes\" to \"be documented to the best possible standard to allow for traceability and an increase in transparency.\" The shared concept is documentation of processes, which is present in both spans, so the rationale is evidence-bounded. The source addresses documentation of the QMS's processes rather than the specific data/algorithm decision-traceability the target emphasizes, so this is a general enabling relationship rather than direct operationalization — 'supports' is the appropriate strength and is correctly claimed.",
+    "scores": {
+     "semantic_similarity": 0.6,
+     "normative_relevance": 0.65,
+     "operational_utility": 0.6,
+     "evidence_strength": 0.7,
+     "judge_confidence": 0.75
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-17:paragraph-1:n5:transparency:2",
+    "source_norm_id": "norm:eu-ai-act:article-17:paragraph-1:n5",
+    "target_id": "hleg:transparency",
+    "relation_type": "supports",
+    "source_quote": "That system shall be documented in a systematic and orderly manner in the form of written policies, procedures and instructions",
+    "target_quote": "The data sets and the processes that yield the AI system’s decision, including those of data gathering and data labelling as well as the algorithms used, should be documented to the best possible standard to allow for traceability and an increase in transparency.",
+    "source_evidence_span_ids": [
+     "span:017.001"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req4"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-17:paragraph-1",
+    "text": "1. Providers of high-risk AI systems shall put a quality management system in place that ensures compliance with this Regulation. That system shall be documented in a systematic and orderly manner in the form of written policies, procedures and instructions, and shall include at least the following aspects: (a) a strategy for regulatory compliance, including compliance with conformity assessment procedures and procedures for the management of modifications to the high-risk AI system; (b) techniques, procedures and systematic actions to be used for the design, design control and design verifica [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-26:paragraph-10:n3:privacy-and-data-governance:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-26:paragraph-10:n3:privacy-and-data-governance:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their sources. The source span mandates that \"the personal data linked to the use of the high-risk AI system... shall be deleted,\" a concrete data-protection/deletion measure that operationalizes part of the requirement that \"AI systems must guarantee privacy and data protection throughout a system's entire lifecycle.\" The rationale rests on concepts present in both spans (personal data, deletion / privacy and data protection), without importing outside notions. This is a specific measure rather than a full realization of lifecycle-wide privacy governance, so partially_operationalizes is the correct strength.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.82,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.8,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-26:paragraph-10:n3:privacy-and-data-governance:1",
+    "source_norm_id": "norm:eu-ai-act:article-26:paragraph-10:n3",
+    "target_id": "hleg:privacy-and-data-governance",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "the personal data linked to the use of the high-risk AI system for which the authorisation was requested shall be deleted.",
+    "target_quote": "AI systems must guarantee privacy and data protection throughout a system’s entire lifecycle.",
+    "source_evidence_span_ids": [
+     "span:026.010"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req3"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-26:paragraph-10",
+    "text": "10. Without prejudice to Directive (EU) 2016/680, in the framework of an investigation for the targeted search of a person suspected or convicted of having committed a criminal offence, the deployer of a high-risk AI system for post-remote biometric identification shall request an authorisation, ex ante , or without undue delay and no later than 48 hours, by a judicial authority or an administrative authority whose decision is binding and subject to judicial review, for the use of that system, except when it is used for the initial identification of a potential suspect based on objective and v [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-15:paragraph-4:n1:diversity-non-discrimination-and-fairness:c3",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-15:paragraph-4:n1:diversity-non-discrimination-and-fairness:c3",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span requires that continually-learning high-risk systems 'eliminate or reduce as far as possible the risk of possibly biased outputs influencing input for future operations (feedback loops)' with 'appropriate mitigation measures', and the target span states 'Avoidance of unfair bias.' The rationale rests on the concept of bias present in both spans, so it is evidence-bounded. This concrete legal obligation to mitigate feedback-loop bias is one specific mechanism realizing the broader HLEG goal of avoiding unfair bias, supporting partially_operationalizes rather than a full operationalization of the whole diversity/fairness requirement.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.8,
+     "operational_utility": 0.78,
+     "evidence_strength": 0.8,
+     "judge_confidence": 0.85
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-15:paragraph-4:n1:diversity-non-discrimination-and-fairness:3",
+    "source_norm_id": "norm:eu-ai-act:article-15:paragraph-4:n1",
+    "target_id": "hleg:diversity-non-discrimination-and-fairness",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "High-risk AI systems that continue to learn after being placed on the market or put into service shall be developed in such a way as to eliminate or reduce as far as possible the risk of possibly biased outputs influencing input for future operations (feedback loops), and as to ensure that any such feedback loops are duly addressed with appropriate mitigation measures.",
+    "target_quote": "Avoidance of unfair bias.",
+    "source_evidence_span_ids": [
+     "span:015.004"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req5"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-15:paragraph-4",
+    "text": "4. High-risk AI systems shall be as resilient as possible regarding errors, faults or inconsistencies that may occur within the system or the environment in which the system operates, in particular due to their interaction with natural persons or other systems. Technical and organisational measures shall be taken in this regard. The robustness of high-risk AI systems may be achieved through technical redundancy solutions, which may include backup or fail-safe plans. High-risk AI systems that continue to learn after being placed on the market or put into service shall be developed in such a way [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:n14:technical-robustness-and-safety:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:n14:technical-robustness-and-safety:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span requires documenting maintenance, care measures, and software updates 'to ensure the proper functioning of that AI system,' which grounds the rationale's connection to the target's demand that systems 'reliably behave as intended' via a 'preventative approach to risks.' Ensuring proper functioning through maintenance is a concrete, if partial, contribution to technical robustness—it operationalizes one facet (ongoing reliability through upkeep) without addressing the broader security/attack-resilience dimensions of the requirement, so partially_operationalizes is the correct strength. The rationale rests on concepts present in both spans ('proper functioning' vs. 'reliably behave as intended'), satisfying the evidence-bound check.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.75,
+     "operational_utility": 0.75,
+     "evidence_strength": 0.7,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-13:paragraph-3:n14:technical-robustness-and-safety:1",
+    "source_norm_id": "norm:eu-ai-act:article-13:paragraph-3:n14",
+    "target_id": "hleg:technical-robustness-and-safety",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "the computational and hardware resources needed, the expected lifetime of the high-risk AI system and any necessary maintenance and care measures, including their frequency, to ensure the proper functioning of that AI system, including as regards software updates;",
+    "target_quote": "Technical robustness requires that AI systems be developed with a preventative approach to risks and in a manner such that they reliably behave as intended while minimising unintentional and unexpected harm, and preventing unacceptable harm.",
+    "source_evidence_span_ids": [
+     "span:013.003"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req2"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-13:paragraph-3",
+    "text": "3. The instructions for use shall contain at least the following information: (a) the identity and the contact details of the provider and, where applicable, of its authorised representative; (b) the characteristics, capabilities and limitations of performance of the high-risk AI system, including: (i) its intended purpose; (ii) the level of accuracy, including its metrics, robustness and cybersecurity referred to in Article 15 against which the high-risk AI system has been tested and validated and which can be expected, and any known and foreseeable circumstances that may have an impact on th [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-24:paragraph-4:n1:accountability:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-24:paragraph-4:n1:accountability:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim in their respective sources. The source span imposes a concrete mechanism requiring the distributor to 'inform the provider or importer' and 'the authorities competent', 'giving details ... of the non-compliance and of any corrective actions taken', which is a specific accountability mechanism operating after the system is on the market. The target span demands that 'mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use'. The rationale rests on concepts present in both spans (informing/reporting non-compliance and corrective actions as an accountability mechanism after deployment), so it is evidence-bounded. Because this is one concrete notification/traceability mechanism rather than a full realization of the broad accountability requirement, 'partially_operationalizes' is the correct strength.",
+    "scores": {
+     "semantic_similarity": 0.7,
+     "normative_relevance": 0.8,
+     "operational_utility": 0.75,
+     "evidence_strength": 0.78,
+     "judge_confidence": 0.82
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-24:paragraph-4:n1:accountability:2",
+    "source_norm_id": "norm:eu-ai-act:article-24:paragraph-4:n1",
+    "target_id": "hleg:accountability",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "shall immediately inform the provider or importer of the system and the authorities competent for the high-risk AI system concerned, giving details, in particular, of the non-compliance and of any corrective actions taken.",
+    "target_quote": "It necessitates that mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use.",
+    "source_evidence_span_ids": [
+     "span:024.004"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-24:paragraph-4",
+    "text": "4. A distributor that considers or has reason to consider, on the basis of the information in its possession, a high-risk AI system which it has made available on the market not to be in conformity with the requirements set out in Section 2, shall take the corrective actions necessary to bring that system into conformity with those requirements, to withdraw it or recall it, or shall ensure that the provider, the importer or any relevant operator, as appropriate, takes those corrective actions. Where the high-risk AI system presents a risk within the meaning of Article 79(1), the distributor sh [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:n13:human-agency-and-oversight:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "accepted"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-13:paragraph-3:n13:human-agency-and-oversight:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "accepted",
+    "rationale": "Both quotes appear verbatim. The source span requires instructions to describe \"the human oversight measures referred to in Article 14, including the technical measures put in place to facilitate the interpretation of the outputs,\" and the target span demands that AI systems \"allow for human oversight.\" The rationale rests on concepts present in both spans (human oversight, interpretation of outputs enabling deployer oversight). This is a concrete documentation obligation that helps realize the broader HLEG oversight aim without fully covering it (e.g., HITL/HOTL/HIC governance), so partially_operationalizes is the supported relation.",
+    "scores": {
+     "semantic_similarity": 0.8,
+     "normative_relevance": 0.85,
+     "operational_utility": 0.8,
+     "evidence_strength": 0.82,
+     "judge_confidence": 0.88
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-13:paragraph-3:n13:human-agency-and-oversight:1",
+    "source_norm_id": "norm:eu-ai-act:article-13:paragraph-3:n13",
+    "target_id": "hleg:human-agency-and-oversight",
+    "relation_type": "partially_operationalizes",
+    "source_quote": "(d) the human oversight measures referred to in Article 14, including the technical measures put in place to facilitate the interpretation of the outputs of the high-risk AI systems by the deployers;",
+    "target_quote": "This requires that AI systems should both act as enablers to a democratic, flourishing and equitable society by supporting the user’s agency and foster fundamental rights, and allow for human oversight.",
+    "source_evidence_span_ids": [
+     "span:013.003"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req1"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-13:paragraph-3",
+    "text": "3. The instructions for use shall contain at least the following information: (a) the identity and the contact details of the provider and, where applicable, of its authorised representative; (b) the characteristics, capabilities and limitations of performance of the high-risk AI system, including: (i) its intended purpose; (ii) the level of accuracy, including its metrics, robustness and cybersecurity referred to in Article 15 against which the high-risk AI system has been tested and validated and which can be expected, and any known and foreseeable circumstances that may have an impact on th [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-14:paragraph-5:n3:human-agency-and-oversight:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-14:paragraph-5:n3:human-agency-and-oversight:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "Both quotes are present. However, the claimed conflicts_with is unsupportable. The source exempts certain uses from the specific requirement of a *second* verifier ('separate verification by at least two natural persons'), but it does not eliminate human oversight altogether; a single verifier still acts on the identification, and the exemption only applies where Union or national law deems the two-person rule 'disproportionate.' The HLEG span merely calls to 'allow for human oversight' without prescribing a two-person threshold, and its own text acknowledges oversight 'can be required in varying degrees ... depending on the AI system's application area and potential risk.' So relaxing one specific safeguard does not contradict the general aim of allowing human oversight. The evidence at most supports a 'related_to' relation, and even that is weak; the alleged conflict is not grounded in the quoted spans.",
+    "scores": {
+     "semantic_similarity": 0.4,
+     "normative_relevance": 0.5,
+     "operational_utility": 0.3,
+     "evidence_strength": 0.2,
+     "judge_confidence": 0.7
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-14:paragraph-5:n3:human-agency-and-oversight:1",
+    "source_norm_id": "norm:eu-ai-act:article-14:paragraph-5:n3",
+    "target_id": "hleg:human-agency-and-oversight",
+    "relation_type": "related_to",
+    "source_quote": "The requirement for a separate verification by at least two natural persons shall not apply to high-risk AI systems used for the purposes of law enforcement, migration, border control or asylum, where Union or national law considers the application of this requirement to be disproportionate.",
+    "target_quote": "and allow for human oversight.",
+    "source_evidence_span_ids": [
+     "span:014.005"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req1"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-14:paragraph-5",
+    "text": "5. For high-risk AI systems referred to in point 1(a) of Annex III, the measures referred to in paragraph 3 of this Article shall be such as to ensure that, in addition, no action or decision is taken by the deployer on the basis of the identification resulting from the system unless that identification has been separately verified and confirmed by at least two natural persons with the necessary competence, training and authority. The requirement for a separate verification by at least two natural persons shall not apply to high-risk AI systems used for the purposes of law enforcement, migrati [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-50:paragraph-4:n2:human-agency-and-oversight:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-50:paragraph-4:n2:human-agency-and-oversight:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "Both quotes appear verbatim. However, the chosen source span is the limitation/exception clause for artistic works, which reduces the transparency obligation to mere disclosure of the existence of generated content 'in an appropriate manner that does not hamper the display or enjoyment of the work.' This span is about narrowing transparency, not about enabling informed user decisions. The rationale bridges to 'informed autonomous decisions' via a general chain (disclosure contributes to being informed) that rests on the concept of user information/autonomy, which is absent from the quoted source span—the span is a curtailment clause, not a positive disclosure obligation. The connection is plausible in the abstract but not supported by the specific quoted wording, which speaks only of limiting disclosure so as not to hamper enjoyment of a work. Reject for weak evidence grounding in the chosen span.",
+    "scores": {
+     "semantic_similarity": 0.35,
+     "normative_relevance": 0.4,
+     "operational_utility": 0.3,
+     "evidence_strength": 0.3,
+     "judge_confidence": 0.72
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-50:paragraph-4:n2:human-agency-and-oversight:2",
+    "source_norm_id": "norm:eu-ai-act:article-50:paragraph-4:n2",
+    "target_id": "hleg:human-agency-and-oversight",
+    "relation_type": "supports",
+    "source_quote": "the transparency obligations set out in this paragraph are limited to disclosure of the existence of such generated or manipulated content in an appropriate manner that does not hamper the display or enjoyment of the work.",
+    "target_quote": "Users should be able to make informed autonomous decisions regarding AI systems.",
+    "source_evidence_span_ids": [
+     "span:050.004"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req1"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-50:paragraph-4",
+    "text": "4. Deployers of an AI system that generates or manipulates image, audio or video content constituting a deep fake, shall disclose that the content has been artificially generated or manipulated. This obligation shall not apply where the use is authorised by law to detect, prevent, investigate or prosecute criminal offence. Where the content forms part of an evidently artistic, creative, satirical, fictional or analogous work or programme, the transparency obligations set out in this paragraph are limited to disclosure of the existence of such generated or manipulated content in an appropriate  [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-25:paragraph-4:n4:accountability:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-25:paragraph-4:n4:accountability:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "Both quotes appear verbatim. However, the chosen source span is specifically about the AI Office's optional development of voluntary model contract terms and taking sectoral requirements into account—it is a discretionary standard-setting provision, not itself a mechanism ensuring responsibility and accountability. The target span demands that mechanisms be put in place 'to ensure responsibility and accountability for AI systems and their outcomes.' The rationale relies on the leap that publishing voluntary model terms constitutes such accountability mechanisms, but 'responsibility,' 'accountability,' and 'outcomes' are absent from the chosen source span, and voluntary, optional terms do not operationalize an accountability mechanism. A stronger, better-grounded span (the written-agreement obligation earlier in the paragraph) was not selected. At best these spans are tangentially related, so 'supports' is unsupportable; the connection does not rise above 'related_to.'",
+    "scores": {
+     "semantic_similarity": 0.3,
+     "normative_relevance": 0.35,
+     "operational_utility": 0.25,
+     "evidence_strength": 0.3,
+     "judge_confidence": 0.7
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-25:paragraph-4:n4:accountability:1",
+    "source_norm_id": "norm:eu-ai-act:article-25:paragraph-4:n4",
+    "target_id": "hleg:accountability",
+    "relation_type": "related_to",
+    "source_quote": "The AI Office may develop and recommend voluntary model terms for contracts between providers of high-risk AI systems and third parties that supply tools, services, components or processes that are used for or integrated into high-risk AI systems. When developing those voluntary model terms, the AI Office shall take into account possible contractual requirements applicable in specific sectors or business cases.",
+    "target_quote": "It necessitates that mechanisms be put in place to ensure responsibility and accountability for AI systems and their outcomes, both before and after their development, deployment and use.",
+    "source_evidence_span_ids": [
+     "span:025.004"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req7"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-25:paragraph-4",
+    "text": "4. The provider of a high-risk AI system and the third party that supplies an AI system, tools, services, components, or processes that are used or integrated in a high-risk AI system shall, by written agreement, specify the necessary information, capabilities, technical access and other assistance based on the generally acknowledged state of the art, in order to enable the provider of the high-risk AI system to fully comply with the obligations set out in this Regulation. This paragraph shall not apply to third parties making accessible to the public tools, services, processes, or components, [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-25:paragraph-4:n3:transparency:c3",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-25:paragraph-4:n3:transparency:c3",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "Both quotes appear verbatim, but the rationale forces a connection the spans do not support. The source span concerns contractual specification of \"information, capabilities, technical access and other assistance\" between a provider and a third-party supplier so the provider can comply with the Regulation's obligations generally—it is about supply-chain contracting, not transparency. The target span merely lists \"the data, the system and the business models\" as the elements of transparency. Nothing in the source span addresses transparency, disclosure, traceability, explainability, or communication; the word \"information\" here means information exchanged between contracting parties, not transparency to users or auditors. Linking them relies on the general notion that sharing information aids transparency, a concept absent from what the spans actually establish. No clear relation is supported.",
+    "scores": {
+     "semantic_similarity": 0.25,
+     "normative_relevance": 0.2,
+     "operational_utility": 0.2,
+     "evidence_strength": 0.15,
+     "judge_confidence": 0.8
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-25:paragraph-4:n3:transparency:3",
+    "source_norm_id": "norm:eu-ai-act:article-25:paragraph-4:n3",
+    "target_id": "hleg:transparency",
+    "relation_type": "no_clear_relation",
+    "source_quote": "specify the necessary information, capabilities, technical access and other assistance",
+    "target_quote": "the data, the system and the business models",
+    "source_evidence_span_ids": [
+     "span:025.004"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req4"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-25:paragraph-4",
+    "text": "4. The provider of a high-risk AI system and the third party that supplies an AI system, tools, services, components, or processes that are used or integrated in a high-risk AI system shall, by written agreement, specify the necessary information, capabilities, technical access and other assistance based on the generally acknowledged state of the art, in order to enable the provider of the high-risk AI system to fully comply with the obligations set out in this Regulation. This paragraph shall not apply to third parties making accessible to the public tools, services, processes, or components, [... excerpt truncated]"
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-17:paragraph-2:n1:technical-robustness-and-safety:c1",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-17:paragraph-2:n1:technical-robustness-and-safety:c1",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "Both quotes are present in their sources. However, the source span concerns proportionality of quality-management implementation to organisation size and a general obligation to respect the 'degree of rigour and level of protection required to ensure compliance' — this is a meta-level compliance rigour clause, not a substantive technical-robustness requirement. The target span concerns a 'preventative approach to risks' in technical development. The rationale connects 'level of protection' to 'preventative approach to risks', but 'protection' here refers to overall regulatory compliance rigour, not preventative risk management in the robustness sense; the shared word 'protection' does not carry the same concept. The link is a plausible-sounding but generic bridge unsupported by the actual quoted content, so no clear relation holds.",
+    "scores": {
+     "semantic_similarity": 0.3,
+     "normative_relevance": 0.25,
+     "operational_utility": 0.2,
+     "evidence_strength": 0.2,
+     "judge_confidence": 0.72
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-17:paragraph-2:n1:technical-robustness-and-safety:1",
+    "source_norm_id": "norm:eu-ai-act:article-17:paragraph-2:n1",
+    "target_id": "hleg:technical-robustness-and-safety",
+    "relation_type": "no_clear_relation",
+    "source_quote": "Providers shall, in any event, respect the degree of rigour and the level of protection required to ensure the compliance of their high-risk AI systems with this Regulation.",
+    "target_quote": "Technical robustness requires that AI systems be developed with a preventative approach to risks",
+    "source_evidence_span_ids": [
+     "span:017.002"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req2"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-17:paragraph-2",
+    "text": "2. The implementation of the aspects referred to in paragraph 1 shall be proportionate to the size of the provider’s organisation. Providers shall, in any event, respect the degree of rigour and the level of protection required to ensure the compliance of their high-risk AI systems with this Regulation."
+   },
+   "human_label": null,
+   "human_rationale": null
+  },
+  {
+   "decision_id": "judgerun:mapping:eu-ai-act:article-5:paragraph-1:point-b:n1:technical-robustness-and-safety:c2",
+   "stratum": {
+    "judge_kind": "mapping",
+    "verdict": "rejected"
+   },
+   "judge_run": {
+    "id": "judgerun:mapping:eu-ai-act:article-5:paragraph-1:point-b:n1:technical-robustness-and-safety:c2",
+    "judge_kind": "mapping",
+    "judge_model": "claude-opus-4-8",
+    "prompt_version": "v1",
+    "verdict": "rejected",
+    "rationale": "Both quotes are present verbatim and share the concept of preventing/avoiding harm. However, the source prohibits exploiting vulnerabilities to distort behaviour in ways causing significant harm — a prohibition on intentional/effectual manipulative conduct — whereas the HLEG target span concerns technical robustness: systems reliably behaving as intended while 'preventing unacceptable harm' from unintended and unexpected causes. The 'supports' relation implies the norm helps operationalize the requirement's technical-robustness demand, but the shared word 'harm' is the only bridge; the norm's mechanism (exploitation of vulnerabilities, behavioural distortion) has no counterpart in the robustness-and-safety span, which is about reliability against attacks and malfunction. The connection is at best a loose thematic overlap on 'harm,' supporting only 'related_to,' not 'supports.'",
+    "scores": {
+     "semantic_similarity": 0.5,
+     "normative_relevance": 0.4,
+     "operational_utility": 0.3,
+     "evidence_strength": 0.35,
+     "judge_confidence": 0.78
+    },
+    "build_id": "build-3b753e5e9297"
+   },
+   "judged_content": {
+    "id": "align:eu-ai-act:article-5:paragraph-1:point-b:n1:technical-robustness-and-safety:2",
+    "source_norm_id": "norm:eu-ai-act:article-5:paragraph-1:point-b:n1",
+    "target_id": "hleg:technical-robustness-and-safety",
+    "relation_type": "related_to",
+    "source_quote": "in a manner that causes or is reasonably likely to cause that person or another person significant harm;",
+    "target_quote": "preventing unacceptable harm.",
+    "source_evidence_span_ids": [
+     "span:fmx:art_005.parag_001.np_b"
+    ],
+    "target_evidence_span_ids": [
+     "span:hleg:req2"
+    ]
+   },
+   "source_excerpt": {
+    "node_id": "eu-ai-act:article-5:paragraph-1:point-b",
+    "text": "the placing on the market, the putting into service or the use of an AI system that exploits any of the vulnerabilities of a natural person or a specific group of persons due to their age, disability or a specific social or economic situation, with the objective, or the effect, of materially distorting the behaviour of that person or a person belonging to that group in a manner that causes or is reasonably likely to cause that person or another person significant harm;"
+   },
+   "human_label": null,
+   "human_rationale": null
+  }
+ ]
+}

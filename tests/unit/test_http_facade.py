@@ -291,3 +291,85 @@ def test_discovery_endpoints(client):
     assert doc["endpoints"]["evidence"]["paid"] is True
     assert doc["endpoints"]["classify"]["paid"] is False
     assert "compliant" not in " ".join(doc["status_vocabulary"])
+
+
+# Explanation and trace endpoints (deterministic, free) ------------------------
+
+
+def test_explain_endpoint_returns_full_explanation(client):
+    response = client.post("/api/explain", json={"norm_id": ACCEPTED_NORM_ID})
+    assert response.status_code == 200
+    envelope = response.json()
+    assert envelope["status"] == "satisfied_with_evidence"
+    answer = envelope["answer"]
+    assert answer["norm_id"] == ACCEPTED_NORM_ID
+    assert "risk management system" in answer["source"]["text"]
+    assert answer["hleg_alignments"]["accepted"]
+    assert answer["span_trace"]
+    assert envelope["non_legal_advice_notice"]
+    # Deterministic and free: no paid marker.
+    assert facade.PAID_HEADER not in response.headers
+
+
+def test_explain_endpoint_unknown_norm_is_clean_envelope(client):
+    response = client.post(
+        "/api/explain", json={"norm_id": "norm:eu-ai-act:article-999:n1"}
+    )
+    assert response.status_code == 200
+    envelope = response.json()
+    assert envelope["status"] == "not_applicable"
+    assert envelope["answer"]["found"] is False
+    assert envelope["missing_facts"]
+    assert "Traceback" not in response.text
+
+
+def test_trace_endpoint_hleg_id_returns_reified_chains(client):
+    response = client.post(
+        "/api/trace", json={"id": "hleg:technical-robustness-and-safety"}
+    )
+    assert response.status_code == 200
+    envelope = response.json()
+    answer = envelope["answer"]
+    assert answer["mode"] == "hleg_target"
+    assert answer["assertion_count"] >= 1
+    for assertion in answer["assertions"]:
+        assert assertion["mapping_run"]["generator_model"]
+        assert assertion["judge_run"]["judge_model"]
+        assert assertion["evidence"]["source_evidence_span_ids"]
+        assert assertion["evidence"]["target_evidence_span_ids"]
+    assert facade.PAID_HEADER not in response.headers
+
+
+def test_trace_endpoint_unknown_id_is_clean_envelope(client):
+    response = client.post("/api/trace", json={"id": "hleg:no-such-requirement"})
+    assert response.status_code == 200
+    envelope = response.json()
+    assert envelope["status"] == "not_applicable"
+    assert envelope["answer"]["found"] is False
+
+
+def test_span_endpoint_returns_verified_slice(client):
+    response = client.get("/api/span/span:009.001")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["span_id"] == "span:009.001"
+    assert "risk management system" in body["text"]
+    assert len(body["sha256"]) == 64
+    assert facade.PAID_HEADER not in response.headers
+
+
+def test_span_endpoint_resolves_hleg_target_spans(client):
+    response = client.get("/api/span/span:hleg:req2")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["snapshot_file"] == "hleg_ethics_guidelines_2019_en_v1text.txt"
+    assert "robustness" in body["text"].lower()
+
+
+def test_span_endpoint_unknown_span_returns_clean_404(client):
+    response = client.get("/api/span/span:no-such-span")
+    assert response.status_code == 404
+    body = response.json()
+    assert body["span_id"] == "span:no-such-span"
+    assert "does not match any node" in body["error"]
+    assert "Traceback" not in response.text

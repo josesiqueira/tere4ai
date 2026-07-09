@@ -14,7 +14,10 @@ Behavioral contract:
   (norms_core.json) are loaded once at startup. If either is missing, every
   endpoint returns a clean 503 JSON payload, never a traceback (no silent
   degradation, Section 13).
-- /api/classify and /api/requirements are deterministic and free.
+- /api/classify, /api/requirements, /api/explain, /api/trace, and
+  /api/span/{span_id} are deterministic and free. /api/explain and /api/trace
+  additionally need alignments_core.json (503 with a clean payload when it is
+  missing); /api/span verifies the snapshot checksum before slicing.
 - /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
   plus Anthropic runtime grounding judge). Model clients are built lazily
   per request; a missing key surfaces the ModelConfigError message as a
@@ -38,17 +41,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from tere4ai.mcp_server.tools import STATUS_VOCABULARY
-
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_tool
 from tere4ai.mcp_server import classify as classify_tool
 from tere4ai.mcp_server import evidence as evidence_tool
+from tere4ai.mcp_server import explain as explain_tool
 from tere4ai.mcp_server import requirements as requirements_tool
+from tere4ai.mcp_server import trace as trace_tool
+from tere4ai.mcp_server.spans import (
+    SpanIntegrityError,
+    SpanNotFoundError,
+    resolve_span,
+)
+from tere4ai.mcp_server.tools import STATUS_VOCABULARY
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DUMP_DIR = _PROJECT_ROOT / "data" / "graph_dumps"
+SNAPSHOTS_DIR = _PROJECT_ROOT / "data" / "snapshots"
 DUMP_DIR_ENV = "TERE4AI_DUMP_DIR"
 
 # Default facade port for the demo flow (README, web/src/app/assess).
@@ -84,6 +94,14 @@ class BacklogRequest(BaseModel):
     system_context: str
 
 
+class ExplainRequest(BaseModel):
+    norm_id: str
+
+
+class TraceRequest(BaseModel):
+    id: str
+
+
 def _load_json(path: Path) -> dict[str, Any] | None:
     if not path.is_file():
         return None
@@ -91,6 +109,17 @@ def _load_json(path: Path) -> dict[str, Any] | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+
+
+def _load_hleg_nodes() -> list[dict[str, Any]]:
+    """The seven HLEG requirement nodes for target-side span resolution;
+    empty when the frozen HLEG text or its checksum is unavailable."""
+    try:
+        from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
+
+        return build_hleg_nodes()
+    except Exception:  # noqa: BLE001 - degrade to dump-only span resolution
+        return []
 
 
 def _build_paid_clients() -> tuple[Any, Any]:
@@ -112,6 +141,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         base = Path(dump_dir or os.environ.get(DUMP_DIR_ENV) or DEFAULT_DUMP_DIR)
         app.state.dump = _load_json(base / "layer1.json")
         app.state.norms = _load_json(base / "norms_core.json")
+        app.state.alignments = _load_json(base / "alignments_core.json")
+        app.state.hleg_nodes = _load_hleg_nodes()
         missing = [
             name
             for name, payload in (("layer1.json", app.state.dump), ("norms_core.json", app.state.norms))
@@ -163,9 +194,10 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "classification, judged requirements with span-level citations, "
             "evidence evaluation behind a runtime grounding judge. Not legal "
             "advice; never claims compliance.\n\n"
-            "Endpoints: POST /api/classify, /api/requirements (free, "
-            "deterministic); POST /api/evidence, /api/backlog (paid model "
-            "calls, marked with X-TERE4AI-Paid-Call); GET /api/health.\n"
+            "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
+            "/api/trace and GET /api/span/{span_id} (free, deterministic); "
+            "POST /api/evidence, /api/backlog (paid model calls, marked with "
+            "X-TERE4AI-Paid-Call); GET /api/health.\n"
             "Input schema: schema/json_schemas/system_features.schema.json\n\n"
         )
         return header + (skill.read_text(encoding="utf-8") if skill.exists() else "")
@@ -184,6 +216,13 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                     "requirements": {
                         "method": "POST",
                         "path": "/api/requirements",
+                        "paid": False,
+                    },
+                    "explain": {"method": "POST", "path": "/api/explain", "paid": False},
+                    "trace": {"method": "POST", "path": "/api/trace", "paid": False},
+                    "span": {
+                        "method": "GET",
+                        "path": "/api/span/{span_id}",
                         "paid": False,
                     },
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
@@ -239,6 +278,66 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             actor=body.actor,
         )
         return JSONResponse(content=envelope)
+
+    def _alignments_unavailable(request: Request) -> JSONResponse | None:
+        if request.app.state.alignments is not None:
+            return None
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "alignments payload unavailable: missing or unreadable "
+                "alignments_core.json; build it with python -m tere4ai.align_hleg_altai"
+            },
+        )
+
+    @app.post("/api/explain")
+    def explain(request: Request, body: ExplainRequest) -> JSONResponse:
+        # Deterministic and free; unknown norm ids come back as a clean
+        # not_applicable envelope, never an exception.
+        unavailable = _unavailable(request) or _alignments_unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        envelope = explain_tool.explain_requirement(
+            body.norm_id,
+            request.app.state.dump,
+            request.app.state.norms,
+            request.app.state.alignments,
+        )
+        return JSONResponse(content=envelope)
+
+    @app.post("/api/trace")
+    def trace(request: Request, body: TraceRequest) -> JSONResponse:
+        # Deterministic and free; id may be a norm_id or an HLEG id.
+        unavailable = _unavailable(request) or _alignments_unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        envelope = trace_tool.trace_alignment(
+            body.id, request.app.state.alignments, request.app.state.dump
+        )
+        return JSONResponse(content=envelope)
+
+    @app.get("/api/span/{span_id:path}")
+    def span(request: Request, span_id: str) -> JSONResponse:
+        # Deterministic and free; the snapshot slice is checksum-verified.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        try:
+            resolved = resolve_span(
+                span_id,
+                request.app.state.dump,
+                SNAPSHOTS_DIR,
+                extra_nodes=request.app.state.hleg_nodes,
+            )
+        except SpanNotFoundError as exc:
+            return JSONResponse(
+                status_code=404, content={"error": str(exc), "span_id": span_id}
+            )
+        except SpanIntegrityError as exc:
+            return JSONResponse(
+                status_code=503, content={"error": str(exc), "span_id": span_id}
+            )
+        return JSONResponse(content=resolved)
 
     @app.post("/api/evidence")
     def evidence(request: Request, body: EvidenceRequest) -> JSONResponse:
