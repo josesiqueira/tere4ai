@@ -240,10 +240,11 @@ def main(argv: list[str] | None = None) -> int:
                     in (None, "uncertain")
                 ),
                 "note": (
-                    "benchmark scenarios carry system_features null (free text); "
-                    "the deterministic classifier abstains rather than guesses. "
-                    "Mapping scenarios to structured features is annotation work "
-                    "(eval/gold/ANNOTATION_PROTOCOL.md)."
+                    "benchmark scenarios are free text; where an elicited-features "
+                    "cache is attached (DEC-13, provenance llm_elicited) the "
+                    "deterministic classifier decides from those facts, otherwise "
+                    "it abstains rather than guesses. Human-verified features per "
+                    "eval/gold/ANNOTATION_PROTOCOL.md supersede elicited ones."
                 ),
             },
             "benchmark_citation_completeness_article_level": {
