@@ -32,6 +32,7 @@ from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # n
 from tere4ai.graph_store.store import GraphStore  # noqa: E402
 from tere4ai.review_queue import apply_decisions, count_applied, load_decisions  # noqa: E402
 from tere4ai.validate_graph.gates import validate_build  # noqa: E402
+from tere4ai.validate_graph.postload import validate_postload  # noqa: E402
 
 DEFAULT_DECISIONS = ROOT / "data" / "review_queue" / "decisions.json"
 
@@ -154,7 +155,22 @@ def main(argv: list[str] | None = None) -> int:
     print(f"published to {uri}: {nodes} nodes, {edges} edges")
     for k in sorted(counts):
         print(f"  {k}: {counts[k]}")
+
+    # Post-load gates (Section 13): verify what actually landed in the
+    # database, so a partial load cannot pass as a published build.
+    postload = validate_postload(
+        driver,
+        build_id=build_id,
+        expected_norms=len(norms),
+        expected_assertions=len(assertions) if assertions is not None else None,
+    )
+    print(f"post-load gates: {'PASS' if postload.passed else 'FAIL'} | {postload.stats}")
     driver.close()
+    if not postload.passed:
+        for failure in postload.failures:
+            print(f"  POST-LOAD FAIL {failure}", file=sys.stderr)
+        print("published data FAILED post-load validation", file=sys.stderr)
+        return 1
     return 0
 
 
