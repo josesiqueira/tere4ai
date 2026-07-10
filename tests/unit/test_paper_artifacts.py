@@ -36,6 +36,12 @@ def test_all_expected_outputs_exist(generated):
         "tab_ablation.tex", "tab_census.tex", "tab_judges.tex",
         "MANIFEST.json",
     }
+    if mpa.FULL.exists():  # full-benchmark outputs appear once the #27 run lands
+        expected |= {
+            "fig_ablation_ladder_full.png",
+            "fig_ablation_ladder_full.svg",
+            "tab_ablation_full.tex",
+        }
     assert {p.name for p in generated.iterdir()} == expected
 
 
@@ -52,10 +58,11 @@ def test_table_numbers_match_source_artifacts(generated):
 
 def test_manifest_covers_all_inputs_and_outputs(generated):
     manifest = json.loads((generated / "MANIFEST.json").read_text())
-    assert len(manifest["inputs"]) == len(mpa.INPUTS)
+    full = 1 if mpa.FULL.exists() else 0
+    assert len(manifest["inputs"]) == len(mpa.INPUTS) + full
     for digest in manifest["inputs"].values():
         assert len(digest) == 64
-    assert len(manifest["outputs"]) == 11
+    assert len(manifest["outputs"]) == 11 + 3 * full
 
 
 def test_no_forbidden_dashes_in_tex(generated):
@@ -68,5 +75,8 @@ def test_no_forbidden_dashes_in_tex(generated):
 
 def test_tex_outputs_are_deterministic(generated, tmp_path):
     assert mpa.main(["--out", str(tmp_path)]) == 0
-    for name in ("tab_ablation.tex", "tab_census.tex", "tab_judges.tex"):
+    names = ["tab_ablation.tex", "tab_census.tex", "tab_judges.tex"]
+    if mpa.FULL.exists():
+        names.append("tab_ablation_full.tex")
+    for name in names:
         assert (tmp_path / name).read_text() == (generated / name).read_text()

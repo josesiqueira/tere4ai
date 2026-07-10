@@ -62,9 +62,18 @@ def load_results(path: Path) -> dict[str, dict[str, dict[str, Any]]]:
     return per_strategy
 
 
-def gold_risk_by_item() -> dict[str, str]:
+def gold_risk_by_item(benchmark_path: Path | None = None) -> dict[str, str]:
+    """Gold risk labels keyed by item id.
+
+    benchmark_path must be the same payload the analysed run used (the
+    sample by default, the full payload for the #27 run); otherwise items
+    outside the payload have no gold label and are silently not scored.
+    """
+    bench = (
+        load_benchmark_items(benchmark_path) if benchmark_path else load_benchmark_items()
+    )
     gold: dict[str, str] = {}
-    for item in (*load_gold_items(), *load_benchmark_items()):
+    for item in (*load_gold_items(), *bench):
         if item["kind"] == "classification":
             gold[item["id"]] = item["gold"]["risk_category"]
     return gold
@@ -166,10 +175,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--benchmark", type=Path, default=None,
+        help="benchmark payload the run used (default: the frozen sample); "
+        "must match --results or unmatched items are not scored",
+    )
     args = parser.parse_args(argv)
 
     per_strategy = load_results(args.results)
-    gold = gold_risk_by_item()
+    gold = gold_risk_by_item(args.benchmark)
+    scored = len(next(iter(per_strategy.values()), {}))
+    labelled = sum(1 for item_id in next(iter(per_strategy.values()), {}) if item_id in gold)
+    print(f"result items per strategy: {scored}; with gold risk labels: {labelled}")
     analyses = {
         name: analyse_strategy(results, gold)
         for name, results in sorted(per_strategy.items())

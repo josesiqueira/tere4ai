@@ -1,0 +1,6923 @@
+{
+ "config": {
+  "generator_model": "gpt-5.2",
+  "judge_model": "claude-opus-4-8"
+ },
+ "items_total": 486,
+ "usage_provider_reported": {
+  "by_role": {
+   "generator": {
+    "calls": 2430,
+    "input_tokens": 1956709,
+    "output_tokens": 416969
+   },
+   "judge": {
+    "calls": 496,
+    "input_tokens": 1184012,
+    "output_tokens": 148546
+   }
+  },
+  "units_without_usage": 0,
+  "note": "token counts as reported by the providers per API response, summed over checkpoint units; units checkpointed by runner versions without usage tracking contribute nothing here"
+ },
+ "strategies": {
+  "plain_llm": {
+   "risk_accuracy_overall": {
+    "correct": 213,
+    "total": 345,
+    "accuracy": 0.6173913043478261,
+    "mismatches": [
+     {
+      "id": "bench:scenario:13",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:20",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:22",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:23",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:32",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:33",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:34",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:42",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:43",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:46",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:47",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:48",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:50",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:62",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:67",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:79",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:81",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:82",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:93",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:99",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:101",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:121",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:137",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:158",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:163",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:164",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:165",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:166",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:167",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:168",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:169",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:170",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:171",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:172",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:173",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:174",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:175",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:176",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:177",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:178",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:179",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:180",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:181",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:182",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:183",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:184",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:186",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:187",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:188",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:189",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:190",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:191",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:192",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:194",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:195",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:196",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:198",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:200",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:201",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:202",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:203",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:204",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:205",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:207",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:208",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:209",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:210",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:212",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:213",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:214",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:216",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:217",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:218",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:219",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:220",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:221",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:222",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:223",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:224",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:225",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:226",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:227",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:228",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:229",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:230",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:231",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:232",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:234",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:235",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:236",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:237",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:238",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:239",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:248",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:251",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:252",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:256",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:259",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:265",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:271",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:275",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:279",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:285",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:286",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:291",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:293",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:295",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:296",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:297",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:299",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:303",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:304",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:312",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:313",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:315",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:319",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:320",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:321",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:323",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:325",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:326",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:329",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:330",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:335",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 207,
+    "total": 339,
+    "abstained": 47,
+    "note": "benchmark scenarios are free text; where an elicited-features cache is attached (DEC-13, provenance llm_elicited) the deterministic classifier decides from those facts, otherwise it abstains rather than guesses. Human-verified features per eval/gold/ANNOTATION_PROTOCOL.md supersede elicited ones."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 0,
+    "required": 3487,
+    "completeness": 0.0,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 0,
+   "citation_completeness": {
+    "macro_completeness": 0.0,
+    "micro": {
+     "found": 0,
+     "required": 3498,
+     "completeness": 0.0
+    },
+    "per_item": {
+     "gold:cls-01": 0.0,
+     "gold:cls-02": 0.0,
+     "gold:cls-03": 0.0,
+     "gold:cls-05": 0.0,
+     "gold:ret-01": 0.0,
+     "gold:ret-02": 0.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:8": 0.0,
+     "bench:scenario:9": 0.0,
+     "bench:scenario:10": 0.0,
+     "bench:scenario:11": 0.0,
+     "bench:scenario:12": 0.0,
+     "bench:scenario:13": 0.0,
+     "bench:scenario:14": 0.0,
+     "bench:scenario:15": 0.0,
+     "bench:scenario:16": 0.0,
+     "bench:scenario:17": 0.0,
+     "bench:scenario:18": 0.0,
+     "bench:scenario:19": 0.0,
+     "bench:scenario:20": 0.0,
+     "bench:scenario:21": 0.0,
+     "bench:scenario:22": 0.0,
+     "bench:scenario:23": 0.0,
+     "bench:scenario:24": 0.0,
+     "bench:scenario:25": 0.0,
+     "bench:scenario:26": 0.0,
+     "bench:scenario:27": 0.0,
+     "bench:scenario:28": 0.0,
+     "bench:scenario:29": 0.0,
+     "bench:scenario:30": 0.0,
+     "bench:scenario:31": 0.0,
+     "bench:scenario:32": 0.0,
+     "bench:scenario:33": 0.0,
+     "bench:scenario:34": 0.0,
+     "bench:scenario:35": 0.0,
+     "bench:scenario:36": 0.0,
+     "bench:scenario:37": 0.0,
+     "bench:scenario:38": 0.0,
+     "bench:scenario:39": 0.0,
+     "bench:scenario:40": 0.0,
+     "bench:scenario:41": 0.0,
+     "bench:scenario:42": 0.0,
+     "bench:scenario:43": 0.0,
+     "bench:scenario:44": 0.0,
+     "bench:scenario:45": 0.0,
+     "bench:scenario:46": 0.0,
+     "bench:scenario:47": 0.0,
+     "bench:scenario:48": 0.0,
+     "bench:scenario:49": 0.0,
+     "bench:scenario:50": 0.0,
+     "bench:scenario:51": 0.0,
+     "bench:scenario:52": 0.0,
+     "bench:scenario:53": 0.0,
+     "bench:scenario:54": 0.0,
+     "bench:scenario:55": 0.0,
+     "bench:scenario:56": 0.0,
+     "bench:scenario:57": 0.0,
+     "bench:scenario:58": 0.0,
+     "bench:scenario:59": 0.0,
+     "bench:scenario:60": 0.0,
+     "bench:scenario:61": 0.0,
+     "bench:scenario:62": 0.0,
+     "bench:scenario:63": 0.0,
+     "bench:scenario:64": 0.0,
+     "bench:scenario:65": 0.0,
+     "bench:scenario:66": 0.0,
+     "bench:scenario:67": 0.0,
+     "bench:scenario:68": 0.0,
+     "bench:scenario:69": 0.0,
+     "bench:scenario:70": 0.0,
+     "bench:scenario:71": 0.0,
+     "bench:scenario:72": 0.0,
+     "bench:scenario:73": 0.0,
+     "bench:scenario:74": 0.0,
+     "bench:scenario:75": 0.0,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.0,
+     "bench:scenario:78": 0.0,
+     "bench:scenario:79": 0.0,
+     "bench:scenario:80": 0.0,
+     "bench:scenario:81": 0.0,
+     "bench:scenario:82": 0.0,
+     "bench:scenario:83": 0.0,
+     "bench:scenario:84": 0.0,
+     "bench:scenario:85": 0.0,
+     "bench:scenario:86": 0.0,
+     "bench:scenario:87": 0.0,
+     "bench:scenario:88": 0.0,
+     "bench:scenario:89": 0.0,
+     "bench:scenario:90": 0.0,
+     "bench:scenario:91": 0.0,
+     "bench:scenario:92": 0.0,
+     "bench:scenario:93": 0.0,
+     "bench:scenario:94": 0.0,
+     "bench:scenario:95": 0.0,
+     "bench:scenario:96": 0.0,
+     "bench:scenario:97": 0.0,
+     "bench:scenario:98": 0.0,
+     "bench:scenario:99": 0.0,
+     "bench:scenario:100": 0.0,
+     "bench:scenario:101": 0.0,
+     "bench:scenario:102": 0.0,
+     "bench:scenario:103": 0.0,
+     "bench:scenario:104": 0.0,
+     "bench:scenario:105": 0.0,
+     "bench:scenario:106": 0.0,
+     "bench:scenario:107": 0.0,
+     "bench:scenario:108": 0.0,
+     "bench:scenario:109": 0.0,
+     "bench:scenario:110": 0.0,
+     "bench:scenario:111": 0.0,
+     "bench:scenario:112": 0.0,
+     "bench:scenario:113": 0.0,
+     "bench:scenario:114": 0.0,
+     "bench:scenario:115": 0.0,
+     "bench:scenario:116": 0.0,
+     "bench:scenario:117": 0.0,
+     "bench:scenario:118": 0.0,
+     "bench:scenario:119": 0.0,
+     "bench:scenario:120": 0.0,
+     "bench:scenario:121": 0.0,
+     "bench:scenario:122": 0.0,
+     "bench:scenario:123": 0.0,
+     "bench:scenario:124": 0.0,
+     "bench:scenario:125": 0.0,
+     "bench:scenario:126": 0.0,
+     "bench:scenario:127": 0.0,
+     "bench:scenario:128": 0.0,
+     "bench:scenario:129": 0.0,
+     "bench:scenario:130": 0.0,
+     "bench:scenario:131": 0.0,
+     "bench:scenario:132": 0.0,
+     "bench:scenario:133": 0.0,
+     "bench:scenario:134": 0.0,
+     "bench:scenario:135": 0.0,
+     "bench:scenario:136": 0.0,
+     "bench:scenario:137": 0.0,
+     "bench:scenario:138": 0.0,
+     "bench:scenario:139": 0.0,
+     "bench:scenario:140": 0.0,
+     "bench:scenario:141": 0.0,
+     "bench:scenario:142": 0.0,
+     "bench:scenario:143": 0.0,
+     "bench:scenario:144": 0.0,
+     "bench:scenario:145": 0.0,
+     "bench:scenario:146": 0.0,
+     "bench:scenario:147": 0.0,
+     "bench:scenario:148": 0.0,
+     "bench:scenario:149": 0.0,
+     "bench:scenario:150": 0.0,
+     "bench:scenario:151": 0.0,
+     "bench:scenario:152": 0.0,
+     "bench:scenario:153": 0.0,
+     "bench:scenario:154": 0.0,
+     "bench:scenario:155": 0.0,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.0,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.0,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.0,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.0,
+     "bench:scenario:164": 0.0,
+     "bench:scenario:165": 0.0,
+     "bench:scenario:166": 0.0,
+     "bench:scenario:167": 0.0,
+     "bench:scenario:168": 0.0,
+     "bench:scenario:169": 0.0,
+     "bench:scenario:170": 0.0,
+     "bench:scenario:171": 0.0,
+     "bench:scenario:172": 0.0,
+     "bench:scenario:173": 0.0,
+     "bench:scenario:174": 0.0,
+     "bench:scenario:175": 0.0,
+     "bench:scenario:176": 0.0,
+     "bench:scenario:177": 0.0,
+     "bench:scenario:178": 0.0,
+     "bench:scenario:179": 0.0,
+     "bench:scenario:180": 0.0,
+     "bench:scenario:181": 0.0,
+     "bench:scenario:182": 0.0,
+     "bench:scenario:183": 0.0,
+     "bench:scenario:184": 0.0,
+     "bench:scenario:185": 0.0,
+     "bench:scenario:186": 0.0,
+     "bench:scenario:187": 0.0,
+     "bench:scenario:188": 0.0,
+     "bench:scenario:189": 0.0,
+     "bench:scenario:190": 0.0,
+     "bench:scenario:191": 0.0,
+     "bench:scenario:192": 0.0,
+     "bench:scenario:193": 0.0,
+     "bench:scenario:194": 0.0,
+     "bench:scenario:195": 0.0,
+     "bench:scenario:196": 0.0,
+     "bench:scenario:197": 0.0,
+     "bench:scenario:198": 0.0,
+     "bench:scenario:199": 0.0,
+     "bench:scenario:200": 0.0,
+     "bench:scenario:201": 0.0,
+     "bench:scenario:202": 0.0,
+     "bench:scenario:203": 0.0,
+     "bench:scenario:204": 0.0,
+     "bench:scenario:205": 0.0,
+     "bench:scenario:206": 0.0,
+     "bench:scenario:207": 0.0,
+     "bench:scenario:208": 0.0,
+     "bench:scenario:209": 0.0,
+     "bench:scenario:210": 0.0,
+     "bench:scenario:211": 0.0,
+     "bench:scenario:212": 0.0,
+     "bench:scenario:213": 0.0,
+     "bench:scenario:214": 0.0,
+     "bench:scenario:215": 0.0,
+     "bench:scenario:216": 0.0,
+     "bench:scenario:217": 0.0,
+     "bench:scenario:218": 0.0,
+     "bench:scenario:219": 0.0,
+     "bench:scenario:220": 0.0,
+     "bench:scenario:221": 0.0,
+     "bench:scenario:222": 0.0,
+     "bench:scenario:223": 0.0,
+     "bench:scenario:224": 0.0,
+     "bench:scenario:225": 0.0,
+     "bench:scenario:226": 0.0,
+     "bench:scenario:227": 0.0,
+     "bench:scenario:228": 0.0,
+     "bench:scenario:229": 0.0,
+     "bench:scenario:230": 0.0,
+     "bench:scenario:231": 0.0,
+     "bench:scenario:232": 0.0,
+     "bench:scenario:233": 0.0,
+     "bench:scenario:234": 0.0,
+     "bench:scenario:235": 0.0,
+     "bench:scenario:236": 0.0,
+     "bench:scenario:237": 0.0,
+     "bench:scenario:238": 0.0,
+     "bench:scenario:239": 0.0,
+     "bench:scenario:240": 0.0,
+     "bench:scenario:241": 0.0,
+     "bench:scenario:242": 0.0,
+     "bench:scenario:243": 0.0,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.0,
+     "bench:scenario:246": 0.0,
+     "bench:scenario:247": 0.0,
+     "bench:scenario:248": 0.0,
+     "bench:scenario:249": 0.0,
+     "bench:scenario:250": 0.0,
+     "bench:scenario:251": 0.0,
+     "bench:scenario:252": 0.0,
+     "bench:scenario:253": 0.0,
+     "bench:scenario:254": 0.0,
+     "bench:scenario:255": 0.0,
+     "bench:scenario:256": 0.0,
+     "bench:scenario:257": 0.0,
+     "bench:scenario:258": 0.0,
+     "bench:scenario:259": 0.0,
+     "bench:scenario:260": 0.0,
+     "bench:scenario:261": 0.0,
+     "bench:scenario:262": 0.0,
+     "bench:scenario:263": 0.0,
+     "bench:scenario:264": 0.0,
+     "bench:scenario:265": 0.0,
+     "bench:scenario:266": 0.0,
+     "bench:scenario:267": 0.0,
+     "bench:scenario:268": 0.0,
+     "bench:scenario:269": 0.0,
+     "bench:scenario:270": 0.0,
+     "bench:scenario:271": 0.0,
+     "bench:scenario:272": 0.0,
+     "bench:scenario:273": 0.0,
+     "bench:scenario:274": 0.0,
+     "bench:scenario:275": 0.0,
+     "bench:scenario:276": 0.0,
+     "bench:scenario:277": 0.0,
+     "bench:scenario:278": 0.0,
+     "bench:scenario:279": 0.0,
+     "bench:scenario:280": 0.0,
+     "bench:scenario:281": 0.0,
+     "bench:scenario:282": 0.0,
+     "bench:scenario:283": 0.0,
+     "bench:scenario:284": 0.0,
+     "bench:scenario:285": 0.0,
+     "bench:scenario:286": 0.0,
+     "bench:scenario:287": 0.0,
+     "bench:scenario:288": 0.0,
+     "bench:scenario:289": 0.0,
+     "bench:scenario:290": 0.0,
+     "bench:scenario:291": 0.0,
+     "bench:scenario:292": 0.0,
+     "bench:scenario:293": 0.0,
+     "bench:scenario:294": 0.0,
+     "bench:scenario:295": 0.0,
+     "bench:scenario:296": 0.0,
+     "bench:scenario:297": 0.0,
+     "bench:scenario:298": 0.0,
+     "bench:scenario:299": 0.0,
+     "bench:scenario:300": 0.0,
+     "bench:scenario:301": 0.0,
+     "bench:scenario:302": 0.0,
+     "bench:scenario:303": 0.0,
+     "bench:scenario:304": 0.0,
+     "bench:scenario:305": 0.0,
+     "bench:scenario:306": 0.0,
+     "bench:scenario:307": 0.0,
+     "bench:scenario:308": 0.0,
+     "bench:scenario:309": 0.0,
+     "bench:scenario:310": 0.0,
+     "bench:scenario:311": 0.0,
+     "bench:scenario:312": 0.0,
+     "bench:scenario:313": 0.0,
+     "bench:scenario:314": 0.0,
+     "bench:scenario:315": 0.0,
+     "bench:scenario:316": 0.0,
+     "bench:scenario:317": 0.0,
+     "bench:scenario:318": 0.0,
+     "bench:scenario:319": 0.0,
+     "bench:scenario:320": 0.0,
+     "bench:scenario:321": 0.0,
+     "bench:scenario:322": 0.0,
+     "bench:scenario:323": 0.0,
+     "bench:scenario:324": 0.0,
+     "bench:scenario:325": 0.0,
+     "bench:scenario:326": 0.0,
+     "bench:scenario:327": 0.0,
+     "bench:scenario:328": 0.0,
+     "bench:scenario:329": 0.0,
+     "bench:scenario:330": 0.0,
+     "bench:scenario:331": 0.0,
+     "bench:scenario:332": 0.0,
+     "bench:scenario:333": 0.0,
+     "bench:scenario:334": 0.0,
+     "bench:scenario:335": 0.0,
+     "bench:scenario:336": 0.0,
+     "bench:scenario:337": 0.0,
+     "bench:scenario:338": 0.0,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0,
+     "bench:qa:15": 0.0,
+     "bench:qa:16": 0.0,
+     "bench:qa:17": 0.0,
+     "bench:qa:18": 0.0,
+     "bench:qa:19": 0.0,
+     "bench:qa:20": 0.0,
+     "bench:qa:21": 0.0,
+     "bench:qa:22": 0.0,
+     "bench:qa:23": 0.0,
+     "bench:qa:24": 0.0,
+     "bench:qa:25": 0.0,
+     "bench:qa:26": 0.0,
+     "bench:qa:27": 0.0,
+     "bench:qa:28": 0.0,
+     "bench:qa:29": 0.0,
+     "bench:qa:30": 0.0,
+     "bench:qa:31": 0.0,
+     "bench:qa:32": 0.0,
+     "bench:qa:33": 0.0,
+     "bench:qa:34": 0.0,
+     "bench:qa:35": 0.0,
+     "bench:qa:36": 0.0,
+     "bench:qa:37": 0.0,
+     "bench:qa:38": 0.0,
+     "bench:qa:39": 0.0,
+     "bench:qa:40": 0.0,
+     "bench:qa:41": 0.0,
+     "bench:qa:42": 0.0,
+     "bench:qa:43": 0.0,
+     "bench:qa:44": 0.0,
+     "bench:qa:45": 0.0,
+     "bench:qa:46": 0.0,
+     "bench:qa:47": 0.0,
+     "bench:qa:48": 0.0,
+     "bench:qa:49": 0.0,
+     "bench:qa:50": 0.0,
+     "bench:qa:51": 0.0,
+     "bench:qa:52": 0.0,
+     "bench:qa:53": 0.0,
+     "bench:qa:54": 0.0,
+     "bench:qa:55": 0.0,
+     "bench:qa:56": 0.0,
+     "bench:qa:57": 0.0,
+     "bench:qa:58": 0.0,
+     "bench:qa:59": 0.0,
+     "bench:qa:60": 0.0,
+     "bench:qa:61": 0.0,
+     "bench:qa:62": 0.0,
+     "bench:qa:63": 0.0,
+     "bench:qa:64": 0.0,
+     "bench:qa:65": 0.0,
+     "bench:qa:66": 0.0,
+     "bench:qa:67": 0.0,
+     "bench:qa:68": 0.0,
+     "bench:qa:69": 0.0,
+     "bench:qa:70": 0.0,
+     "bench:qa:71": 0.0,
+     "bench:qa:72": 0.0,
+     "bench:qa:73": 0.0,
+     "bench:qa:74": 0.0,
+     "bench:qa:75": 0.0,
+     "bench:qa:76": 0.0,
+     "bench:qa:77": 0.0,
+     "bench:qa:78": 0.0,
+     "bench:qa:79": 0.0,
+     "bench:qa:80": 0.0,
+     "bench:qa:81": 0.0,
+     "bench:qa:82": 0.0,
+     "bench:qa:83": 0.0,
+     "bench:qa:84": 0.0,
+     "bench:qa:85": 0.0,
+     "bench:qa:86": 0.0,
+     "bench:qa:87": 0.0,
+     "bench:qa:88": 0.0,
+     "bench:qa:89": 0.0,
+     "bench:qa:90": 0.0,
+     "bench:qa:91": 0.0,
+     "bench:qa:92": 0.0,
+     "bench:qa:93": 0.0,
+     "bench:qa:94": 0.0,
+     "bench:qa:95": 0.0,
+     "bench:qa:96": 0.0,
+     "bench:qa:97": 0.0,
+     "bench:qa:98": 0.0,
+     "bench:qa:99": 0.0,
+     "bench:qa:100": 0.0,
+     "bench:qa:101": 0.0,
+     "bench:qa:102": 0.0,
+     "bench:qa:103": 0.0,
+     "bench:qa:104": 0.0,
+     "bench:qa:105": 0.0,
+     "bench:qa:106": 0.0,
+     "bench:qa:107": 0.0,
+     "bench:qa:108": 0.0,
+     "bench:qa:109": 0.0,
+     "bench:qa:110": 0.0,
+     "bench:qa:111": 0.0,
+     "bench:qa:112": 0.0,
+     "bench:qa:113": 0.0,
+     "bench:qa:114": 0.0,
+     "bench:qa:115": 0.0,
+     "bench:qa:116": 0.0,
+     "bench:qa:117": 0.0,
+     "bench:qa:118": 0.0,
+     "bench:qa:119": 0.0,
+     "bench:qa:120": 0.0,
+     "bench:qa:121": 0.0,
+     "bench:qa:122": 0.0,
+     "bench:qa:123": 0.0,
+     "bench:qa:124": 0.0,
+     "bench:qa:125": 0.0,
+     "bench:qa:126": 0.0,
+     "bench:qa:127": 0.0,
+     "bench:qa:128": 0.0,
+     "bench:qa:129": 0.0,
+     "bench:qa:130": 0.0,
+     "bench:qa:131": 0.0,
+     "bench:qa:132": 0.0,
+     "bench:qa:133": 0.0,
+     "bench:qa:134": 0.0,
+     "bench:qa:135": 0.0,
+     "bench:qa:136": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 0,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0,
+   "hallucination_note": "zero checkable citations emitted; a 0.0 hallucination rate here is vacuous, not a quality signal"
+  },
+  "vector_rag": {
+   "risk_accuracy_overall": {
+    "correct": 211,
+    "total": 345,
+    "accuracy": 0.6115942028985507,
+    "mismatches": [
+     {
+      "id": "gold:cls-01",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:13",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:20",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:23",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:29",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:42",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:43",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:46",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:47",
+      "gold": "prohibited",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:50",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:51",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:60",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:61",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:62",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:64",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:65",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:66",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:67",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:68",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:71",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:79",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:82",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:99",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:107",
+      "gold": "high_risk",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:121",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:137",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:158",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:163",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:164",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:165",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:166",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:167",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:168",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:169",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:171",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:172",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:173",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:174",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:176",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:177",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:178",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:179",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:180",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:181",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:182",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:183",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:184",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:186",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:187",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:188",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:189",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:190",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:191",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:192",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:194",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:195",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:196",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:197",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:198",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:200",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:201",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:202",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:203",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:204",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:205",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:206",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:207",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:208",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:209",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:210",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:211",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:212",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:213",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:214",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:215",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:216",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:217",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:218",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:219",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:220",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:221",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:222",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:223",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:224",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:225",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:226",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:227",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:228",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:229",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:230",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:231",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:232",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:233",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:234",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:235",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:236",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:238",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:239",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:248",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:251",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:252",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:259",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:263",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:265",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:267",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:270",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:271",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:272",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:274",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:275",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:276",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:278",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:285",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:291",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:292",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:293",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:295",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:297",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:299",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:305",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:307",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:309",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:310",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:315",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:325",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:327",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:330",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:335",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:336",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 5,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 206,
+    "total": 339,
+    "abstained": 69,
+    "note": "benchmark scenarios are free text; where an elicited-features cache is attached (DEC-13, provenance llm_elicited) the deterministic classifier decides from those facts, otherwise it abstains rather than guesses. Human-verified features per eval/gold/ANNOTATION_PROTOCOL.md supersede elicited ones."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 198,
+    "required": 3487,
+    "completeness": 0.056782334384858045,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 1088,
+   "citation_completeness": {
+    "macro_completeness": 0.004132231404958678,
+    "micro": {
+     "found": 2,
+     "required": 3498,
+     "completeness": 0.0005717552887364208
+    },
+    "per_item": {
+     "gold:cls-01": 0.0,
+     "gold:cls-02": 0.0,
+     "gold:cls-03": 0.0,
+     "gold:cls-05": 0.0,
+     "gold:ret-01": 1.0,
+     "gold:ret-02": 1.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:8": 0.0,
+     "bench:scenario:9": 0.0,
+     "bench:scenario:10": 0.0,
+     "bench:scenario:11": 0.0,
+     "bench:scenario:12": 0.0,
+     "bench:scenario:13": 0.0,
+     "bench:scenario:14": 0.0,
+     "bench:scenario:15": 0.0,
+     "bench:scenario:16": 0.0,
+     "bench:scenario:17": 0.0,
+     "bench:scenario:18": 0.0,
+     "bench:scenario:19": 0.0,
+     "bench:scenario:20": 0.0,
+     "bench:scenario:21": 0.0,
+     "bench:scenario:22": 0.0,
+     "bench:scenario:23": 0.0,
+     "bench:scenario:24": 0.0,
+     "bench:scenario:25": 0.0,
+     "bench:scenario:26": 0.0,
+     "bench:scenario:27": 0.0,
+     "bench:scenario:28": 0.0,
+     "bench:scenario:29": 0.0,
+     "bench:scenario:30": 0.0,
+     "bench:scenario:31": 0.0,
+     "bench:scenario:32": 0.0,
+     "bench:scenario:33": 0.0,
+     "bench:scenario:34": 0.0,
+     "bench:scenario:35": 0.0,
+     "bench:scenario:36": 0.0,
+     "bench:scenario:37": 0.0,
+     "bench:scenario:38": 0.0,
+     "bench:scenario:39": 0.0,
+     "bench:scenario:40": 0.0,
+     "bench:scenario:41": 0.0,
+     "bench:scenario:42": 0.0,
+     "bench:scenario:43": 0.0,
+     "bench:scenario:44": 0.0,
+     "bench:scenario:45": 0.0,
+     "bench:scenario:46": 0.0,
+     "bench:scenario:47": 0.0,
+     "bench:scenario:48": 0.0,
+     "bench:scenario:49": 0.0,
+     "bench:scenario:50": 0.0,
+     "bench:scenario:51": 0.0,
+     "bench:scenario:52": 0.0,
+     "bench:scenario:53": 0.0,
+     "bench:scenario:54": 0.0,
+     "bench:scenario:55": 0.0,
+     "bench:scenario:56": 0.0,
+     "bench:scenario:57": 0.0,
+     "bench:scenario:58": 0.0,
+     "bench:scenario:59": 0.0,
+     "bench:scenario:60": 0.0,
+     "bench:scenario:61": 0.0,
+     "bench:scenario:62": 0.0,
+     "bench:scenario:63": 0.0,
+     "bench:scenario:64": 0.0,
+     "bench:scenario:65": 0.0,
+     "bench:scenario:66": 0.0,
+     "bench:scenario:67": 0.0,
+     "bench:scenario:68": 0.0,
+     "bench:scenario:69": 0.0,
+     "bench:scenario:70": 0.0,
+     "bench:scenario:71": 0.0,
+     "bench:scenario:72": 0.0,
+     "bench:scenario:73": 0.0,
+     "bench:scenario:74": 0.0,
+     "bench:scenario:75": 0.0,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.0,
+     "bench:scenario:78": 0.0,
+     "bench:scenario:79": 0.0,
+     "bench:scenario:80": 0.0,
+     "bench:scenario:81": 0.0,
+     "bench:scenario:82": 0.0,
+     "bench:scenario:83": 0.0,
+     "bench:scenario:84": 0.0,
+     "bench:scenario:85": 0.0,
+     "bench:scenario:86": 0.0,
+     "bench:scenario:87": 0.0,
+     "bench:scenario:88": 0.0,
+     "bench:scenario:89": 0.0,
+     "bench:scenario:90": 0.0,
+     "bench:scenario:91": 0.0,
+     "bench:scenario:92": 0.0,
+     "bench:scenario:93": 0.0,
+     "bench:scenario:94": 0.0,
+     "bench:scenario:95": 0.0,
+     "bench:scenario:96": 0.0,
+     "bench:scenario:97": 0.0,
+     "bench:scenario:98": 0.0,
+     "bench:scenario:99": 0.0,
+     "bench:scenario:100": 0.0,
+     "bench:scenario:101": 0.0,
+     "bench:scenario:102": 0.0,
+     "bench:scenario:103": 0.0,
+     "bench:scenario:104": 0.0,
+     "bench:scenario:105": 0.0,
+     "bench:scenario:106": 0.0,
+     "bench:scenario:107": 0.0,
+     "bench:scenario:108": 0.0,
+     "bench:scenario:109": 0.0,
+     "bench:scenario:110": 0.0,
+     "bench:scenario:111": 0.0,
+     "bench:scenario:112": 0.0,
+     "bench:scenario:113": 0.0,
+     "bench:scenario:114": 0.0,
+     "bench:scenario:115": 0.0,
+     "bench:scenario:116": 0.0,
+     "bench:scenario:117": 0.0,
+     "bench:scenario:118": 0.0,
+     "bench:scenario:119": 0.0,
+     "bench:scenario:120": 0.0,
+     "bench:scenario:121": 0.0,
+     "bench:scenario:122": 0.0,
+     "bench:scenario:123": 0.0,
+     "bench:scenario:124": 0.0,
+     "bench:scenario:125": 0.0,
+     "bench:scenario:126": 0.0,
+     "bench:scenario:127": 0.0,
+     "bench:scenario:128": 0.0,
+     "bench:scenario:129": 0.0,
+     "bench:scenario:130": 0.0,
+     "bench:scenario:131": 0.0,
+     "bench:scenario:132": 0.0,
+     "bench:scenario:133": 0.0,
+     "bench:scenario:134": 0.0,
+     "bench:scenario:135": 0.0,
+     "bench:scenario:136": 0.0,
+     "bench:scenario:137": 0.0,
+     "bench:scenario:138": 0.0,
+     "bench:scenario:139": 0.0,
+     "bench:scenario:140": 0.0,
+     "bench:scenario:141": 0.0,
+     "bench:scenario:142": 0.0,
+     "bench:scenario:143": 0.0,
+     "bench:scenario:144": 0.0,
+     "bench:scenario:145": 0.0,
+     "bench:scenario:146": 0.0,
+     "bench:scenario:147": 0.0,
+     "bench:scenario:148": 0.0,
+     "bench:scenario:149": 0.0,
+     "bench:scenario:150": 0.0,
+     "bench:scenario:151": 0.0,
+     "bench:scenario:152": 0.0,
+     "bench:scenario:153": 0.0,
+     "bench:scenario:154": 0.0,
+     "bench:scenario:155": 0.0,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.0,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.0,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.0,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.0,
+     "bench:scenario:164": 0.0,
+     "bench:scenario:165": 0.0,
+     "bench:scenario:166": 0.0,
+     "bench:scenario:167": 0.0,
+     "bench:scenario:168": 0.0,
+     "bench:scenario:169": 0.0,
+     "bench:scenario:170": 0.0,
+     "bench:scenario:171": 0.0,
+     "bench:scenario:172": 0.0,
+     "bench:scenario:173": 0.0,
+     "bench:scenario:174": 0.0,
+     "bench:scenario:175": 0.0,
+     "bench:scenario:176": 0.0,
+     "bench:scenario:177": 0.0,
+     "bench:scenario:178": 0.0,
+     "bench:scenario:179": 0.0,
+     "bench:scenario:180": 0.0,
+     "bench:scenario:181": 0.0,
+     "bench:scenario:182": 0.0,
+     "bench:scenario:183": 0.0,
+     "bench:scenario:184": 0.0,
+     "bench:scenario:185": 0.0,
+     "bench:scenario:186": 0.0,
+     "bench:scenario:187": 0.0,
+     "bench:scenario:188": 0.0,
+     "bench:scenario:189": 0.0,
+     "bench:scenario:190": 0.0,
+     "bench:scenario:191": 0.0,
+     "bench:scenario:192": 0.0,
+     "bench:scenario:193": 0.0,
+     "bench:scenario:194": 0.0,
+     "bench:scenario:195": 0.0,
+     "bench:scenario:196": 0.0,
+     "bench:scenario:197": 0.0,
+     "bench:scenario:198": 0.0,
+     "bench:scenario:199": 0.0,
+     "bench:scenario:200": 0.0,
+     "bench:scenario:201": 0.0,
+     "bench:scenario:202": 0.0,
+     "bench:scenario:203": 0.0,
+     "bench:scenario:204": 0.0,
+     "bench:scenario:205": 0.0,
+     "bench:scenario:206": 0.0,
+     "bench:scenario:207": 0.0,
+     "bench:scenario:208": 0.0,
+     "bench:scenario:209": 0.0,
+     "bench:scenario:210": 0.0,
+     "bench:scenario:211": 0.0,
+     "bench:scenario:212": 0.0,
+     "bench:scenario:213": 0.0,
+     "bench:scenario:214": 0.0,
+     "bench:scenario:215": 0.0,
+     "bench:scenario:216": 0.0,
+     "bench:scenario:217": 0.0,
+     "bench:scenario:218": 0.0,
+     "bench:scenario:219": 0.0,
+     "bench:scenario:220": 0.0,
+     "bench:scenario:221": 0.0,
+     "bench:scenario:222": 0.0,
+     "bench:scenario:223": 0.0,
+     "bench:scenario:224": 0.0,
+     "bench:scenario:225": 0.0,
+     "bench:scenario:226": 0.0,
+     "bench:scenario:227": 0.0,
+     "bench:scenario:228": 0.0,
+     "bench:scenario:229": 0.0,
+     "bench:scenario:230": 0.0,
+     "bench:scenario:231": 0.0,
+     "bench:scenario:232": 0.0,
+     "bench:scenario:233": 0.0,
+     "bench:scenario:234": 0.0,
+     "bench:scenario:235": 0.0,
+     "bench:scenario:236": 0.0,
+     "bench:scenario:237": 0.0,
+     "bench:scenario:238": 0.0,
+     "bench:scenario:239": 0.0,
+     "bench:scenario:240": 0.0,
+     "bench:scenario:241": 0.0,
+     "bench:scenario:242": 0.0,
+     "bench:scenario:243": 0.0,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.0,
+     "bench:scenario:246": 0.0,
+     "bench:scenario:247": 0.0,
+     "bench:scenario:248": 0.0,
+     "bench:scenario:249": 0.0,
+     "bench:scenario:250": 0.0,
+     "bench:scenario:251": 0.0,
+     "bench:scenario:252": 0.0,
+     "bench:scenario:253": 0.0,
+     "bench:scenario:254": 0.0,
+     "bench:scenario:255": 0.0,
+     "bench:scenario:256": 0.0,
+     "bench:scenario:257": 0.0,
+     "bench:scenario:258": 0.0,
+     "bench:scenario:259": 0.0,
+     "bench:scenario:260": 0.0,
+     "bench:scenario:261": 0.0,
+     "bench:scenario:262": 0.0,
+     "bench:scenario:263": 0.0,
+     "bench:scenario:264": 0.0,
+     "bench:scenario:265": 0.0,
+     "bench:scenario:266": 0.0,
+     "bench:scenario:267": 0.0,
+     "bench:scenario:268": 0.0,
+     "bench:scenario:269": 0.0,
+     "bench:scenario:270": 0.0,
+     "bench:scenario:271": 0.0,
+     "bench:scenario:272": 0.0,
+     "bench:scenario:273": 0.0,
+     "bench:scenario:274": 0.0,
+     "bench:scenario:275": 0.0,
+     "bench:scenario:276": 0.0,
+     "bench:scenario:277": 0.0,
+     "bench:scenario:278": 0.0,
+     "bench:scenario:279": 0.0,
+     "bench:scenario:280": 0.0,
+     "bench:scenario:281": 0.0,
+     "bench:scenario:282": 0.0,
+     "bench:scenario:283": 0.0,
+     "bench:scenario:284": 0.0,
+     "bench:scenario:285": 0.0,
+     "bench:scenario:286": 0.0,
+     "bench:scenario:287": 0.0,
+     "bench:scenario:288": 0.0,
+     "bench:scenario:289": 0.0,
+     "bench:scenario:290": 0.0,
+     "bench:scenario:291": 0.0,
+     "bench:scenario:292": 0.0,
+     "bench:scenario:293": 0.0,
+     "bench:scenario:294": 0.0,
+     "bench:scenario:295": 0.0,
+     "bench:scenario:296": 0.0,
+     "bench:scenario:297": 0.0,
+     "bench:scenario:298": 0.0,
+     "bench:scenario:299": 0.0,
+     "bench:scenario:300": 0.0,
+     "bench:scenario:301": 0.0,
+     "bench:scenario:302": 0.0,
+     "bench:scenario:303": 0.0,
+     "bench:scenario:304": 0.0,
+     "bench:scenario:305": 0.0,
+     "bench:scenario:306": 0.0,
+     "bench:scenario:307": 0.0,
+     "bench:scenario:308": 0.0,
+     "bench:scenario:309": 0.0,
+     "bench:scenario:310": 0.0,
+     "bench:scenario:311": 0.0,
+     "bench:scenario:312": 0.0,
+     "bench:scenario:313": 0.0,
+     "bench:scenario:314": 0.0,
+     "bench:scenario:315": 0.0,
+     "bench:scenario:316": 0.0,
+     "bench:scenario:317": 0.0,
+     "bench:scenario:318": 0.0,
+     "bench:scenario:319": 0.0,
+     "bench:scenario:320": 0.0,
+     "bench:scenario:321": 0.0,
+     "bench:scenario:322": 0.0,
+     "bench:scenario:323": 0.0,
+     "bench:scenario:324": 0.0,
+     "bench:scenario:325": 0.0,
+     "bench:scenario:326": 0.0,
+     "bench:scenario:327": 0.0,
+     "bench:scenario:328": 0.0,
+     "bench:scenario:329": 0.0,
+     "bench:scenario:330": 0.0,
+     "bench:scenario:331": 0.0,
+     "bench:scenario:332": 0.0,
+     "bench:scenario:333": 0.0,
+     "bench:scenario:334": 0.0,
+     "bench:scenario:335": 0.0,
+     "bench:scenario:336": 0.0,
+     "bench:scenario:337": 0.0,
+     "bench:scenario:338": 0.0,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0,
+     "bench:qa:15": 0.0,
+     "bench:qa:16": 0.0,
+     "bench:qa:17": 0.0,
+     "bench:qa:18": 0.0,
+     "bench:qa:19": 0.0,
+     "bench:qa:20": 0.0,
+     "bench:qa:21": 0.0,
+     "bench:qa:22": 0.0,
+     "bench:qa:23": 0.0,
+     "bench:qa:24": 0.0,
+     "bench:qa:25": 0.0,
+     "bench:qa:26": 0.0,
+     "bench:qa:27": 0.0,
+     "bench:qa:28": 0.0,
+     "bench:qa:29": 0.0,
+     "bench:qa:30": 0.0,
+     "bench:qa:31": 0.0,
+     "bench:qa:32": 0.0,
+     "bench:qa:33": 0.0,
+     "bench:qa:34": 0.0,
+     "bench:qa:35": 0.0,
+     "bench:qa:36": 0.0,
+     "bench:qa:37": 0.0,
+     "bench:qa:38": 0.0,
+     "bench:qa:39": 0.0,
+     "bench:qa:40": 0.0,
+     "bench:qa:41": 0.0,
+     "bench:qa:42": 0.0,
+     "bench:qa:43": 0.0,
+     "bench:qa:44": 0.0,
+     "bench:qa:45": 0.0,
+     "bench:qa:46": 0.0,
+     "bench:qa:47": 0.0,
+     "bench:qa:48": 0.0,
+     "bench:qa:49": 0.0,
+     "bench:qa:50": 0.0,
+     "bench:qa:51": 0.0,
+     "bench:qa:52": 0.0,
+     "bench:qa:53": 0.0,
+     "bench:qa:54": 0.0,
+     "bench:qa:55": 0.0,
+     "bench:qa:56": 0.0,
+     "bench:qa:57": 0.0,
+     "bench:qa:58": 0.0,
+     "bench:qa:59": 0.0,
+     "bench:qa:60": 0.0,
+     "bench:qa:61": 0.0,
+     "bench:qa:62": 0.0,
+     "bench:qa:63": 0.0,
+     "bench:qa:64": 0.0,
+     "bench:qa:65": 0.0,
+     "bench:qa:66": 0.0,
+     "bench:qa:67": 0.0,
+     "bench:qa:68": 0.0,
+     "bench:qa:69": 0.0,
+     "bench:qa:70": 0.0,
+     "bench:qa:71": 0.0,
+     "bench:qa:72": 0.0,
+     "bench:qa:73": 0.0,
+     "bench:qa:74": 0.0,
+     "bench:qa:75": 0.0,
+     "bench:qa:76": 0.0,
+     "bench:qa:77": 0.0,
+     "bench:qa:78": 0.0,
+     "bench:qa:79": 0.0,
+     "bench:qa:80": 0.0,
+     "bench:qa:81": 0.0,
+     "bench:qa:82": 0.0,
+     "bench:qa:83": 0.0,
+     "bench:qa:84": 0.0,
+     "bench:qa:85": 0.0,
+     "bench:qa:86": 0.0,
+     "bench:qa:87": 0.0,
+     "bench:qa:88": 0.0,
+     "bench:qa:89": 0.0,
+     "bench:qa:90": 0.0,
+     "bench:qa:91": 0.0,
+     "bench:qa:92": 0.0,
+     "bench:qa:93": 0.0,
+     "bench:qa:94": 0.0,
+     "bench:qa:95": 0.0,
+     "bench:qa:96": 0.0,
+     "bench:qa:97": 0.0,
+     "bench:qa:98": 0.0,
+     "bench:qa:99": 0.0,
+     "bench:qa:100": 0.0,
+     "bench:qa:101": 0.0,
+     "bench:qa:102": 0.0,
+     "bench:qa:103": 0.0,
+     "bench:qa:104": 0.0,
+     "bench:qa:105": 0.0,
+     "bench:qa:106": 0.0,
+     "bench:qa:107": 0.0,
+     "bench:qa:108": 0.0,
+     "bench:qa:109": 0.0,
+     "bench:qa:110": 0.0,
+     "bench:qa:111": 0.0,
+     "bench:qa:112": 0.0,
+     "bench:qa:113": 0.0,
+     "bench:qa:114": 0.0,
+     "bench:qa:115": 0.0,
+     "bench:qa:116": 0.0,
+     "bench:qa:117": 0.0,
+     "bench:qa:118": 0.0,
+     "bench:qa:119": 0.0,
+     "bench:qa:120": 0.0,
+     "bench:qa:121": 0.0,
+     "bench:qa:122": 0.0,
+     "bench:qa:123": 0.0,
+     "bench:qa:124": 0.0,
+     "bench:qa:125": 0.0,
+     "bench:qa:126": 0.0,
+     "bench:qa:127": 0.0,
+     "bench:qa:128": 0.0,
+     "bench:qa:129": 0.0,
+     "bench:qa:130": 0.0,
+     "bench:qa:131": 0.0,
+     "bench:qa:132": 0.0,
+     "bench:qa:133": 0.0,
+     "bench:qa:134": 0.0,
+     "bench:qa:135": 0.0,
+     "bench:qa:136": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 1088,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0
+  },
+  "graph_no_judge": {
+   "risk_accuracy_overall": {
+    "correct": 150,
+    "total": 345,
+    "accuracy": 0.43478260869565216,
+    "mismatches": [
+     {
+      "id": "bench:scenario:20",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:23",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:32",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:33",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:34",
+      "gold": "prohibited",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:35",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:42",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:43",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:46",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:47",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:50",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:51",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:58",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:59",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:60",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:61",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:62",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:63",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:64",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:65",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:66",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:67",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:68",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:69",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:71",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:76",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:79",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:81",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:82",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:88",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:93",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:98",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:99",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:101",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:106",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:109",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:121",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:131",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:137",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:139",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:165",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:166",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:168",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:169",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:174",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:176",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:178",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:179",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:180",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:181",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:182",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:186",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:187",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:188",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:190",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:191",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:192",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:194",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:195",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:196",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:198",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:200",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:202",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:203",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:204",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:205",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:207",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:208",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:209",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:210",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:212",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:214",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:216",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:217",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:218",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:219",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:220",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:222",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:223",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:224",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:226",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:228",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:229",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:230",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:232",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:234",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:235",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:236",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:237",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:238",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:239",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:241",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:243",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:244",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:245",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:247",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:248",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:249",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:250",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:251",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:252",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:253",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:254",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:255",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:256",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:257",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:258",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:259",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:260",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:261",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:262",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:263",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:264",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:265",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:266",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:267",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:268",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:269",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:270",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:271",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:272",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:273",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:274",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:275",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:276",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:277",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:278",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:279",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:280",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:281",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:282",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:283",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:284",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:285",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:286",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:287",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:288",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:289",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:290",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:291",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:292",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:293",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:294",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:295",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:296",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:297",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:298",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:299",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:300",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:301",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:302",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:303",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:304",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:305",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:306",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:307",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:308",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:309",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:310",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:311",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:312",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:313",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:314",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:315",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:316",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:317",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:318",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:319",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:320",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:321",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:322",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:323",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:324",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:325",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:326",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:327",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:328",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:329",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:330",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:331",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:332",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:333",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:334",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:335",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:336",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:337",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:338",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 144,
+    "total": 339,
+    "abstained": 31,
+    "note": "benchmark scenarios are free text; where an elicited-features cache is attached (DEC-13, provenance llm_elicited) the deterministic classifier decides from those facts, otherwise it abstains rather than guesses. Human-verified features per eval/gold/ANNOTATION_PROTOCOL.md supersede elicited ones."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 1583,
+    "required": 3487,
+    "completeness": 0.45397189561227413,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 4392,
+   "citation_completeness": {
+    "macro_completeness": 0.2502288915014546,
+    "micro": {
+     "found": 1438,
+     "required": 3498,
+     "completeness": 0.41109205260148657
+    },
+    "per_item": {
+     "gold:cls-01": 1.0,
+     "gold:cls-02": 1.0,
+     "gold:cls-03": 1.0,
+     "gold:cls-05": 1.0,
+     "gold:ret-01": 1.0,
+     "gold:ret-02": 1.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:8": 0.0,
+     "bench:scenario:9": 0.0,
+     "bench:scenario:10": 0.0,
+     "bench:scenario:11": 0.0,
+     "bench:scenario:12": 0.0,
+     "bench:scenario:13": 0.0,
+     "bench:scenario:14": 0.0,
+     "bench:scenario:15": 0.0,
+     "bench:scenario:16": 0.0,
+     "bench:scenario:17": 0.0,
+     "bench:scenario:18": 0.0,
+     "bench:scenario:19": 0.0,
+     "bench:scenario:20": 0.7619047619047619,
+     "bench:scenario:21": 0.0,
+     "bench:scenario:22": 0.0,
+     "bench:scenario:23": 0.625,
+     "bench:scenario:24": 0.0,
+     "bench:scenario:25": 0.0,
+     "bench:scenario:26": 0.0,
+     "bench:scenario:27": 0.0,
+     "bench:scenario:28": 0.0,
+     "bench:scenario:29": 0.0,
+     "bench:scenario:30": 0.0,
+     "bench:scenario:31": 0.0,
+     "bench:scenario:32": 0.7916666666666666,
+     "bench:scenario:33": 0.75,
+     "bench:scenario:34": 0.043478260869565216,
+     "bench:scenario:35": 0.0,
+     "bench:scenario:36": 0.0,
+     "bench:scenario:37": 0.0,
+     "bench:scenario:38": 0.0,
+     "bench:scenario:39": 0.0,
+     "bench:scenario:40": 0.0,
+     "bench:scenario:41": 0.0,
+     "bench:scenario:42": 0.7222222222222222,
+     "bench:scenario:43": 0.6666666666666666,
+     "bench:scenario:44": 0.0,
+     "bench:scenario:45": 0.0,
+     "bench:scenario:46": 0.8888888888888888,
+     "bench:scenario:47": 0.875,
+     "bench:scenario:48": 0.0,
+     "bench:scenario:49": 0.0,
+     "bench:scenario:50": 0.6956521739130435,
+     "bench:scenario:51": 0.7272727272727273,
+     "bench:scenario:52": 0.0,
+     "bench:scenario:53": 0.0,
+     "bench:scenario:54": 0.0,
+     "bench:scenario:55": 0.0,
+     "bench:scenario:56": 0.0,
+     "bench:scenario:57": 0.0,
+     "bench:scenario:58": 0.5483870967741935,
+     "bench:scenario:59": 0.7142857142857143,
+     "bench:scenario:60": 0.8,
+     "bench:scenario:61": 1.0,
+     "bench:scenario:62": 0.6666666666666666,
+     "bench:scenario:63": 0.75,
+     "bench:scenario:64": 0.782608695652174,
+     "bench:scenario:65": 0.48,
+     "bench:scenario:66": 0.8181818181818182,
+     "bench:scenario:67": 1.0,
+     "bench:scenario:68": 0.6818181818181818,
+     "bench:scenario:69": 0.8181818181818182,
+     "bench:scenario:70": 0.75,
+     "bench:scenario:71": 0.0,
+     "bench:scenario:72": 0.7037037037037037,
+     "bench:scenario:73": 0.6923076923076923,
+     "bench:scenario:74": 0.6785714285714286,
+     "bench:scenario:75": 0.7333333333333333,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.6923076923076923,
+     "bench:scenario:78": 0.7272727272727273,
+     "bench:scenario:79": 0.0,
+     "bench:scenario:80": 0.75,
+     "bench:scenario:81": 0.0,
+     "bench:scenario:82": 0.0,
+     "bench:scenario:83": 0.6923076923076923,
+     "bench:scenario:84": 0.64,
+     "bench:scenario:85": 0.9166666666666666,
+     "bench:scenario:86": 0.6956521739130435,
+     "bench:scenario:87": 0.8,
+     "bench:scenario:88": 0.0,
+     "bench:scenario:89": 0.8,
+     "bench:scenario:90": 0.6521739130434783,
+     "bench:scenario:91": 0.7,
+     "bench:scenario:92": 0.7037037037037037,
+     "bench:scenario:93": 0.0,
+     "bench:scenario:94": 0.75,
+     "bench:scenario:95": 0.7,
+     "bench:scenario:96": 0.6666666666666666,
+     "bench:scenario:97": 0.631578947368421,
+     "bench:scenario:98": 0.0,
+     "bench:scenario:99": 0.0,
+     "bench:scenario:100": 0.6956521739130435,
+     "bench:scenario:101": 0.0,
+     "bench:scenario:102": 0.7142857142857143,
+     "bench:scenario:103": 0.8333333333333334,
+     "bench:scenario:104": 0.6785714285714286,
+     "bench:scenario:105": 0.7857142857142857,
+     "bench:scenario:106": 0.0,
+     "bench:scenario:107": 0.6153846153846154,
+     "bench:scenario:108": 0.6923076923076923,
+     "bench:scenario:109": 0.0,
+     "bench:scenario:110": 0.6551724137931034,
+     "bench:scenario:111": 0.7142857142857143,
+     "bench:scenario:112": 0.6956521739130435,
+     "bench:scenario:113": 0.8,
+     "bench:scenario:114": 0.6818181818181818,
+     "bench:scenario:115": 0.75,
+     "bench:scenario:116": 0.6206896551724138,
+     "bench:scenario:117": 0.6363636363636364,
+     "bench:scenario:118": 0.76,
+     "bench:scenario:119": 0.875,
+     "bench:scenario:120": 0.625,
+     "bench:scenario:121": 0.0,
+     "bench:scenario:122": 0.72,
+     "bench:scenario:123": 1.0,
+     "bench:scenario:124": 0.6551724137931034,
+     "bench:scenario:125": 0.8888888888888888,
+     "bench:scenario:126": 0.76,
+     "bench:scenario:127": 0.7142857142857143,
+     "bench:scenario:128": 0.68,
+     "bench:scenario:129": 0.625,
+     "bench:scenario:130": 0.72,
+     "bench:scenario:131": 0.0,
+     "bench:scenario:132": 0.45714285714285713,
+     "bench:scenario:133": 0.625,
+     "bench:scenario:134": 0.6206896551724138,
+     "bench:scenario:135": 0.8,
+     "bench:scenario:136": 0.5454545454545454,
+     "bench:scenario:137": 0.0,
+     "bench:scenario:138": 0.7619047619047619,
+     "bench:scenario:139": 0.0,
+     "bench:scenario:140": 0.782608695652174,
+     "bench:scenario:141": 0.7272727272727273,
+     "bench:scenario:142": 0.6153846153846154,
+     "bench:scenario:143": 0.6666666666666666,
+     "bench:scenario:144": 0.6071428571428571,
+     "bench:scenario:145": 0.6666666666666666,
+     "bench:scenario:146": 0.6666666666666666,
+     "bench:scenario:147": 1.0,
+     "bench:scenario:148": 0.68,
+     "bench:scenario:149": 0.8461538461538461,
+     "bench:scenario:150": 0.8260869565217391,
+     "bench:scenario:151": 0.7692307692307693,
+     "bench:scenario:152": 0.75,
+     "bench:scenario:153": 0.6923076923076923,
+     "bench:scenario:154": 0.7727272727272727,
+     "bench:scenario:155": 0.8571428571428571,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.3333333333333333,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.16666666666666666,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.6363636363636364,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.14285714285714285,
+     "bench:scenario:164": 0.1111111111111111,
+     "bench:scenario:165": 0.0,
+     "bench:scenario:166": 0.0,
+     "bench:scenario:167": 0.25,
+     "bench:scenario:168": 0.42857142857142855,
+     "bench:scenario:169": 0.0,
+     "bench:scenario:170": 0.3333333333333333,
+     "bench:scenario:171": 0.3333333333333333,
+     "bench:scenario:172": 0.2,
+     "bench:scenario:173": 0.2,
+     "bench:scenario:174": 0.0,
+     "bench:scenario:175": 0.14285714285714285,
+     "bench:scenario:176": 0.2,
+     "bench:scenario:177": 0.2,
+     "bench:scenario:178": 0.0,
+     "bench:scenario:179": 0.7777777777777778,
+     "bench:scenario:180": 0.0,
+     "bench:scenario:181": 0.0,
+     "bench:scenario:182": 0.0,
+     "bench:scenario:183": 0.3333333333333333,
+     "bench:scenario:184": 0.16666666666666666,
+     "bench:scenario:185": 0.3333333333333333,
+     "bench:scenario:186": 0.6071428571428571,
+     "bench:scenario:187": 0.16666666666666666,
+     "bench:scenario:188": 0.0,
+     "bench:scenario:189": 0.3333333333333333,
+     "bench:scenario:190": 0.0,
+     "bench:scenario:191": 0.2,
+     "bench:scenario:192": 0.0,
+     "bench:scenario:193": 0.2,
+     "bench:scenario:194": 0.0,
+     "bench:scenario:195": 0.0,
+     "bench:scenario:196": 0.0,
+     "bench:scenario:197": 0.3333333333333333,
+     "bench:scenario:198": 0.6785714285714286,
+     "bench:scenario:199": 0.2,
+     "bench:scenario:200": 0.0,
+     "bench:scenario:201": 0.5,
+     "bench:scenario:202": 0.7391304347826086,
+     "bench:scenario:203": 0.8333333333333334,
+     "bench:scenario:204": 0.0,
+     "bench:scenario:205": 0.16666666666666666,
+     "bench:scenario:206": 0.2,
+     "bench:scenario:207": 0.75,
+     "bench:scenario:208": 0.0,
+     "bench:scenario:209": 0.3333333333333333,
+     "bench:scenario:210": 0.0,
+     "bench:scenario:211": 0.2,
+     "bench:scenario:212": 0.0,
+     "bench:scenario:213": 0.2,
+     "bench:scenario:214": 0.0,
+     "bench:scenario:215": 0.25,
+     "bench:scenario:216": 0.0,
+     "bench:scenario:217": 0.2,
+     "bench:scenario:218": 0.0,
+     "bench:scenario:219": 0.4,
+     "bench:scenario:220": 0.16666666666666666,
+     "bench:scenario:221": 0.25,
+     "bench:scenario:222": 0.0,
+     "bench:scenario:223": 0.7058823529411765,
+     "bench:scenario:224": 0.1111111111111111,
+     "bench:scenario:225": 0.16666666666666666,
+     "bench:scenario:226": 0.0,
+     "bench:scenario:227": 0.16666666666666666,
+     "bench:scenario:228": 0.0,
+     "bench:scenario:229": 0.5,
+     "bench:scenario:230": 0.0,
+     "bench:scenario:231": 0.25,
+     "bench:scenario:232": 0.0,
+     "bench:scenario:233": 0.3333333333333333,
+     "bench:scenario:234": 0.0,
+     "bench:scenario:235": 0.3333333333333333,
+     "bench:scenario:236": 0.8636363636363636,
+     "bench:scenario:237": 0.4,
+     "bench:scenario:238": 0.0,
+     "bench:scenario:239": 0.5833333333333334,
+     "bench:scenario:240": 0.2,
+     "bench:scenario:241": 0.2,
+     "bench:scenario:242": 0.3333333333333333,
+     "bench:scenario:243": 0.25,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.09090909090909091,
+     "bench:scenario:246": 0.2,
+     "bench:scenario:247": 0.2,
+     "bench:scenario:248": 0.3333333333333333,
+     "bench:scenario:249": 0.25,
+     "bench:scenario:250": 0.3333333333333333,
+     "bench:scenario:251": 0.5,
+     "bench:scenario:252": 0.3333333333333333,
+     "bench:scenario:253": 0.5,
+     "bench:scenario:254": 0.2,
+     "bench:scenario:255": 0.14285714285714285,
+     "bench:scenario:256": 0.25,
+     "bench:scenario:257": 0.5,
+     "bench:scenario:258": 0.5,
+     "bench:scenario:259": 0.25,
+     "bench:scenario:260": 0.4,
+     "bench:scenario:261": 0.16666666666666666,
+     "bench:scenario:262": 0.16666666666666666,
+     "bench:scenario:263": 0.3333333333333333,
+     "bench:scenario:264": 0.16666666666666666,
+     "bench:scenario:265": 0.3333333333333333,
+     "bench:scenario:266": 0.2,
+     "bench:scenario:267": 0.16666666666666666,
+     "bench:scenario:268": 0.0,
+     "bench:scenario:269": 0.0,
+     "bench:scenario:270": 0.5,
+     "bench:scenario:271": 0.5,
+     "bench:scenario:272": 0.3333333333333333,
+     "bench:scenario:273": 0.14285714285714285,
+     "bench:scenario:274": 0.3333333333333333,
+     "bench:scenario:275": 0.25,
+     "bench:scenario:276": 0.25,
+     "bench:scenario:277": 0.3333333333333333,
+     "bench:scenario:278": 0.5,
+     "bench:scenario:279": 0.3333333333333333,
+     "bench:scenario:280": 0.2,
+     "bench:scenario:281": 0.5,
+     "bench:scenario:282": 0.25,
+     "bench:scenario:283": 0.125,
+     "bench:scenario:284": 0.25,
+     "bench:scenario:285": 0.14285714285714285,
+     "bench:scenario:286": 0.25,
+     "bench:scenario:287": 0.5,
+     "bench:scenario:288": 0.25,
+     "bench:scenario:289": 0.25,
+     "bench:scenario:290": 0.2,
+     "bench:scenario:291": 1.0,
+     "bench:scenario:292": 0.4,
+     "bench:scenario:293": 0.5,
+     "bench:scenario:294": 0.5,
+     "bench:scenario:295": 0.125,
+     "bench:scenario:296": 0.5,
+     "bench:scenario:297": 0.2,
+     "bench:scenario:298": 0.5,
+     "bench:scenario:299": 0.3333333333333333,
+     "bench:scenario:300": 0.16666666666666666,
+     "bench:scenario:301": 0.2,
+     "bench:scenario:302": 0.3333333333333333,
+     "bench:scenario:303": 0.125,
+     "bench:scenario:304": 0.3333333333333333,
+     "bench:scenario:305": 0.3333333333333333,
+     "bench:scenario:306": 0.25,
+     "bench:scenario:307": 0.3333333333333333,
+     "bench:scenario:308": 0.3333333333333333,
+     "bench:scenario:309": 0.25,
+     "bench:scenario:310": 0.6666666666666666,
+     "bench:scenario:311": 0.16666666666666666,
+     "bench:scenario:312": 0.5,
+     "bench:scenario:313": 0.0,
+     "bench:scenario:314": 0.16666666666666666,
+     "bench:scenario:315": 0.2,
+     "bench:scenario:316": 0.3333333333333333,
+     "bench:scenario:317": 1.0,
+     "bench:scenario:318": 0.2,
+     "bench:scenario:319": 0.2,
+     "bench:scenario:320": 0.16666666666666666,
+     "bench:scenario:321": 1.0,
+     "bench:scenario:322": 0.3333333333333333,
+     "bench:scenario:323": 0.25,
+     "bench:scenario:324": 0.5,
+     "bench:scenario:325": 0.3333333333333333,
+     "bench:scenario:326": 0.2,
+     "bench:scenario:327": 0.3333333333333333,
+     "bench:scenario:328": 0.5,
+     "bench:scenario:329": 0.125,
+     "bench:scenario:330": 0.5,
+     "bench:scenario:331": 0.2,
+     "bench:scenario:332": 0.25,
+     "bench:scenario:333": 0.16666666666666666,
+     "bench:scenario:334": 0.5,
+     "bench:scenario:335": 0.16666666666666666,
+     "bench:scenario:336": 0.25,
+     "bench:scenario:337": 0.3333333333333333,
+     "bench:scenario:338": 0.3333333333333333,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0,
+     "bench:qa:15": 0.0,
+     "bench:qa:16": 0.0,
+     "bench:qa:17": 0.0,
+     "bench:qa:18": 0.0,
+     "bench:qa:19": 0.0,
+     "bench:qa:20": 0.0,
+     "bench:qa:21": 0.0,
+     "bench:qa:22": 0.0,
+     "bench:qa:23": 0.0,
+     "bench:qa:24": 0.0,
+     "bench:qa:25": 0.0,
+     "bench:qa:26": 0.0,
+     "bench:qa:27": 0.0,
+     "bench:qa:28": 0.0,
+     "bench:qa:29": 0.0,
+     "bench:qa:30": 0.0,
+     "bench:qa:31": 0.0,
+     "bench:qa:32": 0.0,
+     "bench:qa:33": 0.0,
+     "bench:qa:34": 0.0,
+     "bench:qa:35": 0.0,
+     "bench:qa:36": 0.0,
+     "bench:qa:37": 0.0,
+     "bench:qa:38": 0.0,
+     "bench:qa:39": 0.0,
+     "bench:qa:40": 0.0,
+     "bench:qa:41": 0.0,
+     "bench:qa:42": 0.0,
+     "bench:qa:43": 0.0,
+     "bench:qa:44": 0.0,
+     "bench:qa:45": 0.0,
+     "bench:qa:46": 0.0,
+     "bench:qa:47": 0.0,
+     "bench:qa:48": 0.0,
+     "bench:qa:49": 0.0,
+     "bench:qa:50": 0.0,
+     "bench:qa:51": 0.0,
+     "bench:qa:52": 0.0,
+     "bench:qa:53": 0.0,
+     "bench:qa:54": 0.0,
+     "bench:qa:55": 0.0,
+     "bench:qa:56": 0.0,
+     "bench:qa:57": 0.0,
+     "bench:qa:58": 0.0,
+     "bench:qa:59": 0.0,
+     "bench:qa:60": 0.0,
+     "bench:qa:61": 0.0,
+     "bench:qa:62": 0.0,
+     "bench:qa:63": 0.0,
+     "bench:qa:64": 0.0,
+     "bench:qa:65": 0.0,
+     "bench:qa:66": 0.0,
+     "bench:qa:67": 0.0,
+     "bench:qa:68": 0.0,
+     "bench:qa:69": 0.0,
+     "bench:qa:70": 0.0,
+     "bench:qa:71": 0.0,
+     "bench:qa:72": 0.0,
+     "bench:qa:73": 0.0,
+     "bench:qa:74": 0.0,
+     "bench:qa:75": 0.0,
+     "bench:qa:76": 0.0,
+     "bench:qa:77": 0.0,
+     "bench:qa:78": 0.0,
+     "bench:qa:79": 0.0,
+     "bench:qa:80": 0.0,
+     "bench:qa:81": 0.0,
+     "bench:qa:82": 0.0,
+     "bench:qa:83": 0.0,
+     "bench:qa:84": 0.0,
+     "bench:qa:85": 0.0,
+     "bench:qa:86": 0.0,
+     "bench:qa:87": 0.0,
+     "bench:qa:88": 0.0,
+     "bench:qa:89": 0.0,
+     "bench:qa:90": 0.0,
+     "bench:qa:91": 0.0,
+     "bench:qa:92": 0.0,
+     "bench:qa:93": 0.0,
+     "bench:qa:94": 0.0,
+     "bench:qa:95": 0.0,
+     "bench:qa:96": 0.0,
+     "bench:qa:97": 0.0,
+     "bench:qa:98": 0.0,
+     "bench:qa:99": 0.0,
+     "bench:qa:100": 0.0,
+     "bench:qa:101": 0.0,
+     "bench:qa:102": 0.0,
+     "bench:qa:103": 0.0,
+     "bench:qa:104": 0.0,
+     "bench:qa:105": 0.0,
+     "bench:qa:106": 0.0,
+     "bench:qa:107": 0.0,
+     "bench:qa:108": 0.0,
+     "bench:qa:109": 0.0,
+     "bench:qa:110": 0.0,
+     "bench:qa:111": 0.0,
+     "bench:qa:112": 0.0,
+     "bench:qa:113": 0.0,
+     "bench:qa:114": 0.0,
+     "bench:qa:115": 0.0,
+     "bench:qa:116": 0.0,
+     "bench:qa:117": 0.0,
+     "bench:qa:118": 0.0,
+     "bench:qa:119": 0.0,
+     "bench:qa:120": 0.0,
+     "bench:qa:121": 0.0,
+     "bench:qa:122": 0.0,
+     "bench:qa:123": 0.0,
+     "bench:qa:124": 0.0,
+     "bench:qa:125": 0.0,
+     "bench:qa:126": 0.0,
+     "bench:qa:127": 0.0,
+     "bench:qa:128": 0.0,
+     "bench:qa:129": 0.0,
+     "bench:qa:130": 0.0,
+     "bench:qa:131": 0.0,
+     "bench:qa:132": 0.0,
+     "bench:qa:133": 0.0,
+     "bench:qa:134": 0.0,
+     "bench:qa:135": 0.0,
+     "bench:qa:136": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 4391,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0
+  },
+  "graph_build_judge": {
+   "risk_accuracy_overall": {
+    "correct": 150,
+    "total": 345,
+    "accuracy": 0.43478260869565216,
+    "mismatches": [
+     {
+      "id": "bench:scenario:20",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:23",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:32",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:33",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:34",
+      "gold": "prohibited",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:35",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:42",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:43",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:46",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:47",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:50",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:51",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:58",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:59",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:60",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:61",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:62",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:63",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:64",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:65",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:66",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:67",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:68",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:69",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:71",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:76",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:79",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:81",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:82",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:88",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:93",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:98",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:99",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:101",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:106",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:109",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:121",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:131",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:137",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:139",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:165",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:166",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:168",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:169",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:174",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:176",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:178",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:179",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:180",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:181",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:182",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:186",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:187",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:188",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:190",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:191",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:192",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:194",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:195",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:196",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:198",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:200",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:202",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:203",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:204",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:205",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:207",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:208",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:209",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:210",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:212",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:214",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:216",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:217",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:218",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:219",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:220",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:222",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:223",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:224",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:226",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:228",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:229",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:230",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:232",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:234",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:235",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:236",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:237",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:238",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:239",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:241",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:243",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:244",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:245",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:247",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:248",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:249",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:250",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:251",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:252",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:253",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:254",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:255",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:256",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:257",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:258",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:259",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:260",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:261",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:262",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:263",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:264",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:265",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:266",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:267",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:268",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:269",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:270",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:271",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:272",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:273",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:274",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:275",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:276",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:277",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:278",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:279",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:280",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:281",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:282",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:283",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:284",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:285",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:286",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:287",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:288",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:289",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:290",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:291",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:292",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:293",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:294",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:295",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:296",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:297",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:298",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:299",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:300",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:301",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:302",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:303",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:304",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:305",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:306",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:307",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:308",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:309",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:310",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:311",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:312",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:313",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:314",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:315",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:316",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:317",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:318",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:319",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:320",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:321",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:322",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:323",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:324",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:325",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:326",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:327",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:328",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:329",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:330",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:331",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:332",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:333",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:334",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:335",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:336",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:337",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:338",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 144,
+    "total": 339,
+    "abstained": 31,
+    "note": "benchmark scenarios are free text; where an elicited-features cache is attached (DEC-13, provenance llm_elicited) the deterministic classifier decides from those facts, otherwise it abstains rather than guesses. Human-verified features per eval/gold/ANNOTATION_PROTOCOL.md supersede elicited ones."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 1581,
+    "required": 3487,
+    "completeness": 0.4533983366790938,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 4376,
+   "citation_completeness": {
+    "macro_completeness": 0.2502288915014546,
+    "micro": {
+     "found": 1438,
+     "required": 3498,
+     "completeness": 0.41109205260148657
+    },
+    "per_item": {
+     "gold:cls-01": 1.0,
+     "gold:cls-02": 1.0,
+     "gold:cls-03": 1.0,
+     "gold:cls-05": 1.0,
+     "gold:ret-01": 1.0,
+     "gold:ret-02": 1.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:8": 0.0,
+     "bench:scenario:9": 0.0,
+     "bench:scenario:10": 0.0,
+     "bench:scenario:11": 0.0,
+     "bench:scenario:12": 0.0,
+     "bench:scenario:13": 0.0,
+     "bench:scenario:14": 0.0,
+     "bench:scenario:15": 0.0,
+     "bench:scenario:16": 0.0,
+     "bench:scenario:17": 0.0,
+     "bench:scenario:18": 0.0,
+     "bench:scenario:19": 0.0,
+     "bench:scenario:20": 0.7619047619047619,
+     "bench:scenario:21": 0.0,
+     "bench:scenario:22": 0.0,
+     "bench:scenario:23": 0.625,
+     "bench:scenario:24": 0.0,
+     "bench:scenario:25": 0.0,
+     "bench:scenario:26": 0.0,
+     "bench:scenario:27": 0.0,
+     "bench:scenario:28": 0.0,
+     "bench:scenario:29": 0.0,
+     "bench:scenario:30": 0.0,
+     "bench:scenario:31": 0.0,
+     "bench:scenario:32": 0.7916666666666666,
+     "bench:scenario:33": 0.75,
+     "bench:scenario:34": 0.043478260869565216,
+     "bench:scenario:35": 0.0,
+     "bench:scenario:36": 0.0,
+     "bench:scenario:37": 0.0,
+     "bench:scenario:38": 0.0,
+     "bench:scenario:39": 0.0,
+     "bench:scenario:40": 0.0,
+     "bench:scenario:41": 0.0,
+     "bench:scenario:42": 0.7222222222222222,
+     "bench:scenario:43": 0.6666666666666666,
+     "bench:scenario:44": 0.0,
+     "bench:scenario:45": 0.0,
+     "bench:scenario:46": 0.8888888888888888,
+     "bench:scenario:47": 0.875,
+     "bench:scenario:48": 0.0,
+     "bench:scenario:49": 0.0,
+     "bench:scenario:50": 0.6956521739130435,
+     "bench:scenario:51": 0.7272727272727273,
+     "bench:scenario:52": 0.0,
+     "bench:scenario:53": 0.0,
+     "bench:scenario:54": 0.0,
+     "bench:scenario:55": 0.0,
+     "bench:scenario:56": 0.0,
+     "bench:scenario:57": 0.0,
+     "bench:scenario:58": 0.5483870967741935,
+     "bench:scenario:59": 0.7142857142857143,
+     "bench:scenario:60": 0.8,
+     "bench:scenario:61": 1.0,
+     "bench:scenario:62": 0.6666666666666666,
+     "bench:scenario:63": 0.75,
+     "bench:scenario:64": 0.782608695652174,
+     "bench:scenario:65": 0.48,
+     "bench:scenario:66": 0.8181818181818182,
+     "bench:scenario:67": 1.0,
+     "bench:scenario:68": 0.6818181818181818,
+     "bench:scenario:69": 0.8181818181818182,
+     "bench:scenario:70": 0.75,
+     "bench:scenario:71": 0.0,
+     "bench:scenario:72": 0.7037037037037037,
+     "bench:scenario:73": 0.6923076923076923,
+     "bench:scenario:74": 0.6785714285714286,
+     "bench:scenario:75": 0.7333333333333333,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.6923076923076923,
+     "bench:scenario:78": 0.7272727272727273,
+     "bench:scenario:79": 0.0,
+     "bench:scenario:80": 0.75,
+     "bench:scenario:81": 0.0,
+     "bench:scenario:82": 0.0,
+     "bench:scenario:83": 0.6923076923076923,
+     "bench:scenario:84": 0.64,
+     "bench:scenario:85": 0.9166666666666666,
+     "bench:scenario:86": 0.6956521739130435,
+     "bench:scenario:87": 0.8,
+     "bench:scenario:88": 0.0,
+     "bench:scenario:89": 0.8,
+     "bench:scenario:90": 0.6521739130434783,
+     "bench:scenario:91": 0.7,
+     "bench:scenario:92": 0.7037037037037037,
+     "bench:scenario:93": 0.0,
+     "bench:scenario:94": 0.75,
+     "bench:scenario:95": 0.7,
+     "bench:scenario:96": 0.6666666666666666,
+     "bench:scenario:97": 0.631578947368421,
+     "bench:scenario:98": 0.0,
+     "bench:scenario:99": 0.0,
+     "bench:scenario:100": 0.6956521739130435,
+     "bench:scenario:101": 0.0,
+     "bench:scenario:102": 0.7142857142857143,
+     "bench:scenario:103": 0.8333333333333334,
+     "bench:scenario:104": 0.6785714285714286,
+     "bench:scenario:105": 0.7857142857142857,
+     "bench:scenario:106": 0.0,
+     "bench:scenario:107": 0.6153846153846154,
+     "bench:scenario:108": 0.6923076923076923,
+     "bench:scenario:109": 0.0,
+     "bench:scenario:110": 0.6551724137931034,
+     "bench:scenario:111": 0.7142857142857143,
+     "bench:scenario:112": 0.6956521739130435,
+     "bench:scenario:113": 0.8,
+     "bench:scenario:114": 0.6818181818181818,
+     "bench:scenario:115": 0.75,
+     "bench:scenario:116": 0.6206896551724138,
+     "bench:scenario:117": 0.6363636363636364,
+     "bench:scenario:118": 0.76,
+     "bench:scenario:119": 0.875,
+     "bench:scenario:120": 0.625,
+     "bench:scenario:121": 0.0,
+     "bench:scenario:122": 0.72,
+     "bench:scenario:123": 1.0,
+     "bench:scenario:124": 0.6551724137931034,
+     "bench:scenario:125": 0.8888888888888888,
+     "bench:scenario:126": 0.76,
+     "bench:scenario:127": 0.7142857142857143,
+     "bench:scenario:128": 0.68,
+     "bench:scenario:129": 0.625,
+     "bench:scenario:130": 0.72,
+     "bench:scenario:131": 0.0,
+     "bench:scenario:132": 0.45714285714285713,
+     "bench:scenario:133": 0.625,
+     "bench:scenario:134": 0.6206896551724138,
+     "bench:scenario:135": 0.8,
+     "bench:scenario:136": 0.5454545454545454,
+     "bench:scenario:137": 0.0,
+     "bench:scenario:138": 0.7619047619047619,
+     "bench:scenario:139": 0.0,
+     "bench:scenario:140": 0.782608695652174,
+     "bench:scenario:141": 0.7272727272727273,
+     "bench:scenario:142": 0.6153846153846154,
+     "bench:scenario:143": 0.6666666666666666,
+     "bench:scenario:144": 0.6071428571428571,
+     "bench:scenario:145": 0.6666666666666666,
+     "bench:scenario:146": 0.6666666666666666,
+     "bench:scenario:147": 1.0,
+     "bench:scenario:148": 0.68,
+     "bench:scenario:149": 0.8461538461538461,
+     "bench:scenario:150": 0.8260869565217391,
+     "bench:scenario:151": 0.7692307692307693,
+     "bench:scenario:152": 0.75,
+     "bench:scenario:153": 0.6923076923076923,
+     "bench:scenario:154": 0.7727272727272727,
+     "bench:scenario:155": 0.8571428571428571,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.3333333333333333,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.16666666666666666,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.6363636363636364,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.14285714285714285,
+     "bench:scenario:164": 0.1111111111111111,
+     "bench:scenario:165": 0.0,
+     "bench:scenario:166": 0.0,
+     "bench:scenario:167": 0.25,
+     "bench:scenario:168": 0.42857142857142855,
+     "bench:scenario:169": 0.0,
+     "bench:scenario:170": 0.3333333333333333,
+     "bench:scenario:171": 0.3333333333333333,
+     "bench:scenario:172": 0.2,
+     "bench:scenario:173": 0.2,
+     "bench:scenario:174": 0.0,
+     "bench:scenario:175": 0.14285714285714285,
+     "bench:scenario:176": 0.2,
+     "bench:scenario:177": 0.2,
+     "bench:scenario:178": 0.0,
+     "bench:scenario:179": 0.7777777777777778,
+     "bench:scenario:180": 0.0,
+     "bench:scenario:181": 0.0,
+     "bench:scenario:182": 0.0,
+     "bench:scenario:183": 0.3333333333333333,
+     "bench:scenario:184": 0.16666666666666666,
+     "bench:scenario:185": 0.3333333333333333,
+     "bench:scenario:186": 0.6071428571428571,
+     "bench:scenario:187": 0.16666666666666666,
+     "bench:scenario:188": 0.0,
+     "bench:scenario:189": 0.3333333333333333,
+     "bench:scenario:190": 0.0,
+     "bench:scenario:191": 0.2,
+     "bench:scenario:192": 0.0,
+     "bench:scenario:193": 0.2,
+     "bench:scenario:194": 0.0,
+     "bench:scenario:195": 0.0,
+     "bench:scenario:196": 0.0,
+     "bench:scenario:197": 0.3333333333333333,
+     "bench:scenario:198": 0.6785714285714286,
+     "bench:scenario:199": 0.2,
+     "bench:scenario:200": 0.0,
+     "bench:scenario:201": 0.5,
+     "bench:scenario:202": 0.7391304347826086,
+     "bench:scenario:203": 0.8333333333333334,
+     "bench:scenario:204": 0.0,
+     "bench:scenario:205": 0.16666666666666666,
+     "bench:scenario:206": 0.2,
+     "bench:scenario:207": 0.75,
+     "bench:scenario:208": 0.0,
+     "bench:scenario:209": 0.3333333333333333,
+     "bench:scenario:210": 0.0,
+     "bench:scenario:211": 0.2,
+     "bench:scenario:212": 0.0,
+     "bench:scenario:213": 0.2,
+     "bench:scenario:214": 0.0,
+     "bench:scenario:215": 0.25,
+     "bench:scenario:216": 0.0,
+     "bench:scenario:217": 0.2,
+     "bench:scenario:218": 0.0,
+     "bench:scenario:219": 0.4,
+     "bench:scenario:220": 0.16666666666666666,
+     "bench:scenario:221": 0.25,
+     "bench:scenario:222": 0.0,
+     "bench:scenario:223": 0.7058823529411765,
+     "bench:scenario:224": 0.1111111111111111,
+     "bench:scenario:225": 0.16666666666666666,
+     "bench:scenario:226": 0.0,
+     "bench:scenario:227": 0.16666666666666666,
+     "bench:scenario:228": 0.0,
+     "bench:scenario:229": 0.5,
+     "bench:scenario:230": 0.0,
+     "bench:scenario:231": 0.25,
+     "bench:scenario:232": 0.0,
+     "bench:scenario:233": 0.3333333333333333,
+     "bench:scenario:234": 0.0,
+     "bench:scenario:235": 0.3333333333333333,
+     "bench:scenario:236": 0.8636363636363636,
+     "bench:scenario:237": 0.4,
+     "bench:scenario:238": 0.0,
+     "bench:scenario:239": 0.5833333333333334,
+     "bench:scenario:240": 0.2,
+     "bench:scenario:241": 0.2,
+     "bench:scenario:242": 0.3333333333333333,
+     "bench:scenario:243": 0.25,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.09090909090909091,
+     "bench:scenario:246": 0.2,
+     "bench:scenario:247": 0.2,
+     "bench:scenario:248": 0.3333333333333333,
+     "bench:scenario:249": 0.25,
+     "bench:scenario:250": 0.3333333333333333,
+     "bench:scenario:251": 0.5,
+     "bench:scenario:252": 0.3333333333333333,
+     "bench:scenario:253": 0.5,
+     "bench:scenario:254": 0.2,
+     "bench:scenario:255": 0.14285714285714285,
+     "bench:scenario:256": 0.25,
+     "bench:scenario:257": 0.5,
+     "bench:scenario:258": 0.5,
+     "bench:scenario:259": 0.25,
+     "bench:scenario:260": 0.4,
+     "bench:scenario:261": 0.16666666666666666,
+     "bench:scenario:262": 0.16666666666666666,
+     "bench:scenario:263": 0.3333333333333333,
+     "bench:scenario:264": 0.16666666666666666,
+     "bench:scenario:265": 0.3333333333333333,
+     "bench:scenario:266": 0.2,
+     "bench:scenario:267": 0.16666666666666666,
+     "bench:scenario:268": 0.0,
+     "bench:scenario:269": 0.0,
+     "bench:scenario:270": 0.5,
+     "bench:scenario:271": 0.5,
+     "bench:scenario:272": 0.3333333333333333,
+     "bench:scenario:273": 0.14285714285714285,
+     "bench:scenario:274": 0.3333333333333333,
+     "bench:scenario:275": 0.25,
+     "bench:scenario:276": 0.25,
+     "bench:scenario:277": 0.3333333333333333,
+     "bench:scenario:278": 0.5,
+     "bench:scenario:279": 0.3333333333333333,
+     "bench:scenario:280": 0.2,
+     "bench:scenario:281": 0.5,
+     "bench:scenario:282": 0.25,
+     "bench:scenario:283": 0.125,
+     "bench:scenario:284": 0.25,
+     "bench:scenario:285": 0.14285714285714285,
+     "bench:scenario:286": 0.25,
+     "bench:scenario:287": 0.5,
+     "bench:scenario:288": 0.25,
+     "bench:scenario:289": 0.25,
+     "bench:scenario:290": 0.2,
+     "bench:scenario:291": 1.0,
+     "bench:scenario:292": 0.4,
+     "bench:scenario:293": 0.5,
+     "bench:scenario:294": 0.5,
+     "bench:scenario:295": 0.125,
+     "bench:scenario:296": 0.5,
+     "bench:scenario:297": 0.2,
+     "bench:scenario:298": 0.5,
+     "bench:scenario:299": 0.3333333333333333,
+     "bench:scenario:300": 0.16666666666666666,
+     "bench:scenario:301": 0.2,
+     "bench:scenario:302": 0.3333333333333333,
+     "bench:scenario:303": 0.125,
+     "bench:scenario:304": 0.3333333333333333,
+     "bench:scenario:305": 0.3333333333333333,
+     "bench:scenario:306": 0.25,
+     "bench:scenario:307": 0.3333333333333333,
+     "bench:scenario:308": 0.3333333333333333,
+     "bench:scenario:309": 0.25,
+     "bench:scenario:310": 0.6666666666666666,
+     "bench:scenario:311": 0.16666666666666666,
+     "bench:scenario:312": 0.5,
+     "bench:scenario:313": 0.0,
+     "bench:scenario:314": 0.16666666666666666,
+     "bench:scenario:315": 0.2,
+     "bench:scenario:316": 0.3333333333333333,
+     "bench:scenario:317": 1.0,
+     "bench:scenario:318": 0.2,
+     "bench:scenario:319": 0.2,
+     "bench:scenario:320": 0.16666666666666666,
+     "bench:scenario:321": 1.0,
+     "bench:scenario:322": 0.3333333333333333,
+     "bench:scenario:323": 0.25,
+     "bench:scenario:324": 0.5,
+     "bench:scenario:325": 0.3333333333333333,
+     "bench:scenario:326": 0.2,
+     "bench:scenario:327": 0.3333333333333333,
+     "bench:scenario:328": 0.5,
+     "bench:scenario:329": 0.125,
+     "bench:scenario:330": 0.5,
+     "bench:scenario:331": 0.2,
+     "bench:scenario:332": 0.25,
+     "bench:scenario:333": 0.16666666666666666,
+     "bench:scenario:334": 0.5,
+     "bench:scenario:335": 0.16666666666666666,
+     "bench:scenario:336": 0.25,
+     "bench:scenario:337": 0.3333333333333333,
+     "bench:scenario:338": 0.3333333333333333,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0,
+     "bench:qa:15": 0.0,
+     "bench:qa:16": 0.0,
+     "bench:qa:17": 0.0,
+     "bench:qa:18": 0.0,
+     "bench:qa:19": 0.0,
+     "bench:qa:20": 0.0,
+     "bench:qa:21": 0.0,
+     "bench:qa:22": 0.0,
+     "bench:qa:23": 0.0,
+     "bench:qa:24": 0.0,
+     "bench:qa:25": 0.0,
+     "bench:qa:26": 0.0,
+     "bench:qa:27": 0.0,
+     "bench:qa:28": 0.0,
+     "bench:qa:29": 0.0,
+     "bench:qa:30": 0.0,
+     "bench:qa:31": 0.0,
+     "bench:qa:32": 0.0,
+     "bench:qa:33": 0.0,
+     "bench:qa:34": 0.0,
+     "bench:qa:35": 0.0,
+     "bench:qa:36": 0.0,
+     "bench:qa:37": 0.0,
+     "bench:qa:38": 0.0,
+     "bench:qa:39": 0.0,
+     "bench:qa:40": 0.0,
+     "bench:qa:41": 0.0,
+     "bench:qa:42": 0.0,
+     "bench:qa:43": 0.0,
+     "bench:qa:44": 0.0,
+     "bench:qa:45": 0.0,
+     "bench:qa:46": 0.0,
+     "bench:qa:47": 0.0,
+     "bench:qa:48": 0.0,
+     "bench:qa:49": 0.0,
+     "bench:qa:50": 0.0,
+     "bench:qa:51": 0.0,
+     "bench:qa:52": 0.0,
+     "bench:qa:53": 0.0,
+     "bench:qa:54": 0.0,
+     "bench:qa:55": 0.0,
+     "bench:qa:56": 0.0,
+     "bench:qa:57": 0.0,
+     "bench:qa:58": 0.0,
+     "bench:qa:59": 0.0,
+     "bench:qa:60": 0.0,
+     "bench:qa:61": 0.0,
+     "bench:qa:62": 0.0,
+     "bench:qa:63": 0.0,
+     "bench:qa:64": 0.0,
+     "bench:qa:65": 0.0,
+     "bench:qa:66": 0.0,
+     "bench:qa:67": 0.0,
+     "bench:qa:68": 0.0,
+     "bench:qa:69": 0.0,
+     "bench:qa:70": 0.0,
+     "bench:qa:71": 0.0,
+     "bench:qa:72": 0.0,
+     "bench:qa:73": 0.0,
+     "bench:qa:74": 0.0,
+     "bench:qa:75": 0.0,
+     "bench:qa:76": 0.0,
+     "bench:qa:77": 0.0,
+     "bench:qa:78": 0.0,
+     "bench:qa:79": 0.0,
+     "bench:qa:80": 0.0,
+     "bench:qa:81": 0.0,
+     "bench:qa:82": 0.0,
+     "bench:qa:83": 0.0,
+     "bench:qa:84": 0.0,
+     "bench:qa:85": 0.0,
+     "bench:qa:86": 0.0,
+     "bench:qa:87": 0.0,
+     "bench:qa:88": 0.0,
+     "bench:qa:89": 0.0,
+     "bench:qa:90": 0.0,
+     "bench:qa:91": 0.0,
+     "bench:qa:92": 0.0,
+     "bench:qa:93": 0.0,
+     "bench:qa:94": 0.0,
+     "bench:qa:95": 0.0,
+     "bench:qa:96": 0.0,
+     "bench:qa:97": 0.0,
+     "bench:qa:98": 0.0,
+     "bench:qa:99": 0.0,
+     "bench:qa:100": 0.0,
+     "bench:qa:101": 0.0,
+     "bench:qa:102": 0.0,
+     "bench:qa:103": 0.0,
+     "bench:qa:104": 0.0,
+     "bench:qa:105": 0.0,
+     "bench:qa:106": 0.0,
+     "bench:qa:107": 0.0,
+     "bench:qa:108": 0.0,
+     "bench:qa:109": 0.0,
+     "bench:qa:110": 0.0,
+     "bench:qa:111": 0.0,
+     "bench:qa:112": 0.0,
+     "bench:qa:113": 0.0,
+     "bench:qa:114": 0.0,
+     "bench:qa:115": 0.0,
+     "bench:qa:116": 0.0,
+     "bench:qa:117": 0.0,
+     "bench:qa:118": 0.0,
+     "bench:qa:119": 0.0,
+     "bench:qa:120": 0.0,
+     "bench:qa:121": 0.0,
+     "bench:qa:122": 0.0,
+     "bench:qa:123": 0.0,
+     "bench:qa:124": 0.0,
+     "bench:qa:125": 0.0,
+     "bench:qa:126": 0.0,
+     "bench:qa:127": 0.0,
+     "bench:qa:128": 0.0,
+     "bench:qa:129": 0.0,
+     "bench:qa:130": 0.0,
+     "bench:qa:131": 0.0,
+     "bench:qa:132": 0.0,
+     "bench:qa:133": 0.0,
+     "bench:qa:134": 0.0,
+     "bench:qa:135": 0.0,
+     "bench:qa:136": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 1,
+    "cited": 4376,
+    "rate": 0.00022851919561243144,
+    "hallucinated_ids": [
+     "eu-ai-act:article-27:paragraph-1:n5"
+    ]
+   },
+   "errors": 0
+  },
+  "graph_full": {
+   "risk_accuracy_overall": {
+    "correct": 150,
+    "total": 345,
+    "accuracy": 0.43478260869565216,
+    "mismatches": [
+     {
+      "id": "bench:scenario:20",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:23",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:32",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:33",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:34",
+      "gold": "prohibited",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:35",
+      "gold": "prohibited",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:42",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:43",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:46",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:47",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:50",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:51",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:58",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:59",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:60",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:61",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:62",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:63",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:64",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:65",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:66",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:67",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:68",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:69",
+      "gold": "prohibited",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:71",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:76",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:79",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:81",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:82",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:88",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:93",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:98",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:99",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:101",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:106",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:109",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:121",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:131",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:137",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:139",
+      "gold": "high_risk",
+      "predicted": "prohibited"
+     },
+     {
+      "id": "bench:scenario:156",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:159",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:160",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:161",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:162",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:165",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:166",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:168",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:169",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:174",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:176",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:178",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:179",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:180",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:181",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:182",
+      "gold": "transparency_only",
+      "predicted": "minimal_or_none"
+     },
+     {
+      "id": "bench:scenario:186",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:187",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:188",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:190",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:191",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:192",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:194",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:195",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:196",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:198",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:200",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:202",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:203",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:204",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:205",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:207",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:208",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:209",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:210",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:212",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:214",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:216",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:217",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:218",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:219",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:220",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:222",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:223",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:224",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:226",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:228",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:229",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:230",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:232",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:234",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:235",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:236",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:237",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:238",
+      "gold": "transparency_only",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:239",
+      "gold": "transparency_only",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:240",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:241",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:242",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:243",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:244",
+      "gold": "minimal_or_none",
+      "predicted": "uncertain"
+     },
+     {
+      "id": "bench:scenario:245",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:246",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:247",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:248",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:249",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:250",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:251",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:252",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:253",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:254",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:255",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:256",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:257",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:258",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:259",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:260",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:261",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:262",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:263",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:264",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:265",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:266",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:267",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:268",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:269",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:270",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:271",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:272",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:273",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:274",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:275",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:276",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:277",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:278",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:279",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:280",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:281",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:282",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:283",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:284",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:285",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:286",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:287",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:288",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:289",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:290",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:291",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:292",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:293",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:294",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:295",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:296",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:297",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:298",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:299",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:300",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:301",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:302",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:303",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:304",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:305",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:306",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:307",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:308",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:309",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:310",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:311",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:312",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:313",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:314",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:315",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:316",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:317",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:318",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:319",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:320",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:321",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:322",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:323",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:324",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:325",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:326",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:327",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:328",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:329",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:330",
+      "gold": "minimal_or_none",
+      "predicted": "high_risk"
+     },
+     {
+      "id": "bench:scenario:331",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:332",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:333",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:334",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:335",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:336",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:337",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     },
+     {
+      "id": "bench:scenario:338",
+      "gold": "minimal_or_none",
+      "predicted": "transparency_only"
+     }
+    ]
+   },
+   "gold_structured_classification": {
+    "correct": 6,
+    "total": 6,
+    "note": "seed items with structured system_features; the deterministic path"
+   },
+   "benchmark_freetext_classification": {
+    "correct": 144,
+    "total": 339,
+    "abstained": 31,
+    "note": "benchmark scenarios are free text; where an elicited-features cache is attached (DEC-13, provenance llm_elicited) the deterministic classifier decides from those facts, otherwise it abstains rather than guesses. Human-verified features per eval/gold/ANNOTATION_PROTOCOL.md supersede elicited ones."
+   },
+   "benchmark_citation_completeness_article_level": {
+    "found": 1582,
+    "required": 3487,
+    "completeness": 0.45368511614568396,
+    "note": "benchmark gold cites at article granularity; predicted paragraph/point ids credit their parent article here"
+   },
+   "citations_emitted_total": 4372,
+   "citation_completeness": {
+    "macro_completeness": 0.2502288915014546,
+    "micro": {
+     "found": 1438,
+     "required": 3498,
+     "completeness": 0.41109205260148657
+    },
+    "per_item": {
+     "gold:cls-01": 1.0,
+     "gold:cls-02": 1.0,
+     "gold:cls-03": 1.0,
+     "gold:cls-05": 1.0,
+     "gold:ret-01": 1.0,
+     "gold:ret-02": 1.0,
+     "gold:qa-01": 0.0,
+     "gold:qa-02": 0.0,
+     "bench:scenario:0": 0.0,
+     "bench:scenario:1": 0.0,
+     "bench:scenario:2": 0.0,
+     "bench:scenario:3": 0.0,
+     "bench:scenario:4": 0.0,
+     "bench:scenario:5": 0.0,
+     "bench:scenario:6": 0.0,
+     "bench:scenario:7": 0.0,
+     "bench:scenario:8": 0.0,
+     "bench:scenario:9": 0.0,
+     "bench:scenario:10": 0.0,
+     "bench:scenario:11": 0.0,
+     "bench:scenario:12": 0.0,
+     "bench:scenario:13": 0.0,
+     "bench:scenario:14": 0.0,
+     "bench:scenario:15": 0.0,
+     "bench:scenario:16": 0.0,
+     "bench:scenario:17": 0.0,
+     "bench:scenario:18": 0.0,
+     "bench:scenario:19": 0.0,
+     "bench:scenario:20": 0.7619047619047619,
+     "bench:scenario:21": 0.0,
+     "bench:scenario:22": 0.0,
+     "bench:scenario:23": 0.625,
+     "bench:scenario:24": 0.0,
+     "bench:scenario:25": 0.0,
+     "bench:scenario:26": 0.0,
+     "bench:scenario:27": 0.0,
+     "bench:scenario:28": 0.0,
+     "bench:scenario:29": 0.0,
+     "bench:scenario:30": 0.0,
+     "bench:scenario:31": 0.0,
+     "bench:scenario:32": 0.7916666666666666,
+     "bench:scenario:33": 0.75,
+     "bench:scenario:34": 0.043478260869565216,
+     "bench:scenario:35": 0.0,
+     "bench:scenario:36": 0.0,
+     "bench:scenario:37": 0.0,
+     "bench:scenario:38": 0.0,
+     "bench:scenario:39": 0.0,
+     "bench:scenario:40": 0.0,
+     "bench:scenario:41": 0.0,
+     "bench:scenario:42": 0.7222222222222222,
+     "bench:scenario:43": 0.6666666666666666,
+     "bench:scenario:44": 0.0,
+     "bench:scenario:45": 0.0,
+     "bench:scenario:46": 0.8888888888888888,
+     "bench:scenario:47": 0.875,
+     "bench:scenario:48": 0.0,
+     "bench:scenario:49": 0.0,
+     "bench:scenario:50": 0.6956521739130435,
+     "bench:scenario:51": 0.7272727272727273,
+     "bench:scenario:52": 0.0,
+     "bench:scenario:53": 0.0,
+     "bench:scenario:54": 0.0,
+     "bench:scenario:55": 0.0,
+     "bench:scenario:56": 0.0,
+     "bench:scenario:57": 0.0,
+     "bench:scenario:58": 0.5483870967741935,
+     "bench:scenario:59": 0.7142857142857143,
+     "bench:scenario:60": 0.8,
+     "bench:scenario:61": 1.0,
+     "bench:scenario:62": 0.6666666666666666,
+     "bench:scenario:63": 0.75,
+     "bench:scenario:64": 0.782608695652174,
+     "bench:scenario:65": 0.48,
+     "bench:scenario:66": 0.8181818181818182,
+     "bench:scenario:67": 1.0,
+     "bench:scenario:68": 0.6818181818181818,
+     "bench:scenario:69": 0.8181818181818182,
+     "bench:scenario:70": 0.75,
+     "bench:scenario:71": 0.0,
+     "bench:scenario:72": 0.7037037037037037,
+     "bench:scenario:73": 0.6923076923076923,
+     "bench:scenario:74": 0.6785714285714286,
+     "bench:scenario:75": 0.7333333333333333,
+     "bench:scenario:76": 0.0,
+     "bench:scenario:77": 0.6923076923076923,
+     "bench:scenario:78": 0.7272727272727273,
+     "bench:scenario:79": 0.0,
+     "bench:scenario:80": 0.75,
+     "bench:scenario:81": 0.0,
+     "bench:scenario:82": 0.0,
+     "bench:scenario:83": 0.6923076923076923,
+     "bench:scenario:84": 0.64,
+     "bench:scenario:85": 0.9166666666666666,
+     "bench:scenario:86": 0.6956521739130435,
+     "bench:scenario:87": 0.8,
+     "bench:scenario:88": 0.0,
+     "bench:scenario:89": 0.8,
+     "bench:scenario:90": 0.6521739130434783,
+     "bench:scenario:91": 0.7,
+     "bench:scenario:92": 0.7037037037037037,
+     "bench:scenario:93": 0.0,
+     "bench:scenario:94": 0.75,
+     "bench:scenario:95": 0.7,
+     "bench:scenario:96": 0.6666666666666666,
+     "bench:scenario:97": 0.631578947368421,
+     "bench:scenario:98": 0.0,
+     "bench:scenario:99": 0.0,
+     "bench:scenario:100": 0.6956521739130435,
+     "bench:scenario:101": 0.0,
+     "bench:scenario:102": 0.7142857142857143,
+     "bench:scenario:103": 0.8333333333333334,
+     "bench:scenario:104": 0.6785714285714286,
+     "bench:scenario:105": 0.7857142857142857,
+     "bench:scenario:106": 0.0,
+     "bench:scenario:107": 0.6153846153846154,
+     "bench:scenario:108": 0.6923076923076923,
+     "bench:scenario:109": 0.0,
+     "bench:scenario:110": 0.6551724137931034,
+     "bench:scenario:111": 0.7142857142857143,
+     "bench:scenario:112": 0.6956521739130435,
+     "bench:scenario:113": 0.8,
+     "bench:scenario:114": 0.6818181818181818,
+     "bench:scenario:115": 0.75,
+     "bench:scenario:116": 0.6206896551724138,
+     "bench:scenario:117": 0.6363636363636364,
+     "bench:scenario:118": 0.76,
+     "bench:scenario:119": 0.875,
+     "bench:scenario:120": 0.625,
+     "bench:scenario:121": 0.0,
+     "bench:scenario:122": 0.72,
+     "bench:scenario:123": 1.0,
+     "bench:scenario:124": 0.6551724137931034,
+     "bench:scenario:125": 0.8888888888888888,
+     "bench:scenario:126": 0.76,
+     "bench:scenario:127": 0.7142857142857143,
+     "bench:scenario:128": 0.68,
+     "bench:scenario:129": 0.625,
+     "bench:scenario:130": 0.72,
+     "bench:scenario:131": 0.0,
+     "bench:scenario:132": 0.45714285714285713,
+     "bench:scenario:133": 0.625,
+     "bench:scenario:134": 0.6206896551724138,
+     "bench:scenario:135": 0.8,
+     "bench:scenario:136": 0.5454545454545454,
+     "bench:scenario:137": 0.0,
+     "bench:scenario:138": 0.7619047619047619,
+     "bench:scenario:139": 0.0,
+     "bench:scenario:140": 0.782608695652174,
+     "bench:scenario:141": 0.7272727272727273,
+     "bench:scenario:142": 0.6153846153846154,
+     "bench:scenario:143": 0.6666666666666666,
+     "bench:scenario:144": 0.6071428571428571,
+     "bench:scenario:145": 0.6666666666666666,
+     "bench:scenario:146": 0.6666666666666666,
+     "bench:scenario:147": 1.0,
+     "bench:scenario:148": 0.68,
+     "bench:scenario:149": 0.8461538461538461,
+     "bench:scenario:150": 0.8260869565217391,
+     "bench:scenario:151": 0.7692307692307693,
+     "bench:scenario:152": 0.75,
+     "bench:scenario:153": 0.6923076923076923,
+     "bench:scenario:154": 0.7727272727272727,
+     "bench:scenario:155": 0.8571428571428571,
+     "bench:scenario:156": 0.0,
+     "bench:scenario:157": 0.3333333333333333,
+     "bench:scenario:158": 0.0,
+     "bench:scenario:159": 0.16666666666666666,
+     "bench:scenario:160": 0.0,
+     "bench:scenario:161": 0.6363636363636364,
+     "bench:scenario:162": 0.0,
+     "bench:scenario:163": 0.14285714285714285,
+     "bench:scenario:164": 0.1111111111111111,
+     "bench:scenario:165": 0.0,
+     "bench:scenario:166": 0.0,
+     "bench:scenario:167": 0.25,
+     "bench:scenario:168": 0.42857142857142855,
+     "bench:scenario:169": 0.0,
+     "bench:scenario:170": 0.3333333333333333,
+     "bench:scenario:171": 0.3333333333333333,
+     "bench:scenario:172": 0.2,
+     "bench:scenario:173": 0.2,
+     "bench:scenario:174": 0.0,
+     "bench:scenario:175": 0.14285714285714285,
+     "bench:scenario:176": 0.2,
+     "bench:scenario:177": 0.2,
+     "bench:scenario:178": 0.0,
+     "bench:scenario:179": 0.7777777777777778,
+     "bench:scenario:180": 0.0,
+     "bench:scenario:181": 0.0,
+     "bench:scenario:182": 0.0,
+     "bench:scenario:183": 0.3333333333333333,
+     "bench:scenario:184": 0.16666666666666666,
+     "bench:scenario:185": 0.3333333333333333,
+     "bench:scenario:186": 0.6071428571428571,
+     "bench:scenario:187": 0.16666666666666666,
+     "bench:scenario:188": 0.0,
+     "bench:scenario:189": 0.3333333333333333,
+     "bench:scenario:190": 0.0,
+     "bench:scenario:191": 0.2,
+     "bench:scenario:192": 0.0,
+     "bench:scenario:193": 0.2,
+     "bench:scenario:194": 0.0,
+     "bench:scenario:195": 0.0,
+     "bench:scenario:196": 0.0,
+     "bench:scenario:197": 0.3333333333333333,
+     "bench:scenario:198": 0.6785714285714286,
+     "bench:scenario:199": 0.2,
+     "bench:scenario:200": 0.0,
+     "bench:scenario:201": 0.5,
+     "bench:scenario:202": 0.7391304347826086,
+     "bench:scenario:203": 0.8333333333333334,
+     "bench:scenario:204": 0.0,
+     "bench:scenario:205": 0.16666666666666666,
+     "bench:scenario:206": 0.2,
+     "bench:scenario:207": 0.75,
+     "bench:scenario:208": 0.0,
+     "bench:scenario:209": 0.3333333333333333,
+     "bench:scenario:210": 0.0,
+     "bench:scenario:211": 0.2,
+     "bench:scenario:212": 0.0,
+     "bench:scenario:213": 0.2,
+     "bench:scenario:214": 0.0,
+     "bench:scenario:215": 0.25,
+     "bench:scenario:216": 0.0,
+     "bench:scenario:217": 0.2,
+     "bench:scenario:218": 0.0,
+     "bench:scenario:219": 0.4,
+     "bench:scenario:220": 0.16666666666666666,
+     "bench:scenario:221": 0.25,
+     "bench:scenario:222": 0.0,
+     "bench:scenario:223": 0.7058823529411765,
+     "bench:scenario:224": 0.1111111111111111,
+     "bench:scenario:225": 0.16666666666666666,
+     "bench:scenario:226": 0.0,
+     "bench:scenario:227": 0.16666666666666666,
+     "bench:scenario:228": 0.0,
+     "bench:scenario:229": 0.5,
+     "bench:scenario:230": 0.0,
+     "bench:scenario:231": 0.25,
+     "bench:scenario:232": 0.0,
+     "bench:scenario:233": 0.3333333333333333,
+     "bench:scenario:234": 0.0,
+     "bench:scenario:235": 0.3333333333333333,
+     "bench:scenario:236": 0.8636363636363636,
+     "bench:scenario:237": 0.4,
+     "bench:scenario:238": 0.0,
+     "bench:scenario:239": 0.5833333333333334,
+     "bench:scenario:240": 0.2,
+     "bench:scenario:241": 0.2,
+     "bench:scenario:242": 0.3333333333333333,
+     "bench:scenario:243": 0.25,
+     "bench:scenario:244": 0.0,
+     "bench:scenario:245": 0.09090909090909091,
+     "bench:scenario:246": 0.2,
+     "bench:scenario:247": 0.2,
+     "bench:scenario:248": 0.3333333333333333,
+     "bench:scenario:249": 0.25,
+     "bench:scenario:250": 0.3333333333333333,
+     "bench:scenario:251": 0.5,
+     "bench:scenario:252": 0.3333333333333333,
+     "bench:scenario:253": 0.5,
+     "bench:scenario:254": 0.2,
+     "bench:scenario:255": 0.14285714285714285,
+     "bench:scenario:256": 0.25,
+     "bench:scenario:257": 0.5,
+     "bench:scenario:258": 0.5,
+     "bench:scenario:259": 0.25,
+     "bench:scenario:260": 0.4,
+     "bench:scenario:261": 0.16666666666666666,
+     "bench:scenario:262": 0.16666666666666666,
+     "bench:scenario:263": 0.3333333333333333,
+     "bench:scenario:264": 0.16666666666666666,
+     "bench:scenario:265": 0.3333333333333333,
+     "bench:scenario:266": 0.2,
+     "bench:scenario:267": 0.16666666666666666,
+     "bench:scenario:268": 0.0,
+     "bench:scenario:269": 0.0,
+     "bench:scenario:270": 0.5,
+     "bench:scenario:271": 0.5,
+     "bench:scenario:272": 0.3333333333333333,
+     "bench:scenario:273": 0.14285714285714285,
+     "bench:scenario:274": 0.3333333333333333,
+     "bench:scenario:275": 0.25,
+     "bench:scenario:276": 0.25,
+     "bench:scenario:277": 0.3333333333333333,
+     "bench:scenario:278": 0.5,
+     "bench:scenario:279": 0.3333333333333333,
+     "bench:scenario:280": 0.2,
+     "bench:scenario:281": 0.5,
+     "bench:scenario:282": 0.25,
+     "bench:scenario:283": 0.125,
+     "bench:scenario:284": 0.25,
+     "bench:scenario:285": 0.14285714285714285,
+     "bench:scenario:286": 0.25,
+     "bench:scenario:287": 0.5,
+     "bench:scenario:288": 0.25,
+     "bench:scenario:289": 0.25,
+     "bench:scenario:290": 0.2,
+     "bench:scenario:291": 1.0,
+     "bench:scenario:292": 0.4,
+     "bench:scenario:293": 0.5,
+     "bench:scenario:294": 0.5,
+     "bench:scenario:295": 0.125,
+     "bench:scenario:296": 0.5,
+     "bench:scenario:297": 0.2,
+     "bench:scenario:298": 0.5,
+     "bench:scenario:299": 0.3333333333333333,
+     "bench:scenario:300": 0.16666666666666666,
+     "bench:scenario:301": 0.2,
+     "bench:scenario:302": 0.3333333333333333,
+     "bench:scenario:303": 0.125,
+     "bench:scenario:304": 0.3333333333333333,
+     "bench:scenario:305": 0.3333333333333333,
+     "bench:scenario:306": 0.25,
+     "bench:scenario:307": 0.3333333333333333,
+     "bench:scenario:308": 0.3333333333333333,
+     "bench:scenario:309": 0.25,
+     "bench:scenario:310": 0.6666666666666666,
+     "bench:scenario:311": 0.16666666666666666,
+     "bench:scenario:312": 0.5,
+     "bench:scenario:313": 0.0,
+     "bench:scenario:314": 0.16666666666666666,
+     "bench:scenario:315": 0.2,
+     "bench:scenario:316": 0.3333333333333333,
+     "bench:scenario:317": 1.0,
+     "bench:scenario:318": 0.2,
+     "bench:scenario:319": 0.2,
+     "bench:scenario:320": 0.16666666666666666,
+     "bench:scenario:321": 1.0,
+     "bench:scenario:322": 0.3333333333333333,
+     "bench:scenario:323": 0.25,
+     "bench:scenario:324": 0.5,
+     "bench:scenario:325": 0.3333333333333333,
+     "bench:scenario:326": 0.2,
+     "bench:scenario:327": 0.3333333333333333,
+     "bench:scenario:328": 0.5,
+     "bench:scenario:329": 0.125,
+     "bench:scenario:330": 0.5,
+     "bench:scenario:331": 0.2,
+     "bench:scenario:332": 0.25,
+     "bench:scenario:333": 0.16666666666666666,
+     "bench:scenario:334": 0.5,
+     "bench:scenario:335": 0.16666666666666666,
+     "bench:scenario:336": 0.25,
+     "bench:scenario:337": 0.3333333333333333,
+     "bench:scenario:338": 0.3333333333333333,
+     "bench:qa:0": 0.0,
+     "bench:qa:1": 0.0,
+     "bench:qa:2": 0.0,
+     "bench:qa:3": 0.0,
+     "bench:qa:4": 0.0,
+     "bench:qa:5": 0.0,
+     "bench:qa:6": 0.0,
+     "bench:qa:7": 0.0,
+     "bench:qa:8": 0.0,
+     "bench:qa:9": 0.0,
+     "bench:qa:10": 0.0,
+     "bench:qa:11": 0.0,
+     "bench:qa:12": 0.0,
+     "bench:qa:13": 0.0,
+     "bench:qa:14": 0.0,
+     "bench:qa:15": 0.0,
+     "bench:qa:16": 0.0,
+     "bench:qa:17": 0.0,
+     "bench:qa:18": 0.0,
+     "bench:qa:19": 0.0,
+     "bench:qa:20": 0.0,
+     "bench:qa:21": 0.0,
+     "bench:qa:22": 0.0,
+     "bench:qa:23": 0.0,
+     "bench:qa:24": 0.0,
+     "bench:qa:25": 0.0,
+     "bench:qa:26": 0.0,
+     "bench:qa:27": 0.0,
+     "bench:qa:28": 0.0,
+     "bench:qa:29": 0.0,
+     "bench:qa:30": 0.0,
+     "bench:qa:31": 0.0,
+     "bench:qa:32": 0.0,
+     "bench:qa:33": 0.0,
+     "bench:qa:34": 0.0,
+     "bench:qa:35": 0.0,
+     "bench:qa:36": 0.0,
+     "bench:qa:37": 0.0,
+     "bench:qa:38": 0.0,
+     "bench:qa:39": 0.0,
+     "bench:qa:40": 0.0,
+     "bench:qa:41": 0.0,
+     "bench:qa:42": 0.0,
+     "bench:qa:43": 0.0,
+     "bench:qa:44": 0.0,
+     "bench:qa:45": 0.0,
+     "bench:qa:46": 0.0,
+     "bench:qa:47": 0.0,
+     "bench:qa:48": 0.0,
+     "bench:qa:49": 0.0,
+     "bench:qa:50": 0.0,
+     "bench:qa:51": 0.0,
+     "bench:qa:52": 0.0,
+     "bench:qa:53": 0.0,
+     "bench:qa:54": 0.0,
+     "bench:qa:55": 0.0,
+     "bench:qa:56": 0.0,
+     "bench:qa:57": 0.0,
+     "bench:qa:58": 0.0,
+     "bench:qa:59": 0.0,
+     "bench:qa:60": 0.0,
+     "bench:qa:61": 0.0,
+     "bench:qa:62": 0.0,
+     "bench:qa:63": 0.0,
+     "bench:qa:64": 0.0,
+     "bench:qa:65": 0.0,
+     "bench:qa:66": 0.0,
+     "bench:qa:67": 0.0,
+     "bench:qa:68": 0.0,
+     "bench:qa:69": 0.0,
+     "bench:qa:70": 0.0,
+     "bench:qa:71": 0.0,
+     "bench:qa:72": 0.0,
+     "bench:qa:73": 0.0,
+     "bench:qa:74": 0.0,
+     "bench:qa:75": 0.0,
+     "bench:qa:76": 0.0,
+     "bench:qa:77": 0.0,
+     "bench:qa:78": 0.0,
+     "bench:qa:79": 0.0,
+     "bench:qa:80": 0.0,
+     "bench:qa:81": 0.0,
+     "bench:qa:82": 0.0,
+     "bench:qa:83": 0.0,
+     "bench:qa:84": 0.0,
+     "bench:qa:85": 0.0,
+     "bench:qa:86": 0.0,
+     "bench:qa:87": 0.0,
+     "bench:qa:88": 0.0,
+     "bench:qa:89": 0.0,
+     "bench:qa:90": 0.0,
+     "bench:qa:91": 0.0,
+     "bench:qa:92": 0.0,
+     "bench:qa:93": 0.0,
+     "bench:qa:94": 0.0,
+     "bench:qa:95": 0.0,
+     "bench:qa:96": 0.0,
+     "bench:qa:97": 0.0,
+     "bench:qa:98": 0.0,
+     "bench:qa:99": 0.0,
+     "bench:qa:100": 0.0,
+     "bench:qa:101": 0.0,
+     "bench:qa:102": 0.0,
+     "bench:qa:103": 0.0,
+     "bench:qa:104": 0.0,
+     "bench:qa:105": 0.0,
+     "bench:qa:106": 0.0,
+     "bench:qa:107": 0.0,
+     "bench:qa:108": 0.0,
+     "bench:qa:109": 0.0,
+     "bench:qa:110": 0.0,
+     "bench:qa:111": 0.0,
+     "bench:qa:112": 0.0,
+     "bench:qa:113": 0.0,
+     "bench:qa:114": 0.0,
+     "bench:qa:115": 0.0,
+     "bench:qa:116": 0.0,
+     "bench:qa:117": 0.0,
+     "bench:qa:118": 0.0,
+     "bench:qa:119": 0.0,
+     "bench:qa:120": 0.0,
+     "bench:qa:121": 0.0,
+     "bench:qa:122": 0.0,
+     "bench:qa:123": 0.0,
+     "bench:qa:124": 0.0,
+     "bench:qa:125": 0.0,
+     "bench:qa:126": 0.0,
+     "bench:qa:127": 0.0,
+     "bench:qa:128": 0.0,
+     "bench:qa:129": 0.0,
+     "bench:qa:130": 0.0,
+     "bench:qa:131": 0.0,
+     "bench:qa:132": 0.0,
+     "bench:qa:133": 0.0,
+     "bench:qa:134": 0.0,
+     "bench:qa:135": 0.0,
+     "bench:qa:136": 0.0
+    }
+   },
+   "hallucinated_citation_rate": {
+    "hallucinated": 0,
+    "cited": 4372,
+    "rate": 0.0,
+    "hallucinated_ids": []
+   },
+   "errors": 0
+  }
+ }
+}

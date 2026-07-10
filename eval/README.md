@@ -148,3 +148,18 @@ over-classifications traced to elicited flags (see
 results/ELICITATION_ERRORS.md once generated). Full analysis:
 results/RUN2_ANALYSIS.md. Treat single-run deltas of a few items as within
 provider variance until the repeat-run study (task 60) bounds it.
+
+## Full-benchmark run findings (2026-07-10/11, task 27)
+
+The full REF-15 run (all 339 scenarios + 137 QA pairs + 10 gold seed,
+prompt v2 elicitation, 0 errors over 2,926 model calls) confirms the run-2
+pattern at 10x scale: plain_llm 207/339 with zero checkable citations vs
+the graph ladder 144/339 with 0.45 article-level citation completeness and
+a measured 0.000 hallucinated-citation rate over ~4,380 emitted citations.
+The dominant graph loss is one cell: 88 gold-minimal items predicted
+transparency_only (the Article 50 taxonomy disagreement from run 2, now
+the priority annotation set). Measured spend exceeded the dry-run
+estimate: judge 9.63 USD vs the 5.33 USD quote (band exceeded; chars/4
+under-counts legal text). Full analysis: results/FULL_RUN_ANALYSIS.md;
+generated matrices: ../docs/ablation_deepdive_full.md; artifacts:
+results/ablation_full_checkpoint.jsonl and ablation_full_summary.json.

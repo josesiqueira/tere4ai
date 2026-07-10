@@ -36,6 +36,17 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - Full REF-15 benchmark frozen (339 scenarios + 137 QA, sha256-verified)
   and a dry-run cost estimator for the full-benchmark gate
   (docs/benchmark_cost_estimate.md).
+- Full-benchmark ablation run (task 27, cost approved): 486 items through
+  the five-condition ladder with prompt-v2 elicited features, 0 errors;
+  plain LLM 207/339 with zero checkable citations vs graph 144/339 with
+  0.45 article-level citation completeness and 0.000 hallucinated
+  citations; artifacts eval/results/ablation_full_*, analysis
+  eval/results/FULL_RUN_ANALYSIS.md, generated matrices
+  docs/ablation_deepdive_full.md, full-run paper figure and table.
+- Provider-reported token usage accounting: model clients accumulate real
+  usage, every ablation checkpoint unit records its exact delta, the
+  summary aggregates spend (measured judge cost 9.63 USD vs the 5.33 USD
+  dry-run quote; band exceeded, lesson recorded in the analysis).
 - Graph strategies: AnnexItem-level retrieval for retrieval items and
   operative-text passages with node-id citations for QA items.
 - Prompt A/B as ablation conditions (graph_full@vN) and one consolidated,

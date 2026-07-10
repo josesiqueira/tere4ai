@@ -5,11 +5,14 @@
     "eval/results/ablation_run1_summary.json": "2b32643e4d92f528fddbac4bc3fe128fb17728b70263d25667b80105fcf728e1",
     "data/graph_dumps/norms_core.json": "d6f529402d02e7a819a9ee1c371e404b737f4ae491ae0250d4b1f53bc4c05f65",
     "data/graph_dumps/alignments_core.json": "68166d93d6a30cd7382bc7001dc1bb2c7049f097485fcb6074dc1f4d938940fa",
-    "data/graph_dumps/layer1.json": "08295f8b81754ea6495de1d78c596ce0cc625fd8c9a81d63358eba1e1c4c685c"
+    "data/graph_dumps/layer1.json": "08295f8b81754ea6495de1d78c596ce0cc625fd8c9a81d63358eba1e1c4c685c",
+    "eval/results/ablation_full_summary.json": "b3bf6ef838fc6cef921448ba59a37037d63afe59202cc50104b1c7cba982f754"
   },
   "outputs": [
     "fig_ablation_ladder.png",
     "fig_ablation_ladder.svg",
+    "fig_ablation_ladder_full.png",
+    "fig_ablation_ladder_full.svg",
     "fig_graph_census.png",
     "fig_graph_census.svg",
     "fig_judge_funnel.png",
@@ -17,6 +20,7 @@
     "fig_run1_run2.png",
     "fig_run1_run2.svg",
     "tab_ablation.tex",
+    "tab_ablation_full.tex",
     "tab_census.tex",
     "tab_judges.tex"
   ]
