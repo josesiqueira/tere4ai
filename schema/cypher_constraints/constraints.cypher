@@ -42,6 +42,10 @@ CREATE CONSTRAINT annexitem_id_unique IF NOT EXISTS FOR (n:AnnexItem) REQUIRE n.
 
 CREATE CONSTRAINT crossreference_id_unique IF NOT EXISTS FOR (n:CrossReference) REQUIRE n.id IS UNIQUE;
 
+CREATE CONSTRAINT condition_id_unique IF NOT EXISTS FOR (n:Condition) REQUIRE n.id IS UNIQUE;
+
+CREATE CONSTRAINT exception_id_unique IF NOT EXISTS FOR (n:Exception) REQUIRE n.id IS UNIQUE;
+
 // Chapter.number is a Roman numeral string per nodes.schema.json
 CREATE CONSTRAINT chapter_number_type IF NOT EXISTS FOR (n:Chapter) REQUIRE n.number IS :: STRING;
 

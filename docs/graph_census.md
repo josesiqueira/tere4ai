@@ -12,7 +12,7 @@
 ## Input dumps (sha256, first 16 hex)
 
 - layer1.json: 08295f8b81754ea6
-- norms_core.json: eedbf701f84c0831
+- norms_core.json: d6f529402d02e7a8
 - alignments_core.json: 68166d93d6a30cd7
 
 ## Layer 1 node types

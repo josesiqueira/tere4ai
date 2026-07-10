@@ -148,6 +148,32 @@ def norms_to_graph(norms_result: dict[str, Any], build_id: str | None = None) ->
                     build_id,
                 )
             )
+
+    # Materialised Condition/Exception nodes (#33, DEC-04): present when the
+    # canonicalize step has run over the payload. Each norm links to the
+    # shared clause node via HAS_CONDITION / HAS_EXCEPTION with deterministic
+    # rule provenance.
+    for key, edge_type in (("conditions", "HAS_CONDITION"), ("exceptions", "HAS_EXCEPTION")):
+        for clause in norms_result.get(key, []):
+            nodes.append(dict(clause))
+    for norm in norms_result.get("norms", []):
+        for field, edge_type in (
+            ("condition_ids", "HAS_CONDITION"),
+            ("exception_ids", "HAS_EXCEPTION"),
+        ):
+            for clause_id in norm.get(field) or []:
+                edges.append(
+                    _edge(
+                        f"edge:{norm['norm_id']}:{clause_id}",
+                        edge_type,
+                        norm["norm_id"],
+                        clause_id,
+                        "RESOLVED_DETERMINISTIC",
+                        f"derivation:{clause_id}",
+                        "canonicalize_rule_v1",
+                        build_id,
+                    )
+                )
     return {"nodes": nodes, "edges": edges}
 
 
