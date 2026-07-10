@@ -1,6 +1,6 @@
 """Thin HTTP facade for the M3 demo web UI.
 
-@implements: DEC-08
+@implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log)
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
@@ -71,6 +71,15 @@ ALLOWED_ORIGINS = ("http://localhost:3111", "http://127.0.0.1:3111")
 MAX_BACKLOG_NORMS = 10
 
 PAID_HEADER = "X-TERE4AI-Paid-Call"
+
+# Hardening (Section 8: rate limiting, request logging). Fixed-window
+# per-client limit; 0 disables. The request log is body-free by design:
+# request bodies can carry project evidence text, which Section 13 says to
+# redact, so only method, path, status, latency, and client are recorded.
+RATE_LIMIT_ENV = "TERE4AI_RATE_LIMIT_PER_MINUTE"
+DEFAULT_RATE_LIMIT_PER_MINUTE = 120
+REQUEST_LOG_ENV = "TERE4AI_REQUEST_LOG"
+DEFAULT_REQUEST_LOG = _PROJECT_ROOT / "data" / "review_queue" / "facade_requests.jsonl"
 
 
 class ClassifyRequest(BaseModel):
@@ -165,6 +174,61 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         allow_headers=["Content-Type"],
         expose_headers=[PAID_HEADER],
     )
+
+    # Section 8 hardening: fixed-window per-client rate limit and a body-free
+    # JSON request log. In-process state is enough for the loopback demo
+    # facade; the hosted Mode A gets a real gateway in Phase 2.
+    rate_limit = int(os.environ.get(RATE_LIMIT_ENV, DEFAULT_RATE_LIMIT_PER_MINUTE))
+    request_log_path = Path(os.environ.get(REQUEST_LOG_ENV, DEFAULT_REQUEST_LOG))
+    app.state.rate_limit_per_minute = rate_limit
+    app.state.rate_windows = {}
+
+    @app.middleware("http")
+    async def harden(request: Request, call_next):
+        import time as _time
+
+        client = request.client.host if request.client else "unknown"
+        limit = request.app.state.rate_limit_per_minute
+        if limit > 0:
+            window = int(_time.time() // 60)
+            windows = request.app.state.rate_windows
+            key = (client, window)
+            # Drop stale windows so the map cannot grow unbounded.
+            for stale in [k for k in windows if k[1] != window]:
+                del windows[stale]
+            windows[key] = windows.get(key, 0) + 1
+            if windows[key] > limit:
+                return JSONResponse(
+                    status_code=429,
+                    content={"error": "rate limit exceeded", "limit_per_minute": limit},
+                    headers={"Retry-After": str(60 - int(_time.time() % 60))},
+                )
+
+        started = _time.perf_counter()
+        response = await call_next(request)
+        latency_ms = round((_time.perf_counter() - started) * 1000, 1)
+        try:
+            request_log_path.parent.mkdir(parents=True, exist_ok=True)
+            with request_log_path.open("a", encoding="utf-8") as fh:
+                fh.write(
+                    json.dumps(
+                        {
+                            "ts": _time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                            "method": request.method,
+                            "path": request.url.path,
+                            "status": response.status_code,
+                            "latency_ms": latency_ms,
+                            "client": client,
+                            "paid": PAID_HEADER in response.headers,
+                        }
+                    )
+                    + "\n"
+                )
+        except OSError:
+            # Logging must never take the service down (Section 13); the
+            # request still succeeds if the log volume is read-only.
+            pass
+        return response
 
     def _unavailable(request: Request) -> JSONResponse | None:
         error = request.app.state.load_error
