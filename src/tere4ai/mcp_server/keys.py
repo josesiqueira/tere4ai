@@ -50,6 +50,7 @@ TOOL_SCOPES: dict[str, str] = {
     "get_applicable_requirements": "read_graph",
     "classify_ai_system": "classify",
     "evaluate_project_evidence": "evidence_paid",
+    "evaluate_project_evidence_batch": "evidence_paid",
     "generate_control_backlog": "backlog_paid",
 }
 

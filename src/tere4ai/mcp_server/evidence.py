@@ -268,3 +268,132 @@ def evaluate_project_evidence(
         missing_facts=missing_facts,
         judge_verdict=verdict,
     )
+
+
+# Batch mode (#35): one artifact against every applicable norm of an article.
+
+# Aggregation severity for the batch envelope: the overall status is the
+# most conservative per-norm status (DEC-08 vocabulary, worst-case first).
+_STATUS_SEVERITY = (
+    "requires_human_review",
+    "rejected_as_unsupported",
+    "applicable_missing_evidence",
+    "partially_satisfied",
+    "satisfied_with_evidence",
+    "not_applicable",
+)
+
+
+def accepted_norms_for_article(
+    norms_payload: dict[str, Any], article_node_id: str
+) -> list[dict[str, Any]]:
+    """Judge-accepted norms sourced from an article (or any node prefix)."""
+    return [
+        norm
+        for norm in norms_payload.get("norms", [])
+        if norm.get("judge_verdict") == "accepted"
+        and str(norm.get("source_node_id", "")).startswith(article_node_id)
+    ]
+
+
+def evaluate_evidence_batch(
+    norms: list[dict[str, Any]],
+    evidence: dict[str, Any],
+    generator: ModelClient,
+    judge: ModelClient,
+    prompt_version: str = "v1",
+    graph_version: str = "unknown",
+    log_path: Path | None = None,
+) -> dict[str, Any]:
+    """One artifact vs many norms; one envelope with per-norm results.
+
+    Each norm is evaluated through the full single-norm path (mechanical
+    quote check plus runtime grounding judge per norm; nothing is weakened
+    in batch). Non-accepted norms are skipped and reported, never silently
+    dropped. The envelope status is the most conservative per-norm status,
+    the confidence is the minimum, and the judge_verdict is accepted only
+    when every evaluated norm's verdict is accepted.
+    """
+    if not norms:
+        raise ValueError("evaluate_evidence_batch needs at least one norm")
+    _validate_evidence(evidence)
+
+    skipped = [
+        {
+            "norm_id": norm.get("norm_id", "norm:unknown"),
+            "reason": f"judge_verdict {norm.get('judge_verdict')!r} is not accepted",
+        }
+        for norm in norms
+        if norm.get("judge_verdict") != "accepted"
+    ]
+    evaluated = [norm for norm in norms if norm.get("judge_verdict") == "accepted"]
+    if not evaluated:
+        return _degraded_envelope(
+            {"norm_id": "batch"},
+            "no judge-accepted norms in the batch input; nothing to evaluate",
+            graph_version,
+        )
+
+    results = []
+    statuses = []
+    confidences = []
+    verdicts = []
+    source_nodes: list[str] = []
+    source_spans: list[dict[str, Any]] = []
+    for norm in evaluated:
+        envelope = evaluate_project_evidence(
+            norm,
+            evidence,
+            generator,
+            judge,
+            prompt_version=prompt_version,
+            graph_version=graph_version,
+            log_path=log_path,
+        )
+        statuses.append(envelope["status"])
+        confidences.append(envelope["confidence"])
+        verdicts.append(envelope["judge_verdict"])
+        results.append(
+            {
+                "norm_id": norm.get("norm_id"),
+                "status": envelope["status"],
+                "judge_verdict": envelope["judge_verdict"],
+                "answer": envelope["answer"],
+            }
+        )
+        node_id = norm.get("source_node_id")
+        if node_id and node_id not in source_nodes:
+            source_nodes.append(node_id)
+        span_id = norm.get("source_span_id")
+        if span_id and {"span_id": span_id} not in source_spans:
+            source_spans.append({"span_id": span_id})
+
+    overall_status = min(statuses, key=_STATUS_SEVERITY.index)
+    overall_verdict = "accepted" if all(v == "accepted" for v in verdicts) else (
+        "needs_human_review"
+    )
+    missing_facts = [
+        f"norm {r['norm_id']}: status {r['status']}"
+        for r in results
+        if r["status"] != "satisfied_with_evidence"
+    ]
+    for skip in skipped:
+        missing_facts.append(f"norm {skip['norm_id']} skipped: {skip['reason']}")
+
+    return make_envelope(
+        answer={
+            "tool": f"{TOOL_NAME}_batch",
+            "artifact_type": evidence["artifact_type"],
+            "artifact_id": evidence.get("artifact_id"),
+            "evaluated": len(results),
+            "skipped": skipped,
+            "results": results,
+        },
+        status=overall_status,
+        graph_version=graph_version,
+        confidence=min(confidences),
+        source_nodes=source_nodes,
+        source_spans=source_spans,
+        missing_facts=missing_facts,
+        judge_verdict=overall_verdict,
+    )

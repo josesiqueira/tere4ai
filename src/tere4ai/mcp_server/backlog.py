@@ -97,10 +97,55 @@ def _degraded_envelope(reason: str, graph_version: str) -> dict[str, Any]:
     )
 
 
-def _mechanical_priority(norm_ids: list[str], deontic_by_id: dict[str, Any]) -> str:
-    if any(deontic_by_id.get(norm_id) in MUST_DEONTIC_TYPES for norm_id in norm_ids):
-        return "must"
+def _mechanical_priority(
+    norm_ids: list[str],
+    deontic_by_id: dict[str, Any],
+    conditions_by_id: dict[str, Any] | None = None,
+) -> str:
+    """Priority from deontic type AND conditions (#35).
+
+    "must": at least one cited norm is an unconditional obligation or
+    prohibition. A MUST-deontic norm that applies only under conditions is
+    "should": the work is required only once the condition is established,
+    which is exactly what a reviewer should verify first.
+    """
+    conditions_by_id = conditions_by_id or {}
+    for norm_id in norm_ids:
+        if deontic_by_id.get(norm_id) not in MUST_DEONTIC_TYPES:
+            continue
+        if not conditions_by_id.get(norm_id):
+            return "must"
     return "should"
+
+
+def _group_items(
+    items: list[dict[str, Any]], notes: list[str]
+) -> tuple[list[dict[str, Any]], int]:
+    """Mechanical dedup: items citing the identical norm set are one control.
+
+    The first item's title and description win, suggested evidence is
+    unioned in order, and the merged priority is the strictest. Returns
+    (grouped_items, merged_count).
+    """
+    grouped: dict[tuple[str, ...], dict[str, Any]] = {}
+    merged = 0
+    for item in items:
+        key = tuple(sorted(item["norm_ids"]))
+        existing = grouped.get(key)
+        if existing is None:
+            grouped[key] = item
+            continue
+        merged += 1
+        notes.append(
+            f"item {item['title']!r} merged into {existing['title']!r}: "
+            "both cite the identical norm set (one control per norm set)"
+        )
+        for artifact in item["suggested_evidence"]:
+            if artifact not in existing["suggested_evidence"]:
+                existing["suggested_evidence"].append(artifact)
+        if item["priority"] == "must":
+            existing["priority"] = "must"
+    return list(grouped.values()), merged
 
 
 def _clean_items(
@@ -108,6 +153,7 @@ def _clean_items(
     known_ids: set[str],
     deontic_by_id: dict[str, Any],
     notes: list[str],
+    conditions_by_id: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Mechanical item check: returns (kept_items, dropped_count)."""
     items: list[dict[str, Any]] = []
@@ -142,7 +188,7 @@ def _clean_items(
             continue
         priority = raw.get("priority")
         if priority not in PRIORITIES:
-            priority = _mechanical_priority(norm_ids, deontic_by_id)
+            priority = _mechanical_priority(norm_ids, deontic_by_id, conditions_by_id)
             notes.append(
                 f"item {index} ({title!r}) had invalid priority "
                 f"{raw.get('priority')!r}; recomputed mechanically from "
@@ -214,6 +260,9 @@ def generate_control_backlog(
     deontic_by_id = {
         norm.get("norm_id"): norm.get("deontic_type") for norm in used_norms
     }
+    conditions_by_id = {
+        norm.get("norm_id"): norm.get("conditions") or [] for norm in used_norms
+    }
 
     gen_prompt = load_prompt("generate_backlog", prompt_version)
     gen_user = _generator_user_message(used_norms, system_context)
@@ -238,7 +287,10 @@ def generate_control_backlog(
             f"generator output unusable, no backlog produced: {reason}", graph_version
         )
 
-    items, dropped_items = _clean_items(parsed["items"], known_ids, deontic_by_id, notes)
+    items, dropped_items = _clean_items(
+        parsed["items"], known_ids, deontic_by_id, notes, conditions_by_id
+    )
+    items, merged_items = _group_items(items, notes)
     if not items:
         return _degraded_envelope(
             "no backlog items survived the mechanical citation check "
@@ -285,6 +337,7 @@ def generate_control_backlog(
         "tool": TOOL_NAME,
         "items": items,
         "dropped_items": dropped_items,
+        "merged_items": merged_items,
         "truncated": truncated,
         "notes": notes,
         "judge_rationale": check["rationale"],

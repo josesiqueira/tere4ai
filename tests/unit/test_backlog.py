@@ -289,3 +289,78 @@ def test_runtime_log_written_with_no_key_material(tmp_path):
         assert secret_marker not in raw
     # No full prompts and no full untrusted context in the log.
     assert "control-backlog generator" not in raw
+
+
+# Grouping + condition-aware priority (#35) -------------------------------------
+
+
+def test_items_citing_identical_norm_set_are_merged(tmp_path):
+    norm = make_norm(9, 1)
+    two_items = json.dumps(
+        {
+            "items": [
+                {
+                    "title": "Establish the risk register",
+                    "description": "Set up and maintain the register.",
+                    "norm_ids": [norm["norm_id"]],
+                    "suggested_evidence": ["risk register"],
+                    "priority": "should",
+                },
+                {
+                    "title": "Create a register of risks",
+                    "description": "Duplicate control expressed differently.",
+                    "norm_ids": [norm["norm_id"]],
+                    "suggested_evidence": ["risk policy"],
+                    "priority": "must",
+                },
+            ]
+        }
+    )
+    envelope, _, _, _ = run_tool(two_items, JUDGE_ACCEPT, tmp_path, norms=[norm])
+    answer = envelope["answer"]
+    assert len(answer["items"]) == 1
+    assert answer["merged_items"] == 1
+    item = answer["items"][0]
+    assert item["title"] == "Establish the risk register"
+    assert item["suggested_evidence"] == ["risk register", "risk policy"]
+    # Strictest priority survives the merge.
+    assert item["priority"] == "must"
+    assert any("merged into" in note for note in answer["notes"])
+
+
+def test_mechanical_priority_downgrades_conditional_obligations(tmp_path):
+    conditional = make_norm(9, 1, conditions=["where the system is high-risk"])
+    item = json.dumps(
+        {
+            "items": [
+                {
+                    "title": "Conditional control",
+                    "description": "Applies only under the stated condition.",
+                    "norm_ids": [conditional["norm_id"]],
+                    "suggested_evidence": [],
+                    "priority": "not-a-priority",
+                }
+            ]
+        }
+    )
+    envelope, _, _, _ = run_tool(item, JUDGE_ACCEPT, tmp_path, norms=[conditional])
+    assert envelope["answer"]["items"][0]["priority"] == "should"
+
+
+def test_mechanical_priority_keeps_unconditional_obligations_must(tmp_path):
+    unconditional = make_norm(9, 1, conditions=[])
+    item = json.dumps(
+        {
+            "items": [
+                {
+                    "title": "Unconditional control",
+                    "description": "Always applies.",
+                    "norm_ids": [unconditional["norm_id"]],
+                    "suggested_evidence": [],
+                    "priority": "not-a-priority",
+                }
+            ]
+        }
+    )
+    envelope, _, _, _ = run_tool(item, JUDGE_ACCEPT, tmp_path, norms=[unconditional])
+    assert envelope["answer"]["items"][0]["priority"] == "must"

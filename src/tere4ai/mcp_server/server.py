@@ -311,6 +311,54 @@ def evaluate_project_evidence(
 
 
 @mcp.tool(annotations=_READ_ONLY_PAID)
+def evaluate_project_evidence_batch(
+    article_node_id: str,
+    artifact_type: str,
+    content: str,
+    artifact_id: str | None = None,
+) -> dict[str, Any]:
+    """Evaluate ONE untrusted evidence artifact against EVERY judge-accepted
+    norm of one article, in a single envelope with per-norm results.
+
+    PAID: this tool performs paid model calls PER NORM (one generator call
+    plus one runtime grounding judge call for each judge-accepted norm of
+    the article), so an article with N accepted norms costs N times the
+    single-norm tool.
+
+    article_node_id is a Layer 1 article id such as eu-ai-act:article-9.
+    The envelope status is the most conservative per-norm status and the
+    judge_verdict is accepted only when every per-norm verdict is."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    norms_payload = _read_json(NORMS_PATH)
+    if norms_payload is None:
+        return _norms_missing_envelope()
+    norms = evidence_rules.accepted_norms_for_article(norms_payload, article_node_id)
+    if not norms:
+        return tools.make_envelope(
+            answer={"article_node_id": article_node_id, "found": False},
+            status="not_applicable",
+            graph_version=_graph_version(dump),
+            confidence=0.0,
+            missing_facts=[
+                f"no judge-accepted norms sourced from '{article_node_id}'"
+            ],
+        )
+    clients = _paid_clients_or_envelope()
+    if isinstance(clients, dict):
+        return clients
+    generator, judge = clients
+    return evidence_rules.evaluate_evidence_batch(
+        norms,
+        {"artifact_type": artifact_type, "content": content, "artifact_id": artifact_id},
+        generator,
+        judge,
+        graph_version=_graph_version(dump),
+    )
+
+
+@mcp.tool(annotations=_READ_ONLY_PAID)
 def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[str, Any]:
     """Generate a judged engineering control backlog from judge-accepted
     norms.
