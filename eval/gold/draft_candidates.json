@@ -1,0 +1,1514 @@
+{
+ "provenance": {
+  "generated_by": "scripts/draft_gold_candidates.py",
+  "build_id": "build-3b753e5e9297",
+  "protocol": "eval/gold/ANNOTATION_PROTOCOL.md",
+  "second_annotator_seed": "tere4ai-gold-v1",
+  "counts": {
+   "classification": 15,
+   "retrieval": 25,
+   "qa": 30
+  },
+  "status": "DRAFTS ONLY: no item is gold until a human confirms it per the protocol"
+ },
+ "items": [
+  {
+   "id": "draft:cls-prohibited-social-scoring",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a public authority scores citizens' social behaviour over time and access to services depends on the score.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": true,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "prohibited",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:article-5:paragraph-1:point-c"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-prohibited-subliminal",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: an advertising system uses subliminal cues to steer purchase decisions users would not otherwise make.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": true,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "prohibited",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:article-5:paragraph-1:point-a"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-prohibited-rbi-law-enforcement",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: police scan live public CCTV with face recognition to locate persons in real time.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": true,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": true,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "prohibited",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:article-5:paragraph-1:point-h"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:cls-high-risk-employment",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a tool ranks and filters job applications and its output decides who is invited to interview.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": true,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-4",
+    "eu-ai-act:article-6:paragraph-2"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-high-risk-education",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a system grades admission exams that determine access to a university programme.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": true,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-3",
+    "eu-ai-act:article-6:paragraph-2"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:cls-high-risk-essential-services",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a scoring model decides eligibility for social benefit payments.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": true,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-5",
+    "eu-ai-act:article-6:paragraph-2"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:cls-high-risk-critical-infrastructure",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a controller manages safety functions of the electricity grid.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": true,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-2",
+    "eu-ai-act:article-6:paragraph-2"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:cls-high-risk-migration",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a border authority uses a tool to assess asylum application risk.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": true,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-7",
+    "eu-ai-act:article-6:paragraph-2"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-high-risk-6-3-candidate",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: an advisory tool pre-sorts student admission paperwork before human assessment.",
+    "autonomy": "advisory",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": true,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": true,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": true
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-3",
+    "eu-ai-act:article-6:paragraph-2",
+    "eu-ai-act:article-6:paragraph-3",
+    "eu-ai-act:article-6:paragraph-3:point-a",
+    "eu-ai-act:article-6:paragraph-3:point-d"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-high-risk-6-3-profiling-override",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: an advisory admission pre-sorter that profiles applicants.",
+    "autonomy": "advisory",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": true,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": true,
+     "preparatory_or_narrow_procedural_task": true,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-3",
+    "eu-ai-act:article-6:paragraph-2",
+    "eu-ai-act:article-6:paragraph-3:subparagraph-3"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-high-risk-annex-i-route",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a vision safety component in machinery subject to third-party conformity assessment.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": true,
+     "third_party_conformity_assessment_required": true
+    }
+   },
+   "gold": {
+    "risk_category": "high_risk",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:article-6:paragraph-1",
+    "eu-ai-act:annex-i"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-transparency-chatbot",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a customer-service chatbot that answers billing questions.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": true,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "transparency_only",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:article-50:paragraph-1"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-transparency-synthetic-content",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a tool that generates photorealistic marketing images.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": true,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "transparency_only",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [
+    "eu-ai-act:article-50:paragraph-2"
+   ],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-minimal-spam-filter",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a spam filter for an internal mailbox.",
+    "flags": {
+     "biometric_identification": false,
+     "biometric_categorisation": false,
+     "real_time_remote_biometric_public": false,
+     "emotion_recognition": false,
+     "emotion_recognition_workplace_or_education": false,
+     "social_scoring": false,
+     "subliminal_or_manipulative": false,
+     "exploits_vulnerabilities": false,
+     "predictive_policing_profiling": false,
+     "facial_image_scraping": false,
+     "law_enforcement_use": false,
+     "migration_asylum_border_use": false,
+     "justice_democratic_use": false,
+     "education_scoring_or_access": false,
+     "employment_decisions": false,
+     "essential_services_access": false,
+     "critical_infrastructure_safety": false,
+     "medical_or_safety_component": false,
+     "interacts_with_natural_persons": false,
+     "generates_synthetic_content": false,
+     "profiling_of_natural_persons": false,
+     "preparatory_or_narrow_procedural_task": false,
+     "improves_previous_human_activity": false,
+     "detects_patterns_without_replacing_human_assessment": false,
+     "annex_i_covered_product": false,
+     "third_party_conformity_assessment_required": false
+    }
+   },
+   "gold": {
+    "risk_category": "minimal_or_none",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:cls-uncertain-unknown-flags",
+   "kind": "classification",
+   "system_features": {
+    "description": "DRAFT: a vendor tool described only as AI-powered analytics, no facts established.",
+    "flags": {}
+   },
+   "gold": {
+    "risk_category": "uncertain",
+    "article_6_3_exception_candidate": false
+   },
+   "gold_citations": [],
+   "status": "draft",
+   "note": "gold drafted FROM the deterministic ladder (mechanical agreement holds by construction); annotator must confirm the label against the source text, not against the tool",
+   "source": "drafted from ladder rule tables",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-1:a",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: remote biometric identification systems. This shall not include AI systems intended to be used for biometric verification the sole purpose of which is to confirm that a specific natural person is the person he or she cla",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-1:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-1:a"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-1:b",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used for biometric categorisation, according to sensitive or protected attributes or characteristics based on the inference of those attributes or characteristics;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-1:b"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-1:b"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:ret-point-1:c",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used for emotion recognition.",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-1:c"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-1:c"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-2",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: Critical infrastructure: AI systems intended to be used as safety components in the management and operation of critical digital infrastructure, road traffic, or in the supply of water, gas, heating or electricity.",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-2"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-2"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-3:a",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used to determine access or admission or to assign natural persons to educational and vocational training institutions at all levels;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-3:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-3:a"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-3:b",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used to evaluate learning outcomes, including when those outcomes are used to steer the learning process of natural persons in educational and vocational training institutions at all levels;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-3:b"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-3:b"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-3:c",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used for the purpose of assessing the appropriate level of education that an individual will receive or will be able to access, in the context of or within educational and vocational training in",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-3:c"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-3:c"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-3:d",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used for monitoring and detecting prohibited behaviour of students during tests in the context of or within educational and vocational training institutions at all levels.",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-3:d"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-3:d"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-4:a",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used for the recruitment or selection of natural persons, in particular to place targeted job advertisements, to analyse and filter job applications, and to evaluate candidates;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-4:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-4:a"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-4:b",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used to make decisions affecting terms of work-related relationships, the promotion or termination of work-related contractual relationships, to allocate tasks based on individual behaviour or p",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-4:b"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-4:b"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:ret-point-5:a",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by public authorities or on behalf of public authorities to evaluate the eligibility of natural persons for essential public assistance benefits and services, including healthcare services,",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-5:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-5:a"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-5:b",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used to evaluate the creditworthiness of natural persons or establish their credit score, with the exception of AI systems used for the purpose of detecting financial fraud;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-5:b"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-5:b"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-5:c",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used for risk assessment and pricing in relation to natural persons in the case of life and health insurance;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-5:c"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-5:c"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:ret-point-5:d",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to evaluate and classify emergency calls by natural persons or to be used to dispatch, or to establish priority in the dispatching of, emergency first response services, including by police, firefight",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-5:d"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-5:d"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-6:a",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of law enforcement authorities, or by Union institutions, bodies, offices or agencies in support of law enforcement authorities or on their behalf to assess the risk of a na",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-6:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-6:a"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-6:b",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of law enforcement authorities or by Union institutions, bodies, offices or agencies in support of law enforcement authorities as polygraphs or similar tools;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-6:b"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-6:b"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-6:c",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of law enforcement authorities, or by Union institutions, bodies, offices or agencies, in support of law enforcement authorities to evaluate the reliability of evidence in t",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-6:c"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-6:c"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-6:d",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by law enforcement authorities or on their behalf or by Union institutions, bodies, offices or agencies in support of law enforcement authorities for assessing the risk of a natural person ",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-6:d"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-6:d"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-6:e",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of law enforcement authorities or by Union institutions, bodies, offices or agencies in support of law enforcement authorities for the profiling of natural persons as referr",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-6:e"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-6:e"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:ret-point-7:a",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of competent public authorities or by Union institutions, bodies, offices or agencies as polygraphs or similar tools;",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-7:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-7:a"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:ret-point-7:b",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of competent public authorities or by Union institutions, bodies, offices or agencies to assess a risk, including a security risk, a risk of irregular migration, or a health",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-7:b"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-7:b"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:ret-point-7:c",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of competent public authorities or by Union institutions, bodies, offices or agencies to assist competent public authorities for the examination of applications for asylum, ",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-7:c"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-7:c"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-7:d",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by or on behalf of competent public authorities, or by Union institutions, bodies, offices or agencies, in the context of migration, asylum or border control management, for the purpose of ",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-7:d"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-7:d"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-8:a",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used by a judicial authority or on their behalf to assist a judicial authority in researching and interpreting facts and the law and in applying the law to a concrete set of facts, or to be used",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-8:a"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-8:a"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:ret-point-8:b",
+   "kind": "retrieval",
+   "question": "DRAFT (rewrite as a situation, not the provision text): Which Annex III item covers: AI systems intended to be used for influencing the outcome of an election or referendum or the voting behaviour of natural persons in the exercise of their vote in elections or referenda. This does not include AI systems",
+   "gold": {
+    "node_id": "eu-ai-act:annex-iii:point-8:b"
+   },
+   "gold_citations": [
+    "eu-ai-act:annex-iii:point-8:b"
+   ],
+   "status": "draft",
+   "note": "question must be rewritten so it does not quote the provision verbatim",
+   "source": "drafted from Annex III leaf items",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-10:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 10(1) of the EU AI Act, what must provider do regarding training, validation and testing data sets that meet the quality criteria referred to in paragraphs 2 to 5?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be developed on the basis of training, validation and testing data sets that meet the quality criteria referred to in paragraphs 2 to 5"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-10"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-10:paragraph-1:n1 (span span:010.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-10:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 10(2) of the EU AI Act, what must provider do regarding data governance and management practices appropriate for the intended purpose of the high-risk AI system?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be subject to data governance and management practices appropriate for the intended purpose of the high-risk AI system"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-10"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-10:paragraph-2:n1 (span span:010.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-10:paragraph-5",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 10(5) of the EU AI Act, what must the providers of such systems do regarding special categories of personal data?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): the providers of such systems must process special categories of personal data"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-10"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-10:paragraph-5:n1 (span span:010.005); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-11:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 11(1) of the EU AI Act, what must smes, including start-ups do regarding the elements of the technical documentation specified in Annex IV in a simplified manner?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): smes, including start-ups must provide the elements of the technical documentation specified in Annex IV in a simplified manner"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-11"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-11:paragraph-1:n5 (span span:011.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-11:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 11(2) of the EU AI Act, what must provider do regarding a single set of technical documentation containing all the information set out in paragraph 1, as well as the information required under those legal acts?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be drawn up a single set of technical documentation containing all the information set out in paragraph 1, as well as the information required under those legal acts"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-11"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-11:paragraph-2:n1 (span span:011.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-12:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 12(1) of the EU AI Act, what must high-risk ai systems do regarding events (logs) over the lifetime of the system?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): high-risk ai systems must technically allow for the automatic recording events (logs) over the lifetime of the system"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-12"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-12:paragraph-1:n1 (span span:012.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-12:paragraph-3",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 12(3) of the EU AI Act, what must provider do regarding logging capabilities that provide, at a minimum, recording of the period of each use of the system (start date and time and end date and time of each use)?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must provide logging capabilities that provide, at a minimum, recording of the period of each use of the system (start date and time and end date and time of each use)"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-12"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-12:paragraph-3:n1 (span span:012.003); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-13:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 13(1) of the EU AI Act, what must provider do regarding high-risk AI systems in such a way as to ensure that their operation is sufficiently transparent?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must design and develop high-risk AI systems in such a way as to ensure that their operation is sufficiently transparent"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-13"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-13:paragraph-1:n1 (span span:013.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-13:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 13(2) of the EU AI Act, what must provider do regarding instructions for use in an appropriate digital format or otherwise?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be accompanied instructions for use in an appropriate digital format or otherwise"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-13"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-13:paragraph-2:n1 (span span:013.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-13:paragraph-3:point-b:point-vi",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 13(3) of the EU AI Act, what must provider do regarding when appropriate, specifications for the input data, or any other relevant information in terms of the training, validation and testing data sets used?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must provide when appropriate, specifications for the input data, or any other relevant information in terms of the training, validation and testing data sets used"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-13"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-13:paragraph-3:point-b:point-vi:n1 (span span:fmx:art_013.parag_003.np_b.np_vi); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-14:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 14(1) of the EU AI Act, what must provider do regarding high-risk AI systems?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be designed and developed high-risk AI systems"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-14"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-14:paragraph-1:n1 (span span:014.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-14:paragraph-3:point-a",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 14(3) of the EU AI Act, what must provider do regarding measures?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must identify and build measures"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-14"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-14:paragraph-3:point-a:n1 (span span:fmx:art_014.parag_003.np_a); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-14:paragraph-4",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 14(4) of the EU AI Act, what must provider do regarding the high-risk AI system to the deployer in such a way that natural persons to whom human oversight is assigned are enabled, as appropriate and proportionate, to properly understand the relevant capacities and limitations of the high-risk AI system and be able to duly monitor its operation, including in view of detecting and addressing anomalies, dysfunctions and unexpected performance?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be provided the high-risk AI system to the deployer in such a way that natural persons to whom human oversight is assigned are enabled, as appropriate and proportionate, to properly understand the relevant capacities and limitations of the high-risk AI system and be able to duly monitor its operation, including in view of detecting and addressing anomalies, dysfunctions and unexpected performance"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-14"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-14:paragraph-4:n1 (span span:014.004); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-14:paragraph-5",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 14(5) of the EU AI Act, what must the requirement for a separate verification by at least two natural persons do regarding to high-risk AI systems used for the purposes of law enforcement, migration, border control or asylum?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): the requirement for a separate verification by at least two natural persons must apply to high-risk AI systems used for the purposes of law enforcement, migration, border control or asylum"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-14"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-14:paragraph-5:n3 (span span:014.005); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-15:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 15(1) of the EU AI Act, what must provider do regarding high-risk AI systems?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be designed and developed high-risk AI systems"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-15"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-15:paragraph-1:n1 (span span:015.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-15:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 15(2) of the EU AI Act, what must the commission do regarding the development of benchmarks and measurement methodologies?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): the commission must encourage the development of benchmarks and measurement methodologies"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-15"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-15:paragraph-2:n1 (span span:015.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-15:paragraph-3",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 15(3) of the EU AI Act, what must provider do regarding the levels of accuracy and the relevant accuracy metrics of high-risk AI systems?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be declared the levels of accuracy and the relevant accuracy metrics of high-risk AI systems"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-15"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-15:paragraph-3:n1 (span span:015.003); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-15:paragraph-5",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 15(5) of the EU AI Act, what must provider do regarding against attempts by unauthorised third parties to alter their use, outputs or performance by exploiting system vulnerabilities?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be resilient against attempts by unauthorised third parties to alter their use, outputs or performance by exploiting system vulnerabilities"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-15"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-15:paragraph-5:n1 (span span:015.005); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-16:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 16(1) of the EU AI Act, what must providers of high-risk ai systems do regarding that their high-risk AI systems are compliant with the requirements set out in Section 2?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers of high-risk ai systems must ensure that their high-risk AI systems are compliant with the requirements set out in Section 2"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-16"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-16:paragraph-1:n1 (span span:art_16:body); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-17:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 17(1) of the EU AI Act, what must providers of high-risk ai systems do regarding a quality management system?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers of high-risk ai systems must put in place a quality management system"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-17"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-17:paragraph-1:n1 (span span:017.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-17:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 17(2) of the EU AI Act, what must providers do regarding the degree of rigour and the level of protection required to ensure the compliance of their high-risk AI systems with this Regulation?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers must respect the degree of rigour and the level of protection required to ensure the compliance of their high-risk AI systems with this Regulation"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-17"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-17:paragraph-2:n2 (span span:017.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-17:paragraph-3",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 17(3) of the EU AI Act, what must providers of high-risk ai systems that are subject to obligations regarding quality management systems or an equivalent function under relevant sectoral union law do regarding the aspects listed in paragraph 1 as part of the quality management systems pursuant to that law?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers of high-risk ai systems that are subject to obligations regarding quality management systems or an equivalent function under relevant sectoral union law must include the aspects listed in paragraph 1 as part of the quality management systems pursuant to that law"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-17"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-17:paragraph-3:n1 (span span:017.003); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-17:paragraph-4",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 17(4) of the EU AI Act, what must provider do regarding the obligation to put in place a quality management system?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): provider must be deemed to be fulfilled by complying the obligation to put in place a quality management system"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-17"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-17:paragraph-4:n1 (span span:017.004); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-18:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 18(1) of the EU AI Act, what must the provider do regarding the documentation concerning the changes approved by notified bodies?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): the provider must keep at the disposal the documentation concerning the changes approved by notified bodies"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-18"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-18:paragraph-1:n3 (span span:018.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-18:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 18(2) of the EU AI Act, what must each member state do regarding conditions under which the documentation referred to in paragraph 1 remains at the disposal of the national competent authorities for the period indicated in that paragraph?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): each member state must determine conditions under which the documentation referred to in paragraph 1 remains at the disposal of the national competent authorities for the period indicated in that paragraph"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-18"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-18:paragraph-2:n1 (span span:018.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-18:paragraph-3",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 18(3) of the EU AI Act, what must providers that are financial institutions subject to requirements regarding their internal governance, arrangements or processes under union financial services law do regarding the technical documentation as part of the documentation kept under the relevant Union financial services law?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers that are financial institutions subject to requirements regarding their internal governance, arrangements or processes under union financial services law must maintain the technical documentation as part of the documentation kept under the relevant Union financial services law"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-18"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-18:paragraph-3:n1 (span span:018.003); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-19:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 19(1) of the EU AI Act, what must providers of high-risk ai systems do regarding the logs referred to in Article 12(1), automatically generated by their high-risk AI systems?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers of high-risk ai systems must keep the logs referred to in Article 12(1), automatically generated by their high-risk AI systems"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-19"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-19:paragraph-1:n1 (span span:019.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-19:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 19(2) of the EU AI Act, what must providers that are financial institutions subject to requirements regarding their internal governance, arrangements or processes under union financial services law do regarding the logs automatically generated by their high-risk ai systems?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers that are financial institutions subject to requirements regarding their internal governance, arrangements or processes under union financial services law must maintain the logs automatically generated by their high-risk ai systems"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-19"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-19:paragraph-2:n1 (span span:019.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": true
+  },
+  {
+   "id": "draft:qa-article-20:paragraph-1",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 20(1) of the EU AI Act, what must providers of high-risk ai systems do regarding the necessary corrective actions to bring that system into conformity, to withdraw it, to disable it, or to recall it?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): providers of high-risk ai systems must take the necessary corrective actions to bring that system into conformity, to withdraw it, to disable it, or to recall it"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-20"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-20:paragraph-1:n1 (span span:020.001); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  },
+  {
+   "id": "draft:qa-article-20:paragraph-2",
+   "kind": "qa",
+   "question": "DRAFT: Under Article 20(2) of the EU AI Act, what must the provider do regarding the causes?",
+   "gold": {
+    "answer_text": "DRAFT (rewrite from the source text): the provider must immediately investigate the causes"
+   },
+   "gold_citations": [
+    "eu-ai-act:article-20"
+   ],
+   "status": "draft",
+   "note": "drafted from norm:eu-ai-act:article-20:paragraph-2:n1 (span span:020.002); answer must be rewritten from the article text",
+   "source": "drafted from judge-accepted norms",
+   "second_annotator": false
+  }
+ ]
+}
