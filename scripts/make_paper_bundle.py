@@ -51,7 +51,15 @@ MEMBERS: tuple[tuple[str, bool], ...] = (
     ("eval/config_evaluated.yaml", True),
     ("eval/gold/ANNOTATION_PROTOCOL.md", True),
     ("CHANGELOG.md", True),
+    ("docs/SECURITY_EVAL.md", True),
+    ("docs/benchmark_cost_estimate.md", True),
+    ("docs/ablation_deepdive.md", True),
+    ("docs/screenshots/assess_result_light.png", True),
+    ("docs/screenshots/assess_result_dark.png", True),
+    ("docs/screenshots/coverage_light.png", True),
+    ("docs/screenshots/review_light.png", True),
     ("data/graph_dumps/build_chain_3982bf3d85d4.json", False),
+    ("data/graph_dumps/build_chain_a8cfe37b1c90.json", False),
 )
 
 
