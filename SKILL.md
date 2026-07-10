@@ -10,6 +10,10 @@ legal review.
 
 Local MCP (stdio): `python -m tere4ai.mcp_server.server` from the repo root
 (graph dumps must exist; build with `python -m tere4ai.parse_legal_structure`).
+Remote MCP (streamable HTTP, spec 2025-06-18): set `TERE4AI_MCP_TRANSPORT=http`
+(optional `TERE4AI_MCP_HOST`, default 127.0.0.1, and `TERE4AI_MCP_PORT`,
+default 8765); endpoint is `/mcp`. No authentication yet (Phase 2), so keep it
+on localhost or behind an authenticating reverse proxy.
 HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008`.
 
 ## Tools, in the order a build journey uses them

@@ -13,6 +13,13 @@ calls (OpenAI generator plus Anthropic runtime grounding judge); their
 descriptions say so, and a missing model configuration surfaces as a clean
 degraded envelope, never a traceback.
 
+Transport: stdio by default (Mode B, architecture.md Section 9). The
+streamable HTTP transport for remote consumers sits behind an explicit
+flag, TERE4AI_MCP_TRANSPORT=http, binding TERE4AI_MCP_HOST (default
+127.0.0.1) and TERE4AI_MCP_PORT (default 8765). The HTTP transport has
+NO authentication yet; per-key scopes are Phase 2 (docs/PHASE2_DESIGN.md),
+so keep it on localhost or behind an authenticating reverse proxy.
+
 @implements: DEC-08, DEC-10
 @grounded_by: REF-16, REF-17, REF-15, REF-31
 """
@@ -20,6 +27,7 @@ degraded envelope, never a traceback.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -356,5 +364,28 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
     )
 
 
+def main() -> None:
+    """Run stdio by default; streamable HTTP only behind an explicit flag.
+
+    TERE4AI_MCP_TRANSPORT=http selects FastMCP's streamable HTTP transport
+    (the MCP spec's remote transport, REF-31). Anything other than stdio or
+    http fails loudly rather than silently serving the wrong surface.
+    """
+    transport = os.environ.get("TERE4AI_MCP_TRANSPORT", "stdio").strip().lower()
+    if transport == "stdio":
+        mcp.run()
+        return
+    if transport in ("http", "streamable-http"):
+        mcp.run(
+            transport="http",
+            host=os.environ.get("TERE4AI_MCP_HOST", "127.0.0.1"),
+            port=int(os.environ.get("TERE4AI_MCP_PORT", "8765")),
+        )
+        return
+    raise SystemExit(
+        f"unsupported TERE4AI_MCP_TRANSPORT {transport!r}: use 'stdio' or 'http'"
+    )
+
+
 if __name__ == "__main__":
-    mcp.run()
+    main()
