@@ -1,7 +1,7 @@
 """Publish judged Layer 2/3 results into Neo4j, gated by Section 13.
 
-@implements: DEC-10 (partial: publication gating for Layer 2/3)
-@grounded_by: REF-27
+@implements: DEC-10 (partial: publication gating and reproducibility chain for Layer 2/3)
+@grounded_by: REF-27, ADD-20
 
 Usage:
   .venv/bin/python scripts/publish_layer23.py --norms data/graph_dumps/norms_core.json
@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes  # noqa: E402
 from tere4ai.align_hleg_altai.hleg_subtopics import build_hleg_subtopics  # noqa: E402
+from tere4ai.graph_store.build_chain import build_chain, chained_build_id  # noqa: E402
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
 from tere4ai.graph_store.store import GraphStore  # noqa: E402
 from tere4ai.review_queue import apply_decisions, count_applied, load_decisions  # noqa: E402
@@ -97,7 +98,24 @@ def main(argv: list[str] | None = None) -> int:
     driver = GraphDatabase.driver(uri, auth=(user, password))
     store = GraphStore()
 
-    build_id = norms_payload.get("build", {}).get("build_id", "layer2-adhoc")
+    # Reproducibility chain (Section 13): the build_id stamped on every
+    # published node and edge embeds a digest of the exact input files, so
+    # the graph is verifiable back to its artifacts. Checksums are of the
+    # pristine on-disk files; review decisions enter the chain as their own
+    # input, mirroring how they are applied in memory only.
+    chain = build_chain(
+        args.dump,
+        args.norms,
+        alignments_path=args.alignments,
+        decisions_path=args.decisions if decisions else None,
+    )
+    base_build_id = norms_payload.get("build", {}).get("build_id", "layer2-adhoc")
+    build_id = chained_build_id(base_build_id, chain)
+    chain_path = args.norms.parent / f"build_chain_{chain['chain_id']}.json"
+    chain_path.write_text(
+        json.dumps({"build_id": build_id, **chain}, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"build chain: {build_id} ({len(chain['inputs'])} inputs) -> {chain_path.name}")
     graph = norms_to_graph(norms_payload, build_id=build_id)
     if alignments_payload is not None:
         g3 = alignments_to_graph(alignments_payload, build_hleg_nodes(), build_id=build_id)
@@ -125,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
             "built_at": norms_payload.get("build", {}).get("built_at", ""),
             "tere4ai_version": norms_payload.get("build", {}).get("tere4ai_version", ""),
             "snapshots": norms_payload.get("build", {}).get("snapshots", []),
+            "input_checksums": chain["inputs"],
         },
         "nodes": graph["nodes"],
         "edges": graph["edges"],
