@@ -24,23 +24,30 @@ ADD-16 (NeurIPS 2023 proceedings PDF), ADD-17 (EMNLP 2023, ACL), ADD-18 (EMNLP
 2023, ACL), ADD-19 (EACL 2024 Demo, ACL), ADD-24 (FAccT 2023, DORAS open copy),
 ADD-26 (CEUR Vol-4085 paper14).
 
-## Held: preprint, flagged _PREPRINT (13 papers)
+## Held: preprint, flagged _PREPRINT
 
-- VoR exists but is paywalled (cite the VoR DOI): ADD-06 (Nature MI 2019),
-  REF-26 (IEEE RE 2025, DOI 10.1109/RE63999.2025.00028).
 - Preprint-only, no VoR found: REF-08, REF-13, REF-15, REF-17, REF-18, REF-24,
   REF-27, REF-29, SELF-03, ADD-25, ADD-27.
+- ADD-06_PrinciplesAlone_PREPRINT.pdf is retained ONLY as the searchable text
+  surrogate for the image-only Nature VoR (see below); cite the Nature DOI.
 
 ## Held: added by the user 2026-07-10 (published VoR)
 
-REF-11 (REF-11_ApproachingAIAct.pdf, Computer Law and Security Review 60
-(2026) 106230), REF-12 (REF-12_LostInEURegulation.pdf, ICAIL 2025). Also
-REF-14b (Ostrom book) held for background only; it stays DROPPED from the
-citation register.
+- REF-11 (REF-11_ApproachingAIAct.pdf, Computer Law and Security Review 60
+  (2026) 106230) and REF-12 (REF-12_LostInEURegulation.pdf, ICAIL 2025).
+- ADD-02 (ADD-02_TrustInAutomation.pdf, Human Factors 2004). Image-only scan,
+  no text layer: no .txt sidecar, quote from the PDF manually.
+- ADD-04 (ADD-04_TrustFactors.pdf, Human Factors 2015, full text).
+- ADD-06 (ADD-06_PrinciplesAlone.pdf, Nature MI 2019 VoR). Image-only; the
+  arXiv preprint pair provides the searchable text.
+- REF-26 (REF-26_LegalReqTranslation.pdf, IEEE RE 2025 VoR, DOI
+  10.1109/RE63999.2025.00028 printed on page; preprint pair deleted).
+- REF-14b (Ostrom book) held for background only; stays DROPPED from the
+  citation register.
 
-## Not held (see paywalled.md for download instructions)
+## Not held (see paywalled.md)
 
-REF-14c, ADD-02, ADD-04.
+REF-14c only.
 
 ## Held elsewhere in the repo
 

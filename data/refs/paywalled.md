@@ -1,51 +1,40 @@
 # Paywalled references: download these yourself (TUNI access)
 
-Updated 2026-07-10 after the version-of-record upgrade pass. Rule applied
-everywhere: always hold and cite the peer-reviewed published version (VoR); an
-arXiv file is acceptable only when it IS the only version or while the VoR is
-paywalled, and it is always flagged with a _PREPRINT filename suffix.
+Updated 2026-07-10 (second pass, after the user supplied Lee/See, Hoff,
+Mittelstadt VoR, and Singhal/Breaux VoR). Rule applied everywhere: always
+hold and cite the peer-reviewed published version (VoR); an arXiv file is
+acceptable only when it IS the only version or while the VoR is paywalled,
+and it is always flagged with a _PREPRINT filename suffix.
 
-## Action needed: VoR is paywalled, we hold NO copy at all
+## Action needed: the ONLY remaining gap
 
 | ID | Paper | Where to download | Save as |
 | --- | --- | --- | --- |
 | REF-14c | Liga and Palmirani, "Deontic Sentence Classification Using Tree Kernel Classifiers", IntelliSys 2022 | Springer, DOI 10.1007/978-3-031-16072-1_4 | REF-14c_DeonticTreeKernel.pdf |
-| ADD-02 | Lee and See, "Trust in Automation: Designing for Appropriate Reliance", Human Factors 46(1), 2004 | SAGE, DOI 10.1518/hfes.46.1.50_30392 | ADD-02_TrustInAutomation.pdf |
-| ADD-04 | Hoff and Bashir, "Trust in Automation: Integrating Empirical Evidence on Factors That Influence Trust", Human Factors 57(3), 2015 | SAGE, DOI 10.1177/0018720814547570 | ADD-04_TrustFactors.pdf |
 
-## Resolved 2026-07-10: user provided the VoR, now filed in data/refs/
+## Resolved 2026-07-10 (user-provided, filed and verified)
 
-REF-11 (REF-11_ApproachingAIAct.pdf, CLSR 60 (2026) 106230 confirmed on the
-PDF itself) and REF-12 (REF-12_LostInEURegulation.pdf, ICAIL 2025). Also
-provided: REF-14b (Ostrom, Understanding Institutional Diversity), held as
-REF-14b_UnderstandingInstitutionalDiversity.pdf for background reading only:
-it stays DROPPED from the citation register.
-
-## Optional upgrade: we hold the arXiv preprint, the VoR is paywalled
-
-Cite the VoR DOI in the thesis; replace the file when you can.
-
-| ID | Held (preprint) | Paywalled VoR |
-| --- | --- | --- |
-| ADD-06 | ADD-06_PrinciplesAlone_PREPRINT.pdf | Mittelstadt, Nature Machine Intelligence 2019, DOI 10.1038/s42256-019-0114-4 |
-| REF-26 | REF-26_LegalReqTranslation_PREPRINT.pdf | Singhal and Breaux, IEEE RE 2025, DOI 10.1109/RE63999.2025.00028 |
+- ADD-02 Lee and See 2004 (ADD-02_TrustInAutomation.pdf). Image-only scan:
+  no text layer, so no searchable sidecar; quote from the PDF by eye.
+- ADD-04 Hoff and Bashir 2015 (ADD-04_TrustFactors.pdf, SAGE VoR, full text).
+- ADD-06 Mittelstadt 2019 (ADD-06_PrinciplesAlone.pdf, Nature MI VoR).
+  Image-only: the arXiv preprint pair is retained alongside it purely as the
+  searchable text surrogate; cite the Nature DOI.
+- REF-26 Singhal and Breaux, IEEE RE 2025 VoR
+  (REF-26_LegalReqTranslation.pdf; DOI 10.1109/RE63999.2025.00028 printed on
+  the page, matching the register). Preprint pair deleted.
+- REF-11 (CLSR 60 (2026) 106230) and REF-12 (ICAIL 2025), filed earlier.
+  REF-14b (Ostrom book) held for background only, stays DROPPED from the
+  register.
 
 ## No action: preprint-only (no published version of record exists yet)
 
-Flagged _PREPRINT; per the grounding bar these can never be sole grounding for
-a research or empirical MUST. Re-check for publication before the thesis.
+Flagged _PREPRINT; never sole grounding for a research or empirical MUST.
+Re-check for publication before the thesis: REF-08, REF-13, REF-15, REF-17,
+REF-18, REF-24, REF-27, REF-29, SELF-03, ADD-25, ADD-27.
 
-REF-08 (arXiv:2406.14935), REF-13 (2606.02971), REF-15 (2603.09435),
-REF-17 (2512.13907), REF-18 (2508.05464), REF-24 (2604.27713),
-REF-27 (2604.12054), REF-29 (2504.10508), SELF-03 (2503.04785),
-ADD-25 (2510.26309), ADD-27 (2404.19744).
+## Fully resolved earlier (VoR held, open access)
 
-## Already resolved (VoR held, open access): nothing to do
-
-REF-09 (CIKM 2024, ACM), REF-10 (TAIR, Springer AI and Ethics), REF-16
-(XTRAREG, IEEE RE 2025 via orbilu), REF-21 (Scientific Data), REF-22 (ACM CSUR
-via its open arXiv manifestation), REF-25 (AIRO, IOS/Zenodo CC BY), SELF-01/02/04
-(CEUR), ADD-03/05/09 (FAccT, ACM open access), ADD-07 (Springer CC BY), ADD-08
-(JSS CC BY via JYX), ADD-10..15 (open author copies), ADD-16 (NeurIPS
-proceedings), ADD-17/18/19 (ACL Anthology), ADD-24 (FAccT via DORAS), ADD-26
-(CEUR Vol-4085).
+REF-09, REF-10, REF-16, REF-21, REF-22 (arXiv manifestation of the CSUR
+article), REF-25, SELF-01/02/04, ADD-03, ADD-05, ADD-07, ADD-08, ADD-09,
+ADD-10..15, ADD-16, ADD-17/18/19, ADD-24, ADD-26.
