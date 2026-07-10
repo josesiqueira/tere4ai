@@ -30,6 +30,7 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.4",
     "referencing>=0.35",
+    "matplotlib>=3.9",
 ]
 
 [tool.setuptools.packages.find]

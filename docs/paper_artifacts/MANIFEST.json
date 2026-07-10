@@ -1,0 +1,23 @@
+{
+  "generator": "scripts/make_paper_artifacts.py",
+  "inputs": {
+    "eval/results/ablation_summary.json": "5ce6a643017b9dd99f1eacc849e85358fc7faea2cc928e482a7782f933ce4b33",
+    "eval/results/ablation_run1_summary.json": "2b32643e4d92f528fddbac4bc3fe128fb17728b70263d25667b80105fcf728e1",
+    "data/graph_dumps/norms_core.json": "eedbf701f84c08312402ba201dad1b0f4db7216e6408c63d0cc8f7eb8ae7f293",
+    "data/graph_dumps/alignments_core.json": "68166d93d6a30cd7382bc7001dc1bb2c7049f097485fcb6074dc1f4d938940fa",
+    "data/graph_dumps/layer1.json": "d5071560ecca4fd735fee6a8811e041d336f6878e8b9de46ff7b6faf735454de"
+  },
+  "outputs": [
+    "fig_ablation_ladder.png",
+    "fig_ablation_ladder.svg",
+    "fig_graph_census.png",
+    "fig_graph_census.svg",
+    "fig_judge_funnel.png",
+    "fig_judge_funnel.svg",
+    "fig_run1_run2.png",
+    "fig_run1_run2.svg",
+    "tab_ablation.tex",
+    "tab_census.tex",
+    "tab_judges.tex"
+  ]
+}
