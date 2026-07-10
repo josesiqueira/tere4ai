@@ -5,3 +5,6 @@
 # Keep the PDFs out of the graph anyway: each paper is indexed once via its
 # .txt sidecar; extracting the PDF too would duplicate every node.
 *.pdf
+# The Ostrom book (REF-14b) is held for background reading only; it is
+# DROPPED from the citation register, so keep it out of the graph.
+REF-14b_*

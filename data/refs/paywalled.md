@@ -13,12 +13,13 @@ paywalled, and it is always flagged with a _PREPRINT filename suffix.
 | ADD-02 | Lee and See, "Trust in Automation: Designing for Appropriate Reliance", Human Factors 46(1), 2004 | SAGE, DOI 10.1518/hfes.46.1.50_30392 | ADD-02_TrustInAutomation.pdf |
 | ADD-04 | Hoff and Bashir, "Trust in Automation: Integrating Empirical Evidence on Factors That Influence Trust", Human Factors 57(3), 2015 | SAGE, DOI 10.1177/0018720814547570 | ADD-04_TrustFactors.pdf |
 
-## Action needed: you already hold these, drop them into data/refs/
+## Resolved 2026-07-10: user provided the VoR, now filed in data/refs/
 
-| ID | Paper | Save as |
-| --- | --- | --- |
-| REF-11 | Galli et al., "Approaching the AI Act with AI", Computer Law and Security Review 2026, DOI 10.1016/j.clsr.2025.106230 | REF-11_ApproachingAIAct.pdf |
-| REF-12 | Raulino Dal Pont et al., "Lost in EU Regulation? Don't Worry, AI Found the Obligation", ICAIL 2025, DOI 10.1145/3769126.3769260 | REF-12_LostInEURegulation.pdf |
+REF-11 (REF-11_ApproachingAIAct.pdf, CLSR 60 (2026) 106230 confirmed on the
+PDF itself) and REF-12 (REF-12_LostInEURegulation.pdf, ICAIL 2025). Also
+provided: REF-14b (Ostrom, Understanding Institutional Diversity), held as
+REF-14b_UnderstandingInstitutionalDiversity.pdf for background reading only:
+it stays DROPPED from the citation register.
 
 ## Optional upgrade: we hold the arXiv preprint, the VoR is paywalled
 

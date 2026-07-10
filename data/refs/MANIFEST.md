@@ -31,10 +31,16 @@ ADD-26 (CEUR Vol-4085 paper14).
 - Preprint-only, no VoR found: REF-08, REF-13, REF-15, REF-17, REF-18, REF-24,
   REF-27, REF-29, SELF-03, ADD-25, ADD-27.
 
+## Held: added by the user 2026-07-10 (published VoR)
+
+REF-11 (REF-11_ApproachingAIAct.pdf, Computer Law and Security Review 60
+(2026) 106230), REF-12 (REF-12_LostInEURegulation.pdf, ICAIL 2025). Also
+REF-14b (Ostrom book) held for background only; it stays DROPPED from the
+citation register.
+
 ## Not held (see paywalled.md for download instructions)
 
-REF-11, REF-12 (user holds own copies; drop into data/refs), REF-14c, ADD-02,
-ADD-04.
+REF-14c, ADD-02, ADD-04.
 
 ## Held elsewhere in the repo
 
