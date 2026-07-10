@@ -33,6 +33,10 @@ def newest_changelog_version(text: str) -> str | None:
     return match.group("version") if match else None
 
 
+def all_changelog_versions(text: str) -> list[str]:
+    return [m.group("version") for m in ENTRY_RE.finditer(text)]
+
+
 def git_tags(root: Path) -> list[str] | None:
     try:
         out = subprocess.run(
@@ -58,6 +62,16 @@ def main() -> int:
 
     if version:
         tags = git_tags(ROOT)
+        if version.lower() == "unreleased":
+            # Keep a Changelog convention: [Unreleased] collects work ahead
+            # of the next tag and never has one; H2 applies to the first
+            # TAGGED entry below it instead.
+            versions = all_changelog_versions(changelog.read_text(encoding="utf-8"))
+            tagged = [v for v in versions if v.lower() != "unreleased"]
+            version = tagged[0] if tagged else version
+        if version.lower() == "unreleased":
+            notices.append("H2 skipped: only an [Unreleased] entry exists, no tagged release yet")
+            tags = None
         if tags is None or not tags:
             notices.append(
                 "H2 skipped: no git tags visible in this checkout "
