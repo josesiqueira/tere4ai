@@ -18,6 +18,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col font-sans`}
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium"
+        >
+          Skip to content
+        </a>
         <header className="border-b border-border">
           <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -26,12 +32,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
               TERE4AI v2
             </span>
-            <nav className="ml-auto flex items-center gap-4 text-sm font-medium">
+            <nav
+              aria-label="Main"
+              className="ml-auto flex items-center gap-4 text-sm font-medium"
+            >
               <Link href="/" className="transition-colors hover:text-primary">
                 Coverage
               </Link>
               <Link href="/assess" className="transition-colors hover:text-primary">
                 Assess
+              </Link>
+              <Link href="/review" className="transition-colors hover:text-primary">
+                Review
               </Link>
             </nav>
             <span className="hidden sm:inline text-xs text-muted-foreground">

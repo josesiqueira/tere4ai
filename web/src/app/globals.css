@@ -71,3 +71,11 @@ body {
   color: var(--foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
 }
+
+/* Global focus ring per docs/DESIGN.md (outline-2 outline-offset-2
+   outline-ring/70). Inputs and selects that draw their own focus-visible
+   ring override this with outline-none plus ring utilities. */
+:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--ring) 70%, transparent);
+  outline-offset: 2px;
+}

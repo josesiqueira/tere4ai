@@ -9,7 +9,9 @@
    judge verdict, the calibrated status vocabulary badge, and the page ends
    with the non-legal-advice notice. Visual system: docs/DESIGN.md. */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
 
 const FACADE_URL = "http://localhost:8008";
 const MAX_BACKLOG_NORMS = 10;
@@ -153,6 +155,61 @@ const ARTIFACT_TYPES = [
   "other_documentation",
 ];
 
+/* Audit permalink (#52): the describe-system inputs are serialized to JSON
+   and carried base64url-encoded in the URL hash. Opening the link prefills
+   the form and re-runs the same deterministic classification. Client-side
+   only: the hash never reaches the facade or any server log. */
+type AssessForm = {
+  description: string;
+  domain: string;
+  autonomy: string;
+  flags: Record<string, string>;
+};
+
+const PERMALINK_PREFIX = "#assess=";
+
+function encodeAssessForm(form: AssessForm): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(form));
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeAssessForm(encoded: string): AssessForm | null {
+  try {
+    const b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(b64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    return {
+      description: typeof parsed.description === "string" ? parsed.description : "",
+      domain: typeof parsed.domain === "string" ? parsed.domain : "",
+      autonomy: typeof parsed.autonomy === "string" ? parsed.autonomy : "",
+      flags:
+        typeof parsed.flags === "object" && parsed.flags !== null
+          ? (parsed.flags as Record<string, string>)
+          : {},
+    };
+  } catch {
+    return null;
+  }
+}
+
+/* Envelope export (#52): saves the exact envelope object as returned by the
+   facade (parsed response, re-serialized without modification). */
+function downloadJson(filename: string, payload: unknown) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${FACADE_URL}${path}`, {
     method: "POST",
@@ -266,6 +323,11 @@ const BUTTON_OUTLINE =
   "border-input bg-transparent shadow-xs text-sm font-medium " +
   "transition-all duration-200 hover:bg-accent disabled:pointer-events-none " +
   "disabled:opacity-50";
+const BUTTON_OUTLINE_SM =
+  "inline-flex items-center justify-center h-8 px-3 rounded-md border " +
+  "border-input bg-transparent shadow-xs text-xs font-medium " +
+  "transition-all duration-200 hover:bg-accent disabled:pointer-events-none " +
+  "disabled:opacity-50";
 const INPUT_CLS =
   "w-full border border-input bg-transparent rounded-md shadow-xs px-3 py-2 " +
   "text-base md:text-sm outline-none focus-visible:border-ring " +
@@ -276,15 +338,18 @@ const SELECT_CLS =
   "focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
 function TriStateSelect({
+  label,
   value,
   onChange,
 }: {
+  label: string;
   value: string;
   onChange: (v: string) => void;
 }) {
   return (
     <select
       className={`${SELECT_CLS} h-8 px-1 text-xs`}
+      aria-label={`${label}: fact value`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -293,6 +358,65 @@ function TriStateSelect({
       <option value="false">false</option>
     </select>
   );
+}
+
+function DownloadEnvelopeButton({
+  envelope,
+  filename,
+}: {
+  envelope: Envelope<unknown>;
+  filename: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={BUTTON_OUTLINE_SM}
+      onClick={() => downloadJson(filename, envelope)}
+      aria-label={`Download the ${filename} facade envelope as JSON`}
+    >
+      Download envelope JSON
+    </button>
+  );
+}
+
+/* Backlog polish (#40): priority is the closed must/should vocabulary from
+   the backlog tool (an invalid priority is recomputed mechanically there). */
+function PriorityBadge({ priority }: { priority: string }) {
+  const must = priority === "must";
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+        must ? "border-primary/40 text-primary" : "border-border text-muted-foreground"
+      }`}
+    >
+      priority: {priority}
+    </span>
+  );
+}
+
+type BacklogItem = BacklogAnswer["items"][number];
+
+function backlogArticleGroup(item: BacklogItem): string {
+  for (const id of item.norm_ids) {
+    const match = id.match(/eu-ai-act:(article-\d+|annex-[ivxlcdm]+)/i);
+    if (match) return `eu-ai-act:${match[1]}`;
+  }
+  return "other sources";
+}
+
+function groupBacklogByArticle(items: BacklogItem[]): [string, BacklogItem[]][] {
+  const groups = new Map<string, BacklogItem[]>();
+  for (const item of items) {
+    const group = backlogArticleGroup(item);
+    const list = groups.get(group) ?? [];
+    list.push(item);
+    groups.set(group, list);
+  }
+  return Array.from(groups.entries()).sort(([a], [b]) => {
+    const na = Number(a.match(/article-(\d+)/)?.[1] ?? 9999);
+    const nb = Number(b.match(/article-(\d+)/)?.[1] ?? 9999);
+    return na - nb || a.localeCompare(b);
+  });
 }
 
 export default function AssessPage() {
@@ -319,29 +443,37 @@ export default function AssessPage() {
   const [backlogUsedIds, setBacklogUsedIds] = useState<string[]>([]);
   const [backlog, setBacklog] = useState<Envelope<BacklogAnswer> | null>(null);
 
-  function buildFeatures() {
-    const flagPayload: Record<string, boolean> = {};
-    for (const [key, value] of Object.entries(flags)) {
-      if (value === "true") flagPayload[key] = true;
-      if (value === "false") flagPayload[key] = false;
-      // "unknown" is omitted: absence is never treated as false.
-    }
-    const features: Record<string, unknown> = { description, flags: flagPayload };
-    if (domain) features.domain = domain;
-    if (autonomy) features.autonomy = autonomy;
-    return features;
-  }
+  const [permalink, setPermalink] = useState<string | null>(null);
+  const [permalinkCopied, setPermalinkCopied] = useState(false);
 
-  async function runClassify() {
+  async function classifyWith(form: AssessForm) {
     setClassifyLoading(true);
     setClassifyError(null);
     setRequirements(null);
     setBacklog(null);
     setSelected({});
     setEvidenceUi({});
+    setPermalinkCopied(false);
+    const encoded = encodeAssessForm(form);
+    window.history.replaceState(null, "", `${PERMALINK_PREFIX}${encoded}`);
+    setPermalink(
+      `${window.location.origin}${window.location.pathname}${PERMALINK_PREFIX}${encoded}`
+    );
+    const flagPayload: Record<string, boolean> = {};
+    for (const [key, value] of Object.entries(form.flags)) {
+      if (value === "true") flagPayload[key] = true;
+      if (value === "false") flagPayload[key] = false;
+      // "unknown" is omitted: absence is never treated as false.
+    }
+    const features: Record<string, unknown> = {
+      description: form.description,
+      flags: flagPayload,
+    };
+    if (form.domain) features.domain = form.domain;
+    if (form.autonomy) features.autonomy = form.autonomy;
     try {
       const envelope = await postJson<Envelope<ClassificationAnswer>>("/api/classify", {
-        features: buildFeatures(),
+        features,
       });
       setClassification(envelope);
     } catch (err) {
@@ -350,6 +482,58 @@ export default function AssessPage() {
     } finally {
       setClassifyLoading(false);
     }
+  }
+
+  function runClassify() {
+    void classifyWith({ description, domain, autonomy, flags });
+  }
+
+  /* Audit permalink (#52): a reload with #assess=<base64url> prefills the
+     form and re-runs the same deterministic classification (free, no model
+     call), so a reviewer can reproduce the exact assessment from the link. */
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith(PERMALINK_PREFIX)) return;
+    const form = decodeAssessForm(hash.slice(PERMALINK_PREFIX.length));
+    if (!form || form.description.trim().length < 10) return;
+    setDescription(form.description);
+    setDomain(form.domain);
+    setAutonomy(form.autonomy);
+    setFlags(form.flags);
+    void classifyWith(form);
+    // Run once on mount only; the hash is the source of truth at load time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function copyPermalink() {
+    if (!permalink) return;
+    try {
+      await navigator.clipboard.writeText(permalink);
+      setPermalinkCopied(true);
+      window.setTimeout(() => setPermalinkCopied(false), 2000);
+    } catch {
+      // Clipboard can be unavailable (permissions, non-secure context);
+      // the read-only input below still allows manual copy.
+    }
+  }
+
+  /* Preset (#53): fills the form in one click and clears downstream results
+     so no stale envelope sits under new inputs. Classification still runs
+     through the facade when the user clicks Classify. */
+  function applyPreset(preset: ScenarioPreset) {
+    setDescription(preset.description);
+    setDomain(preset.domain);
+    setAutonomy(preset.autonomy);
+    setFlags({ ...preset.flags });
+    setClassification(null);
+    setClassifyError(null);
+    setRequirements(null);
+    setReqError(null);
+    setBacklog(null);
+    setBacklogError(null);
+    setSelected({});
+    setEvidenceUi({});
+    setPermalink(null);
   }
 
   async function loadRequirements() {
@@ -453,6 +637,28 @@ export default function AssessPage() {
         <Card title="1. Describe the system">
           <div className="space-y-4">
             <div className="space-y-2">
+              <p className="text-sm font-medium leading-none">
+                Canonical scenarios (one click fills the form; classification still runs
+                through the deterministic ladder)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {SCENARIO_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={BUTTON_OUTLINE}
+                    onClick={() => applyPreset(preset)}
+                    aria-label={`Fill the form with the ${preset.label} scenario`}
+                  >
+                    <span>{preset.label}</span>
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">
+                      {preset.hint}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium leading-none" htmlFor="description">
                 Plain-language description (context only; classification rests on the
                 structured facts below)
@@ -511,6 +717,7 @@ export default function AssessPage() {
                   <div key={key} className="flex items-center justify-between gap-2 text-sm">
                     <span className="leading-tight">{label}</span>
                     <TriStateSelect
+                      label={label}
                       value={flags[key] ?? "unknown"}
                       onChange={(v) => setFlags((prev) => ({ ...prev, [key]: v }))}
                     />
@@ -527,6 +734,7 @@ export default function AssessPage() {
                   <div key={key} className="flex items-center justify-between gap-2 text-sm">
                     <span className="leading-tight">{label}</span>
                     <TriStateSelect
+                      label={label}
                       value={flags[key] ?? "unknown"}
                       onChange={(v) => setFlags((prev) => ({ ...prev, [key]: v }))}
                     />
@@ -578,6 +786,39 @@ export default function AssessPage() {
                 ))}
               </ul>
               <EnvelopeMeta envelope={classification} />
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <p className="text-xs font-semibold">Audit export</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DownloadEnvelopeButton
+                    envelope={classification}
+                    filename="tere4ai-classification-envelope.json"
+                  />
+                  <button
+                    type="button"
+                    className={BUTTON_OUTLINE_SM}
+                    onClick={copyPermalink}
+                    disabled={!permalink}
+                  >
+                    {permalinkCopied ? "Copied" : "Copy permalink"}
+                  </button>
+                </div>
+                {permalink && (
+                  <>
+                    <input
+                      readOnly
+                      aria-label="Audit permalink encoding the assessment inputs"
+                      className={`${INPUT_CLS} font-mono text-xs`}
+                      value={permalink}
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      The link carries the describe-system inputs (base64 in the URL
+                      hash). Opening it prefills the form and re-runs the same
+                      deterministic classification.
+                    </p>
+                  </>
+                )}
+              </div>
               <div className="flex items-center gap-3">
                 <button
                   className={BUTTON_PRIMARY}
@@ -606,6 +847,10 @@ export default function AssessPage() {
                     ? `, ${requirements.answer.summary.needs_human_review_total} in the human review queue (never returned as requirements)`
                     : ""}
                 </span>
+                <DownloadEnvelopeButton
+                  envelope={requirements}
+                  filename="tere4ai-requirements-envelope.json"
+                />
               </div>
               {requirements.answer.message && (
                 <p className="text-sm">{requirements.answer.message}</p>
@@ -768,6 +1013,10 @@ export default function AssessPage() {
                                           </span>
                                         </p>
                                         <EnvelopeMeta envelope={ev.result} />
+                                        <DownloadEnvelopeButton
+                                          envelope={ev.result}
+                                          filename={`tere4ai-evidence-envelope-${norm.norm_id.replace(/[^a-z0-9-]+/gi, "_")}.json`}
+                                        />
                                       </div>
                                     )}
                                   </div>
@@ -820,31 +1069,43 @@ export default function AssessPage() {
                   {backlog.answer.message && (
                     <p className="text-sm">{backlog.answer.message}</p>
                   )}
-                  <div className="space-y-3">
-                    {(backlog.answer.items ?? []).map((item) => (
-                      <div
-                        key={item.title}
-                        className="rounded-lg border border-border bg-card shadow-sm p-4 space-y-2"
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold">{item.title}</span>
-                          <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                            {item.priority}
-                          </span>
+                  <div className="space-y-4">
+                    {groupBacklogByArticle(backlog.answer.items ?? []).map(
+                      ([group, items]) => (
+                        <div key={group} className="space-y-2">
+                          <h3 className="text-sm font-semibold">
+                            <code className="font-mono">{group}</code>{" "}
+                            <span className="font-normal text-muted-foreground">
+                              ({items.length} backlog item{items.length === 1 ? "" : "s"})
+                            </span>
+                          </h3>
+                          <div className="space-y-3">
+                            {items.map((item) => (
+                              <div
+                                key={item.title}
+                                className="rounded-lg border border-border bg-card shadow-sm p-4 space-y-2"
+                              >
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-sm font-semibold">{item.title}</span>
+                                  <PriorityBadge priority={item.priority} />
+                                </div>
+                                <p className="text-sm">{item.description}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {item.norm_ids.map((id) => (
+                                    <Chip key={id}>{id}</Chip>
+                                  ))}
+                                </div>
+                                {item.suggested_evidence.length > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Suggested evidence: {item.suggested_evidence.join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <p className="text-sm">{item.description}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.norm_ids.map((id) => (
-                            <Chip key={id}>{id}</Chip>
-                          ))}
-                        </div>
-                        {item.suggested_evidence.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            Suggested evidence: {item.suggested_evidence.join(", ")}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                   {backlog.answer.judge_rationale && (
                     <p className="text-sm">
@@ -856,6 +1117,10 @@ export default function AssessPage() {
                     </p>
                   )}
                   <EnvelopeMeta envelope={backlog} />
+                  <DownloadEnvelopeButton
+                    envelope={backlog}
+                    filename="tere4ai-backlog-envelope.json"
+                  />
                 </div>
               )}
             </div>

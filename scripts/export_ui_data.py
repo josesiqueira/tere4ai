@@ -110,6 +110,55 @@ def build_structure(dump: dict) -> dict:
     return {"chapters": chapters, "annexes": annexes, "recital_count": recitals}
 
 
+def build_review_queue(dump: dict, norms_payload: dict | None, alignments_payload: dict | None) -> dict:
+    """Read-only review-queue view for the /review page (web UI task #40).
+
+    Norms whose extraction judge said needs_human_review, with their span
+    citations, plus pending cross-reference and alignment counts. These items
+    are never returned as requirements; the page only makes the queue visible.
+    """
+    norm_items = []
+    if norms_payload:
+        for n in norms_payload.get("norms", []):
+            if n.get("judge_verdict") != "needs_human_review":
+                continue
+            norm_items.append(
+                {
+                    "norm_id": n["norm_id"],
+                    "source_node_id": n.get("source_node_id", ""),
+                    "source_span_id": n.get("source_span_id", ""),
+                    "deontic_type": n.get("deontic_type", ""),
+                    "modal": n.get("modal", ""),
+                    "actor": n.get("actor_explicit") or n.get("actor_inferred"),
+                    "actor_source": "explicit" if n.get("actor_explicit") else "inferred",
+                    "action": n.get("action", ""),
+                    "object": n.get("object", ""),
+                    "conditions": n.get("conditions", []),
+                    "confidence": n.get("confidence"),
+                    "judge_verdict": n.get("judge_verdict", ""),
+                    "review_status": n.get("review_status", ""),
+                }
+            )
+    norm_items.sort(key=lambda item: item["norm_id"])
+    crossref_by_kind: dict[str, int] = {}
+    for item in dump.get("review_queue", []):
+        kind = item.get("kind", "unknown")
+        crossref_by_kind[kind] = crossref_by_kind.get(kind, 0) + 1
+    alignment_pending = 0
+    if alignments_payload:
+        alignment_pending = sum(
+            1
+            for a in alignments_payload.get("assertions", [])
+            if a.get("review_status") == "needs_review"
+        )
+    return {
+        "norms_needing_review": norm_items,
+        "crossref_pending_total": len(dump.get("review_queue", [])),
+        "crossref_pending_by_kind": crossref_by_kind,
+        "alignment_pending_total": alignment_pending,
+    }
+
+
 def main() -> None:
     dump = json.loads(DUMP_PATH.read_text(encoding="utf-8"))
     norms_payload = None
@@ -125,6 +174,7 @@ def main() -> None:
         "structure": build_structure(dump),
         "build": dump["build"],
         "review_queue_count": len(dump.get("review_queue", [])),
+        "review": build_review_queue(dump, norms_payload, alignments_payload),
         "sources": [
             {
                 "id": n["id"],

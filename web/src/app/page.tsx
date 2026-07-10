@@ -106,10 +106,10 @@ export default function Page() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-muted-foreground">
-                <th className="py-1 font-medium">Element</th>
-                <th className="py-1 font-medium">Expected</th>
-                <th className="py-1 font-medium">In graph</th>
-                <th className="py-1 font-medium">Check</th>
+                <th scope="col" className="py-1 font-medium">Element</th>
+                <th scope="col" className="py-1 font-medium">Expected</th>
+                <th scope="col" className="py-1 font-medium">In graph</th>
+                <th scope="col" className="py-1 font-medium">Check</th>
               </tr>
             </thead>
             <tbody>
