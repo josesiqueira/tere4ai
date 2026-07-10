@@ -24,6 +24,8 @@ jobs:
         run: python -m pytest -q
       - name: Traceability gate (includes the dash check)
         run: python scripts/check_traceability.py
+      - name: Release hygiene (CHANGELOG discipline, license readiness)
+        run: python scripts/check_release_hygiene.py
       - name: Traceability matrix is current
         run: |
           git diff --exit-code docs/traceability.md || {
