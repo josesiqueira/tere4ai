@@ -531,3 +531,77 @@ def test_gold_qa_items_hit_their_article_in_the_real_passage_index():
         assert any(
             any(h.startswith(gold) for h in hits) for gold in item["gold_citations"]
         ), f"{item['id']}: no top-5 passage under {item['gold_citations']}; got {hits}"
+
+
+# Prompt A/B conditions + shared audit log (#39) ---------------------------------
+
+
+def test_graph_full_at_version_runs_that_judge_prompt(tmp_path, monkeypatch):
+    import tere4ai.extract_norms.pipeline as pipeline_mod
+
+    prompts = tmp_path / "prompts" / "runtime_grounding"
+    prompts.mkdir(parents=True)
+    (prompts / "vB.md").write_text("VARIANT-B JUDGE PROMPT", encoding="utf-8")
+    monkeypatch.setattr(pipeline_mod, "PROMPTS_DIR", tmp_path / "prompts")
+
+    generator = make_generator()
+    judge = make_judge()
+    strategy = build_strategy(
+        "graph_full@vB",
+        generator,
+        MINI_DUMP,
+        MINI_NORMS,
+        judge=judge,
+        judge_log_path=tmp_path / "judge_log.jsonl",
+    )
+    assert strategy.models["judge_prompt_version"] == "vB"
+    result = strategy(GOLD_3[2])
+    assert result["judge_verdict"] == "accepted"
+    judge_system, _user = judge.calls[-1]
+    assert judge_system == "VARIANT-B JUDGE PROMPT"
+    log = (tmp_path / "judge_log.jsonl").read_text(encoding="utf-8")
+    assert '"prompt_version": "vB"' in log
+
+
+def test_plain_graph_full_defaults_to_v1(tmp_path):
+    strategy = build_strategy(
+        "graph_full",
+        make_generator(),
+        MINI_DUMP,
+        MINI_NORMS,
+        judge=make_judge(),
+        judge_log_path=tmp_path / "judge_log.jsonl",
+    )
+    assert strategy.models["judge_prompt_version"] == "v1"
+
+
+def test_audit_log_scrubs_key_material(tmp_path):
+    from tere4ai.judge.audit_log import append_event, read_events
+
+    log = tmp_path / "log.jsonl"
+    append_event(
+        log,
+        {
+            "timestamp": "2026-07-10T00:00:00+00:00",
+            "rationale": "the artifact leaked sk-abc123DEF456ghi789 and "
+            "t4a_0123456789ab_SeCrEtSeCrEt00 in its text",
+            "nested": {"header": "Authorization: Bearer abcdefghijklmnopqrstu"},
+        },
+    )
+    events = list(read_events(log))
+    blob = json.dumps(events)
+    assert "sk-abc123DEF456ghi789" not in blob
+    assert "SeCrEtSeCrEt00" not in blob
+    assert "abcdefghijklmnopqrstu" not in blob
+    assert blob.count("[REDACTED]") == 3
+
+
+def test_consolidate_merges_and_tags_by_kind(tmp_path):
+    from tere4ai.judge.audit_log import append_event, consolidate
+
+    a = tmp_path / "a.jsonl"
+    b = tmp_path / "b.jsonl"
+    append_event(a, {"timestamp": "2026-07-10T02:00:00+00:00", "verdict": "accepted"})
+    append_event(b, {"timestamp": "2026-07-10T01:00:00+00:00", "verdict": "rejected"})
+    merged = consolidate({"extraction": a, "runtime_grounding": b})
+    assert [e["log_kind"] for e in merged] == ["runtime_grounding", "extraction"]

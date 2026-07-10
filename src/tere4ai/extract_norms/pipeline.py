@@ -81,10 +81,10 @@ def _input_hash(text: str) -> str:
 
 
 def _log_event(log_path: Path, event: dict[str, Any]) -> None:
-    """Append one JSON line to the extraction log. Never key material."""
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+    """Append one audit event; the shared writer owns scrubbing (#39)."""
+    from tere4ai.judge.audit_log import append_event
+
+    append_event(log_path, event)
 
 
 def _parse_json_object(raw: str) -> dict[str, Any]:

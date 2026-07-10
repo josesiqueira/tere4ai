@@ -245,8 +245,10 @@ class GraphStrategy:
         runtime_judge: ModelClient | None = None,
         top_k_norms: int = 8,
         judge_log_path: Any = None,
+        judge_prompt_version: str = "v1",
     ):
         self.name = name
+        self._judge_prompt_version = judge_prompt_version
         self._generator = generator
         self._dump = dump
         self._node_ids = {n["id"] for n in dump.get("nodes", []) if "id" in n}
@@ -306,6 +308,7 @@ class GraphStrategy:
         models = {"generator": self._generator.model}
         if self._runtime_judge is not None:
             models["judge"] = self._runtime_judge.model
+            models["judge_prompt_version"] = self._judge_prompt_version
         return models
 
     def _select_norms(self, question: str) -> list[dict[str, Any]]:
@@ -479,6 +482,7 @@ class GraphStrategy:
             cited_norms=digests,
             evidence_text=None,
             judge=self._runtime_judge,
+            prompt_version=self._judge_prompt_version,
             log_path=self._judge_log_path,
             context="eval_harness",
         )
@@ -509,11 +513,16 @@ def build_strategy(
         return GraphStrategy(name, generator, dump, norms_payload, judged_only=False)
     if name == "graph_build_judge":
         return GraphStrategy(name, generator, dump, norms_payload, judged_only=True)
-    if name == "graph_full":
+    base, _, prompt_version = name.partition("@")
+    if base == "graph_full":
         if judge is None:
             raise ValueError("graph_full needs a judge client (runtime grounding judge)")
+        # "graph_full@v2" runs the same condition with the runtime grounding
+        # judge prompt at version v2: prompt A/B as a first-class ablation
+        # condition, recorded in the strategy's models dict (#39).
         return GraphStrategy(
             name, generator, dump, norms_payload, judged_only=True,
             runtime_judge=judge, judge_log_path=judge_log_path,
+            judge_prompt_version=prompt_version or "v1",
         )
     raise ValueError(f"unknown strategy {name!r}; known: {', '.join(STRATEGY_NAMES)}")
