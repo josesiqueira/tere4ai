@@ -1,0 +1,77 @@
+# TERE4AI v2, Phase 2 SEED (PROPOSAL, UNTESTED). Never applied to any cluster.
+# NetworkPolicies enforcing the one-way chain: web -> facade -> neo4j.
+# In-cluster equivalent of the docker-compose.yml loopback-only bindings and
+# of architecture.md Section 8 (coding agents and UIs must not touch the
+# database directly; only the facade/MCP server reaches the graph).
+#
+# Rahti caveat (untested): OpenShift router pods must be admitted for Routes
+# to work; the ingress-controller selector below follows stock OpenShift 4
+# labels and needs verification on Rahti.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tere4ai2-facade-ingress
+spec:
+  # Facade accepts traffic only from the web pods and the OpenShift router
+  # (which fronts the public Route, route-facade.yaml).
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tere4ai2-facade
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tere4ai2-web
+      ports:
+        - protocol: TCP
+          port: 8008
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: 8008
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tere4ai2-neo4j-ingress
+spec:
+  # Neo4j accepts traffic only from the facade. No router, no web, nothing
+  # else. There is deliberately no Route to this Service (services.yaml).
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tere4ai2-neo4j
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: tere4ai2-facade
+      ports:
+        - protocol: TCP
+          port: 7687
+        - protocol: TCP
+          port: 7474
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tere4ai2-web-ingress
+spec:
+  # Web accepts traffic only from the OpenShift router (its future Route;
+  # see route-facade.yaml for why the web Route is not defined yet).
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tere4ai2-web
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: 3111

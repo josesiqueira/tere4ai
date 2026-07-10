@@ -1,0 +1,30 @@
+# TERE4AI v2, Phase 2 SEED (PROPOSAL, UNTESTED).
+# These manifests have never been applied to any cluster, including CSC Rahti.
+# They exist as a design artifact for docs/PHASE2_DESIGN.md Section 5.
+# Do not treat anything under deploy/rahti/ as a working deployment.
+#
+# Intended use (Phase 2, once reviewed and tested):
+#   oc apply -k deploy/rahti/
+# after creating a real Secret from secret.example.yaml (never apply the
+# example file itself; its values are fake placeholders).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Rahti project (namespace) placeholder; set to the real Rahti project name.
+namespace: tere4ai2
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/part-of: tere4ai2
+      tere4ai.fi/phase: "2-seed"
+
+resources:
+  - deployment-facade.yaml
+  - deployment-web.yaml
+  - statefulset-neo4j.yaml
+  - services.yaml
+  - route-facade.yaml
+  - networkpolicy.yaml
+  # secret.example.yaml is deliberately NOT listed: it holds placeholder
+  # values and must never be applied. Create the real secret out of band.

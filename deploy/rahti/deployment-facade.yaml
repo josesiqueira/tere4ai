@@ -1,0 +1,77 @@
+# TERE4AI v2, Phase 2 SEED (PROPOSAL, UNTESTED). Never applied to any cluster.
+# Facade Deployment: the core image (Dockerfile target `core`), serving the
+# HTTP facade (and later the Remote MCP transport) on port 8008.
+# Maps to docs/PHASE2_DESIGN.md Section 5 (topology) and Section 6 (config).
+#
+# OpenShift note: no runAsUser/fsGroup is set on purpose; Rahti (OpenShift)
+# injects a random non-root UID per project (restricted SCC). The image must
+# tolerate an arbitrary UID; this is untested for the current Dockerfile.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tere4ai2-facade
+  labels:
+    app.kubernetes.io/name: tere4ai2-facade
+    app.kubernetes.io/component: facade
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tere4ai2-facade
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tere4ai2-facade
+        app.kubernetes.io/component: facade
+    spec:
+      containers:
+        - name: facade
+          # Placeholder image reference. Phase 2 would push the `core` build
+          # target of the repository Dockerfile to the Rahti internal
+          # registry or a public registry; no such image exists yet.
+          image: image-registry.openshift-image-registry.svc:5000/tere4ai2/tere4ai2-core:PHASE2-SEED
+          ports:
+            - name: http
+              containerPort: 8008
+          # Model keys and (Phase 2) auth/key-store settings come from the
+          # Secret; see secret.example.yaml for the expected key names.
+          envFrom:
+            - secretRef:
+                name: tere4ai2-secrets
+          env:
+            # Same model defaults as docker-compose.yml; override via Secret
+            # or a ConfigMap in a real deployment.
+            - name: TERE4AI_GENERATOR_MODEL
+              value: "gpt-5.2"
+            - name: TERE4AI_JUDGE_MODEL
+              value: "claude-opus-4-8"
+          resources:
+            # Unvalidated guesses: the facade loads the graph dumps into
+            # memory at startup. Measure before trusting these numbers.
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          # /api/health returns 200 when the graph dumps loaded, 503 with a
+          # clean JSON error otherwise (no silent degradation, architecture.md
+          # Section 13), so it is the correct readiness signal.
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

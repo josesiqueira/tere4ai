@@ -1,0 +1,85 @@
+# TERE4AI v2, Phase 2 SEED (PROPOSAL, UNTESTED). Never applied to any cluster.
+# Neo4j StatefulSet: the community image with a PVC for /data, mirroring the
+# docker-compose.yml service. In-cluster equivalent of the compose file's
+# loopback-only binding: no Route, a ClusterIP Service only (services.yaml),
+# and a NetworkPolicy that admits only the facade (networkpolicy.yaml).
+#
+# Honesty note (docs/PHASE2_DESIGN.md Section 5): the Phase 1 facade serves
+# from offline graph dumps and does not query Neo4j at runtime. This
+# StatefulSet is provisioned for the open Phase 2 decision of serving runtime
+# reads from the live graph.
+#
+# OpenShift caveat (untested): the official neo4j image may not start under
+# Rahti's restricted SCC (arbitrary UID); this needs verification and possibly
+# an adapted image or securityContext work.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tere4ai2-neo4j
+  labels:
+    app.kubernetes.io/name: tere4ai2-neo4j
+    app.kubernetes.io/component: neo4j
+spec:
+  serviceName: tere4ai2-neo4j
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tere4ai2-neo4j
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tere4ai2-neo4j
+        app.kubernetes.io/component: neo4j
+    spec:
+      containers:
+        - name: neo4j
+          # Same community image line as docker-compose.yml.
+          image: neo4j:5
+          ports:
+            - name: http
+              containerPort: 7474
+            - name: bolt
+              containerPort: 7687
+          env:
+            # NEO4J_PASSWORD comes from the Secret (secret.example.yaml).
+            # No dev default here: hosted deployments must set a real value
+            # (see the docker-compose.yml comment on the dev-only default).
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tere4ai2-secrets
+                  key: NEO4J_PASSWORD
+            - name: NEO4J_AUTH
+              value: "neo4j/$(NEO4J_PASSWORD)"
+            - name: NEO4J_PLUGINS
+              value: '["apoc", "n10s"]'
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          readinessProbe:
+            tcpSocket:
+              port: bolt
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: logs
+              mountPath: /logs
+      volumes:
+        - name: logs
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        # storageClassName intentionally omitted; Rahti's default storage
+        # class applies. Verify the actual class and size before any real use.
+        resources:
+          requests:
+            storage: 10Gi

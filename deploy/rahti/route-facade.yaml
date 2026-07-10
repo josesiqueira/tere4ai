@@ -1,0 +1,28 @@
+# TERE4AI v2, Phase 2 SEED (PROPOSAL, UNTESTED). Never applied to any cluster.
+# OpenShift Route for the facade: the single public HTTPS entry point of
+# Mode A ("consumers use a URL and API key; HTTPS", architecture.md
+# Section 9). TLS edge termination: Rahti's router terminates TLS with its
+# wildcard certificate and forwards plain HTTP to the facade Service.
+# Plain-HTTP requests are redirected to HTTPS.
+#
+# The web UI Route is deliberately not defined yet; whether the hosted UI
+# gets its own Route or is proxied is an open Phase 2 wiring question
+# (docs/PHASE2_DESIGN.md Section 7 and deployment-web.yaml).
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: tere4ai2-facade
+  labels:
+    app.kubernetes.io/name: tere4ai2-facade
+    app.kubernetes.io/component: facade
+spec:
+  # host omitted: Rahti assigns <name>-<project>.<apps-domain>. Set an
+  # explicit host here only after checking Rahti's custom-domain policy.
+  to:
+    kind: Service
+    name: tere4ai2-facade
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

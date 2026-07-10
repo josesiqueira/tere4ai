@@ -1,0 +1,57 @@
+# TERE4AI v2, Phase 2 SEED (PROPOSAL, UNTESTED). Never applied to any cluster.
+# Web Deployment: the Next.js demo UI image (Dockerfile target `web`) on
+# port 3111. In Phase 2 this grows into the hosted SaaS UI over the same
+# facade (docs/PHASE2_DESIGN.md Section 5; visual system docs/DESIGN.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tere4ai2-web
+  labels:
+    app.kubernetes.io/name: tere4ai2-web
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tere4ai2-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tere4ai2-web
+        app.kubernetes.io/component: web
+    spec:
+      containers:
+        - name: web
+          # Placeholder image reference (Dockerfile target `web`); no such
+          # image has been pushed anywhere yet.
+          image: image-registry.openshift-image-registry.svc:5000/tere4ai2/tere4ai2-web:PHASE2-SEED
+          ports:
+            - name: http
+              containerPort: 3111
+          env:
+            - name: PORT
+              value: "3111"
+            # Open Phase 2 wiring question: the Phase 1 UI calls the facade
+            # from the browser on localhost:8008. Hosted, the browser must
+            # reach the facade Route instead (see route-facade.yaml), or the
+            # web server must proxy. This env var is the seed for that
+            # decision and is NOT read by the Phase 1 code.
+            - name: TERE4AI_FACADE_URL
+              value: "http://tere4ai2-facade:8008"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

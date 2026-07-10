@@ -1,0 +1,57 @@
+# TERE4AI v2, Phase 2 SEED (PROPOSAL, UNTESTED). Never applied to any cluster.
+# ClusterIP Services for the three components. Only the facade (and, later,
+# the web UI) is exposed publicly, via route-facade.yaml. The Neo4j Service
+# has NO Route on purpose: it is the in-cluster equivalent of the
+# docker-compose.yml loopback-only port binding, reachable solely by the
+# facade per networkpolicy.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tere4ai2-facade
+  labels:
+    app.kubernetes.io/name: tere4ai2-facade
+    app.kubernetes.io/component: facade
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: tere4ai2-facade
+  ports:
+    - name: http
+      port: 8008
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tere4ai2-web
+  labels:
+    app.kubernetes.io/name: tere4ai2-web
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: tere4ai2-web
+  ports:
+    - name: http
+      port: 3111
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tere4ai2-neo4j
+  labels:
+    app.kubernetes.io/name: tere4ai2-neo4j
+    app.kubernetes.io/component: neo4j
+spec:
+  # Headless, as the StatefulSet's serviceName; internal only, never routed.
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: tere4ai2-neo4j
+  ports:
+    - name: http
+      port: 7474
+      targetPort: http
+    - name: bolt
+      port: 7687
+      targetPort: bolt
