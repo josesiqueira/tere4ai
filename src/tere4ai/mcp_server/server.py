@@ -16,9 +16,10 @@ degraded envelope, never a traceback.
 Transport: stdio by default (Mode B, architecture.md Section 9). The
 streamable HTTP transport for remote consumers sits behind an explicit
 flag, TERE4AI_MCP_TRANSPORT=http, binding TERE4AI_MCP_HOST (default
-127.0.0.1) and TERE4AI_MCP_PORT (default 8765). The HTTP transport has
-NO authentication yet; per-key scopes are Phase 2 (docs/PHASE2_DESIGN.md),
-so keep it on localhost or behind an authenticating reverse proxy.
+127.0.0.1) and TERE4AI_MCP_PORT (default 8765). HTTP requests must carry
+a scoped t4a_ API key as a Bearer token (keys.py; mint and revoke with
+scripts/manage_mcp_keys.py); stdio stays keyless unless
+TERE4AI_MCP_REQUIRE_KEY=1. Every tool call is metered body-free.
 
 @implements: DEC-08, DEC-10
 @grounded_by: REF-16, REF-17, REF-15, REF-31
@@ -372,6 +373,16 @@ def main() -> None:
     http fails loudly rather than silently serving the wrong surface.
     """
     transport = os.environ.get("TERE4AI_MCP_TRANSPORT", "stdio").strip().lower()
+    require_key = transport in ("http", "streamable-http") or os.environ.get(
+        "TERE4AI_MCP_REQUIRE_KEY"
+    ) == "1"
+    if require_key:
+        # Section 8: remote consumers authenticate with scoped, revocable
+        # keys; local stdio (Mode B trusted workstation) stays keyless
+        # unless TERE4AI_MCP_REQUIRE_KEY=1. Keys: scripts/manage_mcp_keys.py.
+        from tere4ai.mcp_server.keys import ScopedKeyMiddleware
+
+        mcp.add_middleware(ScopedKeyMiddleware())
     if transport == "stdio":
         mcp.run()
         return

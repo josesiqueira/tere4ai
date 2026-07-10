@@ -49,3 +49,4 @@ data/refs/graphify-out/
 # Never commit loose PDFs at the repo root (paper copies belong in data/refs, gitignored).
 /*.pdf
 data/graph_dumps/*.nt
+data/keys/
