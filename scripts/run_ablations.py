@@ -109,6 +109,10 @@ def main(argv: list[str] | None = None) -> int:
                 unit = f"{strategy_name}:batch{bi}"
                 if unit in done:
                     continue
+                usage_before = {
+                    "generator": dict(generator.usage),
+                    "judge": dict(judge.usage),
+                }
                 per_item = {}
                 for item in batch:
                     try:
@@ -119,7 +123,21 @@ def main(argv: list[str] | None = None) -> int:
                             "answer_text": "",
                             "citations": [],
                         }
-                entry = {"unit": unit, "strategy": strategy_name, "results": per_item}
+                # provider-reported token deltas for exactly this unit, so the
+                # checkpoint carries true spend across resumes (Section 13)
+                clients = {"generator": generator, "judge": judge}
+                usage = {
+                    role: {
+                        k: clients[role].usage[k] - before[k] for k in before
+                    }
+                    for role, before in usage_before.items()
+                }
+                entry = {
+                    "unit": unit,
+                    "strategy": strategy_name,
+                    "results": per_item,
+                    "usage": usage,
+                }
                 ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 ckpt.flush()
                 unit_results.append(entry)
@@ -131,10 +149,39 @@ def main(argv: list[str] | None = None) -> int:
     for entry in unit_results:
         merged.setdefault(entry["strategy"], {}).update(entry["results"])
 
+    # aggregate provider-reported usage over the checkpointed units; units
+    # written before usage tracking existed carry no usage block, so their
+    # count is surfaced instead of silently under-reporting spend
+    usage_total: dict[str, dict[str, int]] = {}
+    units_without_usage = 0
+    for entry in unit_results:
+        if "usage" not in entry:
+            units_without_usage += 1
+            continue
+        for role, counts in entry["usage"].items():
+            bucket = usage_total.setdefault(
+                role, {"calls": 0, "input_tokens": 0, "output_tokens": 0}
+            )
+            for k, v in counts.items():
+                bucket[k] += v
+
     # metrics per strategy against gold labels where present
     gold_items = [i for i in items if i.get("gold") or i.get("gold_citations")]
     valid_node_ids = {n["id"] for n in dump["nodes"]}
-    summary: dict[str, dict] = {"config": config, "items_total": len(items), "strategies": {}}
+    summary: dict[str, dict] = {
+        "config": config,
+        "items_total": len(items),
+        "usage_provider_reported": {
+            "by_role": usage_total,
+            "units_without_usage": units_without_usage,
+            "note": (
+                "token counts as reported by the providers per API response, "
+                "summed over checkpoint units; units checkpointed by runner "
+                "versions without usage tracking contribute nothing here"
+            ),
+        },
+        "strategies": {},
+    }
     import re
 
     def article_prefix(cid: str) -> str:

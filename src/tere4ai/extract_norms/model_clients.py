@@ -28,13 +28,24 @@ class ModelClient(Protocol):
         ...
 
 
+def _new_usage() -> dict[str, int]:
+    return {"calls": 0, "input_tokens": 0, "output_tokens": 0}
+
+
 class OpenAIGenerator:
-    """Generator client (OpenAI family, cfg.generator_model, temperature 0)."""
+    """Generator client (OpenAI family, cfg.generator_model, temperature 0).
+
+    .usage accumulates provider-reported token counts across the client's
+    lifetime (Section 13 observability); callers snapshot it to attribute
+    spend to a unit of work. Counts are the provider's own numbers, never
+    estimated here; a response without a usage block adds only to calls.
+    """
 
     def __init__(self, cfg: ModelConfig):
         from openai import OpenAI  # imported lazily so offline tests need no SDK
 
         self.model = cfg.generator_model
+        self.usage = _new_usage()
         self._client = OpenAI(api_key=cfg.generator_api_key)
 
     def complete(self, system: str, user: str) -> str:
@@ -58,16 +69,25 @@ class OpenAIGenerator:
                 model=self.model,
                 messages=messages,
             )
+        self.usage["calls"] += 1
+        reported = getattr(response, "usage", None)
+        if reported is not None:
+            self.usage["input_tokens"] += getattr(reported, "prompt_tokens", 0) or 0
+            self.usage["output_tokens"] += getattr(reported, "completion_tokens", 0) or 0
         return response.choices[0].message.content or ""
 
 
 class AnthropicJudge:
-    """Judge client (independent Claude family, cfg.judge_model, temperature 0)."""
+    """Judge client (independent Claude family, cfg.judge_model, temperature 0).
+
+    .usage: same provider-reported accounting as OpenAIGenerator.
+    """
 
     def __init__(self, cfg: ModelConfig, max_tokens: int = 2048):
         import anthropic  # imported lazily so offline tests need no SDK
 
         self.model = cfg.judge_model
+        self.usage = _new_usage()
         self._max_tokens = max_tokens
         self._client = anthropic.Anthropic(api_key=cfg.judge_api_key)
 
@@ -86,6 +106,11 @@ class AnthropicJudge:
             if "temperature" not in str(exc):
                 raise
             response = self._client.messages.create(**kwargs)
+        self.usage["calls"] += 1
+        reported = getattr(response, "usage", None)
+        if reported is not None:
+            self.usage["input_tokens"] += getattr(reported, "input_tokens", 0) or 0
+            self.usage["output_tokens"] += getattr(reported, "output_tokens", 0) or 0
         return "".join(
             block.text for block in response.content if getattr(block, "type", "") == "text"
         )
