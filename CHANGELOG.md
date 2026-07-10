@@ -3,6 +3,54 @@
 All notable changes to TERE4AI v2. Format loosely follows Keep a Changelog;
 versions are git tags. Dates are build dates (Europe/Helsinki).
 
+## [Unreleased]
+
+### Graph and pipeline
+- Reified CrossReference nodes (426) with HAS_CROSS_REFERENCE and
+  RESOLVES_TO edges; "Article 6(2)"-style citations resolve to
+  paragraph-level targets where the node exists (104 of 476).
+- Canonicalize step implemented (DEC-04): actors map onto the closed role
+  table by deterministic rules (unresolved strings are reported, never
+  guessed); each distinct condition/exception wording becomes one shared
+  Condition/Exception node (364 + 27 live) with per-norm ids and
+  HAS_CONDITION/HAS_EXCEPTION edges.
+- RDF export bridge via n10s (DEC-09): the judged Layer 2/3 subgraph as
+  N-Triples with RDF-star edge properties mapped to standard reification;
+  rdflib roundtrip and full-norm-coverage integration tests.
+
+### Runtime tools
+- Classification depth: the Article 6(1) embedded-product route (Annex I
+  plus third-party conformity assessment) and the real Article 6(3)
+  second-subparagraph conditions with the profiling override; four new
+  feature flags and elicitor prompt v2.
+- Batch evidence mode: one artifact against every judge-accepted norm of an
+  article, one envelope with per-norm results and worst-case aggregation
+  (MCP tool evaluate_project_evidence_batch).
+- Backlog grouping: identical-norm-set items merge into one control;
+  mechanical priority reads conditions (conditional obligations are should).
+- Remote MCP transport (streamable HTTP) behind TERE4AI_MCP_TRANSPORT=http,
+  gated by scoped, revocable t4a_ API keys with body-free usage metering
+  (scripts/manage_mcp_keys.py).
+
+### Evaluation and evidence
+- Full REF-15 benchmark frozen (339 scenarios + 137 QA, sha256-verified)
+  and a dry-run cost estimator for the full-benchmark gate
+  (docs/benchmark_cost_estimate.md).
+- Graph strategies: AnnexItem-level retrieval for retrieval items and
+  operative-text passages with node-id citations for QA items.
+- Prompt A/B as ablation conditions (graph_full@vN) and one consolidated,
+  secret-scrubbing audit-log module across the three judge logs.
+- Adversarial evidence corpus (12 fixtures, 4 attack classes) with a
+  computed security report (docs/SECURITY_EVAL.md).
+- Gold-set expansion tooling: 70 graph-drafted candidates with
+  deterministic second-annotator assignment and a kappa CLI.
+
+### UI and delivery
+- Demo UI: /review human-review-queue page, one-click scenario presets,
+  envelope JSON export, audit permalink, dark-mode and accessibility pass.
+- Phase 2 design doc (multi-tenancy, key scopes, metering) and Rahti
+  deployment manifests.
+
 ## [2.0.0-alpha.1] - 2026-07-10
 
 First tagged pre-release: the complete evidence-gated pipeline, runtime
