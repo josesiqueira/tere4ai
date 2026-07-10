@@ -48,6 +48,10 @@ ALL_FLAGS = (
     "generates_synthetic_content",
     "profiling_of_natural_persons",
     "preparatory_or_narrow_procedural_task",
+    "improves_previous_human_activity",
+    "detects_patterns_without_replacing_human_assessment",
+    "annex_i_covered_product",
+    "third_party_conformity_assessment_required",
 )
 
 
@@ -256,6 +260,100 @@ def test_no_exception_candidate_without_advisory_autonomy(dump, node_ids):
     envelope = classify_ai_system(features, dump)
     assert envelope["answer"]["article_6_3_exception_candidate"] is False
     assert envelope["status"] == "potentially_applicable"
+
+
+def test_point_b_condition_flags_candidacy_and_cites_the_point(dump, node_ids):
+    features = {
+        "description": "Grammar checker that polishes already-graded essay feedback.",
+        "domain": "education",
+        "autonomy": "full",
+        "flags": all_false_flags(
+            education_scoring_or_access=True, improves_previous_human_activity=True
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["article_6_3_exception_candidate"] is True
+    assert envelope["status"] == "requires_human_review"
+    assert "eu-ai-act:article-6:paragraph-3:point-b" in envelope["source_nodes"]
+
+
+def test_profiling_cancels_derogation_candidacy(dump, node_ids):
+    features = {
+        "description": "Pre-screening tool that profiles applicants before review.",
+        "domain": "education",
+        "autonomy": "advisory",
+        "flags": all_false_flags(
+            education_scoring_or_access=True,
+            preparatory_or_narrow_procedural_task=True,
+            profiling_of_natural_persons=True,
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["article_6_3_exception_candidate"] is False
+    assert (
+        "eu-ai-act:article-6:paragraph-3:subparagraph-3" in envelope["source_nodes"]
+    )
+
+
+# Article 6(1) embedded-product route ------------------------------------------
+
+
+def test_annex_i_route_is_high_risk_without_derogation(dump, node_ids):
+    features = {
+        "description": "Vision safety component in an industrial machine.",
+        "domain": "manufacturing",
+        "flags": all_false_flags(
+            annex_i_covered_product=True,
+            third_party_conformity_assessment_required=True,
+            preparatory_or_narrow_procedural_task=True,
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["annex_iii_category"] is None
+    # The 6(3) derogation only derogates from 6(2); never on the 6(1) route.
+    assert answer["article_6_3_exception_candidate"] is False
+    assert "eu-ai-act:article-6:paragraph-1" in envelope["source_nodes"]
+    assert "eu-ai-act:annex-i" in envelope["source_nodes"]
+    assert envelope["status"] == "potentially_applicable"
+
+
+def test_annex_i_route_unresolved_third_party_fact_never_settles(dump, node_ids):
+    features = {
+        "description": "Safety component of a regulated product.",
+        "domain": "manufacturing",
+        "flags": all_false_flags(annex_i_covered_product=True)
+        | {"third_party_conformity_assessment_required": None},
+    }
+    features["flags"].pop("third_party_conformity_assessment_required")
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["status"] == "requires_human_review"
+    assert any(
+        "third_party_conformity_assessment_required" in fact
+        for fact in envelope["missing_facts"]
+    )
+
+
+def test_annex_i_route_explicitly_ruled_out_continues_ladder(dump, node_ids):
+    features = {
+        "description": "Component of a product that needs no third-party assessment.",
+        "domain": "consumer",
+        "flags": all_false_flags(annex_i_covered_product=True),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert any("article_6_1" in r for r in envelope["answer"]["rationale"])
 
 
 # Input validation ------------------------------------------------------------

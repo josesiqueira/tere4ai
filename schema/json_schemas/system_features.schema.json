@@ -49,7 +49,11 @@
         "interacts_with_natural_persons": { "type": "boolean" },
         "generates_synthetic_content": { "type": "boolean" },
         "profiling_of_natural_persons": { "type": "boolean" },
-        "preparatory_or_narrow_procedural_task": { "type": "boolean" }
+        "preparatory_or_narrow_procedural_task": { "type": "boolean" },
+        "improves_previous_human_activity": { "type": "boolean" },
+        "detects_patterns_without_replacing_human_assessment": { "type": "boolean" },
+        "annex_i_covered_product": { "type": "boolean" },
+        "third_party_conformity_assessment_required": { "type": "boolean" }
       },
       "additionalProperties": false
     },

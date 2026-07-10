@@ -3,9 +3,12 @@
 Risk classification is decided by a fixed rule ladder over the structured
 system features (schema/json_schemas/system_features.schema.json), never by
 a model (@USER.md domain guardrail: the LLM never decides the risk
-classification). The ladder is: Article 5 prohibitions, then Article 6(2)
-plus Annex III high-risk categories, then the Article 6(3) exception
-candidate, then Article 50 transparency, else minimal. Every cited node id
+classification). The ladder is: Article 5 prohibitions, then the Article
+6(1) embedded-product route (Annex I plus third-party conformity
+assessment), then Article 6(2) plus Annex III high-risk categories, then
+Article 6(3) derogation candidacy over the real second-subparagraph
+conditions (with the third-subparagraph profiling override), then Article
+50 transparency, else minimal. Every cited node id
 is resolved against the offline Layer 0+1 dump; unknown facts are never
 guessed, they surface in missing_facts and lower the status to
 requires_human_review where they could change the outcome.
@@ -184,8 +187,38 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
     },
 )
 
+ARTICLE_6_PARAGRAPH_1 = "eu-ai-act:article-6:paragraph-1"
 ARTICLE_6_PARAGRAPH_2 = "eu-ai-act:article-6:paragraph-2"
 ARTICLE_6_PARAGRAPH_3 = "eu-ai-act:article-6:paragraph-3"
+ANNEX_I = "eu-ai-act:annex-i"
+# Article 6(3) third subparagraph: "shall always be considered to be
+# high-risk where the AI system performs profiling of natural persons".
+ARTICLE_6_3_PROFILING_OVERRIDE = "eu-ai-act:article-6:paragraph-3:subparagraph-3"
+
+# Article 6(3) second-subparagraph conditions: flag -> the real Point nodes.
+# The legacy combined flag covers point (a) "narrow procedural task" and
+# point (d) "preparatory task to an assessment"; the two newer flags map to
+# points (b) and (c) one-to-one.
+ARTICLE_6_3_CONDITIONS: tuple[tuple[str, tuple[str, ...], str], ...] = (
+    (
+        "preparatory_or_narrow_procedural_task",
+        (
+            "eu-ai-act:article-6:paragraph-3:point-a",
+            "eu-ai-act:article-6:paragraph-3:point-d",
+        ),
+        "narrow procedural task (point a) or preparatory task (point d)",
+    ),
+    (
+        "improves_previous_human_activity",
+        ("eu-ai-act:article-6:paragraph-3:point-b",),
+        "improves the result of a previously completed human activity (point b)",
+    ),
+    (
+        "detects_patterns_without_replacing_human_assessment",
+        ("eu-ai-act:article-6:paragraph-3:point-c",),
+        "detects decision-making patterns without replacing human assessment (point c)",
+    ),
+)
 
 # Article 50 transparency rules: flag -> the real Paragraph node.
 ARTICLE_50_RULES: tuple[tuple[str, str, str], ...] = (
@@ -360,7 +393,70 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
             missing_facts=missing_facts,
         )
 
-    # Rule 2: Article 6(2) + Annex III high-risk categories.
+    # Rule 2a: Article 6(1) embedded-product route. High-risk when the
+    # system is a safety component of (or is itself) a product covered by
+    # Annex I Union harmonisation legislation AND that product requires a
+    # third-party conformity assessment. Both facts must be explicitly true;
+    # this route is independent of Annex III and the Article 6(3) derogation
+    # does not apply to it (6(3) derogates from paragraph 2 only).
+    annex_i_covered = flags.get("annex_i_covered_product")
+    third_party_required = flags.get("third_party_conformity_assessment_required")
+    article_6_1_unresolved = False
+    if annex_i_covered is True and third_party_required is True:
+        citations.cite(ARTICLE_6_PARAGRAPH_1)
+        citations.cite(ANNEX_I)
+        rationale.append(
+            "rule article_6_1: annex_i_covered_product and "
+            "third_party_conformity_assessment_required are both true; the "
+            "system is high-risk under Article 6(1) via Annex I"
+        )
+        legal_status_notes.append(
+            f"{ARTICLE_6_PARAGRAPH_3}: the Article 6(3) derogation applies "
+            "only to Annex III systems under Article 6(2), not to the "
+            "Article 6(1) embedded-product route"
+        )
+        missing_facts.extend(citations.unresolved)
+        status = "potentially_applicable"
+        confidence = 1.0
+        if unknown_prohibition_flags:
+            status = "requires_human_review"
+            confidence = 0.5
+            rationale.append(
+                "status lowered to requires_human_review: unknown "
+                "prohibition-relevant flags could change the outcome to prohibited"
+            )
+        return make_envelope(
+            answer={
+                "risk_category": "high_risk",
+                "prohibited": False,
+                "annex_iii_category": None,
+                "article_6_3_exception_candidate": False,
+                "rationale": rationale,
+            },
+            status=status,
+            graph_version=graph_version,
+            confidence=confidence,
+            source_nodes=citations.node_ids,
+            source_spans=citations.spans,
+            legal_status_notes=legal_status_notes,
+            missing_facts=missing_facts,
+        )
+    if annex_i_covered is True and third_party_required is None:
+        article_6_1_unresolved = True
+        missing_facts.append(
+            "flags.third_party_conformity_assessment_required is unknown while "
+            "flags.annex_i_covered_product is true; Article 6(1) point (b) "
+            "requires a third-party conformity assessment for the route to fire"
+        )
+    if annex_i_covered is True and third_party_required is False:
+        citations.cite(ARTICLE_6_PARAGRAPH_1)
+        rationale.append(
+            "rule article_6_1: annex_i_covered_product is true but no "
+            "third-party conformity assessment is required, so the Article "
+            "6(1) route does not fire; continuing down the ladder"
+        )
+
+    # Rule 2b: Article 6(2) + Annex III high-risk categories.
     annex_match: dict[str, Any] | None = None
     for rule in ANNEX_III_RULES:
         matched_flag = next((f for f in rule["flags"] if flags.get(f) is True), None)
@@ -399,21 +495,55 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         citations.cite(annex_match["node"])
         citations.cite(ARTICLE_6_PARAGRAPH_2)
 
-        # Rule 3: Article 6(3) derogation candidate. The derogation needs
-        # human legal judgment; it is flagged, never auto-applied.
-        if flags.get("preparatory_or_narrow_procedural_task") is True and autonomy == "advisory":
+        # Rule 3: Article 6(3) derogation candidacy over the real second-
+        # subparagraph conditions. The derogation needs human legal judgment;
+        # it is flagged, never auto-applied. The legacy combined flag keeps
+        # its conservative advisory-autonomy guard; the point (b) and (c)
+        # flags are specific enough to flag candidacy on their own.
+        matched_conditions: list[tuple[str, tuple[str, ...], str]] = []
+        for flag, point_nodes, label in ARTICLE_6_3_CONDITIONS:
+            if flags.get(flag) is not True:
+                continue
+            if flag == "preparatory_or_narrow_procedural_task" and autonomy != "advisory":
+                continue
+            matched_conditions.append((flag, point_nodes, label))
+        if matched_conditions and flags.get("profiling_of_natural_persons") is True:
+            # Article 6(3) third subparagraph: profiling systems are always
+            # high-risk, so candidacy is cancelled, not merely flagged.
+            citations.cite(ARTICLE_6_3_PROFILING_OVERRIDE)
+            rationale.append(
+                "rule article_6_3_profiling: a derogation condition matched but "
+                "profiling_of_natural_persons is true; Article 6(3) third "
+                "subparagraph keeps profiling systems high-risk, so no "
+                "derogation candidacy"
+            )
+            matched_conditions = []
+        if matched_conditions:
             exception_candidate = True
             citations.cite(ARTICLE_6_PARAGRAPH_3)
-            rationale.append(
-                "rule article_6_3: preparatory_or_narrow_procedural_task is true "
-                "and autonomy is advisory; the Article 6(3) derogation may apply "
-                "but requires human legal judgment, no automatic downgrade"
-            )
+            for flag, point_nodes, label in matched_conditions:
+                for node_id in point_nodes:
+                    citations.cite(node_id)
+                # Wording note: this line must not read "rule X: flag Y
+                # matches Z", which is the classification-trigger grammar
+                # parsed by scripts/elicitation_error_report.py; derogation
+                # candidacy is not a classification trigger.
+                rationale.append(
+                    f"rule article_6_3: derogation condition '{label}' met "
+                    f"by {flag}; the Article 6(3) derogation may apply but "
+                    "requires human legal judgment, no automatic downgrade"
+                )
             legal_status_notes.append(
                 f"{ARTICLE_6_PARAGRAPH_3}: Article 6(3) derogation candidacy is "
                 "flagged for human review; the classification stays high_risk "
                 "until a human legal reviewer decides"
             )
+            if "profiling_of_natural_persons" not in flags:
+                missing_facts.append(
+                    "flags.profiling_of_natural_persons is unknown while an "
+                    "Article 6(3) derogation condition matched; profiling "
+                    "cancels the derogation (Article 6(3) third subparagraph)"
+                )
 
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"
@@ -447,21 +577,23 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
             missing_facts=missing_facts,
         )
 
-    # Safety valve, not an auto-classification: a safety component of a
-    # regulated product goes through Article 6(1) plus Annex I, a route this
-    # deterministic ladder does not cover. Never silently call that minimal.
-    if flags.get("medical_or_safety_component") is True:
-        citations.cite("eu-ai-act:article-6:paragraph-1")
+    # Safety valve, not an auto-classification: the Article 6(1) route was
+    # not settled (its facts are unknown, or a safety component was declared
+    # without the Annex I facts). Never silently call that minimal.
+    if article_6_1_unresolved or (
+        flags.get("medical_or_safety_component") is True and annex_i_covered is None
+    ):
+        citations.cite(ARTICLE_6_PARAGRAPH_1)
         rationale.append(
-            "rule uncertain: medical_or_safety_component is true but no Annex "
-            "III category matched; the Article 6(1) plus Annex I "
-            "embedded-product route is outside this deterministic check and "
-            "needs human legal review"
+            "rule uncertain: the Article 6(1) plus Annex I embedded-product "
+            "route cannot be settled from the provided facts and no Annex III "
+            "category matched; human legal review is needed"
         )
         missing_facts.append(
             "whether the system is a safety component of a product covered by "
-            "Annex I Union harmonisation legislation (Article 6(1)) cannot be "
-            "decided deterministically from the provided facts"
+            "Annex I Union harmonisation legislation requiring third-party "
+            "conformity assessment (Article 6(1)) cannot be decided "
+            "deterministically from the provided facts"
         )
         missing_facts.extend(citations.unresolved)
         return make_envelope(
