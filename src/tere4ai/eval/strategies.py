@@ -275,6 +275,19 @@ class GraphStrategy:
                 if n.get("type") == "AnnexItem" and n.get("text")
             ]
         )
+        # QA-kind items ask what a provision requires; norm digests flatten
+        # the provision into actor/action/object and lose the wording, so
+        # offer the operative Layer 1 texts too. Recitals are deliberately
+        # excluded: they are context only and must never be offered as
+        # citable support (architecture.md Section 1).
+        self._passage_index = TfidfIndex(
+            [
+                (n["id"], n["text"])
+                for n in dump.get("nodes", [])
+                if n.get("type") in ("Paragraph", "Point", "Subparagraph", "AnnexItem")
+                and n.get("text")
+            ]
+        )
 
     @staticmethod
     def _norm_text(norm: dict[str, Any]) -> str:
@@ -395,6 +408,23 @@ class GraphStrategy:
             "source_node_id values that support your answer.\n"
             + json.dumps(digests, sort_keys=True)
         ]
+        passage_ids: list[str] = []
+        if item.get("kind") == "qa":
+            # Article/paragraph text retrieval for QA items: the exact
+            # operative wording with its node id, so answers can quote and
+            # cite the provision rather than a flattened norm digest.
+            passage_hits = self._passage_index.query(question, top_k=5)
+            passage_ids = [node_id for node_id, _score, _text in passage_hits]
+            if passage_hits:
+                context_blocks.append(
+                    "Operative provisions of the Act, each with its node id; "
+                    "cite the node id of every provision your answer relies "
+                    "on.\n"
+                    + json.dumps(
+                        [{"id": nid, "text": text} for nid, _s, text in passage_hits],
+                        sort_keys=True,
+                    )
+                )
         annex_ids: list[str] = []
         if item.get("kind") == "retrieval":
             # AnnexItem-level retrieval: these items ask which Annex item
@@ -416,6 +446,8 @@ class GraphStrategy:
         result["offered_norm_ids"] = [d["norm_id"] for d in digests]
         if annex_ids:
             result["offered_annex_item_ids"] = annex_ids
+        if passage_ids:
+            result["offered_passage_ids"] = passage_ids
         return result, digests
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:

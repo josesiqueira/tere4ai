@@ -478,3 +478,56 @@ def test_gold_ret_items_hit_annex_item_granularity_in_the_real_index():
         assert any(
             gold in hits for gold in item["gold_citations"]
         ), f"{item['id']}: gold {item['gold_citations']} not in top-5 {hits}"
+
+
+# QA article-text retrieval (#54) ----------------------------------------------
+
+
+def test_qa_items_offer_operative_passages_with_node_ids():
+    generator = make_generator()
+    strategy = build_strategy("graph_build_judge", generator, MINI_DUMP, MINI_NORMS)
+    result = strategy(GOLD_3[2])
+    _system, user = generator.calls[-1]
+    assert "Operative provisions of the Act" in user
+    assert "test:article-1:paragraph-1" in user
+    assert "Providers shall document biometric widgets" in user
+    assert result["offered_passage_ids"]
+
+
+def test_qa_passages_never_include_recitals():
+    dump_with_recital = json.loads(json.dumps(MINI_DUMP))
+    dump_with_recital["nodes"].append(
+        {
+            "id": "test:recital-1",
+            "type": "Recital",
+            "text": "Biometric widgets deserve careful documentation by providers.",
+        }
+    )
+    generator = make_generator()
+    strategy = build_strategy("graph_build_judge", generator, dump_with_recital, MINI_NORMS)
+    result = strategy(GOLD_3[2])
+    _system, user = generator.calls[-1]
+    assert "test:recital-1" not in user
+    assert "test:recital-1" not in result.get("offered_passage_ids", [])
+
+
+@pytest.mark.skipif(not LAYER1_PATH.is_file(), reason="layer1.json dump not built")
+def test_gold_qa_items_hit_their_article_in_the_real_passage_index():
+    from tere4ai.eval.harness import load_gold_items
+
+    dump = json.loads(LAYER1_PATH.read_text(encoding="utf-8"))
+    index = TfidfIndex(
+        [
+            (n["id"], n["text"])
+            for n in dump["nodes"]
+            if n.get("type") in ("Paragraph", "Point", "Subparagraph", "AnnexItem")
+            and n.get("text")
+        ]
+    )
+    for item in load_gold_items():
+        if item["kind"] != "qa":
+            continue
+        hits = [nid for nid, _s, _t in index.query(item["question"], top_k=5)]
+        assert any(
+            any(h.startswith(gold) for h in hits) for gold in item["gold_citations"]
+        ), f"{item['id']}: no top-5 passage under {item['gold_citations']}; got {hits}"
