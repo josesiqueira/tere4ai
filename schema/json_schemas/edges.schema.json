@@ -21,7 +21,7 @@
         "DEFINES_TERM",
         "CONTEXT_FOR",
         "HAS_SUBTOPIC",
-        "REFERS_TO",
+        "REFERS_TO", "HAS_CROSS_REFERENCE", "RESOLVES_TO",
         "AMENDS",
         "HAS_VERSION",
         "DERIVED_FROM_SOURCE"

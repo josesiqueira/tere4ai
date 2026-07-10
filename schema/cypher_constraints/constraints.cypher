@@ -40,6 +40,8 @@ CREATE CONSTRAINT annex_id_unique IF NOT EXISTS FOR (n:Annex) REQUIRE n.id IS UN
 // Uniqueness of AnnexItem.id (Layer 1, populated from Formex in M2)
 CREATE CONSTRAINT annexitem_id_unique IF NOT EXISTS FOR (n:AnnexItem) REQUIRE n.id IS UNIQUE;
 
+CREATE CONSTRAINT crossreference_id_unique IF NOT EXISTS FOR (n:CrossReference) REQUIRE n.id IS UNIQUE;
+
 // Chapter.number is a Roman numeral string per nodes.schema.json
 CREATE CONSTRAINT chapter_number_type IF NOT EXISTS FOR (n:Chapter) REQUIRE n.number IS :: STRING;
 

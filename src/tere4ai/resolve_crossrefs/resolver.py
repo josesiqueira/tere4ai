@@ -28,6 +28,15 @@ Every emitted edge carries full provenance: provenance_class
 RESOLVED_DETERMINISTIC, method crossref_rule_v1, confidence 1.0,
 review_status auto_accepted, the referencing paragraph's source_span_id,
 citation_text, and the build_id copied from the dump build block.
+
+Reified cross-references (Section 1 lists CrossReference as a Layer 1 node
+type): every resolved mention additionally becomes a CrossReference node
+carrying citation_text and the referencing paragraph's span, connected by
+HAS_CROSS_REFERENCE (paragraph -> node) and RESOLVES_TO (node -> target).
+RESOLVES_TO targets are paragraph-level where determinable: an "Article
+6(2)"-style token resolves to eu-ai-act:article-6:paragraph-2 when that
+node exists, falling back to the article. The coarse article-to-article
+REFERS_TO edges are kept unchanged for navigation and regression parity.
 """
 
 from __future__ import annotations
@@ -165,6 +174,32 @@ def _article_targets(citation: str) -> list[str]:
     return [f"{NODE_ID_PREFIX}:article-{n}" for n in numbers]
 
 
+def _precise_article_targets(citation: str, node_ids: set[str]) -> list[str]:
+    """Article targets refined to paragraph level where determinable.
+
+    A token like "6(2)" resolves to eu-ai-act:article-6:paragraph-2 when
+    that node exists in the dump; bare numbers and range expansions stay at
+    article level. Order and dedup follow first occurrence.
+    """
+    tokens = _TOKEN_TO.findall(citation)
+    coarse = _expand(tokens, lambda t: int(re.match(r"\d+", t).group(0)))
+    precise_by_article: dict[int, str] = {}
+    for token in tokens:
+        match = re.match(r"(\d+)\((\d+)\)", token)
+        if not match:
+            continue
+        article_no, paragraph_no = int(match.group(1)), int(match.group(2))
+        candidate = f"{NODE_ID_PREFIX}:article-{article_no}:paragraph-{paragraph_no}"
+        if candidate in node_ids:
+            precise_by_article[article_no] = candidate
+    targets: list[str] = []
+    for number in coarse:
+        target = precise_by_article.get(number, f"{NODE_ID_PREFIX}:article-{number}")
+        if target not in targets:
+            targets.append(target)
+    return targets
+
+
 def _annex_targets(citation: str) -> list[str]:
     tokens = _TOKEN_ROMAN_TO.findall(citation)
     numbers = _expand(tokens, _roman_to_int)
@@ -209,12 +244,79 @@ def resolve(dump: dict) -> dict:
         e["to"]: e["from"] for e in existing_edges if e.get("edge_type") == "HAS_PARAGRAPH"
     }
 
+    new_nodes: list[dict[str, Any]] = []
     new_edges: list[dict[str, Any]] = []
     queue: list[dict[str, Any]] = []
     seen_pairs: set[tuple[str, str]] = set()
     seen_queue: set[tuple[str, str, str, str]] = set()
+    seen_xrefs: set[tuple[str, str]] = set()
     edge_counter = 0
     queue_counter = 0
+    xref_counter = 0
+
+    def _edge_provenance(span_id: str, citation: str) -> dict[str, Any]:
+        return {
+            "provenance_class": "RESOLVED_DETERMINISTIC",
+            "method": METHOD,
+            "confidence": 1.0,
+            "review_status": "auto_accepted",
+            "source_span_id": span_id,
+            "citation_text": citation,
+            "build_id": build_id,
+        }
+
+    def _reify(
+        paragraph: dict[str, Any],
+        citation: str,
+        span_id: str,
+        resolved_targets: list[str],
+    ) -> None:
+        """CrossReference node + HAS_CROSS_REFERENCE + RESOLVES_TO edges.
+
+        One node per (paragraph, citation_text); numbered in document
+        order, which is deterministic for a fixed input dump.
+        """
+        nonlocal xref_counter, edge_counter
+        if not resolved_targets:
+            return
+        key = (paragraph["id"], citation)
+        if key in seen_xrefs:
+            return
+        seen_xrefs.add(key)
+        xref_counter += 1
+        xref_id = f"{NODE_ID_PREFIX}:xref-{xref_counter}"
+        node: dict[str, Any] = {
+            "id": xref_id,
+            "type": "CrossReference",
+            "layer": 1,
+            "citation_text": citation,
+            "from_node_id": paragraph["id"],
+        }
+        span = paragraph.get("source_span")
+        if isinstance(span, dict):
+            node["source_span"] = span
+        new_nodes.append(node)
+        edge_counter += 1
+        new_edges.append(
+            {
+                "edge_id": f"xrefn:{paragraph['id']}->{xref_id}:{edge_counter}",
+                "edge_type": "HAS_CROSS_REFERENCE",
+                "from": paragraph["id"],
+                "to": xref_id,
+                **_edge_provenance(span_id, citation),
+            }
+        )
+        for target in resolved_targets:
+            edge_counter += 1
+            new_edges.append(
+                {
+                    "edge_id": f"xrefn:{xref_id}->{target}:{edge_counter}",
+                    "edge_type": "RESOLVES_TO",
+                    "from": xref_id,
+                    "to": target,
+                    **_edge_provenance(span_id, citation),
+                }
+            )
 
     def _enqueue(from_id: str, citation_text: str, span_id: str, reason: str) -> None:
         nonlocal queue_counter
@@ -250,10 +352,12 @@ def resolve(dump: dict) -> dict:
                 if external is not None:
                     _enqueue(from_id, external, span_id, "external_instrument")
                     continue
+                resolved: list[str] = []
                 for target in targets_of(citation):
                     if target not in node_ids:
                         _enqueue(from_id, citation, span_id, "unresolved_target")
                         continue
+                    resolved.append(target)
                     pair = (from_id, target)
                     if pair in seen_pairs:
                         continue
@@ -264,16 +368,23 @@ def resolve(dump: dict) -> dict:
                         "edge_type": "REFERS_TO",
                         "from": from_id,
                         "to": target,
-                        "provenance_class": "RESOLVED_DETERMINISTIC",
-                        "method": METHOD,
-                        "confidence": 1.0,
-                        "review_status": "auto_accepted",
-                        "source_span_id": span_id,
-                        "citation_text": citation,
-                        "build_id": build_id,
+                        **_edge_provenance(span_id, citation),
                     })
+                # Reified node with paragraph-precise targets: article
+                # mentions get "6(2)"-style refinement; annex and chapter
+                # targets are already as precise as the citation grammar.
+                if targets_of is _article_targets:
+                    precise = [
+                        t
+                        for t in _precise_article_targets(citation, node_ids)
+                        if t in node_ids
+                    ]
+                else:
+                    precise = resolved
+                _reify(node, citation, span_id, precise)
 
     result = dict(dump)
+    result["nodes"] = list(nodes) + new_nodes
     result["edges"] = list(existing_edges) + new_edges
     result["review_queue"] = list(dump.get("review_queue", [])) + queue
     return result

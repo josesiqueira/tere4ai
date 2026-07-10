@@ -38,7 +38,9 @@ HIERARCHY_EDGES = {
 # recital rule stays strict). CONTEXT_FOR is deliberately NOT here: it is a
 # context edge, never hierarchy, so recitals remain reachable only via
 # HAS_RECITAL (recitals are context only, architecture.md Section 1).
-REACHABILITY_EDGES = HIERARCHY_EDGES | {"DEFINES_TERM"}
+# HAS_CROSS_REFERENCE is likewise containment: a reified CrossReference
+# node belongs to the paragraph whose text carries the citation (#44).
+REACHABILITY_EDGES = HIERARCHY_EDGES | {"DEFINES_TERM", "HAS_CROSS_REFERENCE"}
 
 
 @dataclass

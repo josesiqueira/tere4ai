@@ -61,6 +61,8 @@ EDGE_TYPES = frozenset(
         "CONTEXT_FOR",
         "HAS_SUBTOPIC",
         "REFERS_TO",
+        "HAS_CROSS_REFERENCE",
+        "RESOLVES_TO",
         "AMENDS",
         "HAS_VERSION",
         "DERIVED_FROM_SOURCE",

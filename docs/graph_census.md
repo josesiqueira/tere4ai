@@ -5,13 +5,13 @@
 
 - Layer 1 build: build-3b753e5e9297
 - Norms build: build-3b753e5e9297
-- Layer 1: 1692 nodes, 2557 edges
+- Layer 1: 2118 nodes, 3459 edges
 - Norms: 434 (accepted 339)
 - Alignment assertions: 620 (accepted 475)
 
 ## Input dumps (sha256, first 16 hex)
 
-- layer1.json: d5071560ecca4fd7
+- layer1.json: 08295f8b81754ea6
 - norms_core.json: eedbf701f84c0831
 - alignments_core.json: 68166d93d6a30cd7
 
@@ -21,6 +21,7 @@
 | --- | --- |
 | Paragraph | 519 |
 | Point | 467 |
+| CrossReference | 426 |
 | AnnexItem | 217 |
 | Recital | 180 |
 | Article | 113 |
@@ -39,7 +40,9 @@
 | --- | --- |
 | HAS_PARAGRAPH | 519 |
 | CONTEXT_FOR | 491 |
+| RESOLVES_TO | 476 |
 | HAS_POINT | 467 |
+| HAS_CROSS_REFERENCE | 426 |
 | REFERS_TO | 375 |
 | HAS_ANNEX_ITEM | 217 |
 | HAS_RECITAL | 180 |
@@ -57,8 +60,8 @@
 
 | item | count |
 | --- | --- |
+| RESOLVED_DETERMINISTIC | 1768 |
 | EXTRACTED_SOURCE | 1691 |
-| RESOLVED_DETERMINISTIC | 866 |
 
 ## Norm judge verdicts
 

@@ -143,6 +143,17 @@
       "required": ["index", "source_span"]
     },
     {
+      "title": "CrossReference (Layer 1; reified citation occurrence)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "CrossReference" },
+        "layer": { "const": 1 },
+        "citation_text": { "type": "string", "minLength": 1, "description": "The citation as it appears in the referencing paragraph text" },
+        "from_node_id": { "type": "string", "minLength": 1, "description": "The Paragraph node whose text carries the citation" }
+      },
+      "required": ["citation_text", "from_node_id", "source_span"]
+    },
+    {
       "title": "Definition (Layer 1; Article 3 quoted terms)",
       "allOf": [{ "$ref": "#/$defs/baseNode" }],
       "properties": {
