@@ -435,3 +435,46 @@ def test_gold_classification_items_agree_with_deterministic_classifier():
         assert envelope["answer"]["risk_category"] == item["gold"]["risk_category"], item["id"]
         if item["gold_citations"]:
             assert set(item["gold_citations"]) <= set(envelope["source_nodes"]), item["id"]
+
+
+# AnnexItem-level retrieval (#55) ----------------------------------------------
+
+
+def test_retrieval_items_offer_annex_items():
+    generator = make_generator()
+    strategy = build_strategy("graph_build_judge", generator, MINI_DUMP, MINI_NORMS)
+    result = strategy(GOLD_3[1])
+    _system, user = generator.calls[-1]
+    assert "test:annex-x:point-1" in user
+    assert "Biometric widgets used for identification" in user
+    assert result["offered_annex_item_ids"] == ["test:annex-x:point-1"]
+
+
+def test_qa_items_do_not_get_annex_context():
+    generator = make_generator()
+    strategy = build_strategy("graph_build_judge", generator, MINI_DUMP, MINI_NORMS)
+    result = strategy(GOLD_3[2])
+    assert "offered_annex_item_ids" not in result
+    _system, user = generator.calls[-1]
+    assert "Annex items from the Act" not in user
+
+
+@pytest.mark.skipif(not LAYER1_PATH.is_file(), reason="layer1.json dump not built")
+def test_gold_ret_items_hit_annex_item_granularity_in_the_real_index():
+    from tere4ai.eval.harness import load_gold_items
+
+    dump = json.loads(LAYER1_PATH.read_text(encoding="utf-8"))
+    index = TfidfIndex(
+        [
+            (n["id"], n["text"])
+            for n in dump["nodes"]
+            if n.get("type") == "AnnexItem" and n.get("text")
+        ]
+    )
+    for item in load_gold_items():
+        if item["kind"] != "retrieval":
+            continue
+        hits = [nid for nid, _s, _t in index.query(item["question"], top_k=5)]
+        assert any(
+            gold in hits for gold in item["gold_citations"]
+        ), f"{item['id']}: gold {item['gold_citations']} not in top-5 {hits}"

@@ -264,6 +264,17 @@ class GraphStrategy:
         self._norm_index = TfidfIndex(
             [(n["norm_id"], self._norm_text(n)) for n in norms]
         )
+        # Retrieval-kind items ask which Annex item covers a use case, and
+        # the gold citations sit at AnnexItem granularity (for example
+        # annex-iii:point-5:a), which norm digests cannot reach; index the
+        # Layer 1 AnnexItem texts so those items can be offered directly.
+        self._annex_index = TfidfIndex(
+            [
+                (n["id"], n["text"])
+                for n in dump.get("nodes", [])
+                if n.get("type") == "AnnexItem" and n.get("text")
+            ]
+        )
 
     @staticmethod
     def _norm_text(norm: dict[str, Any]) -> str:
@@ -378,15 +389,33 @@ class GraphStrategy:
         question = _item_question(item)
         selected = self._select_norms(question)
         digests = [self._norm_digest(n) for n in selected]
-        user = (
-            f"{question}\n\n"
+        context_blocks = [
             "Context: normative statements extracted from the Act, each with "
             "its source node id. Answer from these only and cite the "
             "source_node_id values that support your answer.\n"
-            f"{json.dumps(digests, sort_keys=True)}"
-        )
+            + json.dumps(digests, sort_keys=True)
+        ]
+        annex_ids: list[str] = []
+        if item.get("kind") == "retrieval":
+            # AnnexItem-level retrieval: these items ask which Annex item
+            # covers a use case, and the gold citations sit at AnnexItem
+            # granularity; offer the matching Layer 1 annex-item texts too.
+            annex_hits = self._annex_index.query(question, top_k=5)
+            annex_ids = [node_id for node_id, _score, _text in annex_hits]
+            if annex_hits:
+                context_blocks.append(
+                    "Annex items from the Act, each with its node id; cite "
+                    "the annex item id when one answers the question.\n"
+                    + json.dumps(
+                        [{"id": nid, "text": text} for nid, _s, text in annex_hits],
+                        sort_keys=True,
+                    )
+                )
+        user = f"{question}\n\n" + "\n\n".join(context_blocks)
         result = _parse_result(self._generator.complete(_GEN_SYSTEM, user))
         result["offered_norm_ids"] = [d["norm_id"] for d in digests]
+        if annex_ids:
+            result["offered_annex_item_ids"] = annex_ids
         return result, digests
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:
