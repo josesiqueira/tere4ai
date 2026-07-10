@@ -50,3 +50,4 @@ data/refs/graphify-out/
 /*.pdf
 data/graph_dumps/*.nt
 data/keys/
+data/snapshots/benchmark/full_payload.json

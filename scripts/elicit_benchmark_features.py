@@ -10,6 +10,7 @@ summaries can separate authored from elicited features.
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -22,14 +23,27 @@ from tere4ai.eval import harness  # noqa: E402
 from tere4ai.extract_norms.model_clients import OpenAIGenerator  # noqa: E402
 from tere4ai.judge.config import load_model_config  # noqa: E402
 
-OUT = ROOT / "eval" / "gold" / "benchmark_features.json"
-CKPT = OUT.with_suffix(".checkpoint.jsonl")
+DEFAULT_OUT = ROOT / "eval" / "gold" / "benchmark_features.json"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--benchmark", type=Path, default=harness.BENCHMARK_SAMPLE_PATH,
+        help="benchmark payload (default: the frozen 32+15 sample)",
+    )
+    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--prompt-version", default="v2",
+        help="elicitor prompt version, recorded in the output",
+    )
+    args = parser.parse_args(argv)
+    OUT = args.out
+    CKPT = OUT.with_suffix(".checkpoint.jsonl")
+
     items = [
         i
-        for i in harness.load_benchmark_items()
+        for i in harness.load_benchmark_items(args.benchmark)
         if i.get("kind") == "classification" and not i.get("system_features")
     ]
     print(f"scenarios needing elicitation: {len(items)}")
@@ -62,7 +76,9 @@ def main() -> int:
                 done[item["id"]] = entry
                 print(f"  {item['id']}: SKIPPED (no text)", flush=True)
                 continue
-            features, notes = elicit_features(description, generator)
+            features, notes = elicit_features(
+                description, generator, prompt_version=args.prompt_version
+            )
             entry = {
                 "item_id": item["id"],
                 "features": features,
@@ -79,7 +95,7 @@ def main() -> int:
     payload = {
         "provenance": "llm_elicited",
         "elicitor_model": load_model_config().generator_model,
-        "prompt_version": "v1",
+        "prompt_version": args.prompt_version,
         "note": (
             "Machine-elicited features for benchmark free-text scenarios. The "
             "deterministic classifier still decides; elicitation only supplies "

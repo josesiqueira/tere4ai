@@ -16,6 +16,7 @@ Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -31,12 +32,12 @@ SUMMARY = RESULTS_DIR / "ablation_summary.json"
 BATCH_SIZE = 10
 
 
-def load_items() -> list[dict]:
+def load_items(benchmark_path=None, features_path=None) -> list[dict]:
     gold = harness.load_gold_items()
-    bench = harness.load_benchmark_items()
+    bench = harness.load_benchmark_items(benchmark_path or harness.BENCHMARK_SAMPLE_PATH)
     # enrich free-text scenarios with cached elicited features when present
     # (scripts/elicit_benchmark_features.py); provenance kept per item
-    features_path = ROOT / "eval" / "gold" / "benchmark_features.json"
+    features_path = features_path or ROOT / "eval" / "gold" / "benchmark_features.json"
     if features_path.exists():
         cache = json.loads(features_path.read_text(encoding="utf-8"))
         by_item = cache.get("features_by_item", {})
@@ -54,12 +55,22 @@ def load_items() -> list[dict]:
     return items
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--benchmark", type=Path, default=None,
+                        help="benchmark payload (default: the frozen sample)")
+    parser.add_argument("--features", type=Path, default=None,
+                        help="elicited-features cache (default: run-2 file)")
+    parser.add_argument("--checkpoint", type=Path, default=CHECKPOINT)
+    parser.add_argument("--summary", type=Path, default=SUMMARY)
+    args = parser.parse_args(argv)
+    checkpoint_path, summary_path = args.checkpoint, args.summary
+
     dump = json.loads((ROOT / "data" / "graph_dumps" / "layer1.json").read_text())
     norms_payload = json.loads(
         (ROOT / "data" / "graph_dumps" / "norms_core.json").read_text()
     )
-    items = load_items()
+    items = load_items(args.benchmark, args.features)
     print(f"items: {len(items)} | strategies: {strategies.STRATEGY_NAMES}")
 
     # live gates up front, zero cost on refusal
@@ -70,8 +81,8 @@ def main() -> int:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     done: set[str] = set()
     unit_results: list[dict] = []
-    if CHECKPOINT.exists():
-        for line in CHECKPOINT.read_text(encoding="utf-8").splitlines():
+    if checkpoint_path.exists():
+        for line in checkpoint_path.read_text(encoding="utf-8").splitlines():
             entry = json.loads(line)
             done.add(entry["unit"])
             unit_results.append(entry)
@@ -85,7 +96,7 @@ def main() -> int:
     judge = AnthropicJudge(cfg)
 
     batches = [items[i : i + BATCH_SIZE] for i in range(0, len(items), BATCH_SIZE)]
-    with CHECKPOINT.open("a", encoding="utf-8") as ckpt:
+    with checkpoint_path.open("a", encoding="utf-8") as ckpt:
         for strategy_name in strategies.STRATEGY_NAMES:
             fn = strategies.build_strategy(
                 strategy_name,
@@ -213,10 +224,10 @@ def main() -> int:
             )
         summary["strategies"][strategy_name] = s
 
-    tmp = SUMMARY.with_suffix(".writing.json")
+    tmp = summary_path.with_suffix(".writing.json")
     tmp.write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
-    tmp.replace(SUMMARY)
-    print(f"wrote {SUMMARY}")
+    tmp.replace(summary_path)
+    print(f"wrote {summary_path}")
     for name, s in summary["strategies"].items():
         print(f"  {name}: {json.dumps({k: v for k, v in s.items() if not isinstance(v, dict)})[:160]}")
     return 0
