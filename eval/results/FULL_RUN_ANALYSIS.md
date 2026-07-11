@@ -81,19 +81,29 @@ Provider-reported usage, summed over checkpoint units by the runner
 
 ## Consequence for task #60 (repeat-run variance)
 
-The variance study would re-spend roughly one ladder per repeat. Because
-the measured cost exceeded the estimate Jose approved, it was NOT started;
-it stays cost-gated pending a fresh quote grounded in these measured
-numbers (a single repeat of the full ladder: about 9.6 USD judge side plus
-about 2.4M generator tokens at gpt-5.2 rates).
+The variance study was not started under the original approval because
+the measured cost exceeded that estimate. Jose approved the re-quoted
+cost (about 9.6 USD judge side plus about 2.4M generator tokens per
+repeat) on 2026-07-11 and the repeat ran the same day: measured judge
+spend 9.74 USD (497 calls, 1,189,403 in / 151,682 out), generator 2,430
+calls, 1,956,709 in / 412,358 out, 0 errors. Results:
+docs/variance_study.md (generated) and ablation_variance_summary.json.
+Headline: the graph conditions flipped 0 of 345 labels between runs
+(deterministic classification empirically confirmed) with citation-set
+Jaccard 0.95 to 0.97, while plain_llm flipped 43 of 345 (12.5 percent,
+accuracy 0.617 to 0.652) and vector_rag 51 (14.8 percent). Single-run
+LLM-baseline deltas of about a dozen items are therefore within
+run-to-run noise, which bounds every cross-strategy comparison in this
+file.
 
 ## Caveats
 
 - Scenario features are machine-elicited (provenance llm_elicited, prompt
   v2); human-verified features per eval/gold/ANNOTATION_PROTOCOL.md
   supersede them.
-- Single run at temperature 0; provider-side nondeterminism means
-  few-item deltas (for example vector_rag 206 vs plain_llm 207) are not
-  meaningful differences until #60 runs.
+- Provider-side nondeterminism at temperature 0 is now measured (#60,
+  docs/variance_study.md): LLM-baseline flip rates of 12 to 15 percent
+  mean few-item deltas (for example vector_rag 206 vs plain_llm 207)
+  are noise, not differences; the graph conditions reproduce exactly.
 - Benchmark citation gold is article-level obligation lists; 0.45 is
   completeness against those lists, not sub-article granularity.

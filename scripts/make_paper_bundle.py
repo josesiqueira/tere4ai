@@ -60,6 +60,8 @@ MEMBERS: tuple[tuple[str, bool], ...] = (
     ("docs/paper_artifacts/tab_ablation_full.tex", True),
     ("eval/results/FULL_RUN_ANALYSIS.md", True),
     ("eval/results/ablation_full_summary.json", True),
+    ("docs/variance_study.md", True),
+    ("eval/results/ablation_variance_summary.json", True),
     ("docs/screenshots/assess_result_light.png", True),
     ("docs/screenshots/assess_result_dark.png", True),
     ("docs/screenshots/coverage_light.png", True),

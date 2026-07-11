@@ -47,6 +47,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   usage, every ablation checkpoint unit records its exact delta, the
   summary aggregates spend (measured judge cost 9.63 USD vs the 5.33 USD
   dry-run quote; band exceeded, lesson recorded in the analysis).
+- Repeat-run variance study (task 60, cost approved): a full second ladder
+  over the same items and frozen features; graph conditions flipped 0 of
+  345 labels (deterministic classification confirmed, citation Jaccard
+  0.95 to 0.97) while plain LLM flipped 43 and vector RAG 51; generated
+  report docs/variance_study.md, tooling scripts/variance_report.py.
 - Graph strategies: AnnexItem-level retrieval for retrieval items and
   operative-text passages with node-id citations for QA items.
 - Prompt A/B as ablation conditions (graph_full@vN) and one consolidated,

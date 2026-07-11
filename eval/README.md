@@ -163,3 +163,14 @@ estimate: judge 9.63 USD vs the 5.33 USD quote (band exceeded; chars/4
 under-counts legal text). Full analysis: results/FULL_RUN_ANALYSIS.md;
 generated matrices: ../docs/ablation_deepdive_full.md; artifacts:
 results/ablation_full_checkpoint.jsonl and ablation_full_summary.json.
+
+## Variance study findings (2026-07-11, task 60)
+
+A full repeat of the ladder (same items, same frozen features, cost
+approved) measured provider-side nondeterminism at temperature 0: the
+graph conditions flipped 0 of 345 risk labels (deterministic
+classification empirically confirmed, citation Jaccard 0.95 to 0.97),
+while plain_llm flipped 43 of 345 (12.5 percent, accuracy 0.617 to
+0.652) and vector_rag 51 (14.8 percent). Treat single-run LLM-baseline
+deltas of about a dozen items as noise. Generated report:
+../docs/variance_study.md; artifacts: results/ablation_variance_*.
