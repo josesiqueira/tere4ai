@@ -293,6 +293,42 @@ def test_discovery_endpoints(client):
     assert "compliant" not in " ".join(doc["status_vocabulary"])
 
 
+def test_discovery_advertises_exactly_the_real_api_routes(client):
+    """The .well-known endpoints block must match the app's real /api routes.
+
+    That block is a hand-maintained literal in the facade, so it can drift
+    from reality: an added, renamed, or removed endpoint would silently make
+    the agent-readiness contract lie. This pins the advertisement to the
+    actual FastAPI routes in both directions, so drift fails the build
+    (architecture Section 8 honesty; the agent-readiness surface, task 36).
+    """
+    import re
+
+    from fastapi.routing import APIRoute
+
+    def _template(path: str) -> str:
+        # Normalise FastAPI path-converter annotations ({id:path}) to the
+        # human-facing template ({id}) the discovery doc advertises; the
+        # converter is an internal routing detail, not part of the contract.
+        return re.sub(r"\{(\w+):[^}]+\}", r"{\1}", path)
+
+    doc = client.get("/.well-known/tere4ai.json").json()
+    advertised = {
+        (meta["method"], _template(meta["path"])) for meta in doc["endpoints"].values()
+    }
+    real_api = {
+        (method, _template(route.path))
+        for route in client.app.routes
+        if isinstance(route, APIRoute) and route.path.startswith("/api/")
+        for method in route.methods
+        if method in {"GET", "POST"}
+    }
+    assert advertised == real_api, (
+        f"discovery drift: advertised-not-real={advertised - real_api}, "
+        f"real-not-advertised={real_api - advertised}"
+    )
+
+
 # Explanation and trace endpoints (deterministic, free) ------------------------
 
 
