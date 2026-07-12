@@ -29,6 +29,27 @@ STATUS_VOCABULARY = (
     "requires_human_review",
 )
 
+# The mandatory response envelope of architecture.md Section 8: every
+# user-facing tool response MUST carry exactly these keys. make_envelope is
+# the single constructor and its output is asserted against this set in the
+# envelope-contract test, so the two can never drift.
+SECTION_8_ENVELOPE_FIELDS = frozenset(
+    {
+        "answer",
+        "status",
+        "confidence",
+        "source_nodes",
+        "source_spans",
+        "graph_evidence_subgraph",
+        "legal_status_notes",
+        "missing_facts",
+        "judge_verdict",
+        "generated_at",
+        "graph_version",
+        "non_legal_advice_notice",
+    }
+)
+
 # Legal caveat, docs/architecture.md Section 0. Included in every response.
 NON_LEGAL_ADVICE_NOTICE = (
     "TERE4AI provides engineering and documentation support. It does not "

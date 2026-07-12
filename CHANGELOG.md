@@ -19,6 +19,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   rdflib roundtrip and full-norm-coverage integration tests.
 
 ### Runtime tools
+- Section 8 envelope contract: the mandatory response-field set is now a
+  named constant (SECTION_8_ENVELOPE_FIELDS) and a cross-cutting test fires
+  every envelope-returning facade endpoint across all classification tiers,
+  asserting the complete field set, a calibrated status (never a compliance
+  claim), and the non-legal-advice notice on every response. Catches drift
+  at the honesty boundary that per-endpoint tests can miss.
 - Classification depth: the Article 6(1) embedded-product route (Annex I
   plus third-party conformity assessment) and the real Article 6(3)
   second-subparagraph conditions with the profiling override; four new
