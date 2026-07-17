@@ -34,6 +34,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   (MCP tool evaluate_project_evidence_batch).
 - Backlog grouping: identical-norm-set items merge into one control;
   mechanical priority reads conditions (conditional obligations are should).
+- Fresh-clone reproducibility: the dump-dependent facade tests (envelope
+  contract, facade/MCP parity, HTTP facade) now skip cleanly when the
+  published graph dumps are absent instead of failing (31 failures on a
+  dumpless checkout before; the guard checks the same dump location the
+  facade resolves), and the README documents how dumps are obtained.
 - Remote MCP transport (streamable HTTP) behind TERE4AI_MCP_TRANSPORT=http,
   gated by scoped, revocable t4a_ API keys with body-free usage metering
   (scripts/manage_mcp_keys.py).

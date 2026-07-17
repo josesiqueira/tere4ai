@@ -44,6 +44,17 @@ python3 -m venv .venv
 
 # optional: load into Neo4j (set NEO4J_PASSWORD in .env first)
 docker compose up -d
+```
+
+Note on graph dumps: `data/graph_dumps/` holds published build artifacts and
+is gitignored. `layer1.json` rebuilds deterministically with the
+parse_legal_structure command above (no cost). `norms_core.json` and
+`alignments_core.json` come from the judged Layer 2/3 pipeline, which makes
+paid model calls; obtain them from a published release or rebuild via the
+pipeline (architecture.md Section 6). On a clone without these dumps the
+dump-dependent facade tests skip cleanly instead of failing.
+
+```bash
 
 # demo web UI (thin, read-only; docs/DESIGN.md)
 .venv/bin/python scripts/export_ui_data.py

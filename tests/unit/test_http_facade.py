@@ -9,6 +9,8 @@ writes are redirected to tmp_path.
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,6 +18,18 @@ from fastapi.testclient import TestClient
 import tere4ai.http_facade.app as facade
 from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.judge.config import ModelConfigError
+
+# The judged dumps are published build artifacts (gitignored), so a fresh
+# clone has none; skip cleanly instead of failing, checking the same dump
+# location the facade itself resolves (default dir or TERE4AI_DUMP_DIR).
+_DUMP_DIR = Path(os.environ.get(facade.DUMP_DIR_ENV) or facade.DEFAULT_DUMP_DIR)
+pytestmark = pytest.mark.skipif(
+    not all(
+        (_DUMP_DIR / name).is_file()
+        for name in ("layer1.json", "norms_core.json", "alignments_core.json")
+    ),
+    reason="graph dumps not present (published build artifacts; see README quick start)",
+)
 
 # Triage scenario: hospital emergency-department triage support. All
 # prohibition-relevant flags are known false, so the deterministic ladder

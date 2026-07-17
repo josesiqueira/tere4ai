@@ -21,7 +21,9 @@ test still passes.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -33,6 +35,18 @@ from tere4ai.mcp_server.tools import (
     SECTION_8_ENVELOPE_FIELDS,
     STATUS_VOCABULARY,
     make_envelope,
+)
+
+# The judged dumps are published build artifacts (gitignored), so a fresh
+# clone has none; skip cleanly instead of failing, checking the same dump
+# location the facade itself resolves (default dir or TERE4AI_DUMP_DIR).
+_DUMP_DIR = Path(os.environ.get(facade.DUMP_DIR_ENV) or facade.DEFAULT_DUMP_DIR)
+pytestmark = pytest.mark.skipif(
+    not all(
+        (_DUMP_DIR / name).is_file()
+        for name in ("layer1.json", "norms_core.json", "alignments_core.json")
+    ),
+    reason="graph dumps not present (published build artifacts; see README quick start)",
 )
 
 ACCEPTED_NORM_ID = "norm:eu-ai-act:article-9:paragraph-1:n1"
