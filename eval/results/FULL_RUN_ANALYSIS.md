@@ -24,7 +24,13 @@ untouched and remain the run-2 record.
 The run-2 pattern holds at 10x scale: the plain LLM wins raw benchmark
 accuracy but cites nothing checkable; the graph ladder answers with
 citations whose article-level completeness is 0.45 and whose hallucination
-rate is exactly zero across 4,372 to 4,392 emitted citations per condition.
+rate rounds to 0.000 across 4,372 to 4,392 checked citations per condition.
+Precisely: graph_no_judge 0/4,391 and graph_full 0/4,372 hallucinated;
+graph_build_judge 1/4,376 (rate 0.000229), the single flagged id being
+eu-ai-act:article-27:paragraph-1:n5, a norm-suffixed paragraph id the
+checker could not resolve against the graph. The claim is therefore "at
+most 1 hallucinated citation in ~4,380 per condition, caught by the
+checker", not "exactly zero".
 The three graph conditions are identical on classification because the
 deterministic ladder decides (DEC-13); the judges gate grounding, not the
 risk label.

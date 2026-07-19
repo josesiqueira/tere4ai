@@ -422,12 +422,14 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-09: Neo4j primary plus RDF export. grounded_by REF-21, REF-22, REF-08, REF-25, REF-23.
   Defense: edge-native provenance and a reject-not-infer task fit property graphs.
   verify: graph_store/ uses Neo4j; rdf_export_roundtrip test.
-- DEC-10: full structural mirror, deep only on high-risk core. grounded_by REF-17, REF-15.
+- DEC-10: full structural mirror, deep only on high-risk core. grounded_by
+  REF-17, REF-15, ADD-24.
   Defense: value and benchmarks concentrate on the high-risk regime.
   verify: coverage_report shows full Layer 1, Layer 2/3 only on Section 10 set.
 - DEC-11: reuse open benchmark plus sibling baselines. grounded_by REF-15, REF-16, REF-17.
   Defense: an open benchmark covers our tasks; siblings are the baselines.
-  verify: eval/ loads REF-15; eval/baselines/ implements vector-RAG and no-judge.
+  verify: eval/ loads REF-15; src/tere4ai/eval/strategies.py implements the
+  vector-RAG and no-judge baseline conditions.
 - DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02, REF-04.
   Defense: it is adopted and changes the in-force text and the dates.
   verify: SourceDocument for COM(2025)836 with AMENDS/HAS_VERSION; versioning test.
@@ -440,7 +442,8 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   missing_facts guard stay the sole decision path.
   verify: src/tere4ai/elicit_features/ never outputs a classification; flags
   without textual support omitted; elicitation-vs-abstention measured in the
-  ablation artifacts (eval/results/RUN2_ANALYSIS.md).
+  ablation artifacts (eval/results/FULL_RUN_ANALYSIS.md, docs/variance_study.md;
+  earlier sweep in eval/results/RUN2_ANALYSIS.md).
 
 ## 17. Implementation-traceability convention
 

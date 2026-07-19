@@ -29,13 +29,21 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
 2. `get_applicable_requirements(classification, actor?)`: judge-accepted
    normative statements for the classified category, grouped by article,
    each with its source node and span ids.
-3. `evaluate_project_evidence(norm_id, artifact_type, content)` (PAID):
+3. `explain_requirement(norm_id)`: one norm in depth: deontic reading,
+   source span, Article 3 definitions in play, and its HLEG alignments.
+   Free, deterministic.
+4. `trace_alignment(id)`: the reified ethics alignments for a norm or
+   article, with judge scores and evidence spans. The EU-to-HLEG mappings
+   are LLM-generated and not expert-validated; the envelope says so. Free,
+   deterministic.
+5. `evaluate_project_evidence(norm_id, artifact_type, content)` (PAID):
    assesses one artifact against one norm; quotes are mechanically verified
    against your text; a runtime grounding judge gates every answer.
-4. `generate_control_backlog(norm_ids, system_context)` (PAID): engineering
+6. `generate_control_backlog(norm_ids, system_context)` (PAID): engineering
    backlog items citing only the provided norms.
-5. `coverage_report()` and `source_trace(node_id)`: graph coverage and
-   span-level provenance for any node id.
+7. `coverage_report()`, `source_trace(node_id)`, and `resolve_span(span_id)`:
+   graph coverage, span-level provenance for any node id, and the
+   checksum-verified exact source text behind any span id.
 
 ## Read every response the same way
 
