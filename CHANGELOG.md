@@ -39,6 +39,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   published graph dumps are absent instead of failing (31 failures on a
   dumpless checkout before; the guard checks the same dump location the
   facade resolves), and the README documents how dumps are obtained.
+- Two standing integrity gates codify what previous audits verified by
+  hand: the published dumps must match exactly one recorded build-chain
+  checksum record (a tampered dump fails the gate), and a citation census
+  resolves every judge-accepted norm's source span through the production
+  resolver to checksum-verified, non-empty source text (339 norms over
+  155 unique spans, about one second).
 - Remote MCP transport (streamable HTTP) behind TERE4AI_MCP_TRANSPORT=http,
   gated by scoped, revocable t4a_ API keys with body-free usage metering
   (scripts/manage_mcp_keys.py).
