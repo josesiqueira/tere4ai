@@ -58,6 +58,20 @@ venue found; treat as preprint.
 Act Compliant Requirements", Siqueira de Cerqueira et al., REFSQ 2026 Posters
 and Tools, CEUR-WS Vol. 4208 (pt-short4). CORE.
 
+**[SELF-05]** PEER. "Can We Trust AI Agents? A Case Study of an LLM-Based
+Multi-Agent System for Ethical AI", Siqueira de Cerqueira, Agbese, Rousi, Xi,
+Hamari, Abrahamsson, 8th Conference on Technology Ethics (TETHICS 2025),
+Vaasa, Finland, 11 to 12 November 2025, CEUR-WS (CC BY 4.0). SUPPORTING.
+[VERIFY] CEUR-WS volume and page numbers against the published proceedings.
+The author's first PhD paper: identifies four trustworthiness-enhancing
+techniques for LLM-based systems from the literature (multi-agent
+collaboration, specialised roles, structured communication, multiple rounds
+of debate) and prototypes an LLM multi-agent system for ethical AI. Held as
+data/refs/SELF-05_CanWeTrustAIAgents.pdf. Lineage note: those four
+techniques are the historical predecessors of this project's judge-gated,
+mechanically-checked pipeline; the surviving idea (adversarial review of
+generated claims) is realised here as the independent judge family (DEC-07).
+
 ## Legal source and structure
 
 **[REF-01]** OFF. Regulation (EU) 2024/1689 of the European Parliament and of

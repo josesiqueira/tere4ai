@@ -45,6 +45,12 @@ ADD-26 (CEUR Vol-4085 paper14).
 - REF-14b (Ostrom book) held for background only; stays DROPPED from the
   citation register.
 
+## Held: added by the user 2026-07-20 (author's own work)
+
+- SELF-05 (SELF-05_CanWeTrustAIAgents.pdf, TETHICS 2025, CEUR-WS, CC BY 4.0).
+  Camera-ready conference paper, the author's first PhD paper. [VERIFY] the
+  CEUR-WS volume and pages before the thesis. Cite as PEER (SUPPORTING).
+
 ## Not held (see paywalled.md)
 
 REF-14c only.

@@ -12,16 +12,17 @@
 > Formatting rule: never use em dashes, and never use en dashes as a
 > sentence break.
 >
-> Register note: the author's earlier papers SELF-01 to SELF-04 are the
-> lineage of these strategies (see the final section). A fifth self
-> reference (the author's first PhD paper, containing early
-> trustworthiness-enhancing strategies such as multi-round debate, role
-> assignment, and structured conversation) is pending: the file supplied as
-> data/refs/paper6.pdf was empty (0 bytes) and could not be read or
-> registered. When a readable copy lands it becomes SELF-05, with the
-> honest framing that several of its strategies are historical: superseded
-> by judge-gated pipelines and agent harnesses, of which this codebase is
-> the successor.
+> Register note: the author's earlier papers SELF-01 to SELF-05 are the
+> lineage of these strategies (see the final section). SELF-05 (registered
+> 2026-07-20, "Can We Trust AI Agents?", TETHICS 2025, held as
+> data/refs/SELF-05_CanWeTrustAIAgents.pdf) is the author's first PhD paper.
+> It identified four trustworthiness-enhancing techniques for LLM-based
+> systems (multi-agent collaboration, specialised roles, structured
+> communication, multiple rounds of debate). Those are the historical
+> predecessors of this project's judge-gated, mechanically-checked pipeline:
+> useful as motivation and lineage, but superseded here by an independent
+> judge family plus deterministic mechanical checks, which are stronger
+> controls than role-play debate among same-family agents.
 
 ## How to read the grounding column
 
