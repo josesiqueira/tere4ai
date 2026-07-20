@@ -194,10 +194,10 @@ def build() -> str:
     lane_label(996, "WHERE EVERY JUDGE VALUE LIVES  (nothing is hidden; build values are static per build, runtime values are per call)")
     y = 1016
     box(40, y, 520, 150, "JudgeRun records (static per build)",
-        ["inside norms_core.json and alignments_core.json:", "verdict, rationale, all 5 scores, judge model,", "prompt version, timestamps; 442 extraction +", "636 alignment runs in the current build;", "regenerated only by a new judged build or", "a human adjudication"],
+        ["inside norms_core.json and alignments_core.json:", "verdict, rationale, all 5 scores, judge model,", "prompt version AND prompt sha256, timestamps;", "442 extraction + 636 alignment runs this build;", "regenerated only by a new judged build or", "a human adjudication"],
         JUDGE, "#191426", title_size=13.5)
     box(600, y, 520, 150, "Append-only audit logs (JSONL)",
-        ["data/review_queue/extraction_log.jsonl,", "alignment_log.jsonl, runtime_log.jsonl:", "one event per call with model, prompt version,", "verdict, rationale, input sha256 (text never", "logged; secrets scrubbed); merge with", "scripts/consolidated_audit.py"],
+        ["data/review_queue/extraction_log.jsonl,", "alignment_log.jsonl, runtime_log.jsonl: one", "event per call with model, prompt version +", "sha256, verdict, rationale, input sha256 (text", "never logged; secrets scrubbed); merge with", "scripts/consolidated_audit.py"],
         MECH, "#141920", title_size=13.5)
     box(1160, y, 480, 150, "The envelope (per call, dynamic)",
         ["every runtime answer carries judge_verdict,", "judge_rationale (in answer), confidence,", "and judge_run_id; two identical paid calls", "may differ (model nondeterminism), which is", "why the verdict gates and the scores only", "describe"],
@@ -229,9 +229,13 @@ def build() -> str:
         text(48, yy, c, size=12, fill="#8ab4f8", anchor="start")
         yy += 22
 
+    text(W / 2, 1478,
+         "Change detection: every event and JudgeRun also logs the prompt's sha256, so editing a prompt file is "
+         "detectable even at the same version label, and tied to the decisions it made.",
+         size=13, fill=MUTED)
     text(W / 2, 1500,
          "Independence: the generator is OpenAI, all judges are Anthropic Claude (DEC-07); the config loader "
-         "rejects an OpenAI-family judge and both run at temperature 0.",
+         "rejects an OpenAI-family judge (or one equal to the generator) and both run at temperature 0.",
          size=13, fill=MUTED)
     text(W / 2, 1522,
          "Honest limits, stated: judge FA/FR rates are instrumented but unmeasured until the 50-decision human "
