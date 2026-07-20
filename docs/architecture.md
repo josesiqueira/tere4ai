@@ -453,8 +453,11 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Article 6(2) route, the Annex III point 2 exception, the two deployer
   categories, Annex III points 5(b) and (c)), so applicability is
   rule-decidable; only the obligation's applicability is decided, never the
-  assessment's content, and unsettled facts yield "unknown" with each missing
-  fact named.
+  assessment's content (scope decision 2026-07-20: TERE4AI will not generate
+  FRIA content), and unsettled facts yield "unknown" with each missing fact
+  named, including a pending Article 6(3) derogation candidacy. The
+  Omnibus-postponed application date rides on the block as data
+  (applies_from), never as control flow, per the Section 11 overlay pattern.
   verify: src/tere4ai/mcp_server/fria.py (no model imports); classify answers
   carry the fria block and get_applicable_requirements passes it through;
   tests/unit/test_fria.py.

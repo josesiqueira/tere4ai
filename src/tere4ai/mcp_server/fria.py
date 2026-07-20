@@ -37,9 +37,29 @@ from __future__ import annotations
 from typing import Any
 
 ARTICLE_27_PARAGRAPH_1 = "eu-ai-act:article-27:paragraph-1"
+ARTICLE_6_PARAGRAPH_3 = "eu-ai-act:article-6:paragraph-3"
 ANNEX_III_POINT_2 = "eu-ai-act:annex-iii:point-2"
 ANNEX_III_POINT_5B = "eu-ai-act:annex-iii:point-5:b"
 ANNEX_III_POINT_5C = "eu-ai-act:annex-iii:point-5:c"
+
+# Timeline as DATA, never control flow (architecture.md Section 11: the
+# Omnibus is an overlay, both versions stay answerable). Checked 2026-07-20:
+# Parliament approved 16 June 2026, Council 29 June 2026; the final OJ text
+# is not yet published (TASKS.md C1), so the status stays
+# adopted_not_yet_applicable and the date must be reconfirmed against the
+# OJ text when it lands.
+FRIA_APPLIES_FROM = {
+    "date": "2027-12-02",
+    "meaning": (
+        "standalone Annex III high-risk obligations, Article 27 included, "
+        "apply at the latest from this date under the Digital Omnibus on AI"
+    ),
+    "legal_status": "adopted_not_yet_applicable",
+    "source": (
+        "REF-02 (Digital Omnibus on AI); final OJ reference pending "
+        "publication, date to reconfirm against the OJ text (TASKS.md C1)"
+    ),
+}
 
 # Closed outcome vocabulary. Never "compliant", never a percentage.
 FRIA_APPLICABILITY_VOCABULARY = ("applies", "does_not_apply", "unknown")
@@ -89,6 +109,7 @@ def _block(
         "rationale": rationale,
         "basis_nodes": basis_nodes,
         "missing_facts": missing_facts,
+        "applies_from": FRIA_APPLIES_FROM,
         "note": _SCOPE_NOTE,
     }
 
@@ -98,14 +119,18 @@ def assess_fria_applicability(
     annex_iii_category: str | None,
     flags: dict[str, Any],
     deployer: dict[str, Any],
+    article_6_3_exception_candidate: bool = False,
 ) -> dict[str, Any]:
     """Decide whether the Article 27(1) FRIA obligation applies.
 
-    risk_category and annex_iii_category come from the deterministic
-    classification answer; flags and deployer are the structured input
-    facts. Returns the closed-vocabulary fria block. Absent facts are
-    unknown, never false; when they could change the outcome the answer is
-    "unknown" with each missing fact named.
+    risk_category, annex_iii_category, and the Article 6(3) derogation
+    candidacy come from the deterministic classification answer; flags and
+    deployer are the structured input facts. Returns the closed-vocabulary
+    fria block. Absent facts are unknown, never false; when they could
+    change the outcome the answer is "unknown" with each missing fact
+    named. A pending Article 6(3) derogation blocks the decision: a
+    confirmed derogation would take the system out of Article 6(2), and
+    with it out of Article 27(1).
     """
     rationale: list[str] = []
     basis = [ARTICLE_27_PARAGRAPH_1]
@@ -143,6 +168,24 @@ def assess_fria_applicability(
             "matched the provided facts"
         )
         return _block("does_not_apply", rationale, basis, missing)
+
+    if article_6_3_exception_candidate:
+        # The ladder never auto-applies the Article 6(3) derogation; it
+        # flags candidacy for a human legal decision. Until that decision
+        # exists the system's Article 6(2) status is unsettled, and so is
+        # the Article 27(1) obligation that presupposes it.
+        basis.append(ARTICLE_6_PARAGRAPH_3)
+        missing.append(
+            "the Article 6(3) derogation candidacy is pending human legal "
+            "review; a confirmed derogation takes the system out of Article "
+            "6(2) and with it out of the Article 27(1) FRIA obligation"
+        )
+        rationale.append(
+            "the classification flags Article 6(3) derogation candidacy; "
+            "FRIA applicability stays unknown until a human reviewer "
+            "settles whether the system remains high-risk under Article 6(2)"
+        )
+        return _block("unknown", rationale, basis, missing)
 
     system_trigger_hits = [
         (flag, node, label)

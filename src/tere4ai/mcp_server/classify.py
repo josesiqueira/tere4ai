@@ -755,6 +755,12 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         rule, _trigger, _notes = _annex_iii_scan(flags, domain)
         annex_node = rule["node"] if rule else None
     answer["fria"] = assess_fria_applicability(
-        answer.get("risk_category"), annex_node, flags, deployer
+        answer.get("risk_category"),
+        annex_node,
+        flags,
+        deployer,
+        article_6_3_exception_candidate=(
+            answer.get("article_6_3_exception_candidate") is True
+        ),
     )
     return envelope

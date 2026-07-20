@@ -71,6 +71,16 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   trigger is routed to human review; get_applicable_requirements passes
   the block through next to the article-27 obligations. Only applicability
   is decided, never the assessment's content.
+- DEC-14 hardening (same day, scope decision recorded: TERE4AI detects
+  whether a FRIA is required and will not generate FRIA content): a pending
+  Article 6(3) derogation candidacy now blocks the FRIA decision (unknown,
+  naming the pending human review) instead of letting a deployer trigger
+  force "applies" past an unsettled Article 6(2) status; and every fria
+  block carries applies_from as data, never control flow (2 December 2027
+  for standalone Annex III obligations per the Digital Omnibus, status
+  adopted_not_yet_applicable, final OJ reference pending, checked
+  2026-07-20: Parliament 16 June and Council 29 June 2026 approvals, OJ
+  publication imminent).
 - Remote MCP transport (streamable HTTP) behind TERE4AI_MCP_TRANSPORT=http,
   gated by scoped, revocable t4a_ API keys with body-free usage metering
   (scripts/manage_mcp_keys.py).

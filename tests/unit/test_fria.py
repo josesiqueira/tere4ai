@@ -146,6 +146,59 @@ def test_unknown_trigger_facts_are_each_named_never_guessed():
     assert all("not treated as false" in m for m in block["missing_facts"])
 
 
+def test_fraud_detection_carve_out_is_inherited_from_the_flag_definition():
+    """Annex III point 5(b) carves out AI systems used for the purpose of
+    detecting financial fraud. The carve-out is definitional, not a second
+    rule: the schema definition of creditworthiness_evaluation excludes
+    fraud-detection systems, so their fact enters as explicitly false and
+    branch (b) never fires. This test documents that inheritance."""
+    block = assess_fria_applicability(
+        "high_risk",
+        POINT_5,
+        {
+            "creditworthiness_evaluation": False,
+            "life_health_insurance_risk_pricing": False,
+        },
+        {
+            "body_governed_by_public_law": False,
+            "private_entity_providing_public_services": False,
+        },
+    )
+    assert block["applicability"] == "does_not_apply"
+
+
+def test_pending_article_6_3_derogation_blocks_the_decision():
+    """The ladder never auto-applies the Article 6(3) derogation; while
+    candidacy awaits the human decision, the system's Article 6(2) status
+    is unsettled and so is Article 27(1). Even a settled deployer trigger
+    must not force "applies" past that."""
+    block = assess_fria_applicability(
+        "high_risk",
+        POINT_4,
+        {},
+        {"body_governed_by_public_law": True},
+        article_6_3_exception_candidate=True,
+    )
+    assert block["applicability"] == "unknown"
+    assert any("Article 6(3)" in m for m in block["missing_facts"])
+    assert "eu-ai-act:article-6:paragraph-3" in block["basis_nodes"]
+
+
+def test_applies_from_is_data_never_control_flow():
+    """The Omnibus-postponed application date rides on every block as data
+    (architecture.md Section 11 overlay pattern) and never changes the
+    decision itself."""
+    for args in (
+        ("high_risk", POINT_5, {"creditworthiness_evaluation": True}, {}),
+        ("minimal_or_none", None, {}, {}),
+    ):
+        block = assess_fria_applicability(*args)
+        applies_from = block["applies_from"]
+        assert applies_from["date"] == "2027-12-02"
+        assert applies_from["legal_status"] == "adopted_not_yet_applicable"
+        assert "OJ" in applies_from["source"]
+
+
 def test_vocabulary_is_closed_and_output_never_claims_compliance():
     scenarios = [
         ("high_risk", POINT_5, {"creditworthiness_evaluation": True}, {}),
@@ -270,6 +323,41 @@ def test_article_6_1_route_still_checks_6_2_membership_for_fria(dump):
     assert answer["annex_iii_category"] is None, "ladder took the 6(1) route"
     assert answer["fria"]["applicability"] == "applies"
     assert ANNEX_III_POINT_5B in answer["fria"]["basis_nodes"]
+
+
+def test_derogation_candidacy_flows_from_ladder_to_fria_block(dump):
+    """Envelope level: an Annex III system with a matched Article 6(3)
+    condition and profiling explicitly false keeps candidacy, so the fria
+    block goes unknown even with a public-law deployer."""
+    features = _credit_scorer_features(
+        deployer={"body_governed_by_public_law": True}
+    )
+    features["flags"].pop("creditworthiness_evaluation")
+    features["flags"]["employment_decisions"] = True
+    features["flags"]["improves_previous_human_activity"] = True
+    features["flags"]["profiling_of_natural_persons"] = False
+    envelope = classify_ai_system(features, dump)
+    answer = envelope["answer"]
+    assert answer["article_6_3_exception_candidate"] is True
+    assert answer["fria"]["applicability"] == "unknown"
+    assert any("Article 6(3)" in m for m in answer["fria"]["missing_facts"])
+
+
+def test_profiling_cancels_derogation_then_branch_logic_proceeds(dump):
+    """Article 6(3) third subparagraph: profiling systems stay high-risk,
+    candidacy is cancelled, and the FRIA branches decide normally."""
+    features = _credit_scorer_features(
+        deployer={"body_governed_by_public_law": True}
+    )
+    features["flags"].pop("creditworthiness_evaluation")
+    features["flags"]["employment_decisions"] = True
+    features["flags"]["improves_previous_human_activity"] = True
+    features["flags"]["profiling_of_natural_persons"] = True
+    envelope = classify_ai_system(features, dump)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["article_6_3_exception_candidate"] is False
+    assert answer["fria"]["applicability"] == "applies"
 
 
 def test_requirements_pass_the_fria_block_through_verbatim(dump):
