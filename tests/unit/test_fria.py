@@ -35,6 +35,16 @@ POINT_4 = "eu-ai-act:annex-iii:point-4"
 POINT_5 = "eu-ai-act:annex-iii:point-5"
 
 
+# Trust-split guard (audit W6): DEC-14's whole defense is that the FRIA rule
+# is deterministic and never calls a model. Pin it, like classify/requirements.
+def test_fria_module_imports_no_model_client():
+    import tere4ai.mcp_server.fria as fria_mod
+
+    source = Path(fria_mod.__file__).read_text(encoding="utf-8")
+    for forbidden in ("openai", "anthropic", "model_client", "ModelClient", "fastmcp"):
+        assert forbidden not in source, f"fria.py must not import {forbidden}"
+
+
 # Pure rule -------------------------------------------------------------------
 
 

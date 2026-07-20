@@ -151,6 +151,14 @@ def test_classify_every_tier_is_a_calibrated_envelope(client, features):
     assert_section8_envelope(env)
     # The tier lives in answer.risk_category, never as a status compliance claim.
     assert "risk_category" in env["answer"]
+    # The FRIA block (DEC-14) must survive the serialization boundary, with a
+    # closed-vocabulary applicability (audit W7), not only in-process.
+    assert "fria" in env["answer"], "served classify envelope dropped the fria block"
+    assert env["answer"]["fria"]["applicability"] in (
+        "applies",
+        "does_not_apply",
+        "unknown",
+    )
 
 
 def test_requirements_response_is_a_calibrated_envelope(client):

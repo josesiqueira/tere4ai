@@ -122,23 +122,25 @@ def _empty_content_envelope(field: str, dump: dict[str, Any]) -> dict[str, Any]:
 
 
 def _dump_missing_envelope() -> dict[str, Any]:
+    # Name the file, not the absolute server path (audit W4: no filesystem
+    # layout disclosure to the consumer).
     return tools.dump_unavailable_envelope(
-        f"graph dump not available at {DUMP_PATH}; build it with "
+        f"graph dump '{DUMP_PATH.name}' not available; build it with "
         "python -m tere4ai.parse_legal_structure"
     )
 
 
 def _norms_missing_envelope() -> dict[str, Any]:
     return tools.dump_unavailable_envelope(
-        f"judged norms payload not available at {NORMS_PATH}; build it with "
-        "python -m tere4ai.extract_norms"
+        f"judged norms payload '{NORMS_PATH.name}' not available; build it "
+        "with python -m tere4ai.extract_norms"
     )
 
 
 def _alignments_missing_envelope() -> dict[str, Any]:
     return tools.dump_unavailable_envelope(
-        f"judged alignments payload not available at {ALIGNMENTS_PATH}; build "
-        "it with python -m tere4ai.align_hleg_altai"
+        f"judged alignments payload '{ALIGNMENTS_PATH.name}' not available; "
+        "build it with python -m tere4ai.align_hleg_altai"
     )
 
 

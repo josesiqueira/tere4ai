@@ -85,6 +85,35 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   gated by scoped, revocable t4a_ API keys with body-free usage metering
   (scripts/manage_mcp_keys.py).
 
+### Audit fixes (2026-07-20 full-system audit, docs/AUDIT_2026-07-20.md)
+- Classifier unknown-fact discipline (D1): unknown Annex III high-risk flags
+  are now surfaced in missing_facts and block a confident minimal_or_none
+  verdict, mirroring the prohibition flags; a genuine high-risk system
+  described without the exact flag is no longer cleared as "not regulated" at
+  confidence 1.0. Domain is Unicode-normalised (D8) so an invisible or
+  homoglyph character cannot silently make a known domain read as
+  out-of-scope.
+- Article 5 exculpating-fact model (D2): the prohibition flags no longer
+  collapse the statute's qualifiers and exceptions; each qualified point
+  carries an exculpating fact, so a lawful system (a medical/safety emotion
+  system, a fact-based investigator-support tool) is not marked prohibited at
+  confidence 1.0, and an unknown exception fact routes to human review.
+- FRIA correctness (D5/D6/D7): the point-2 exception is scoped to the area,
+  not the whole system, so a multi-area public-body system keeps its
+  obligation; an unsettled classification or a pending Article 6(3) derogation
+  degrades the FRIA block to unknown instead of a confident applies.
+- Runtime integrity and honesty (D3/D4/D9): the server verifies the served
+  dumps against a recorded build chain at startup (hard-fail behind
+  TERE4AI_MCP_REQUIRE_DUMP_INTEGRITY=1); the evidence and backlog tools
+  resolve each norm's verbatim source_text before the model so the grounding
+  judge can detect paraphrase drift in production; empty content degrades to a
+  Section 8 envelope instead of raising.
+- Hardening: FRIA rule model-free guard test and served-envelope guard;
+  mechanical quote-check JudgeRun now carries a content hash of its own logic;
+  degraded envelopes name files, not absolute server paths; SKILL.md, llms.txt
+  and trustworthiness_strategies.md advertise the FRIA block; the SELF-05
+  registration contradiction is fixed.
+
 ### Evaluation and evidence
 - Full REF-15 benchmark frozen (339 scenarios + 137 QA, sha256-verified)
   and a dry-run cost estimator for the full-benchmark gate

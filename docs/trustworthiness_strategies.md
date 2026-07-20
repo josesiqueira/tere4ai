@@ -49,6 +49,20 @@ merit, this document says so explicitly instead of inventing a citation.
 - See it: POST /api/classify; the envelope's answer.rationale names the exact
   rule that fired; docs/variance_study.md records 0/345 repeat-run label flips.
 
+### 1b. Deterministic FRIA applicability (DEC-14)
+- Grounding: REF-01 (OFF, Article 27(1) verbatim), REF-30 (PRAC, the FLI
+  checker treats FRIA applicability as form-decidable, corroborating not sole).
+  Determinism and the trust split are the engineering MUST (Section 13).
+- Implementation: src/tere4ai/mcp_server/fria.py (pure rule, no model imports);
+  every classify answer carries answer.fria (applies / does_not_apply /
+  unknown), get_applicable_requirements passes it through. The point-2
+  exception is scoped to the area, a pending Article 6(3) derogation or an
+  unsettled classification degrades to unknown, and the Omnibus application
+  date rides as data (applies_from), not control flow.
+- Tests: tests/unit/test_fria.py (decision matrix, multi-area, unsettled,
+  6(3) blocking; source-level no-model-import guard).
+- See it: POST /api/classify; read answer.fria.rationale and basis_nodes.
+
 ### 2. Fact elicitation split from decision (DEC-13)
 - Grounding: REF-17 (PRE), REF-16 (PEER: extraction accuracy limits motivate
   keeping extraction away from the decision).
@@ -359,10 +373,11 @@ merit, this document says so explicitly instead of inventing a citation.
   grounding).
 - SELF-04 (PEER, REFSQ 2026 Posters and Tools): TERE4AI as a tool; the
   published claim this codebase stays traceable to.
-- SELF-05 (pending): the author's first PhD paper with early
-  trustworthiness-enhancing strategies (multi-round debate, roles,
-  structured conversation). Awaiting a readable PDF (the supplied file was
-  empty); to be registered with the honest framing that those strategies are
-  the historical layer this project's judge-gated, mechanically-checked
-  pipeline supersedes, while the underlying idea (adversarial review of
-  generated claims) survives here as the independent judge family.
+- SELF-05 (registered, held as data/refs/SELF-05_CanWeTrustAIAgents.pdf):
+  the author's first PhD paper with early trustworthiness-enhancing
+  strategies (multi-agent collaboration, specialised roles, structured
+  communication, multiple rounds of debate). Registered with the honest
+  framing that those strategies are the historical layer this project's
+  judge-gated, mechanically-checked pipeline supersedes, while the
+  underlying idea (adversarial review of generated claims) survives here as
+  the independent judge family (DEC-07).

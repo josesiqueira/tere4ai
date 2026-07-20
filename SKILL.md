@@ -25,7 +25,12 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
    real Article 5 and Annex III nodes. Input schema:
    `schema/json_schemas/system_features.schema.json`. Provide every fact you
    know; ABSENT flags are treated as unknown, never as false, and surface in
-   `missing_facts`. The classification never comes from a language model.
+   `missing_facts`. The classification never comes from a language model. The
+   answer also carries `answer.fria`: whether the Article 27(1) fundamental
+   rights impact assessment obligation applies (applies / does_not_apply /
+   unknown), decided by the same deterministic rules from the flags and the
+   optional `deployer` facts. It reports only whether a FRIA is required, not
+   the assessment content.
 2. `get_applicable_requirements(classification, actor?)`: judge-accepted
    normative statements for the classified category, grouped by article,
    each with its source node and span ids.
@@ -41,6 +46,9 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
    against your text; a runtime grounding judge gates every answer.
 6. `generate_control_backlog(norm_ids, system_context)` (PAID): engineering
    backlog items citing only the provided norms.
+7. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`
+   (PAID): one artifact against every judge-accepted norm of one article, in a
+   single envelope with per-norm results and worst-case aggregation.
 7. `coverage_report()`, `source_trace(node_id)`, and `resolve_span(span_id)`:
    graph coverage, span-level provenance for any node id, and the
    checksum-verified exact source text behind any span id.

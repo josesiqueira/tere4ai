@@ -77,6 +77,21 @@ def _alignments_validator() -> Draft202012Validator:
     return Draft202012Validator(schema)
 
 
+def _mechanical_gate_sha256() -> str:
+    """Content hash of the mechanical quote-check logic (audit W2).
+
+    The mechanical gate has no prompt, but its JudgeRuns still deserve the
+    same tamper-evidence as the LLM judges: hash the source of the gate's
+    two functions so a silent edit to the whitespace normalisation or the
+    substring check is detectable on the records it produced.
+    """
+    import inspect
+
+    return prompt_sha256(
+        inspect.getsource(_normalise_ws) + inspect.getsource(_quote_found)
+    )
+
+
 def _normalise_ws(text: str) -> str:
     return _WHITESPACE.sub(" ", text).strip()
 
@@ -153,6 +168,7 @@ def _mechanical_judge_run(
         "judge_kind": "mapping",
         "judge_model": MECHANICAL_JUDGE_MODEL,
         "prompt_version": prompt_version,
+        "prompt_sha256": _mechanical_gate_sha256(),
         "verdict": "rejected",
         "scores": _zero_scores(),
         "rationale": "quote not found in source",

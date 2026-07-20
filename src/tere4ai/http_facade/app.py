@@ -157,9 +157,10 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             for name, payload in (("layer1.json", app.state.dump), ("norms_core.json", app.state.norms))
             if payload is None
         ]
+        # Name the files, not the absolute server directory (audit W4).
         app.state.load_error = (
-            f"graph dumps unavailable: missing or unreadable {', '.join(missing)} "
-            f"under {base}; build them with python -m tere4ai.parse_legal_structure "
+            f"graph dumps unavailable: missing or unreadable {', '.join(missing)}; "
+            "build them with python -m tere4ai.parse_legal_structure "
             "and python -m tere4ai.extract_norms"
             if missing
             else None
@@ -255,7 +256,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         header = (
             "# TERE4AI v2\n"
             "Evidence-gated EU AI Act engineering support. Deterministic risk "
-            "classification, judged requirements with span-level citations, "
+            "classification (with Article 27(1) FRIA applicability in "
+            "answer.fria), judged requirements with span-level citations, "
             "evidence evaluation behind a runtime grounding judge. Not legal "
             "advice; never claims compliance.\n\n"
             "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
