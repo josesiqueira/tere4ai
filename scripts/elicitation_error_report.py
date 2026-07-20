@@ -68,6 +68,21 @@ ANALYSIS: dict[str, dict[str, Any]] = {
     "bench:scenario:76": {
         "expected_gold": "high_risk",
         "expected_predicted": "prohibited",
+        # RESOLVED 2026-07-20 by audit D2: the classifier no longer treats a
+        # bare predictive_policing_profiling flag as a confident Article
+        # 5(1)(d) ban. Point (d) carries a statutory exception (supporting
+        # the human assessment of offending on objective, verifiable facts),
+        # so with that exculpating fact unknown the ban is not settled and
+        # the ladder lands on the correct Annex III point 6 (law enforcement)
+        # high_risk, which matches the gold. This is the productionised form
+        # of the counterfactual below. The frozen checkpoint still records the
+        # pre-fix "prohibited", so the item stays in the RUN2 error record;
+        # the reproduce-the-checkpoint assertions are relaxed for a resolved
+        # item (it must now return the GOLD instead).
+        "resolved_in_classifier": (
+            "audit D2: Article 5 exculpating-fact model (classify.py "
+            "ARTICLE_5_EXCULPATING_FACT); offline now returns high_risk = gold"
+        ),
         "expected_triggers": ["flag:predictive_policing_profiling"],
         "trigger_node": "eu-ai-act:article-5:paragraph-1:point-d",
         "trigger_node_quote": (
@@ -319,17 +334,31 @@ def build_report(
         # Re-run the deterministic classifier offline and read the trace.
         envelope = classify_ai_system(features, dump)
         answer = envelope["answer"]
-        if answer["risk_category"] != entry["predicted"]:
-            raise ValueError(
-                f"{item_id}: offline classify_ai_system returns "
-                f"{answer['risk_category']}, checkpoint has {entry['predicted']}"
-            )
+        resolved = analysis.get("resolved_in_classifier")
         triggers = rule_trace_triggers(answer["rationale"])
-        if triggers != analysis["expected_triggers"]:
-            raise ValueError(
-                f"{item_id}: rule-trace triggers are {triggers}, analysis "
-                f"expected {analysis['expected_triggers']}"
-            )
+        if resolved:
+            # A documented error since fixed in the classifier: the current
+            # ladder must return the GOLD, not reproduce the stale checkpoint
+            # prediction. The expected_triggers/counterfactual describe the
+            # pre-fix behaviour and are kept for the historical record only.
+            if answer["risk_category"] != analysis["expected_gold"]:
+                raise ValueError(
+                    f"{item_id}: marked resolved_in_classifier but offline "
+                    f"classify_ai_system returns {answer['risk_category']}, "
+                    f"expected the gold {analysis['expected_gold']}"
+                )
+            triggers = analysis["expected_triggers"]
+        else:
+            if answer["risk_category"] != entry["predicted"]:
+                raise ValueError(
+                    f"{item_id}: offline classify_ai_system returns "
+                    f"{answer['risk_category']}, checkpoint has {entry['predicted']}"
+                )
+            if triggers != analysis["expected_triggers"]:
+                raise ValueError(
+                    f"{item_id}: rule-trace triggers are {triggers}, analysis "
+                    f"expected {analysis['expected_triggers']}"
+                )
 
         # Verify every quote verbatim.
         for quote in analysis["scenario_quotes"]:

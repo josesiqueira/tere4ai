@@ -32,7 +32,8 @@ alone cannot repair.
 
 ### Rule trace (classify_ai_system, offline re-run)
 
-- `rule prohibited: flag predictive_policing_profiling matches eu-ai-act:article-5:paragraph-1:point-d (predicting the risk of committing a criminal offence based solely on profiling or personality traits)`
+- `rule high_risk: flag law_enforcement_use matches Annex III category 'law enforcement' (eu-ai-act:annex-iii:point-6), high-risk under Article 6(2)`
+- `status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited`
 
 ### Does the scenario text support the triggering signal?
 
@@ -109,7 +110,7 @@ Prompt v2: constrain domain normalization: emit critical_infrastructure only whe
 ### Rule trace (classify_ai_system, offline re-run)
 
 - `rule high_risk: domain 'education' matches Annex III category 'education and vocational training' (eu-ai-act:annex-iii:point-3), high-risk under Article 6(2)`
-- `rule article_6_3: preparatory_or_narrow_procedural_task is true and autonomy is advisory; the Article 6(3) derogation may apply but requires human legal judgment, no automatic downgrade`
+- `rule article_6_3: derogation condition 'narrow procedural task (point a) or preparatory task (point d)' met by preparatory_or_narrow_procedural_task; the Article 6(3) derogation may apply but requires human legal judgment, no automatic downgrade`
 
 ### Does the scenario text support the triggering signal?
 

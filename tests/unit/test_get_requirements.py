@@ -73,7 +73,11 @@ def test_prohibited_returns_zero_requirements(dump, norms_payload, node_ids):
     classification = classify_ai_system(
         {
             "description": "Deepfake intimate content generator used for coercion.",
-            "flags": {"social_scoring": False, "subliminal_or_manipulative": True},
+            "flags": {
+                "social_scoring": False,
+                "subliminal_or_manipulative": True,
+                "causes_significant_harm": True,
+            },
         },
         dump,
     )

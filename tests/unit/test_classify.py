@@ -96,6 +96,9 @@ def test_scenario_a_deepfake_generator_is_prohibited(dump, node_ids):
         "flags": {
             "social_scoring": False,
             "subliminal_or_manipulative": True,
+            # The coercion causes significant harm, so the point (a) element
+            # is met and the prohibition is settled (audit D2).
+            "causes_significant_harm": True,
             "generates_synthetic_content": True,
         },
     }
@@ -259,13 +262,51 @@ def test_rtrb_with_law_enforcement_is_prohibited_point_h(dump, node_ids):
     features = {
         "description": "Live facial recognition in public squares for police use.",
         "flags": all_false_flags(
-            real_time_remote_biometric_public=True, law_enforcement_use=True
+            real_time_remote_biometric_public=True,
+            law_enforcement_use=True,
+            # Not the strict-necessity/authorisation carve-out, so the point
+            # (h) ban is settled (audit D2).
+            rtrb_strictly_necessary_authorised=False,
         ),
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["answer"]["risk_category"] == "prohibited"
     assert ARTICLE_5_POINT_H in envelope["source_nodes"]
+
+
+def test_article_5_exception_fact_unknown_routes_to_review_not_ban(dump, node_ids):
+    """Audit D2: a qualified prohibition flag true with its exculpating fact
+    unknown must NOT be a confident ban; the ban stays for human review."""
+    envelope = classify_ai_system(
+        {
+            "description": "In-cab driver drowsiness detector inferring fatigue.",
+            "flags": all_false_flags(emotion_recognition_workplace_or_education=True),
+        },
+        dump,
+    )
+    assert envelope["answer"]["risk_category"] != "prohibited"
+    assert envelope["status"] == "requires_human_review"
+    assert any("emotion_recognition_medical_or_safety" in f for f in envelope["missing_facts"])
+
+
+def test_article_5_exception_met_continues_the_ladder_not_prohibited(dump, node_ids):
+    """The point (f) medical/safety exception, when met, means the emotion
+    system is not prohibited; the ladder continues (here to minimal)."""
+    envelope = classify_ai_system(
+        {
+            "description": "Driver drowsiness detector, medical/safety purpose.",
+            "flags": all_false_flags(
+                emotion_recognition_workplace_or_education=True,
+                emotion_recognition_medical_or_safety=True,
+            ),
+        },
+        dump,
+    )
+    answer = envelope["answer"]
+    assert answer["prohibited"] is False
+    assert answer["risk_category"] != "prohibited"
+    assert any("not prohibited under that point" in r for r in answer["rationale"])
 
 
 # Article 6(3) exception candidate --------------------------------------------

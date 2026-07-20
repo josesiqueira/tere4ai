@@ -106,6 +106,65 @@ ARTICLE_5_POINT_H_FRAGMENT = (
     "for the purposes of law enforcement"
 )
 
+# Article 5 statutory qualifiers and exceptions (audit 2026-07-20 D2). Each
+# qualified point carries an EXCULPATING FACT: a boolean the caller can set
+# that, when equal to `exculpating_value`, means the prohibition does NOT
+# apply (the statute's exception is met, or its harm/outcome element is
+# absent). When the fact is unknown the ban is not settled, so the system is
+# routed to human review instead of being confidently prohibited; only an
+# explicit non-exculpating value yields a confident prohibition. The point
+# with no entry (facial image scraping, (e)) is a clean 1:1 with no statutory
+# exception. Anchors are the frozen point texts.
+# Tuple: (fact_name, exculpating_value, human-readable element description).
+ARTICLE_5_EXCULPATING_FACT: dict[str, tuple[str, bool, str]] = {
+    # (a)/(b) prohibit only "in a manner that causes or is reasonably likely
+    # to cause ... significant harm"; without that element, not prohibited.
+    "subliminal_or_manipulative": (
+        "causes_significant_harm",
+        False,
+        "the point (a) 'significant harm' element",
+    ),
+    "exploits_vulnerabilities": (
+        "causes_significant_harm",
+        False,
+        "the point (b) 'significant harm' element",
+    ),
+    # (c) prohibits social scoring "leading to detrimental or unfavourable
+    # treatment" in unrelated contexts or unjustified/disproportionate.
+    "social_scoring": (
+        "social_score_detrimental_treatment",
+        False,
+        "the point (c) detrimental-treatment element",
+    ),
+    # (d) "shall not apply to AI systems used to support the human assessment
+    # ... based on objective and verifiable facts".
+    "predictive_policing_profiling": (
+        "supports_human_assessment_on_verifiable_facts",
+        True,
+        "the point (d) human-assessment-on-verifiable-facts exception",
+    ),
+    # (f) "except where ... intended ... for medical or safety reasons".
+    "emotion_recognition_workplace_or_education": (
+        "emotion_recognition_medical_or_safety",
+        True,
+        "the point (f) medical or safety exception",
+    ),
+    # (g) "does not cover ... labelling or filtering of lawfully acquired
+    # biometric datasets ... or ... in the area of law enforcement".
+    "biometric_categorisation": (
+        "biometric_categorisation_lawful_or_law_enforcement",
+        True,
+        "the point (g) lawful-dataset / law-enforcement carve-out",
+    ),
+}
+# (h) real-time RBI for law enforcement is conditionally permitted where
+# "strictly necessary" for objectives (i) to (iii) and duly authorised.
+ARTICLE_5_POINT_H_EXCULPATING = (
+    "rtrb_strictly_necessary_authorised",
+    True,
+    "the point (h) strict-necessity and authorisation carve-out (i) to (iii)",
+)
+
 # Flags whose unknown value can change the prohibition outcome. Absence is
 # NOT treated as false (system_features.schema.json).
 PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
@@ -442,19 +501,55 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "6(2)); absence is not treated as false"
         )
 
-    # Rule 1: Article 5 prohibitions.
+    # Rule 1: Article 5 prohibitions. A prohibition flag names a candidate
+    # practice; where the statute qualifies the point (D2), the ban only
+    # fires once the exculpating fact settles against the exception. Pending
+    # exception facts go to prohibition_review, which (like an unknown
+    # prohibition flag) blocks a confident non-prohibited verdict downstream.
     prohibition_hits: list[tuple[str, str, str]] = []
+    prohibition_review: list[str] = []
+
+    def _resolve_prohibition(
+        flag: str,
+        node_id: str,
+        fragment: str,
+        exculpating: tuple[str, bool, str] | None,
+    ) -> None:
+        if exculpating is None:
+            prohibition_hits.append((flag, node_id, fragment))
+            return
+        fact_name, exculpating_value, desc = exculpating
+        value = flags.get(fact_name)
+        if value is exculpating_value:
+            # The statutory exception is met / the harm element is absent.
+            rationale.append(
+                f"Article 5 exception: {flag} is true but {fact_name} is "
+                f"{value}, so {desc} means the practice is not prohibited "
+                "under that point; continuing the ladder"
+            )
+            return
+        if fact_name not in flags:
+            prohibition_review.append(fact_name)
+            missing_facts.append(
+                f"flags.{fact_name} is unknown; {desc} decides whether "
+                f"{flag} is prohibited (Article 5); absence does not settle "
+                "the ban, so the classification stays for human review"
+            )
+            return
+        prohibition_hits.append((flag, node_id, fragment))
+
     for flag, (node_id, fragment) in ARTICLE_5_POINT_BY_FLAG.items():
         if flags.get(flag) is True:
-            prohibition_hits.append((flag, node_id, fragment))
+            _resolve_prohibition(
+                flag, node_id, fragment, ARTICLE_5_EXCULPATING_FACT.get(flag)
+            )
     if flags.get("real_time_remote_biometric_public") is True:
         if flags.get("law_enforcement_use") is True:
-            prohibition_hits.append(
-                (
-                    "real_time_remote_biometric_public + law_enforcement_use",
-                    ARTICLE_5_POINT_H,
-                    ARTICLE_5_POINT_H_FRAGMENT,
-                )
+            _resolve_prohibition(
+                "real_time_remote_biometric_public + law_enforcement_use",
+                ARTICLE_5_POINT_H,
+                ARTICLE_5_POINT_H_FRAGMENT,
+                ARTICLE_5_POINT_H_EXCULPATING,
             )
         elif "law_enforcement_use" not in flags:
             # The unknown context could change the outcome to prohibited.
@@ -492,6 +587,12 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             legal_status_notes=legal_status_notes,
             missing_facts=missing_facts,
         )
+
+    # Pending Article 5 exception facts keep the ban unsettled: fold them into
+    # the unknown-prohibition set so every downstream exit lowers to
+    # requires_human_review and a bare no-match yields uncertain rather than a
+    # confident non-prohibited verdict (audit D2).
+    unknown_prohibition_flags.extend(prohibition_review)
 
     # Rule 2a: Article 6(1) embedded-product route. High-risk when the
     # system is a safety component of (or is itself) a product covered by

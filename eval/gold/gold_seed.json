@@ -15,7 +15,8 @@
         "flags": {
           "social_scoring": false,
           "subliminal_or_manipulative": true,
-          "generates_synthetic_content": true
+          "generates_synthetic_content": true,
+          "causes_significant_harm": true
         }
       },
       "gold": {

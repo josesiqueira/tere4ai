@@ -30,6 +30,30 @@
       "properties": {
         "biometric_identification": { "type": "boolean" },
         "biometric_categorisation": { "type": "boolean" },
+        "causes_significant_harm": {
+          "type": "boolean",
+          "description": "Article 5(1)(a)/(b) qualifier: the subliminal/manipulative or vulnerability-exploiting practice causes or is reasonably likely to cause significant harm. Prohibited only where this holds; false means the point does not prohibit it. Absence leaves the ban unsettled."
+        },
+        "social_score_detrimental_treatment": {
+          "type": "boolean",
+          "description": "Article 5(1)(c) qualifier: the social scoring leads to detrimental or unfavourable treatment in unrelated contexts or that is unjustified/disproportionate. False means the point does not prohibit it; absence leaves the ban unsettled."
+        },
+        "supports_human_assessment_on_verifiable_facts": {
+          "type": "boolean",
+          "description": "Article 5(1)(d) exception: the system supports the human assessment of involvement in criminal activity already based on objective and verifiable facts. True means the prohibition does not apply."
+        },
+        "emotion_recognition_medical_or_safety": {
+          "type": "boolean",
+          "description": "Article 5(1)(f) exception: the workplace/education emotion recognition is intended for medical or safety reasons. True means the prohibition does not apply."
+        },
+        "biometric_categorisation_lawful_or_law_enforcement": {
+          "type": "boolean",
+          "description": "Article 5(1)(g) carve-out: labelling or filtering of lawfully acquired biometric datasets, or biometric categorisation in the area of law enforcement. True means the prohibition does not apply."
+        },
+        "rtrb_strictly_necessary_authorised": {
+          "type": "boolean",
+          "description": "Article 5(1)(h) carve-out: the real-time remote biometric identification for law enforcement is strictly necessary for one of the objectives in (i) to (iii) and duly authorised. True means the practice is conditionally permitted, not prohibited; false or absent leaves the ban in place / unsettled."
+        },
         "real_time_remote_biometric_public": { "type": "boolean" },
         "emotion_recognition": { "type": "boolean" },
         "emotion_recognition_workplace_or_education": { "type": "boolean" },
