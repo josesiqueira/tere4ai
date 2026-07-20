@@ -280,15 +280,67 @@ def test_new_subflag_gates_point_5_high_risk_on_its_own(dump):
     assert envelope["answer"]["annex_iii_category"] == POINT_5
 
 
+# Every Annex III high-risk flag plus the prohibition flags, all false: the
+# only way to reach a confident minimal verdict after audit D1.
+_ALL_FLAGS_FALSE = {
+    "biometric_identification": False,
+    "biometric_categorisation": False,
+    "real_time_remote_biometric_public": False,
+    "emotion_recognition": False,
+    "emotion_recognition_workplace_or_education": False,
+    "social_scoring": False,
+    "subliminal_or_manipulative": False,
+    "exploits_vulnerabilities": False,
+    "predictive_policing_profiling": False,
+    "facial_image_scraping": False,
+    "law_enforcement_use": False,
+    "migration_asylum_border_use": False,
+    "justice_democratic_use": False,
+    "education_scoring_or_access": False,
+    "employment_decisions": False,
+    "essential_services_access": False,
+    "creditworthiness_evaluation": False,
+    "life_health_insurance_risk_pricing": False,
+    "critical_infrastructure_safety": False,
+    "medical_or_safety_component": False,
+    "interacts_with_natural_persons": False,
+    "generates_synthetic_content": False,
+    "profiling_of_natural_persons": False,
+}
+
+
 def test_scenario_161_domain_yield_semantics_are_preserved(dump):
-    """Explicit false on the umbrella flag with the subflags unknown must
-    still yield the bare domain match (the evidence-driven fix stands)."""
-    features = _credit_scorer_features()
-    features["flags"].pop("creditworthiness_evaluation")
-    features["flags"]["essential_services_access"] = False
+    """The domain-yield fix stands: when every point-5 fact (umbrella AND
+    both sub-point flags) is explicitly false, a bare banking domain match
+    yields to minimal. Post-audit-D1 every Annex III fact must be known
+    false, otherwise an unknown one correctly blocks the clear."""
+    features = {
+        "description": "A bank tool with no high-risk use, fully specified.",
+        "domain": "banking",
+        "flags": dict(_ALL_FLAGS_FALSE),
+    }
     envelope = classify_ai_system(features, dump)
     assert envelope["answer"]["risk_category"] == "minimal_or_none"
     assert envelope["answer"]["fria"]["applicability"] == "does_not_apply"
+
+
+def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
+    """Audit D1: with the point-5 umbrella explicitly false but a sub-point
+    fact (5(b)) unknown, the system cannot be confidently cleared as
+    minimal; it must be requires_human_review naming the unknown fact."""
+    flags = dict(_ALL_FLAGS_FALSE)
+    del flags["creditworthiness_evaluation"]
+    features = {
+        "description": "A bank tool whose creditworthiness use is unstated.",
+        "domain": "banking",
+        "flags": flags,
+    }
+    envelope = classify_ai_system(features, dump)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["status"] == "requires_human_review"
+    assert any(
+        "creditworthiness_evaluation" in f for f in envelope["missing_facts"]
+    )
 
 
 def test_deployer_facts_validate_and_trigger_fria(dump):

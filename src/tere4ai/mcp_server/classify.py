@@ -24,6 +24,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 from __future__ import annotations
 
 import json
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -198,6 +199,22 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
     },
 )
 
+# Flags whose unknown value can change an Annex III high-risk outcome. Like
+# the prohibition flags, absence is NOT treated as false: an unknown Annex
+# III fact is surfaced in missing_facts and blocks a confident
+# minimal_or_none verdict (audit 2026-07-20 D1). Built from the rule table so
+# it can never drift from the categories. Flags already covered by
+# PROHIBITION_RELEVANT_FLAGS are excluded to avoid double-surfacing.
+ANNEX_III_RELEVANT_FLAGS: tuple[str, ...] = tuple(
+    f
+    for f in dict.fromkeys(
+        flag
+        for rule in ANNEX_III_RULES
+        for flag in (*rule["flags"], *rule.get("subflags", ()))
+    )
+    if f not in PROHIBITION_RELEVANT_FLAGS
+)
+
 ARTICLE_6_PARAGRAPH_1 = "eu-ai-act:article-6:paragraph-1"
 ARTICLE_6_PARAGRAPH_2 = "eu-ai-act:article-6:paragraph-2"
 ARTICLE_6_PARAGRAPH_3 = "eu-ai-act:article-6:paragraph-3"
@@ -305,6 +322,25 @@ class _Citations:
             self.spans.append(span)
 
 
+def _normalize_domain(raw: Any) -> str | None:
+    """Normalise a free-text domain token before matching.
+
+    Drops Unicode format and control characters (zero-width space, soft
+    hyphen, bidi marks) and applies NFKC, so an invisible or compatibility
+    character cannot silently turn a known domain into a near-miss that then
+    reads as out-of-scope (audit 2026-07-20 D8). Case-folded and trimmed.
+    Returns None for a blank or non-string value. Note a genuine homoglyph
+    (e.g. a Cyrillic letter) still will not match a Latin domain, which is
+    correct: it is a different string, and the D1 unknown-flag guard then
+    prevents a confident minimal verdict rather than this function guessing.
+    """
+    if not isinstance(raw, str):
+        return None
+    cleaned = "".join(ch for ch in raw if unicodedata.category(ch)[0] != "C")
+    cleaned = unicodedata.normalize("NFKC", cleaned)
+    return cleaned.strip().casefold() or None
+
+
 def _annex_iii_scan(
     flags: dict[str, Any], domain: str | None
 ) -> tuple[dict[str, Any] | None, str | None, list[str]]:
@@ -379,7 +415,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         )
 
     flags = features.get("flags") or {}
-    domain = (features.get("domain") or "").strip().lower() or None
+    domain = _normalize_domain(features.get("domain"))
     autonomy = features.get("autonomy")
 
     citations = _Citations(_node_index(dump))
@@ -393,6 +429,17 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         missing_facts.append(
             f"flags.{flag} is unknown (prohibition-relevant, Article 5); "
             "absence is not treated as false"
+        )
+
+    # Unknown Annex III high-risk flags: same discipline (audit 2026-07-20 D1).
+    # An absent Annex III fact could be the one that makes the system
+    # high-risk, so it must not be silently read as false and cleared as
+    # minimal. Surfaced here; the minimal and transparency exits consult it.
+    unknown_annex_flags = [f for f in ANNEX_III_RELEVANT_FLAGS if f not in flags]
+    for flag in unknown_annex_flags:
+        missing_facts.append(
+            f"flags.{flag} is unknown (Annex III high-risk relevant, Article "
+            "6(2)); absence is not treated as false"
         )
 
     # Rule 1: Article 5 prohibitions.
@@ -662,6 +709,17 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "status lowered to requires_human_review: unknown "
                 "prohibition-relevant flags could change the outcome to prohibited"
             )
+        elif unknown_annex_flags:
+            # A transparency system could also be high-risk under Annex III;
+            # with those facts unknown, do not present transparency-only as
+            # settled (audit 2026-07-20 D1).
+            status = "requires_human_review"
+            confidence = 0.5
+            rationale.append(
+                "status lowered to requires_human_review: unknown Annex III "
+                "high-risk flags could add high-risk obligations on top of the "
+                "Article 50 transparency duty"
+            )
         return make_envelope(
             answer={
                 "risk_category": "transparency_only",
@@ -679,11 +737,22 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             missing_facts=missing_facts,
         )
 
-    # Rule 5: nothing fired.
-    if unknown_prohibition_flags:
+    # Rule 5: nothing fired. A confident minimal verdict requires that every
+    # prohibition-relevant AND Annex III-relevant fact is known: an unknown
+    # one could be the fact that makes the system high-risk or prohibited, so
+    # absence must never be read as a clean "not regulated" (audit D1).
+    if unknown_prohibition_flags or unknown_annex_flags:
+        which = []
+        if unknown_prohibition_flags:
+            which.append("prohibition-relevant (Article 5)")
+        if unknown_annex_flags:
+            which.append("Annex III high-risk (Article 6(2))")
         rationale.append(
-            "rule uncertain: no rule fired but prohibition-relevant flags are "
-            "unknown, so the classification cannot be settled deterministically"
+            "rule uncertain: no rule fired but "
+            + " and ".join(which)
+            + " flags are unknown, so the classification cannot be settled "
+            "deterministically; the named facts must be provided before a "
+            "minimal verdict is safe"
         )
         missing_facts.extend(citations.unresolved)
         return make_envelope(
@@ -702,8 +771,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         )
 
     rationale.append(
-        "rule minimal: all prohibition-relevant flags known false, no Annex III "
-        "category matched, no Article 50 transparency flag set"
+        "rule minimal: all prohibition-relevant AND Annex III high-risk flags "
+        "known false, no Annex III category matched, no Article 50 transparency "
+        "flag set"
     )
     missing_facts.extend(citations.unresolved)
     return make_envelope(
@@ -746,9 +816,8 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         deployer = {}
     # Invalid input still reaches this wrapper (the core reports the schema
     # errors in its envelope), so never assume field types here.
-    domain_raw = features.get("domain") if isinstance(features, dict) else None
-    domain = (
-        (domain_raw.strip().lower() or None) if isinstance(domain_raw, str) else None
+    domain = _normalize_domain(
+        features.get("domain") if isinstance(features, dict) else None
     )
     annex_node = answer.get("annex_iii_category")
     if annex_node is None and answer.get("risk_category") == "high_risk":

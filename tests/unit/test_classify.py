@@ -42,6 +42,8 @@ ALL_FLAGS = (
     "education_scoring_or_access",
     "employment_decisions",
     "essential_services_access",
+    "creditworthiness_evaluation",
+    "life_health_insurance_risk_pricing",
     "critical_infrastructure_safety",
     "medical_or_safety_component",
     "interacts_with_natural_persons",
@@ -192,6 +194,46 @@ def test_absent_prohibition_flags_populate_missing_facts_and_uncertain(dump, nod
     for flag in ARTICLE_5_POINT_BY_FLAG:
         assert f"flags.{flag}" in facts
     assert "flags.real_time_remote_biometric_public" in facts
+
+
+def test_absent_annex_iii_flags_block_a_confident_minimal(dump, node_ids):
+    """Audit D1: a system with all prohibition flags known false but Annex III
+    high-risk flags absent must NOT be cleared as minimal at confidence 1.0;
+    it is uncertain, naming each unknown Annex III fact."""
+    flags = dict.fromkeys(ARTICLE_5_POINT_BY_FLAG, False)
+    flags["real_time_remote_biometric_public"] = False
+    envelope = classify_ai_system(
+        {"description": "A system with only prohibition facts settled.", "flags": flags},
+        dump,
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["status"] == "requires_human_review"
+    facts = " ".join(envelope["missing_facts"])
+    for flag in ("employment_decisions", "essential_services_access", "creditworthiness_evaluation"):
+        assert f"flags.{flag}" in facts, flag
+
+
+def test_homoglyph_or_invisible_domain_does_not_silently_clear(dump, node_ids):
+    """Audit D8: an invisible or homoglyph character in domain must not turn a
+    known domain into a near-miss that reads as confidently out-of-scope. With
+    Annex III facts unknown the outcome is uncertain, never confident minimal."""
+    flags = dict.fromkeys(ARTICLE_5_POINT_BY_FLAG, False)
+    flags["real_time_remote_biometric_public"] = False
+    for bad_domain in ("banking​", "ban­king", "бanking"):
+        envelope = classify_ai_system(
+            {"description": "A finance system, domain obfuscated.", "domain": bad_domain, "flags": flags},
+            dump,
+        )
+        assert envelope["answer"]["risk_category"] != "minimal_or_none", bad_domain
+        assert envelope["status"] != "not_applicable", bad_domain
+    # A zero-width-padded but otherwise exact known domain normalises cleanly.
+    clean = classify_ai_system(
+        {"description": "Banking eligibility engine.", "domain": "​banking​",
+         "flags": {**flags, "essential_services_access": True}},
+        dump,
+    )
+    assert clean["answer"]["annex_iii_category"] == "eu-ai-act:annex-iii:point-5"
 
 
 def test_rtrb_without_law_enforcement_context_asks_for_it(dump, node_ids):
