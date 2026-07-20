@@ -223,12 +223,68 @@ def test_source_trace_known_node():
     assert envelope["source_spans"][0]["anchor"] == "009.001"
 
 
-def test_source_trace_reads_snapshot_slice(tmp_path):
-    dump = make_complete_dump()
-    text = "x" * 50000 + "SNAPSHOT SLICE FOR PARAGRAPH NINE ONE ok" + "y" * 100
-    (tmp_path / SNAPSHOT_FILE).write_text(text, encoding="utf-8")
+def test_source_trace_slices_over_untranslated_bytes(tmp_path):
+    """Audit 2026-07-21: span offsets are computed over the raw (byte-decoded)
+    snapshot, which preserves CRLF line endings. source_trace must resolve
+    through resolve_span (read_bytes then decode), not read_text, whose
+    universal-newline translation collapses every \\r\\n and shifts all later
+    offsets, returning the wrong legal text (the observed bug on the real
+    CRLF-terminated EUR-Lex HTML)."""
+    import hashlib
+
+    target = "SNAPSHOT SLICE FOR PARAGRAPH NINE ONE ok"
+    prefix = "line\r\n" * 8000  # CRLF pairs before the span
+    content = prefix + target + "\r\ntail"
+    raw = content.encode("utf-8")
+    char_start = len(prefix)  # offset over the untranslated decoded text
+    (tmp_path / SNAPSHOT_FILE).write_bytes(raw)
+    sha = hashlib.sha256(raw).hexdigest()
+    node = {
+        "id": "eu-ai-act:article-9:paragraph-1",
+        "type": "Paragraph",
+        "layer": 1,
+        "text": "fallback should not be used",
+        "source_span": {
+            "span_id": "span:009.001",
+            "snapshot_file": SNAPSHOT_FILE,
+            "snapshot_sha256": sha,
+            "start": char_start,
+            "end": char_start + len(target),
+            "anchor": "009.001",
+        },
+    }
+    dump = {"nodes": [node], "build": {"build_id": "b"}}
     envelope = source_trace(dump, "eu-ai-act:article-9:paragraph-1", snapshots_dir=tmp_path)
-    assert envelope["answer"]["excerpt"] == "SNAPSHOT SLICE FOR PARAGRAPH NINE ONE ok"
+    assert envelope["answer"]["excerpt"] == target
+    # The old read_text path (universal newlines) would have sliced wrongly.
+    translated = (tmp_path / SNAPSHOT_FILE).read_text(encoding="utf-8")
+    assert translated[char_start : char_start + len(target)] != target
+
+
+def test_source_trace_forged_snapshot_path_does_not_leak(tmp_path):
+    """Audit 2026-07-21: a span whose snapshot_file escapes the snapshots dir
+    must not leak arbitrary files; resolve_span's containment + checksum guard
+    makes source_trace fall back to the node text."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP SECRET should never be returned", encoding="utf-8")
+    node = {
+        "id": "x",
+        "type": "Paragraph",
+        "layer": 1,
+        "text": "safe fallback",
+        "source_span": {
+            "span_id": "span:evil",
+            "snapshot_file": "../secret.txt",
+            "snapshot_sha256": "0" * 64,
+            "start": 0,
+            "end": 20,
+            "anchor": "evil",
+        },
+    }
+    dump = {"nodes": [node], "build": {"build_id": "b"}}
+    envelope = source_trace(dump, "x", snapshots_dir=tmp_path / "snapshots")
+    assert "SECRET" not in (envelope["answer"]["excerpt"] or "")
+    assert envelope["answer"]["excerpt"] == "safe fallback"
 
 
 def test_source_trace_unknown_node_is_graceful():

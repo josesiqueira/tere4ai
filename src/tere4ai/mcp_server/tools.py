@@ -344,7 +344,7 @@ def source_trace(
             ],
         )
 
-    excerpt = _excerpt(node, span, snapshots_dir)
+    excerpt = _excerpt(node, span, dump, snapshots_dir)
     legal_status_notes = _legal_status_notes(nodes)
     if node.get("type") == "Recital":
         legal_status_notes = legal_status_notes + [
@@ -375,22 +375,29 @@ def source_trace(
 
 
 def _excerpt(
-    node: dict[str, Any], span: dict[str, Any], snapshots_dir: Path | str | None
+    node: dict[str, Any],
+    span: dict[str, Any],
+    dump: dict[str, Any],
+    snapshots_dir: Path | str | None,
 ) -> str | None:
     """Text excerpt for a traced node.
 
-    Prefers the literal snapshot slice (the provenance anchor) when the
-    frozen snapshot file is readable; falls back to the node's own text or
-    title from the dump.
+    Resolves the literal snapshot slice through resolve_span, which slices by
+    BYTE offsets (the span offsets are byte offsets, so the previous
+    read_text(...)[start:end] char-slice returned the wrong text for any
+    snapshot with multi-byte characters before the span, audit 2026-07-21),
+    verifies the snapshot sha256, and guards against path escape. Falls back
+    to the node's own text or title when the span cannot be resolved.
     """
-    if snapshots_dir is not None:
-        snapshot = Path(snapshots_dir) / str(span.get("snapshot_file", ""))
-        start, end = span.get("start"), span.get("end")
-        if snapshot.is_file() and isinstance(start, int) and isinstance(end, int):
-            try:
-                text = snapshot.read_text(encoding="utf-8", errors="replace")
-                return text[start:end][:_EXCERPT_MAX_CHARS]
-            except OSError:
-                pass
+    span_id = span.get("span_id")
+    if snapshots_dir is not None and span_id:
+        # Lazy import: spans imports make_envelope from this module.
+        from tere4ai.mcp_server.spans import SpanResolutionError, resolve_span
+
+        try:
+            resolved = resolve_span(str(span_id), dump, snapshots_dir)
+            return resolved["text"][:_EXCERPT_MAX_CHARS]
+        except (SpanResolutionError, OSError, KeyError):
+            pass
     fallback = node.get("text") or node.get("title")
     return fallback[:_EXCERPT_MAX_CHARS] if isinstance(fallback, str) else None
