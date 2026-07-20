@@ -119,12 +119,28 @@ def verify_dumps_against_chain(
         chain = build_chain(layer1, norms, align_arg)
     except OSError as exc:
         return False, f"could not read a dump to verify integrity: {exc}"
-    recorded = directory / f"build_chain_{chain['chain_id']}.json"
-    if not recorded.is_file():
+    recorded_path = directory / f"build_chain_{chain['chain_id']}.json"
+    if not recorded_path.is_file():
         return (
             False,
             "the published dumps match no recorded build chain "
             f"(recomputed chain {chain['chain_id']}); the dumps may be "
             "corrupted, tampered, or from an unpublished build",
         )
+    # Cross-check the recorded per-input checksums against the live files, so
+    # the gate proves more than an internally consistent filename (audit
+    # 2026-07-21 defense-in-depth): every role in the record must match.
+    try:
+        recorded = json.loads(recorded_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return False, f"build chain record is unreadable: {exc}"
+    live = {i["role"]: i["sha256"] for i in chain["inputs"]}
+    for item in recorded.get("inputs", []):
+        role, digest = item.get("role"), item.get("sha256")
+        if live.get(role) != digest:
+            return (
+                False,
+                f"build chain record {chain['chain_id']} disagrees with the "
+                f"live dump for role '{role}'; integrity is not established",
+            )
     return True, f"dumps verified against build chain {chain['chain_id']}"
