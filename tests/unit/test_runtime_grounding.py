@@ -164,3 +164,27 @@ def test_runtime_log_written_with_hashes_and_no_key_material(tmp_path):
         assert secret_marker not in raw
     # No full prompts in the log: the system prompt text must not appear.
     assert "runtime grounding judge for TERE4AI" not in raw
+
+
+def test_judge_sees_the_norms_verbatim_source_text(tmp_path):
+    """The evidence generator receives the norm's verbatim legal text; the
+    judge that gates its output must hold the same text, or paraphrase
+    drift from the statutory wording is invisible to it (missing-context
+    audit F4, 2026-07-20)."""
+    judge = FakeClient({"Cited norms": JUDGE_ACCEPT}, model="fake-judge")
+    ground_check(
+        answer_text="Answer citing norm:x.",
+        cited_norms=[
+            {
+                "norm_id": "norm:x",
+                "conditions": [],
+                "exceptions": [],
+                "source_text": "1. A risk management system shall be established.",
+            }
+        ],
+        evidence_text=None,
+        judge=judge,
+        log_path=tmp_path / "runtime_log.jsonl",
+    )
+    _, judge_user = judge.calls[0]
+    assert "A risk management system shall be established." in judge_user

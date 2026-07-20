@@ -52,3 +52,44 @@ def test_invalid_json_retries_then_none():
     assert features is None
     assert len(calls) == 2, "exactly one retry"
     assert any("failed" in n for n in notes)
+
+
+def test_v3_prompt_carries_the_dump_verbatim_article_3_definitions():
+    """Missing-context audit F3 (2026-07-20): the elicitor sets flags whose
+    terms have binding Article 3 definitions; v3 embeds those definitions
+    VERBATIM from the graph dump. This guard fails if the prompt's
+    definition text ever drifts from the dump's."""
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    dump_path = root / "data" / "graph_dumps" / "layer1.json"
+    if not dump_path.is_file():
+        import pytest
+
+        pytest.skip("layer1.json dump not built")
+    dump = json.loads(dump_path.read_text(encoding="utf-8"))
+    defs = {n["id"]: n for n in dump["nodes"] if n.get("type") == "Definition"}
+    prompt = (root / "prompts" / "elicit_features" / "v3.md").read_text(
+        encoding="utf-8"
+    )
+    for node_id in (
+        "eu-ai-act:definition:biometric-identification",
+        "eu-ai-act:definition:real-time-remote-biometric-identification-system",
+        "eu-ai-act:definition:biometric-categorisation-system",
+        "eu-ai-act:definition:emotion-recognition-system",
+        "eu-ai-act:definition:safety-component",
+        "eu-ai-act:definition:profiling",
+    ):
+        assert defs[node_id]["text"].strip() in prompt, (
+            f"v3 prompt lost or drifted the verbatim definition {node_id}"
+        )
+
+
+def test_default_prompt_version_is_v3():
+    import inspect
+
+    from tere4ai.elicit_features.elicitor import elicit_features
+
+    signature = inspect.signature(elicit_features)
+    assert signature.parameters["prompt_version"].default == "v3"

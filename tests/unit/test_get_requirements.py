@@ -311,3 +311,49 @@ def test_no_model_client_imports_in_module_source():
         assert forbidden not in source, f"requirements.py must not reference {forbidden}"
     for dash in (chr(0x2014), chr(0x2013)):
         assert dash not in source, "no em or en dashes"
+
+
+# Exceptions (carve-outs) must never be silently dropped ---------------------------
+
+
+def test_requirement_entry_carries_exceptions_when_the_norm_has_them():
+    """A carve-out ("shall not apply where...") limits the obligation; a
+    consumer building to the requirement without it over-implements or
+    mis-implements. Mirror of the conditions behavior."""
+    norm = {
+        "norm_id": "norm:test:n1",
+        "deontic_type": "obligation",
+        "modal": "shall",
+        "actor_explicit": "provider",
+        "action": "notify",
+        "object": "the authority",
+        "source_node_id": "eu-ai-act:article-99",
+        "source_span_id": "span:099.001",
+        "conditions": ["where the system is deployed"],
+        "exceptions": ["unless already notified under other Union law"],
+    }
+    entry = requirements_module._requirement_entry(norm)
+    assert entry["conditions"] == ["where the system is deployed"]
+    assert entry["exceptions"] == ["unless already notified under other Union law"]
+
+
+def test_no_served_requirement_drops_its_norms_exceptions(dump, norms_payload):
+    """Census over the real dump: every served entry whose source norm
+    carries exceptions must surface them verbatim."""
+    by_id = {n["norm_id"]: n for n in norms_payload["norms"]}
+    envelope = get_applicable_requirements(
+        {"risk_category": "high_risk"}, norms_payload, dump
+    )
+    checked = 0
+    for entries in envelope["answer"]["requirements_by_article"].values():
+        for entry in entries:
+            norm = by_id[entry["norm_id"]]
+            if norm.get("exceptions"):
+                checked += 1
+                assert entry.get("exceptions") == norm["exceptions"], (
+                    f"{entry['norm_id']} served without its exceptions"
+                )
+    assert checked > 0, (
+        "census vacuous: no served high-risk requirement has exceptions; "
+        "expected some (37 accepted norms carry them)"
+    )

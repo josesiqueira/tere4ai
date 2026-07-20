@@ -120,6 +120,11 @@ def _requirement_entry(norm: dict[str, Any]) -> dict[str, Any]:
     conditions = norm.get("conditions") or []
     if conditions:
         entry["conditions"] = conditions
+    # Exceptions are carve-outs ("shall not apply where..."); dropping them
+    # would hand the consumer a broader obligation than the law states.
+    exceptions = norm.get("exceptions") or []
+    if exceptions:
+        entry["exceptions"] = exceptions
     return entry
 
 

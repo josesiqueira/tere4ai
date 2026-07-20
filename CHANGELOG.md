@@ -45,6 +45,20 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   resolves every judge-accepted norm's source span through the production
   resolver to checksum-verified, non-empty source text (339 norms over
   155 unique spans, about one second).
+- Missing-context fixes (audit findings F2 to F4): get_applicable_requirements
+  now surfaces each norm's exceptions (carve-outs were silently dropped for
+  37 accepted norms; a census test guards it); the feature elicitor prompt
+  v3 embeds the binding Article 3 definitions verbatim from the graph for
+  every legally-defined flag term (drift-guarded against the dump); and the
+  runtime grounding judge's cited-norm digest now includes the norm's
+  verbatim source text, matching what the generator it gates already sees.
+- Judge provenance and independence: every generator and judge event and
+  every JudgeRun records prompt_sha256 (in-place prompt edits are detectable
+  and tied to their decisions); the config loader rejects a judge equal to
+  the generator, and all four judged pipelines refuse the same client object
+  as both generator and judge.
+- docs/TASKS.md: the tracked task board, split into human-required,
+  agent-next, and externally-blocked work.
 - Remote MCP transport (streamable HTTP) behind TERE4AI_MCP_TRANSPORT=http,
   gated by scoped, revocable t4a_ API keys with body-free usage metering
   (scripts/manage_mcp_keys.py).
