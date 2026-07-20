@@ -400,6 +400,49 @@ def _normalize_domain(raw: Any) -> str | None:
     return cleaned.strip().casefold() or None
 
 
+def _annex_iii_all_matches(flags: dict[str, Any], domain: str | None) -> list[str]:
+    """Every Annex III point node the facts match, in point order.
+
+    Unlike _annex_iii_scan (first match only), this returns the FULL set, so
+    the FRIA rule can tell a multi-area system apart from a single-area one:
+    the Article 27(1) point-2 exception is scoped to the point-2 AREA, not to
+    a system that also falls under another point (audit 2026-07-20 D5). Same
+    domain-yield semantics as the scan.
+    """
+    matches: list[str] = []
+    for rule in ANNEX_III_RULES:
+        all_flags = (*rule["flags"], *rule.get("subflags", ()))
+        matched_flag = any(flags.get(f) is True for f in all_flags)
+        matched_domain = domain in rule["domains"]
+        if matched_domain and not matched_flag:
+            if rule["flags"] and all(flags.get(f) is False for f in rule["flags"]):
+                matched_domain = False
+        if matched_flag or matched_domain:
+            matches.append(rule["node"])
+    return matches
+
+
+def _article_6_3_candidate(flags: dict[str, Any], autonomy: Any) -> bool:
+    """Whether an Article 6(3) derogation candidacy is flagged for this system.
+
+    The boolean half of the ladder's 6(3) logic, extracted so the FRIA rule
+    can apply it to the 6(2) side of a dual 6(1)+6(2) route system (audit
+    2026-07-20 D7). A matched second-subparagraph condition (with the
+    advisory-autonomy guard on the legacy combined flag) raises candidacy,
+    which the third-subparagraph profiling override then cancels.
+    """
+    matched = False
+    for flag, _points, _label in ARTICLE_6_3_CONDITIONS:
+        if flags.get(flag) is not True:
+            continue
+        if flag == "preparatory_or_narrow_procedural_task" and autonomy != "advisory":
+            continue
+        matched = True
+    if matched and flags.get("profiling_of_natural_persons") is True:
+        return False
+    return matched
+
+
 def _annex_iii_scan(
     flags: dict[str, Any], domain: str | None
 ) -> tuple[dict[str, Any] | None, str | None, list[str]]:
@@ -921,16 +964,28 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         features.get("domain") if isinstance(features, dict) else None
     )
     annex_node = answer.get("annex_iii_category")
-    if annex_node is None and answer.get("risk_category") == "high_risk":
-        rule, _trigger, _notes = _annex_iii_scan(flags, domain)
-        annex_node = rule["node"] if rule else None
+    # The full set of matched Annex III points, so the FRIA rule can scope
+    # the point-2 exception to the area, not the whole system (audit D5).
+    # This also recovers the 6(2) side of a system that took the 6(1) route.
+    annex_points = _annex_iii_all_matches(flags, domain)
+    if annex_node is None and annex_points:
+        annex_node = annex_points[0]
+    # Recompute Article 6(3) candidacy for the 6(2) side even when the ladder
+    # returned via the 6(1) route (its answer flag is False there): a
+    # dual-route system's 6(2) derogation candidacy still blocks FRIA (D7).
+    autonomy = features.get("autonomy") if isinstance(features, dict) else None
+    candidate = answer.get("article_6_3_exception_candidate") is True or (
+        bool(annex_points) and _article_6_3_candidate(flags, autonomy)
+    )
     answer["fria"] = assess_fria_applicability(
         answer.get("risk_category"),
         annex_node,
         flags,
         deployer,
-        article_6_3_exception_candidate=(
-            answer.get("article_6_3_exception_candidate") is True
-        ),
+        article_6_3_exception_candidate=candidate,
+        annex_points=annex_points,
+        # An unsettled high-risk classification (requires_human_review) must
+        # not carry a settled FRIA verdict (audit D6).
+        classification_unsettled=(envelope.get("status") == "requires_human_review"),
     )
     return envelope

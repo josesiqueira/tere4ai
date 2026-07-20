@@ -80,14 +80,34 @@ def test_critical_infrastructure_exception_excludes_the_obligation():
     assert any("point 2 of Annex III" in r for r in block["rationale"])
 
 
-def test_point_2_area_plus_point_5b_trigger_needs_human_review():
-    """A system matching both the excepted point 2 area and a point 5(b)
-    trigger is not rule-decidable; the rule must say so, not pick."""
+def test_point_2_area_plus_point_5b_trigger_applies():
+    """Audit D5: the point-2 exception is scoped to the point-2 area. A
+    system that also falls under point 5(b) is triggered by that aspect
+    regardless of the point-2 overlap, so the FRIA applies, not unknown."""
     block = assess_fria_applicability(
-        "high_risk", ANNEX_III_POINT_2, {"creditworthiness_evaluation": True}, {}
+        "high_risk",
+        ANNEX_III_POINT_5B,
+        {"creditworthiness_evaluation": True},
+        {},
+        annex_points=[ANNEX_III_POINT_2, ANNEX_III_POINT_5B],
     )
-    assert block["applicability"] == "unknown"
-    assert any("human legal review" in r for r in block["rationale"])
+    assert block["applicability"] == "applies"
+    assert ANNEX_III_POINT_5B in block["basis_nodes"]
+
+
+def test_point_2_plus_other_area_public_deployer_applies():
+    """Audit D5: a multi-area system (point 2 AND point 6) deployed by a
+    public-law body triggers the FRIA on the non-point-2 area; the point-2
+    exception must not erase the obligation."""
+    block = assess_fria_applicability(
+        "high_risk",
+        ANNEX_III_POINT_2,
+        {},
+        {"body_governed_by_public_law": True},
+        annex_points=[ANNEX_III_POINT_2, "eu-ai-act:annex-iii:point-6"],
+    )
+    assert block["applicability"] == "applies"
+    assert "eu-ai-act:annex-iii:point-6" in block["basis_nodes"]
 
 
 @pytest.mark.parametrize("category", ["minimal_or_none", "transparency_only"])
@@ -410,6 +430,21 @@ def test_profiling_cancels_derogation_then_branch_logic_proceeds(dump):
     assert answer["risk_category"] == "high_risk"
     assert answer["article_6_3_exception_candidate"] is False
     assert answer["fria"]["applicability"] == "applies"
+
+
+def test_unsettled_prohibition_makes_fria_unknown_not_applies(dump):
+    """Audit D6: a high-risk credit system with an unknown prohibition flag
+    is requires_human_review (could flip to prohibited); the FRIA block must
+    not present a settled 'applies', it stays unknown naming the dependency."""
+    features = _credit_scorer_features()
+    # Drop a prohibition flag so the classification is unsettled.
+    features["flags"].pop("social_scoring")
+    envelope = classify_ai_system(features, dump)
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["status"] == "requires_human_review"
+    fria = envelope["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert any("not settled" in r for r in fria["rationale"])
 
 
 def test_requirements_pass_the_fria_block_through_verbatim(dump):

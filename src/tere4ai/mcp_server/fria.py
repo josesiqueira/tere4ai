@@ -120,17 +120,26 @@ def assess_fria_applicability(
     flags: dict[str, Any],
     deployer: dict[str, Any],
     article_6_3_exception_candidate: bool = False,
+    annex_points: list[str] | None = None,
+    classification_unsettled: bool = False,
 ) -> dict[str, Any]:
     """Decide whether the Article 27(1) FRIA obligation applies.
 
-    risk_category, annex_iii_category, and the Article 6(3) derogation
-    candidacy come from the deterministic classification answer; flags and
-    deployer are the structured input facts. Returns the closed-vocabulary
-    fria block. Absent facts are unknown, never false; when they could
-    change the outcome the answer is "unknown" with each missing fact
-    named. A pending Article 6(3) derogation blocks the decision: a
-    confirmed derogation would take the system out of Article 6(2), and
-    with it out of Article 27(1).
+    risk_category, the Article 6(3) derogation candidacy, and the set of
+    matched Annex III points come from the deterministic classification;
+    flags and deployer are the structured input facts. Returns the
+    closed-vocabulary fria block. Absent facts are unknown, never false;
+    when they could change the outcome the answer is "unknown" with each
+    missing fact named.
+
+    annex_points is the FULL set of matched Annex III point nodes, so the
+    point-2 exception is scoped to the point-2 AREA and never erases the
+    obligation of a system that also falls under another point (audit D5).
+    classification_unsettled is true when the classification itself is not
+    settled (for example an unknown prohibition flag could flip it to
+    prohibited); the obligation then stays unknown (audit D6). A pending
+    Article 6(3) derogation likewise blocks the decision (audit D7): a
+    confirmed derogation would take the system out of Article 6(2).
     """
     rationale: list[str] = []
     basis = [ARTICLE_27_PARAGRAPH_1]
@@ -159,8 +168,12 @@ def assess_fria_applicability(
         )
         return _block("does_not_apply", rationale, basis, missing)
 
-    # high_risk from here on.
-    if annex_iii_category is None:
+    # high_risk from here on. Resolve the matched Annex III points.
+    if annex_points is None:
+        annex_points = [annex_iii_category] if annex_iii_category else []
+    annex_points = [p for p in annex_points if p]
+
+    if not annex_points:
         rationale.append(
             "the system is high-risk via the Article 6(1) embedded-product "
             "route only; Article 27(1) covers high-risk AI systems referred "
@@ -187,45 +200,28 @@ def assess_fria_applicability(
         )
         return _block("unknown", rationale, basis, missing)
 
+    if classification_unsettled:
+        # The high-risk classification is provisional (for example an unknown
+        # Article 5 prohibition fact could still flip it to prohibited, in
+        # which case FRIA does_not_apply). Do not present the obligation as
+        # settled while its own premise is not (audit D6).
+        rationale.append(
+            "the risk classification is high-risk but not settled (see the "
+            "classification's own missing facts); FRIA applicability stays "
+            "unknown until the classification is confirmed, because a change "
+            "to prohibited would remove the obligation"
+        )
+        return _block("unknown", rationale, basis, missing)
+
+    # Branches (b)/(c): a point 5(b) or 5(c) system triggers the FRIA for
+    # ANY deployer. These points are not point 2, so the exception never
+    # touches them, even when the system also spans the point-2 area.
     system_trigger_hits = [
         (flag, node, label)
         for flag, (node, label) in SYSTEM_TRIGGER_FLAGS.items()
         if flags.get(flag) is True
     ]
-
-    if annex_iii_category == ANNEX_III_POINT_2:
-        basis.append(ANNEX_III_POINT_2)
-        if system_trigger_hits:
-            # The point 2 exception and a point 5(b)/(c) trigger are both
-            # supported by the facts; how the exception interacts with a
-            # system spanning two Annex III areas is not rule-decidable.
-            for flag, node, label in system_trigger_hits:
-                basis.append(node)
-                rationale.append(
-                    f"Article 27(1) trigger supported: {flag} is true "
-                    f"({label})"
-                )
-            rationale.append(
-                "the system matches the Annex III point 2 area, which "
-                "Article 27(1) excepts, AND a point 5(b)/(c) trigger; the "
-                "interaction of the exception with a system spanning "
-                "several Annex III areas needs human legal review"
-            )
-            return _block("unknown", rationale, basis, missing)
-        rationale.append(
-            "the system is intended to be used in the area listed in point "
-            "2 of Annex III (critical infrastructure), which Article 27(1) "
-            "explicitly excepts from the FRIA obligation"
-        )
-        return _block("does_not_apply", rationale, basis, missing)
-
-    deployer_trigger_hits = [
-        (fact, label)
-        for fact, label in DEPLOYER_TRIGGER_FACTS.items()
-        if deployer.get(fact) is True
-    ]
-
-    if system_trigger_hits or deployer_trigger_hits:
+    if system_trigger_hits:
         for flag, node, label in system_trigger_hits:
             basis.append(node)
             rationale.append(
@@ -233,18 +229,51 @@ def assess_fria_applicability(
                 "obligation covers deployers of these systems regardless of "
                 "deployer type"
             )
-        for fact, label in deployer_trigger_hits:
-            rationale.append(
-                f"Article 27(1) trigger: the deployer is {label} "
-                f"(deployer.{fact})"
-            )
         rationale.append(
-            "the assessment must be performed prior to deploying the "
-            "system (Article 27(1): 'Prior to deploying a high-risk AI "
-            "system referred to in Article 6(2)')"
+            "the assessment must be performed 'Prior to deploying a "
+            "high-risk AI system referred to in Article 6(2)' (Article 27(1))"
         )
         return _block("applies", rationale, basis, missing)
 
+    # Branch (a): a public-law body or a private entity providing public
+    # services triggers the FRIA for any Annex III area EXCEPT point 2. The
+    # point-2 exception is scoped to the point-2 area, so a system that also
+    # falls under another point is not excused (audit D5).
+    non_point2 = [p for p in annex_points if p != ANNEX_III_POINT_2]
+    deployer_trigger_hits = [
+        (fact, label)
+        for fact, label in DEPLOYER_TRIGGER_FACTS.items()
+        if deployer.get(fact) is True
+    ]
+
+    if not non_point2:
+        # Point-2-only system: branch (a) can never fire and there is no 5(b)/
+        # 5(c) trigger, so the FRIA does not apply regardless of deployer type.
+        basis.append(ANNEX_III_POINT_2)
+        rationale.append(
+            "the only Annex III area matched is the area listed in point 2 "
+            "of Annex III (critical infrastructure), which Article 27(1) "
+            "explicitly excepts from the FRIA obligation; no point 5(b)/5(c) "
+            "trigger applies"
+        )
+        return _block("does_not_apply", rationale, basis, missing)
+
+    if deployer_trigger_hits:
+        for node in non_point2:
+            basis.append(node)
+        for fact, label in deployer_trigger_hits:
+            rationale.append(
+                f"Article 27(1) trigger: the deployer is {label} "
+                f"(deployer.{fact}), and the system falls under an Annex III "
+                "area other than point 2"
+            )
+        rationale.append(
+            "the assessment must be performed 'Prior to deploying a "
+            "high-risk AI system referred to in Article 6(2)' (Article 27(1))"
+        )
+        return _block("applies", rationale, basis, missing)
+
+    # No trigger fired. Name the facts that, if provided, could still trigger.
     unknown_facts = [
         f"flags.{flag}" for flag in SYSTEM_TRIGGER_FLAGS if flag not in flags
     ] + [
