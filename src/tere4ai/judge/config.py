@@ -24,6 +24,52 @@ class ModelConfigError(RuntimeError):
     """Raised when required model configuration is absent."""
 
 
+# OpenAI-family name markers. The judge must not be any of these (DEC-07:
+# same-family generator and judge have correlated failure modes). This is a
+# deny-list, so it cannot prove family disjointness for an unknown vendor
+# name; the generator-is-not-judge checks below close the most dangerous
+# gap (the generator grading its own output) regardless of naming.
+_OPENAI_FAMILY_PREFIXES = ("gpt", "o1", "o3", "o4", "chatgpt", "openai", "davinci")
+
+
+def assert_independent_judge(generator_model: str, judge_model: str) -> None:
+    """Reject a judge that is not independent of the generator (DEC-07).
+
+    Two failure modes: the judge is an OpenAI-family model (same family as
+    the generator), or the judge is literally the same model id as the
+    generator (the generator judging itself). Either collapses the control.
+    """
+    if judge_model.strip().lower().startswith(_OPENAI_FAMILY_PREFIXES):
+        raise ModelConfigError(
+            f"judge model {judge_model!r} looks like an OpenAI-family model; "
+            "DEC-07 requires an independent non-OpenAI judge family."
+        )
+    if generator_model.strip().lower() == judge_model.strip().lower():
+        raise ModelConfigError(
+            f"generator and judge share the model id {generator_model!r}; "
+            "DEC-07 requires an independent judge, not the generator judging "
+            "its own output."
+        )
+
+
+def require_independent_clients(generator: object, judge: object) -> None:
+    """Use-time guard against self-assessment (DEC-07).
+
+    load_model_config enforces distinct model ids for production, but a
+    programmatic caller can still pass one client object as both generator
+    and judge, bypassing config. This catches that: the same object judging
+    its own output is not a control. Distinct client objects that happen to
+    share a model id (offline test stubs) are allowed here; production ids
+    are already vetted at config load.
+    """
+    if generator is judge:
+        raise ModelConfigError(
+            "the same model client was passed as both generator and judge; "
+            "DEC-07 requires an independent judge (self-assessment is not a "
+            "control)."
+        )
+
+
 def _load_dotenv_once() -> None:
     try:
         from dotenv import load_dotenv
@@ -76,11 +122,7 @@ def load_model_config(env: dict[str, str] | None = None) -> ModelConfig:
 
     judge_model = env["TERE4AI_JUDGE_MODEL"]
     generator_model = env["TERE4AI_GENERATOR_MODEL"]
-    if judge_model.lower().startswith(("gpt", "o1", "o3", "openai")):
-        raise ModelConfigError(
-            f"judge model {judge_model!r} looks like an OpenAI-family model; "
-            "DEC-07 requires an independent non-OpenAI judge family."
-        )
+    assert_independent_judge(generator_model, judge_model)
 
     return ModelConfig(
         generator_model=generator_model,

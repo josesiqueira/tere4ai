@@ -48,7 +48,9 @@ from tere4ai.extract_norms.pipeline import (
     _log_event,
     _now,
     load_prompt,
+    prompt_sha256,
 )
+from tere4ai.judge.config import require_independent_clients
 
 ALIGNMENTS_SCHEMA_PATH = REPO_ROOT / "schema" / "json_schemas" / "alignments.schema.json"
 DEFAULT_LOG_PATH = REPO_ROOT / "data" / "review_queue" / "alignment_log.jsonl"
@@ -180,9 +182,12 @@ def align_norms(
     "stats": {...}}. Assertions conform to the AlignmentAssertion shape in
     alignments.schema.json; invalid ones are recorded in stats and dropped.
     """
+    require_independent_clients(generator, judge)
     log_path = log_path or DEFAULT_LOG_PATH
     align_prompt = load_prompt("align_hleg", prompt_version)
     judge_prompt = load_prompt("judge_alignment", prompt_version)
+    align_prompt_sha256 = prompt_sha256(align_prompt)
+    judge_prompt_sha256 = prompt_sha256(judge_prompt)
     validator = _alignments_validator()
     hleg_by_id = {node["id"]: node for node in hleg_nodes}
 
@@ -192,6 +197,7 @@ def align_norms(
         "layer": 3,
         "generator_model": generator.model,
         "prompt_version": prompt_version,
+        "prompt_sha256": align_prompt_sha256,
         "started_at": _now(),
         "build_id": build_id,
     }
@@ -234,6 +240,7 @@ def align_norms(
                 "norm_id": norm_id,
                 "model": generator.model,
                 "prompt_version": prompt_version,
+                "prompt_sha256": align_prompt_sha256,
                 "input_sha256": _input_hash(gen_user),
                 "parse_ok": parsed is not None,
                 "error": error,
@@ -365,6 +372,7 @@ def align_norms(
                     "target_id": target_id,
                     "model": judge.model,
                     "prompt_version": prompt_version,
+                    "prompt_sha256": judge_prompt_sha256,
                     "input_sha256": _input_hash(judge_user),
                     "verdict": verdict,
                     "corrected_relation_type": corrected,
@@ -379,6 +387,7 @@ def align_norms(
                 "judge_kind": "mapping",
                 "judge_model": judge.model,
                 "prompt_version": prompt_version,
+                "prompt_sha256": judge_prompt_sha256,
                 "verdict": verdict,
                 "scores": scores,
                 "rationale": rationale,

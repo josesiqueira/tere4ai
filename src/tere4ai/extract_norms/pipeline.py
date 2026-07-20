@@ -30,6 +30,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from tere4ai.extract_norms.model_clients import ModelClient
+from tere4ai.judge.config import require_independent_clients
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPTS_DIR = REPO_ROOT / "prompts"
@@ -65,6 +66,17 @@ def load_prompt(kind: str, version: str) -> str:
     if not path.exists():
         raise FileNotFoundError(f"prompt file not found: {path}")
     return path.read_text(encoding="utf-8")
+
+
+def prompt_sha256(text: str) -> str:
+    """Content hash of a prompt's exact text.
+
+    Logged alongside prompt_version so a result is bound to the actual
+    prompt bytes, not just its version label. Editing prompts/<kind>/v1.md
+    in place changes this hash even though the version still reads "v1", so
+    a judge change is always detectable and tied to the decisions it made.
+    """
+    return _input_hash(text)
 
 
 def _norm_validator() -> Draft202012Validator:
@@ -258,9 +270,12 @@ def extract_norms(
     "extraction". Failures are recorded in stats, never raised mid-batch
     (except the recital guard and unknown ids, which fail fast).
     """
+    require_independent_clients(generator, judge)
     log_path = log_path or DEFAULT_LOG_PATH
     extract_prompt = load_prompt("extract_norms", prompt_version)
     judge_prompt = load_prompt("judge_norms", prompt_version)
+    extract_prompt_sha256 = prompt_sha256(extract_prompt)
+    judge_prompt_sha256 = prompt_sha256(judge_prompt)
     validator = _norm_validator()
     build_id = dump.get("build", {}).get("build_id", "build-unknown")
 
@@ -296,6 +311,7 @@ def extract_norms(
                 "node_id": node_id,
                 "model": generator.model,
                 "prompt_version": prompt_version,
+                "prompt_sha256": extract_prompt_sha256,
                 "input_sha256": _input_hash(gen_user),
                 "parse_ok": parsed is not None,
                 "error": error,
@@ -344,6 +360,7 @@ def extract_norms(
                     "node_id": node_id,
                     "model": judge.model,
                     "prompt_version": prompt_version,
+                    "prompt_sha256": judge_prompt_sha256,
                     "input_sha256": _input_hash(judge_user),
                     "verdict": verdict,
                     "rationale": rationale,
@@ -359,6 +376,7 @@ def extract_norms(
                 "judge_kind": "extraction",
                 "judge_model": judge.model,
                 "prompt_version": prompt_version,
+                "prompt_sha256": judge_prompt_sha256,
                 "verdict": verdict,
                 "scores": scores,
                 "rationale": rationale,

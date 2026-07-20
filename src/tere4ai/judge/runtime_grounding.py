@@ -40,6 +40,7 @@ from tere4ai.extract_norms.pipeline import (
     _log_event,
     _now,
     load_prompt,
+    prompt_sha256,
 )
 
 DEFAULT_LOG_PATH = REPO_ROOT / "data" / "review_queue" / "runtime_log.jsonl"
@@ -112,6 +113,7 @@ def ground_check(
     """
     log_path = log_path or DEFAULT_LOG_PATH
     judge_prompt = load_prompt("runtime_grounding", prompt_version)
+    judge_prompt_sha256 = prompt_sha256(judge_prompt)
     judge_user = _judge_user_message(answer_text, cited_norms, evidence_text)
 
     started_at = _now()
@@ -132,6 +134,7 @@ def ground_check(
             "cited_norm_ids": [norm.get("norm_id") for norm in cited_norms],
             "model": judge.model,
             "prompt_version": prompt_version,
+            "prompt_sha256": judge_prompt_sha256,
             "input_sha256": _input_hash(judge_user),
             "answer_sha256": _input_hash(answer_text),
             "verdict": verdict,
@@ -146,6 +149,7 @@ def ground_check(
         "judge_kind": JUDGE_KIND,
         "judge_model": judge.model,
         "prompt_version": prompt_version,
+        "prompt_sha256": judge_prompt_sha256,
         "verdict": verdict,
         "scores": scores,
         "rationale": rationale,

@@ -39,7 +39,9 @@ from tere4ai.extract_norms.pipeline import (
     _log_event,
     _now,
     load_prompt,
+    prompt_sha256,
 )
+from tere4ai.judge.config import require_independent_clients
 from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
 from tere4ai.mcp_server.evidence import JUDGE_NOT_RUN
 from tere4ai.mcp_server.tools import make_envelope
@@ -228,6 +230,7 @@ def generate_control_backlog(
     satisfied yet); a non-accepting runtime judge verdict degrades it to
     "requires_human_review" with the judge rationale attached.
     """
+    require_independent_clients(generator, judge)
     if not norms:
         raise ValueError(
             "generate_control_backlog needs at least one judge-accepted norm"
@@ -276,6 +279,7 @@ def generate_control_backlog(
             "norm_ids": sorted(str(norm_id) for norm_id in known_ids),
             "model": generator.model,
             "prompt_version": prompt_version,
+            "prompt_sha256": prompt_sha256(gen_prompt),
             "input_sha256": _input_hash(gen_user),
             "parse_ok": parsed is not None,
             "error": error,

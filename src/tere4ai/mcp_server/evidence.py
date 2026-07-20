@@ -41,7 +41,9 @@ from tere4ai.extract_norms.pipeline import (
     _log_event,
     _now,
     load_prompt,
+    prompt_sha256,
 )
+from tere4ai.judge.config import require_independent_clients
 from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
 from tere4ai.mcp_server.tools import make_envelope
 
@@ -150,6 +152,7 @@ def evaluate_project_evidence(
     judge's verdict, and any non-accepting verdict forces the status to
     requires_human_review.
     """
+    require_independent_clients(generator, judge)
     _validate_evidence(evidence)
     log_path = log_path or DEFAULT_LOG_PATH
     norm_id = norm.get("norm_id", "norm:unknown")
@@ -175,6 +178,7 @@ def evaluate_project_evidence(
             "norm_id": norm_id,
             "model": generator.model,
             "prompt_version": prompt_version,
+            "prompt_sha256": prompt_sha256(gen_prompt),
             "input_sha256": _input_hash(gen_user),
             "parse_ok": parsed is not None,
             "error": error,

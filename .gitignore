@@ -45,6 +45,8 @@ data/refs/*.pdf
 data/refs/*.html
 data/refs/*.txt
 data/refs/graphify-out/
+# Graphify code-graph cache (regenerable with `graphify update .`, never tracked)
+graphify-out/
 
 # Never commit loose PDFs at the repo root (paper copies belong in data/refs, gitignored).
 /*.pdf
