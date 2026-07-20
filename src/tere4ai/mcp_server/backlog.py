@@ -60,6 +60,9 @@ _CONTEXT_END = "UNTRUSTED PROJECT CONTEXT END"
 _NORM_PROMPT_FIELDS = (
     "norm_id",
     "source_node_id",
+    # The norm's verbatim legal wording, resolved at serve time (audit D4),
+    # so the generator grounds controls in the exact text, not a paraphrase.
+    "source_text",
     "deontic_type",
     "modal",
     "actor_explicit",

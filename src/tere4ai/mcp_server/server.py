@@ -28,6 +28,7 @@ TERE4AI_MCP_REQUIRE_KEY=1. Every tool call is metered body-free.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -82,6 +83,42 @@ def _read_json(path: Path) -> dict[str, Any] | None:
 
 def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:
     return _read_json(dump_path)
+
+
+def _attach_source_text(norms: list[dict[str, Any]], dump: dict[str, Any]) -> None:
+    """Resolve each norm's verbatim source_text from its Layer 1 source node.
+
+    The runtime grounding judge and the evidence/backlog generators need the
+    norm's exact legal wording to detect paraphrase drift, but the served
+    norms payload does not carry source_text, so resolve it here from the
+    dump before the model ever sees the norm (audit 2026-07-20 D4/F6).
+    """
+    nodes = {
+        n["id"]: n for n in dump.get("nodes", []) if isinstance(n, dict) and "id" in n
+    }
+    for norm in norms:
+        if norm.get("source_text"):
+            continue
+        node = nodes.get(norm.get("source_node_id", ""))
+        if node is not None and node.get("text"):
+            norm["source_text"] = node["text"]
+
+
+def _empty_content_envelope(field: str, dump: dict[str, Any]) -> dict[str, Any]:
+    """Degrade (never raise) when a paid tool is called with empty content.
+
+    Mirrors the HTTP facade's guard so both transports return a Section 8
+    envelope instead of a raw exception on the MCP path (audit D9)."""
+    return tools.make_envelope(
+        answer={"found": False},
+        status="not_applicable",
+        graph_version=_graph_version(dump),
+        confidence=0.0,
+        missing_facts=[
+            f"'{field}' must be a non-empty string; no evidence was provided "
+            "to evaluate, so no model call was made"
+        ],
+    )
 
 
 def _dump_missing_envelope() -> dict[str, Any]:
@@ -303,6 +340,9 @@ def evaluate_project_evidence(
                 f"norm_id '{norm_id}' is not present in the judged norms payload"
             ],
         )
+    if not isinstance(content, str) or not content.strip():
+        return _empty_content_envelope("content", dump)
+    _attach_source_text([norm], dump)
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
@@ -351,6 +391,9 @@ def evaluate_project_evidence_batch(
                 f"no judge-accepted norms sourced from '{article_node_id}'"
             ],
         )
+    if not isinstance(content, str) or not content.strip():
+        return _empty_content_envelope("content", dump)
+    _attach_source_text(norms, dump)
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
@@ -405,6 +448,7 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
             ],
         )
     norms = [_norm_by_id(norms_payload, norm_id) for norm_id in norm_ids]
+    _attach_source_text(norms, dump)
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
@@ -419,6 +463,34 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
     )
 
 
+def _check_dump_integrity_at_startup() -> None:
+    """Verify the published dumps against a recorded build chain at boot.
+
+    Runtime half of the CI build-chain gate (audit 2026-07-20 D3): if the
+    served dumps are present but reproduce no recorded build_chain record,
+    they have drifted (corruption or tampering). Default is a loud warning so
+    a dumpless or structural-only checkout still starts; set
+    TERE4AI_MCP_REQUIRE_DUMP_INTEGRITY=1 to hard-fail instead, which a
+    production deployment should do. Absent dumps are handled by the
+    per-tool dump-missing envelopes, not here.
+    """
+    if not DUMP_PATH.is_file():
+        return
+    from tere4ai.graph_store.build_chain import verify_dumps_against_chain
+
+    ok, detail = verify_dumps_against_chain(DUMP_PATH.parent)
+    if ok:
+        return
+    message = f"TERE4AI dump integrity check FAILED: {detail}"
+    if os.environ.get("TERE4AI_MCP_REQUIRE_DUMP_INTEGRITY") == "1":
+        raise RuntimeError(message)
+    logging.getLogger("tere4ai.mcp_server").warning(
+        "%s. Serving anyway (set TERE4AI_MCP_REQUIRE_DUMP_INTEGRITY=1 to "
+        "refuse). The published graph may not match a reproducible build.",
+        message,
+    )
+
+
 def main() -> None:
     """Run stdio by default; streamable HTTP only behind an explicit flag.
 
@@ -426,6 +498,7 @@ def main() -> None:
     (the MCP spec's remote transport, REF-31). Anything other than stdio or
     http fails loudly rather than silently serving the wrong surface.
     """
+    _check_dump_integrity_at_startup()
     transport = os.environ.get("TERE4AI_MCP_TRANSPORT", "stdio").strip().lower()
     require_key = transport in ("http", "streamable-http") or os.environ.get(
         "TERE4AI_MCP_REQUIRE_KEY"

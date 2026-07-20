@@ -77,3 +77,48 @@ def test_matching_build_id_derives_from_the_layer1_build():
     layer1 = json.loads((_DUMP_DIR / "layer1.json").read_text(encoding="utf-8"))
     base_build_id = layer1["build"]["build_id"]
     assert record["build_id"] == chained_build_id(base_build_id, record)
+
+
+def test_runtime_verify_accepts_the_real_dumps():
+    """The runtime D3 gate (verify_dumps_against_chain) accepts the published
+    dumps and reports the current chain id."""
+    from tere4ai.graph_store.build_chain import verify_dumps_against_chain
+
+    dump_dir = ROOT / "data" / "graph_dumps"
+    if not (dump_dir / "layer1.json").is_file():
+        import pytest
+
+        pytest.skip("dumps not built")
+    ok, detail = verify_dumps_against_chain(dump_dir)
+    assert ok, detail
+    assert "verified against build chain" in detail
+
+
+def test_runtime_verify_rejects_a_tampered_dump(tmp_path):
+    """A single tampered byte in a copied dump makes the runtime gate refuse:
+    the recomputed chain matches no recorded record."""
+    import json as _json
+    import shutil
+
+    from tere4ai.graph_store.build_chain import verify_dumps_against_chain
+
+    dump_dir = ROOT / "data" / "graph_dumps"
+    if not (dump_dir / "layer1.json").is_file():
+        import pytest
+
+        pytest.skip("dumps not built")
+    for name in ("layer1.json", "norms_core.json", "alignments_core.json"):
+        src = dump_dir / name
+        if src.is_file():
+            shutil.copy2(src, tmp_path / name)
+    for rec in dump_dir.glob("build_chain_*.json"):
+        shutil.copy2(rec, tmp_path / rec.name)
+    # Tamper: flip one accepted norm's verdict on the copy.
+    norms = _json.loads((tmp_path / "norms_core.json").read_text())
+    norms["norms"][0]["judge_verdict"] = "accepted"
+    norms["norms"][0]["review_status"] = "accepted"
+    norms["norms"][0]["object"] = "INJECTED by a tamper test"
+    (tmp_path / "norms_core.json").write_text(_json.dumps(norms))
+    ok, detail = verify_dumps_against_chain(tmp_path)
+    assert not ok
+    assert "no recorded build chain" in detail

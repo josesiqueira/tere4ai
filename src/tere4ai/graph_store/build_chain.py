@@ -92,3 +92,39 @@ def chained_build_id(base_build_id: str, chain: dict[str, Any]) -> str:
     """
     base = base_build_id.split("+chain-", 1)[0]
     return f"{base}+chain-{chain['chain_id']}"
+
+
+def verify_dumps_against_chain(
+    dump_dir: Path | str,
+) -> tuple[bool, str]:
+    """Recompute the published dumps' chain and match it to a recorded chain.
+
+    Runtime integrity gate (audit 2026-07-20 D3): the served dumps must
+    reproduce EXACTLY ONE build_chain_<id>.json record in the same directory.
+    Returns (ok, detail). ok is False (with a human-readable reason) when a
+    dump is missing, unreadable, or its recomputed chain matches no recorded
+    record, i.e. the dump has drifted from any published build. This turns
+    the CI-only build-chain check into one the runtime can call at load, so a
+    tampered or corrupted dump is refused loudly instead of served.
+    """
+    directory = Path(dump_dir)
+    layer1 = directory / "layer1.json"
+    norms = directory / "norms_core.json"
+    alignments = directory / "alignments_core.json"
+    for path in (layer1, norms):
+        if not path.is_file():
+            return False, f"required dump missing: {path.name}"
+    align_arg = alignments if alignments.is_file() else None
+    try:
+        chain = build_chain(layer1, norms, align_arg)
+    except OSError as exc:
+        return False, f"could not read a dump to verify integrity: {exc}"
+    recorded = directory / f"build_chain_{chain['chain_id']}.json"
+    if not recorded.is_file():
+        return (
+            False,
+            "the published dumps match no recorded build chain "
+            f"(recomputed chain {chain['chain_id']}); the dumps may be "
+            "corrupted, tampered, or from an unpublished build",
+        )
+    return True, f"dumps verified against build chain {chain['chain_id']}"
