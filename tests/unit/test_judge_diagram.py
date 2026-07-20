@@ -49,3 +49,13 @@ def test_verified_judge_facts_present():
     svg = build()
     for fact in REQUIRED_FACTS:
         assert fact in svg, f"verified judge fact missing from the diagram: {fact!r}"
+
+
+def test_mermaid_companion_carries_the_same_judge_facts():
+    """docs/diagrams/judges.mmd is the editable mermaid companion; it must
+    keep the verified judge facts, including the investigation hooks the
+    author flagged as valuable (recitals refused as sources)."""
+    mmd = (ROOT / "docs" / "diagrams" / "judges.mmd").read_text(encoding="utf-8")
+    for fact in REQUIRED_FACTS:
+        assert fact in mmd, f"judge fact missing from the mermaid companion: {fact!r}"
+    assert "recitals refused as sources" in mmd

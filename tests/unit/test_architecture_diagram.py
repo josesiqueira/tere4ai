@@ -58,3 +58,16 @@ def test_no_stale_claims_and_all_decided_facts_present():
         assert stale not in svg, f"stale claim back in the diagram: {stale!r}"
     for fact in DECIDED_FACTS:
         assert fact in svg, f"decided fact missing from the diagram: {fact!r}"
+
+
+def test_mermaid_companion_carries_the_same_decided_facts():
+    """docs/diagrams/architecture.mmd is the editable mermaid companion of
+    the generated SVG; it must state the same decided facts and never the
+    stale claims."""
+    mmd = (ROOT / "docs" / "diagrams" / "architecture.mmd").read_text(
+        encoding="utf-8"
+    )
+    for stale in STALE_CLAIMS:
+        assert stale not in mmd, f"stale claim in the mermaid companion: {stale!r}"
+    for fact in DECIDED_FACTS:
+        assert fact in mmd, f"decided fact missing from the mermaid companion: {fact!r}"
