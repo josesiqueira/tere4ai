@@ -230,7 +230,13 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     minimal_or_none, uncertain) with cited Article 5 / Article 6 / Annex III
     / Article 50 nodes. A fixed rule ladder decides, never a model; unknown
     prohibition-relevant facts surface in missing_facts and lower the status
-    to requires_human_review. Free, no model calls."""
+    to requires_human_review. The answer also carries a fria block: whether
+    the Article 27(1) fundamental rights impact assessment obligation
+    applies to the deployer (applies, does_not_apply, unknown), decided by
+    the same deterministic rules from the flags and the optional deployer
+    facts (deployer.body_governed_by_public_law,
+    deployer.private_entity_providing_public_services). Free, no model
+    calls."""
     dump = _read_dump()
     if dump is None:
         return _dump_missing_envelope()

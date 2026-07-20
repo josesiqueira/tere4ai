@@ -59,6 +59,18 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   as both generator and judge.
 - docs/TASKS.md: the tracked task board, split into human-required,
   agent-next, and externally-blocked work.
+- FRIA applicability as a deterministic rule (DEC-14): classify_ai_system
+  answers now carry a fria block deciding whether the Article 27(1)
+  fundamental rights impact assessment obligation applies (applies,
+  does_not_apply, unknown), from the Article 6(2) route, the Annex III
+  point 2 exception, the new point 5(b)/(c) sub-flags
+  (creditworthiness_evaluation, life_health_insurance_risk_pricing), and
+  the new structured deployer facts (body governed by public law, private
+  entity providing public services). Unsettled facts are named, never
+  guessed; a system matching both the excepted point 2 area and a 5(b)/(c)
+  trigger is routed to human review; get_applicable_requirements passes
+  the block through next to the article-27 obligations. Only applicability
+  is decided, never the assessment's content.
 - Remote MCP transport (streamable HTTP) behind TERE4AI_MCP_TRANSPORT=http,
   gated by scoped, revocable t4a_ API keys with body-free usage metering
   (scripts/manage_mcp_keys.py).

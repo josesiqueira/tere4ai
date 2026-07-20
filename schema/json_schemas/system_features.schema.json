@@ -44,6 +44,14 @@
         "education_scoring_or_access": { "type": "boolean" },
         "employment_decisions": { "type": "boolean" },
         "essential_services_access": { "type": "boolean" },
+        "creditworthiness_evaluation": {
+          "type": "boolean",
+          "description": "Annex III point 5(b): intended to evaluate the creditworthiness of natural persons or establish their credit score, excluding AI systems used for the purpose of detecting financial fraud. FRIA-relevant (Article 27(1))."
+        },
+        "life_health_insurance_risk_pricing": {
+          "type": "boolean",
+          "description": "Annex III point 5(c): intended for risk assessment and pricing in relation to natural persons in the case of life and health insurance. FRIA-relevant (Article 27(1))."
+        },
         "critical_infrastructure_safety": { "type": "boolean" },
         "medical_or_safety_component": { "type": "boolean" },
         "interacts_with_natural_persons": { "type": "boolean" },
@@ -63,7 +71,22 @@
     },
     "deployer_actor": {
       "type": ["string", "null"],
-      "description": "Who operates it (e.g. public_authority, private_company, individual)"
+      "description": "Who operates it (e.g. public_authority, private_company, individual). Free vocabulary, context only; the FRIA rule never reads it because it cannot be mapped deterministically onto the Article 27(1) legal categories. Use the structured deployer object for those."
+    },
+    "deployer": {
+      "type": "object",
+      "description": "Structured facts about the deploying organisation, phrased in the Article 27(1) categories. Absent fact = unknown, never treated as false; unknowns surface in the fria block, not guessed.",
+      "properties": {
+        "body_governed_by_public_law": {
+          "type": "boolean",
+          "description": "The deployer is a body governed by public law (Article 27(1))."
+        },
+        "private_entity_providing_public_services": {
+          "type": "boolean",
+          "description": "The deployer is a private entity providing public services (Article 27(1))."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

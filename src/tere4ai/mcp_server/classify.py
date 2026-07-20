@@ -30,6 +30,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from tere4ai.mcp_server.fria import assess_fria_applicability
 from tere4ai.mcp_server.tools import make_envelope
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -161,6 +162,16 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
         "node": "eu-ai-act:annex-iii:point-5",
         "label": "essential private and public services",
         "flags": ("essential_services_access",),
+        # Sub-point facts (5(b) creditworthiness, 5(c) life/health insurance
+        # pricing): a true value matches the category, but the domain-yield
+        # rule below stays over the umbrella flag only, because an explicit
+        # false on the umbrella already denies the whole point 5 area
+        # (scenario 161 semantics preserved). These two also feed the FRIA
+        # rule (fria.py, DEC-14).
+        "subflags": (
+            "creditworthiness_evaluation",
+            "life_health_insurance_risk_pricing",
+        ),
         "domains": ("healthcare", "banking", "insurance"),
     },
     {
@@ -294,7 +305,49 @@ class _Citations:
             self.spans.append(span)
 
 
-def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
+def _annex_iii_scan(
+    flags: dict[str, Any], domain: str | None
+) -> tuple[dict[str, Any] | None, str | None, list[str]]:
+    """Scan the Annex III rules in point order; first match wins.
+
+    Returns (matched rule or None, trigger description or None, rationale
+    notes collected on the way, e.g. the domain-yield note). Pure function
+    of the structured facts, shared by the classification ladder and the
+    FRIA rule so the two can never disagree on Annex III membership.
+    """
+    notes: list[str] = []
+    for rule in ANNEX_III_RULES:
+        all_flags = (*rule["flags"], *rule.get("subflags", ()))
+        matched_flag = next((f for f in all_flags if flags.get(f) is True), None)
+        matched_domain = domain if domain in rule["domains"] else None
+        # Evidence-driven fix (eval/results/ELICITATION_ERRORS.md, scenario
+        # 161): a bare domain match must YIELD when every specific flag of
+        # the category is explicitly false. Annex III categories cover
+        # specific uses within a domain, not the domain itself; with the
+        # uses explicitly ruled out, domain alone is not a basis. Unknown
+        # flags keep the match (unknown is never treated as false). The
+        # yield check stays over the umbrella flags, not the subflags.
+        if matched_domain and not matched_flag:
+            all_explicitly_false = rule["flags"] and all(
+                flags.get(f) is False for f in rule["flags"]
+            )
+            if all_explicitly_false:
+                notes.append(
+                    f"domain '{matched_domain}' matches Annex III category "
+                    f"'{rule['label']}' but every specific flag of the "
+                    "category is explicitly false; domain alone does not "
+                    "gate high-risk (ELICITATION_ERRORS.md, scenario 161)"
+                )
+                matched_domain = None
+        if matched_flag or matched_domain:
+            trigger = (
+                f"flag {matched_flag}" if matched_flag else f"domain '{matched_domain}'"
+            )
+            return rule, trigger, notes
+    return None, None, notes
+
+
+def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
     """Deterministic EU AI Act risk classification of a described AI system.
 
     Consumes structured system features (system_features.schema.json) and the
@@ -457,38 +510,14 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         )
 
     # Rule 2b: Article 6(2) + Annex III high-risk categories.
-    annex_match: dict[str, Any] | None = None
-    for rule in ANNEX_III_RULES:
-        matched_flag = next((f for f in rule["flags"] if flags.get(f) is True), None)
-        matched_domain = domain if domain in rule["domains"] else None
-        # Evidence-driven fix (eval/results/ELICITATION_ERRORS.md, scenario
-        # 161): a bare domain match must YIELD when every specific flag of
-        # the category is explicitly false. Annex III categories cover
-        # specific uses within a domain, not the domain itself; with the
-        # uses explicitly ruled out, domain alone is not a basis. Unknown
-        # flags keep the match (unknown is never treated as false).
-        if matched_domain and not matched_flag:
-            all_explicitly_false = rule["flags"] and all(
-                flags.get(f) is False for f in rule["flags"]
-            )
-            if all_explicitly_false:
-                rationale.append(
-                    f"domain '{matched_domain}' matches Annex III category "
-                    f"'{rule['label']}' but every specific flag of the "
-                    "category is explicitly false; domain alone does not "
-                    "gate high-risk (ELICITATION_ERRORS.md, scenario 161)"
-                )
-                matched_domain = None
-        if matched_flag or matched_domain:
-            annex_match = rule
-            trigger = (
-                f"flag {matched_flag}" if matched_flag else f"domain '{matched_domain}'"
-            )
-            rationale.append(
-                f"rule high_risk: {trigger} matches Annex III category "
-                f"'{rule['label']}' ({rule['node']}), high-risk under Article 6(2)"
-            )
-            break
+    annex_match, annex_trigger, annex_notes = _annex_iii_scan(flags, domain)
+    rationale.extend(annex_notes)
+    if annex_match is not None:
+        rationale.append(
+            f"rule high_risk: {annex_trigger} matches Annex III category "
+            f"'{annex_match['label']}' ({annex_match['node']}), high-risk "
+            "under Article 6(2)"
+        )
 
     exception_candidate = False
     if annex_match is not None:
@@ -691,3 +720,41 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         legal_status_notes=legal_status_notes,
         missing_facts=missing_facts,
     )
+
+
+def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic classification plus the Article 27(1) FRIA block.
+
+    Runs the rule ladder (_classify_core), then adds answer["fria"], the
+    deterministic FRIA applicability block (fria.py, DEC-14): applies,
+    does_not_apply, or unknown with the missing facts named. The FRIA rule
+    reuses the same Annex III scan as the ladder, so when the ladder took
+    the Article 6(1) embedded-product route the system's separate Article
+    6(2) membership is still checked (both routes can hold at once, and
+    Article 27(1) covers the 6(2) side). The fria block is self-contained:
+    it never changes risk_category, envelope status, or confidence.
+    """
+    envelope = _classify_core(features, dump)
+    answer = envelope.get("answer")
+    if not isinstance(answer, dict) or "risk_category" not in answer:
+        return envelope
+    flags = features.get("flags") if isinstance(features, dict) else None
+    if not isinstance(flags, dict):
+        flags = {}
+    deployer = features.get("deployer") if isinstance(features, dict) else None
+    if not isinstance(deployer, dict):
+        deployer = {}
+    # Invalid input still reaches this wrapper (the core reports the schema
+    # errors in its envelope), so never assume field types here.
+    domain_raw = features.get("domain") if isinstance(features, dict) else None
+    domain = (
+        (domain_raw.strip().lower() or None) if isinstance(domain_raw, str) else None
+    )
+    annex_node = answer.get("annex_iii_category")
+    if annex_node is None and answer.get("risk_category") == "high_risk":
+        rule, _trigger, _notes = _annex_iii_scan(flags, domain)
+        annex_node = rule["node"] if rule else None
+    answer["fria"] = assess_fria_applicability(
+        answer.get("risk_category"), annex_node, flags, deployer
+    )
+    return envelope

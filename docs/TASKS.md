@@ -9,7 +9,8 @@
 > Formatting rule: never use em dashes, and never use en dashes as a
 > sentence break.
 >
-> Last updated: 2026-07-20 (session: judge hardenings, SELF-05, diagrams).
+> Last updated: 2026-07-20 (session: judge hardenings, SELF-05, diagrams,
+> FRIA applicability rule DEC-14).
 
 ## A. Human-required (only Jose can do these)
 
@@ -23,6 +24,7 @@
 | H6 | Decisions: target venue + deadline (OPEN-VENUE), license (OPEN-LICENSE, no LICENSE file exists), git remote yes/no (CI has never run; this machine is the only copy of the repo) | USER.md open decisions; architecture.md Section 15 | OPEN-VENUE drives all scheduling; the remote decision is also the backup question | about 1 h |
 | H7 | Verify SELF-05 CEUR-WS volume and pages when proceedings publish | docs/references.md [VERIFY] tag on SELF-05 | Register hygiene | 10 min |
 | H8 | Approve or decline the PAID judge re-passes: F1 (re-judge the 65 Article 16 actor-inference norms with the inference-source text in the judge input) and F5 (re-run alignment with full HLEG descriptions) | See docs/live_audit_log.md 2026-07-20 entry; reference point: a full judge sweep costs about 9.6 USD, these are smaller | F1 is the highest-correctness open judge issue; code fix can land free, the dump only updates after a paid pass | decision only |
+| H9 | FRIA content phase, source gathering (follow-up to DEC-14): decide what "conducting a FRIA" support should look like and collect its sources BEFORE any implementation. The applicability rule is done; the content elements are Article 27(1) points (a) to (f), already in the graph verbatim (span:027.001). Needed: the Article 27(5) AI Office template (check whether published; freeze + checksum if so) and FRIA methodology literature registered in docs/references.md; nothing gets built from memory or blogs | docs/references.md register rules; only PEER / STD / OFF sources can ground MUSTs | research session |
 
 ## B. Agent next (free, no approval needed beyond a go)
 
@@ -36,6 +38,8 @@
 | B6 | Push to a remote and watch the first CI run (after H6 remote decision) | .github/workflows/ci.yml exists, never executed | 30 min |
 | B7 | Task 68 extension: live adversarial judge run over the 12 fixtures (PAID, quote first, single-digit USD) | scripts/adversarial_evidence_report.py has the offline half | approval + 1 h |
 | B8 | Optional hygiene: anchored committed-secret scan gate (proposed 2026-07-12); dark-mode toggle drift vs DESIGN.md; UI facade URL env override | Low priority, demo-scoped | 1 to 2 h each |
+| B9 | DONE 2026-07-20 (ledger task 85): FRIA applicability rule (DEC-14). classify answers carry a fria block (applies / does_not_apply / unknown) from Article 27(1) facts; new schema facts creditworthiness_evaluation, life_health_insurance_risk_pricing, deployer.*; requirements pass it through | src/tere4ai/mcp_server/fria.py; tests/unit/test_fria.py | done |
+| B10 | Elicitor prompt v4: teach the elicitor the two new FRIA-relevant flags with the verbatim Annex III point 5(b)/(c) texts from the dump (same pattern as the v3 Article 3 definitions); deployer.* facts stay direct-input only, a system description cannot settle who deploys it | Code change is free; affects only future PAID elicitation runs | 1 h |
 
 ## C. Blocked externally
 

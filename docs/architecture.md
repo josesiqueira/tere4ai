@@ -444,6 +444,20 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   without textual support omitted; elicitation-vs-abstention measured in the
   ablation artifacts (eval/results/FULL_RUN_ANALYSIS.md, docs/variance_study.md;
   earlier sweep in eval/results/RUN2_ANALYSIS.md).
+- DEC-14: FRIA applicability (Article 27(1)) decided by a deterministic rule,
+  never a model (added 2026-07-20). Engineering MUST (the same trust split as
+  DEC-13); the rule mirrors the operative sentence of the frozen source text
+  (REF-01); corroborated by REF-30, whose rule-based checker also treats FRIA
+  applicability as form-decidable.
+  Defense: Article 27(1)'s trigger is a closed set of structured facts (the
+  Article 6(2) route, the Annex III point 2 exception, the two deployer
+  categories, Annex III points 5(b) and (c)), so applicability is
+  rule-decidable; only the obligation's applicability is decided, never the
+  assessment's content, and unsettled facts yield "unknown" with each missing
+  fact named.
+  verify: src/tere4ai/mcp_server/fria.py (no model imports); classify answers
+  carry the fria block and get_applicable_requirements passes it through;
+  tests/unit/test_fria.py.
 
 ## 17. Implementation-traceability convention
 

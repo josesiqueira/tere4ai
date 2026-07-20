@@ -317,12 +317,20 @@ def get_applicable_requirements(
             + (f" and actor filter '{actor}'" if actor else "")
         )
 
+    answer_out: dict[str, Any] = {
+        "risk_category": risk_category,
+        "requirements_by_article": grouped,
+        "summary": summary,
+    }
+    # Pass the classification's deterministic FRIA block (fria.py, DEC-14)
+    # through verbatim, so the Article 27(1) applicability answer sits next
+    # to the article-27 obligations it governs. Never recomputed here.
+    fria = answer_in.get("fria")
+    if isinstance(fria, dict):
+        answer_out["fria"] = fria
+
     return make_envelope(
-        answer={
-            "risk_category": risk_category,
-            "requirements_by_article": grouped,
-            "summary": summary,
-        },
+        answer=answer_out,
         # Requirements are applicable; no project evidence has been evaluated
         # yet, hence applicable_missing_evidence (DEC-08 vocabulary).
         status="applicable_missing_evidence" if returned else "requires_human_review",
