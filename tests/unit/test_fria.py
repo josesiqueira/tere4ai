@@ -82,12 +82,27 @@ def test_each_deployer_category_triggers_fria_on_any_annex_iii_system(fact):
 
 
 def test_critical_infrastructure_exception_excludes_the_obligation():
+    # 5(b)/5(c) known false, so the point-2 exception settles does_not_apply.
     block = assess_fria_applicability(
-        "high_risk", ANNEX_III_POINT_2, {}, {"body_governed_by_public_law": True}
+        "high_risk",
+        ANNEX_III_POINT_2,
+        {"creditworthiness_evaluation": False, "life_health_insurance_risk_pricing": False},
+        {"body_governed_by_public_law": True},
     )
     assert block["applicability"] == "does_not_apply"
     assert ANNEX_III_POINT_2 in block["basis_nodes"]
     assert any("point 2 of Annex III" in r for r in block["rationale"])
+
+
+def test_point_2_only_with_unknown_5bc_facts_is_unknown_not_does_not_apply():
+    """Audit 2026-07-21: a point-2-only system whose 5(b)/5(c) facts are
+    UNKNOWN must not be a confident does_not_apply; either fact being true
+    would add a non-excepted point-5 area and trigger the FRIA."""
+    block = assess_fria_applicability(
+        "high_risk", ANNEX_III_POINT_2, {}, {"body_governed_by_public_law": True}
+    )
+    assert block["applicability"] == "unknown"
+    assert any("creditworthiness_evaluation" in m for m in block["missing_facts"])
 
 
 def test_point_2_area_plus_point_5b_trigger_applies():
@@ -139,10 +154,25 @@ def test_unsettled_classification_keeps_fria_unknown(category):
 
 
 def test_article_6_1_route_only_is_out_of_article_27_scope():
-    block = assess_fria_applicability("high_risk", None, {}, {})
+    # 5(b)/5(c) known false, so the 6(1)-only route settles does_not_apply.
+    block = assess_fria_applicability(
+        "high_risk",
+        None,
+        {"creditworthiness_evaluation": False, "life_health_insurance_risk_pricing": False},
+        {},
+    )
     assert block["applicability"] == "does_not_apply"
     assert any("Article 6(1)" in r for r in block["rationale"])
     assert any("Article 6(2)" in r for r in block["rationale"])
+
+
+def test_6_1_route_with_unknown_5bc_facts_is_unknown_not_does_not_apply():
+    """Audit 2026-07-21: a 6(1)-route-only system whose 5(b)/5(c) facts are
+    UNKNOWN could also fall under Article 6(2) point 5, so FRIA applicability
+    is unknown, not a confident does_not_apply."""
+    block = assess_fria_applicability("high_risk", None, {}, {})
+    assert block["applicability"] == "unknown"
+    assert any("life_health_insurance_risk_pricing" in m for m in block["missing_facts"])
 
 
 def test_all_trigger_facts_explicitly_false_means_does_not_apply():

@@ -320,6 +320,10 @@ def evaluate_evidence_batch(
     """
     if not norms:
         raise ValueError("evaluate_evidence_batch needs at least one norm")
+    # Guard at this entry too, so the batch tool is self-evidently correct and
+    # not only via the per-norm delegation (audit 2026-07-21). Self-assessment
+    # is not a control; the same object as generator and judge is refused.
+    require_independent_clients(generator, judge)
     _validate_evidence(evidence)
 
     skipped = [

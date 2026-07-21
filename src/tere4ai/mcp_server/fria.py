@@ -173,7 +173,31 @@ def assess_fria_applicability(
         annex_points = [annex_iii_category] if annex_iii_category else []
     annex_points = [p for p in annex_points if p]
 
+    # An unknown 5(b)/5(c) fact means annex_points may be INCOMPLETE: if the
+    # fact were true the system would fall under Annex III point 5 and the
+    # FRIA would apply. So a does_not_apply that rests on the absence of a
+    # point-5 match is only safe once those facts are known (audit 2026-07-21).
+    unknown_system_triggers = [f for f in SYSTEM_TRIGGER_FLAGS if f not in flags]
+
+    def _name_unknown_triggers() -> None:
+        for f in unknown_system_triggers:
+            missing.append(
+                f"flags.{f} is unknown (Article 27(1) FRIA-relevant); if true "
+                "it places the system under Annex III point 5(b)/(c) and "
+                "triggers the FRIA, so absence is not treated as false"
+            )
+
     if not annex_points:
+        if unknown_system_triggers:
+            _name_unknown_triggers()
+            rationale.append(
+                "the system is high-risk via the Article 6(1) embedded-product "
+                "route and no Annex III category matched the provided facts, "
+                "but the point 5(b)/5(c) facts are unknown; either being true "
+                "would place it under Article 6(2), so FRIA applicability "
+                "cannot be settled yet"
+            )
+            return _block("unknown", rationale, basis, missing)
         rationale.append(
             "the system is high-risk via the Article 6(1) embedded-product "
             "route only; Article 27(1) covers high-risk AI systems referred "
@@ -247,14 +271,26 @@ def assess_fria_applicability(
     ]
 
     if not non_point2:
-        # Point-2-only system: branch (a) can never fire and there is no 5(b)/
-        # 5(c) trigger, so the FRIA does not apply regardless of deployer type.
+        # Point-2-only system: branch (a) can never fire. It does_not_apply
+        # only once the 5(b)/5(c) facts are known false; while they are unknown
+        # either being true would add a non-excepted point-5 area and trigger
+        # the FRIA, so the answer stays unknown (audit 2026-07-21).
         basis.append(ANNEX_III_POINT_2)
+        if unknown_system_triggers:
+            _name_unknown_triggers()
+            rationale.append(
+                "the only settled Annex III area is the area listed in point 2 "
+                "of Annex III (critical infrastructure, which Article 27(1) "
+                "excepts), but the point 5(b)/5(c) facts are unknown; either "
+                "being true adds a non-excepted area and triggers the FRIA, so "
+                "applicability cannot be settled yet"
+            )
+            return _block("unknown", rationale, basis, missing)
         rationale.append(
             "the only Annex III area matched is the area listed in point 2 "
             "of Annex III (critical infrastructure), which Article 27(1) "
-            "explicitly excepts from the FRIA obligation; no point 5(b)/5(c) "
-            "trigger applies"
+            "explicitly excepts from the FRIA obligation, and the point "
+            "5(b)/5(c) facts are known false, so no trigger applies"
         )
         return _block("does_not_apply", rationale, basis, missing)
 

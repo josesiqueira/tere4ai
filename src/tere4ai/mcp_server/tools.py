@@ -382,12 +382,15 @@ def _excerpt(
 ) -> str | None:
     """Text excerpt for a traced node.
 
-    Resolves the literal snapshot slice through resolve_span, which slices by
-    BYTE offsets (the span offsets are byte offsets, so the previous
-    read_text(...)[start:end] char-slice returned the wrong text for any
-    snapshot with multi-byte characters before the span, audit 2026-07-21),
-    verifies the snapshot sha256, and guards against path escape. Falls back
-    to the node's own text or title when the span cannot be resolved.
+    Resolves the literal snapshot slice through resolve_span, which reads the
+    snapshot as BYTES then decodes. The span offsets are computed over that
+    raw byte-decoded text, which preserves CRLF line endings; the previous
+    Path.read_text applied universal-newline translation, collapsing every
+    \\r\\n to \\n and shifting all later offsets, so it returned the wrong
+    provision (audit 2026-07-21, measured on the CRLF-terminated EUR-Lex
+    HTML). resolve_span also verifies the snapshot sha256 and guards against
+    path escape. Falls back to the node's own text or title when the span
+    cannot be resolved.
     """
     span_id = span.get("span_id")
     if snapshots_dir is not None and span_id:
