@@ -113,18 +113,35 @@ def test_high_risk_returns_only_accepted_norms_grouped(dump, norms_payload, node
     assert envelope["status"] == "applicable_missing_evidence"
     answer = envelope["answer"]
 
+    from tere4ai.mcp_server.requirements import _is_requirement_group
+
+    def _in_req_scope(n):
+        return _is_requirement_group(_group(n["source_node_id"]))
+
     verdict_by_norm = {n["norm_id"]: n["judge_verdict"] for n in norms_payload["norms"]}
-    accepted = [n for n in norms_payload["norms"] if n["judge_verdict"] == "accepted"]
+    # Audit W3: a high-risk system's requirements are the obligation regime,
+    # never the classification/prohibition groups (Article 5/6/7, Annex).
+    accepted = [
+        n
+        for n in norms_payload["norms"]
+        if n["judge_verdict"] == "accepted" and _in_req_scope(n)
+    ]
     needs_review = [
-        n for n in norms_payload["norms"] if n["judge_verdict"] == "needs_human_review"
+        n
+        for n in norms_payload["norms"]
+        if n["judge_verdict"] == "needs_human_review" and _in_req_scope(n)
     ]
 
     entries = [e for group in answer["requirements_by_article"].values() for e in group]
-    # Only accepted norms, and all of them.
+    # Only accepted requirement-group norms, and all of them.
     assert all(verdict_by_norm[e["norm_id"]] == "accepted" for e in entries)
     assert len(entries) == len(accepted)
     assert answer["summary"]["total_accepted_in_scope"] == len(accepted)
     assert answer["summary"]["returned"] == len(accepted)
+    # No classification or prohibition group is ever served as a requirement.
+    served_groups = set(answer["requirements_by_article"])
+    assert "article-5" not in served_groups
+    assert not any(g.startswith("annex-") for g in served_groups)
 
     # Grouping matches each norm's source article or annex.
     for group, group_entries in answer["requirements_by_article"].items():
@@ -174,11 +191,15 @@ def test_high_risk_entries_carry_conditions_when_present(dump, norms_payload):
         for group in envelope["answer"]["requirements_by_article"].values()
         for e in group
     ]
+    from tere4ai.mcp_server.requirements import _is_requirement_group
+
     with_conditions = [e for e in entries if "conditions" in e]
     conditioned_accepted = [
         n
         for n in norms_payload["norms"]
-        if n["judge_verdict"] == "accepted" and n.get("conditions")
+        if n["judge_verdict"] == "accepted"
+        and n.get("conditions")
+        and _is_requirement_group(_group(n["source_node_id"]))
     ]
     assert len(with_conditions) == len(conditioned_accepted)
 

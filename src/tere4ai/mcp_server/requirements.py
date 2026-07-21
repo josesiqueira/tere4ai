@@ -28,6 +28,23 @@ NORMS_SCHEMA_PATH = _REPO_ROOT / "schema" / "json_schemas" / "norms.schema.json"
 
 TRANSPARENCY_GROUP = "article-50"
 
+# Source groups that state a classification rule or a prohibition, not an
+# engineering requirement, so they are never served as applicable
+# requirements for a (non-prohibited) high-risk system (audit 2026-07-20 W3).
+# A high-risk system is by definition not prohibited, so Article 5 norms are
+# never its requirements; Articles 6 to 7 and the Annex lists are the
+# classification machinery, not obligations on the provider or deployer. The
+# obligation regime (Articles 8 to 27 requirements and duties, 50 transparency
+# where it also triggers, 72 to 73 monitoring) is kept.
+NON_REQUIREMENT_ARTICLE_GROUPS = frozenset(
+    {"article-5", "article-6", "article-7"}
+)
+
+
+def _is_requirement_group(group: str) -> bool:
+    """False for classification/prohibition groups that are not requirements."""
+    return group not in NON_REQUIREMENT_ARTICLE_GROUPS and not group.startswith("annex-")
+
 PROHIBITED_MESSAGE = (
     "This system falls under an Article 5 prohibited AI practice. Prohibited "
     "systems receive no engineering requirements: placing on the market, "
@@ -252,11 +269,16 @@ def get_applicable_requirements(
             missing_facts=["norms payload contains no norms; the Layer 2 build artifact is missing"],
         )
 
-    # Scope: transparency_only consumes only Article 50 norms.
+    # Scope: transparency_only consumes only Article 50 norms; high_risk
+    # consumes the obligation regime, never the classification/prohibition
+    # groups (audit W3), so a high-risk system is not handed Article 5
+    # prohibitions or Annex classification rows as "requirements".
     if risk_category == "transparency_only":
         in_scope = [n for n in norms if _source_group(str(n.get("source_node_id", ""))) == TRANSPARENCY_GROUP]
     else:
-        in_scope = list(norms)
+        in_scope = [
+            n for n in norms if _is_requirement_group(_source_group(str(n.get("source_node_id", ""))))
+        ]
 
     accepted = [n for n in in_scope if n.get("judge_verdict") == "accepted"]
     needs_review = [n for n in in_scope if n.get("judge_verdict") == "needs_human_review"]
