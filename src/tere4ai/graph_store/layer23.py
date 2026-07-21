@@ -8,9 +8,12 @@ alignment pipeline output ({assertions, mapping_runs, judge_runs, stats})
 into the generic nodes-plus-edges shape that GraphStore.load_dump writes.
 
 Provenance rules (architecture.md Section 2) hold here too: every edge
-carries a provenance class and a derivation id. A norm's DERIVED_FROM edge is
-LLM_JUDGED_ACCEPTED only when the extraction judge accepted it, otherwise
-LLM_CANDIDATE; when a human decision exists (a human_review record set by
+carries a provenance class and a derivation id. A norm's DERIVED_FROM edge
+records the judge outcome faithfully (audit W1): LLM_JUDGED_ACCEPTED when
+accepted, LLM_JUDGED_REJECTED when rejected, AMBIGUOUS_NEEDS_REVIEW when the
+judge deferred, and LLM_CANDIDATE only when the item was never judged; a
+rejected item is no longer indistinguishable from an unjudged candidate. When
+a human decision exists (a human_review record set by
 tere4ai.review_queue.apply), its provenance class (HUMAN_REVIEWED_ACCEPTED or
 HUMAN_REVIEWED_REJECTED) wins. Reified alignment structure per Section 4: the assertion node
 links to the source norm, the target HLEG requirement, its MappingRun, and
@@ -78,6 +81,24 @@ def _human_review_provenance(item: dict[str, Any], node: dict[str, Any]) -> str 
     return human.get("provenance")
 
 
+def _llm_provenance(judge_verdict: Any) -> str:
+    """Map a judge verdict to its provenance class (architecture.md Section 2).
+
+    Audit 2026-07-20 W1: a judge-REJECTED item must be distinguishable from an
+    unjudged candidate. Previously both collapsed to LLM_CANDIDATE, so a
+    consumer keying on provenance could not tell "the judge rejected this"
+    from "not yet judged". Serving is unaffected (it filters on judge_verdict),
+    but the provenance edge now carries the real outcome.
+    """
+    if judge_verdict == "accepted":
+        return "LLM_JUDGED_ACCEPTED"
+    if judge_verdict == "rejected":
+        return "LLM_JUDGED_REJECTED"
+    if judge_verdict == "needs_human_review":
+        return "AMBIGUOUS_NEEDS_REVIEW"
+    return "LLM_CANDIDATE"
+
+
 def _judge_run_node(run: dict[str, Any]) -> dict[str, Any]:
     node = {"id": run["id"], "layer": 3, "type": "JudgeRun"}
     for k in (
@@ -122,14 +143,13 @@ def norms_to_graph(norms_result: dict[str, Any], build_id: str | None = None) ->
         human_prov = _human_review_provenance(norm, node)
         nodes.append(node)
 
-        accepted = norm.get("judge_verdict") == "accepted"
         edges.append(
             _edge(
                 f"edge:{norm['norm_id']}:derived",
                 "DERIVED_FROM",
                 norm["norm_id"],
                 norm["source_node_id"],
-                human_prov or ("LLM_JUDGED_ACCEPTED" if accepted else "LLM_CANDIDATE"),
+                human_prov or _llm_provenance(norm.get("judge_verdict")),
                 norm.get("judge_run_id") or f"derivation:{norm['norm_id']}",
                 norm.get("extraction_method", "llm_extract_v1"),
                 build_id,
@@ -223,8 +243,7 @@ def alignments_to_graph(
         human_prov = _human_review_provenance(a, node)
         nodes.append(node)
 
-        accepted = a.get("judge_verdict") == "accepted"
-        prov = human_prov or ("LLM_JUDGED_ACCEPTED" if accepted else "LLM_CANDIDATE")
+        prov = human_prov or _llm_provenance(a.get("judge_verdict"))
         edges.append(
             _edge(
                 f"edge:{a['id']}:of",

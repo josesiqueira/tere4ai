@@ -63,11 +63,22 @@ def test_norms_to_graph_provenance_split():
         derived["norm:eu-ai-act:article-9:paragraph-1:n1"]["provenance_class"]
         == "LLM_JUDGED_ACCEPTED"
     )
+    # Audit W1: a judge-rejected norm is LLM_JUDGED_REJECTED, distinguishable
+    # from an unjudged LLM_CANDIDATE (n2 carries judge_verdict "rejected").
     assert (
         derived["norm:eu-ai-act:article-9:paragraph-1:n2"]["provenance_class"]
-        == "LLM_CANDIDATE"
+        == "LLM_JUDGED_REJECTED"
     )
     assert all(e.get("derivation_id") for e in g["edges"])
+
+
+def test_provenance_class_maps_every_verdict():
+    from tere4ai.graph_store.layer23 import _llm_provenance
+
+    assert _llm_provenance("accepted") == "LLM_JUDGED_ACCEPTED"
+    assert _llm_provenance("rejected") == "LLM_JUDGED_REJECTED"
+    assert _llm_provenance("needs_human_review") == "AMBIGUOUS_NEEDS_REVIEW"
+    assert _llm_provenance(None) == "LLM_CANDIDATE"
 
 
 def test_all_labels_and_edge_types_are_allowlisted():
