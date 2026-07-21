@@ -131,6 +131,18 @@ def test_trace_parity(client):
     assert _canon(via_http) == _canon(direct)
 
 
+def test_trace_batch_inner_envelope_parity(client):
+    """The batch wrapper is transport only: each inner envelope must equal
+    the direct tool call byte for byte (minus timestamps)."""
+    via_http = client.post(
+        "/api/trace/batch", json={"ids": [ACCEPTED_NORM_ID]}
+    ).json()
+    direct = trace_tool.trace_alignment(
+        ACCEPTED_NORM_ID, client.app.state.alignments, client.app.state.dump
+    )
+    assert _canon(via_http["envelopes"][ACCEPTED_NORM_ID]) == _canon(direct)
+
+
 def test_span_parity(client):
     # Use a span the accepted norm actually cites, resolved from the live dump.
     norm = next(

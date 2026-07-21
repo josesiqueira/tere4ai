@@ -18,6 +18,11 @@ from fastapi.testclient import TestClient
 import tere4ai.http_facade.app as facade
 from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.judge.config import ModelConfigError
+from tere4ai.mcp_server.tools import (
+    BANNED_CLAIM_TERMS,
+    SECTION_8_ENVELOPE_FIELDS,
+    strip_verbatim_quote_fields,
+)
 
 # The judged dumps are published build artifacts (gitignored), so a fresh
 # clone has none; skip cleanly instead of failing, checking the same dump
@@ -396,6 +401,50 @@ def test_trace_endpoint_unknown_id_is_clean_envelope(client):
     envelope = response.json()
     assert envelope["status"] == "not_applicable"
     assert envelope["answer"]["found"] is False
+
+
+def test_trace_batch_passes_through_one_envelope_per_unique_id(client):
+    unknown = "norm:eu-ai-act:article-999:n1"
+    response = client.post(
+        "/api/trace/batch",
+        json={"ids": [ACCEPTED_NORM_ID, unknown, ACCEPTED_NORM_ID]},
+    )
+    assert response.status_code == 200
+    envelopes = response.json()["envelopes"]
+    # Duplicate ids collapse to one envelope each.
+    assert set(envelopes) == {ACCEPTED_NORM_ID, unknown}
+    # Every entry is a full Section 8 envelope, the unknown id included.
+    for envelope in envelopes.values():
+        assert set(envelope) == set(SECTION_8_ENVELOPE_FIELDS)
+    known = envelopes[ACCEPTED_NORM_ID]
+    assert known["answer"]["found"] is True
+    assert known["answer"]["mode"] == "norm"
+    assert known["answer"]["assertion_count"] >= 1
+    # The unknown id degrades to its own clean envelope; it never fails the
+    # batch or raises.
+    degraded = envelopes[unknown]
+    assert degraded["status"] == "not_applicable"
+    assert degraded["answer"]["found"] is False
+    assert degraded["missing_facts"]
+    # Deterministic and free: no paid marker.
+    assert facade.PAID_HEADER not in response.headers
+
+
+def test_trace_batch_rejects_empty_ids(client):
+    response = client.post("/api/trace/batch", json={"ids": []})
+    assert response.status_code == 422
+
+
+def test_trace_batch_system_fields_have_no_banned_terms(client):
+    """DEC-08 scoped scan over the batch payload: after scrubbing the
+    verbatim-quote fields (alignment quotes, rationales), no banned claim
+    term may remain anywhere in the response."""
+    response = client.post("/api/trace/batch", json={"ids": [ACCEPTED_NORM_ID]})
+    assert response.status_code == 200
+    serialized = json.dumps(strip_verbatim_quote_fields(response.json())).lower()
+    for term in BANNED_CLAIM_TERMS:
+        assert term not in serialized
+        assert term.replace(" ", "_") not in serialized
 
 
 def test_span_endpoint_returns_verified_slice(client):

@@ -60,6 +60,55 @@ type RequirementsAnswer = {
   message?: string;
 };
 
+/* Reified alignment chain as served by /api/trace/batch (trace_alignment
+   pass-through): never a bare edge, always the assertion with its scores,
+   judge verdict, runs, and evidence quotes on both sides (DEC-05). */
+type AlignmentAssertion = {
+  assertion_id: string;
+  source_norm_id: string;
+  target_id: string;
+  relation_type: string;
+  scores: Record<string, number>;
+  final_score: number | null;
+  judge_verdict: string;
+  rationale: string | null;
+  review_status: string | null;
+  evidence: {
+    source_evidence_span_ids: string[];
+    target_evidence_span_ids: string[];
+    source_quote: string | null;
+    target_quote: string | null;
+  };
+  mapping_run: {
+    id: string | null;
+    generator_model: string | null;
+    prompt_version: string | null;
+  };
+  judge_run: {
+    id: string | null;
+    judge_model: string | null;
+    prompt_version: string | null;
+    verdict: string | null;
+    rationale: string | null;
+    corrected_relation_type: string | null;
+  };
+};
+
+type TraceAnswer = {
+  id: string;
+  found: boolean;
+  mode?: string;
+  assertion_count?: number;
+  accepted_count?: number;
+  caveat?: string;
+  assertions?: AlignmentAssertion[];
+  alignments_build_id?: string;
+};
+
+type TraceBatchResponse = {
+  envelopes: Record<string, Envelope<TraceAnswer>>;
+};
+
 type EvidenceAnswer = {
   norm_id: string;
   artifact_type: string;
@@ -102,6 +151,29 @@ const NOTICE =
   "TERE4AI provides engineering and documentation support. It does not " +
   "certify EU AI Act compliance and does not replace legal review, " +
   "conformity assessment, or competent-authority interpretation.";
+
+/* The seven HLEG Trustworthy AI requirements are a closed canonical set
+   (USER.md domain guardrails). Ids and labels below are exactly those of
+   the graph build (align_hleg_altai/hleg_nodes.py CANONICAL, over the
+   frozen 2019 HLEG guidelines text). An id outside this map falls back to
+   the raw id; a name is never invented. */
+const HLEG_LABELS: Record<string, string> = {
+  "hleg:human-agency-and-oversight": "Human agency and oversight",
+  "hleg:technical-robustness-and-safety": "Technical robustness and safety",
+  "hleg:privacy-and-data-governance": "Privacy and data governance",
+  "hleg:transparency": "Transparency",
+  "hleg:diversity-non-discrimination-and-fairness":
+    "Diversity, non-discrimination and fairness",
+  "hleg:societal-and-environmental-well-being":
+    "Societal and environmental well-being",
+  "hleg:accountability": "Accountability",
+};
+
+/* Mandatory caveat (USER.md domain guardrails): short form for the chips
+   row footnote. The full caveat inside each expanded evidence view comes
+   from the trace envelope itself (answer.caveat, server pass-through). */
+const HLEG_CAVEAT_SHORT =
+  "EU-to-HLEG mappings are LLM-generated, not expert-validated.";
 
 const PROHIBITION_FLAGS: [string, string][] = [
   ["subliminal_or_manipulative", "Subliminal or manipulative techniques"],
@@ -247,6 +319,116 @@ function Chip({ children }: { children: React.ReactNode }) {
     <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs break-all">
       {children}
     </code>
+  );
+}
+
+/* HLEG alignment chips per norm card (judge-ACCEPTED assertions only; a
+   norm with none renders nothing). Clicking a chip expands the full reified
+   evidence: relation type, score dimensions, final score, judge verdict and
+   rationale, and the verbatim evidence quotes from both sides. The quotes
+   are byte-exact quote fields (DEC-08 verbatim exemption) and are never
+   altered here. The mapping caveat renders in short form under the chips
+   row and in full inside every expanded view (USER.md domain guardrail). */
+function HlegAlignments({ envelope }: { envelope?: Envelope<TraceAnswer> }) {
+  const [openTarget, setOpenTarget] = useState<string | null>(null);
+  const accepted = (envelope?.answer.assertions ?? []).filter(
+    (a) => a.judge_verdict === "accepted"
+  );
+  if (!envelope || accepted.length === 0) return null;
+  const byTarget = new Map<string, AlignmentAssertion[]>();
+  for (const assertion of accepted) {
+    const list = byTarget.get(assertion.target_id) ?? [];
+    list.push(assertion);
+    byTarget.set(assertion.target_id, list);
+  }
+  const caveat = envelope.answer.caveat ?? HLEG_CAVEAT_SHORT;
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {Array.from(byTarget.entries()).map(([target, list]) => (
+          <button
+            key={target}
+            type="button"
+            aria-expanded={openTarget === target}
+            aria-label={`Toggle alignment evidence for ${HLEG_LABELS[target] ?? target}`}
+            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+              openTarget === target
+                ? "border-primary/40 text-primary bg-accent"
+                : "border-border text-muted-foreground hover:bg-accent"
+            }`}
+            onClick={() => setOpenTarget(openTarget === target ? null : target)}
+          >
+            HLEG: {HLEG_LABELS[target] ?? target}
+            {list.length > 1 ? ` (${list.length})` : ""}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{HLEG_CAVEAT_SHORT}</p>
+      {openTarget !== null && byTarget.has(openTarget) && (
+        <div className="rounded-md border border-border p-3 space-y-3">
+          <p className="text-xs font-semibold">
+            {HLEG_LABELS[openTarget] ?? openTarget}{" "}
+            <code className="font-mono font-normal text-muted-foreground">
+              {openTarget}
+            </code>
+          </p>
+          {(byTarget.get(openTarget) ?? []).map((assertion) => (
+            <div key={assertion.assertion_id} className="space-y-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Chip>{assertion.relation_type}</Chip>
+                <Chip>final score {assertion.final_score ?? "n/a"}</Chip>
+                <span className="text-xs text-muted-foreground">
+                  Judge verdict:{" "}
+                  <code className="font-mono">{assertion.judge_verdict}</code>
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Scores:{" "}
+                {Object.entries(assertion.scores)
+                  .map(([name, value]) => `${name.replace(/_/g, " ")} ${value}`)
+                  .join(", ")}
+              </p>
+              {assertion.rationale && (
+                <p className="text-xs">
+                  <span className="font-semibold">Rationale:</span>{" "}
+                  <span className="text-muted-foreground">{assertion.rationale}</span>
+                </p>
+              )}
+              {assertion.evidence.source_quote && (
+                <blockquote className="border-l-2 border-border pl-3 text-sm text-muted-foreground">
+                  &ldquo;{assertion.evidence.source_quote}&rdquo;{" "}
+                  <span className="text-xs">(EU AI Act side)</span>
+                </blockquote>
+              )}
+              {assertion.evidence.target_quote && (
+                <blockquote className="border-l-2 border-border pl-3 text-sm text-muted-foreground">
+                  &ldquo;{assertion.evidence.target_quote}&rdquo;{" "}
+                  <span className="text-xs">(HLEG side)</span>
+                </blockquote>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                <Chip>{assertion.assertion_id}</Chip>
+                {[
+                  ...assertion.evidence.source_evidence_span_ids,
+                  ...assertion.evidence.target_evidence_span_ids,
+                ].map((spanId) => (
+                  <Chip key={spanId}>{spanId}</Chip>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Mapping run: {assertion.mapping_run.generator_model ?? "unknown"} (prompt{" "}
+                {assertion.mapping_run.prompt_version ?? "unknown"}); judge:{" "}
+                {assertion.judge_run.judge_model ?? "unknown"} (prompt{" "}
+                {assertion.judge_run.prompt_version ?? "unknown"})
+              </p>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground border-t border-border pt-2">
+            {caveat}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -435,6 +617,14 @@ export default function AssessPage() {
   const [requirements, setRequirements] =
     useState<Envelope<RequirementsAnswer> | null>(null);
 
+  /* HLEG alignments for the served norms: one /api/trace/batch call per
+     assessment (free, deterministic), keyed by norm_id. */
+  const [alignments, setAlignments] = useState<Record<
+    string,
+    Envelope<TraceAnswer>
+  > | null>(null);
+  const [alignmentsError, setAlignmentsError] = useState<string | null>(null);
+
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [evidenceUi, setEvidenceUi] = useState<Record<string, EvidenceUiState>>({});
 
@@ -450,6 +640,8 @@ export default function AssessPage() {
     setClassifyLoading(true);
     setClassifyError(null);
     setRequirements(null);
+    setAlignments(null);
+    setAlignmentsError(null);
     setBacklog(null);
     setSelected({});
     setEvidenceUi({});
@@ -529,6 +721,8 @@ export default function AssessPage() {
     setClassifyError(null);
     setRequirements(null);
     setReqError(null);
+    setAlignments(null);
+    setAlignmentsError(null);
     setBacklog(null);
     setBacklogError(null);
     setSelected({});
@@ -541,11 +735,29 @@ export default function AssessPage() {
     setReqLoading(true);
     setReqError(null);
     setBacklog(null);
+    setAlignments(null);
+    setAlignmentsError(null);
     try {
       const envelope = await postJson<Envelope<RequirementsAnswer>>("/api/requirements", {
         classification,
       });
       setRequirements(envelope);
+      /* One bulk call for the HLEG chips of every served norm (no per-norm
+         request flood). A failure degrades to a visible note, never silently
+         (architecture.md Section 13); the requirements themselves stand. */
+      const normIds = Object.values(envelope.answer.requirements_by_article ?? {})
+        .flat()
+        .map((n) => n.norm_id);
+      if (normIds.length > 0) {
+        try {
+          const batch = await postJson<TraceBatchResponse>("/api/trace/batch", {
+            ids: normIds,
+          });
+          setAlignments(batch.envelopes);
+        } catch (err) {
+          setAlignmentsError(err instanceof Error ? err.message : String(err));
+        }
+      }
     } catch (err) {
       setRequirements(null);
       setReqError(err instanceof Error ? err.message : String(err));
@@ -855,6 +1067,11 @@ export default function AssessPage() {
               {requirements.answer.message && (
                 <p className="text-sm">{requirements.answer.message}</p>
               )}
+              {alignmentsError && (
+                <p className="text-sm text-destructive">
+                  HLEG alignment chips unavailable: {alignmentsError}
+                </p>
+              )}
               <div className="space-y-1">
                 {Object.entries(grouped).map(([group, norms]) => (
                   <details key={group} className="rounded-md border border-border">
@@ -909,6 +1126,10 @@ export default function AssessPage() {
                                   <Chip>{norm.source_node_id}</Chip>
                                   <Chip>{norm.source_span_id}</Chip>
                                 </div>
+                                <HlegAlignments
+                                  envelope={alignments?.[norm.norm_id]}
+                                />
+
                                 <details className="rounded-md border border-border">
                                   <summary className="cursor-pointer p-2 text-xs font-medium hover:bg-accent">
                                     Evaluate evidence against this norm

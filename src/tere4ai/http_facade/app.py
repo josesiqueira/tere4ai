@@ -14,10 +14,15 @@ Behavioral contract:
   (norms_core.json) are loaded once at startup. If either is missing, every
   endpoint returns a clean 503 JSON payload, never a traceback (no silent
   degradation, Section 13).
-- /api/classify, /api/requirements, /api/explain, /api/trace, and
-  /api/span/{span_id} are deterministic and free. /api/explain and /api/trace
-  additionally need alignments_core.json (503 with a clean payload when it is
-  missing); /api/span verifies the snapshot checksum before slicing.
+- /api/classify, /api/requirements, /api/explain, /api/trace,
+  /api/trace/batch, and /api/span/{span_id} are deterministic and free.
+  /api/explain and the trace endpoints additionally need
+  alignments_core.json (503 with a clean payload when it is missing);
+  /api/span verifies the snapshot checksum before slicing.
+- /api/trace/batch is a thin bulk wrapper for the demo UI: one
+  trace_alignment envelope per unique requested id, passed through
+  unmodified, so the assess page can render HLEG alignment chips for all
+  served norms with a single request instead of one call per norm.
 - /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
   plus Anthropic runtime grounding judge). Model clients are built lazily
   per request; a missing key surfaces the ModelConfigError message as a
@@ -70,6 +75,11 @@ ALLOWED_ORIGINS = ("http://localhost:3111", "http://127.0.0.1:3111")
 # Facade-level cap on backlog input norms, regardless of the tool's own max.
 MAX_BACKLOG_NORMS = 10
 
+# Cap on ids per /api/trace/batch request. The published build serves at most
+# a few hundred accepted norms, so 500 covers every real assessment while
+# keeping a single request bounded.
+MAX_TRACE_BATCH_IDS = 500
+
 PAID_HEADER = "X-TERE4AI-Paid-Call"
 
 # Hardening (Section 8: rate limiting, request logging). Fixed-window
@@ -109,6 +119,10 @@ class ExplainRequest(BaseModel):
 
 class TraceRequest(BaseModel):
     id: str
+
+
+class TraceBatchRequest(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=MAX_TRACE_BATCH_IDS)
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -261,7 +275,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "evidence evaluation behind a runtime grounding judge. Not legal "
             "advice; never claims compliance.\n\n"
             "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
-            "/api/trace and GET /api/span/{span_id} (free, deterministic); "
+            "/api/trace, /api/trace/batch and GET /api/span/{span_id} "
+            "(free, deterministic); "
             "POST /api/evidence, /api/backlog (paid model calls, marked with "
             "X-TERE4AI-Paid-Call); GET /api/health.\n"
             "Input schema: schema/json_schemas/system_features.schema.json\n\n"
@@ -286,6 +301,11 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                     },
                     "explain": {"method": "POST", "path": "/api/explain", "paid": False},
                     "trace": {"method": "POST", "path": "/api/trace", "paid": False},
+                    "trace_batch": {
+                        "method": "POST",
+                        "path": "/api/trace/batch",
+                        "paid": False,
+                    },
                     "span": {
                         "method": "GET",
                         "path": "/api/span/{span_id}",
@@ -381,6 +401,23 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             body.id, request.app.state.alignments, request.app.state.dump
         )
         return JSONResponse(content=envelope)
+
+    @app.post("/api/trace/batch")
+    def trace_batch(request: Request, body: TraceBatchRequest) -> JSONResponse:
+        # Deterministic and free; one trace_alignment envelope per unique id,
+        # passed through unmodified (same Section 8 envelope as /api/trace).
+        # An unknown id degrades to its own not_applicable envelope; it never
+        # fails the whole batch.
+        unavailable = _unavailable(request) or _alignments_unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        envelopes = {
+            item_id: trace_tool.trace_alignment(
+                item_id, request.app.state.alignments, request.app.state.dump
+            )
+            for item_id in dict.fromkeys(body.ids)
+        }
+        return JSONResponse(content={"envelopes": envelopes})
 
     @app.get("/api/span/{span_id:path}")
     def span(request: Request, span_id: str) -> JSONResponse:
