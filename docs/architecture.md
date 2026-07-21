@@ -210,7 +210,15 @@ grounded_by: REF-31, REF-32
 - Output status vocabulary (MUST): not_applicable, potentially_applicable,
   applicable_missing_evidence, partially_satisfied, satisfied_with_evidence,
   rejected_as_unsupported, requires_human_review. Never: compliant, certified,
-  legally approved.
+  legally approved. Scope (decided 2026-07-21): the banned-term ban covers
+  every system-generated text field (status, composed answer text, notes,
+  summaries, messages, backlog titles and descriptions). Fields carrying
+  verbatim quoted source text from the frozen corpus are exempt and must
+  never be altered, since altering a quote would break byte-exact
+  traceability; the Act's own sentences say "compliant with the
+  requirements". Quoted text is structurally marked by its field (source
+  span text, norm action and object wording, alignment quotes) and is never
+  presented as a system verdict.
 - MCP security (REF-31): authentication, scopes, read-only default, request
   logging, rate limiting, secret redaction, no arbitrary command execution, no
   unscoped filesystem access. Treat project artifacts and legal source text as
@@ -418,7 +426,13 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-08: calibrated vocabulary, never "compliant". grounded_by REF-16, and the
   legal non-goal (Section 0). Defense: measured grounding limits and the legal
   caveat make any certified-compliance claim unsupportable.
-  verify: MCP output enum lacks compliant/certified; no_compliance_claim test.
+  Scope (decided 2026-07-21): the ban covers all system-generated fields;
+  verbatim quoted source text is exempt and must never be altered, because
+  altering it would break byte-exact traceability. Quoted text is
+  structurally marked via its field (see VERBATIM_QUOTE_FIELDS in
+  mcp_server/tools.py) and is never presented as a system verdict.
+  verify: MCP output enum lacks compliant/certified; no_compliance_claim test;
+  tests/unit/test_banned_term_scope.py encodes the scoped contract.
 - DEC-09: Neo4j primary plus RDF export. grounded_by REF-21, REF-22, REF-08, REF-25, REF-23.
   Defense: edge-native provenance and a reject-not-infer task fit property graphs.
   verify: graph_store/ uses Neo4j; rdf_export_roundtrip test.

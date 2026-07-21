@@ -14,7 +14,11 @@ import pytest
 from tere4ai.mcp_server import requirements as requirements_module
 from tere4ai.mcp_server.classify import classify_ai_system
 from tere4ai.mcp_server.requirements import get_applicable_requirements
-from tere4ai.mcp_server.tools import NON_LEGAL_ADVICE_NOTICE, STATUS_VOCABULARY
+from tere4ai.mcp_server.tools import (
+    NON_LEGAL_ADVICE_NOTICE,
+    STATUS_VOCABULARY,
+    strip_verbatim_quote_fields,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -49,17 +53,14 @@ def assert_envelope_invariants(envelope: dict, node_ids: set) -> None:
     assert envelope["non_legal_advice_notice"] == NON_LEGAL_ADVICE_NOTICE
     assert envelope["status"] in STATUS_VOCABULARY
     assert envelope["judge_verdict"] == "not_applicable_deterministic"
-    # DEC-08: the tool's own text never says compliant or certified. Norm
-    # entries quote the Act's deontic content verbatim (Article 8(2) and
-    # Article 16 point (a) literally say "compliant with the requirements"),
-    # so the quoted action/object/conditions fields are excluded from this
-    # check: they are cited legal source text, not a claim by the tool.
-    scrubbed = json.loads(json.dumps(envelope))
-    for group in scrubbed.get("answer", {}).get("requirements_by_article", {}).values():
-        for entry in group:
-            for quoted_field in ("action", "object", "conditions"):
-                entry.pop(quoted_field, None)
-    serialized = json.dumps(scrubbed).lower()
+    # DEC-08 banned-term scope: the tool's own text never says compliant or
+    # certified. Norm entries quote the Act's deontic content verbatim
+    # (Article 8(2) and Article 16 point (a) literally say "compliant with
+    # the requirements"), so the verbatim-quote fields are scrubbed before
+    # the check: they are cited legal source text, not a claim by the tool.
+    # The shared exemption list lives in tools.VERBATIM_QUOTE_FIELDS; see
+    # tests/unit/test_banned_term_scope.py for the full scoped contract.
+    serialized = json.dumps(strip_verbatim_quote_fields(envelope)).lower()
     assert "compliant" not in serialized
     assert "certified" not in serialized
     for node_id in envelope["source_nodes"]:

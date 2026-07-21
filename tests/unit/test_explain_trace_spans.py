@@ -23,7 +23,11 @@ from tere4ai.mcp_server.spans import (
     resolve_span,
     resolve_span_envelope,
 )
-from tere4ai.mcp_server.tools import NON_LEGAL_ADVICE_NOTICE, STATUS_VOCABULARY
+from tere4ai.mcp_server.tools import (
+    NON_LEGAL_ADVICE_NOTICE,
+    STATUS_VOCABULARY,
+    strip_verbatim_quote_fields,
+)
 from tere4ai.mcp_server.trace import trace_alignment
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,19 +52,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 # Fields whose content is cited legal source text or verbatim build-time
-# judge/generator text, not a claim made by the tool itself (same convention
-# as test_get_requirements.py); they are removed before the DEC-08
-# no-compliance-claim check.
-QUOTED_FIELDS = (
-    "action",
-    "object",
-    "conditions",
-    "exceptions",
-    "text",
-    "rationale",
-    "source_quote",
-    "target_quote",
-)
+# judge/generator text, not a claim made by the tool itself, are removed
+# before the DEC-08 no-compliance-claim check. The shared exemption list is
+# tools.VERBATIM_QUOTE_FIELDS; the full scoped contract is encoded in
+# tests/unit/test_banned_term_scope.py.
 
 
 @pytest.fixture(scope="module")
@@ -92,19 +87,11 @@ def span_ids_in_dump(dump) -> set:
     }
 
 
-def _scrub_quoted(value):
-    if isinstance(value, dict):
-        return {k: _scrub_quoted(v) for k, v in value.items() if k not in QUOTED_FIELDS}
-    if isinstance(value, list):
-        return [_scrub_quoted(v) for v in value]
-    return value
-
-
 def assert_envelope_invariants(envelope: dict, node_ids: set) -> None:
     assert envelope["non_legal_advice_notice"] == NON_LEGAL_ADVICE_NOTICE
     assert envelope["status"] in STATUS_VOCABULARY
     assert envelope["judge_verdict"] == "not_applicable_deterministic"
-    serialized = json.dumps(_scrub_quoted(envelope)).lower()
+    serialized = json.dumps(strip_verbatim_quote_fields(envelope)).lower()
     assert "compliant" not in serialized
     assert "certified" not in serialized
     for node_id in envelope["source_nodes"]:

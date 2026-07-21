@@ -29,6 +29,65 @@ STATUS_VOCABULARY = (
     "requires_human_review",
 )
 
+# DEC-08 banned claim terms (architecture.md Sections 8 and 16): these words
+# may never appear in any SYSTEM-GENERATED text field of an envelope.
+BANNED_CLAIM_TERMS = ("compliant", "certified", "legally approved")
+
+# DEC-08 scope (decided 2026-07-21 after a live audit): the ban covers every
+# field TERE4AI composes itself (status, answer text, notes, summaries,
+# messages, backlog titles and descriptions). Fields that carry VERBATIM
+# quoted text are exempt, because the EU AI Act's own sentences say things
+# like "compliant with the requirements" (Article 8(2), Article 16 point
+# (a)) and Article 82 is titled "Compliant AI systems which present a risk".
+# Those are the regulator's words, not TERE4AI's claim; they are
+# structurally marked by the field names below, are never presented as a
+# system verdict, and must never be altered: sanitizing a quote would break
+# the byte-exact traceability of quoted source text, a harder invariant
+# than the wording ban. Replayed generator and judge free text (rationales,
+# evidence quotes) is exempt from this mechanical string scan because it may
+# legitimately quote the statute; actual compliance assertions in that text
+# are rejected semantically by the runtime grounding judge (Section 7,
+# prompt check "no compliance assertion").
+VERBATIM_QUOTE_FIELDS = frozenset(
+    {
+        # Verbatim frozen-source text (the regulator's words).
+        "text",
+        "title",
+        "excerpt",
+        "source_text",
+        # Norm deontic content quoted from the Act.
+        "action",
+        "object",
+        "conditions",
+        "exceptions",
+        # Alignment evidence quotes on both sides.
+        "source_quote",
+        "target_quote",
+        # Verbatim quotes lifted from untrusted project evidence.
+        "quotes",
+        # Replayed model free text, judge-gated semantically, kept byte-exact.
+        "rationale",
+        "judge_rationale",
+    }
+)
+
+
+def strip_verbatim_quote_fields(value: Any) -> Any:
+    """Recursively drop the DEC-08-exempt verbatim-quote fields.
+
+    Used by the banned-term enforcement tests: what remains after this scrub
+    is system-generated text, in which BANNED_CLAIM_TERMS may never occur.
+    """
+    if isinstance(value, dict):
+        return {
+            k: strip_verbatim_quote_fields(v)
+            for k, v in value.items()
+            if k not in VERBATIM_QUOTE_FIELDS
+        }
+    if isinstance(value, list):
+        return [strip_verbatim_quote_fields(v) for v in value]
+    return value
+
 # The mandatory response envelope of architecture.md Section 8: every
 # user-facing tool response MUST carry exactly these keys. make_envelope is
 # the single constructor and its output is asserted against this set in the

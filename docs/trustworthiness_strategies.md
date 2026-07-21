@@ -225,10 +225,18 @@ merit, this document says so explicitly instead of inventing a citation.
   warranted trust), ADD-05 (PEER, trustworthiness cues), REF-16 (the measured
   grounding ceiling that makes a compliance claim unsupportable).
 - Implementation: src/tere4ai/mcp_server/tools.py:22-30 (7 values);
-  make_envelope raises on anything else (:92-93).
+  make_envelope raises on anything else; BANNED_CLAIM_TERMS and
+  VERBATIM_QUOTE_FIELDS in the same module define the scope.
+- Scope (2026-07-21): the ban covers every system-generated field. Verbatim
+  quoted source text is exempt and preserved byte-exact, because the law's
+  own sentences say "compliant with the requirements" (Article 8(2)) and
+  altering a quote would break traceability; quoted text is structurally
+  marked by its field and never presented as a system verdict.
 - Tests: tests/unit/test_envelope_contract.py (every endpoint, every tier);
-  tests/unit/test_mcp_tools.py:149.
-- See it: no envelope can say compliant; try to find one.
+  tests/unit/test_mcp_tools.py:149; tests/unit/test_banned_term_scope.py
+  (the scoped contract, including byte-exact quote preservation).
+- See it: no system-generated field can say compliant; the law's own quoted
+  words are preserved verbatim and are the only place the word can appear.
 
 ### 18. Explicit abstention: missing_facts, unknown never false
 - Grounding: ADD-02 (calibrated trust requires admitting ignorance), REF-30;

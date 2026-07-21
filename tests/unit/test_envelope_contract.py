@@ -8,7 +8,9 @@ file asserts the UNIVERSAL contract that architecture.md Section 8 makes a
 MUST: every user-facing tool response, from every envelope-returning
 endpoint and across every classification tier, carries exactly the Section
 8 field set, a status drawn only from the calibrated vocabulary (never a
-compliance claim), and the non-legal-advice notice. It fires the real
+compliance claim), no banned claim term in any system-generated field
+(verbatim quote fields are exempt; see test_banned_term_scope.py), and the
+non-legal-advice notice. It fires the real
 assembled app over the committed graph dumps; paid endpoints use scripted
 FakeClients so no model is called.
 
@@ -31,10 +33,12 @@ from fastapi.testclient import TestClient
 import tere4ai.http_facade.app as facade
 from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.mcp_server.tools import (
+    BANNED_CLAIM_TERMS,
     NON_LEGAL_ADVICE_NOTICE,
     SECTION_8_ENVELOPE_FIELDS,
     STATUS_VOCABULARY,
     make_envelope,
+    strip_verbatim_quote_fields,
 )
 
 # The judged dumps are published build artifacts (gitignored), so a fresh
@@ -135,6 +139,15 @@ def assert_section8_envelope(env: dict) -> None:
     datetime.fromisoformat(env["generated_at"])
     for key in ("source_nodes", "source_spans", "legal_status_notes", "missing_facts"):
         assert isinstance(env[key], list), f"{key} must be a list"
+    # DEC-08 banned-term scope: no system-generated field on the wire may
+    # carry a compliance-like claim. Verbatim quote fields (the Act's own
+    # words, alignment quotes, replayed rationales) are exempt and scrubbed
+    # first; see VERBATIM_QUOTE_FIELDS in mcp_server/tools.py and
+    # tests/unit/test_banned_term_scope.py.
+    serialized = json.dumps(strip_verbatim_quote_fields(env)).lower()
+    for term in BANNED_CLAIM_TERMS:
+        assert term not in serialized, f"banned term {term!r} in a system-generated field"
+        assert term.replace(" ", "_") not in serialized
 
 
 def test_make_envelope_matches_the_declared_field_set():
