@@ -121,6 +121,25 @@ def _empty_content_envelope(field: str, dump: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _invalid_input_envelope(detail: str, dump: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Degrade (never raise) when a tool argument is unusable (Section 13).
+
+    Boundary guard for the no-silent-degradation MUST: hostile or malformed
+    arguments (None, wrong type, blank required ids) come back as a Section 8
+    envelope naming the invalid argument in missing_facts, never as a raw
+    exception surfacing to the consumer (live audit 2026-07-21). On paid
+    tools this guard runs before any model client is constructed, so an
+    unusable input can never trigger a model call.
+    """
+    return tools.make_envelope(
+        answer=None,
+        status="requires_human_review",
+        graph_version=_graph_version(dump) if dump is not None else "unavailable",
+        confidence=0.0,
+        missing_facts=[detail],
+    )
+
+
 def _dump_missing_envelope() -> dict[str, Any]:
     # Name the file, not the absolute server path (audit W4: no filesystem
     # layout disclosure to the consumer).
@@ -298,6 +317,12 @@ def get_applicable_requirements(
     dump = _read_dump()
     if dump is None:
         return _dump_missing_envelope()
+    if not isinstance(classification, dict):
+        return _invalid_input_envelope(
+            "'classification' must be a dict (the classify_ai_system envelope "
+            f"or its bare answer); got {type(classification).__name__}",
+            dump,
+        )
     norms_payload = _read_json(NORMS_PATH)
     if norms_payload is None:
         return _norms_missing_envelope()
@@ -344,6 +369,13 @@ def evaluate_project_evidence(
         )
     if not isinstance(content, str) or not content.strip():
         return _empty_content_envelope("content", dump)
+    if not isinstance(artifact_type, str) or not artifact_type.strip():
+        return _invalid_input_envelope(
+            "'artifact_type' must be a non-empty string naming the artifact "
+            f"kind; got {type(artifact_type).__name__}; the evidence was not "
+            "evaluated and no model call was made",
+            dump,
+        )
     _attach_source_text([norm], dump)
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
@@ -382,6 +414,14 @@ def evaluate_project_evidence_batch(
     norms_payload = _read_json(NORMS_PATH)
     if norms_payload is None:
         return _norms_missing_envelope()
+    if not isinstance(article_node_id, str) or not article_node_id.strip():
+        # A blank id would prefix-match every accepted norm via startswith,
+        # triggering one paid model call per norm; block it here too.
+        return _invalid_input_envelope(
+            "'article_node_id' must be a non-empty string Layer 1 article id "
+            f"such as eu-ai-act:article-9; got {type(article_node_id).__name__}",
+            dump,
+        )
     norms = evidence_rules.accepted_norms_for_article(norms_payload, article_node_id)
     if not norms:
         return tools.make_envelope(
@@ -395,6 +435,13 @@ def evaluate_project_evidence_batch(
         )
     if not isinstance(content, str) or not content.strip():
         return _empty_content_envelope("content", dump)
+    if not isinstance(artifact_type, str) or not artifact_type.strip():
+        return _invalid_input_envelope(
+            "'artifact_type' must be a non-empty string naming the artifact "
+            f"kind; got {type(artifact_type).__name__}; the evidence was not "
+            "evaluated and no model call was made",
+            dump,
+        )
     _attach_source_text(norms, dump)
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
@@ -434,6 +481,21 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
             graph_version=_graph_version(dump),
             confidence=0.0,
             missing_facts=["norm_ids is empty; at least one judge-accepted norm id is required"],
+        )
+    if not isinstance(norm_ids, list):
+        # A non-list here would crash (int) or be iterated as characters
+        # (str); degrade instead of raising (live audit 2026-07-21).
+        return _invalid_input_envelope(
+            "'norm_ids' must be a list of NormativeStatement id strings; "
+            f"got {type(norm_ids).__name__}",
+            dump,
+        )
+    if not isinstance(system_context, str) or not system_context.strip():
+        return _invalid_input_envelope(
+            "'system_context' must be a non-empty string describing the "
+            f"system; got {type(system_context).__name__}; no backlog was "
+            "generated and no model call was made",
+            dump,
         )
     unknown = [
         norm_id for norm_id in norm_ids if _norm_by_id(norms_payload, norm_id) is None
