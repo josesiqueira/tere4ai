@@ -54,11 +54,11 @@ def test_invalid_json_retries_then_none():
     assert any("failed" in n for n in notes)
 
 
-def test_v3_prompt_carries_the_dump_verbatim_article_3_definitions():
-    """Missing-context audit F3 (2026-07-20): the elicitor sets flags whose
-    terms have binding Article 3 definitions; v3 embeds those definitions
-    VERBATIM from the graph dump. This guard fails if the prompt's
-    definition text ever drifts from the dump's."""
+def test_default_prompt_carries_the_dump_verbatim_article_3_definitions():
+    """Missing-context audit F3: the elicitor sets flags whose terms have
+    binding Article 3 definitions; the default prompt embeds those definitions
+    VERBATIM from the graph dump. This guard fails if the prompt's definition
+    text ever drifts from the dump's."""
     import json
     from pathlib import Path
 
@@ -70,7 +70,7 @@ def test_v3_prompt_carries_the_dump_verbatim_article_3_definitions():
         pytest.skip("layer1.json dump not built")
     dump = json.loads(dump_path.read_text(encoding="utf-8"))
     defs = {n["id"]: n for n in dump["nodes"] if n.get("type") == "Definition"}
-    prompt = (root / "prompts" / "elicit_features" / "v3.md").read_text(
+    prompt = (root / "prompts" / "elicit_features" / "v4.md").read_text(
         encoding="utf-8"
     )
     for node_id in (
@@ -82,14 +82,38 @@ def test_v3_prompt_carries_the_dump_verbatim_article_3_definitions():
         "eu-ai-act:definition:profiling",
     ):
         assert defs[node_id]["text"].strip() in prompt, (
-            f"v3 prompt lost or drifted the verbatim definition {node_id}"
+            f"v4 prompt lost or drifted the verbatim definition {node_id}"
         )
 
 
-def test_default_prompt_version_is_v3():
+def test_v4_prompt_carries_the_article_5_exculpating_facts():
+    """Audit B25: v4 teaches the elicitor the Article 5 exculpating facts and
+    the FRIA facts, so a genuinely harmful system resolves to prohibited
+    instead of abstaining. Every new schema flag must be named in the prompt."""
+    from pathlib import Path
+
+    prompt = (
+        Path(__file__).resolve().parents[2] / "prompts" / "elicit_features" / "v4.md"
+    ).read_text(encoding="utf-8")
+    for flag in (
+        "causes_significant_harm",
+        "social_score_detrimental_treatment",
+        "supports_human_assessment_on_verifiable_facts",
+        "emotion_recognition_medical_or_safety",
+        "biometric_categorisation_lawful_or_law_enforcement",
+        "rtrb_strictly_necessary_authorised",
+        "creditworthiness_evaluation",
+        "life_health_insurance_risk_pricing",
+        "body_governed_by_public_law",
+        "private_entity_providing_public_services",
+    ):
+        assert flag in prompt, f"v4 prompt omits the fact {flag}"
+
+
+def test_default_prompt_version_is_v4():
     import inspect
 
     from tere4ai.elicit_features.elicitor import elicit_features
 
     signature = inspect.signature(elicit_features)
-    assert signature.parameters["prompt_version"].default == "v3"
+    assert signature.parameters["prompt_version"].default == "v4"

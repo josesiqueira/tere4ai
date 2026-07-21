@@ -45,7 +45,7 @@ def _clean(candidate: dict[str, Any], description: str) -> dict[str, Any]:
 def elicit_features(
     description: str,
     generator: Any,
-    prompt_version: str = "v3",
+    prompt_version: str = "v4",
 ) -> tuple[dict[str, Any] | None, list[str]]:
     """Return (schema-valid system_features, notes) or (None, notes).
 
