@@ -25,7 +25,6 @@ web/node_modules/
 web/.next/
 
 # Large generated artifacts (dumps are published releases, not tracked)
-data/graph_dumps/*.json
 data/graph_dumps/*.dump
 
 # IDE / OS
