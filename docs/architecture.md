@@ -380,9 +380,11 @@ Open decisions:
 - OPEN-JUDGE: RESOLVED 2026-07-08. OpenAI generator plus an independent
   non-OpenAI judge (Anthropic Claude); see Section 7.
 - OPEN-VENUE: exact target venue and deadline per planned paper.
-- OPEN-LICENSE: server AGPL-3.0-or-later; graph metadata CC BY 4.0 or CC0; EU
-  legal text under EU reuse terms (do not claim ownership); ALTAI redistribution
-  needs a license check.
+- OPEN-LICENSE: RESOLVED 2026-07-23. Server and all code AGPL-3.0-or-later
+  (LICENSE at the repo root); graph metadata CC BY 4.0
+  (data/graph_dumps/LICENSE); EU legal text under EU reuse terms (no ownership
+  claimed, quotes byte-exact); ALTAI redistribution still needs its license
+  check before the ethics layer ships ALTAI items (task C2).
 - OPEN-STANDARDS: standards mapping (TAIR) deferred to v2.1.
 
 Sources to verify before the thesis (see references.md [VERIFY] tags): the

@@ -48,4 +48,4 @@ The whole value rests on **traceability and correctness of citations**. A wrong 
 - [ ] Exact academic title and current role
 - [ ] Target venue and deadline per paper (OPEN-VENUE)
 - [x] Judge model family (OPEN-JUDGE): decided 2026-07-08, independent non-OpenAI judge (Claude)
-- [ ] Licensing (OPEN-LICENSE) and standards-mapping timing (OPEN-STANDARDS)
+- [x] Licensing (OPEN-LICENSE): decided 2026-07-23, code AGPL-3.0-or-later, graph metadata CC BY 4.0, EU texts under EU reuse terms; standards-mapping timing (OPEN-STANDARDS) still open

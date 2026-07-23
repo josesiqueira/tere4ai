@@ -106,5 +106,15 @@ and docs/traceability.md, which is generated from code tags):
 
 ## License
 
-AGPL-3.0-or-later (code). EU legal texts remain subject to EU reuse terms; no
-ownership is claimed over them.
+Decided 2026-07-23 (OPEN-LICENSE resolved):
+
+- Code (server, pipeline, web UI): AGPL-3.0-or-later, full text in
+  [LICENSE](LICENSE).
+- Graph metadata (the published dumps' structure, normative-statement
+  metadata, alignments, provenance): CC BY 4.0, full text in
+  [data/graph_dumps/LICENSE](data/graph_dumps/LICENSE). Attribution: Jose
+  Antonio Siqueira de Cerqueira, TERE4AI.
+- EU legal texts quoted inside the graph and dumps remain (c) European Union,
+  reused under the EU legal-reuse framework (Commission Decision 2011/833/EU);
+  no ownership is claimed over them and quotes are served byte-exact.
+- ALTAI content is not redistributed pending its license check (task C2).
