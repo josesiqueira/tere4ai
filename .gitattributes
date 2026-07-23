@@ -1,0 +1,5 @@
+# Frozen source corpus (the EU AI Act manifestations) and published graph
+# dumps are data artifacts, not authored code: exclude them from GitHub's
+# language statistics.
+data/snapshots/** linguist-vendored
+data/graph_dumps/** linguist-vendored
