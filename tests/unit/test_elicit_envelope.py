@@ -5,11 +5,11 @@ envelope status is requires_human_review by construction (DEC-13 keeps
 the deterministic ladder the only decision path).
 """
 
+import json
+
 from tere4ai.elicit_features.elicitor import schema_flag_names
 from tere4ai.mcp_server.elicit import elicit_envelope
 from tere4ai.mcp_server.tools import SECTION_8_ENVELOPE_FIELDS
-
-import json
 
 
 class FakeGenerator:

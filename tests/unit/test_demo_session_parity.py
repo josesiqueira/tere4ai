@@ -40,7 +40,7 @@ def _mask(envelope):
 
 
 def test_recorded_spamguard_session_replays_identically(dump):
-    lines = [json.loads(l) for l in FIXTURE.read_text().splitlines() if l.strip()]
+    lines = [json.loads(line) for line in FIXTURE.read_text().splitlines() if line.strip()]
     assert lines, "fixture must not be empty"
     for line in lines:
         assert set(line.keys()) == {"seq", "ts", "tool", "request", "envelope", "repo_ref"}
