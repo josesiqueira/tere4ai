@@ -11,20 +11,11 @@
 import { useEffect, useState } from "react";
 
 import { FACADE_URL } from "@/lib/facade";
+import { VOCAB_SUBTITLES } from "@/lib/vocab";
 
 type WellKnown = {
   status_vocabulary?: string[];
   endpoints?: Record<string, { method: string; path: string; paid: boolean }>;
-};
-
-const VOCAB_SUBTITLES: Record<string, string> = {
-  not_applicable: "the obligation does not bind this system",
-  potentially_applicable: "may bind, facts incomplete",
-  applicable_missing_evidence: "binds, no evidence submitted yet",
-  partially_satisfied: "evidence covers part of the obligation",
-  satisfied_with_evidence: "the judge accepted the submitted evidence",
-  rejected_as_unsupported: "the judge rejected the submitted evidence",
-  requires_human_review: "the system abstains and asks a human",
 };
 
 /* Loading placeholder for the vocabulary grid: a skeleton, not a spinner,

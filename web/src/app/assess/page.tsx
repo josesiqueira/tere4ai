@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { FACADE_URL } from "@/lib/facade";
+import { VOCAB_SUBTITLES } from "@/lib/vocab";
 import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
 import { EvidenceGraph, mergeSubgraphs, type GraphEvidenceSubgraph } from "./evidence-graph";
 
@@ -364,10 +365,14 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 }
 
 /* DESIGN.md status conventions: green for satisfied, red for rejected,
-   muted for everything needing review. The vocabulary is closed (DEC-08). */
-function StatusBadge({ status }: { status: string }) {
-  const green = status === "satisfied_with_evidence";
-  const red = status === "rejected_as_unsupported";
+   muted for everything needing review. The vocabulary is closed (DEC-08).
+   The `neutral` prop drops the green/red distinction entirely (same muted
+   style for every status, no checkmark iconography): used by the
+   requirements board, where satisfied_with_evidence must read exactly like
+   every other column per the calibrated-vocabulary discipline. */
+function StatusBadge({ status, neutral }: { status: string; neutral?: boolean }) {
+  const green = !neutral && status === "satisfied_with_evidence";
+  const red = !neutral && status === "rejected_as_unsupported";
   const cls = green
     ? "text-green-600 dark:text-green-400 border-green-600/40"
     : red
@@ -711,6 +716,96 @@ function groupBacklogByArticle(items: BacklogItem[]): [string, BacklogItem[]][] 
   });
 }
 
+/* Requirements-by-evidence-status board (Task 5). Every served requirement
+   sits in exactly one column, keyed off the page's own evidence-evaluation
+   state (evidenceUi[normId].result.status via the statusByNormId map built
+   in AssessPage), never a separate source of truth. A requirement with no
+   evidence envelope yet sits in applicable_missing_evidence, the
+   to-be-done column. evaluate_project_evidence never returns
+   not_applicable or potentially_applicable (ASSESSMENT_TO_STATUS in
+   src/tere4ai/mcp_server/evidence.py maps only to these five), so the
+   board has exactly five columns, in this fixed order. Every badge
+   renders neutral (StatusBadge neutral): no green for
+   satisfied_with_evidence, no checkmark iconography anywhere on this
+   board, per the calibrated-vocabulary discipline (USER.md domain
+   guardrails, DEC-08). */
+const EVIDENCE_BOARD_STATUSES = [
+  "applicable_missing_evidence",
+  "partially_satisfied",
+  "satisfied_with_evidence",
+  "rejected_as_unsupported",
+  "requires_human_review",
+] as const;
+
+function RequirementsBoard({
+  grouped,
+  statusByNormId,
+}: {
+  grouped: Record<string, Requirement[]>;
+  statusByNormId: Map<string, string>;
+}) {
+  const columns = new Map<string, { norm: Requirement; group: string }[]>();
+  for (const status of EVIDENCE_BOARD_STATUSES) columns.set(status, []);
+  let total = 0;
+  for (const [group, norms] of Object.entries(grouped)) {
+    for (const norm of norms) {
+      total += 1;
+      const status = statusByNormId.get(norm.norm_id) ?? "applicable_missing_evidence";
+      const column = columns.has(status) ? status : "applicable_missing_evidence";
+      columns.get(column)!.push({ norm, group });
+    }
+  }
+  const evaluated = total - (columns.get("applicable_missing_evidence")?.length ?? 0);
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold leading-none">Requirements by evidence status</h3>
+      {evaluated === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No evidence evaluated yet: every applicable requirement is waiting for evidence.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
+          {EVIDENCE_BOARD_STATUSES.map((status) => {
+            const items = columns.get(status) ?? [];
+            return (
+              <div key={status} className="rounded-md border border-border">
+                <div className="space-y-0.5 border-b border-border bg-muted/40 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <code className="font-mono text-xs font-semibold">{status}</code>
+                    <span className="text-xs text-muted-foreground">{items.length}</span>
+                  </div>
+                  <p className="text-[11px] leading-tight text-muted-foreground">
+                    {VOCAB_SUBTITLES[status] ?? "see architecture.md Section 8"}
+                  </p>
+                </div>
+                {items.length > 0 && (
+                  <div className="divide-y divide-border">
+                    {items.map(({ norm, group }) => (
+                      <div key={norm.norm_id} className="space-y-1.5 p-2">
+                        <p className="truncate text-[11px] text-muted-foreground" title={group}>
+                          {group}
+                        </p>
+                        <code
+                          className="block truncate font-mono text-xs"
+                          title={norm.norm_id}
+                        >
+                          {norm.norm_id}
+                        </code>
+                        <StatusBadge status={status} neutral />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AssessPage() {
   const [description, setDescription] = useState("");
   const [domain, setDomain] = useState("");
@@ -1001,6 +1096,17 @@ export default function AssessPage() {
 
   const grouped = requirements?.answer.requirements_by_article ?? {};
   const allNorms: Requirement[] = Object.values(grouped).flat();
+
+  /* Task 5: the board's Map<normId, status>, derived from evidenceUi (the
+     page's existing evidence-result state, never a second source of
+     truth). A norm absent from this map has no evidence envelope yet, so
+     the board places it in applicable_missing_evidence. */
+  const evidenceStatusByNormId = new Map<string, string>();
+  for (const norm of allNorms) {
+    const status = evidenceUi[norm.norm_id]?.result?.status;
+    if (status) evidenceStatusByNormId.set(norm.norm_id, status);
+  }
+
   const selectedIds = allNorms
     .map((n) => n.norm_id)
     .filter((id) => selected[id]);
@@ -1548,6 +1654,7 @@ export default function AssessPage() {
                   </details>
                 ))}
               </div>
+              <RequirementsBoard grouped={grouped} statusByNormId={evidenceStatusByNormId} />
               <EnvelopeMeta envelope={requirements} />
             </div>
           </Card>
