@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react";
 
 import { FACADE_URL } from "@/lib/facade";
 import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
+import { EvidenceGraph, mergeSubgraphs, type GraphEvidenceSubgraph } from "./evidence-graph";
 
 const MAX_BACKLOG_NORMS = 10;
 
@@ -25,6 +26,7 @@ type Envelope<A = Record<string, unknown>> = {
   confidence: number;
   source_nodes: string[];
   source_spans: Span[];
+  graph_evidence_subgraph: GraphEvidenceSubgraph;
   legal_status_notes: string[];
   missing_facts: string[];
   judge_verdict: string;
@@ -506,6 +508,38 @@ function HlegAlignments({ envelope }: { envelope?: Envelope<TraceAnswer> }) {
       )}
     </div>
   );
+}
+
+/* Node id -> span id, built from data already held by the page (never
+   guessed): each requirement's own source_span_id covers its norm node and
+   its source article/paragraph node (extract_norms records the same span
+   id for both, verified against a live norms_core.json entry); each
+   accepted alignment assertion's evidence span ids cover its source norm
+   and HLEG target node when a requirement entry does not already. */
+function buildNodeSpanIds(
+  norms: Requirement[],
+  alignments: Record<string, Envelope<TraceAnswer>> | null
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const norm of norms) {
+    map[norm.norm_id] = norm.source_span_id;
+    map[norm.source_node_id] = norm.source_span_id;
+  }
+  if (alignments) {
+    for (const norm of norms) {
+      for (const assertion of alignments[norm.norm_id]?.answer.assertions ?? []) {
+        const sourceSpan = assertion.evidence.source_evidence_span_ids[0];
+        const targetSpan = assertion.evidence.target_evidence_span_ids[0];
+        if (sourceSpan && !map[assertion.source_norm_id]) {
+          map[assertion.source_norm_id] = sourceSpan;
+        }
+        if (targetSpan && !map[assertion.target_id]) {
+          map[assertion.target_id] = targetSpan;
+        }
+      }
+    }
+  }
+  return map;
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1254,6 +1288,7 @@ export default function AssessPage() {
                 ))}
               </ul>
               <EnvelopeMeta envelope={classification} />
+              <EvidenceGraph subgraph={classification.graph_evidence_subgraph} />
               <div className="space-y-2 rounded-md border border-border p-3">
                 <p className="text-xs font-semibold">Audit export</p>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1334,6 +1369,12 @@ export default function AssessPage() {
                     <summary className="cursor-pointer p-3 text-sm font-medium hover:bg-accent">
                       {group} ({norms.length} accepted norms)
                     </summary>
+                    <EvidenceGraph
+                      subgraph={mergeSubgraphs(
+                        norms.map((n) => alignments?.[n.norm_id]?.graph_evidence_subgraph)
+                      )}
+                      nodeSpanIds={buildNodeSpanIds(norms, alignments)}
+                    />
                     <div>
                       {norms.map((norm) => {
                         const ev = evidenceStateFor(norm.norm_id);
