@@ -3,7 +3,9 @@
   "version": "2.0.0-alpha.0",
   "private": true,
   "scripts": {
+    "predev": "cd .. && .venv/bin/python scripts/export_ui_data.py",
     "dev": "next dev",
+    "prebuild": "cd .. && .venv/bin/python scripts/export_ui_data.py",
     "build": "next build",
     "start": "next start"
   },

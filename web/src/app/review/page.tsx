@@ -35,9 +35,52 @@ type UiData = {
   };
 };
 
-function loadData(): UiData {
+/* Guarded read: public/ui_data.json is generated (gitignored, not committed),
+   so a fresh clone or a dev server started before the export script has run
+   must not 500. Catch the read or parse failure and let ReviewPage() render
+   an honest setup notice instead of fabricating a queue. */
+function loadData(): UiData | null {
   const p = path.join(process.cwd(), "public", "ui_data.json");
-  return JSON.parse(fs.readFileSync(p, "utf-8"));
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function SetupNotice() {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Demo data not generated yet
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            public/ui_data.json is missing or unreadable, so there is no
+            review queue to show. This is not an error state with a hidden
+            queue behind it: nothing has been generated, and this page never
+            shows a zero as if it were a real count.
+          </p>
+        </div>
+        <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 space-y-4">
+          <h2 className="text-2xl font-semibold leading-none">Generate it</h2>
+          <p className="text-sm text-muted-foreground">
+            From the repo root, run:
+          </p>
+          <pre className="rounded-md bg-muted p-2 text-sm font-mono overflow-x-auto">
+            .venv/bin/python scripts/export_ui_data.py
+          </pre>
+          <p className="text-sm text-muted-foreground">
+            Then reload this page. `npm run dev` (invoked from web/) runs
+            this command automatically before the server starts, so this
+            notice should only appear if the export itself failed or the
+            file was deleted after the server started.
+          </p>
+        </section>
+      </div>
+    </div>
+  );
 }
 
 function CountTile({ label, value }: { label: string; value: number }) {
@@ -51,6 +94,9 @@ function CountTile({ label, value }: { label: string; value: number }) {
 
 export default function ReviewPage() {
   const data = loadData();
+  if (!data) {
+    return <SetupNotice />;
+  }
   const r = data.review;
   const kinds = Object.entries(r.crossref_pending_by_kind).sort();
 

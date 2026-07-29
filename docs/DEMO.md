@@ -27,6 +27,13 @@ docker compose --profile demo up -d
 ```bash
 TERE4AI_DEMO_SESSIONS_DIR=tests/fixtures/demo_sessions \
   .venv/bin/python -m uvicorn --factory tere4ai.http_facade.app:create_app --port 8008
+.venv/bin/python scripts/export_ui_data.py   # writes web/public/ui_data.json (gitignored,
+                                              # not committed); the coverage and review pages
+                                              # read it directly and need it before the web
+                                              # server starts. npm run dev also runs this
+                                              # automatically via the predev script, so this
+                                              # step is a formality once that is wired up, but
+                                              # is written out here for a fresh clone.
 cd web && npm run dev -- -p 3111
 ```
 
