@@ -744,7 +744,10 @@ function RequirementsBoard({
   grouped: Record<string, Requirement[]>;
   statusByNormId: Map<string, string>;
 }) {
-  const columns = new Map<string, { norm: Requirement; group: string }[]>();
+  const columns = new Map<
+    string,
+    { norm: Requirement; group: string; rawStatus: string }[]
+  >();
   for (const status of EVIDENCE_BOARD_STATUSES) columns.set(status, []);
   let total = 0;
   for (const [group, norms] of Object.entries(grouped)) {
@@ -752,7 +755,7 @@ function RequirementsBoard({
       total += 1;
       const status = statusByNormId.get(norm.norm_id) ?? "applicable_missing_evidence";
       const column = columns.has(status) ? status : "applicable_missing_evidence";
-      columns.get(column)!.push({ norm, group });
+      columns.get(column)!.push({ norm, group, rawStatus: status });
     }
   }
   const evaluated = total - (columns.get("applicable_missing_evidence")?.length ?? 0);
@@ -781,7 +784,7 @@ function RequirementsBoard({
                 </div>
                 {items.length > 0 && (
                   <div className="divide-y divide-border">
-                    {items.map(({ norm, group }) => (
+                    {items.map(({ norm, group, rawStatus }) => (
                       <div key={norm.norm_id} className="space-y-1.5 p-2">
                         <p className="truncate text-[11px] text-muted-foreground" title={group}>
                           {group}
@@ -792,7 +795,7 @@ function RequirementsBoard({
                         >
                           {norm.norm_id}
                         </code>
-                        <StatusBadge status={status} neutral />
+                        <StatusBadge status={rawStatus} neutral />
                       </div>
                     ))}
                   </div>
