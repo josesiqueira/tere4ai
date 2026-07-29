@@ -63,6 +63,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <LogoMark compact />
           </div>
           <NavLinks />
+          <p className="border-t border-sidebar-border px-4 py-2 text-xs text-muted-foreground">
+            Engineering support, not legal advice or certification.
+          </p>
         </div>
 
         <main id="main-content" className="flex-1 min-w-0">

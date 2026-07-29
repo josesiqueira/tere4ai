@@ -410,6 +410,31 @@ function StatusBadge({ status, neutral }: { status: string; neutral?: boolean })
   );
 }
 
+/* Redteam finding 7: the facade's missing-model-configuration error names
+   OPENAI_API_KEY, ANTHROPIC_API_KEY, and .env.example verbatim, which is
+   correct and tested facade behavior (never change the payload) but reads
+   as developer-facing to a demo audience. Show an audience-appropriate
+   sentence as the primary line and keep the raw facade string available,
+   never deleted, behind a collapsed details element. Any other error
+   (network failure, unexpected facade shape) renders unchanged. */
+function ApiErrorMessage({ message }: { message: string }) {
+  if (!message.startsWith("missing model configuration")) {
+    return <p className="text-sm text-destructive">{message}</p>;
+  }
+  return (
+    <div className="space-y-1">
+      <p className="text-sm text-destructive">
+        This step needs model API keys, which are not configured on this
+        server.
+      </p>
+      <details className="text-xs text-muted-foreground">
+        <summary className="cursor-pointer">Technical detail</summary>
+        <p className="mt-1 font-mono break-all">{message}</p>
+      </details>
+    </div>
+  );
+}
+
 /* Elicitation provenance marker (Task 3): the only provenance surface for an
    elicited control is this chip plus the notes panel. No per-fact quote
    affordance (recorded spec deviation; arrives with increment 2). Cleared
@@ -1449,9 +1474,7 @@ export default function AssessPage() {
                       Dismiss
                     </button>
                   </div>
-                  {elicitPanel.error && (
-                    <p className="text-sm text-destructive">{elicitPanel.error}</p>
-                  )}
+                  {elicitPanel.error && <ApiErrorMessage message={elicitPanel.error} />}
                   {elicitPanel.notes.length > 0 && (
                     <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
                       {elicitPanel.notes.map((note) => (
@@ -1599,10 +1622,19 @@ export default function AssessPage() {
                 >
                   {risk ?? "(rejected input)"}
                 </span>
-                <StatusBadge status={classification.status} />
                 {classification.answer.annex_iii_category && (
                   <Chip>{classification.answer.annex_iii_category}</Chip>
                 )}
+              </div>
+              {/* Redteam finding 6: this StatusBadge is the envelope's generic
+                  Section 8 `status` field, not a second risk verdict. Shown
+                  on its own labelled line, never beside the risk category
+                  span above, so a red "prohibited" risk badge can never sit
+                  next to an unlabelled grey "potentially_applicable" pill
+                  and read as self-contradictory. */}
+              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                <span>Envelope status:</span>
+                <StatusBadge status={classification.status} />
               </div>
               {risk === "prohibited" && (
                 <p className="text-sm text-destructive">
@@ -1803,9 +1835,7 @@ export default function AssessPage() {
                                         grounding judge.
                                       </span>
                                     </div>
-                                    {ev.error && (
-                                      <p className="text-sm text-destructive">{ev.error}</p>
-                                    )}
+                                    {ev.error && <ApiErrorMessage message={ev.error} />}
                                     {ev.result && (
                                       <div className="rounded-lg border border-border bg-card shadow-sm p-4 space-y-3">
                                         <div className="flex items-center gap-3 flex-wrap">

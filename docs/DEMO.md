@@ -41,10 +41,14 @@ cd web && npm run dev -- -p 3111
 it the page renders an explicit "session replay is not enabled" card, never
 a blank one. The path above is in-repo
 (`tests/fixtures/demo_sessions/spamguard-classify.jsonl`) and holds the exact
-SpamGuard exchange this script narrates in step 4. Richer, multi-exchange
-sessions from real example development live in the sibling examples checkout
-at `/home/jose/Dev/Trustworthy/examples/1-minimalrisk-spamguard/artifacts/sessions`;
-point the env var at that absolute path instead if that checkout is present.
+SpamGuard exchange this script narrates in step 4. The sibling examples
+checkout at
+`/home/jose/Dev/Trustworthy/examples/1-minimalrisk-spamguard/artifacts/sessions`
+holds, as of this writing, exactly one recorded exchange, byte-identical to
+the in-repo fixture above (just under a different filename); it is not
+currently richer. As the example projects are developed further, additional
+recorded sessions will accumulate there, at which point pointing the env var
+at that absolute path becomes worth doing.
 
 Keys are optional. `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` unlock the paid
 evidence-evaluation call (Article 9(1) style checks against pasted project

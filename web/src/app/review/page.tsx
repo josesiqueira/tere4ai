@@ -125,7 +125,8 @@ export default function ReviewPage() {
           Cross-reference items by kind:{" "}
           {kinds.map(([k, v]) => `${k} ${v}`).join(", ")}. Alignments pending are
           judge-rejected assertions held for human confirmation, never served as
-          accepted mappings.
+          accepted mappings. EU to HLEG mappings are LLM-generated and not
+          expert-validated.
         </p>
 
         <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 space-y-4">
