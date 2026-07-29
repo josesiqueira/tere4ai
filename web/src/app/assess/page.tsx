@@ -10,6 +10,7 @@
    with the non-legal-advice notice. Visual system: docs/DESIGN.md. */
 
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { FACADE_URL } from "@/lib/facade";
 import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
@@ -51,6 +52,30 @@ type Requirement = {
   source_node_id: string;
   source_span_id: string;
   conditions?: string[];
+};
+
+/* Fact elicitation (DEC-13): the elicitor proposes schema-valid facts with
+   textual support, never a risk category. answer is null when elicitation
+   failed outright (see src/tere4ai/mcp_server/elicit.py); a present answer
+   never omits notes. Purposes and deployer are elicitable per the schema but
+   this form has no controls for them yet, so they are read, never applied. */
+type ElicitFeatures = {
+  description?: string;
+  domain?: string | null;
+  purposes?: string[];
+  autonomy?: "advisory" | "partial" | "full" | null;
+  flags?: Record<string, boolean>;
+  deployer?: Record<string, boolean>;
+};
+
+type ElicitAnswer = { features: ElicitFeatures; notes: string[] } | null;
+
+type ElicitPanelState = {
+  notes: string[];
+  status: string | null;
+  confidence: number | null;
+  missingFacts: string[];
+  error: string | null;
 };
 
 type RequirementsAnswer = {
@@ -353,6 +378,18 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/* Elicitation provenance marker (Task 3): the only provenance surface for an
+   elicited control is this chip plus the notes panel. No per-fact quote
+   affordance (recorded spec deviation; arrives with increment 2). Cleared
+   the moment the user edits the control it sits on. */
+function ElicitedChip() {
+  return (
+    <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+      elicited
+    </span>
+  );
+}
+
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs break-all">
@@ -646,6 +683,13 @@ export default function AssessPage() {
   const [autonomy, setAutonomy] = useState("");
   const [flags, setFlags] = useState<Record<string, string>>({});
 
+  /* Fact elicitation (Task 3, DEC-13): a proposal only. elicitedFields marks
+     which controls the last elicitation filled; editing a control after
+     elicitation clears its own entry (never the others). */
+  const [elicitLoading, setElicitLoading] = useState(false);
+  const [elicitedFields, setElicitedFields] = useState<Record<string, boolean>>({});
+  const [elicitPanel, setElicitPanel] = useState<ElicitPanelState | null>(null);
+
   const [classifyLoading, setClassifyLoading] = useState(false);
   const [classifyError, setClassifyError] = useState<string | null>(null);
   const [classification, setClassification] =
@@ -719,6 +763,83 @@ export default function AssessPage() {
     void classifyWith({ description, domain, autonomy, flags });
   }
 
+  /* Clears one control's "elicited" chip the moment the user edits it after
+     an elicitation run. Never touches the other marked controls. */
+  function clearElicited(field: string) {
+    setElicitedFields((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
+  /* Task 3 (DEC-13): one paid generator call, proposal only. Never fills a
+     risk category, never shows a per-fact quote (out of scope by decision,
+     recorded spec deviation; per-fact quotes arrive with increment 2). The
+     elicitation notes panel is the sole provenance surface. Degrades to a
+     visible error, never an empty result (architecture.md Section 13). */
+  async function runElicit() {
+    if (description.trim().length < 30) return;
+    setElicitLoading(true);
+    try {
+      const envelope = await postJson<Envelope<ElicitAnswer>>("/api/elicit", {
+        description,
+      });
+      if (envelope.answer) {
+        const { features, notes } = envelope.answer;
+        const filled: Record<string, boolean> = {};
+        if (typeof features.domain === "string" && features.domain.length > 0) {
+          setDomain(features.domain);
+          filled.domain = true;
+        }
+        if (features.autonomy) {
+          setAutonomy(features.autonomy);
+          filled.autonomy = true;
+        }
+        if (features.flags) {
+          const entries = Object.entries(features.flags);
+          if (entries.length > 0) {
+            setFlags((prev) => {
+              const next = { ...prev };
+              for (const [key, value] of entries) next[key] = value ? "true" : "false";
+              return next;
+            });
+            for (const [key] of entries) filled[key] = true;
+          }
+        }
+        setElicitedFields((prev) => ({ ...prev, ...filled }));
+        setElicitPanel({
+          notes,
+          status: envelope.status,
+          confidence: envelope.confidence,
+          missingFacts: envelope.missing_facts,
+          error: null,
+        });
+      } else {
+        // Elicitation failed outright: fill nothing, surface the envelope's
+        // own notes (legal_status_notes) and missing_facts.
+        setElicitPanel({
+          notes: envelope.legal_status_notes,
+          status: envelope.status,
+          confidence: envelope.confidence,
+          missingFacts: envelope.missing_facts,
+          error: null,
+        });
+      }
+    } catch (err) {
+      setElicitPanel({
+        notes: [],
+        status: null,
+        confidence: null,
+        missingFacts: [],
+        error: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setElicitLoading(false);
+    }
+  }
+
   /* Audit permalink (#52): a reload with #assess=<base64url> prefills the
      form and re-runs the same deterministic classification (free, no model
      call), so a reviewer can reproduce the exact assessment from the link. */
@@ -767,6 +888,8 @@ export default function AssessPage() {
     setSelected({});
     setEvidenceUi({});
     setPermalink(null);
+    setElicitedFields({});
+    setElicitPanel(null);
   }
 
   async function loadRequirements() {
@@ -922,17 +1045,92 @@ export default function AssessPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  className={BUTTON_OUTLINE}
+                  onClick={() => void runElicit()}
+                  disabled={elicitLoading || description.trim().length < 30}
+                >
+                  {elicitLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                      Eliciting...
+                    </>
+                  ) : (
+                    "Elicit facts from description"
+                  )}
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {description.trim().length}/30 characters minimum. Paid model call:
+                  proposes domain, autonomy, and flags below for you to confirm or edit;
+                  it never decides the classification.
+                </span>
+              </div>
+              {elicitPanel && (
+                <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {elicitPanel.status && <StatusBadge status={elicitPanel.status} />}
+                      {elicitPanel.confidence !== null && (
+                        <span className="text-xs text-muted-foreground">
+                          confidence {elicitPanel.confidence}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setElicitPanel(null)}
+                      aria-label="Dismiss the elicitation panel"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  {elicitPanel.error && (
+                    <p className="text-sm text-destructive">{elicitPanel.error}</p>
+                  )}
+                  {elicitPanel.notes.length > 0 && (
+                    <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
+                      {elicitPanel.notes.map((note) => (
+                        <li key={note}>{note}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {elicitPanel.missingFacts.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold">Missing facts</p>
+                      <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
+                        {elicitPanel.missingFacts.map((fact) => (
+                          <li key={fact}>{fact}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="text-xs font-medium border-t border-amber-500/30 pt-2">
+                    Elicited facts are proposals: confirm or edit them, the deterministic
+                    ladder alone decides.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium leading-none" htmlFor="domain">
+                <label
+                  className="flex items-center gap-2 text-sm font-medium leading-none"
+                  htmlFor="domain"
+                >
                   Domain
+                  {elicitedFields.domain && <ElicitedChip />}
                 </label>
                 <select
                   id="domain"
                   className={`${SELECT_CLS} w-full`}
                   value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
+                  onChange={(e) => {
+                    setDomain(e.target.value);
+                    clearElicited("domain");
+                  }}
                 >
                   <option value="">(unspecified)</option>
                   {DOMAINS.map((d) => (
@@ -943,14 +1141,21 @@ export default function AssessPage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium leading-none" htmlFor="autonomy">
+                <label
+                  className="flex items-center gap-2 text-sm font-medium leading-none"
+                  htmlFor="autonomy"
+                >
                   Autonomy
+                  {elicitedFields.autonomy && <ElicitedChip />}
                 </label>
                 <select
                   id="autonomy"
                   className={`${SELECT_CLS} w-full`}
                   value={autonomy}
-                  onChange={(e) => setAutonomy(e.target.value)}
+                  onChange={(e) => {
+                    setAutonomy(e.target.value);
+                    clearElicited("autonomy");
+                  }}
                 >
                   <option value="">(unspecified)</option>
                   <option value="advisory">advisory (informs a human decision)</option>
@@ -966,11 +1171,17 @@ export default function AssessPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {PROHIBITION_FLAGS.map(([key, label]) => (
                   <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="leading-tight">{label}</span>
+                    <span className="flex items-center gap-1.5 leading-tight">
+                      {label}
+                      {elicitedFields[key] && <ElicitedChip />}
+                    </span>
                     <TriStateSelect
                       label={label}
                       value={flags[key] ?? "unknown"}
-                      onChange={(v) => setFlags((prev) => ({ ...prev, [key]: v }))}
+                      onChange={(v) => {
+                        setFlags((prev) => ({ ...prev, [key]: v }));
+                        clearElicited(key);
+                      }}
                     />
                   </div>
                 ))}
@@ -983,11 +1194,17 @@ export default function AssessPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {CATEGORY_FLAGS.map(([key, label]) => (
                   <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="leading-tight">{label}</span>
+                    <span className="flex items-center gap-1.5 leading-tight">
+                      {label}
+                      {elicitedFields[key] && <ElicitedChip />}
+                    </span>
                     <TriStateSelect
                       label={label}
                       value={flags[key] ?? "unknown"}
-                      onChange={(v) => setFlags((prev) => ({ ...prev, [key]: v }))}
+                      onChange={(v) => {
+                        setFlags((prev) => ({ ...prev, [key]: v }));
+                        clearElicited(key);
+                      }}
                     />
                   </div>
                 ))}
