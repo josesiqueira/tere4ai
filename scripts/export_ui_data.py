@@ -21,10 +21,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.elicit_features.elicitor import schema_flag_names  # noqa: E402
 from tere4ai.mcp_server.tools import coverage_report  # noqa: E402
 
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 OUT_PATH = ROOT / "web" / "public" / "ui_data.json"
+CHAIN_CURRENT = ROOT / "data" / "graph_dumps" / "BUILD_CHAIN_CURRENT.txt"
 
 
 def build_structure(dump: dict) -> dict:
@@ -185,6 +187,8 @@ def main() -> None:
             if n["type"] == "SourceDocument"
         ],
     }
+    payload["build"]["chain_id"] = CHAIN_CURRENT.read_text().strip()
+    payload["schema_flags"] = schema_flag_names()
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"wrote {OUT_PATH}")

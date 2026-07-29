@@ -11,9 +11,9 @@
 
 import { useEffect, useState } from "react";
 
+import { FACADE_URL } from "@/lib/facade";
 import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
 
-const FACADE_URL = "http://localhost:8008";
 const MAX_BACKLOG_NORMS = 10;
 
 type Span = Record<string, unknown>;

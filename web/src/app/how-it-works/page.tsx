@@ -3,13 +3,14 @@
 /* How TERE4AI works: the trust split, the judges, and the calibrated
    vocabulary. Reads the status vocabulary live from the facade's
    .well-known so this page cannot drift from server truth. The facade is
-   reached the same way web/src/app/assess/page.tsx reaches it: a module-level
-   FACADE_URL constant, never same-origin (the demo UI is a thin client over
-   a separately hosted facade, docs/architecture.md Section 9). */
+   reached the same way web/src/app/assess/page.tsx reaches it: the shared
+   FACADE_URL constant from @/lib/facade, never same-origin (the demo UI is
+   a thin client over a separately hosted facade, docs/architecture.md
+   Section 9). */
 
 import { useEffect, useState } from "react";
 
-const FACADE_URL = "http://localhost:8008";
+import { FACADE_URL } from "@/lib/facade";
 
 type WellKnown = {
   status_vocabulary?: string[];

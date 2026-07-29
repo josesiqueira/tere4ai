@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
 
 /* Thin, read-only demo page (docs/architecture.md Sections 9 and 14, M1).
    Renders the coverage matrix and the browsable Act structure from
@@ -41,7 +40,12 @@ type UiData = {
     annexes: { id: string; number: string; title: string; anchor: string }[];
     recital_count: number;
   };
-  build: { build_id: string; built_at: string; snapshots: { file: string; sha256: string }[] };
+  build: {
+    build_id: string;
+    built_at: string;
+    chain_id: string;
+    snapshots: { file: string; sha256: string }[];
+  };
   review_queue_count: number;
   sources: { id: string; title: string; legal_status: string }[];
 };
@@ -90,7 +94,7 @@ function StatTiles({
   buildId,
   builtAt,
   snapshotCount,
-  sourceSetDigest,
+  chainId,
 }: {
   actual: UiData["coverage"]["answer"]["actual"];
   layer2AcceptedCount: number | undefined;
@@ -99,7 +103,7 @@ function StatTiles({
   buildId: string;
   builtAt: string;
   snapshotCount: number;
-  sourceSetDigest: string;
+  chainId: string;
 }) {
   const tiles: { label: string; value: number | undefined }[] = [
     { label: "Articles", value: asNumber(actual.articles) },
@@ -126,14 +130,11 @@ function StatTiles({
       <p className="text-xs text-muted-foreground">
         Build <code className="font-mono">{buildId}</code>, built{" "}
         {builtAt.slice(0, 19)}Z. {snapshotCount} frozen source files
-        checksummed; source-set digest{" "}
-        <code className="font-mono break-all" title={sourceSetDigest}>
-          {sourceSetDigest.slice(0, 16)}&hellip;
-        </code>{" "}
-        (sha256 over every source snapshot checksum, in order, computed for
-        this page). Every count above is served from the published dump, not
-        typed into this page. EU to HLEG mappings are LLM-generated and not
-        expert-validated.
+        checksummed; publication chain{" "}
+        <code className="font-mono">{chainId}</code>, recorded by the build
+        and verified at server startup. Every count above is served from the
+        published dump, not typed into this page. EU to HLEG mappings are
+        LLM-generated and not expert-validated.
       </p>
     </section>
   );
@@ -151,15 +152,6 @@ export default function Page() {
       const actN = Array.isArray(act) ? act.length : act;
       return [k, expN, actN];
     });
-  /* Not the project's build chain (see src/tere4ai/graph_store/build_chain.py
-     compose_chain_id and data/graph_dumps/BUILD_CHAIN_CURRENT.txt): this is a
-     page-local digest over a different input set (all snapshot checksums,
-     not the four publication inputs) and a different algorithm. Labeled
-     "source-set digest" in the UI so it is never mistaken for that chain id. */
-  const sourceSetDigest = crypto
-    .createHash("sha256")
-    .update(build.snapshots.map((s) => s.sha256).join(""))
-    .digest("hex");
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -184,7 +176,7 @@ export default function Page() {
           buildId={build.build_id}
           builtAt={build.built_at}
           snapshotCount={build.snapshots.length}
-          sourceSetDigest={sourceSetDigest}
+          chainId={build.chain_id}
         />
 
         <Card title="Coverage matrix">
