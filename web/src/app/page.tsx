@@ -84,8 +84,8 @@ function asNumber(v: number | string[] | undefined): number | undefined {
 
 function StatTiles({
   actual,
-  layer2Count,
-  layer3Count,
+  layer2AcceptedCount,
+  layer3AcceptedCount,
   reviewCount,
   buildId,
   builtAt,
@@ -93,8 +93,8 @@ function StatTiles({
   sourceSetDigest,
 }: {
   actual: UiData["coverage"]["answer"]["actual"];
-  layer2Count: number;
-  layer3Count: number;
+  layer2AcceptedCount: number | undefined;
+  layer3AcceptedCount: number | undefined;
   reviewCount: number;
   buildId: string;
   builtAt: string;
@@ -105,8 +105,8 @@ function StatTiles({
     { label: "Articles", value: asNumber(actual.articles) },
     { label: "Recitals", value: asNumber(actual.recitals) },
     { label: "Annexes", value: asNumber(actual.annexes) },
-    { label: "Normative statements (Layer 2)", value: layer2Count },
-    { label: "HLEG alignments (Layer 3)", value: layer3Count },
+    { label: "Judge-accepted norms", value: layer2AcceptedCount },
+    { label: "Accepted HLEG alignments", value: layer3AcceptedCount },
     { label: "Pending human review", value: reviewCount },
   ].filter((t) => t.value !== undefined);
 
@@ -132,7 +132,8 @@ function StatTiles({
         </code>{" "}
         (sha256 over every source snapshot checksum, in order, computed for
         this page). Every count above is served from the published dump, not
-        typed into this page.
+        typed into this page. EU to HLEG mappings are LLM-generated and not
+        expert-validated.
       </p>
     </section>
   );
@@ -177,8 +178,8 @@ export default function Page() {
 
         <StatTiles
           actual={a.actual}
-          layer2Count={a.layer2_nodes.count}
-          layer3Count={a.layer3_nodes.count}
+          layer2AcceptedCount={a.layer2_nodes.verdicts?.accepted}
+          layer3AcceptedCount={a.layer3_nodes.verdicts?.accepted}
           reviewCount={data.review_queue_count}
           buildId={build.build_id}
           builtAt={build.built_at}

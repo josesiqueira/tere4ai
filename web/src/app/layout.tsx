@@ -68,6 +68,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main id="main-content" className="flex-1 min-w-0">
           {children}
         </main>
+
+        <footer className="md:hidden border-t border-border px-4 py-4 text-xs text-muted-foreground">
+          <p>
+            TERE4AI provides engineering and documentation support. It does not
+            certify EU AI Act compliance and does not replace legal review,
+            conformity assessment, or competent-authority interpretation.
+          </p>
+        </footer>
       </body>
     </html>
   );
