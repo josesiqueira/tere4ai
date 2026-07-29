@@ -77,8 +77,14 @@ covers the board's static strings.
 ## Backend changes (thin, facade-level, envelope-disciplined)
 
 - POST /api/elicit: wraps the existing elicitor. Paid, guarded exactly like
-  the other paid tools, degrades to an envelope without keys, returns facts
-  plus supporting quotes, structurally cannot return a risk category.
+  the other paid tools, degrades to an envelope without keys, structurally
+  cannot return a risk category. Recorded deviation (final review of Plan A,
+  2026-07-29): the envelope carries features plus elicitation notes; PER-FACT
+  supporting quotes are deferred to increment 2 (the schema has no support
+  field and the elicitor strips unknown fields, so quotes need a schema
+  extension that lands with the GitHub modality, which requires them anyway).
+  Until then the UI marks elicited values as elicited and shows the
+  elicitation notes; it must NOT render a per-fact quote affordance.
 - GET /api/demo/sessions and /api/demo/sessions/{id}: read-only serving of
   session JSONL files from a directory named by an env var
   (TERE4AI_DEMO_SESSIONS_DIR), path-guarded like source_trace, disableable.
