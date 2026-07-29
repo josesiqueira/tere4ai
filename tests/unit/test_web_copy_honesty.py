@@ -68,3 +68,14 @@ def test_presets_cover_every_schema_flag():
     presets_text = (WEB_SRC / "app" / "assess" / "presets.ts").read_text()
     missing = [f for f in schema_flag_names() if f'"{f}"' not in presets_text]
     assert missing == [], f"presets.ts missing schema flags: {missing}"
+
+
+def test_flag_panel_covers_every_schema_flag():
+    import sys
+
+    sys.path.insert(0, str(ROOT / "src"))
+    from tere4ai.elicit_features.elicitor import schema_flag_names
+
+    page_text = (WEB_SRC / "app" / "assess" / "page.tsx").read_text()
+    missing = [f for f in schema_flag_names() if f'"{f}"' not in page_text]
+    assert missing == [], f"page.tsx flag panel missing schema flags: {missing}"
