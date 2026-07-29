@@ -9,7 +9,7 @@
    judge verdict, the calibrated status vocabulary badge, and the page ends
    with the non-legal-advice notice. Visual system: docs/DESIGN.md. */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { FACADE_URL } from "@/lib/facade";
@@ -36,12 +36,37 @@ type Envelope<A = Record<string, unknown>> = {
   non_legal_advice_notice: string;
 };
 
+/* Article 27(1) FRIA applicability block (DEC-14, src/tere4ai/mcp_server/
+   fria.py assess_fria_applicability / _block): shape confirmed against that
+   module's source, not guessed. applies_from carries the Digital Omnibus
+   date as DATA (legal_status adopted_not_yet_applicable), never control
+   flow: it must never be read as already in force. classify_ai_system adds
+   this to answer.fria unconditionally once risk_category is present, so an
+   absent block on a present classification answer is not expected, but the
+   UI still treats it as optional and renders nothing rather than guess. */
+type FriaAppliesFrom = {
+  date: string;
+  meaning: string;
+  legal_status: string;
+  source: string;
+};
+
+type FriaAnswer = {
+  applicability: string;
+  rationale: string[];
+  basis_nodes: string[];
+  missing_facts: string[];
+  applies_from: FriaAppliesFrom;
+  note: string;
+};
+
 type ClassificationAnswer = {
   risk_category: string | null;
   prohibited: boolean;
   annex_iii_category: string | null;
   article_6_3_exception_candidate: boolean;
   rationale: string[];
+  fria?: FriaAnswer | null;
 };
 
 type Requirement = {
@@ -547,6 +572,84 @@ function buildNodeSpanIds(
   return map;
 }
 
+/* Plain-language gloss of the closed 3-value FRIA applicability vocabulary
+   itself (fria.py FRIA_APPLICABILITY_VOCABULARY), never a per-system
+   conclusion: the subtitle only restates what the word "applies" /
+   "does_not_apply" / "unknown" means, the same three lines regardless of
+   which system produced it. */
+const FRIA_APPLICABILITY_SUBTITLE: Record<string, string> = {
+  applies: "A fundamental rights impact assessment is required before deployment.",
+  does_not_apply: "No Article 27(1) fundamental rights impact assessment obligation applies.",
+  unknown: "Not enough settled facts to determine whether the obligation applies.",
+};
+
+/* Article 27 FRIA panel (redteam bug 3): renders exactly what
+   answer.fria carries and nothing else. No applicability value is
+   computed or inferred here; the closed-vocabulary string is shown
+   verbatim, and the applies_from date is always shown next to its own
+   legal_status so it is never mistaken for already being in force.
+   Renders nothing when the envelope carries no fria block (no empty
+   shell), per the honesty rule for this task. */
+function FriaPanel({ fria }: { fria?: FriaAnswer | null }) {
+  if (!fria) return null;
+  const rationale = fria.rationale ?? [];
+  const basisNodes = fria.basis_nodes ?? [];
+  const missingFacts = fria.missing_facts ?? [];
+  return (
+    <div className="space-y-3 rounded-md border border-border p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Article 27 fundamental rights impact assessment (FRIA)
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-semibold">{fria.applicability}</span>
+        <span className="text-xs text-muted-foreground">
+          {FRIA_APPLICABILITY_SUBTITLE[fria.applicability] ??
+            "Applicability value not in the recorded vocabulary; see rationale below."}
+        </span>
+      </div>
+      {rationale.length > 0 && (
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          {rationale.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      )}
+      {basisNodes.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {basisNodes.map((id) => (
+            <Chip key={id}>{id}</Chip>
+          ))}
+        </div>
+      )}
+      {missingFacts.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold">Missing facts (FRIA)</p>
+          <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
+            {missingFacts.map((fact) => (
+              <li key={fact}>{fact}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {fria.applies_from && (
+        <p className="text-xs text-muted-foreground">
+          Applies from{" "}
+          <span className="font-medium text-foreground">{fria.applies_from.date}</span>{" "}
+          (legal status:{" "}
+          <code className="font-mono">{fria.applies_from.legal_status}</code>
+          {fria.applies_from.legal_status !== "in_force"
+            ? ", not yet in force as this status is recorded"
+            : ""}
+          ): {fria.applies_from.meaning}
+        </p>
+      )}
+      {fria.note && (
+        <p className="text-xs text-muted-foreground border-t border-border pt-2">{fria.note}</p>
+      )}
+    </div>
+  );
+}
+
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 space-y-4">
@@ -851,7 +954,66 @@ export default function AssessPage() {
   const [permalink, setPermalink] = useState<string | null>(null);
   const [permalinkCopied, setPermalinkCopied] = useState(false);
 
+  /* Staleness guard (redteam bug 1): every async setter below captures a
+     request token at request start and drops its response if the token no
+     longer matches, so a response for an already-abandoned form (preset
+     switched, form edited, a newer request of the same kind started) never
+     reaches the screen. One ref per request "kind"; evidence evaluation is
+     keyed per norm_id since each norm's evaluate button is independent.
+     Never changes what a request sends, only whether its response is
+     applied. */
+  const classifyTokenRef = useRef(0);
+  const requirementsTokenRef = useRef(0);
+  const elicitTokenRef = useRef(0);
+  const evidenceTokensRef = useRef<Record<string, number>>({});
+
+  /* Permalink hash sync (redteam bug 2): the URL hash is kept equal to an
+     encoding of the VISIBLE form at all times, updated synchronously on
+     every preset application and every field edit (never left describing a
+     form that is no longer on screen), so a reload always restores exactly
+     what was visible when the page was left and never a stale prior
+     system. classifyWith's own hash write (below) stays consistent with
+     this: it always writes the exact form it is about to submit. A hash
+     that fails to decode is cleared outright (see the mount effect) rather
+     than left dangling. */
+  function syncHashToForm(form: AssessForm) {
+    const encoded = encodeAssessForm(form);
+    window.history.replaceState(null, "", `${PERMALINK_PREFIX}${encoded}`);
+  }
+
+  function clearPermalinkHash() {
+    if (window.location.hash.startsWith(PERMALINK_PREFIX)) {
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`
+      );
+    }
+  }
+
+  function updateDescription(value: string) {
+    setDescription(value);
+    syncHashToForm({ description: value, domain, autonomy, flags });
+  }
+
+  function updateDomain(value: string) {
+    setDomain(value);
+    syncHashToForm({ description, domain: value, autonomy, flags });
+  }
+
+  function updateAutonomy(value: string) {
+    setAutonomy(value);
+    syncHashToForm({ description, domain, autonomy: value, flags });
+  }
+
+  function updateFlag(key: string, value: string) {
+    const nextFlags = { ...flags, [key]: value };
+    setFlags(nextFlags);
+    syncHashToForm({ description, domain, autonomy, flags: nextFlags });
+  }
+
   async function classifyWith(form: AssessForm) {
+    const token = ++classifyTokenRef.current;
     setClassifyLoading(true);
     setClassifyError(null);
     setRequirements(null);
@@ -882,12 +1044,14 @@ export default function AssessPage() {
       const envelope = await postJson<Envelope<ClassificationAnswer>>("/api/classify", {
         features,
       });
+      if (classifyTokenRef.current !== token) return;
       setClassification(envelope);
     } catch (err) {
+      if (classifyTokenRef.current !== token) return;
       setClassification(null);
       setClassifyError(err instanceof Error ? err.message : String(err));
     } finally {
-      setClassifyLoading(false);
+      if (classifyTokenRef.current === token) setClassifyLoading(false);
     }
   }
 
@@ -913,33 +1077,42 @@ export default function AssessPage() {
      visible error, never an empty result (architecture.md Section 13). */
   async function runElicit() {
     if (description.trim().length < 30) return;
+    const token = ++elicitTokenRef.current;
     setElicitLoading(true);
     try {
       const envelope = await postJson<Envelope<ElicitAnswer>>("/api/elicit", {
         description,
       });
+      if (elicitTokenRef.current !== token) return;
       if (envelope.answer) {
         const { features, notes } = envelope.answer;
         const filled: Record<string, boolean> = {};
+        let nextDomain = domain;
+        let nextAutonomy = autonomy;
+        let nextFlags = flags;
         if (typeof features.domain === "string" && features.domain.length > 0) {
-          setDomain(features.domain);
+          nextDomain = features.domain;
+          setDomain(nextDomain);
           filled.domain = true;
         }
         if (features.autonomy) {
-          setAutonomy(features.autonomy);
+          nextAutonomy = features.autonomy;
+          setAutonomy(nextAutonomy);
           filled.autonomy = true;
         }
         if (features.flags) {
           const entries = Object.entries(features.flags);
           if (entries.length > 0) {
-            setFlags((prev) => {
-              const next = { ...prev };
-              for (const [key, value] of entries) next[key] = value ? "true" : "false";
-              return next;
-            });
+            nextFlags = { ...flags };
+            for (const [key, value] of entries) nextFlags[key] = value ? "true" : "false";
+            setFlags(nextFlags);
             for (const [key] of entries) filled[key] = true;
           }
         }
+        // Redteam bug 2: elicitation edits the visible form (domain,
+        // autonomy, flags) just like a manual edit does, so the hash is
+        // synced to the resulting form here too.
+        syncHashToForm({ description, domain: nextDomain, autonomy: nextAutonomy, flags: nextFlags });
         setElicitedFields((prev) => ({ ...prev, ...filled }));
         setElicitPanel({
           notes,
@@ -960,6 +1133,7 @@ export default function AssessPage() {
         });
       }
     } catch (err) {
+      if (elicitTokenRef.current !== token) return;
       setElicitPanel({
         notes: [],
         status: null,
@@ -968,18 +1142,29 @@ export default function AssessPage() {
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
-      setElicitLoading(false);
+      if (elicitTokenRef.current === token) setElicitLoading(false);
     }
   }
 
   /* Audit permalink (#52): a reload with #assess=<base64url> prefills the
      form and re-runs the same deterministic classification (free, no model
-     call), so a reviewer can reproduce the exact assessment from the link. */
+     call), so a reviewer can reproduce the exact assessment from the link.
+     Redteam bug 2 fix: every code path that changes the visible form
+     (applyPreset, every field edit, elicitation) now calls syncHashToForm
+     with the exact resulting form, so the hash this effect reads on the
+     NEXT load always matches whatever was actually on screen when the page
+     was left, never a stale prior system. A hash that fails to decode, or
+     decodes to a description too short to classify, is cleared outright
+     rather than left dangling, so no auto-classification ever fires from
+     unusable or stale hash contents. */
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash.startsWith(PERMALINK_PREFIX)) return;
     const form = decodeAssessForm(hash.slice(PERMALINK_PREFIX.length));
-    if (!form || form.description.trim().length < 10) return;
+    if (!form || form.description.trim().length < 10) {
+      clearPermalinkHash();
+      return;
+    }
     setDescription(form.description);
     setDomain(form.domain);
     setAutonomy(form.autonomy);
@@ -1003,12 +1188,30 @@ export default function AssessPage() {
 
   /* Preset (#53): fills the form in one click and clears downstream results
      so no stale envelope sits under new inputs. Classification still runs
-     through the facade when the user clicks Classify. */
+     through the facade when the user clicks Classify.
+     Redteam bug 1 fix: bumps every request token first, so a classify,
+     requirements, elicit, or evidence-evaluate response already in flight
+     for the PREVIOUS system is dropped instead of landing on this one, even
+     though the state resets below already remove its Card from the tree.
+     Redteam bug 2 fix: syncs the permalink hash to THIS preset's exact
+     facts, so a reload after switching presets (with or without
+     reclassifying) restores this visible preset, never a stale prior
+     system's hash. */
   function applyPreset(preset: ScenarioPreset) {
-    setDescription(preset.description);
-    setDomain(preset.domain);
-    setAutonomy(preset.autonomy);
-    setFlags({ ...preset.flags });
+    classifyTokenRef.current += 1;
+    requirementsTokenRef.current += 1;
+    elicitTokenRef.current += 1;
+    evidenceTokensRef.current = {};
+    const form: AssessForm = {
+      description: preset.description,
+      domain: preset.domain,
+      autonomy: preset.autonomy,
+      flags: { ...preset.flags },
+    };
+    setDescription(form.description);
+    setDomain(form.domain);
+    setAutonomy(form.autonomy);
+    setFlags(form.flags);
     setClassification(null);
     setClassifyError(null);
     setRequirements(null);
@@ -1022,10 +1225,12 @@ export default function AssessPage() {
     setPermalink(null);
     setElicitedFields({});
     setElicitPanel(null);
+    syncHashToForm(form);
   }
 
   async function loadRequirements() {
     if (!classification) return;
+    const token = ++requirementsTokenRef.current;
     setReqLoading(true);
     setReqError(null);
     setBacklog(null);
@@ -1035,10 +1240,13 @@ export default function AssessPage() {
       const envelope = await postJson<Envelope<RequirementsAnswer>>("/api/requirements", {
         classification,
       });
+      if (requirementsTokenRef.current !== token) return;
       setRequirements(envelope);
       /* One bulk call for the HLEG chips of every served norm (no per-norm
          request flood). A failure degrades to a visible note, never silently
-         (architecture.md Section 13); the requirements themselves stand. */
+         (architecture.md Section 13); the requirements themselves stand.
+         Same token guards this sub-request too (redteam bug 1): it is part
+         of the same requirements-load lifecycle. */
       const normIds = Object.values(envelope.answer.requirements_by_article ?? {})
         .flat()
         .map((n) => n.norm_id);
@@ -1047,16 +1255,19 @@ export default function AssessPage() {
           const batch = await postJson<TraceBatchResponse>("/api/trace/batch", {
             ids: normIds,
           });
+          if (requirementsTokenRef.current !== token) return;
           setAlignments(batch.envelopes);
         } catch (err) {
+          if (requirementsTokenRef.current !== token) return;
           setAlignmentsError(err instanceof Error ? err.message : String(err));
         }
       }
     } catch (err) {
+      if (requirementsTokenRef.current !== token) return;
       setRequirements(null);
       setReqError(err instanceof Error ? err.message : String(err));
     } finally {
-      setReqLoading(false);
+      if (requirementsTokenRef.current === token) setReqLoading(false);
     }
   }
 
@@ -1081,6 +1292,12 @@ export default function AssessPage() {
 
   async function evaluateEvidence(normId: string) {
     const state = evidenceStateFor(normId);
+    /* Redteam bug 1: keyed per norm_id, since each norm's Evaluate button is
+       an independent request; a second click on the SAME norm cancels the
+       first, and a preset switch (which resets the whole token map) drops
+       any response for a norm that no longer belongs to the visible form. */
+    const token = (evidenceTokensRef.current[normId] ?? 0) + 1;
+    evidenceTokensRef.current[normId] = token;
     patchEvidence(normId, { loading: true, error: null, result: null });
     try {
       const envelope = await postJson<Envelope<EvidenceAnswer>>("/api/evidence", {
@@ -1088,8 +1305,10 @@ export default function AssessPage() {
         artifact_type: state.artifactType,
         content: state.content,
       });
+      if (evidenceTokensRef.current[normId] !== token) return;
       patchEvidence(normId, { loading: false, result: envelope });
     } catch (err) {
+      if (evidenceTokensRef.current[normId] !== token) return;
       patchEvidence(normId, {
         loading: false,
         error: err instanceof Error ? err.message : String(err),
@@ -1186,7 +1405,7 @@ export default function AssessPage() {
                 rows={3}
                 placeholder="e.g. An AI triage assistant that prioritises emergency department patients by predicted urgency to support clinician decisions."
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => updateDescription(e.target.value)}
               />
               <div className="flex items-center gap-3 flex-wrap">
                 <button
@@ -1271,7 +1490,7 @@ export default function AssessPage() {
                   className={`${SELECT_CLS} w-full`}
                   value={domain}
                   onChange={(e) => {
-                    setDomain(e.target.value);
+                    updateDomain(e.target.value);
                     clearElicited("domain");
                   }}
                 >
@@ -1296,7 +1515,7 @@ export default function AssessPage() {
                   className={`${SELECT_CLS} w-full`}
                   value={autonomy}
                   onChange={(e) => {
-                    setAutonomy(e.target.value);
+                    updateAutonomy(e.target.value);
                     clearElicited("autonomy");
                   }}
                 >
@@ -1322,7 +1541,7 @@ export default function AssessPage() {
                       label={label}
                       value={flags[key] ?? "unknown"}
                       onChange={(v) => {
-                        setFlags((prev) => ({ ...prev, [key]: v }));
+                        updateFlag(key, v);
                         clearElicited(key);
                       }}
                     />
@@ -1345,7 +1564,7 @@ export default function AssessPage() {
                       label={label}
                       value={flags[key] ?? "unknown"}
                       onChange={(v) => {
-                        setFlags((prev) => ({ ...prev, [key]: v }));
+                        updateFlag(key, v);
                         clearElicited(key);
                       }}
                     />
@@ -1396,6 +1615,7 @@ export default function AssessPage() {
                   <li key={r}>{r}</li>
                 ))}
               </ul>
+              <FriaPanel fria={classification.answer.fria} />
               <EnvelopeMeta envelope={classification} />
               <EvidenceGraph subgraph={classification.graph_evidence_subgraph} />
               <div className="space-y-2 rounded-md border border-border p-3">
