@@ -15,7 +15,7 @@ import {
 const ITEMS = [
   { href: "/", label: "Coverage", icon: BookOpenCheck },
   { href: "/assess", label: "Assess", icon: ClipboardList },
-  { href: "/agent", label: "Agent", icon: Bot, soon: true },
+  { href: "/agent", label: "Agent", icon: Bot },
   { href: "/how-it-works", label: "How it works", icon: Workflow },
   { href: "/review", label: "Review", icon: UserCheck },
 ];
@@ -27,7 +27,7 @@ export function NavLinks() {
       aria-label="Main"
       className="flex flex-row gap-1 overflow-x-auto px-2 pb-1 md:flex-col md:overflow-visible md:pb-0"
     >
-      {ITEMS.map(({ href, label, icon: Icon, soon }) => {
+      {ITEMS.map(({ href, label, icon: Icon }) => {
         const active =
           href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
@@ -44,11 +44,6 @@ export function NavLinks() {
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
             <span>{label}</span>
-            {soon ? (
-              <span className="ml-auto rounded-full border border-sidebar-border px-2 py-0.5 text-[10px] font-semibold text-sidebar-foreground/60">
-                soon
-              </span>
-            ) : null}
           </Link>
         );
       })}
