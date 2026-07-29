@@ -54,7 +54,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent.parent
 WEB_SRC = ROOT / "web" / "src"
 BANNED = re.compile(r"\b(compliant|certified|legally approved)\b", re.IGNORECASE)
-DASHES = re.compile("[—–]")
+DASHES = re.compile("[\u2014\u2013]")  # em dash, en dash, as escapes (see tests/unit/test_web_copy_honesty.py)
 
 
 def _web_files():
