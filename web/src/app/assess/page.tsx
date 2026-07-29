@@ -178,12 +178,33 @@ const HLEG_CAVEAT_SHORT =
 const PROHIBITION_FLAGS: [string, string][] = [
   ["subliminal_or_manipulative", "Subliminal or manipulative techniques"],
   ["exploits_vulnerabilities", "Exploits vulnerabilities (age, disability, situation)"],
+  ["causes_significant_harm", "Causes significant harm (Art. 5(1)(a)/(b) qualifier)"],
   ["social_scoring", "Social scoring"],
+  [
+    "social_score_detrimental_treatment",
+    "Social score leads to detrimental treatment (Art. 5(1)(c) qualifier)",
+  ],
   ["predictive_policing_profiling", "Predictive policing by profiling"],
+  [
+    "supports_human_assessment_on_verifiable_facts",
+    "Supports human assessment on verifiable facts (Art. 5(1)(d) exception)",
+  ],
   ["facial_image_scraping", "Untargeted facial image scraping"],
   ["emotion_recognition_workplace_or_education", "Emotion recognition at work / education"],
+  [
+    "emotion_recognition_medical_or_safety",
+    "Emotion recognition for medical or safety reasons (Art. 5(1)(f) exception)",
+  ],
   ["biometric_categorisation", "Biometric categorisation (sensitive traits)"],
+  [
+    "biometric_categorisation_lawful_or_law_enforcement",
+    "Lawful dataset / law enforcement carve-out (Art. 5(1)(g))",
+  ],
   ["real_time_remote_biometric_public", "Real-time remote biometric ID in public"],
+  [
+    "rtrb_strictly_necessary_authorised",
+    "RTRB strictly necessary and authorised (Art. 5(1)(h) carve-out)",
+  ],
   ["law_enforcement_use", "Law enforcement use"],
 ];
 
@@ -194,13 +215,31 @@ const CATEGORY_FLAGS: [string, string][] = [
   ["education_scoring_or_access", "Education scoring or access"],
   ["employment_decisions", "Employment decisions"],
   ["essential_services_access", "Essential services access (incl. healthcare)"],
+  ["creditworthiness_evaluation", "Creditworthiness evaluation (Annex III point 5(b))"],
+  [
+    "life_health_insurance_risk_pricing",
+    "Life / health insurance risk pricing (Annex III point 5(c))",
+  ],
   ["migration_asylum_border_use", "Migration, asylum, border control use"],
   ["justice_democratic_use", "Justice or democratic processes"],
   ["medical_or_safety_component", "Medical or product safety component"],
   ["preparatory_or_narrow_procedural_task", "Preparatory or narrow procedural task"],
+  [
+    "improves_previous_human_activity",
+    "Improves a previously completed human activity (Art. 6(3)(b))",
+  ],
+  [
+    "detects_patterns_without_replacing_human_assessment",
+    "Detects patterns without replacing human assessment (Art. 6(3)(c))",
+  ],
   ["interacts_with_natural_persons", "Interacts with natural persons"],
   ["generates_synthetic_content", "Generates synthetic content"],
   ["profiling_of_natural_persons", "Profiling of natural persons"],
+  ["annex_i_covered_product", "Annex I covered product / safety component"],
+  [
+    "third_party_conformity_assessment_required",
+    "Third-party conformity assessment required",
+  ],
 ];
 
 const DOMAINS = [
