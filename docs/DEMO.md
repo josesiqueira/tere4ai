@@ -17,20 +17,27 @@ web UI on port 3111.
 cp .env.example .env       # OPENAI_API_KEY and ANTHROPIC_API_KEY are optional
 docker compose --profile demo up -d
 # facade http://localhost:8008, web http://localhost:3111
+# TERE4AI_DEMO_SESSIONS_DIR is already set in docker-compose.yml, bind-mounted
+# read-only from tests/fixtures/demo_sessions, so /agent works with no extra
+# setup
 ```
 
 **Dev mode (recommended for iterating on the demo itself):**
 
 ```bash
-TERE4AI_DEMO_SESSIONS_DIR=examples/1-minimalrisk-spamguard/artifacts/sessions \
+TERE4AI_DEMO_SESSIONS_DIR=tests/fixtures/demo_sessions \
   .venv/bin/python -m uvicorn --factory tere4ai.http_facade.app:create_app --port 8008
 cd web && npm run dev -- -p 3111
 ```
 
 `TERE4AI_DEMO_SESSIONS_DIR` enables the agent replay page (`/agent`); without
 it the page renders an explicit "session replay is not enabled" card, never
-a blank one. Point it at any example's `artifacts/sessions` directory; the
-path above is the one recorded for this script.
+a blank one. The path above is in-repo
+(`tests/fixtures/demo_sessions/spamguard-classify.jsonl`) and holds the exact
+SpamGuard exchange this script narrates in step 4. Richer, multi-exchange
+sessions from real example development live in the sibling examples checkout
+at `/home/jose/Dev/Trustworthy/examples/1-minimalrisk-spamguard/artifacts/sessions`;
+point the env var at that absolute path instead if that checkout is present.
 
 Keys are optional. `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` unlock the paid
 evidence-evaluation call (Article 9(1) style checks against pasted project
@@ -48,7 +55,8 @@ Sanity check: `curl localhost:8008/api/health` returns the graph version.
    judged Layer 2/3 counts with verdicts, and the publication chain id in the
    footnote, served by the facade and verified at server startup, not
    computed client side. Expand a chapter to show the browsable structure.
-   Fallback: `docs/screenshots/coverage_light.png` or
+   Fallback: `docs/screenshots/demo-coverage.png`,
+   `docs/screenshots/coverage_light.png`, or
    `docs/screenshots/m2-coverage-with-judged-layers.png`.
 2. **Five presets, ascending severity** (3 min). Go to `/assess`. Click
    through the five preset buttons in order and classify each one:
@@ -79,7 +87,8 @@ Sanity check: `curl localhost:8008/api/health` returns the graph version.
    click "Load requirements", expand an article group (Article 9 or Article
    27 read well), and toggle "Show evidence graph". Walk the force-directed
    layout: norm nodes, HLEG nodes, the alignment edges between them, solid
-   for an accepted judge verdict and dashed for anything else. Click a node
+   for an accepted judge verdict or a structural edge carrying no verdict at
+   all, and dashed for anything else. Click a node
    to pull its verbatim source span inline, never a modal. This is the
    traceability claim rendered as a picture: every requirement traces to a
    legal source span and, where an alignment exists, to an HLEG principle.
@@ -117,17 +126,21 @@ Everything in the 7-minute talk, plus:
   Fallback: `docs/screenshots/review_light.png`.
 - **Requirements board with a live evidence call** (2 min). Back on
   `/assess` with credscore loaded and requirements fetched, scroll to
-  "Requirements by evidence status": five fixed columns
-  (applicable_missing_evidence, partially_satisfied, satisfied_with_evidence,
-  rejected_as_unsupported, requires_human_review), styled identically with no
-  green checkmark for a "good" column, because the calibrated vocabulary is
-  a status, not a grade. If keys are present, expand the Article 9(1) risk
-  management norm, paste two sentences of a synthetic risk plan, and
+  "Requirements by evidence status". Before any evidence has been evaluated
+  the board shows a single hint line, "No evidence evaluated yet: every
+  applicable requirement is waiting for evidence", not columns; that is the
+  honest current state for a no-keys room, so point at the hint line itself
+  rather than describing columns that are not there yet. The five fixed
+  columns (applicable_missing_evidence, partially_satisfied,
+  satisfied_with_evidence, rejected_as_unsupported, requires_human_review)
+  only appear once at least one evaluation has run, styled identically with
+  no green checkmark for a "good" column, because the calibrated vocabulary
+  is a status, not a grade. If keys are present, expand the Article 9(1)
+  risk management norm, paste two sentences of a synthetic risk plan, and
   evaluate live: read the verdict card aloud, including the judge rationale
-  and any gap it preserves rather than papers over. Without keys, describe
-  the board from its current state (everything sits in
-  applicable_missing_evidence until an evaluation runs) and fall back to the
-  screenshot.
+  and any gap it preserves rather than papers over; the board then switches
+  from the hint line to the five columns. Without keys, fall back to the
+  screenshot to show that state.
   Fallback: `docs/screenshots/demo-assess-board.png`.
 - **Elicit mode on an audience-supplied description** (2 min, needs keys).
   On `/assess`, ask the audience for one sentence describing a fictional AI
@@ -197,7 +210,7 @@ Every live step above, with the fallback if it cannot run.
 
 | Live step | Fallback |
 | --- | --- |
-| Coverage tiles and chain id | `docs/screenshots/coverage_light.png`, `docs/screenshots/m2-coverage-with-judged-layers.png` |
+| Coverage tiles and chain id | `docs/screenshots/demo-coverage.png`, `docs/screenshots/coverage_light.png`, `docs/screenshots/m2-coverage-with-judged-layers.png` |
 | Five presets, classification | `docs/screenshots/demo-assess-credscore.png`, `docs/screenshots/assess_result_light.png`, `docs/screenshots/m3-demo-classification.png` |
 | Evidence subgraph on credscore | `docs/screenshots/demo-assess-subgraph.png` |
 | Agent replay (SpamGuard exchange) | `docs/screenshots/demo-agent-replay.png` |

@@ -19,13 +19,30 @@ DASHES = re.compile("[\u2014\u2013]")  # em dash, en dash, written as
 # (scripts/check_traceability.py), which scans tests/*.py for the literal chars
 
 
+SCANNED_SUFFIXES = {".tsx", ".ts", ".css"}
+
+
 def _web_files():
     files = [
         p for p in WEB_SRC.rglob("*")
-        if p.suffix in {".tsx", ".ts", ".css"} and p.is_file()
+        if p.suffix in SCANNED_SUFFIXES and p.is_file()
     ]
     assert files, "web/src scan found no files; layout changed?"
     return files
+
+
+def test_web_src_has_no_unscanned_file_suffixes():
+    # _web_files() only walks .tsx/.ts/.css. This guards the scan itself: if
+    # a future file type carrying copy (.mdx, .svg with inline text, and so
+    # on) ever lands under web/src, it must be added to SCANNED_SUFFIXES (and
+    # therefore to the dash and banned-term scans above) rather than slipping
+    # past both honesty guards unnoticed.
+    offenders = sorted(
+        str(p.relative_to(ROOT))
+        for p in WEB_SRC.rglob("*")
+        if p.is_file() and p.suffix not in SCANNED_SUFFIXES
+    )
+    assert offenders == [], f"unscanned file suffixes under web/src: {offenders}"
 
 
 def test_web_copy_has_no_em_or_en_dashes():

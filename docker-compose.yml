@@ -18,6 +18,11 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - TERE4AI_GENERATOR_MODEL=${TERE4AI_GENERATOR_MODEL:-gpt-5.2}
       - TERE4AI_JUDGE_MODEL=${TERE4AI_JUDGE_MODEL:-claude-opus-4-8}
+      # in-repo fixture, read-only; enables the /agent replay page in
+      # Docker mode the same way TERE4AI_DEMO_SESSIONS_DIR does in dev mode
+      - TERE4AI_DEMO_SESSIONS_DIR=/app/demo_sessions
+    volumes:
+      - ./tests/fixtures/demo_sessions:/app/demo_sessions:ro
     restart: unless-stopped
 
   web:

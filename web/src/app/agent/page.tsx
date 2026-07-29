@@ -179,7 +179,7 @@ function ExchangeView({
   const current = lines[index];
   const envelope = current.envelope ?? {};
   const missingFacts = Array.isArray(envelope.missing_facts) ? envelope.missing_facts : [];
-  const status = typeof envelope.status === "string" ? envelope.status : "unknown";
+  const status = typeof envelope.status === "string" ? envelope.status : null;
   const confidence = typeof envelope.confidence === "number" ? envelope.confidence : null;
   const judgeVerdict =
     typeof envelope.judge_verdict === "string" ? envelope.judge_verdict : "not recorded";
@@ -234,7 +234,11 @@ function ExchangeView({
             <code className="rounded-md bg-muted px-2 py-1 font-mono text-xs font-semibold">
               {current.tool}
             </code>
-            <StatusBadge status={status} />
+            {status !== null ? (
+              <StatusBadge status={status} />
+            ) : (
+              <span className="text-xs text-muted-foreground">status not recorded</span>
+            )}
             <span className="text-xs text-muted-foreground">
               confidence {confidence !== null ? confidence : "not recorded"}
             </span>
