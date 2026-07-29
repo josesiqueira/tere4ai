@@ -7,7 +7,7 @@ Loopback-only intent (architecture.md Section 9): the demo UI never touches
 the database or model APIs directly. This facade calls the same pure
 functions the MCP server exposes (classify_ai_system,
 get_applicable_requirements, evaluate_project_evidence,
-generate_control_backlog) over the versioned offline graph dumps.
+generate_control_backlog, elicit_features) over the versioned offline graph dumps.
 
 Behavioral contract:
 - The Layer 0+1 dump (layer1.json) and the judged norms payload
@@ -24,7 +24,8 @@ Behavioral contract:
   unmodified, so the assess page can render HLEG alignment chips for all
   served norms with a single request instead of one call per norm.
 - /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
-  plus Anthropic runtime grounding judge). Model clients are built lazily
+  plus Anthropic runtime grounding judge). /api/elicit performs a PAID
+  generator call (fact elicitation, no judge). Model clients are built lazily
   per request; a missing key surfaces the ModelConfigError message as a
   clean JSON error. Paid responses carry the header X-TERE4AI-Paid-Call.
 - The backlog endpoint caps the norms used at MAX_BACKLOG_NORMS (10)
@@ -50,6 +51,7 @@ from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_tool
 from tere4ai.mcp_server import classify as classify_tool
+from tere4ai.mcp_server import elicit as elicit_tool
 from tere4ai.mcp_server import evidence as evidence_tool
 from tere4ai.mcp_server import explain as explain_tool
 from tere4ai.mcp_server import requirements as requirements_tool
@@ -99,6 +101,10 @@ class ClassifyRequest(BaseModel):
 class RequirementsRequest(BaseModel):
     classification: dict[str, Any]
     actor: str | None = None
+
+
+class ElicitRequest(BaseModel):
+    description: str = Field(min_length=30)
 
 
 class EvidenceRequest(BaseModel):
@@ -277,7 +283,7 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
             "/api/trace, /api/trace/batch and GET /api/span/{span_id} "
             "(free, deterministic); "
-            "POST /api/evidence, /api/backlog (paid model calls, marked with "
+            "POST /api/evidence, /api/backlog, /api/elicit (paid model calls, marked with "
             "X-TERE4AI-Paid-Call); GET /api/health.\n"
             "Input schema: schema/json_schemas/system_features.schema.json\n\n"
         )
@@ -313,6 +319,7 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                     },
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
                     "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
+                    "elicit": {"method": "POST", "path": "/api/elicit", "paid": True},
                     "health": {"method": "GET", "path": "/api/health", "paid": False},
                 },
                 "skill": "/llms.txt",
@@ -516,6 +523,27 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             )
         except ValueError as exc:
             return JSONResponse(status_code=422, content={"error": str(exc)})
+        except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
+            return JSONResponse(
+                status_code=502, content={"error": f"model call failed: {exc}"}
+            )
+        return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
+
+    @app.post("/api/elicit")
+    def elicit(request: Request, body: ElicitRequest) -> JSONResponse:
+        # PAID: one generator call, no judge. DEC-13: proposes facts,
+        # never a risk category.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        try:
+            generator, _judge = _build_paid_clients()
+        except ModelConfigError as exc:
+            return JSONResponse(status_code=503, content={"error": str(exc)})
+        try:
+            envelope = elicit_tool.elicit_envelope(
+                body.description, generator, graph_version=_graph_version(request)
+            )
         except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
             return JSONResponse(
                 status_code=502, content={"error": f"model call failed: {exc}"}

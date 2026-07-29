@@ -299,6 +299,69 @@ def test_model_config_error_returns_clean_json_error(client, monkeypatch):
     assert "Traceback" not in response.text
 
 
+def test_elicit_returns_a_proposal_envelope(client, fake_models):
+    """Elicitation returns a requires_human_review envelope with features."""
+    gen_response = json.dumps(
+        {
+            "description": "A spam filter for a small team inbox, quarantines mail retrievably.",
+            "domain": "email",
+            "autonomy": "full",
+            "flags": {
+                "essential_services_access": False,
+                "subliminal_or_manipulative": False,
+                "exploits_vulnerabilities": False,
+                "social_scoring": False,
+                "predictive_policing_profiling": False,
+                "facial_image_scraping": False,
+                "emotion_recognition_workplace_or_education": False,
+                "biometric_categorisation": False,
+                "real_time_remote_biometric_public": False,
+                "law_enforcement_use": False,
+            },
+        }
+    )
+    fake_models(
+        {"spam filter": gen_response},
+        {},
+    )
+    resp = client.post(
+        "/api/elicit",
+        json={"description": "A spam filter for a small team inbox, "
+                             "quarantines mail retrievably."},
+    )
+    assert resp.status_code == 200
+    env = resp.json()
+    assert env["status"] == "requires_human_review"
+    assert "features" in (env["answer"] or {})
+    assert resp.headers.get(facade.PAID_HEADER) == "true"
+
+
+def test_elicit_degrades_without_model_config(client, monkeypatch):
+    """Missing model config returns clean 503."""
+    message = (
+        "missing model configuration: OPENAI_API_KEY (generator API key). "
+        "Set these in .env (see .env.example); the pipeline never falls "
+        "back to defaults."
+    )
+
+    def raise_config_error(env=None):
+        raise ModelConfigError(message)
+
+    monkeypatch.setattr(facade, "load_model_config", raise_config_error)
+    resp = client.post(
+        "/api/elicit",
+        json={"description": "A spam filter for a small team inbox, "
+                             "quarantines mail retrievably."},
+    )
+    assert resp.status_code == 503
+    assert "error" in resp.json()
+
+
+def test_elicit_rejects_short_description(client):
+    resp = client.post("/api/elicit", json={"description": "hi"})
+    assert resp.status_code == 422
+
+
 def test_discovery_endpoints(client):
     r = client.get("/llms.txt")
     assert r.status_code == 200
@@ -440,6 +503,45 @@ def test_trace_batch_system_fields_have_no_banned_terms(client):
     verbatim-quote fields (alignment quotes, rationales), no banned claim
     term may remain anywhere in the response."""
     response = client.post("/api/trace/batch", json={"ids": [ACCEPTED_NORM_ID]})
+    assert response.status_code == 200
+    serialized = json.dumps(strip_verbatim_quote_fields(response.json())).lower()
+    for term in BANNED_CLAIM_TERMS:
+        assert term not in serialized
+        assert term.replace(" ", "_") not in serialized
+
+
+def test_elicit_system_fields_have_no_banned_terms(client, fake_models):
+    """DEC-08 scoped scan over the elicit payload: after scrubbing the
+    verbatim-quote fields, no banned claim term may remain anywhere in
+    the response."""
+    gen_response = json.dumps(
+        {
+            "description": "A spam filter for a small team inbox, quarantines mail retrievably.",
+            "domain": "email",
+            "autonomy": "full",
+            "flags": {
+                "essential_services_access": False,
+                "subliminal_or_manipulative": False,
+                "exploits_vulnerabilities": False,
+                "social_scoring": False,
+                "predictive_policing_profiling": False,
+                "facial_image_scraping": False,
+                "emotion_recognition_workplace_or_education": False,
+                "biometric_categorisation": False,
+                "real_time_remote_biometric_public": False,
+                "law_enforcement_use": False,
+            },
+        }
+    )
+    fake_models(
+        {"spam filter": gen_response},
+        {},
+    )
+    response = client.post(
+        "/api/elicit",
+        json={"description": "A spam filter for a small team inbox, "
+                             "quarantines mail retrievably."},
+    )
     assert response.status_code == 200
     serialized = json.dumps(strip_verbatim_quote_fields(response.json())).lower()
     for term in BANNED_CLAIM_TERMS:
