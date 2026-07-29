@@ -39,12 +39,15 @@ Behavioral contract:
 from __future__ import annotations
 
 import json
+import math
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
@@ -133,6 +136,29 @@ class TraceBatchRequest(BaseModel):
     ids: list[str] = Field(min_length=1, max_length=MAX_TRACE_BATCH_IDS)
 
 
+def _sanitize_non_finite(value: Any) -> Any:
+    """Replace non-finite floats (NaN, Infinity, -Infinity) anywhere in a
+    validation-error payload with an honest placeholder string.
+
+    A request body containing one of these literals parses fine in Python's
+    json module, but Pydantic then rejects the value and echoes it back
+    inside the raw error detail, where the strict JSON encoder used for
+    responses (allow_nan=False) would otherwise raise and turn a routine
+    validation failure into an uncaught 500 (Section 13, no silent
+    degradation, but also no unhandled crash). Recurses into lists and
+    dicts so a non-finite value nested anywhere in the offending input is
+    still caught; every other value, including normal finite floats and
+    real validation detail, passes through unchanged.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return "non-finite number rejected"
+    if isinstance(value, dict):
+        return {key: _sanitize_non_finite(v) for key, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_non_finite(v) for v in value]
+    return value
+
+
 def _load_json(path: Path) -> dict[str, Any] | None:
     if not path.is_file():
         return None
@@ -197,6 +223,21 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         allow_headers=["Content-Type"],
         expose_headers=[PAID_HEADER],
     )
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        # Same {"detail": [...]} shape as FastAPI's default handler (clients
+        # and existing tests see no difference), but with non-finite floats
+        # sanitized before encoding. A NaN/Infinity/-Infinity JSON literal in
+        # the request body parses fine, Pydantic rejects it and echoes the
+        # value into exc.errors(), and the strict response encoder used
+        # below would otherwise raise ValueError and surface as an uncaught
+        # 500 (the bug this handler closes; Section 13, no silent
+        # degradation, but never a raw 500 either).
+        errors = _sanitize_non_finite(jsonable_encoder(exc.errors()))
+        return JSONResponse(status_code=422, content={"detail": errors})
 
     # Section 8 hardening: fixed-window per-client rate limit and a body-free
     # JSON request log. In-process state is enough for the loopback demo

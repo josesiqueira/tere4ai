@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -610,3 +611,84 @@ def test_demo_session_rejects_escape_and_unknown(client, monkeypatch, tmp_path):
     ).status_code in (400, 404)
     assert client.get("/api/demo/sessions/nope.jsonl").status_code == 404
     assert client.get("/api/demo/sessions/evil.txt").status_code == 400
+
+
+# Redteam fix: a JSON body carrying the non-standard literals NaN, Infinity,
+# or -Infinity used to crash every free POST endpoint with an uncaught 500.
+# Python's json module accepts those literals, Pydantic then rejects the
+# value, and FastAPI's default RequestValidationError handler tried to echo
+# the offending parsed float back inside its 422 body, where the strict
+# response encoder (allow_nan=False) raised ValueError and escaped as a 500.
+# Two shapes are covered per endpoint: the literal as the entire raw body
+# (a "whole field value" from the parser's perspective, since the body model
+# itself fails to bind) and the literal nested inside a JSON object as one
+# field's value. Content is sent as raw bytes because httpx's own json=
+# encoder rejects non-finite floats before the request ever reaches the app.
+NON_FINITE_ATTACK_BODIES = [
+    pytest.param("/api/classify", b"NaN", id="classify-whole-body-nan"),
+    pytest.param("/api/classify", b"Infinity", id="classify-whole-body-infinity"),
+    pytest.param("/api/classify", b"-Infinity", id="classify-whole-body-neg-infinity"),
+    pytest.param(
+        "/api/classify", b'{"features": NaN}', id="classify-nested-field-nan"
+    ),
+    pytest.param(
+        "/api/classify",
+        b'{"features": Infinity}',
+        id="classify-nested-field-infinity",
+    ),
+    pytest.param(
+        "/api/classify",
+        b'{"features": -Infinity}',
+        id="classify-nested-field-neg-infinity",
+    ),
+    pytest.param("/api/trace/batch", b"NaN", id="trace-batch-whole-body-nan"),
+    pytest.param(
+        "/api/trace/batch", b"Infinity", id="trace-batch-whole-body-infinity"
+    ),
+    pytest.param(
+        "/api/trace/batch", b"-Infinity", id="trace-batch-whole-body-neg-infinity"
+    ),
+    pytest.param(
+        "/api/trace/batch",
+        b'{"ids": ["norm:eu-ai-act:article-9:paragraph-1:n1", NaN]}',
+        id="trace-batch-nested-list-nan",
+    ),
+    pytest.param(
+        "/api/trace/batch",
+        b'{"ids": ["norm:eu-ai-act:article-9:paragraph-1:n1", Infinity]}',
+        id="trace-batch-nested-list-infinity",
+    ),
+    pytest.param(
+        "/api/trace/batch",
+        b'{"ids": ["norm:eu-ai-act:article-9:paragraph-1:n1", -Infinity]}',
+        id="trace-batch-nested-list-neg-infinity",
+    ),
+]
+
+
+@pytest.mark.parametrize("path, body", NON_FINITE_ATTACK_BODIES)
+def test_non_finite_json_literals_degrade_to_clean_422_never_500(client, path, body):
+    response = client.post(
+        path, content=body, headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 422
+
+    # The body must be valid, parseable JSON: this is exactly what raised
+    # ValueError and crashed the response encoder before the fix.
+    parsed = response.json()
+    assert "detail" in parsed
+
+    text = response.text
+    assert "Traceback" not in text
+    # No absolute filesystem path (a repo path or a site-packages frame)
+    # should ever leak into a client-facing error payload.
+    assert str(facade._PROJECT_ROOT) not in text
+    assert re.search(r"/[\w./-]+\.py", text) is None
+    # The sanitizer's honest placeholder should be the only trace of the
+    # rejected value, never the raw NaN/Infinity literal echoed back.
+    assert "non-finite number rejected" in text
+
+    # No poisoned app state: a normal, well-formed request on the same
+    # client still succeeds right after the attack.
+    follow_up = client.post("/api/classify", json={"features": TRIAGE_FEATURES})
+    assert follow_up.status_code == 200
