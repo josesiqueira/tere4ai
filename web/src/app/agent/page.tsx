@@ -312,11 +312,25 @@ export default function AgentPage() {
       .then(async (res) => {
         if (!res.ok) throw new Error(`facade error ${res.status}`);
         const text = await res.text();
-        const lines: SessionLine[] = text
-          .split("\n")
-          .map((l) => l.trim())
-          .filter((l) => l.length > 0)
-          .map((l) => JSON.parse(l) as SessionLine);
+        /* Parsed per raw file line (1-indexed on the split of the whole
+           file, blank lines counted), never per non-blank line, so the
+           reported number is the one a human opening the file in an
+           editor would see. A malformed line fails the whole session
+           visibly, naming the offending line, rather than a generic
+           SyntaxError whose position refers to the inside of that one
+           line's string. */
+        const rawLines = text.split("\n");
+        const lines: SessionLine[] = [];
+        for (let i = 0; i < rawLines.length; i++) {
+          const trimmed = rawLines[i].trim();
+          if (trimmed.length === 0) continue;
+          try {
+            lines.push(JSON.parse(trimmed) as SessionLine);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            throw new Error(`Line ${i + 1} of the session file is not valid JSON: ${message}`);
+          }
+        }
         setSessionState({ kind: "ready", lines });
       })
       .catch((err) => {
