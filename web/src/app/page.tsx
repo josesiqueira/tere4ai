@@ -90,7 +90,7 @@ function StatTiles({
   buildId,
   builtAt,
   snapshotCount,
-  chainHash,
+  sourceSetDigest,
 }: {
   actual: UiData["coverage"]["answer"]["actual"];
   layer2Count: number;
@@ -99,7 +99,7 @@ function StatTiles({
   buildId: string;
   builtAt: string;
   snapshotCount: number;
-  chainHash: string;
+  sourceSetDigest: string;
 }) {
   const tiles: { label: string; value: number | undefined }[] = [
     { label: "Articles", value: asNumber(actual.articles) },
@@ -126,12 +126,13 @@ function StatTiles({
       <p className="text-xs text-muted-foreground">
         Build <code className="font-mono">{buildId}</code>, built{" "}
         {builtAt.slice(0, 19)}Z. {snapshotCount} frozen source files
-        checksummed; chain hash{" "}
-        <code className="font-mono break-all" title={chainHash}>
-          {chainHash.slice(0, 16)}&hellip;
+        checksummed; source-set digest{" "}
+        <code className="font-mono break-all" title={sourceSetDigest}>
+          {sourceSetDigest.slice(0, 16)}&hellip;
         </code>{" "}
-        (sha256 over every snapshot checksum, in order). Every count above is
-        served from the published dump, not typed into this page.
+        (sha256 over every source snapshot checksum, in order, computed for
+        this page). Every count above is served from the published dump, not
+        typed into this page.
       </p>
     </section>
   );
@@ -149,7 +150,12 @@ export default function Page() {
       const actN = Array.isArray(act) ? act.length : act;
       return [k, expN, actN];
     });
-  const buildChainHash = crypto
+  /* Not the project's build chain (see src/tere4ai/graph_store/build_chain.py
+     compose_chain_id and data/graph_dumps/BUILD_CHAIN_CURRENT.txt): this is a
+     page-local digest over a different input set (all snapshot checksums,
+     not the four publication inputs) and a different algorithm. Labeled
+     "source-set digest" in the UI so it is never mistaken for that chain id. */
+  const sourceSetDigest = crypto
     .createHash("sha256")
     .update(build.snapshots.map((s) => s.sha256).join(""))
     .digest("hex");
@@ -177,7 +183,7 @@ export default function Page() {
           buildId={build.build_id}
           builtAt={build.built_at}
           snapshotCount={build.snapshots.length}
-          chainHash={buildChainHash}
+          sourceSetDigest={sourceSetDigest}
         />
 
         <Card title="Coverage matrix">
