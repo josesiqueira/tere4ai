@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 /* Thin, read-only demo page (docs/architecture.md Sections 9 and 14, M1).
    Renders the coverage matrix and the browsable Act structure from
@@ -74,6 +75,68 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+/* Numeric fields inside coverage.answer.actual are typed number | string[]
+   (some, like "chapters", are arrays). Only surface fields that are actually
+   numbers; never coerce or invent a count. */
+function asNumber(v: number | string[] | undefined): number | undefined {
+  return typeof v === "number" ? v : undefined;
+}
+
+function StatTiles({
+  actual,
+  layer2Count,
+  layer3Count,
+  reviewCount,
+  buildId,
+  builtAt,
+  snapshotCount,
+  chainHash,
+}: {
+  actual: UiData["coverage"]["answer"]["actual"];
+  layer2Count: number;
+  layer3Count: number;
+  reviewCount: number;
+  buildId: string;
+  builtAt: string;
+  snapshotCount: number;
+  chainHash: string;
+}) {
+  const tiles: { label: string; value: number | undefined }[] = [
+    { label: "Articles", value: asNumber(actual.articles) },
+    { label: "Recitals", value: asNumber(actual.recitals) },
+    { label: "Annexes", value: asNumber(actual.annexes) },
+    { label: "Normative statements (Layer 2)", value: layer2Count },
+    { label: "HLEG alignments (Layer 3)", value: layer3Count },
+    { label: "Pending human review", value: reviewCount },
+  ].filter((t) => t.value !== undefined);
+
+  return (
+    <section aria-label="Graph inventory" className="space-y-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {tiles.map((t) => (
+          <div
+            key={t.label}
+            className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-4"
+          >
+            <div className="text-2xl font-semibold leading-none">{t.value}</div>
+            <div className="mt-1.5 text-xs text-muted-foreground">{t.label}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Build <code className="font-mono">{buildId}</code>, built{" "}
+        {builtAt.slice(0, 19)}Z. {snapshotCount} frozen source files
+        checksummed; chain hash{" "}
+        <code className="font-mono break-all" title={chainHash}>
+          {chainHash.slice(0, 16)}&hellip;
+        </code>{" "}
+        (sha256 over every snapshot checksum, in order). Every count above is
+        served from the published dump, not typed into this page.
+      </p>
+    </section>
+  );
+}
+
 export default function Page() {
   const data = loadData();
   const { coverage, structure, build } = data;
@@ -86,6 +149,10 @@ export default function Page() {
       const actN = Array.isArray(act) ? act.length : act;
       return [k, expN, actN];
     });
+  const buildChainHash = crypto
+    .createHash("sha256")
+    .update(build.snapshots.map((s) => s.sha256).join(""))
+    .digest("hex");
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -101,6 +168,17 @@ export default function Page() {
             answers are deterministic). <StatusBadge status={coverage.status} />
           </p>
         </div>
+
+        <StatTiles
+          actual={a.actual}
+          layer2Count={a.layer2_nodes.count}
+          layer3Count={a.layer3_nodes.count}
+          reviewCount={data.review_queue_count}
+          buildId={build.build_id}
+          builtAt={build.built_at}
+          snapshotCount={build.snapshots.length}
+          chainHash={buildChainHash}
+        />
 
         <Card title="Coverage matrix">
           <table className="w-full text-sm">
