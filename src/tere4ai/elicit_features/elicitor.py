@@ -79,3 +79,8 @@ def elicit_features(
 
     notes.append("elicitation failed; caller must keep the abstention path")
     return None, notes
+
+
+def schema_flag_names() -> list[str]:
+    """Sorted names of every flag in system_features.schema.json."""
+    return sorted(_schema["properties"]["flags"]["properties"].keys())
