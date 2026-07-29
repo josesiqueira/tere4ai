@@ -210,7 +210,13 @@ def coverage_report() -> dict[str, Any]:
 @mcp.tool(annotations=_READ_ONLY)
 def source_trace(node_id: str) -> dict[str, Any]:
     """Trace a graph node to its frozen source snapshot: file, sha256, span
-    start/end, HTML anchor, and a text excerpt. Deterministic and free."""
+    start/end, HTML anchor, and a text excerpt. The excerpt is capped at 500
+    characters for payload size; when it is shorter than the full provision,
+    answer.excerpt_truncated is true and answer.excerpt_chars /
+    answer.span_chars report exactly how much of the text was returned, so a
+    partial quote is never mistaken for a complete one. Get the full
+    verbatim text via resolve_span on the same span_id (or GET
+    /api/span/{span_id} on the HTTP facade). Deterministic and free."""
     dump = _read_dump()
     if dump is None:
         return _dump_missing_envelope()

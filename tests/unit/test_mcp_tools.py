@@ -1,5 +1,11 @@
 """Unit tests for the M1 MCP tools (DEC-08, DEC-10) over synthetic dumps."""
 
+import json
+from pathlib import Path
+
+import pytest
+
+from tere4ai.mcp_server.spans import SpanResolutionError, resolve_span
 from tere4ai.mcp_server.tools import (
     EXPECTED_CHAPTERS,
     NON_LEGAL_ADVICE_NOTICE,
@@ -298,6 +304,80 @@ def test_source_trace_unknown_node_is_graceful():
 def test_source_trace_recital_flags_non_binding():
     envelope = source_trace(make_complete_dump(), "eu-ai-act:recital-12")
     assert any("never binding" in note for note in envelope["legal_status_notes"])
+
+
+# --- Redteam fix: truncation must be explicit, never silent ---------------
+#
+# The two tests below run against the real published dump (a build
+# artifact, gitignored like data/graph_dumps/*.json elsewhere in this
+# suite), because "find a genuinely short real node" is the point: a
+# synthetic fixture could accidentally encode the assumption being tested.
+# They skip cleanly on a fresh clone that has not built the dump yet.
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REAL_DUMP_PATH = _REPO_ROOT / "data" / "graph_dumps" / "layer1.json"
+_REAL_SNAPSHOTS_DIR = _REPO_ROOT / "data" / "snapshots"
+_REAL_DUMP_MISSING = not (_REAL_DUMP_PATH.is_file() and _REAL_SNAPSHOTS_DIR.is_dir())
+
+
+def _resolve_full_text(node: dict, dump: dict) -> str:
+    """Independent ground truth for a node's full resolved source text,
+    mirroring the documented resolve_span-then-node-text-fallback order
+    (tools._excerpt's docstring), using only public API."""
+    span = node["source_span"]
+    try:
+        return resolve_span(str(span["span_id"]), dump, _REAL_SNAPSHOTS_DIR)["text"]
+    except (SpanResolutionError, OSError, KeyError):
+        fallback = node.get("text") or node.get("title")
+        assert isinstance(fallback, str)
+        return fallback
+
+
+@pytest.mark.skipif(
+    _REAL_DUMP_MISSING,
+    reason="published graph dump/snapshots not present (build artifact, gitignored)",
+)
+def test_source_trace_long_real_span_flags_truncation_explicitly():
+    """Article 5(1) (prohibited practices) is long: its excerpt must come
+    back capped at 500 characters AND explicitly flagged as truncated, with
+    span_chars reporting the true full length and the returned characters
+    byte-exact against the first excerpt_chars of the real source text."""
+    dump = json.loads(_REAL_DUMP_PATH.read_text(encoding="utf-8"))
+    node_id = "eu-ai-act:article-5:paragraph-1"
+    node = next(n for n in dump["nodes"] if n["id"] == node_id)
+    full_text = _resolve_full_text(node, dump)
+    assert len(full_text) > 500, "fixture assumption: this node must be genuinely long"
+
+    envelope = source_trace(dump, node_id, snapshots_dir=_REAL_SNAPSHOTS_DIR)
+    assert envelope["status"] == "satisfied_with_evidence"
+    answer = envelope["answer"]
+    assert answer["excerpt_truncated"] is True
+    assert answer["excerpt_chars"] == 500
+    assert answer["span_chars"] == len(full_text)
+    assert answer["span_chars"] > answer["excerpt_chars"]
+    assert answer["excerpt"] == full_text[:500]
+
+
+@pytest.mark.skipif(
+    _REAL_DUMP_MISSING,
+    reason="published graph dump/snapshots not present (build artifact, gitignored)",
+)
+def test_source_trace_short_real_span_is_not_flagged_truncated():
+    """eu-ai-act:annex-ii:item-12 is a genuinely short AnnexItem (well under
+    the 500-char cap): its excerpt must equal the full source text exactly,
+    with excerpt_truncated false and excerpt_chars == span_chars."""
+    dump = json.loads(_REAL_DUMP_PATH.read_text(encoding="utf-8"))
+    node_id = "eu-ai-act:annex-ii:item-12"
+    node = next(n for n in dump["nodes"] if n["id"] == node_id)
+    full_text = _resolve_full_text(node, dump)
+    assert len(full_text) < 500, "fixture assumption: this node must be genuinely short"
+
+    envelope = source_trace(dump, node_id, snapshots_dir=_REAL_SNAPSHOTS_DIR)
+    assert envelope["status"] == "satisfied_with_evidence"
+    answer = envelope["answer"]
+    assert answer["excerpt_truncated"] is False
+    assert answer["excerpt_chars"] == answer["span_chars"] == len(full_text)
+    assert answer["excerpt"] == full_text
 
 
 def test_server_module_wraps_tools():

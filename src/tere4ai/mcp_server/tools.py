@@ -131,6 +131,14 @@ HIGH_RISK_CORE_ARTICLES = tuple(
     sorted({3, 5, 6, 7} | set(range(8, 16)) | set(range(16, 28)) | {50, 72, 73})
 )
 
+# Payload cap for source_trace's excerpt field. Kept for payload discipline
+# (a 13k-character Article 5(1) span should not ride on every trace call),
+# never changed silently: this is the single point of truth for the cap
+# value, and source_trace's docstring below states it explicitly. The cap
+# never hides truncation: source_trace reports excerpt_truncated,
+# excerpt_chars, and span_chars alongside the excerpt (redteam fix, see
+# source_trace docstring), so a consumer can always tell a partial quote
+# from a complete one without re-deriving it from span_start/span_end.
 _EXCERPT_MAX_CHARS = 500
 
 
@@ -376,6 +384,27 @@ def source_trace(
     Returns the snapshot file, its sha256, the span start and end offsets,
     the HTML anchor, and a text excerpt. An unknown node_id returns status
     not_applicable with missing_facts populated, never an exception.
+
+    The excerpt is capped at _EXCERPT_MAX_CHARS (500) characters for payload
+    discipline: a long provision (Article 5(1) is over 13,000 characters)
+    should not ride on every trace call. That cap must never produce a
+    silent partial quote, so the answer always also carries:
+      - excerpt_truncated: True when the excerpt is shorter than the full
+        resolved source text (i.e. the cap actually cut something).
+      - excerpt_chars: the character length of the returned excerpt.
+      - span_chars: the character length of the FULL resolved source text,
+        so a consumer can see what fraction of the provision it received
+        (excerpt_chars / span_chars) without re-deriving it from
+        span_start/span_end, which describe the full span regardless of the
+        excerpt cap and must not be mistaken for proof of completeness.
+      The excerpt string itself is never altered to signal truncation (it
+      stays byte-exact against the source, per VERBATIM_QUOTE_FIELDS above,
+      which excerpt is a member of): truncation is signalled only through
+      these three flags, never by appending marker text into the quote.
+    The full verbatim text of the span, untruncated, is always available
+    byte-exact via the resolve_span MCP tool (spans.py) keyed by the same
+    span_id, or the HTTP facade's /api/span/{span_id} endpoint, both of
+    which return the whole resolved slice with no cap.
     """
     nodes = dump.get("nodes", [])
     graph_version = _graph_version(dump)
@@ -403,7 +432,9 @@ def source_trace(
             ],
         )
 
-    excerpt = _excerpt(node, span, dump, snapshots_dir)
+    excerpt, span_chars = _excerpt(node, span, dump, snapshots_dir)
+    excerpt_chars = len(excerpt) if excerpt is not None else 0
+    excerpt_truncated = excerpt is not None and excerpt_chars < span_chars
     legal_status_notes = _legal_status_notes(nodes)
     if node.get("type") == "Recital":
         legal_status_notes = legal_status_notes + [
@@ -421,6 +452,9 @@ def source_trace(
         "span_end": span.get("end"),
         "anchor": span.get("anchor"),
         "excerpt": excerpt,
+        "excerpt_truncated": excerpt_truncated,
+        "excerpt_chars": excerpt_chars,
+        "span_chars": span_chars,
     }
     return make_envelope(
         answer=answer,
@@ -438,8 +472,8 @@ def _excerpt(
     span: dict[str, Any],
     dump: dict[str, Any],
     snapshots_dir: Path | str | None,
-) -> str | None:
-    """Text excerpt for a traced node.
+) -> tuple[str | None, int]:
+    """Capped text excerpt for a traced node, plus the full resolved length.
 
     Resolves the literal snapshot slice through resolve_span, which reads the
     snapshot as BYTES then decodes. The span offsets are computed over that
@@ -450,16 +484,28 @@ def _excerpt(
     HTML). resolve_span also verifies the snapshot sha256 and guards against
     path escape. Falls back to the node's own text or title when the span
     cannot be resolved.
+
+    Returns (excerpt, span_chars): excerpt is the first _EXCERPT_MAX_CHARS
+    characters of whichever full text was actually resolved (byte-exact,
+    never altered), or None when no text could be resolved at all;
+    span_chars is the character length of that full resolved text (0 when
+    nothing was resolved), so the caller can flag truncation as
+    excerpt_chars < span_chars without a second read of the snapshot.
     """
     span_id = span.get("span_id")
+    full_text: str | None = None
     if snapshots_dir is not None and span_id:
         # Lazy import: spans imports make_envelope from this module.
         from tere4ai.mcp_server.spans import SpanResolutionError, resolve_span
 
         try:
             resolved = resolve_span(str(span_id), dump, snapshots_dir)
-            return resolved["text"][:_EXCERPT_MAX_CHARS]
+            full_text = resolved["text"]
         except (SpanResolutionError, OSError, KeyError):
-            pass
-    fallback = node.get("text") or node.get("title")
-    return fallback[:_EXCERPT_MAX_CHARS] if isinstance(fallback, str) else None
+            full_text = None
+    if full_text is None:
+        fallback = node.get("text") or node.get("title")
+        full_text = fallback if isinstance(fallback, str) else None
+    if full_text is None:
+        return None, 0
+    return full_text[:_EXCERPT_MAX_CHARS], len(full_text)
