@@ -42,9 +42,9 @@ function loadData(): UiData {
 
 function CountTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="text-2xl font-semibold font-mono">{value}</p>
-      <p className="text-sm text-muted-foreground">{label}</p>
+    <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-4">
+      <p className="text-2xl font-semibold leading-none">{value}</p>
+      <p className="mt-1.5 text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }

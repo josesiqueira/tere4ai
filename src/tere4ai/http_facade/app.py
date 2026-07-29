@@ -28,6 +28,8 @@ Behavioral contract:
   generator call (fact elicitation, no judge). Model clients are built lazily
   per request; a missing key surfaces the ModelConfigError message as a
   clean JSON error. Paid responses carry the header X-TERE4AI-Paid-Call.
+- GET /api/demo/sessions and /api/demo/sessions/{name}: read-only demo replay
+  data, enabled only when TERE4AI_DEMO_SESSIONS_DIR is set.
 - The backlog endpoint caps the norms used at MAX_BACKLOG_NORMS (10)
   regardless of the tool's own maximum; the cap is never silent (the tool
   notes the truncation in the answer).
