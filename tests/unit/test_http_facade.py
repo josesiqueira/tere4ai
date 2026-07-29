@@ -574,3 +574,39 @@ def test_span_endpoint_unknown_span_returns_clean_404(client):
     assert body["span_id"] == "span:no-such-span"
     assert "does not match any node" in body["error"]
     assert "Traceback" not in response.text
+
+
+# Demo session endpoints (read-only replay data, env-gated) ----------------------
+
+
+def _sessions_env(monkeypatch, tmp_path):
+    (tmp_path / "s1-spamguard.jsonl").write_text('{"seq": 1}\n')
+    monkeypatch.setenv("TERE4AI_DEMO_SESSIONS_DIR", str(tmp_path))
+
+
+def test_demo_sessions_disabled_without_env(client, monkeypatch):
+    monkeypatch.delenv("TERE4AI_DEMO_SESSIONS_DIR", raising=False)
+    assert client.get("/api/demo/sessions").status_code == 404
+
+
+def test_demo_sessions_lists_jsonl_files(client, monkeypatch, tmp_path):
+    _sessions_env(monkeypatch, tmp_path)
+    resp = client.get("/api/demo/sessions")
+    assert resp.status_code == 200
+    assert resp.json() == {"sessions": ["s1-spamguard.jsonl"]}
+
+
+def test_demo_session_serves_raw_jsonl(client, monkeypatch, tmp_path):
+    _sessions_env(monkeypatch, tmp_path)
+    resp = client.get("/api/demo/sessions/s1-spamguard.jsonl")
+    assert resp.status_code == 200
+    assert resp.text == '{"seq": 1}\n'
+
+
+def test_demo_session_rejects_escape_and_unknown(client, monkeypatch, tmp_path):
+    _sessions_env(monkeypatch, tmp_path)
+    assert client.get(
+        "/api/demo/sessions/..%2F..%2Fetc%2Fpasswd"
+    ).status_code in (400, 404)
+    assert client.get("/api/demo/sessions/nope.jsonl").status_code == 404
+    assert client.get("/api/demo/sessions/evil.txt").status_code == 400

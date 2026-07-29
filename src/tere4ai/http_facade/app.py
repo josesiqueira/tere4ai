@@ -44,7 +44,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
@@ -281,7 +281,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "evidence evaluation behind a runtime grounding judge. Not legal "
             "advice; never claims compliance.\n\n"
             "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
-            "/api/trace, /api/trace/batch and GET /api/span/{span_id} "
+            "/api/trace, /api/trace/batch and GET /api/span/{span_id}, "
+            "/api/demo/sessions, /api/demo/sessions/{name} "
             "(free, deterministic); "
             "POST /api/evidence, /api/backlog, /api/elicit (paid model calls, marked with "
             "X-TERE4AI-Paid-Call); GET /api/health.\n"
@@ -315,6 +316,16 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                     "span": {
                         "method": "GET",
                         "path": "/api/span/{span_id}",
+                        "paid": False,
+                    },
+                    "demo_sessions": {
+                        "method": "GET",
+                        "path": "/api/demo/sessions",
+                        "paid": False,
+                    },
+                    "demo_session": {
+                        "method": "GET",
+                        "path": "/api/demo/sessions/{name}",
                         "paid": False,
                     },
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
@@ -549,6 +560,41 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                 status_code=502, content={"error": f"model call failed: {exc}"}
             )
         return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
+
+    def _demo_sessions_dir() -> Path | None:
+        raw = os.environ.get("TERE4AI_DEMO_SESSIONS_DIR", "").strip()
+        if not raw:
+            return None
+        base = Path(raw).resolve()
+        return base if base.is_dir() else None
+
+    @app.get("/api/demo/sessions")
+    def demo_sessions() -> JSONResponse:
+        # Read-only demo replay data; enabled only via env (spec: disableable).
+        base = _demo_sessions_dir()
+        if base is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "demo sessions not enabled "
+                         "(TERE4AI_DEMO_SESSIONS_DIR unset or not a directory)"},
+            )
+        return JSONResponse(
+            content={"sessions": sorted(p.name for p in base.glob("*.jsonl"))}
+        )
+
+    @app.get("/api/demo/sessions/{name}")
+    def demo_session(name: str) -> Response:
+        base = _demo_sessions_dir()
+        if base is None:
+            return JSONResponse(status_code=404, content={"error": "demo sessions not enabled"})
+        if "/" in name or "\\" in name or name != Path(name).name or not name.endswith(".jsonl"):
+            return JSONResponse(status_code=400, content={"error": "session name rejected"})
+        candidate = (base / name).resolve()
+        if candidate.parent != base or not candidate.is_file():
+            return JSONResponse(status_code=404, content={"error": "unknown session"})
+        return PlainTextResponse(
+            candidate.read_text(encoding="utf-8"), media_type="application/jsonl"
+        )
 
     return app
 
