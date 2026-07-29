@@ -3,9 +3,9 @@
   "version": "2.0.0-alpha.0",
   "private": true,
   "scripts": {
-    "predev": "cd .. && .venv/bin/python scripts/export_ui_data.py",
+    "predev": "node scripts/ensure-ui-data.mjs",
     "dev": "next dev",
-    "prebuild": "cd .. && .venv/bin/python scripts/export_ui_data.py",
+    "prebuild": "node scripts/ensure-ui-data.mjs",
     "build": "next build",
     "start": "next start"
   },

@@ -154,8 +154,27 @@ def test_web_package_json_predev_regenerates_ui_data():
         "web/package.json has no predev script; npm run dev will not "
         "regenerate public/ui_data.json before the server starts"
     )
-    assert "export_ui_data.py" in scripts["predev"], (
-        "web/package.json predev script no longer calls scripts/export_ui_data.py"
+    # The hook may call the export script directly or through a wrapper (the
+    # wrapper exists so the interpreter choice stays portable between a local
+    # .venv and CI's system python). Either way the chain must end at the
+    # export script, so follow one level of indirection.
+    command = scripts["predev"]
+    if "export_ui_data.py" not in command:
+        referenced = [
+            token
+            for token in command.split()
+            if token.endswith((".mjs", ".js", ".cjs", ".sh"))
+        ]
+        assert referenced, (
+            f"predev is {command!r}: it neither calls export_ui_data.py nor "
+            "references a wrapper script that could"
+        )
+        wrapper = ROOT / "web" / referenced[0]
+        assert wrapper.is_file(), f"predev references a missing wrapper: {wrapper}"
+        command = wrapper.read_text(encoding="utf-8")
+    assert "export_ui_data.py" in command, (
+        "the predev chain no longer reaches scripts/export_ui_data.py, so a "
+        "fresh clone would start the demo with no coverage data"
     )
 
 
