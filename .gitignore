@@ -53,3 +53,4 @@ data/graph_dumps/*.nt
 data/keys/
 data/snapshots/benchmark/full_payload.json
 docs/live_audit_log.md
+web/tsconfig.tsbuildinfo
