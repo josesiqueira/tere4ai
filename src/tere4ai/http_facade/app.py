@@ -66,7 +66,11 @@ from tere4ai.mcp_server.spans import (
     SpanNotFoundError,
     resolve_span,
 )
-from tere4ai.mcp_server.tools import STATUS_VOCABULARY
+from tere4ai.mcp_server.tools import (
+    NON_LEGAL_ADVICE_NOTICE,
+    STATUS_VOCABULARY,
+    make_envelope,
+)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DUMP_DIR = _PROJECT_ROOT / "data" / "graph_dumps"
@@ -478,7 +482,17 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             )
             for item_id in dict.fromkeys(body.ids)
         }
-        return JSONResponse(content={"envelopes": envelopes})
+        # Section 8: the batch wrapper is itself a user-facing response, so the
+        # top-level object carries the legal notice and graph_version alongside
+        # the per-item envelopes (each inner envelope is already a full Section
+        # 8 envelope and is passed through unchanged).
+        return JSONResponse(
+            content={
+                "envelopes": envelopes,
+                "graph_version": _graph_version(request),
+                "non_legal_advice_notice": NON_LEGAL_ADVICE_NOTICE,
+            }
+        )
 
     @app.get("/api/span/{span_id:path}")
     def span(request: Request, span_id: str) -> JSONResponse:
@@ -501,7 +515,26 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             return JSONResponse(
                 status_code=503, content={"error": str(exc), "span_id": span_id}
             )
-        return JSONResponse(content=resolved)
+        # Section 8: the span route is user-facing, so wrap the verified slice
+        # in the same envelope the MCP resolve_span tool returns (make_envelope,
+        # so both surfaces agree on answer, status, and the legal notice), then
+        # merge the flat span fields back at the top level so existing consumers
+        # that read span_id / text / sha256 directly keep working.
+        envelope = make_envelope(
+            answer={**resolved, "found": True},
+            status="satisfied_with_evidence",
+            graph_version=_graph_version(request),
+            source_spans=[
+                {
+                    "span_id": resolved["span_id"],
+                    "snapshot_file": resolved["snapshot_file"],
+                    "snapshot_sha256": resolved["sha256"],
+                    "start": resolved["start"],
+                    "end": resolved["end"],
+                }
+            ],
+        )
+        return JSONResponse(content={**envelope, **resolved})
 
     @app.post("/api/evidence")
     def evidence(request: Request, body: EvidenceRequest) -> JSONResponse:

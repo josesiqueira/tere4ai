@@ -47,6 +47,13 @@ type UiData = {
     snapshots: { file: string; sha256: string }[];
   };
   review_queue_count: number;
+  review: {
+    norms_needing_review: unknown[];
+    crossref_pending_total: number;
+    crossref_pending_by_kind: Record<string, number>;
+    alignment_pending_total: number;
+    total_pending_review: number;
+  };
   sources: { id: string; title: string; legal_status: string }[];
 };
 
@@ -175,9 +182,9 @@ function StatTiles({
         {builtAt.slice(0, 19)}Z. {snapshotCount} frozen source files
         checksummed; publication chain{" "}
         <code className="font-mono">{chainId}</code>, recorded by the build
-        and verified at server startup. Every count above is served from the
-        published dump, not typed into this page. EU to HLEG mappings are
-        LLM-generated and not expert-validated.
+        and shown from the served build artifact. Every count above is served
+        from the published dump, not typed into this page. EU to HLEG mappings
+        are LLM-generated and not expert-validated.
       </p>
     </section>
   );
@@ -218,7 +225,7 @@ export default function Page() {
           actual={a.actual}
           layer2AcceptedCount={a.layer2_nodes.verdicts?.accepted}
           layer3AcceptedCount={a.layer3_nodes.verdicts?.accepted}
-          reviewCount={data.review_queue_count}
+          reviewCount={data.review.total_pending_review}
           buildId={build.build_id}
           builtAt={build.built_at}
           snapshotCount={build.snapshots.length}
@@ -279,7 +286,10 @@ export default function Page() {
               ? `, missing: ${a.high_risk_core.missing.join(", ")}`
               : ", none missing"}
             . Cross-reference review queue: {data.review_queue_count} items awaiting
-            judgement.
+            judgement. Pending human review totals {data.review.total_pending_review}:{" "}
+            {data.review.norms_needing_review.length} judged norms,{" "}
+            {data.review.alignment_pending_total} HLEG alignments, and{" "}
+            {data.review.crossref_pending_total} cross-references.
           </p>
         </Card>
 

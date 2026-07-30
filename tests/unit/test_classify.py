@@ -442,7 +442,11 @@ def test_annex_i_route_explicitly_ruled_out_continues_ladder(dump, node_ids):
 # Input validation ------------------------------------------------------------
 
 
-def test_invalid_input_returns_not_applicable_never_raises(dump, node_ids):
+def test_invalid_input_is_rejected_as_unsupported_never_raises(dump, node_ids):
+    # Schema-invalid input is refused, not assessed. It must carry
+    # rejected_as_unsupported, never not_applicable: the latter is a
+    # substantive in-scope verdict, and a consumer reading only status could
+    # otherwise mistake a rejected input for a benign out-of-scope finding.
     for bad in (
         {},  # description required
         {"description": "short"},  # minLength 10
@@ -451,10 +455,25 @@ def test_invalid_input_returns_not_applicable_never_raises(dump, node_ids):
     ):
         envelope = classify_ai_system(bad, dump)
         assert_envelope_invariants(envelope, node_ids)
-        assert envelope["status"] == "not_applicable"
+        assert envelope["status"] == "rejected_as_unsupported"
         assert envelope["answer"]["risk_category"] is None
+        assert envelope["confidence"] == 0.0
         assert envelope["missing_facts"], f"validation errors missing for {bad}"
         assert all("schema validation" in f for f in envelope["missing_facts"])
+
+    # No regression: a well-formed system that is genuinely out of the
+    # high-risk or prohibited regime still classifies as not_applicable, not
+    # rejected. The distinction is validation rejection versus in-scope verdict.
+    valid_out_of_scope = classify_ai_system(
+        {
+            "description": "Movie recommendation engine for a streaming service.",
+            "domain": "consumer",
+            "flags": all_false_flags(),
+        },
+        dump,
+    )
+    assert valid_out_of_scope["status"] == "not_applicable"
+    assert valid_out_of_scope["answer"]["risk_category"] == "minimal_or_none"
 
 
 # Rule table grounding: hardcoded point markers match the real dump text ------

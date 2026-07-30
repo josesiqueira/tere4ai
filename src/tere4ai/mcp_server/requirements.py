@@ -74,20 +74,32 @@ def _graph_version(dump: dict[str, Any]) -> str:
     return str(dump.get("build", {}).get("build_id", "unknown"))
 
 
-def _unwrap_classification(classification: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+def _unwrap_classification(
+    classification: dict[str, Any],
+) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
     """Accept either the classify_ai_system envelope or its bare answer dict.
 
-    Returns (answer, cited_source_nodes). The bare answer carries no node
-    citations, so the caller falls back to the Article 5 node for the
-    prohibited message.
+    Returns (answer, cited_source_nodes, upstream). The bare answer carries no
+    node citations, so the caller falls back to the Article 5 node for the
+    prohibited message. When the full envelope form is passed, upstream carries
+    the classification's own status, confidence, and missing_facts so the
+    requirements envelope can never claim more certainty than the
+    classification it rests on (DEC-08). The bare-answer form carries none of
+    these, so upstream is empty and the caller applies the documented
+    fallbacks.
     """
     if (
         isinstance(classification.get("answer"), dict)
         and "status" in classification
         and "risk_category" in classification["answer"]
     ):
-        return classification["answer"], list(classification.get("source_nodes", []))
-    return classification, []
+        upstream = {
+            "status": classification.get("status"),
+            "confidence": classification.get("confidence"),
+            "missing_facts": list(classification.get("missing_facts") or []),
+        }
+        return classification["answer"], list(classification.get("source_nodes", [])), upstream
+    return classification, [], {}
 
 
 def _source_group(source_node_id: str) -> str:
@@ -160,9 +172,27 @@ def get_applicable_requirements(
     filter uses the canonical actor vocabulary of norms.schema.json.
     """
     graph_version = _graph_version(dump)
-    answer_in, classification_nodes = _unwrap_classification(classification_answer)
+    answer_in, classification_nodes, upstream = _unwrap_classification(classification_answer)
     risk_category = answer_in.get("risk_category")
     node_index = {n["id"]: n for n in dump.get("nodes", []) if isinstance(n, dict) and "id" in n}
+
+    # The requirements envelope must never claim more certainty than the
+    # classification it rests on (DEC-08). Defer to the classifier's own
+    # determination: it already decides whether unresolved facts leave the
+    # system unsettled (status requires_human_review, as when a
+    # prohibition-relevant fact is unknown) or leave a confident verdict
+    # standing (a settled high_risk whose only unknowns are further Annex III
+    # categories that cannot change the outcome). We therefore key off the
+    # classifier's status and risk_category, never the mere presence of
+    # missing facts, so a confident classification with benign category
+    # unknowns is not wrongly downgraded.
+    upstream_status = upstream.get("status")
+    upstream_confidence = upstream.get("confidence")
+    upstream_missing = list(upstream.get("missing_facts") or [])
+    unsettled = (
+        upstream_status == "requires_human_review"
+        or risk_category == "uncertain"
+    )
 
     if actor is not None and actor not in _canonical_actor_roles():
         return make_envelope(
@@ -235,8 +265,9 @@ def get_applicable_requirements(
             },
             status="requires_human_review",
             graph_version=graph_version,
-            confidence=0.5,
-            missing_facts=[
+            confidence=upstream_confidence if upstream_confidence is not None else 0.5,
+            missing_facts=upstream_missing
+            or [
                 "risk classification is uncertain; requirements cannot be "
                 "determined until the classification is settled"
             ],
@@ -351,13 +382,40 @@ def get_applicable_requirements(
     if isinstance(fria, dict):
         answer_out["fria"] = fria
 
+    # Requirements are applicable; no project evidence has been evaluated yet,
+    # hence applicable_missing_evidence (DEC-08 vocabulary).
+    status = "applicable_missing_evidence" if returned else "requires_human_review"
+    confidence = 1.0 if returned else 0.5
+
+    if unsettled:
+        # The upstream classification is not settled, so this envelope must
+        # not upgrade its certainty (DEC-08). Keep the provisional requirements
+        # for the tentative risk_category so the answer stays useful, but carry
+        # the upstream abstention verbatim: the classification could still
+        # change (for example to prohibited, which yields zero requirements).
+        status = "requires_human_review"
+        confidence = upstream_confidence if upstream_confidence is not None else 0.5
+        missing_facts = list(upstream_missing) + [
+            m for m in missing_facts if m not in upstream_missing
+        ]
+        if not missing_facts:
+            missing_facts = [
+                "the upstream classification is unsettled and flagged for human "
+                "review; requirements are provisional until it is settled"
+            ]
+        answer_out["provisional"] = True
+        answer_out["provisional_note"] = (
+            "These requirements are provisional pending the human-review "
+            "determination of the classification. The risk category is "
+            "tentative and could change, for example to prohibited, which "
+            "yields zero requirements."
+        )
+
     return make_envelope(
         answer=answer_out,
-        # Requirements are applicable; no project evidence has been evaluated
-        # yet, hence applicable_missing_evidence (DEC-08 vocabulary).
-        status="applicable_missing_evidence" if returned else "requires_human_review",
+        status=status,
         graph_version=graph_version,
-        confidence=1.0 if returned else 0.5,
+        confidence=confidence,
         source_nodes=source_nodes,
         source_spans=source_spans,
         missing_facts=missing_facts,

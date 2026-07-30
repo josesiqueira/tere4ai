@@ -131,14 +131,43 @@ def test_classify_triage_scenario_is_high_risk_with_annex_iii_citation(client):
 
 
 def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
+    # Schema-invalid input is refused, not assessed, so it surfaces
+    # rejected_as_unsupported. not_applicable is reserved for a well-formed
+    # system that is genuinely out of scope; a consumer reading only status
+    # must not mistake a rejected input for that benign determination.
     response = client.post(
         "/api/classify", json={"features": {"description": "short", "bogus_field": 1}}
     )
     assert response.status_code == 200
     envelope = response.json()
-    assert envelope["status"] == "not_applicable"
+    assert envelope["status"] == "rejected_as_unsupported"
     assert envelope["answer"]["risk_category"] is None
     assert any("schema validation" in fact for fact in envelope["missing_facts"])
+
+    # No regression: a well-formed, genuinely out-of-scope system still returns
+    # not_applicable, keeping the rejection and the in-scope verdict distinct.
+    from tere4ai.mcp_server.classify import (
+        ANNEX_III_RELEVANT_FLAGS,
+        PROHIBITION_RELEVANT_FLAGS,
+    )
+
+    all_false = dict.fromkeys(
+        (*PROHIBITION_RELEVANT_FLAGS, *ANNEX_III_RELEVANT_FLAGS), False
+    )
+    valid = client.post(
+        "/api/classify",
+        json={
+            "features": {
+                "description": "Movie recommendation engine for a streaming service.",
+                "domain": "consumer",
+                "flags": all_false,
+            }
+        },
+    )
+    assert valid.status_code == 200
+    valid_envelope = valid.json()
+    assert valid_envelope["status"] == "not_applicable"
+    assert valid_envelope["answer"]["risk_category"] == "minimal_or_none"
 
 
 def test_requirements_returns_grouped_accepted_norms(client):
@@ -494,6 +523,21 @@ def test_trace_batch_passes_through_one_envelope_per_unique_id(client):
     assert facade.PAID_HEADER not in response.headers
 
 
+def test_trace_batch_top_level_carries_notice_and_version(client):
+    """C8 fix: the batch wrapper is itself a user-facing response, so its
+    top-level object must carry the legal notice and graph_version alongside
+    the per-item envelopes. These assertions fail before the fix (the wrapper
+    had only the 'envelopes' key) and pass after it; the inner envelopes stay
+    untouched."""
+    response = client.post("/api/trace/batch", json={"ids": [ACCEPTED_NORM_ID]})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["non_legal_advice_notice"]
+    assert body["graph_version"].startswith("build-")
+    # Inner envelopes are unchanged: still one full Section 8 envelope per id.
+    assert set(body["envelopes"][ACCEPTED_NORM_ID]) == set(SECTION_8_ENVELOPE_FIELDS)
+
+
 def test_trace_batch_rejects_empty_ids(client):
     response = client.post("/api/trace/batch", json={"ids": []})
     assert response.status_code == 422
@@ -558,6 +602,26 @@ def test_span_endpoint_returns_verified_slice(client):
     assert "risk management system" in body["text"]
     assert len(body["sha256"]) == 64
     assert facade.PAID_HEADER not in response.headers
+
+
+def test_span_endpoint_carries_section_8_envelope(client):
+    """C8 fix: the span route is user-facing, so its response must carry the
+    Section 8 legal notice, status, and graph_version, while still exposing the
+    verified span bytes and checksum for existing consumers. These assertions
+    fail before the fix (the route returned a bare span object) and pass after
+    it (the slice is wrapped in the envelope and merged with the flat fields)."""
+    response = client.get("/api/span/span:009.001")
+    assert response.status_code == 200
+    body = response.json()
+    # Section 8 envelope keys now present at the top level.
+    assert body["non_legal_advice_notice"]
+    assert body["status"] == "satisfied_with_evidence"
+    assert body["graph_version"].startswith("build-")
+    # The verified span bytes and checksum are still there for existing
+    # consumers (data merged back at the top level, not removed).
+    assert body["span_id"] == "span:009.001"
+    assert "risk management system" in body["text"]
+    assert len(body["sha256"]) == 64
 
 
 def test_span_endpoint_resolves_hleg_target_spans(client):

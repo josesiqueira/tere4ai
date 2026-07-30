@@ -417,7 +417,9 @@ def test_deployer_facts_validate_and_trigger_fria(dump):
 def test_unknown_deployer_property_is_rejected_by_the_schema(dump):
     features = _credit_scorer_features(deployer={"invented_fact": True})
     envelope = classify_ai_system(features, dump)
-    assert envelope["status"] == "not_applicable"
+    # Schema-invalid input is refused, not assessed: rejected_as_unsupported,
+    # never the substantive not_applicable verdict (C5 honesty fix).
+    assert envelope["status"] == "rejected_as_unsupported"
     assert envelope["answer"]["risk_category"] is None
     assert envelope["answer"]["fria"]["applicability"] == "unknown"
 

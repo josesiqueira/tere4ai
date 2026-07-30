@@ -491,9 +491,14 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     Consumes structured system features (system_features.schema.json) and the
     offline Layer 0+1 dump. Returns the mandatory response envelope with
     answer fields: risk_category, prohibited, annex_iii_category,
-    article_6_3_exception_candidate, rationale. Invalid input returns status
-    not_applicable with the validation errors in missing_facts, never an
-    exception. No model is involved anywhere in this function.
+    article_6_3_exception_candidate, rationale. Schema-invalid input returns
+    status rejected_as_unsupported (never an exception) with the validation
+    errors in missing_facts: the input was refused, not assessed, so it must
+    not borrow not_applicable, which is a substantive in-scope verdict ("this
+    system is out of the high-risk or prohibited regime") that a consumer
+    reading only status could mistake a rejected input for. A well-formed
+    system that is simply out of scope still returns not_applicable. No model
+    is involved anywhere in this function.
     """
     graph_version = _graph_version(dump)
 
@@ -507,7 +512,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "article_6_3_exception_candidate": False,
                 "rationale": ["input rejected: features do not conform to system_features.schema.json"],
             },
-            status="not_applicable",
+            status="rejected_as_unsupported",
             graph_version=graph_version,
             confidence=0.0,
             missing_facts=[

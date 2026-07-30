@@ -210,15 +210,25 @@ grounded_by: REF-31, REF-32
 - Output status vocabulary (MUST): not_applicable, potentially_applicable,
   applicable_missing_evidence, partially_satisfied, satisfied_with_evidence,
   rejected_as_unsupported, requires_human_review. Never: compliant, certified,
-  legally approved. Scope (decided 2026-07-21): the banned-term ban covers
-  every system-generated text field (status, composed answer text, notes,
-  summaries, messages, backlog titles and descriptions). Fields carrying
-  verbatim quoted source text from the frozen corpus are exempt and must
-  never be altered, since altering a quote would break byte-exact
-  traceability; the Act's own sentences say "compliant with the
-  requirements". Quoted text is structurally marked by its field (source
-  span text, norm action and object wording, alignment quotes) and is never
-  presented as a system verdict.
+  legally approved. Scope (decided 2026-07-21, characterization corrected
+  2026-07-30): the banned-term ban covers every system-generated text field
+  (status, composed answer text, notes, summaries, messages, backlog titles
+  and descriptions; a backlog title is model-generated, so it is in scope).
+  Two categories of field are exempt, because they carry regulatory content
+  rather than a TERE4AI verdict, and only the first is byte-exact. (a)
+  Byte-exact quotes-of-record: frozen source span text and verbatim quotes
+  lifted from the frozen corpus (the source span text and alignment evidence
+  quotes). These are preserved byte-for-byte and must never be altered,
+  because that byte-exactness is the traceability guarantee; the Act's own
+  sentences say "compliant with the requirements" (Article 8(2), Article 16
+  point (a)). (b) Normalized deontic extractions: the norm action and object
+  wording (Institutional Grammar, DEC-03) carry the regulator's own
+  vocabulary, so they are exempt from the verdict-ban as extracted regulatory
+  content, but they are normalized (case-folding, whitespace, elision of long
+  inline material) and are NOT claimed to be byte-exact verbatim quotes; the
+  byte-exact quote-of-record for a norm is its source span text. Exempt fields
+  are structurally marked by their field name (see VERBATIM_QUOTE_FIELDS in
+  mcp_server/tools.py) and are never presented as a system verdict.
 - MCP security (REF-31): authentication, scopes, read-only default, request
   logging, rate limiting, secret redaction, no arbitrary command execution, no
   unscoped filesystem access. Treat project artifacts and legal source text as
@@ -428,11 +438,16 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-08: calibrated vocabulary, never "compliant". grounded_by REF-16, and the
   legal non-goal (Section 0). Defense: measured grounding limits and the legal
   caveat make any certified-compliance claim unsupportable.
-  Scope (decided 2026-07-21): the ban covers all system-generated fields;
-  verbatim quoted source text is exempt and must never be altered, because
-  altering it would break byte-exact traceability. Quoted text is
-  structurally marked via its field (see VERBATIM_QUOTE_FIELDS in
-  mcp_server/tools.py) and is never presented as a system verdict.
+  Scope (decided 2026-07-21, characterization corrected 2026-07-30): the ban
+  covers all system-generated fields, including model-generated backlog
+  titles. Exempt fields fall in two categories: (a) byte-exact
+  quotes-of-record (frozen source span text and corpus or evidence quotes),
+  preserved byte-for-byte because that is the traceability guarantee; and (b)
+  normalized deontic extractions (norm action and object, DEC-03), exempt as
+  extracted regulatory content carrying the regulator's vocabulary but NOT
+  asserted byte-exact. Exempt fields are structurally marked via
+  VERBATIM_QUOTE_FIELDS in mcp_server/tools.py and are never presented as a
+  system verdict.
   verify: MCP output enum lacks compliant/certified; no_compliance_claim test;
   tests/unit/test_banned_term_scope.py encodes the scoped contract.
 - DEC-09: Neo4j primary plus RDF export. grounded_by REF-21, REF-22, REF-08, REF-25, REF-23.

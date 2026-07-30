@@ -153,11 +153,17 @@ def build_review_queue(dump: dict, norms_payload: dict | None, alignments_payloa
             for a in alignments_payload.get("assertions", [])
             if a.get("review_status") == "needs_review"
         )
+    crossref_pending_total = len(dump.get("review_queue", []))
+    # True pending-human-review total, computed server-side from the build
+    # artifact so the tile's "pending human review" label is honest: it counts
+    # every kind of item still awaiting a human, not cross-references alone.
+    total_pending_review = len(norm_items) + alignment_pending + crossref_pending_total
     return {
         "norms_needing_review": norm_items,
-        "crossref_pending_total": len(dump.get("review_queue", [])),
+        "crossref_pending_total": crossref_pending_total,
         "crossref_pending_by_kind": crossref_by_kind,
         "alignment_pending_total": alignment_pending,
+        "total_pending_review": total_pending_review,
     }
 
 

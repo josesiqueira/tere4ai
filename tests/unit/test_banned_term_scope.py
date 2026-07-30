@@ -5,18 +5,23 @@
 
 DEC-08 bans the terms compliant, certified, and legally approved from every
 SYSTEM-GENERATED text field of every envelope (status, composed answer text,
-legal_status_notes, missing_facts, summaries, messages, backlog titles and
-descriptions). Fields that carry VERBATIM quoted text are exempt: frozen EU
-AI Act source text, norm deontic content quoted from the Act, alignment
-evidence quotes, verbatim project-evidence quotes, and replayed generator or
-judge rationales. The law's own sentences literally say things such as
-"compliant with the requirements" (Article 8(2), Article 16 point (a)), so
-those words are the regulator's, not a TERE4AI claim; they are structurally
-marked by their field names, and altering them would break the byte-exact
-traceability of quoted source text, a harder invariant than the wording ban.
-A live audit on 2026-07-21 found the word inside quoted Act text returned by
-get_applicable_requirements; the decided fix scopes the ban rather than
-sanitizing the quote.
+legal_status_notes, missing_facts, summaries, messages, and both backlog
+titles and descriptions: a backlog title is model-generated, so it is IN
+scope, see test_model_generated_backlog_title_with_banned_term_is_scanned).
+The exempt fields carry regulatory content, not a TERE4AI verdict, and fall in
+two categories with only the first byte-exact:
+(a) byte-exact quotes-of-record: frozen EU AI Act source span text and
+    verbatim quotes lifted from the corpus or project evidence, preserved
+    byte-for-byte because that byte-exactness is the traceability guarantee;
+(b) normalized deontic extractions (norm action and object, DEC-03): they
+    carry the regulator's own vocabulary, so they are exempt as extracted
+    regulatory content, but they are NORMALIZED (case-folding, whitespace,
+    elision), so they are NOT claimed to be byte-exact verbatim quotes.
+The law's own sentences literally say things such as "compliant with the
+requirements" (Article 8(2), Article 16 point (a)), so those words are the
+regulator's, not a TERE4AI claim. A live audit on 2026-07-21 found the word
+inside quoted Act text returned by get_applicable_requirements; the decided
+fix scopes the ban rather than sanitizing the quote.
 """
 
 from __future__ import annotations
@@ -54,6 +59,9 @@ SYSTEM_GENERATED_FIELDS = (
     "needs_human_review_note",
     "gaps",
     "description",
+    # A backlog item's title is model-generated (backlog.py), so it is
+    # system-composed text and must be scanned, never exempted (finding C2).
+    "title",
 )
 
 
@@ -92,10 +100,13 @@ def test_status_vocabulary_never_contains_banned_terms():
             assert term.replace(" ", "_") not in lowered
 
 
-# Verbatim quotes are preserved byte-exact and exempt (fixture) ---------------
+# Exempt regulatory content is served unaltered and passes the scan (fixture) -
 
-# Mimics the served norm for Article 8(2), whose object quotes the Act's own
-# wording; the real published norm carries the same phrase.
+# Mimics the served norm for Article 8(2), whose object is a normalized deontic
+# extraction (DEC-03) that carries the Act's own vocabulary; the real published
+# norm carries the same phrase. This is a category (b) field: exempt from the
+# verdict-ban as extracted regulatory content, served unaltered by the tool,
+# but NOT asserted to be a byte-exact quote of the source bytes.
 ARTICLE_8_2_OBJECT = (
     "compliant with the requirements established in this Section, taking "
     "into account the intended purpose of the high-risk AI system"
@@ -133,13 +144,17 @@ _FIXTURE_DUMP = {
 }
 
 
-def test_verbatim_quote_field_may_say_compliant_and_is_preserved_byte_exact():
+def test_exempt_deontic_object_may_carry_regulator_vocabulary_and_is_served_unaltered():
     envelope = get_applicable_requirements(
         {"risk_category": "high_risk"}, _FIXTURE_NORMS_PAYLOAD, _FIXTURE_DUMP
     )
     entries = envelope["answer"]["requirements_by_article"]["article-8"]
     entry = next(e for e in entries if e["norm_id"] == _FIXTURE_NORM["norm_id"])
-    # Byte-exact: the quoted deontic wording is never sanitized or altered.
+    # Serve-time preservation: the tool passes the norm's deontic object
+    # through unchanged (it never rewrites or sanitizes the extraction). This
+    # is NOT a byte-exact-against-the-source claim: object is a category (b)
+    # normalized extraction (DEC-03), and the byte-exact quote-of-record is the
+    # source span text, not this field (see the C3 contract test below).
     assert entry["object"] == ARTICLE_8_2_OBJECT
     assert "compliant" in entry["object"]
     # The word therefore appears in the raw serialization (the exemption is
@@ -147,6 +162,61 @@ def test_verbatim_quote_field_may_say_compliant_and_is_preserved_byte_exact():
     assert "compliant" in json.dumps(envelope).lower()
     # ...but every system-generated field stays clean under the scoped scan.
     assert_no_banned_terms(envelope)
+
+
+# C2: a model-generated backlog title is NOT exempt --------------------------
+
+
+def test_model_generated_backlog_title_with_banned_term_is_scanned():
+    """Finding C2: a backlog item's title is model-generated (backlog.py, the
+    _clean_items title field), so a banned term in it must be CAUGHT by the
+    scoped scan. Before the fix "title" sat in VERBATIM_QUOTE_FIELDS, so
+    strip_verbatim_quote_fields dropped the generated title and the term
+    survived; the scan then wrongly passed. Fail-before / pass-after: with
+    "title" still exempt, assert_no_banned_terms would NOT raise on the
+    envelope below and pytest.raises would fail; with the hole closed it
+    raises, so this test passes."""
+    assert "title" not in VERBATIM_QUOTE_FIELDS
+    envelope = {
+        "answer": {
+            "items": [
+                {
+                    "title": "Achieve compliant status for Article 9",
+                    "description": "ok",
+                    "norm_ids": ["norm:eu-ai-act:article-9:paragraph-1:n1"],
+                }
+            ]
+        }
+    }
+    with pytest.raises(AssertionError, match="banned term"):
+        assert_no_banned_terms(envelope)
+
+
+def test_strip_keeps_a_model_generated_backlog_title():
+    """The scrub must not drop a generated title: it has to remain in the
+    system-generated payload that the banned-term scan sees."""
+    scrubbed = strip_verbatim_quote_fields(
+        {"title": "Achieve compliant status for Article 9", "description": "ok"}
+    )
+    assert scrubbed["title"] == "Achieve compliant status for Article 9"
+
+
+# C3: object/action are exempt but not asserted byte-exact --------------------
+
+
+def test_deontic_extractions_are_exempt_but_source_text_is_the_byte_exact_record():
+    """Finding C3 contract. Norm action and object are exempt from the
+    verdict-ban (they carry the regulator's vocabulary as extracted content),
+    but they are normalized deontic extractions (DEC-03), NOT byte-exact
+    quotes. The byte-exact quote-of-record is the source span text, which is
+    the field that carries the frozen-corpus bytes. Both remain exempt; the
+    difference is what each is claimed to be, encoded here structurally."""
+    # Category (b): normalized deontic extractions, exempt from the ban.
+    for deontic in ("action", "object", "conditions", "exceptions"):
+        assert deontic in VERBATIM_QUOTE_FIELDS
+    # Category (a): byte-exact quotes-of-record (frozen source text carriers).
+    for byte_exact in ("text", "source_text", "excerpt"):
+        assert byte_exact in VERBATIM_QUOTE_FIELDS
 
 
 # The scoped scan over the published build artifacts --------------------------

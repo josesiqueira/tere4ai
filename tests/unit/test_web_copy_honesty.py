@@ -78,6 +78,55 @@ def test_ui_data_serves_the_recorded_chain_id_and_schema_flags():
     assert ui["schema_flags"] == schema_flag_names()
 
 
+def test_pending_review_tile_shows_true_total():
+    """The "Pending human review" tile must show every kind of item still
+    awaiting a human, not cross-references alone. The served total has to equal
+    norms_needing_review + alignment_pending_total + crossref_pending_total, and
+    the page tile must be driven by review.total_pending_review, never by
+    review_queue_count (which counts cross-references only).
+    """
+    ui = json.loads((ROOT / "web" / "public" / "ui_data.json").read_text())
+    review = ui["review"]
+    norms = len(review["norms_needing_review"])
+    alignments = review["alignment_pending_total"]
+    crossrefs = review["crossref_pending_total"]
+    assert review["total_pending_review"] == norms + alignments + crossrefs, (
+        "review.total_pending_review does not equal norms + alignments + "
+        f"crossrefs ({norms} + {alignments} + {crossrefs})"
+    )
+    # crossref_pending_total is the cross-references-only figure that the tile
+    # used to (wrongly) show; the honest total must be at least as large.
+    assert review["total_pending_review"] >= crossrefs
+
+    page_text = (WEB_SRC / "app" / "page.tsx").read_text(encoding="utf-8")
+    assert "reviewCount={data.review.total_pending_review}" in page_text, (
+        "the Pending human review tile is not fed review.total_pending_review; "
+        "it must not understate the queue by showing cross-references only"
+    )
+    assert "reviewCount={data.review_queue_count}" not in page_text, (
+        "the Pending human review tile still reads review_queue_count "
+        "(cross-references only), which understates the true pending total"
+    )
+
+
+def test_page_does_not_claim_a_startup_chain_verification():
+    """The served demo runs the HTTP facade, which performs no chain
+    verification at startup (only the MCP server verifies). The coverage page
+    must not claim a runtime startup verification it does not do; it may only
+    state that the chain id is recorded by the build and shown from the served
+    artifact.
+    """
+    offenders = [
+        str(p.relative_to(ROOT))
+        for p in _web_files()
+        if "verified at server startup" in p.read_text(encoding="utf-8")
+    ]
+    assert offenders == [], (
+        "web copy still claims the chain is 'verified at server startup', but "
+        f"the served facade performs no such verification: {offenders}"
+    )
+
+
 def test_presets_cover_every_schema_flag():
     import sys
 

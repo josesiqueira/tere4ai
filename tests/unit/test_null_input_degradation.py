@@ -176,5 +176,12 @@ def test_free_tools_tolerate_null_ids(offline_server):
             offline_server.resolve_span(span_id=bad),
             offline_server.classify_ai_system(features=bad),
         ):
-            assert envelope["status"] in ("not_applicable", "requires_human_review")
+            # The lookup tools degrade to not_applicable; classify refuses
+            # schema-invalid features with rejected_as_unsupported (C5). Both,
+            # plus requires_human_review, are clean in-vocabulary degradations.
+            assert envelope["status"] in (
+                "not_applicable",
+                "requires_human_review",
+                "rejected_as_unsupported",
+            )
             assert envelope["non_legal_advice_notice"] == NON_LEGAL_ADVICE_NOTICE

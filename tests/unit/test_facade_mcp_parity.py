@@ -25,7 +25,7 @@ from tere4ai.mcp_server import classify as classify_tool
 from tere4ai.mcp_server import explain as explain_tool
 from tere4ai.mcp_server import requirements as requirements_tool
 from tere4ai.mcp_server import trace as trace_tool
-from tere4ai.mcp_server.spans import resolve_span
+from tere4ai.mcp_server.spans import resolve_span, resolve_span_envelope
 
 # The judged dumps are published build artifacts (gitignored), so a fresh
 # clone has none; skip cleanly instead of failing, checking the same dump
@@ -152,13 +152,28 @@ def test_span_parity(client):
     )
     span_id = norm["source_span_id"]
     via_http = client.get(f"/api/span/{span_id}").json()
-    direct = resolve_span(
+    # C8 fix: the facade now wraps the verified slice in the same Section 8
+    # envelope the MCP resolve_span tool returns (make_envelope), so the
+    # envelope keys must match that surface byte for byte. The facade
+    # additionally merges the flat span fields at the top level for existing
+    # consumers, so those must match the raw resolve_span result. (Before the
+    # fix the facade returned only the raw span, so this compared against
+    # resolve_span alone; it now checks both surfaces stay in agreement.)
+    envelope = resolve_span_envelope(
         span_id,
         client.app.state.dump,
         SNAPSHOTS_DIR,
         extra_nodes=client.app.state.hleg_nodes,
     )
-    assert _canon(via_http) == _canon(direct)
+    span = resolve_span(
+        span_id,
+        client.app.state.dump,
+        SNAPSHOTS_DIR,
+        extra_nodes=client.app.state.hleg_nodes,
+    )
+    assert _canon({key: via_http[key] for key in envelope}) == _canon(envelope)
+    for key in span:
+        assert via_http[key] == span[key]
 
 
 def test_unknown_norm_parity_on_clean_envelope(client):

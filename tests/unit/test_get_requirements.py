@@ -315,10 +315,74 @@ def test_classify_envelope_feeds_requirements(dump, norms_payload, node_ids):
         dump,
     )
     assert classification["answer"]["risk_category"] == "high_risk"
+    # This classify envelope is itself unsettled: it is flagged
+    # requires_human_review at confidence 0.5 with prohibition-relevant facts
+    # still unknown. The provisional requirements flow through so the answer
+    # stays useful, but the abstention must be preserved (DEC-08, C1 fix): the
+    # requirements envelope must never claim more certainty than the
+    # classification it rests on.
+    assert classification["status"] == "requires_human_review"
     envelope = get_applicable_requirements(classification, norms_payload, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["status"] == "applicable_missing_evidence"
+    assert envelope["status"] == "requires_human_review"
+    assert envelope["confidence"] == classification["confidence"]
+    assert envelope["missing_facts"]
+    assert envelope["answer"].get("provisional") is True
     assert envelope["answer"]["requirements_by_article"]
+
+
+# Unsettled classification must never be laundered into certainty (DEC-08) ---------
+
+
+def test_unsettled_classification_is_not_laundered_into_certainty(
+    dump, norms_payload, node_ids
+):
+    """Regression for C1: a moodwatch-safety-shaped classify envelope that is
+    flagged requires_human_review at confidence 0.5 with a real missing fact
+    (its risk_category is a tentative high_risk that could still settle to
+    prohibited) must not become a confident applicable_missing_evidence answer
+    with empty missing_facts when chained into get_applicable_requirements."""
+    missing = (
+        "the point (f) medical or safety exception decides whether the system "
+        "is prohibited (Article 5); absence does not settle the ban, so the "
+        "classification stays for human review"
+    )
+    upstream = {
+        "answer": {"risk_category": "high_risk"},
+        "status": "requires_human_review",
+        "confidence": 0.5,
+        "missing_facts": [missing],
+        "source_nodes": [],
+    }
+    envelope = get_applicable_requirements(upstream, norms_payload, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    # The abstention is preserved, never upgraded.
+    assert envelope["status"] == "requires_human_review"
+    assert envelope["status"] != "applicable_missing_evidence"
+    assert envelope["confidence"] == 0.5
+    assert envelope["confidence"] != 1.0
+    assert missing in envelope["missing_facts"]
+    assert envelope["missing_facts"] != []
+    # The provisional requirements may still be listed, but marked provisional.
+    assert envelope["answer"].get("provisional") is True
+
+
+def test_settled_high_risk_still_confident_no_regression(dump, norms_payload, node_ids):
+    """A genuinely settled high_risk classification (confidence 1.0, no missing
+    facts) must still return applicable_missing_evidence at confidence 1.0 and
+    must not be marked provisional."""
+    settled = {
+        "answer": {"risk_category": "high_risk"},
+        "status": "applicable_missing_evidence",
+        "confidence": 1.0,
+        "missing_facts": [],
+        "source_nodes": [],
+    }
+    envelope = get_applicable_requirements(settled, norms_payload, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["status"] == "applicable_missing_evidence"
+    assert envelope["confidence"] == 1.0
+    assert "provisional" not in envelope["answer"]
 
 
 # Determinism and purity ----------------------------------------------------------

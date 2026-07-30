@@ -111,6 +111,13 @@ type RequirementsAnswer = {
   requirements_by_article: Record<string, Requirement[]>;
   summary: { returned?: number; needs_human_review_total?: number };
   message?: string;
+  /* Set by get_applicable_requirements when the classification is unsettled
+     (status requires_human_review): the listed requirements are tentative
+     because the risk category could still change. provisional_note carries
+     the server's own sentence explaining why; rendered verbatim, never
+     paraphrased (backend src/tere4ai/mcp_server/requirements.py). */
+  provisional?: boolean;
+  provisional_note?: string;
 };
 
 /* Reified alignment chain as served by /api/trace/batch (trace_alignment
@@ -1716,6 +1723,21 @@ export default function AssessPage() {
                   filename="tere4ai-requirements-envelope.json"
                 />
               </div>
+              {requirements.answer.provisional === true && (
+                <div
+                  role="note"
+                  className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3"
+                >
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                    Provisional requirements
+                  </p>
+                  <p className="mt-1 text-sm">
+                    {requirements.answer.provisional_note ??
+                      "These requirements are provisional pending the human-review " +
+                        "determination: the risk category is tentative and could still change."}
+                  </p>
+                </div>
+              )}
               {requirements.answer.message && (
                 <p className="text-sm">{requirements.answer.message}</p>
               )}
