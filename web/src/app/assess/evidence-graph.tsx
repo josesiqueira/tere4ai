@@ -115,12 +115,63 @@ function inferLayer(nodeId: string): Layer {
   return 5;
 }
 
+/* Node ids share long, identical prefixes ("norm:eu-ai-act:article-9:..."),
+   so truncating the raw id from the left rendered every label in an article
+   group as the same unreadable stub ("article-9:paragraph-5…"). Structural
+   ids are rendered as the citation a lawyer would write instead, which is
+   both shorter and the form the rest of the UI already speaks; anything that
+   does not parse falls back to the prefix-stripped id rather than being
+   guessed at. The full id always remains in the node's <title> and
+   aria-label, so this shortens the label without hiding anything. */
 function truncateLabel(id: string, max = 22): string {
-  return id.length > max ? `${id.slice(0, max - 1)}…` : id;
+  const body = id.replace(/^(norm:|align:)/, "").replace(/^eu-ai-act:/, "");
+
+  const article = /^article-(\d+[a-z]?)(.*)$/.exec(body);
+  if (article) {
+    const [, number, rest] = article;
+    return `Art. ${number}${subdivisions(rest)}`;
+  }
+
+  const annex = /^annex-([ivx]+)(.*)$/.exec(body);
+  if (annex) {
+    const [, numeral, rest] = annex;
+    return `Annex ${numeral.toUpperCase()}${subdivisions(rest)}`;
+  }
+
+  const short = body.replace(/^(hleg:|altai:)/, "");
+  return short.length > max ? `${short.slice(0, max - 1)}…` : short;
 }
 
-const HEIGHT = 320;
+/* ":paragraph-5:point-a:n1" renders as "(5)(a) n1". The trailing nN is the
+   norm's index within its provision, kept because one provision routinely
+   yields several distinct normative statements. */
+function subdivisions(rest: string): string {
+  let out = "";
+  for (const [, value] of rest.matchAll(/:(?:paragraph|point|subpoint)-([\w-]+)/g)) {
+    out += `(${value})`;
+  }
+  const normIndex = /:(n\d+)$/.exec(rest);
+  if (normIndex) out += ` ${normIndex[1]}`;
+  return out;
+}
+
+/* The canvas is a LOGICAL coordinate space, not a pixel size: the SVG carries
+   a viewBox and no width attribute, so it always scales to the frame it is
+   rendered into. These constants therefore set the graph's aspect ratio and
+   how much room the force layout has to separate nodes, and nothing here
+   depends on measuring the DOM (an earlier attempt did, and a collapsed
+   accordion measuring zero pinned the layout to a stale width). */
+const MIN_WIDTH = 560;
+const MAX_WIDTH = 1100;
 const NODE_R = 15;
+
+/* Denser graphs need vertical room, otherwise forceCollide packs 25 nodes
+   into one flat band and the labels sit on top of each other. */
+function frameHeight(nodeCount: number): number {
+  if (nodeCount > 18) return 460;
+  if (nodeCount > 10) return 380;
+  return 300;
+}
 
 type SimNode = SimulationNodeDatum & { id: string; layer: Layer };
 type SimLink = SimulationLinkDatum<SimNode> & GraphEvidenceEdge;
@@ -130,14 +181,19 @@ type SimLink = SimulationLinkDatum<SimNode> & GraphEvidenceEdge;
 function layoutGraph(
   nodeIds: string[],
   edges: GraphEvidenceEdge[]
-): { nodes: SimNode[]; links: SimLink[]; width: number } {
+): { nodes: SimNode[]; links: SimLink[]; viewBox: string } {
   const nodes: SimNode[] = nodeIds.map((id) => ({ id, layer: inferLayer(id) }));
   const known = new Set(nodeIds);
   const links: SimLink[] = edges
     .filter((e) => known.has(e.from) && known.has(e.to))
     .map((e) => ({ ...e, source: e.from, target: e.to }));
 
-  const width = Math.min(1400, Math.max(480, nodeIds.length * 100));
+  /* Grows with the node count so a busy graph gets room to spread, but caps
+     well below the old 1400: that cap, combined with a fixed pixel width,
+     drew the cluster centred at 700 half outside a ~900px column, leaving
+     the reader to scroll sideways to find it. */
+  const width = Math.max(MIN_WIDTH, Math.min(nodeIds.length * 100, MAX_WIDTH));
+  const height = frameHeight(nodeIds.length);
 
   const simulation = forceSimulation(nodes)
     .force(
@@ -148,7 +204,7 @@ function layoutGraph(
         .strength(0.5)
     )
     .force("charge", forceManyBody().strength(-260))
-    .force("center", forceCenter(width / 2, HEIGHT / 2))
+    .force("center", forceCenter(width / 2, height / 2))
     .force("collide", forceCollide(NODE_R + 14))
     .stop();
 
@@ -158,10 +214,23 @@ function layoutGraph(
   const pad = NODE_R + 24;
   for (const n of nodes) {
     n.x = Math.min(width - pad, Math.max(pad, n.x ?? width / 2));
-    n.y = Math.min(HEIGHT - pad, Math.max(pad, n.y ?? HEIGHT / 2));
+    n.y = Math.min(height - pad, Math.max(pad, n.y ?? height / 2));
   }
 
-  return { nodes, links, width };
+  /* The settled cluster rarely fills the canvas it was laid out on, so frame
+     the viewBox on the nodes themselves. Without this the graph renders as a
+     small island inside wide empty margins. The horizontal padding leaves
+     room for the centred labels, which are wider than their nodes. */
+  const xs = nodes.map((n) => n.x ?? 0);
+  const ys = nodes.map((n) => n.y ?? 0);
+  const padX = 70;
+  const padY = 34;
+  const minX = Math.min(...xs) - padX;
+  const minY = Math.min(...ys) - padY;
+  const viewWidth = Math.max(Math.max(...xs) + padX - minX, 200);
+  const viewHeight = Math.max(Math.max(...ys) + padY - minY, 160);
+
+  return { nodes, links, viewBox: `${minX} ${minY} ${viewWidth} ${viewHeight}` };
 }
 
 type SpanPanelState = {
@@ -258,14 +327,19 @@ export function EvidenceGraph({
       </button>
       {open && (
         <div className="rounded-md border border-border p-3 space-y-3">
-          <div className="overflow-x-auto">
+          <div>
+            {/* No width attribute on purpose: the viewBox scales the graph to
+                whatever width the frame has, at any window size and in any
+                accordion state, so it can never be clipped out of view. The
+                height cap stops a dense graph pushing the rest of the
+                requirement off the screen; when it binds, the viewBox
+                letterboxes rather than crops. */}
             <svg
-              width={layout.width}
-              height={HEIGHT}
-              viewBox={`0 0 ${layout.width} ${HEIGHT}`}
+              viewBox={layout.viewBox}
+              preserveAspectRatio="xMidYMid meet"
               role="img"
               aria-label="Evidence subgraph: legal, normative, and ethics nodes with their alignment edges"
-              className="block"
+              className="block w-full h-auto max-h-[520px]"
             >
               <g>
                 {layout.links.map((link, i) => {

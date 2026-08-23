@@ -127,6 +127,35 @@ def test_page_does_not_claim_a_startup_chain_verification():
     )
 
 
+def test_evidence_graph_svg_scales_to_its_frame():
+    """The evidence subgraph is the demo centerpiece (docs/DEMO.md step 3).
+    It used to render onto a fixed 1400px canvas sized by node count, which
+    in the ~800px content column drew the cluster half outside the frame:
+    the reader saw whitespace and a sliced-off graph until they scrolled
+    sideways. The SVG must therefore carry no pixel width or height (a
+    viewBox plus a full-width class scales it to whatever frame it is in),
+    and the viewBox must be the one fitted to the settled node positions,
+    never a bare "0 0 width height" canvas.
+    """
+    text = (WEB_SRC / "app" / "assess" / "evidence-graph.tsx").read_text(
+        encoding="utf-8"
+    )
+    match = re.search(r"<svg\b(?![^>]*aria-hidden)[^>]*>", text, re.DOTALL)
+    assert match, "the graph <svg> element was not found, has it been rewritten?"
+    svg_tag = match.group(0)
+    assert "viewBox={layout.viewBox}" in svg_tag, (
+        "the graph <svg> no longer uses the fitted viewBox from layoutGraph; a "
+        "canvas-sized viewBox reintroduces the empty-margin and clipping bug"
+    )
+    assert not re.search(r"\bwidth=\{(?!10\b)", svg_tag), (
+        "the graph <svg> sets an explicit width again; a pixel width stops it "
+        "scaling to the content column and clips the graph out of view"
+    )
+    assert "w-full" in svg_tag, (
+        "the graph <svg> must be full width so the viewBox scales it to the frame"
+    )
+
+
 def test_presets_cover_every_schema_flag():
     import sys
 

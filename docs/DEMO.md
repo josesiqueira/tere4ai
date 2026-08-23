@@ -64,8 +64,12 @@ Sanity check: `curl localhost:8008/api/health` returns the graph version.
 1. **Coverage** (1 min). Open `http://localhost:3111`. Point at the stat
    tiles (article, recital, and annex counts against the frozen source), the
    judged Layer 2/3 counts with verdicts, and the publication chain id in the
-   footnote, served by the facade and verified at server startup, not
-   computed client side. Expand a chapter to show the browsable structure.
+   footnote, recorded by the build and shown from the served build artifact,
+   not computed client side. Say it that way: the MCP server verifies the
+   chain at startup, the demo facade does not, so the page claims only what
+   it can back (this is what the on-screen wording says too, and the
+   honesty gate holds it there). Expand a chapter to show the browsable
+   structure.
    Fallback: `docs/screenshots/demo-coverage.png`,
    `docs/screenshots/coverage_light.png`, or
    `docs/screenshots/m2-coverage-with-judged-layers.png`.
