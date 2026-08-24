@@ -180,7 +180,7 @@ def trace_implementation(
                     "article": article,
                     "source_node_id": n.get("source_node_id"),
                     "source_span_id": n.get("source_span_id"),
-                    "actor": n.get("actor_inferred") or n.get("actor_explicit"),
+                    "actor": n.get("actor"),
                     "hleg_alignments": alignments.get(norm_id, []),
                     "trace_locations": locations,
                     "trace_status": "traced" if locations else "untraced",

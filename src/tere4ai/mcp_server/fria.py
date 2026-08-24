@@ -45,7 +45,7 @@ ANNEX_III_POINT_5C = "eu-ai-act:annex-iii:point-5:c"
 # Timeline as DATA, never control flow (architecture.md Section 11: the
 # Omnibus is an overlay, both versions stay answerable). Checked 2026-07-20:
 # Parliament approved 16 June 2026, Council 29 June 2026; the final OJ text
-# is not yet published (TASKS.md C1), so the status stays
+# is not yet published, so the status stays
 # adopted_not_yet_applicable and the date must be reconfirmed against the
 # OJ text when it lands.
 FRIA_APPLIES_FROM = {
@@ -56,8 +56,8 @@ FRIA_APPLIES_FROM = {
     ),
     "legal_status": "adopted_not_yet_applicable",
     "source": (
-        "REF-02 (Digital Omnibus on AI); final OJ reference pending "
-        "publication, date to reconfirm against the OJ text (TASKS.md C1)"
+        "REF-02: Digital Omnibus on AI (COM(2025) 836); final Official "
+        "Journal (OJ) citation pending"
     ),
 }
 

@@ -109,6 +109,25 @@ def test_scanner_finds_tags_with_locations(tmp_path):
     ]
 
 
+def test_scanner_ignores_documentation_files(tmp_path):
+    """A well-formed tag in a .md or .txt file is prose about the convention
+    (a README example, a prompt file), never an implementation claim; the
+    scanner must yield zero records for documentation files."""
+    (tmp_path / "PROMPT.md").write_text(
+        "Mark your code with `@implements: norm:eu-ai-act:article-50:paragraph-1:n2`\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "README.md").write_text(
+        "# Example\n@implements: norm:eu-ai-act:article-9:paragraph-1:n1\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "notes.txt").write_text(
+        "@implements: norm:eu-ai-act:article-50:paragraph-1:n2\n",
+        encoding="utf-8",
+    )
+    assert scan_tags(tmp_path) == []
+
+
 def test_scanner_is_deterministic(tmp_path):
     for name in ("z.py", "a.py", "m.py"):
         (tmp_path / name).write_text(
@@ -154,6 +173,33 @@ def test_matrix_covers_every_applicable_norm_traced_or_untraced(
         "invalid_tags": 0,
         "out_of_scope_tags": 0,
     }
+
+
+def test_matrix_rows_carry_the_requirements_actor(
+    transparency_classification, norms, alignments, dump
+):
+    """Every matrix row (traced or untraced) carries the same actor the
+    requirements engine serves for that norm, never null: the row is a join
+    against requirements_by_article, whose entries expose `actor`."""
+    norm_id = _accepted_article_50_norm_id(norms)
+    env = trace_implementation(
+        transparency_classification,
+        [{"norm_id": norm_id, "path": "src/shopbot/chat.py", "line": 12}],
+        norms,
+        alignments,
+        dump,
+    )
+    rows = env["answer"]["matrix"]
+    req_env = get_applicable_requirements(transparency_classification, norms, dump)
+    actors_by_norm = {
+        entry["norm_id"]: entry["actor"]
+        for entries in req_env["answer"]["requirements_by_article"].values()
+        for entry in entries
+    }
+    assert rows, "transparency classification must yield matrix rows"
+    for row in rows:
+        assert row["actor"] is not None, f"row {row['norm_id']} lost its actor"
+        assert row["actor"] == actors_by_norm[row["norm_id"]]
 
 
 def test_non_accepted_and_unknown_ids_are_rejected_with_reasons(

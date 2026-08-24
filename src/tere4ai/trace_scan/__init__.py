@@ -14,6 +14,11 @@ The scanner validates NOTHING about the ids it finds; validation against the
 judge-accepted set is the server's job, so a consumer cannot accidentally
 trust a tag the graph would reject.
 
+Documentation files (.md, .txt) are deliberately NOT scanned: a tag written
+in a README or prompt file is an example or description of the convention,
+never an implementation claim, and treating it as one would let prose
+manufacture trace locations (see SCANNED_SUFFIXES).
+
 Usage:
     python -m tere4ai.trace_scan <project_dir>          # JSON to stdout
 """
@@ -31,10 +36,14 @@ TAG_RE = re.compile(r"@implements:\s*(norm:[A-Za-z0-9:._-]+)")
 
 # Files a consumer project plausibly carries code or config in. Kept
 # explicit so binary and vendored content is never scanned by accident.
+# Documentation suffixes (.md, .txt) are deliberately excluded: a literal
+# tag example in a README or prompt file is prose about the convention,
+# not a claim that the document implements the norm, and scanning it would
+# turn documentation into implementation claims.
 SCANNED_SUFFIXES = {
     ".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".kt", ".go", ".rs",
     ".rb", ".cs", ".c", ".h", ".cpp", ".hpp", ".sql", ".sh",
-    ".yaml", ".yml", ".toml", ".cfg", ".ini", ".md", ".txt",
+    ".yaml", ".yml", ".toml", ".cfg", ".ini",
 }
 
 SKIPPED_DIRS = {
