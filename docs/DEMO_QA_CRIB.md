@@ -123,6 +123,40 @@ every recorded session against the current build, so a drifted fixture fails
 CI rather than misleading a room. Say that: the page is not a video, it is a
 transcript that is re-verified on every test run.
 
+## Showing the graph in Neo4j Browser
+
+Open **http://localhost:7475**. Not 7474: that port belongs to the legacy v1
+container still running on this machine, and it holds a different graph.
+Inside the browser, connect URL `bolt://localhost:7688`, user `neo4j`,
+password `NEO4J_PASSWORD` from .env. The container is `tere4ai2_neo4j`
+(`docker compose up -d neo4j` if it is not running).
+
+Loaded: 4,694 nodes. 113 Article, 180 Recital, 217 AnnexItem, 519 Paragraph,
+467 Point, 434 NormativeStatement, 620 AlignmentAssertion, 1,078 JudgeRun,
+426 CrossReference. The verdict counts match the UI exactly: 339 accepted
+norms, 54 rejected, 41 needing human review; 475 accepted alignments, 145
+rejected. Showing the same numbers in the store and in the web UI is worth
+doing deliberately.
+
+Ten demo queries, all executed and verified against this instance, are in
+`_queries.cypher` at the repo root (gitignored, local only). Query 3 is the
+one to project: it draws Article 9 down to its derived norms as a graph.
+Query 5 shows a reified alignment with the judge's five scores, which is the
+answer to "how do you know the mapping is any good". Query 7 shows the review
+queue existing in the store, not just in the UI.
+
+Trap worth knowing: `Article.number` is an **int**, not a string, so a
+quoted value silently returns zero rows rather than erroring. Norms hang off
+both Paragraph and Point nodes, so a paragraph-only pattern misses some.
+
+Honesty point if asked whether that store is what the demo serves: the demo
+facade reads the frozen JSON dumps, and Neo4j was loaded from those same
+dumps, which is why every count matches. But the store holds no BuildRun
+node, so it cannot show you its own build id next to the
+`build-3b753e5e9297` the facade reports. The correspondence is by
+construction and by matching counts, not by a checksum you can point at in
+the browser. Say that rather than implying a verification that is not there.
+
 ## If something breaks
 
 Servers: facade `TERE4AI_DEMO_SESSIONS_DIR=tests/fixtures/demo_sessions
