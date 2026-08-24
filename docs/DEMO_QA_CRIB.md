@@ -24,7 +24,7 @@ the rules, which is why the same input always gives the same answer.
 | Traceability as a picture, verbatim spans | expand an article, Show evidence graph, click a node |
 | Pipeline and where the three judges sit | `/how-it-works` |
 | The disclosed human queue | `/review` |
-| The envelope an MCP client receives | `/agent` |
+| The envelope an MCP client receives, all four tiers | `/agent`, pick a session, step with the arrows |
 
 ## Numbers you can stand behind
 
@@ -112,6 +112,16 @@ FRIA block names 2027-12-02 for standalone Annex III obligations.
 description and elicit. Expect an abstention: prose rarely settles 34
 closed-world facts, and saying so before you click turns the abstention into
 the point.
+
+## The replay page, if the MCP claim gets pressed
+
+`/agent` serves four recorded sessions, one per tier, each recorded by
+driving the real MCP server over stdio as an external client. Two exchanges
+each: classify, then requirements. The counts match what the assess page
+produces live (ShopBot 13, CredScore 277, MoodWatch 0), and a test replays
+every recorded session against the current build, so a drifted fixture fails
+CI rather than misleading a room. Say that: the page is not a video, it is a
+transcript that is re-verified on every test run.
 
 ## If something breaks
 
