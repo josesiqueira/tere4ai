@@ -98,7 +98,7 @@ def test_pending_review_tile_shows_true_total():
     # used to (wrongly) show; the honest total must be at least as large.
     assert review["total_pending_review"] >= crossrefs
 
-    page_text = (WEB_SRC / "app" / "page.tsx").read_text(encoding="utf-8")
+    page_text = (WEB_SRC / "app" / "(demo)" / "coverage" / "page.tsx").read_text(encoding="utf-8")
     assert "reviewCount={data.review.total_pending_review}" in page_text, (
         "the Pending human review tile is not fed review.total_pending_review; "
         "it must not understate the queue by showing cross-references only"
@@ -137,7 +137,7 @@ def test_evidence_graph_svg_scales_to_its_frame():
     and the viewBox must be the one fitted to the settled node positions,
     never a bare "0 0 width height" canvas.
     """
-    text = (WEB_SRC / "app" / "assess" / "evidence-graph.tsx").read_text(
+    text = (WEB_SRC / "app" / "(demo)" / "assess" / "evidence-graph.tsx").read_text(
         encoding="utf-8"
     )
     match = re.search(r"<svg\b(?![^>]*aria-hidden)[^>]*>", text, re.DOTALL)
@@ -162,7 +162,7 @@ def test_presets_cover_every_schema_flag():
     sys.path.insert(0, str(ROOT / "src"))
     from tere4ai.elicit_features.elicitor import schema_flag_names
 
-    presets_text = (WEB_SRC / "app" / "assess" / "presets.ts").read_text()
+    presets_text = (WEB_SRC / "app" / "(demo)" / "assess" / "presets.ts").read_text()
     missing = [f for f in schema_flag_names() if f'"{f}"' not in presets_text]
     assert missing == [], f"presets.ts missing schema flags: {missing}"
 
@@ -173,7 +173,7 @@ def test_flag_panel_covers_every_schema_flag():
     sys.path.insert(0, str(ROOT / "src"))
     from tere4ai.elicit_features.elicitor import schema_flag_names
 
-    page_text = (WEB_SRC / "app" / "assess" / "page.tsx").read_text()
+    page_text = (WEB_SRC / "app" / "(demo)" / "assess" / "page.tsx").read_text()
     missing = [f for f in schema_flag_names() if f'"{f}"' not in page_text]
     assert missing == [], f"page.tsx flag panel missing schema flags: {missing}"
 
@@ -201,7 +201,7 @@ def test_ui_data_read_is_guarded_against_a_missing_file():
     inside a try/catch whose catch branch reports absence (returns null) so
     the component can render an honest setup notice instead of a 500.
     """
-    for rel in ("app/page.tsx", "app/review/page.tsx"):
+    for rel in ("app/(demo)/coverage/page.tsx", "app/(demo)/review/page.tsx"):
         path = WEB_SRC / rel
         text = path.read_text(encoding="utf-8")
         body = _load_data_body(text, rel)

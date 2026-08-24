@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 const ITEMS = [
-  { href: "/", label: "Coverage", icon: BookOpenCheck },
+  { href: "/coverage", label: "Coverage", icon: BookOpenCheck },
   { href: "/assess", label: "Assess", icon: ClipboardList },
   { href: "/agent", label: "Agent", icon: Bot },
   { href: "/how-it-works", label: "How it works", icon: Workflow },
@@ -28,8 +28,7 @@ export function NavLinks() {
       className="flex flex-row gap-1 overflow-x-auto px-2 pb-1 md:flex-col md:overflow-visible md:pb-0"
     >
       {ITEMS.map(({ href, label, icon: Icon }) => {
-        const active =
-          href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const active = pathname.startsWith(href);
         return (
           <Link
             key={href}

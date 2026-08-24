@@ -1,377 +1,391 @@
-import fs from "node:fs";
-import path from "node:path";
+import Link from "next/link";
+import Image from "next/image";
 
-/* Thin, read-only demo page (docs/architecture.md Sections 9 and 14, M1).
-   Renders the coverage matrix and the browsable Act structure from
-   public/ui_data.json, which scripts/export_ui_data.py produces by calling
-   the same coverage_report used by the MCP tool. Every screen shows the
-   status vocabulary, judge verdict, graph version, and the legal notice. */
+/* The landing page: the front door of the system. Full-bleed (outside the
+   (demo) route group), clinical-blueprint system per docs/DESIGN.md. Every
+   header item is a real destination into the demo, never a scroll anchor:
+   the landing explains, the demo shows. */
 
-type Article = { id: string; number: number; title: string; anchor: string };
-type Section = { id: string; number: number; title: string; articles: Article[] };
-type Chapter = {
-  id: string;
-  number: string;
-  title: string;
-  sections: Section[];
-  articles: Article[];
-};
+const GITHUB = "https://github.com/josesiqueira/tere4ai";
 
-type UiData = {
-  coverage: {
-    answer: {
-      expected: Record<string, number | string[]>;
-      actual: Record<string, number | string[]>;
-      high_risk_core: { expected_articles: number[]; present: number[]; missing: number[] };
-      layer2_nodes: { count: number; status: string; verdicts?: Record<string, number> };
-      layer3_nodes: { count: number; status: string; verdicts?: Record<string, number> };
-      checks: Record<string, boolean>;
-    };
-    status: string;
-    confidence: number;
-    judge_verdict: string;
-    generated_at: string;
-    graph_version: string;
-    legal_status_notes: string[];
-    non_legal_advice_notice: string;
-  };
-  structure: {
-    chapters: Chapter[];
-    annexes: { id: string; number: string; title: string; anchor: string }[];
-    recital_count: number;
-  };
-  build: {
-    build_id: string;
-    built_at: string;
-    chain_id: string;
-    snapshots: { file: string; sha256: string }[];
-  };
-  review_queue_count: number;
-  review: {
-    norms_needing_review: unknown[];
-    crossref_pending_total: number;
-    crossref_pending_by_kind: Record<string, number>;
-    alignment_pending_total: number;
-    total_pending_review: number;
-  };
-  sources: { id: string; title: string; legal_status: string }[];
-};
+const NOTICE =
+  "TERE4AI provides engineering and documentation support. It does not " +
+  "certify EU AI Act compliance and does not replace legal review, " +
+  "conformity assessment, or competent-authority interpretation.";
 
-/* Guarded read: public/ui_data.json is generated (gitignored, not committed),
-   so a fresh clone or a dev server started before the export script has run
-   must not 500. Catch the read or parse failure and let Page() render an
-   honest setup notice instead of fabricating data. */
-function loadData(): UiData | null {
-  const p = path.join(process.cwd(), "public", "ui_data.json");
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8"));
-  } catch {
-    return null;
-  }
-}
-
-function SetupNotice() {
+function ChainLink({ level, value, meta }: { level: string; value: string; meta?: string }) {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Demo data not generated yet
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            public/ui_data.json is missing or unreadable, so there is no
-            coverage data to show. This is not an error state with hidden
-            numbers behind it: nothing has been generated, and this page
-            never shows a zero as if it were a real count.
-          </p>
-        </div>
-        <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 space-y-4">
-          <h2 className="text-2xl font-semibold leading-none">Generate it</h2>
-          <p className="text-sm text-muted-foreground">
-            From the repo root, run:
-          </p>
-          <pre className="rounded-md bg-muted p-2 text-sm font-mono overflow-x-auto">
-            .venv/bin/python scripts/export_ui_data.py
-          </pre>
-          <p className="text-sm text-muted-foreground">
-            Then reload this page. `npm run dev` (invoked from web/) runs
-            this command automatically before the server starts, so this
-            notice should only appear if the export itself failed or the
-            file was deleted after the server started.
-          </p>
-        </section>
+    <div className="flex-1 min-w-[168px] rounded-sm border border-border bg-sidebar px-3.5 py-3">
+      <div className="text-[10.5px] font-medium uppercase tracking-[0.05em] text-muted-foreground">
+        {level}
+      </div>
+      <div className="mt-1.5 font-mono text-[12.5px] leading-relaxed break-words">
+        {value}
+        {meta ? <span className="text-muted-foreground"> {meta}</span> : null}
       </div>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const ok = status === "satisfied_with_evidence";
+function Arrow() {
   return (
-    <span
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-        ok
-          ? "text-foreground border-border"
-          : "text-destructive border-destructive/40"
-      }`}
-    >
-      {status}
-    </span>
+    <div className="grid place-items-center px-1 text-muted-foreground" aria-hidden="true">
+      &#8594;
+    </div>
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 space-y-4">
-      <h2 className="text-2xl font-semibold leading-none">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-/* Numeric fields inside coverage.answer.actual are typed number | string[]
-   (some, like "chapters", are arrays). Only surface fields that are actually
-   numbers; never coerce or invent a count. */
-function asNumber(v: number | string[] | undefined): number | undefined {
-  return typeof v === "number" ? v : undefined;
-}
-
-function StatTiles({
-  actual,
-  layer2AcceptedCount,
-  layer3AcceptedCount,
-  reviewCount,
-  buildId,
-  builtAt,
-  snapshotCount,
-  chainId,
+function TierCard({
+  pill, n, what, children, dashed, href,
 }: {
-  actual: UiData["coverage"]["answer"]["actual"];
-  layer2AcceptedCount: number | undefined;
-  layer3AcceptedCount: number | undefined;
-  reviewCount: number;
-  buildId: string;
-  builtAt: string;
-  snapshotCount: number;
-  chainId: string;
+  pill: string; n: string; what: string; children: React.ReactNode; dashed?: boolean; href: string;
 }) {
-  const tiles: { label: string; value: number | undefined }[] = [
-    { label: "Articles", value: asNumber(actual.articles) },
-    { label: "Recitals", value: asNumber(actual.recitals) },
-    { label: "Annexes", value: asNumber(actual.annexes) },
-    { label: "Judge-accepted norms", value: layer2AcceptedCount },
-    { label: "Accepted HLEG alignments", value: layer3AcceptedCount },
-    { label: "Pending human review", value: reviewCount },
-  ].filter((t) => t.value !== undefined);
-
   return (
-    <section aria-label="Graph inventory" className="space-y-2">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {tiles.map((t) => (
-          <div
-            key={t.label}
-            className="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-4"
-          >
-            <div className="text-2xl font-semibold leading-none">{t.value}</div>
-            <div className="mt-1.5 text-xs text-muted-foreground">{t.label}</div>
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Build <code className="font-mono">{buildId}</code>, built{" "}
-        {builtAt.slice(0, 19)}Z. {snapshotCount} frozen source files
-        checksummed; publication chain{" "}
-        <code className="font-mono">{chainId}</code>, recorded by the build
-        and shown from the served build artifact. Every count above is served
-        from the published dump, not typed into this page. EU to HLEG mappings
-        are LLM-generated and not expert-validated.
-      </p>
-    </section>
+    <Link
+      href={href}
+      className={
+        "block rounded-lg border bg-card p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 " +
+        (dashed ? "border-dashed border-border" : "border-border")
+      }
+    >
+      <span className="inline-block rounded-full border border-border bg-muted px-2.5 py-1 font-mono text-xs font-medium">
+        {pill}
+      </span>
+      <div className="mt-3 text-3xl font-semibold tracking-tight tabular-nums">{n}</div>
+      <div className="text-[13px] text-muted-foreground">{what}</div>
+      <p className="mt-2.5 text-[13.5px] text-muted-foreground">{children}</p>
+      <span className="mt-3 inline-block text-[13px] font-medium">Run it in the demo &#8594;</span>
+    </Link>
   );
 }
 
-export default function Page() {
-  const data = loadData();
-  if (!data) {
-    return <SetupNotice />;
-  }
-  const { coverage, structure, build } = data;
-  const a = coverage.answer;
-  const rows: [string, number, number][] = Object.keys(a.expected)
-    .map((k): [string, number, number] => {
-      const exp = a.expected[k];
-      const act = a.actual[k] ?? 0;
-      const expN = Array.isArray(exp) ? exp.length : exp;
-      const actN = Array.isArray(act) ? act.length : act;
-      return [k, expN, actN];
-    });
-
+export default function LandingPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            EU AI Act structural mirror
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Graph version <code className="font-mono">{coverage.graph_version}</code>,
-            generated {coverage.generated_at.slice(0, 19)}Z. Judge verdict:{" "}
-            <code className="font-mono">{coverage.judge_verdict}</code> (structural
-            answers are deterministic). <StatusBadge status={coverage.status} />
-          </p>
+    <div className="min-h-screen bg-secondary text-foreground">
+      {/* header: every item is a destination, not an anchor */}
+      <header className="sticky top-0 z-20 border-b border-border bg-secondary/85 backdrop-blur">
+        <div className="mx-auto flex h-15 max-w-6xl items-center gap-3 px-6 py-3">
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-primary text-primary-foreground text-xs font-semibold">
+            T4
+          </div>
+          <span className="text-base font-semibold tracking-tight">TERE4AI</span>
+          <nav aria-label="Main" className="ml-auto flex items-center gap-1 overflow-x-auto">
+            <Link href="/assess" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
+              Assess
+            </Link>
+            <Link href="/agent" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
+              Agent replay
+            </Link>
+            <Link href="/coverage" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
+              Coverage
+            </Link>
+            <Link href="/how-it-works" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
+              How it works
+            </Link>
+            <Link href="/review" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
+              Review queue
+            </Link>
+            <a href={GITHUB} className="rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+              GitHub
+            </a>
+          </nav>
         </div>
+      </header>
 
-        <StatTiles
-          actual={a.actual}
-          layer2AcceptedCount={a.layer2_nodes.verdicts?.accepted}
-          layer3AcceptedCount={a.layer3_nodes.verdicts?.accepted}
-          reviewCount={data.review.total_pending_review}
-          buildId={build.build_id}
-          builtAt={build.built_at}
-          snapshotCount={build.snapshots.length}
-          chainId={build.chain_id}
-        />
-
-        <Card title="Coverage matrix">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th scope="col" className="py-1 font-medium">Element</th>
-                <th scope="col" className="py-1 font-medium">Expected</th>
-                <th scope="col" className="py-1 font-medium">In graph</th>
-                <th scope="col" className="py-1 font-medium">Check</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(([k, exp, act]) => (
-                <tr key={k} className="border-t border-border">
-                  <td className="py-1.5">{k}</td>
-                  <td className="py-1.5 font-mono">{exp}</td>
-                  <td className="py-1.5 font-mono">{act}</td>
-                  <td className="py-1.5">
-                    {act >= exp ? (
-                      <span className="text-foreground">pass</span>
-                    ) : (
-                      <span className="text-destructive">fail</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              <tr className="border-t border-border">
-                <td className="py-1.5">Layer 2 judged norms (high-risk core)</td>
-                <td className="py-1.5 font-mono">-</td>
-                <td className="py-1.5 font-mono">{a.layer2_nodes.count}</td>
-                <td className="py-1.5 text-muted-foreground">
-                  {a.layer2_nodes.verdicts
-                    ? `accepted ${a.layer2_nodes.verdicts.accepted ?? 0} / rejected ${a.layer2_nodes.verdicts.rejected ?? 0} / review ${a.layer2_nodes.verdicts.needs_human_review ?? 0}`
-                    : a.layer2_nodes.status}
-                </td>
-              </tr>
-              <tr className="border-t border-border">
-                <td className="py-1.5">Layer 3 judged alignments (reified)</td>
-                <td className="py-1.5 font-mono">-</td>
-                <td className="py-1.5 font-mono">{a.layer3_nodes.count}</td>
-                <td className="py-1.5 text-muted-foreground">
-                  {a.layer3_nodes.verdicts
-                    ? `accepted ${a.layer3_nodes.verdicts.accepted ?? 0} / rejected ${a.layer3_nodes.verdicts.rejected ?? 0}`
-                    : a.layer3_nodes.status}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p className="text-xs text-muted-foreground">
-            High-risk core (Section 10 set): {a.high_risk_core.present.length} articles
-            structurally present
-            {a.high_risk_core.missing.length > 0
-              ? `, missing: ${a.high_risk_core.missing.join(", ")}`
-              : ", none missing"}
-            . Cross-reference review queue: {data.review_queue_count} items awaiting
-            judgement. Pending human review totals {data.review.total_pending_review}:{" "}
-            {data.review.norms_needing_review.length} judged norms,{" "}
-            {data.review.alignment_pending_total} HLEG alignments, and{" "}
-            {data.review.crossref_pending_total} cross-references.
+      <main>
+        {/* hero */}
+        <section className="mx-auto max-w-6xl px-6 pb-10 pt-20">
+          <h1 className="max-w-[17ch] text-balance text-4xl font-semibold leading-[1.08] tracking-[-0.035em] md:text-[52px]">
+            The EU AI Act, as a knowledge graph your coding agent can call.
+          </h1>
+          <p className="mt-5 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
+            TERE4AI is an open-source <strong className="font-medium text-foreground">MCP server</strong> for
+            teams building AI systems under Regulation (EU) 2024/1689. A coding agent asks
+            what the law requires of the system it is building, and gets back a{" "}
+            <strong className="font-medium text-foreground">deterministic risk classification</strong>,
+            engineering requirements traced to{" "}
+            <strong className="font-medium text-foreground">byte-exact legal text</strong>, judged ethics
+            alignments, and{" "}
+            <strong className="font-medium text-foreground">requirement-to-code traceability</strong>.
+            Models propose; independent judges gate; a rule ladder alone decides.
           </p>
-        </Card>
-
-        <Card title="Sources and versioning">
-          <ul className="space-y-2 text-sm">
-            {data.sources.map((s) => (
-              <li key={s.id} className="flex items-start gap-2">
-                <span
-                  className={`mt-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                    s.legal_status === "in_force"
-                      ? "text-foreground border-border"
-                      : "text-muted-foreground border-dashed border-border"
-                  }`}
-                >
-                  {s.legal_status}
-                </span>
-                <span>{s.title}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground font-mono break-all">
-            snapshot {build.snapshots[0]?.file} sha256 {build.snapshots[0]?.sha256}
-          </p>
-        </Card>
-
-        <Card title={`Act structure (${structure.recital_count} recitals precede)`}>
-          <div className="space-y-1">
-            {structure.chapters.map((c) => (
-              <details key={c.id} className="rounded-md border border-border">
-                <summary className="cursor-pointer p-3 text-sm font-medium hover:bg-accent">
-                  Chapter {c.number}: {c.title || "(untitled)"}
-                </summary>
-                <div className="p-3 pt-0 space-y-2">
-                  {c.sections.map((s) => (
-                    <div key={s.id} className="space-y-1">
-                      <p className="text-sm font-semibold">
-                        Section {s.number}: {s.title || ""}
-                      </p>
-                      <ul className="pl-4 space-y-1">
-                        {s.articles.map((art) => (
-                          <li key={art.id} className="text-sm leading-6">
-                            <span className="font-mono text-xs text-muted-foreground mr-2">
-                              {art.id}
-                            </span>
-                            Article {art.number}: {art.title}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  {c.articles.length > 0 && (
-                    <ul className="space-y-1">
-                      {c.articles.map((art) => (
-                        <li key={art.id} className="text-sm leading-6">
-                          <span className="font-mono text-xs text-muted-foreground mr-2">
-                            {art.id}
-                          </span>
-                          Article {art.number}: {art.title}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </details>
-            ))}
+          <div className="mt-7 flex flex-wrap gap-2.5">
+            <Link href="/assess" className="rounded-md bg-primary px-4.5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+              Try the live demo
+            </Link>
+            <Link href="/agent" className="rounded-md border border-border bg-background px-4.5 py-2.5 text-sm font-medium hover:bg-sidebar">
+              Watch an agent use it
+            </Link>
+            <a href={GITHUB} className="rounded-md border border-border bg-background px-4.5 py-2.5 text-sm font-medium hover:bg-sidebar">
+              View on GitHub
+            </a>
           </div>
-          <div className="pt-2">
-            <p className="text-sm font-semibold pb-1">Annexes</p>
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-              {structure.annexes.map((x) => (
-                <li key={x.id} className="text-sm leading-6">
-                  <span className="font-mono text-xs text-muted-foreground mr-2">
-                    {x.id}
-                  </span>
-                  Annex {x.number}
+          <div className="mt-9 max-w-2xl rounded-lg border border-border bg-background px-4.5 py-3.5 text-[13.5px] text-muted-foreground">
+            <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.05em]">Notice</span>
+            {NOTICE}
+          </div>
+        </section>
+
+        {/* the chain */}
+        <section className="mx-auto max-w-6xl px-6 pb-2 pt-4">
+          <div className="overflow-x-auto rounded-lg border border-border bg-card p-6 shadow-sm">
+            <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.05em] text-muted-foreground">
+              One unbroken chain, every answer
+            </div>
+            <div className="flex min-w-[900px] items-stretch">
+              <ChainLink level="Frozen law" value="span:009.001" meta="bytes 727679 to 727924, sha256 3b753e..." />
+              <Arrow />
+              <ChainLink level="Judged norm" value="norm:eu-ai-act:article-9:paragraph-1:n1" meta="judge: accepted" />
+              <Arrow />
+              <ChainLink level="Requirement" value="provider shall establish a risk management system" />
+              <Arrow />
+              <ChainLink level="Ethics" value="hleg:technical-robustness" meta="score 0.798, accepted" />
+              <Arrow />
+              <ChainLink level="Your code" value="@implements: norm:...article-9..." meta="scoring.py:41" />
+            </div>
+            <p className="mt-3.5 text-[13px] text-muted-foreground">
+              Every hop is machine-checkable in both directions: from a line of code back to
+              the exact bytes of the Official Journal snapshot, and from an obligation forward
+              to the code that claims to implement it.{" "}
+              <Link href="/assess" className="font-medium text-foreground underline underline-offset-2">
+                See it live on the assess page.
+              </Link>
+            </p>
+          </div>
+        </section>
+
+        {/* five seconds */}
+        <section className="mx-auto max-w-6xl px-6 pt-18">
+          <div className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">Five seconds</div>
+          <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight">
+            What is this, who is it for, what does it do
+          </h2>
+          <div className="mt-7 grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+              <h3 className="font-semibold">What it is</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                A knowledge graph of the EU AI Act (113 articles, 180 recitals, 13 annexes,
+                parsed deterministically from checksummed official sources) served through the
+                Model Context Protocol, so AI coding assistants can query the law the way they
+                query a database.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+              <h3 className="font-semibold">Who it is for</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Engineers and coding agents building AI systems that must live under the Act,
+                and requirements-engineering researchers who need every claim traceable. If
+                your agent speaks MCP, it can use TERE4AI today.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+              <h3 className="font-semibold">What it does</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Classifies a system&apos;s risk tier by deterministic rules, serves the
+                judge-accepted obligations that bind it with citations, maps them to the HLEG
+                trustworthy-AI principles, checks which obligations your code claims to
+                implement, and generates an audit-grade report.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* tiers: each card opens the demo */}
+        <section className="mx-auto max-w-6xl px-6 pt-18">
+          <div className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">What you get</div>
+          <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight">
+            Four honest answers, one per risk tier
+          </h2>
+          <p className="mt-3 max-w-[62ch] text-muted-foreground">
+            The same question, &quot;what does the Act require of this system&quot;, produces
+            four very different and equally useful answers. Each card below is a one-click
+            scenario on the assess page: the form fills, the deterministic ladder runs live.
+          </p>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <TierCard pill="minimal_or_none" n="0" what="requirements" href="/assess">
+              A citable, rule-traced permission to not build a compliance program. Delete one
+              known fact and the system refuses to say it.
+            </TierCard>
+            <TierCard pill="transparency_only" n="13" what="requirements, Article 50" href="/assess">
+              The disclosure and marking duties, each traced to its sentence of the Act, ready
+              to close in code and tag.
+            </TierCard>
+            <TierCard pill="high_risk" n="277" what="requirements, 23 articles" href="/assess">
+              The full obligation regime plus the Article 27 fundamental rights impact
+              assessment trigger, decided by rule.
+            </TierCard>
+            <TierCard pill="prohibited" n="0" what="requirements, by design" href="/assess">
+              No backlog can make a prohibited practice permissible. The answer is the Article
+              5 citation and a full stop.
+            </TierCard>
+            <TierCard pill="requires_human_review" n="0.5" what="confidence, on purpose" dashed href="/assess">
+              When a decisive fact is unknown, the system abstains and names it, rather than
+              guessing an exculpating fact into existence.
+            </TierCard>
+            <Link
+              href="/agent"
+              className="grid place-items-center rounded-lg border border-border bg-sidebar p-5 text-center shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+            >
+              <div>
+                <div className="text-sm font-semibold">Prefer to watch?</div>
+                <p className="mt-1.5 text-[13.5px] text-muted-foreground">
+                  Step through recorded MCP sessions for all four tiers, raw request and
+                  envelope side by side.
+                </p>
+                <span className="mt-2.5 inline-block text-[13px] font-medium">Agent replay &#8594;</span>
+              </div>
+            </Link>
+          </div>
+        </section>
+
+        {/* how it works */}
+        <section className="mx-auto max-w-6xl px-6 pt-18">
+          <div className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">Trust, by construction</div>
+          <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight">
+            Models propose. Judges gate. Rules decide.
+          </h2>
+          <div className="mt-7 grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+              <h3 className="font-semibold">The pipeline</h3>
+              <ol className="mt-3 grid list-decimal gap-2 pl-5 text-sm text-muted-foreground">
+                <li>
+                  <b className="font-medium text-foreground">Deterministic mirror.</b> The legal
+                  structure is parsed from frozen, checksummed official manifestations. No model
+                  touches it.
                 </li>
-              ))}
-            </ul>
+                <li>
+                  <b className="font-medium text-foreground">Proposed, then judged.</b> Models
+                  extract obligations and ethics mappings as proposals; an independent judge
+                  accepts, rejects, or routes each to a disclosed human review queue.
+                </li>
+                <li>
+                  <b className="font-medium text-foreground">Rules decide.</b> A deterministic
+                  ladder assigns the risk tier from structured facts. Unknown is never treated
+                  as false: the system abstains and names what is missing.
+                </li>
+                <li>
+                  <b className="font-medium text-foreground">Everything cited.</b> Every answer
+                  carries a calibrated status, confidence, source spans, and a judge verdict.
+                </li>
+              </ol>
+              <Link href="/how-it-works" className="mt-4 inline-block text-sm font-medium underline underline-offset-2">
+                The full pipeline, with diagrams &#8594;
+              </Link>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+              <h3 className="font-semibold">The evidence subgraph</h3>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/landing/evidence-graph.png"
+                alt="The evidence subgraph: requirement nodes connected to HLEG ethics principles by judged alignment edges"
+                className="mt-3 w-full rounded-sm border border-border"
+                loading="lazy"
+              />
+              <p className="mt-2.5 text-[13px] text-muted-foreground">
+                Ethics mappings are reified, scored, judged assertions. Rejected ones stay
+                visible as rejected; nothing is laundered into fact.{" "}
+                <Link href="/review" className="font-medium text-foreground underline underline-offset-2">
+                  The review queue is public.
+                </Link>
+              </p>
+            </div>
           </div>
-        </Card>
+        </section>
 
-      </div>
+        {/* numbers */}
+        <section className="mx-auto max-w-6xl px-6 pt-18">
+          <div className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">Measured, not promised</div>
+          <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight">
+            Numbers we publish because they held
+          </h2>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["0 / 345", "label flips across repeat runs", "plain LLM: 43, vector RAG: 51"],
+              ["434", "obligations judged", "339 accepted, 54 rejected, 41 held for human review"],
+              ["620", "ethics alignments judged", "475 accepted, 145 rejected, all disclosed"],
+              ["15", "frozen source files, checksummed", "every quote resolves to bytes and a sha256"],
+            ].map(([n, l, q]) => (
+              <div key={l} className="rounded-lg border border-border bg-card px-5 py-4 shadow-sm">
+                <div className="text-[26px] font-semibold tracking-tight tabular-nums">{n}</div>
+                <div className="mt-0.5 text-[13.5px]">{l}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{q}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 max-w-[70ch] text-sm text-muted-foreground">
+            Live counts on the{" "}
+            <Link href="/coverage" className="font-medium text-foreground underline underline-offset-2">
+              coverage page
+            </Link>{" "}
+            are served from the published build, never typed into the page; the{" "}
+            <Link href="/review" className="font-medium text-foreground underline underline-offset-2">
+              review queue
+            </Link>{" "}
+            lists everything the judges did not accept.
+          </p>
+        </section>
+
+        {/* get started */}
+        <section className="mx-auto max-w-6xl px-6 pb-4 pt-18">
+          <div className="text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">Get started</div>
+          <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight">
+            Wire it into your agent in one config block
+          </h2>
+          <p className="mt-3 max-w-[62ch] text-muted-foreground">
+            Classification, requirements, explanations, ethics traces, and the traceability
+            matrix are deterministic and free: no API key needed. Keys unlock the two
+            generative tools, both gated by an independent judge.
+          </p>
+          <pre className="mt-5 overflow-x-auto rounded-lg bg-primary p-5 font-mono text-[13px] leading-relaxed text-primary-foreground/85">
+{`// .mcp.json in your project
+{
+  "mcpServers": {
+    "tere4ai": { "command": "python", "args": ["-m", "tere4ai.mcp_server.server"] }
+  }
+}
+
+# then, from your agent
+classify_ai_system(features)      # deterministic tier + rule trace + FRIA
+get_applicable_requirements(...)  # judge-accepted obligations, cited
+trace_implementation(...)         # which obligations your code claims
+
+# and when you are done
+python -m tere4ai.report session.jsonl -o report.html`}
+          </pre>
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            <a href={GITHUB} className="rounded-md bg-primary px-4.5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+              Read the code
+            </a>
+            <Link href="/assess" className="rounded-md border border-border bg-background px-4.5 py-2.5 text-sm font-medium hover:bg-sidebar">
+              Or just click through the demo
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className="mt-20 border-t border-border bg-sidebar">
+        <div className="mx-auto grid max-w-6xl gap-2.5 px-6 py-8 text-[13.5px] text-muted-foreground">
+          <p>
+            TERE4AI is research software from{" "}
+            <a href="https://www.tuni.fi/en" className="font-medium text-foreground hover:underline">
+              Tampere University
+            </a>
+            , published at REFSQ 2026 (
+            <a
+              href={`${GITHUB}/releases/tag/v1.0-refsq2026`}
+              className="font-medium text-foreground hover:underline"
+            >
+              v1 release and citation
+            </a>
+            ).
+          </p>
+          <p>
+            Code AGPL-3.0-or-later. Graph metadata CC BY 4.0. EU legal texts under EU reuse
+            terms, quoted byte-exact and never altered.
+          </p>
+          <p>{NOTICE}</p>
+        </div>
+      </footer>
     </div>
   );
 }
