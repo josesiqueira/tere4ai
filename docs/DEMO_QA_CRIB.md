@@ -159,10 +159,25 @@ the browser. Say that rather than implying a verification that is not there.
 
 ## If something breaks
 
-Servers: facade `TERE4AI_DEMO_SESSIONS_DIR=tests/fixtures/demo_sessions
-.venv/bin/python -m uvicorn --factory tere4ai.http_facade.app:create_app
---port 8008`, then `cd web && npm run dev -- --port 3111`. Never run
-`npm run build` while the dev server is running.
+Servers, in two terminals from the repo root:
+
+```
+TERE4AI_DEMO_SESSIONS_DIR=tests/fixtures/demo_sessions .venv/bin/python -m uvicorn --factory tere4ai.http_facade.app:create_app --port 8008
+cd web && npm run build && npm run start -- --port 3111
+```
+
+Use the production build for a live room, not `npm run dev`. Dev mode
+compiles each route on first visit, so the first click to a page stalls for
+seconds in front of the audience, and it paints a Next.js dev-tools badge in
+the corner of the projected screen. The production build serves every page in
+under 15 ms with no badge. Never run `npm run build` while a dev server is
+running on the same directory: it clobbers `.next` and the running server
+starts 404ing its own assets.
+
+Theme: the UI follows the operating system via `prefers-color-scheme` and has
+no in-app toggle, so set the OS to light or dark BEFORE presenting. Both
+render correctly, including the evidence graph, but you cannot switch once
+you are on stage.
 
 Paid buttons (Elicit, Generate backlog, Evaluate evidence) need keys in
 .env. Without them they show an honest "needs model API keys" notice, which

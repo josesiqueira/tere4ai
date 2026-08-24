@@ -34,7 +34,11 @@ TERE4AI_DEMO_SESSIONS_DIR=tests/fixtures/demo_sessions \
                                               # automatically via the predev script, so this
                                               # step is a formality once that is wired up, but
                                               # is written out here for a fresh clone.
-cd web && npm run dev -- -p 3111
+cd web && npm run dev -- -p 3111    # iterating on the demo
+# For a live room prefer the production build: no dev-tools badge in the
+# corner, no compile-on-first-visit stall when you click to a page.
+#   cd web && npm run build && npm run start -- --port 3111
+# Never run the build while a dev server is running on the same directory.
 ```
 
 `TERE4AI_DEMO_SESSIONS_DIR` enables the agent replay page (`/agent`); without
