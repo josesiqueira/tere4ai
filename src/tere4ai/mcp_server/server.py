@@ -44,6 +44,7 @@ from tere4ai.mcp_server import requirements as requirements_rules
 from tere4ai.mcp_server import spans as spans_rules
 from tere4ai.mcp_server import tools
 from tere4ai.mcp_server import trace as trace_rules
+from tere4ai.mcp_server import trace_code as trace_code_rules
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DUMP_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -305,6 +306,45 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     if dump is None:
         return _dump_missing_envelope()
     return classify_rules.classify_ai_system(features, dump)
+
+
+
+@mcp.tool(annotations=_READ_ONLY)
+def trace_implementation(
+    classification: dict[str, Any],
+    tags: list[dict[str, Any]],
+    actor: str | None = None,
+) -> dict[str, Any]:
+    """Requirement-to-code traceability matrix for a classified system.
+
+    classification is the classify_ai_system envelope (or bare answer). tags
+    are `@implements: <norm-id>` records scanned CLIENT-SIDE from the
+    consumer project (reference scanner: python -m tere4ai.trace_scan <dir>),
+    each {"norm_id", "path", "line"}; this server never reads a consumer
+    filesystem. Returns one row per applicable judge-accepted norm with its
+    source span, accepted HLEG alignments, claiming code locations, and
+    trace_status traced or untraced, plus invalid_tags for any tag citing an
+    unknown or non-accepted norm id (review-queue norms never count). A trace
+    is a developer claim, not evidence; it never raises an evidence status.
+    Deterministic and free."""
+    dump = _read_dump()
+    if dump is None:
+        return _dump_missing_envelope()
+    norms_payload = _read_json(NORMS_PATH)
+    if norms_payload is None:
+        return _norms_missing_envelope()
+    alignments_payload = _read_json(ALIGNMENTS_PATH)
+    if alignments_payload is None:
+        return _alignments_missing_envelope()
+    if not isinstance(classification, dict):
+        return _invalid_input_envelope(
+            "'classification' must be the classify_ai_system envelope or its "
+            f"answer object; got {type(classification).__name__}",
+            dump,
+        )
+    return trace_code_rules.trace_implementation(
+        classification, tags, norms_payload, alignments_payload, dump, actor=actor
+    )
 
 
 @mcp.tool(annotations=_READ_ONLY)

@@ -48,6 +48,9 @@ TOOL_SCOPES: dict[str, str] = {
     "trace_alignment": "read_graph",
     "resolve_span": "read_graph",
     "get_applicable_requirements": "read_graph",
+    # DEC-15: free deterministic join of client-scanned tags against the
+    # graph; reads only published dumps, so it shares the read_graph scope.
+    "trace_implementation": "read_graph",
     "classify_ai_system": "classify",
     "evaluate_project_evidence": "evidence_paid",
     "evaluate_project_evidence_batch": "evidence_paid",

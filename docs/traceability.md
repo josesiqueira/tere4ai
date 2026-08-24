@@ -19,3 +19,4 @@
 | DEC-12 | REF-01, REF-02, REF-04 | src/tere4ai/ingest/sources.py | tests/meta/test_traceability.py, tests/unit/test_sources.py | implemented |
 | DEC-13 | REF-17, REF-16 | src/tere4ai/elicit_features/elicitor.py, src/tere4ai/mcp_server/elicit.py, scripts/elicit_benchmark_features.py | tests/unit/test_elicit_envelope.py | implemented |
 | DEC-14 | REF-01, REF-30 | src/tere4ai/mcp_server/fria.py | tests/unit/test_envelope_contract.py, tests/unit/test_fria.py | implemented |
+| DEC-15 | ADD-14, ADD-15 | src/tere4ai/mcp_server/trace_code.py, src/tere4ai/trace_scan/__init__.py, src/tere4ai/trace_scan/__main__.py | tests/unit/test_trace_code.py | implemented |

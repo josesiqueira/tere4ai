@@ -493,6 +493,26 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   carry the fria block and get_applicable_requirements passes it through;
   tests/unit/test_fria.py.
 
+- DEC-15: requirement-to-code traceability for consumer projects, stored in
+  the code and generated on demand, never hand-maintained (added 2026-08-24).
+  Engineering MUST (traceability and no-silent-degradation, Section 13; the
+  same generated-record rule as Section 17); corroborated by ADD-14 (the
+  traceability problem) and ADD-15 (trace links decay unless maintained with
+  the artifact they describe).
+  Defense: a consumer marks code with `@implements: <norm-id>` tags; the link
+  lives in the code so it moves with refactors and shows in diffs, and the
+  requirement-to-code matrix is generated per call by joining tags against
+  the graph, so it cannot drift. Scanning is client-side (the server never
+  reads a consumer filesystem, Section 8); the server validates every cited
+  id against the judge-accepted set, so tags citing review-queue, rejected,
+  or invented ids are reported and never joined, preserving the review
+  queue's exclusion guarantee. A trace is a developer claim, not evidence:
+  rows say traced or untraced, never an evidence status, and the evidence
+  path remains evaluate_project_evidence (DEC-08 ladder).
+  verify: src/tere4ai/mcp_server/trace_code.py and src/tere4ai/trace_scan/
+  (no model imports); trace_implementation MCP tool in server.py;
+  tests/unit/test_trace_code.py.
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)
