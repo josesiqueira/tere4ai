@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TERE4AI: the EU AI Act as a knowledge graph your coding agent can call</title>
+<meta name="description" content="An open-source MCP server that gives coding agents deterministic EU AI Act risk classification, requirements traced to byte-exact legal text, judged HLEG ethics alignments, and requirement-to-code traceability.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Clinical blueprint system per docs/DESIGN.md: achromatic, radius as
+   hierarchy (18px interactive, 24px containers), whisper-quiet elevation.
+   One chromatic accent (ember) reserved for the destructive family; on this
+   page it appears exactly once, on the word prohibited's rule chip? No:
+   nowhere. States are never grades. */
+:root {
+  --paper: #ffffff;
+  --surface-alt: #fafafa;
+  --canvas: #f5f5f5;
+  --hairline: #e5e5e5;
+  --ink: #0a0a0a;
+  --ink-soft: #171717;
+  --mid: #626262; /* one step darker than the reference #737373 for WCAG 4.5:1 */
+  --sans: "Geist", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r-int: 18px;
+  --r-box: 24px;
+  --shadow: 0 0 0 1px rgba(10,10,10,.04), 0 1px 3px rgba(0,0,0,.08), 0 1px 2px -1px rgba(0,0,0,.08);
+}
+* { box-sizing: border-box; margin: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01" 1, "cv11" 1;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+a { color: inherit; }
+
+/* ---------- header ---------- */
+header.site {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--canvas) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--hairline);
+}
+header.site .wrap { display: flex; align-items: center; gap: 12px; height: 60px; }
+.mark {
+  width: 30px; height: 30px; border-radius: 10px;
+  background: var(--ink); color: var(--surface-alt);
+  display: grid; place-items: center;
+  font: 600 12px/1 var(--sans);
+}
+.brand { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+nav.top { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+nav.top a {
+  text-decoration: none; font-size: 14px; font-weight: 500; color: var(--mid);
+  padding: 7px 12px; border-radius: var(--r-int);
+}
+nav.top a:hover { background: var(--paper); color: var(--ink); }
+nav.top a.cta { background: var(--ink); color: var(--surface-alt); }
+nav.top a.cta:hover { background: var(--ink-soft); color: var(--surface-alt); }
+
+/* ---------- hero ---------- */
+.hero { padding: 88px 0 40px; }
+.hero h1 {
+  font-size: clamp(34px, 5.2vw, 56px);
+  font-weight: 600; line-height: 1.08; letter-spacing: -0.035em;
+  max-width: 17ch; text-wrap: balance;
+}
+.hero p.sub {
+  margin-top: 20px; max-width: 62ch;
+  font-size: 18px; line-height: 1.56; color: var(--mid);
+}
+.hero p.sub strong { color: var(--ink); font-weight: 500; }
+.hero .ctas { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 500; text-decoration: none;
+  padding: 10px 18px; border-radius: var(--r-int);
+}
+.btn.primary { background: var(--ink); color: var(--surface-alt); }
+.btn.primary:hover { background: var(--ink-soft); }
+.btn.outline { border: 1px solid var(--hairline); background: var(--paper); }
+.btn.outline:hover { background: var(--surface-alt); }
+.hero .notice {
+  margin-top: 36px; max-width: 720px;
+  border: 1px solid var(--hairline); border-radius: var(--r-box);
+  background: var(--paper); padding: 14px 18px;
+  font-size: 13.5px; color: var(--mid);
+}
+.hero .notice b {
+  display: block; font: 500 11px/1 var(--sans); letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--mid); margin-bottom: 6px;
+}
+
+/* ---------- the chain (hero visual) ---------- */
+.chain { padding: 28px 0 8px; }
+.chain-card {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--r-box); box-shadow: var(--shadow);
+  padding: 24px; overflow-x: auto;
+}
+.chain-title { font: 500 11px/1 var(--sans); letter-spacing: 0.05em; text-transform: uppercase; color: var(--mid); margin-bottom: 16px; }
+.chain-flow { display: flex; align-items: stretch; gap: 0; min-width: 900px; }
+.link-box { flex: 1 1 0; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface-alt); padding: 12px 14px; }
+.link-box .lvl { font: 500 10.5px/1 var(--sans); letter-spacing: 0.05em; text-transform: uppercase; color: var(--mid); }
+.link-box .val { font: 400 12.5px/1.5 var(--mono); margin-top: 6px; overflow-wrap: anywhere; }
+.link-box .val em { font-style: normal; color: var(--mid); }
+.link-sep { display: grid; place-items: center; padding: 0 8px; color: var(--mid); font-size: 15px; }
+.chain-caption { margin-top: 14px; font-size: 13px; color: var(--mid); }
+
+/* ---------- five second answers ---------- */
+section { padding: 72px 0 0; }
+.kicker { font: 500 12px/1 var(--sans); letter-spacing: 0.05em; text-transform: uppercase; color: var(--mid); }
+h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 600; letter-spacing: -0.025em; margin-top: 10px; text-wrap: balance; }
+.lede { margin-top: 12px; max-width: 62ch; color: var(--mid); }
+.qa { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.qa .card {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--r-box); box-shadow: var(--shadow); padding: 22px;
+}
+.qa h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.qa p { margin-top: 8px; font-size: 14.5px; color: var(--mid); }
+.qa p code, .prose code {
+  font: 400 0.86em var(--mono); background: var(--canvas);
+  border: 1px solid var(--hairline); border-radius: 6px; padding: 1px 5px;
+}
+
+/* ---------- how it works ---------- */
+.split { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 880px) { .split { grid-template-columns: 1fr; } }
+.panel {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--r-box); box-shadow: var(--shadow); padding: 22px;
+}
+.panel h3 { font-size: 16px; font-weight: 600; }
+.panel ol { margin: 12px 0 0 18px; font-size: 14.5px; color: var(--mid); display: grid; gap: 8px; }
+.panel ol b { color: var(--ink); font-weight: 500; }
+.panel img { width: 100%; height: auto; border: 1px solid var(--hairline); border-radius: 10px; margin-top: 14px; background: #fff; }
+
+/* ---------- tiers ---------- */
+.tiers { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.tier {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--r-box); box-shadow: var(--shadow); padding: 20px;
+}
+.tier .pill {
+  display: inline-block; font: 500 12px/1 var(--mono);
+  border: 1px solid var(--hairline); border-radius: var(--r-int);
+  padding: 4px 10px; background: var(--canvas);
+}
+.tier .n { margin-top: 14px; font-size: 30px; font-weight: 600; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
+.tier .what { font-size: 13px; color: var(--mid); }
+.tier p { margin-top: 10px; font-size: 13.5px; color: var(--mid); }
+.tier.abstain { border-style: dashed; }
+
+/* ---------- shots ---------- */
+.shots { margin-top: 28px; display: grid; grid-template-columns: 3fr 2fr; gap: 12px; }
+@media (max-width: 880px) { .shots { grid-template-columns: 1fr; } }
+.shot { background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--r-box); box-shadow: var(--shadow); overflow: hidden; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { padding: 12px 18px; font-size: 13px; color: var(--mid); border-top: 1px solid var(--hairline); }
+
+/* ---------- numbers ---------- */
+.figures { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.fig { border: 1px solid var(--hairline); border-radius: var(--r-box); background: var(--paper); padding: 18px 20px; }
+.fig .n { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.fig .l { margin-top: 4px; font-size: 13.5px; }
+.fig .q { margin-top: 4px; font-size: 12px; color: var(--mid); }
+
+/* ---------- code ---------- */
+.code {
+  margin-top: 16px; background: var(--ink); color: #d6d6d6;
+  border-radius: var(--r-box); padding: 20px 22px; overflow-x: auto;
+  font: 400 13px/1.7 var(--mono);
+}
+.code .c { color: #8a8a8a; }
+.code .k { color: #fafafa; font-weight: 500; }
+
+/* ---------- what it is not ---------- */
+.not { margin-top: 28px; border: 1px solid var(--hairline); border-radius: var(--r-box); background: var(--paper); box-shadow: var(--shadow); padding: 24px; }
+.not ul { margin: 12px 0 0 18px; display: grid; gap: 8px; font-size: 14.5px; color: var(--mid); }
+.not ul b { color: var(--ink); font-weight: 500; }
+
+/* ---------- footer ---------- */
+footer.site { margin-top: 88px; border-top: 1px solid var(--hairline); background: var(--surface-alt); }
+footer.site .wrap { padding: 32px 24px 44px; display: grid; gap: 10px; font-size: 13.5px; color: var(--mid); }
+footer.site a { color: var(--ink); text-decoration: none; }
+footer.site a:hover { text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <span class="mark" aria-hidden="true">T4</span>
+    <span class="brand">TERE4AI</span>
+    <nav class="top" aria-label="Main">
+      <a href="#what">What it is</a>
+      <a href="#how">How it works</a>
+      <a href="#tiers">What you get</a>
+      <a href="#start">Get started</a>
+      <a class="cta" href="https://github.com/josesiqueira/tere4ai">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>The EU AI Act, as a knowledge graph your coding agent can call.</h1>
+    <p class="sub">
+      TERE4AI is an open-source <strong>MCP server</strong> for teams building AI
+      systems under Regulation (EU) 2024/1689. A coding agent asks what the law
+      requires of the system it is building, and gets back a
+      <strong>deterministic risk classification</strong>, engineering requirements
+      traced to <strong>byte-exact legal text</strong>, judged ethics alignments,
+      and <strong>requirement-to-code traceability</strong>. Models propose;
+      independent judges gate; a rule ladder alone decides.
+    </p>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/josesiqueira/tere4ai">View on GitHub</a>
+      <a class="btn outline" href="#start">Wire it into an agent</a>
+    </div>
+    <div class="notice">
+      <b>Notice</b>
+      TERE4AI provides engineering and documentation support. It does not certify
+      EU AI Act compliance and does not replace legal review, conformity
+      assessment, or competent-authority interpretation.
+    </div>
+  </div>
+
+  <div class="wrap chain" aria-label="The traceability chain">
+    <div class="chain-card">
+      <div class="chain-title">One unbroken chain, every answer</div>
+      <div class="chain-flow">
+        <div class="link-box">
+          <div class="lvl">Frozen law</div>
+          <div class="val">span:009.001 <em>bytes 727679 to 727924, sha256 3b753e...</em></div>
+        </div>
+        <div class="link-sep" aria-hidden="true">&#8594;</div>
+        <div class="link-box">
+          <div class="lvl">Judged norm</div>
+          <div class="val">norm:eu-ai-act:article-9:paragraph-1:n1 <em>judge: accepted</em></div>
+        </div>
+        <div class="link-sep" aria-hidden="true">&#8594;</div>
+        <div class="link-box">
+          <div class="lvl">Requirement</div>
+          <div class="val">provider shall establish a risk management system</div>
+        </div>
+        <div class="link-sep" aria-hidden="true">&#8594;</div>
+        <div class="link-box">
+          <div class="lvl">Ethics</div>
+          <div class="val">hleg:technical-robustness <em>score 0.798, accepted</em></div>
+        </div>
+        <div class="link-sep" aria-hidden="true">&#8594;</div>
+        <div class="link-box">
+          <div class="lvl">Your code</div>
+          <div class="val">@implements: norm:...article-9... <em>scoring.py:41</em></div>
+        </div>
+      </div>
+      <p class="chain-caption">
+        Every hop is machine-checkable in both directions: from a line of code back
+        to the exact bytes of the Official Journal snapshot, and from an obligation
+        forward to the code that claims to implement it.
+      </p>
+    </div>
+  </div>
+
+  <section id="what" class="wrap">
+    <div class="kicker">Five seconds</div>
+    <h2>What is this, who is it for, what does it do</h2>
+    <div class="qa">
+      <div class="card">
+        <h3>What it is</h3>
+        <p>
+          A knowledge graph of the EU AI Act (113 articles, 180 recitals, 13
+          annexes, parsed deterministically from checksummed official sources)
+          served through the Model Context Protocol, so AI coding assistants can
+          query the law the way they query a database.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Who it is for</h3>
+        <p>
+          Engineers and coding agents building AI systems that must live under
+          the Act, and requirements-engineering researchers who need every claim
+          traceable. If your agent speaks MCP, it can use TERE4AI today.
+        </p>
+      </div>
+      <div class="card">
+        <h3>What it does</h3>
+        <p>
+          Classifies a system's risk tier by deterministic rules, serves the
+          judge-accepted obligations that bind it with citations, maps them to
+          the HLEG trustworthy-AI principles, checks which obligations your code
+          claims to implement, and generates an audit-grade report.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="wrap">
+    <div class="kicker">Trust, by construction</div>
+    <h2>Models propose. Judges gate. Rules decide.</h2>
+    <p class="lede">
+      The reason to trust the output is not model quality, it is architecture:
+      no language model can decide a risk classification or push an unreviewed
+      claim into the graph.
+    </p>
+    <div class="split">
+      <div class="panel">
+        <h3>The pipeline</h3>
+        <ol>
+          <li><b>Deterministic mirror.</b> The legal structure is parsed from frozen, checksummed official manifestations. No model touches it.</li>
+          <li><b>Proposed, then judged.</b> Models extract obligations and ethics mappings as proposals; an independent judge model accepts, rejects, or routes each to a human review queue that is disclosed, never hidden.</li>
+          <li><b>Rules decide.</b> A deterministic ladder assigns the risk tier from structured facts. Unknown facts are never treated as false: the system abstains and names what is missing.</li>
+          <li><b>Everything cited.</b> Every answer carries its status from a calibrated seven-value vocabulary, its confidence, its source spans, and a judge verdict.</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h3>Three independent judges</h3>
+        <img src="assets/judge_diagram.svg" alt="Diagram of the three judges: a build-time extraction judge over proposed norms, a build-time mapping judge over ethics alignments, and a runtime grounding judge over generated requirements and evidence evaluations" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <section id="tiers" class="wrap">
+    <div class="kicker">What you get</div>
+    <h2>Four honest answers, one per risk tier</h2>
+    <p class="lede">
+      The same question, "what does the Act require of this system", produces four
+      very different and equally useful answers. Zero can be the answer.
+    </p>
+    <div class="tiers">
+      <div class="tier">
+        <span class="pill">minimal_or_none</span>
+        <div class="n">0</div>
+        <div class="what">requirements</div>
+        <p>A citable, rule-traced permission to not build a compliance program. Delete one known fact and the system refuses to say it.</p>
+      </div>
+      <div class="tier">
+        <span class="pill">transparency_only</span>
+        <div class="n">13</div>
+        <div class="what">requirements, Article 50</div>
+        <p>The disclosure and marking duties, each traced to its sentence of the Act, ready to close in code and tag.</p>
+      </div>
+      <div class="tier">
+        <span class="pill">high_risk</span>
+        <div class="n">277</div>
+        <div class="what">requirements, 23 articles</div>
+        <p>The full obligation regime plus the Article 27 fundamental rights impact assessment trigger, decided by rule.</p>
+      </div>
+      <div class="tier">
+        <span class="pill">prohibited</span>
+        <div class="n">0</div>
+        <div class="what">requirements, by design</div>
+        <p>No backlog can make a prohibited practice permissible. The answer is the Article 5 citation and a full stop.</p>
+      </div>
+      <div class="tier abstain">
+        <span class="pill">requires_human_review</span>
+        <div class="n">0.5</div>
+        <div class="what">confidence, on purpose</div>
+        <p>When a decisive fact is unknown, the system abstains and names it, rather than guessing an exculpating fact into existence.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="kicker">Seen, not asserted</div>
+    <h2>The same envelope, three surfaces</h2>
+    <div class="shots">
+      <figure class="shot">
+        <img src="assets/assess.png" alt="The assess page showing a high-risk classification with its fired rule, citations, and the Article 27 FRIA card" loading="lazy">
+        <figcaption>A classification is a rule trace with citations, never a verdict to take on faith. The demo UI, the MCP envelope, and the generated report all render the same data.</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/evidence-graph.png" alt="The evidence subgraph: requirement nodes connected to HLEG ethics principles by judged alignment edges" loading="lazy">
+        <figcaption>Ethics mappings are reified, scored, judged assertions. Rejected ones stay visible as rejected; nothing is laundered into fact.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="kicker">Measured, not promised</div>
+    <h2>Numbers we publish because they held</h2>
+    <div class="figures">
+      <div class="fig"><div class="n">0 / 345</div><div class="l">label flips across repeat runs</div><div class="q">plain LLM: 43, vector RAG: 51</div></div>
+      <div class="fig"><div class="n">434</div><div class="l">obligations judged</div><div class="q">339 accepted, 54 rejected, 41 held for human review</div></div>
+      <div class="fig"><div class="n">620</div><div class="l">ethics alignments judged</div><div class="q">475 accepted, 145 rejected, all disclosed</div></div>
+      <div class="fig"><div class="n">15</div><div class="l">frozen source files, checksummed</div><div class="q">every quote resolves to bytes and a sha256</div></div>
+    </div>
+    <p class="lede" style="margin-top:16px">
+      The review queue is a feature, not an embarrassment: what the judges did not
+      accept is excluded from every answer and listed for a human, end to end,
+      down to refusing an <code>@implements</code> tag that cites an unadjudicated norm.
+    </p>
+  </section>
+
+  <section class="wrap">
+    <div class="kicker">Scope, stated plainly</div>
+    <h2>What TERE4AI is not</h2>
+    <div class="not">
+      <ul>
+        <li><b>Not a compliance checker.</b> It supports engineering and documentation. Its status vocabulary structurally cannot say your system complies.</li>
+        <li><b>Not legal advice.</b> Seek professional legal review and follow competent-authority interpretation; the notice above ships on every surface, report footers included.</li>
+        <li><b>Not expert-validated ethics.</b> The EU-to-HLEG mappings are model-generated and model-judged; every rendering of them says so.</li>
+        <li><b>Not finished law.</b> Sources carry legal status, including the Digital Omnibus amendments and their dates, as data on every answer.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="start" class="wrap">
+    <div class="kicker">Get started</div>
+    <h2>Wire it into your agent in one config block</h2>
+    <p class="lede">
+      Classification, requirements, explanations, ethics traces, and the
+      traceability matrix are deterministic and free: no API key needed. Keys
+      unlock the two generative tools (control backlogs and evidence evaluation),
+      both gated by an independent judge.
+    </p>
+    <div class="code"><span class="c">// .mcp.json in your project</span>
+{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"tere4ai"</span>: {
+      <span class="k">"command"</span>: "python",
+      <span class="k">"args"</span>: ["-m", "tere4ai.mcp_server.server"]
+    }
+  }
+}
+
+<span class="c"># then, from your agent</span>
+classify_ai_system(features)        <span class="c"># deterministic tier + rule trace + FRIA</span>
+get_applicable_requirements(...)    <span class="c"># judge-accepted obligations, cited</span>
+trace_implementation(...)           <span class="c"># which obligations your code claims, and which have nothing</span>
+
+<span class="c"># and when you are done</span>
+python -m tere4ai.report session.jsonl -o report.html</div>
+    <div class="ctas" style="margin-top:20px">
+      <a class="btn primary" href="https://github.com/josesiqueira/tere4ai">Read the code</a>
+      <a class="btn outline" href="https://github.com/josesiqueira/tere4ai#readme">Run the demo</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div>
+      TERE4AI is research software from
+      <a href="https://www.tuni.fi/en">Tampere University</a>, published at REFSQ 2026
+      (<a href="https://github.com/josesiqueira/tere4ai/releases/tag/v1.0-refsq2026">v1 release and citation</a>).
+    </div>
+    <div>
+      Code AGPL-3.0-or-later. Graph metadata CC BY 4.0. EU legal texts under EU
+      reuse terms, quoted byte-exact and never altered.
+    </div>
+    <div>
+      TERE4AI provides engineering and documentation support. It does not certify
+      EU AI Act compliance and does not replace legal review, conformity
+      assessment, or competent-authority interpretation.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
