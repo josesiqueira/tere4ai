@@ -402,16 +402,16 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
    style for every status, no checkmark iconography): used by the
    requirements board, where satisfied_with_evidence must read exactly like
    every other column per the calibrated-vocabulary discipline. */
-function StatusBadge({ status, neutral }: { status: string; neutral?: boolean }) {
-  const green = !neutral && status === "satisfied_with_evidence";
-  const red = !neutral && status === "rejected_as_unsupported";
-  const cls = green
-    ? "text-green-600 dark:text-green-400 border-green-600/40"
-    : red
-      ? "text-destructive border-destructive/40"
-      : "text-muted-foreground border-border";
+function StatusBadge({ status }: { status: string; neutral?: boolean }) {
+  /* Calibrated statuses are states, not grades: one neutral badge for all
+     seven values (docs/DESIGN.md). requires_human_review alone gets a dashed
+     border, flagging pending human action rather than valence. */
+  const cls =
+    status === "requires_human_review"
+      ? "text-foreground border-border border-dashed"
+      : "text-foreground border-border";
   return (
-    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
+    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}>
       {status}
     </span>
   );
@@ -448,7 +448,7 @@ function ApiErrorMessage({ message }: { message: string }) {
    the moment the user edits the control it sits on. */
 function ElicitedChip() {
   return (
-    <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+    <span className="rounded-full border border-dashed border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
       elicited
     </span>
   );
@@ -1394,7 +1394,7 @@ export default function AssessPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Assess an AI system</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Assess an AI system</h1>
           <p className="text-sm text-muted-foreground">
             M3 demo flow: deterministic classification, judge-accepted requirements with
             citations, evidence evaluation, and a control backlog. All calls go through the
@@ -1462,7 +1462,7 @@ export default function AssessPage() {
                 </span>
               </div>
               {elicitPanel && (
-                <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                <div className="space-y-2 rounded-md border border-dashed border-border bg-muted/50 p-3">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       {elicitPanel.status && <StatusBadge status={elicitPanel.status} />}
@@ -1499,7 +1499,7 @@ export default function AssessPage() {
                       </ul>
                     </div>
                   )}
-                  <p className="text-xs font-medium border-t border-amber-500/30 pt-2">
+                  <p className="text-xs font-medium border-t border-border pt-2">
                     Elicited facts are proposals: confirm or edit them, the deterministic
                     ladder alone decides.
                   </p>
@@ -1623,7 +1623,7 @@ export default function AssessPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <span
-                  className={`text-2xl font-bold ${
+                  className={`text-2xl font-semibold ${
                     risk === "prohibited" ? "text-destructive" : ""
                   }`}
                 >
@@ -1726,9 +1726,9 @@ export default function AssessPage() {
               {requirements.answer.provisional === true && (
                 <div
                   role="note"
-                  className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3"
+                  className="rounded-md border border-dashed border-border bg-muted/50 p-3"
                 >
-                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                  <p className="text-sm font-medium text-foreground">
                     Provisional requirements
                   </p>
                   <p className="mt-1 text-sm">

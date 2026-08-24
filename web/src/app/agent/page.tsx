@@ -67,13 +67,12 @@ const ICON_BUTTON_SM =
    status (a recorded envelope from a future schema version) falls back to
    the muted style rather than guessing. */
 function StatusBadge({ status }: { status: string }) {
-  const green = status === "satisfied_with_evidence";
-  const red = status === "rejected_as_unsupported";
-  const cls = green
-    ? "text-green-600 dark:text-green-400 border-green-600/40"
-    : red
-      ? "text-destructive border-destructive/40"
-      : "text-muted-foreground border-border";
+  /* States, not grades: one neutral badge; dashed only for the value that
+     asks for a human (docs/DESIGN.md). */
+  const cls =
+    status === "requires_human_review"
+      ? "text-foreground border-border border-dashed"
+      : "text-foreground border-border";
   return (
     <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
       {status}
@@ -349,7 +348,7 @@ export default function AgentPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-4xl space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Agent</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Agent</h1>
           <p className="text-sm text-muted-foreground">
             Step through recorded MCP exchanges from real example development. Each step
             shows the raw request and envelope exactly as recorded on the left, and a

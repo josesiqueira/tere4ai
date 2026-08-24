@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-4xl space-y-8">
         <header className="space-y-2">
-          <h1 className="text-2xl font-bold">How it works</h1>
+          <h1 className="text-2xl font-semibold">How it works</h1>
           <p className="text-sm leading-6 text-muted-foreground">
             TERE4AI answers questions about the EU AI Act with evidence, not
             opinions. A deterministic parser mirrors the frozen legal text

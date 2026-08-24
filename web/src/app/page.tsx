@@ -75,7 +75,7 @@ function SetupNotice() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Demo data not generated yet
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -111,7 +111,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
         ok
-          ? "text-green-600 dark:text-green-400 border-green-600/40"
+          ? "text-foreground border-border"
           : "text-destructive border-destructive/40"
       }`}
     >
@@ -210,7 +210,7 @@ export default function Page() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             EU AI Act structural mirror
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -250,7 +250,7 @@ export default function Page() {
                   <td className="py-1.5 font-mono">{act}</td>
                   <td className="py-1.5">
                     {act >= exp ? (
-                      <span className="text-green-600 dark:text-green-400">pass</span>
+                      <span className="text-foreground">pass</span>
                     ) : (
                       <span className="text-destructive">fail</span>
                     )}
@@ -300,8 +300,8 @@ export default function Page() {
                 <span
                   className={`mt-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                     s.legal_status === "in_force"
-                      ? "text-green-600 dark:text-green-400 border-green-600/40"
-                      : "text-muted-foreground border-border"
+                      ? "text-foreground border-border"
+                      : "text-muted-foreground border-dashed border-border"
                   }`}
                 >
                   {s.legal_status}

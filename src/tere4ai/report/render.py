@@ -89,15 +89,15 @@ _CSS = """
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: oklch(0.92 0.004 286.32);
-    --ink-muted: oklch(0.68 0.012 286);
-    --paper: oklch(0.17 0.005 285.823);
-    --paper-tint: oklch(0.22 0.006 286);
-    --quote-bg: oklch(0.2 0.005 286);
-    --rule: oklch(0.31 0.006 286.32);
-    --rule-strong: oklch(0.48 0.01 286);
-    --head: oklch(0.87 0.03 270);
-    --attn: oklch(0.62 0.2 27.325);
+    --ink: oklch(0.945 0 0);
+    --ink-muted: oklch(0.75 0 0);
+    --paper: oklch(0.145 0 0);
+    --paper-tint: oklch(0.215 0 0);
+    --quote-bg: oklch(0.195 0 0);
+    --rule: oklch(1 0 0 / 14%);
+    --rule-strong: oklch(1 0 0 / 32%);
+    --head: oklch(0.945 0 0);
+    --attn: oklch(0.704 0.191 22.216);
   }
 }
 * { box-sizing: border-box; }
@@ -119,7 +119,7 @@ dl.identity dd { margin: 0; overflow-wrap: anywhere; }
 dl.pairs > div { display: flex; gap: 0.6rem; padding: 0.12rem 0; }
 dl.pairs dt { flex: 0 0 14rem; color: var(--ink-muted); font-size: 0.82rem; }
 dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
-.notice { border: 1px solid var(--rule-strong); border-radius: var(--radius); background: var(--paper-tint); padding: 0.6rem 0.9rem; margin: 1rem 0; }
+.notice { border: 1px solid var(--rule-strong); border-radius: var(--radius-container); background: var(--paper-tint); padding: 0.6rem 0.9rem; margin: 1rem 0; }
 .microlabel { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); }
 .status, .chip, .token {
   font-family: var(--font-mono); font-size: 0.76rem; background: var(--paper-tint);
@@ -127,8 +127,8 @@ dl.pairs dd { margin: 0; overflow-wrap: anywhere; }
 }
 .status[data-status="requires_human_review"] { border-style: dashed; }
 .chip { overflow-wrap: anywhere; }
-.judge-record { border-left: 3px solid var(--rule-strong); background: var(--paper-tint); padding: 0.5rem 0.9rem; margin: 0.7rem 0; border-radius: var(--radius); }
-blockquote.verbatim { font-family: var(--font-serif); background: var(--quote-bg); border-left: 2px solid var(--rule-strong); margin: 0.6rem 0; padding: 0.55rem 0.9rem; border-radius: var(--radius); }
+.judge-record { border: 1px solid var(--rule); background: var(--paper-tint); padding: 0.6rem 0.9rem; margin: 0.7rem 0; border-radius: var(--radius-container); }
+blockquote.verbatim { font-family: var(--font-serif); background: var(--quote-bg); border-left: 2px solid var(--head); margin: 0.6rem 0; padding: 0.55rem 0.9rem; border-radius: 10px; }
 blockquote.verbatim .quote-credential { display: block; margin-top: 0.4rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-muted); }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; }
@@ -137,13 +137,13 @@ td { border-bottom: 1px solid var(--rule); padding: 0.35rem 0.5rem; vertical-ali
 .muted { color: var(--ink-muted); }
 .caption { font-size: 0.85rem; color: var(--ink-muted); margin: 0.4rem 0; }
 .figure-band { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 0.8rem 0; }
-.figure { border: 1px solid var(--rule); border-radius: var(--radius); padding: 0.5rem 0.8rem; flex: 1 1 10rem; }
+.figure { border: 1px solid var(--rule); border-radius: var(--radius-container); padding: 0.5rem 0.8rem; flex: 1 1 10rem; }
 .figure .number { display: block; font-size: 1.35rem; font-family: var(--font-mono); }
 .figure .qualifier { display: block; font-size: 0.74rem; color: var(--ink-muted); }
-.banner { border: 2px solid var(--head); border-radius: var(--radius); padding: 0.9rem 1.1rem; margin: 1.2rem 0; }
+.banner { border: 2px solid var(--head); border-radius: var(--radius-container); padding: 0.9rem 1.1rem; margin: 1.2rem 0; }
 .banner.document-failure { border-color: var(--attn); }
-.prohibition-banner { border: 3px double var(--head); border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1.2rem 0; }
-.problem-card { border-left: 3px solid var(--attn); background: var(--paper-tint); padding: 0.5rem 0.9rem; margin: 0.7rem 0; border-radius: var(--radius); }
+.prohibition-banner { border: 3px double var(--head); border-radius: var(--radius-container); padding: 1rem 1.2rem; margin: 1.2rem 0; }
+.problem-card { border: 1px solid var(--attn); background: var(--paper-tint); padding: 0.6rem 0.9rem; margin: 0.7rem 0; border-radius: var(--radius-container); }
 tr.defect-error > td:first-child { border-left: 3px solid var(--attn); }
 .flag { font-size: 0.8rem; color: var(--attn); font-family: var(--font-mono); margin: 0.2rem 0; }
 .norm-row { border-bottom: 1px solid var(--rule); padding: 0.45rem 0; }
@@ -153,7 +153,7 @@ tr.defect-error > td:first-child { border-left: 3px solid var(--attn); }
 ul.todo { list-style: none; padding-left: 0; }
 ul.todo > li { padding: 0.4rem 0; border-bottom: 1px solid var(--rule); }
 code.tag-line { display: inline-block; font-family: var(--font-mono); font-size: 0.78rem; background: var(--paper-tint); border: 1px solid var(--rule); border-radius: var(--radius); padding: 0.08rem 0.4rem; user-select: all; overflow-wrap: anywhere; }
-pre.source-text { font-family: var(--font-mono); font-size: 0.78rem; background: var(--paper-tint); border: 1px solid var(--rule); border-radius: var(--radius); padding: 0.6rem 0.8rem; overflow-x: auto; white-space: pre-wrap; }
+pre.source-text { font-family: var(--font-mono); font-size: 0.78rem; background: var(--paper-tint); border: 1px solid var(--rule); border-radius: 10px; padding: 0.6rem 0.8rem; overflow-x: auto; white-space: pre-wrap; }
 details { margin: 0.5rem 0; }
 details > summary { cursor: pointer; color: var(--ink-muted); font-size: 0.85rem; }
 .placeholder { color: var(--ink-muted); font-style: italic; }

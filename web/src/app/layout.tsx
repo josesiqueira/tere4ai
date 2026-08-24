@@ -15,14 +15,11 @@ export const metadata: Metadata = {
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <span className="text-primary font-bold text-sm">T4</span>
+      <div className="w-8 h-8 rounded-sm bg-primary/10 flex items-center justify-center shrink-0">
+        <span className="text-primary font-semibold text-sm">T4</span>
       </div>
       <span
-        className={
-          (compact ? "text-lg" : "text-xl") +
-          " font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
-        }
+        className={(compact ? "text-lg" : "text-xl") + " font-semibold text-foreground"}
       >
         TERE4AI v2
       </span>

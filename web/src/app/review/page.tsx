@@ -53,7 +53,7 @@ function SetupNotice() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Demo data not generated yet
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -104,7 +104,7 @@ export default function ReviewPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Human review queue</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Human review queue</h1>
           <p className="text-sm text-muted-foreground">
             Graph version <code className="font-mono">{data.coverage.graph_version}</code>,
             build <code className="font-mono">{data.build.build_id}</code>. Every item
