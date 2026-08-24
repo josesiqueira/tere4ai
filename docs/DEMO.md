@@ -1,8 +1,10 @@
 # TERE4AI v2 demo script
 
 Venue-neutral walkthrough of the shipped stack: coverage matrix, one-click
-classification presets, the evidence subgraph, the requirements board, and
-agent session replay. Every live step below names a fallback (a recorded
+classification presets, the evidence subgraph, the requirements board,
+requirement-to-code traceability (the `trace_implementation` MCP tool joined
+with the client-side scanner `python -m tere4ai.trace_scan`, an MCP-only
+surface for now), and agent session replay. Every live step below names a fallback (a recorded
 session or an existing screenshot) so the talk survives a dead network or a
 missing key. See the Fallback matrix at the end for the full list.
 
@@ -56,7 +58,10 @@ at that absolute path becomes worth doing.
 
 Keys are optional. `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` unlock the paid
 evidence-evaluation call (Article 9(1) style checks against pasted project
-text) and the elicit mode (free-text description to structured facts).
+text), the elicit mode (free-text description to structured facts), and the
+third paid call, Generate backlog. For the backlog beat a saved run lives at
+`/home/jose/Dev/Trustworthy/demo-systems/_fallbacks/highrisk-backlog-article9.md`,
+so a dead network does not cost that beat.
 Coverage, classification, requirements, the evidence subgraph, and the
 requirements board all work fully without any key: the deterministic ladder
 never calls a model.
@@ -111,6 +116,9 @@ Sanity check: `curl localhost:8008/api/health` returns the graph version.
    to pull its verbatim source span inline, never a modal. This is the
    traceability claim rendered as a picture: every requirement traces to a
    legal source span and, where an alignment exists, to an HLEG principle.
+   Traceability also runs forward from each requirement into consumer code:
+   `@implements` tags in the consumer project feed the generated coverage
+   matrix that `trace_implementation` serves.
    Fallback: `docs/screenshots/demo-assess-subgraph.png`.
 4. **Close on the agent replay page** (1 min). Go to `/agent` and step
    through the recorded SpamGuard exchange: the raw request and envelope
@@ -200,13 +208,23 @@ MCP config snippet, for a coding agent's stdio server list:
 }
 ```
 
+For a live room, prefer the prepared skeletons at
+`/home/jose/Dev/Trustworthy/demo-systems/`: four risk-tier skeleton pairs, a
+pristine `_for_audience` copy plus a rehearsal `_for_me` copy of each, every
+one carrying README facts, a `PROMPT.md`, and `.mcp.json` stdio wiring. See
+its `README.md` for the layout.
+
 Then walk the same loop the `examples/` consumer apps followed: write the
 product's plain-English description and facts first, before touching
 TERE4AI, so elicitation is tested against honest input; classify via the MCP
 tools and record the envelope verbatim; fetch applicable requirements with
 citations and HLEG alignments; build against them; evaluate real project
 evidence; record lessons learned, defects, and surprising verdicts rather
-than papering over them. The four `examples/` folders
+than papering over them. Then run the trace loop as an explicit step: tag the
+fix with `@implements: <norm-id>` on its own comment line (source files
+only), scan with the venv's `python -m tere4ai.trace_scan`, call
+`trace_implementation`, and read traced, untraced, and invalid_tags. The four
+`examples/` folders
 (`1-minimalrisk-spamguard`, `2-limitedrisk-shopbot`, `3-highrisk-credscore`,
 `4-unacceptablerisk-moodwatch`) are the worked instances of this loop, one
 per risk tier, each built as a true external MCP consumer, never importing
@@ -238,6 +256,8 @@ Every live step above, with the fallback if it cannot run.
 | Requirements board, live evidence call | `docs/screenshots/demo-assess-board.png`, `docs/screenshots/m3-demo-evidence-verdict.png` |
 | Elicit mode on an audience description | `docs/screenshots/demo-assess-credscore.png` (preset form as the closest static stand-in) |
 | Live agent mode over MCP stdio | `/agent` session replay, narrated |
+| Backlog generation (paid) | `/home/jose/Dev/Trustworthy/demo-systems/_fallbacks/highrisk-backlog-article9.md` (plus `.json`) |
+| Trace matrix (`trace_implementation`) | `/home/jose/Dev/Trustworthy/demo-systems/_fallbacks/shopbot-trace-matrix.md` (plus `.json`; being created tonight by another agent, reference it as the fallback) |
 
 ## Questions to expect
 

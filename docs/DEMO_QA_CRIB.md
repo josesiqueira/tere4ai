@@ -25,6 +25,7 @@ the rules, which is why the same input always gives the same answer.
 | Pipeline and where the three judges sit | `/how-it-works` |
 | The disclosed human queue | `/review` |
 | The envelope an MCP client receives, all four tiers | `/agent`, pick a session, step with the arrows |
+| Which obligations have nothing behind them | `trace_implementation` over MCP plus the client-side scanner (not a web click; run from the consumer project) |
 
 ## Numbers you can stand behind
 
@@ -33,6 +34,11 @@ Live, from the running build (`build-3b753e5e9297`, chain `4a98820a5915`):
 accepted HLEG alignments, and 288 items awaiting a human (41 norms, 145
 alignments, 102 cross-references). CredScore yields 277 requirements across
 23 articles.
+
+Trace numbers, verified live over stdio: ShopBot has 13 applicable norms, 1
+traced (chat.py), 12 untraced, and 1 tag rejected because the Article 50(1)
+disclosure norm sits in the human review queue. That rejection is the
+review-queue exclusion guarantee working end to end.
 
 Ablation, 486 items, config of record gpt-5.2 generator and claude-opus-4-8
 judges, run 2026-07-10/11 (eval/results/FULL_RUN_ANALYSIS.md):
@@ -113,6 +119,22 @@ description and elicit. Expect an abstention: prose rarely settles 34
 closed-world facts, and saying so before you click turns the abstention into
 the point.
 
+## Per-tier beat notes
+
+**High-risk beat closing line.** "The same traceability matrix runs here: 277
+rows, every one untraced today, which is the honest size of the project you
+just discovered."
+
+**Minimal-risk beat.** Zero requirements means zero from the v2 high-risk
+core; Article 4 AI literacy and the general provisions sit outside the
+deterministic check, and the server's own message says so. The abstention
+flip is worth showing on purpose: omit one under-supported fact and the
+ladder returns requires_human_review at 0.5, naming the missing facts.
+
+**Prohibited beat.** Never promise "violated principles": the payload carries
+the prohibition citation and message only (B34a). Strongest line: "Every
+system today got a backlog. This one gets zero, and zero is the answer."
+
 ## The replay page, if the MCP claim gets pressed
 
 `/agent` serves four recorded sessions, one per tier, each recorded by
@@ -122,6 +144,11 @@ produces live (ShopBot 13, CredScore 277, MoodWatch 0), and a test replays
 every recorded session against the current build, so a drifted fixture fails
 CI rather than misleading a room. Say that: the page is not a video, it is a
 transcript that is re-verified on every test run.
+
+Stronger card now: the live skeletons at demo-systems/ and the free trace
+tool beat the replay page as the answer when this claim gets pressed; drive
+one skeleton live over stdio if the room wants proof. Replay remains the
+fallback.
 
 ## Showing the graph in Neo4j Browser
 
@@ -157,6 +184,10 @@ node, so it cannot show you its own build id next to the
 construction and by matching counts, not by a checksum you can point at in
 the browser. Say that rather than implying a verification that is not there.
 
+Do not republish the graph before the demo: the saved fallback artifacts
+carry graph_version build-3b753e5e9297 and must keep matching the live
+server.
+
 ## If something breaks
 
 Servers, in two terminals from the repo root:
@@ -183,6 +214,14 @@ Paid buttons (Elicit, Generate backlog, Evaluate evidence) need keys in
 .env. Without them they show an honest "needs model API keys" notice, which
 is a fine thing to be seen. Every classification, requirement, citation, and
 span works with no keys at all.
+
+The backlog beat no longer depends on network: the saved artifact (a 30.6 s
+run, judge accepted, 6 controls from 10 Article 9 norms) is the plan of
+record, and live generation is the encore. If the artifact's sharpest audit
+question comes up: control 2's description spans Article 9(2)(a) and (b)
+content while citing only the 9(2)(a) norm, because the 9(2)(b) extraction is
+build-time rejected and thus outside the closed input set, which the judge
+endorsed.
 
 Every step of docs/DEMO.md names a screenshot fallback under
 docs/screenshots/, and all of them exist.
