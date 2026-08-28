@@ -4,7 +4,7 @@
 @grounded_by: REF-15, REF-16
 
 Usage:
-  .venv/bin/python scripts/make_paper_artifacts.py [--out docs/paper_artifacts]
+  .venv/bin/python scripts/make_paper_artifacts.py [--out build/paper_artifacts]
 
 Every number in every figure and table is computed at generation time from
 the committed artifacts (eval/results/*.json, data/graph_dumps/*.json);
@@ -297,7 +297,10 @@ def tab_judges(norms: dict, alignments: dict) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--out", type=Path, default=ROOT / "docs" / "paper_artifacts")
+    # Default output is build/ (gitignored). The artifacts themselves are paper
+    # material and live in the private research repo (../thesis/paper/artifacts);
+    # writing them here by default would republish them on the next add.
+    parser.add_argument("--out", type=Path, default=ROOT / "build" / "paper_artifacts")
     parser.add_argument(
         "--full-summary", type=Path, default=FULL,
         help="full-benchmark ablation summary; skipped when absent",
