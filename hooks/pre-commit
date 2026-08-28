@@ -1,0 +1,79 @@
+#!/bin/sh
+# Course-change gate.
+#
+# Activate with:  git config core.hooksPath hooks
+# Git cannot version that setting, so it is one command per clone. This file is
+# versioned, so re-activation is a command and not a rewrite.
+#
+# What it does: refuses a commit that changes a DEC entry or the reference
+# register without a matching entry in the private research repository's
+# HISTORY.md. See AGENTS.md, GROUNDING & TRACEABILITY.
+#
+# DEGRADES TO A NO-OP for anyone who does not have that repository, so an
+# outside contributor is never blocked by it. That is the normal case for
+# everyone but the author.
+#
+# --no-verify bypasses this, as it does every git hook. That is git.
+set -eu
+
+# Explicit opt-out for a change that is genuinely not a course change.
+[ "${TERE4AI_NO_HISTORY:-0}" = "1" ] && exit 0
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Cheap pre-filter: if neither file is staged there is nothing to check.
+case "$staged" in
+  *docs/architecture.md*|*docs/references.md*) ;;
+  *) exit 0 ;;
+esac
+
+# Inside architecture.md only a DEC line counts. A typo fix is not a course
+# change, and a gate that fires on typos gets bypassed and then ignored.
+trigger=""
+if printf '%s\n' "$staged" | grep -qx 'docs/architecture.md'; then
+  if git diff --cached -U0 -- docs/architecture.md \
+     | grep -E '^[+-]' | grep -v '^+++ ' | grep -v '^--- ' \
+     | grep -q 'DEC-[0-9]'; then
+    trigger="a DEC entry in docs/architecture.md"
+  fi
+fi
+if printf '%s\n' "$staged" | grep -qx 'docs/references.md'; then
+  trigger="${trigger:+$trigger and }the reference register"
+fi
+[ -z "$trigger" ] && exit 0
+
+root=$(git rev-parse --show-toplevel)
+thesis=${TERE4AI_THESIS_DIR:-$(dirname "$root")/thesis}
+
+if [ ! -d "$thesis/.git" ] || [ ! -f "$thesis/HISTORY.md" ]; then
+  echo "note: no research repository at $thesis, course-change gate skipped" >&2
+  exit 0
+fi
+
+today=$(date +%Y-%m-%d)
+
+# Pass if today already has an entry, or if HISTORY.md is being edited right now
+# (staged or unstaged), which is the normal flow: write the entry, then commit.
+tail -n 80 "$thesis/HISTORY.md" | grep -q "^## $today" && exit 0
+git -C "$thesis" diff        --quiet -- HISTORY.md || exit 0
+git -C "$thesis" diff --cached --quiet -- HISTORY.md || exit 0
+
+cat >&2 <<EOF
+REFUSED: this commit changes $trigger, and
+  $thesis/HISTORY.md
+has no entry dated $today and no pending change.
+
+A course change is recorded before it ships. Add an entry:
+
+  ## $today  <short title>
+
+  - changed: what is now in force, stated positively.
+  - why: the evidence that forced it. Never invent one.
+  - replaced: what was believed or done before, and until when.
+
+If this genuinely is not a course change (a typo, a reformat, a regenerated
+line), say so explicitly:
+
+  TERE4AI_NO_HISTORY=1 git commit ...
+EOF
+exit 1

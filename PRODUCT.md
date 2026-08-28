@@ -25,7 +25,7 @@ propose, and independent judges gate every proposal.
 ## Audiences, in order
 
 1. Coding agents and the engineers who wield them (the MCP consumers).
-2. RE and SE researchers (the academic audience; papers at REFSQ 2026).
+2. RE and SE researchers (the academic audience).
 3. Teams building AI systems who need traceable, honest requirements.
 
 ## Voice
