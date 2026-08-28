@@ -5,7 +5,7 @@
 > that implements a decision carries `@grounded_by: <ID>` tags that resolve
 > against this file (see the traceability convention in @docs/architecture.md).
 > Which of these we hold as local full text is tracked separately in
-> data/refs/MANIFEST.md, not here.
+> ../thesis/refs/MANIFEST.md, not here.
 >
 > Formatting rule: never use em dashes, and never use en dashes as a sentence
 > break. Use commas, colons, parentheses, or separate sentences.
@@ -67,7 +67,7 @@ The author's first PhD paper: identifies four trustworthiness-enhancing
 techniques for LLM-based systems from the literature (multi-agent
 collaboration, specialised roles, structured communication, multiple rounds
 of debate) and prototypes an LLM multi-agent system for ethical AI. Held as
-data/refs/SELF-05_CanWeTrustAIAgents.pdf. Lineage note: those four
+../thesis/refs/SELF-05_CanWeTrustAIAgents.pdf. Lineage note: those four
 techniques are the historical predecessors of this project's judge-gated,
 mechanically-checked pipeline; the surviving idea (adversarial review of
 generated claims) is realised here as the independent judge family (DEC-07).

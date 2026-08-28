@@ -34,6 +34,7 @@ This file governs how the agent works. @docs/DESIGN.md is the visual design syst
 - Only cite sources that exist in the project reference register. Never invent a source, identifier, metric, or citation.
 - Grounding bar (single definition, used by the CI gate): a MUST that makes a research or empirical claim needs at least one grounding that is PEER, STD, or OFF; preprint (PRE), project (PROJ), or practitioner (PRAC) sources may support it but never be its sole grounding. A MUST that is an engineering or non-functional decision (determinism, reproducibility, security, performance) stands on engineering merit and needs no literature grounding, though it may cite corroborating sources.
 - Keep the traceability record generated from the code and its tags, never hand-maintained, so it cannot drift from what was actually built.
+- Course changes are recorded, never dropped. When a design plan finishes and its "Do not redo" section would be deleted, it MOVES into `../thesis/HISTORY.md` as dated entries (date, changed, why, replaced) before the plan is closed. If `../thesis` is not present, keep the section in place and do not delete it. A DEC entry or the reference register changed without a matching HISTORY entry is refused by `hooks/pre-commit`.
 
 ## HONESTY (never mislead the user)
 
@@ -64,3 +65,4 @@ This file governs how the agent works. @docs/DESIGN.md is the visual design syst
 - Human context and preferences: @USER.md
 - Stack, schema, and domain rules: @docs/architecture.md
 - Reference register (papers only, with the source IDs that @grounded_by resolves against): @docs/references.md
+- Design plans, specs, research notes, the task board and the audit journal live in the PRIVATE sibling repository `../thesis/`, not here. This repository is public. Ignore any skill default that writes to `docs/superpowers/` or `docs/design/`.
