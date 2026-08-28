@@ -3,7 +3,7 @@
 > One place answering, for every trust-enhancing strategy actually
 > implemented in this codebase: (a) its name, (b) the citation grounding it
 > as trust-enhancing, drawn ONLY from the register docs/references.md and
-> the held texts in data/refs/ (or, where no literature grounds it, the
+> the held texts in ../thesis/refs/ (or, where no literature grounds it, the
 > explicit engineering rationale, which the project's grounding bar permits
 > for engineering MUSTs), and (c) how to see it implemented: code, pinning
 > test, and a way to watch it work. Every file:line was verified on
@@ -15,7 +15,7 @@
 > Register note: the author's earlier papers SELF-01 to SELF-05 are the
 > lineage of these strategies (see the final section). SELF-05 (registered
 > 2026-07-20, "Can We Trust AI Agents?", TETHICS 2025, held as
-> data/refs/SELF-05_CanWeTrustAIAgents.pdf) is the author's first PhD paper.
+> ../thesis/refs/SELF-05_CanWeTrustAIAgents.pdf) is the author's first PhD paper.
 > It identified four trustworthiness-enhancing techniques for LLM-based
 > systems (multi-agent collaboration, specialised roles, structured
 > communication, multiple rounds of debate). Those are the historical
@@ -381,7 +381,7 @@ merit, this document says so explicitly instead of inventing a citation.
   grounding).
 - SELF-04 (PEER, REFSQ 2026 Posters and Tools): TERE4AI as a tool; the
   published claim this codebase stays traceable to.
-- SELF-05 (registered, held as data/refs/SELF-05_CanWeTrustAIAgents.pdf):
+- SELF-05 (registered, held as ../thesis/refs/SELF-05_CanWeTrustAIAgents.pdf):
   the author's first PhD paper with early trustworthiness-enhancing
   strategies (multi-agent collaboration, specialised roles, structured
   communication, multiple rounds of debate). Registered with the honest

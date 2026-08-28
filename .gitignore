@@ -43,15 +43,11 @@ web/next-env.d.ts
 # runtime audit logs (observability artifacts, not source)
 data/review_queue/*.jsonl
 
-# Reference papers (full text): local only, do not commit (paywalled / licensing).
-data/refs/*.pdf
-data/refs/*.html
-data/refs/*.txt
-data/refs/graphify-out/
 # Graphify code-graph cache (regenerable with `graphify update .`, never tracked)
 graphify-out/
 
-# Never commit loose PDFs at the repo root (paper copies belong in data/refs, gitignored).
+# Never commit loose PDFs at the repo root. The reference corpus lives in the
+# private research repository (../thesis/refs), not here.
 /*.pdf
 data/graph_dumps/*.nt
 data/keys/
