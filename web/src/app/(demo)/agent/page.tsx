@@ -1,6 +1,6 @@
 "use client";
 
-/* Agent session replay (Task 6, docs/superpowers/specs/2026-07-29-demo-revamp-design.md
+/* Agent session replay (Task 6, thesis/specs/2026-07-29-demo-revamp-design.md
    "Agent" page). Recorded MCP exchanges from real example development
    (examples/<n>/artifacts/sessions/<date>-<label>.jsonl), served read-only
    by the facade's GET /api/demo/sessions and /api/demo/sessions/<name>

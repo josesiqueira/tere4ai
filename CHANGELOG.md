@@ -85,7 +85,7 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   gated by scoped, revocable t4a_ API keys with body-free usage metering
   (scripts/manage_mcp_keys.py).
 
-### Audit fixes (2026-07-20 full-system audit, docs/AUDIT_2026-07-20.md)
+### Audit fixes (2026-07-20 full-system audit)
 - Classifier unknown-fact discipline (D1): unknown Annex III high-risk flags
   are now surfaced in missing_facts and block a confident minimal_or_none
   verdict, mirroring the prohibition flags; a genuine high-risk system

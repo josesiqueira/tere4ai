@@ -31,6 +31,10 @@ data/graph_dumps/*.dump
 .idea/
 .vscode/
 .DS_Store
+# Agent working process (task briefs, review diffs). Belongs in the private
+# research repository, not here. Belt and braces: .superpowers/sdd/ carried
+# its own ignore file, but a future subdirectory would not.
+.superpowers/
 
 # generated UI data (rebuild with scripts/export_ui_data.py)
 web/public/ui_data.json
@@ -52,5 +56,4 @@ graphify-out/
 data/graph_dumps/*.nt
 data/keys/
 data/snapshots/benchmark/full_payload.json
-docs/live_audit_log.md
 web/tsconfig.tsbuildinfo

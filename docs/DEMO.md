@@ -49,8 +49,8 @@ a blank one. The path above is in-repo
 (`tests/fixtures/demo_sessions/spamguard-classify.jsonl`) and holds the exact
 SpamGuard exchange this script narrates in step 4. The sibling examples
 checkout at
-`/home/jose/Dev/Trustworthy/examples/1-minimalrisk-spamguard/artifacts/sessions`
-holds, as of this writing, exactly one recorded exchange, byte-identical to
+`../examples/1-minimalrisk-spamguard/artifacts/sessions` (a sibling checkout,
+not part of this repository) holds, as of this writing, exactly one recorded exchange, byte-identical to
 the in-repo fixture above (just under a different filename); it is not
 currently richer. As the example projects are developed further, additional
 recorded sessions will accumulate there, at which point pointing the env var
@@ -60,7 +60,7 @@ Keys are optional. `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` unlock the paid
 evidence-evaluation call (Article 9(1) style checks against pasted project
 text), the elicit mode (free-text description to structured facts), and the
 third paid call, Generate backlog. For the backlog beat a saved run lives at
-`/home/jose/Dev/Trustworthy/demo-systems/_fallbacks/highrisk-backlog-article9.md`,
+`../demo-systems/_fallbacks/highrisk-backlog-article9.md`,
 so a dead network does not cost that beat.
 Coverage, classification, requirements, the evidence subgraph, and the
 requirements board all work fully without any key: the deterministic ladder
@@ -141,7 +141,8 @@ Everything in the 7-minute talk, plus:
   this go wrong" before anyone asks it.
   Fallback: `docs/screenshots/demo-how-it-works.png`.
 - **Judge drill-down** (2 min). For "what if the judge is wrong": open
-  `docs/live_audit_log.md`, a running journal of live audits against the
+  `../thesis/audits/live_audit_log.md`, a running journal of live audits kept
+  outside this repository, against the
   actual published graph (edge provenance, orphan checks, span coverage,
   accepted-alignment evidence), each entry showing hypotheses, evidence, and
   a verdict. Then open `/review` for the disclosed human-review queue: every
@@ -209,7 +210,7 @@ MCP config snippet, for a coding agent's stdio server list:
 ```
 
 For a live room, prefer the prepared skeletons at
-`/home/jose/Dev/Trustworthy/demo-systems/`: four risk-tier skeleton pairs, a
+`../demo-systems/` (a sibling checkout): four risk-tier skeleton pairs, a
 pristine `_for_audience` copy plus a rehearsal `_for_me` copy of each, every
 one carrying README facts, a `PROMPT.md`, and `.mcp.json` stdio wiring. See
 its `README.md` for the layout.
@@ -233,7 +234,7 @@ TERE4AI code directly.
 Curated-repo input (an agent cloning a repository, proposing the 34 facts
 each with a supporting quote, landing them editable in the fact panel) is
 committed but not yet shipped: it is increment 2 of this demo revamp,
-tracked as backlog item B31 in `docs/TASKS.md`, and lives in the agent layer
+tracked as backlog item B31 on the project task board, and lives in the agent layer
 rather than TERE4AI core, since a repository is untrusted input. Name it as
 a placeholder if asked; do not demo it as if it exists.
 
@@ -252,12 +253,12 @@ Every live step above, with the fallback if it cannot run.
 | Evidence subgraph on credscore | `docs/screenshots/demo-assess-subgraph.png` |
 | Agent replay (SpamGuard exchange) | `docs/screenshots/demo-agent-replay.png` |
 | How it works diagrams | `docs/screenshots/demo-how-it-works.png` |
-| Judge drill-down (`docs/live_audit_log.md`, `/review`) | `docs/screenshots/review_light.png`, `docs/live_audit_log.md` itself (a static file, always available) |
+| Judge drill-down (the operational journal, `/review`) | `docs/screenshots/review_light.png`, `../thesis/audits/live_audit_log.md` itself (a static file, always available locally) |
 | Requirements board, live evidence call | `docs/screenshots/demo-assess-board.png`, `docs/screenshots/m3-demo-evidence-verdict.png` |
 | Elicit mode on an audience description | `docs/screenshots/demo-assess-credscore.png` (preset form as the closest static stand-in) |
 | Live agent mode over MCP stdio | `/agent` session replay, narrated |
-| Backlog generation (paid) | `/home/jose/Dev/Trustworthy/demo-systems/_fallbacks/highrisk-backlog-article9.md` (plus `.json`) |
-| Trace matrix (`trace_implementation`) | `/home/jose/Dev/Trustworthy/demo-systems/_fallbacks/shopbot-trace-matrix.md` (plus `.json`; being created tonight by another agent, reference it as the fallback) |
+| Backlog generation (paid) | `../demo-systems/_fallbacks/highrisk-backlog-article9.md` (plus `.json`) |
+| Trace matrix (`trace_implementation`) | `../demo-systems/_fallbacks/shopbot-trace-matrix.md` (plus `.json`) |
 
 ## Questions to expect
 
