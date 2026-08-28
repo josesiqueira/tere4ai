@@ -5,6 +5,24 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Repository (2026-08-28)
+- Repository split. The research record moved to a separate private repository:
+  the task board, design plans and specs, research inputs, the audit journal and
+  its dated reports, the agent session briefs, the reference corpus, and the
+  paper artifacts with their bundler. This repository keeps the tool, its
+  documentation, its evaluation harness, its measured results and its
+  screenshots. A clone with no sibling installs, tests and passes CI unchanged;
+  verified on a fresh clone (644 passed, 12 skipped, ruff clean, both gates
+  green, web build succeeds).
+- `docs/DEMO.md` no longer contains absolute home paths; sibling checkouts are
+  referenced relatively.
+- `scripts/make_paper_artifacts.py` writes to `build/paper_artifacts` by default
+  (gitignored) instead of `docs/paper_artifacts`.
+- `USER.md` reduced to domain guardrails and writing conventions. The filename
+  is unchanged deliberately: five files under `src/` cite it as normative.
+- `hooks/pre-commit` added (opt in with `git config core.hooksPath hooks`). It
+  is a maintainer aid and degrades to a no-op for anyone else.
+
 ### Graph and pipeline
 - Reified CrossReference nodes (426) with HAS_CROSS_REFERENCE and
   RESOLVES_TO edges; "Article 6(2)"-style citations resolve to
