@@ -80,10 +80,14 @@ intelligence (Artificial Intelligence Act), Official Journal of the EU, 2024.
 CELEX 32024R1689, ELI http://data.europa.eu/eli/reg/2024/1689/oj. VERIFIED. CORE.
 Grounds: authoritative legal source; Layer 0/1 primary input.
 
-**[REF-02]** OFF. Digital Omnibus on AI, proposal COM(2025) 836 final,
-procedure 2025/0359(COD), CELEX 52025PC0836, European Commission, 2025.
-VERIFIED. SUPPORTING. Grounds: versioning and amending instrument (OVR-3); final
-published OJ number and date remain [VERIFY].
+**[REF-02]** OFF. Digital Omnibus on AI, Regulation (EU) 2026/1744 of the
+European Parliament and of the Council of 8 July 2026, amending Regulations
+(EU) 2024/1689, (EU) 2018/1139 and (EU) 2023/1230, OJ L, 2026/1744, 24.7.2026,
+CELEX 32026R1744 (adopted from proposal COM(2025) 836 final, procedure
+2025/0359(COD)). VERIFIED on EUR-Lex 2026-09-02. SUPPORTING. Grounds:
+versioning and amending instrument (OVR-3). Note: it amends Regulation (EU)
+2024/1689 (definitions, prohibitions, delayed high-risk application dates), so
+any Act corpus extracted before 24.7.2026 predates these amendments.
 
 **[REF-03]** STD. Akoma Ntoso Version 1.0 (LegalDocML), OASIS Standard, 2018.
 VERIFIED. CORE. Grounds: legal document hierarchy; Layer 1 structure model.
