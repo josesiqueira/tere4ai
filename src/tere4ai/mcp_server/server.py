@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.server.middleware import Middleware
 
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_rules
@@ -71,6 +72,22 @@ mcp = FastMCP(
         "model calls. " + tools.NON_LEGAL_ADVICE_NOTICE
     ),
 )
+
+
+class _DeterministicToolOrder(Middleware):
+    """Serve tools/list in alphabetical order, independent of registration.
+
+    The 2026-07-28 MCP revision makes deterministic tools/list ordering a
+    spec SHOULD, and Section 13 makes determinism a MUST here anyway; the
+    order must not shift when server.py is refactored (B49).
+    """
+
+    async def on_list_tools(self, context, call_next):
+        tools = await call_next(context)
+        return sorted(tools, key=lambda tool: tool.name)
+
+
+mcp.add_middleware(_DeterministicToolOrder())
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
