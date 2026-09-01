@@ -1,7 +1,7 @@
 {
  "build": {
   "build_id": "build-3b753e5e9297",
-  "built_at": "2026-09-01T21:30:01+00:00",
+  "built_at": "2026-09-01T21:59:06+00:00",
   "tere4ai_version": "2.0.0a0",
   "snapshots": [
    {
@@ -287,6 +287,16 @@
    "manifestation": "derived-text",
    "language": "en",
    "retrieved_at": "2026-07-08"
+  },
+  {
+   "id": "srcfile:digital_omnibus_ai_32026R1744_eurlex_html_2026-09-02.html",
+   "layer": 0,
+   "type": "SourceFile",
+   "file": "digital_omnibus_ai_32026R1744_eurlex_html_2026-09-02.html",
+   "sha256": "3af13427fe45ef448f22b8ee4f2ad16a3142ccc3a1995e78b0d422ce28cd4137",
+   "manifestation": "eurlex-html",
+   "language": "en",
+   "retrieved_at": "2026-09-02"
   },
   {
    "id": "eu-ai-act",
@@ -32303,6 +32313,18 @@
    "to": "src:eu-ai-act:oj-2024-07-12",
    "provenance_class": "EXTRACTED_SOURCE",
    "derivation_id": "derivation:source_registry:hleg_ethics_guidelines_2019_en_v1text.txt",
+   "method": "source_registry_v1",
+   "confidence": 1.0,
+   "review_status": "auto_accepted",
+   "build_id": "build-3b753e5e9297"
+  },
+  {
+   "edge_id": "edge:srcfile:digital_omnibus_ai_32026R1744_eurlex_html_2026-09-02.html-derived-from-src:omnibus-com-2025-836",
+   "edge_type": "DERIVED_FROM_SOURCE",
+   "from": "srcfile:digital_omnibus_ai_32026R1744_eurlex_html_2026-09-02.html",
+   "to": "src:omnibus-com-2025-836",
+   "provenance_class": "EXTRACTED_SOURCE",
+   "derivation_id": "derivation:source_registry:digital_omnibus_ai_32026R1744_eurlex_html_2026-09-02.html",
    "method": "source_registry_v1",
    "confidence": 1.0,
    "review_status": "auto_accepted",

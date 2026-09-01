@@ -38,3 +38,21 @@ def test_omnibus_never_merged_into_base():
     assert not any(
         n["id"] == BASE_ACT_ID and "omnibus" in n.get("title", "").lower() for n in nodes
     )
+
+
+def test_omnibus_snapshot_derives_from_omnibus_source():
+    """B59: the frozen Omnibus text manifests the amending instrument, not
+    the base Act; every other snapshot keeps the base-act linkage."""
+    nodes, edges = layer0("build-test", MANIFEST)
+    omnibus_files = [
+        n["id"]
+        for n in nodes
+        if n["type"] == "SourceFile" and "omnibus" in n["file"]
+    ]
+    assert omnibus_files, "the Omnibus snapshot must be in the manifest"
+    derived = {
+        (e["from"], e["to"]) for e in edges if e["edge_type"] == "DERIVED_FROM_SOURCE"
+    }
+    for file_id in omnibus_files:
+        assert (file_id, OMNIBUS_ID) in derived
+        assert (file_id, BASE_ACT_ID) not in derived

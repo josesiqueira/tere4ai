@@ -238,6 +238,18 @@
       "retrieved_at": "2026-07-08",
       "legal_status": "non_binding",
       "notes": "DERIVATIVE working text carried from TERE4AI v1 (data/ai_hleg.txt), not an official manifestation. Convenient for span-anchored extraction; verify quotes against the official PDF."
+    },
+    {
+      "file": "digital_omnibus_ai_32026R1744_eurlex_html_2026-09-02.html",
+      "sha256": "3af13427fe45ef448f22b8ee4f2ad16a3142ccc3a1995e78b0d422ce28cd4137",
+      "source_document": "omnibus",
+      "celex": "32026R1744",
+      "eli": "http://data.europa.eu/eli/reg/2026/1744/oj",
+      "manifestation": "eurlex-html",
+      "language": "en",
+      "retrieved_at": "2026-09-02",
+      "legal_status": "in_force",
+      "notes": "Digital Omnibus on AI, the amending instrument for the base Act (B59). Frozen so amendment overlay content can anchor verbatim quotes into a checksummed source. EUR-Lex HTML uses non-breaking spaces inside phrases like 'Article 5'; normalise before string search."
     }
   ]
 }

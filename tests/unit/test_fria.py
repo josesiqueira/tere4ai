@@ -331,6 +331,8 @@ def _credit_scorer_features(**extra) -> dict:
             "biometric_categorisation": False,
             "real_time_remote_biometric_public": False,
             "law_enforcement_use": False,
+            "generates_nonconsensual_intimate_material": False,
+            "generates_csam": False,
         },
     }
     features.update(extra)
@@ -359,6 +361,8 @@ def test_new_subflag_gates_point_5_high_risk_on_its_own(dump):
 # Every Annex III high-risk flag plus the prohibition flags, all false: the
 # only way to reach a confident minimal verdict after audit D1.
 _ALL_FLAGS_FALSE = {
+    "generates_nonconsensual_intimate_material": False,
+    "generates_csam": False,
     "biometric_identification": False,
     "biometric_categorisation": False,
     "real_time_remote_biometric_public": False,

@@ -39,7 +39,7 @@ type Envelope<A = Record<string, unknown>> = {
 /* Article 27(1) FRIA applicability block (DEC-14, src/tere4ai/mcp_server/
    fria.py assess_fria_applicability / _block): shape confirmed against that
    module's source, not guessed. applies_from carries the Digital Omnibus
-   date as DATA (legal_status adopted_not_yet_applicable), never control
+   date as DATA (legal_status in_force, applies from 2027-12-02), never control
    flow: it must never be read as already in force. classify_ai_system adds
    this to answer.fria unconditionally once risk_category is present, so an
    absent block on a present classification answer is not expected, but the
@@ -266,6 +266,11 @@ const PROHIBITION_FLAGS: [string, string][] = [
     "RTRB strictly necessary and authorised (Art. 5(1)(h) carve-out)",
   ],
   ["law_enforcement_use", "Law enforcement use"],
+  [
+    "generates_nonconsensual_intimate_material",
+    "Generates non-consensual intimate imagery (Art. 5(1)(ba), Omnibus, from 2 Dec 2026)",
+  ],
+  ["generates_csam", "Generates CSAM (Art. 5(1)(bb), Omnibus, from 2 Dec 2026)"],
 ];
 
 const CATEGORY_FLAGS: [string, string][] = [

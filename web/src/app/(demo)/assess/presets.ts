@@ -63,6 +63,8 @@ const ALL_FLAG_KEYS = [
   "essential_services_access",
   "exploits_vulnerabilities",
   "facial_image_scraping",
+  "generates_csam",
+  "generates_nonconsensual_intimate_material",
   "generates_synthetic_content",
   "improves_previous_human_activity",
   "interacts_with_natural_persons",

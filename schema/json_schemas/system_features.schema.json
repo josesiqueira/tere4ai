@@ -85,7 +85,15 @@
         "improves_previous_human_activity": { "type": "boolean" },
         "detects_patterns_without_replacing_human_assessment": { "type": "boolean" },
         "annex_i_covered_product": { "type": "boolean" },
-        "third_party_conformity_assessment_required": { "type": "boolean" }
+        "third_party_conformity_assessment_required": { "type": "boolean" },
+        "generates_nonconsensual_intimate_material": {
+          "type": "boolean",
+          "description": "Article 5(1) point (ba), inserted by Regulation (EU) 2026/1744, applies from 2 December 2026: the system generates or manipulates realistic images, videos, audio or similar material of an identifiable person's intimate parts or sexually explicit activities without freely-given, specific, informed, unambiguous and explicit consent, and (per the new Article 5(1a)/(1b)) that output is the intended purpose, a foreseeable and reproducible outcome absent adequate safeguards, or what the deployer aims at. Set true only when the complete practice holds; absence leaves the ban unsettled."
+        },
+        "generates_csam": {
+          "type": "boolean",
+          "description": "Article 5(1) point (bb), inserted by Regulation (EU) 2026/1744, applies from 2 December 2026: the system generates or manipulates child sexual abuse material within the meaning of Article 2, points (c) and (e), of Directive 2011/93/EU, under the same Article 5(1a)/(1b) conditions and outside any 'without right' defence under national law. Set true only when the complete practice holds; absence leaves the ban unsettled."
+        }
       },
       "additionalProperties": false
     },

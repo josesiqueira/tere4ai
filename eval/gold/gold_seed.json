@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created": "2026-07-08",
-  "description": "Seed gold set for the M4 evaluation (architecture.md Section 12). 10 hand-authored items on the v2 high-risk core; the full gold set targets 60 to 80 items with a second annotator on a 20 to 30 percent subset (see ANNOTATION_PROTOCOL.md). Every gold_citations id was verified to exist in data/graph_dumps/layer1.json (build build-3b753e5e9297), and every classification item was verified against the deterministic classify_ai_system before this file was written.",
+  "description": "Seed gold set for the M4 evaluation (architecture.md Section 12). 10 hand-authored items on the v2 high-risk core; the full gold set targets 60 to 80 items with a second annotator on a 20 to 30 percent subset (see ANNOTATION_PROTOCOL.md). Every gold_citations id was verified to exist in data/graph_dumps/layer1.json (build build-3b753e5e9297), and every classification item was verified against the deterministic classify_ai_system before this file was written. Maintenance 2026-09-02 (B59): Regulation (EU) 2026/1744 added two prohibition-relevant facts (generates_nonconsensual_intimate_material, generates_csam); every item that enumerates its flags now settles both as false, preserving each item's original fully-settled semantics under the extended fail-closed flag set. No gold verdict changed.",
   "items": [
     {
       "id": "gold:cls-01",
@@ -16,7 +16,9 @@
           "social_scoring": false,
           "subliminal_or_manipulative": true,
           "generates_synthetic_content": true,
-          "causes_significant_harm": true
+          "causes_significant_harm": true,
+          "generates_nonconsensual_intimate_material": false,
+          "generates_csam": false
         }
       },
       "gold": {
@@ -60,7 +62,9 @@
           "profiling_of_natural_persons": false,
           "preparatory_or_narrow_procedural_task": false,
           "creditworthiness_evaluation": false,
-          "life_health_insurance_risk_pricing": false
+          "life_health_insurance_risk_pricing": false,
+          "generates_nonconsensual_intimate_material": false,
+          "generates_csam": false
         }
       },
       "gold": {
@@ -105,7 +109,9 @@
           "profiling_of_natural_persons": false,
           "preparatory_or_narrow_procedural_task": false,
           "creditworthiness_evaluation": false,
-          "life_health_insurance_risk_pricing": false
+          "life_health_insurance_risk_pricing": false,
+          "generates_nonconsensual_intimate_material": false,
+          "generates_csam": false
         }
       },
       "gold": {
@@ -148,7 +154,9 @@
           "profiling_of_natural_persons": false,
           "preparatory_or_narrow_procedural_task": false,
           "creditworthiness_evaluation": false,
-          "life_health_insurance_risk_pricing": false
+          "life_health_insurance_risk_pricing": false,
+          "generates_nonconsensual_intimate_material": false,
+          "generates_csam": false
         }
       },
       "gold": {
@@ -190,7 +198,9 @@
           "profiling_of_natural_persons": false,
           "preparatory_or_narrow_procedural_task": true,
           "creditworthiness_evaluation": false,
-          "life_health_insurance_risk_pricing": false
+          "life_health_insurance_risk_pricing": false,
+          "generates_nonconsensual_intimate_material": false,
+          "generates_csam": false
         }
       },
       "gold": {

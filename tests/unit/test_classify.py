@@ -29,6 +29,8 @@ ALL_FLAGS = (
     "biometric_identification",
     "biometric_categorisation",
     "real_time_remote_biometric_public",
+    "generates_nonconsensual_intimate_material",
+    "generates_csam",
     "emotion_recognition",
     "emotion_recognition_workplace_or_education",
     "social_scoring",
@@ -558,3 +560,48 @@ def test_domain_fallback_yields_to_explicitly_false_flags(dump):
     }
     envelope2 = classify_ai_system(features_unknown, dump)
     assert envelope2["answer"]["risk_category"] == "high_risk"
+
+
+def test_omnibus_ncii_prohibition_cites_amending_instrument(dump, node_ids):
+    """B59: Article 5(1) point (ba), inserted by Regulation (EU) 2026/1744.
+    No base-text node exists (Section 11 version pin), so the hit cites the
+    Omnibus SourceDocument and carries the application date as data."""
+    features = {
+        "description": "Image generator producing sexual deepfakes of real people.",
+        "flags": all_false_flags(generates_nonconsensual_intimate_material=True),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "prohibited"
+    assert envelope["answer"]["prohibited"] is True
+    assert "src:omnibus-com-2025-836" in envelope["source_nodes"]
+    notes = " ".join(envelope["legal_status_notes"])
+    assert "2026/1744" in notes
+    assert "2026-12-02" in notes
+    assert "point (ba)" in notes
+    assert "omnibus_amendments" in notes
+
+
+def test_omnibus_csam_prohibition_cites_amending_instrument(dump, node_ids):
+    features = {
+        "description": "Generative model fine-tuned on abusive material.",
+        "flags": all_false_flags(generates_csam=True),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "prohibited"
+    assert "src:omnibus-com-2025-836" in envelope["source_nodes"]
+    assert any("point (bb)" in n for n in envelope["legal_status_notes"])
+
+
+def test_omnibus_prohibition_flags_are_fail_closed(dump, node_ids):
+    """Absent omnibus prohibition flags are unknown, never false."""
+    features = {
+        "description": "General text and image assistant.",
+        "flags": {},
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    missing = " ".join(envelope["missing_facts"])
+    assert "generates_nonconsensual_intimate_material" in missing
+    assert "generates_csam" in missing

@@ -314,6 +314,19 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   day the Omnibus entered into force, so gate G6 now checks merged_into_base
   instead. Do not merge Omnibus edits into the base
   text; keep them as an overlay so both versions are answerable.
+- AMENDMENT INVENTORY AND INTERIM SURFACING (B59, 2026-09-02): the Omnibus
+  text is a frozen checksummed snapshot in data/snapshots/, and
+  docs/omnibus_amendments.md is the verified article-by-article inventory of
+  what it does to 2024/1689 (every quote re-found in the snapshot). The two
+  new Article 5(1) prohibitions, points (ba) NCII and (bb) CSAM, applying
+  from 2 December 2026, are surfaced by classify_ai_system as first-class
+  fail-closed flags; hits cite the Omnibus SourceDocument because no
+  base-text point node exists pre-merge, and the application date travels
+  in legal_status_notes as data. The Article 6(1) route carries a note about
+  the Omnibus safety-component narrowing. DEFERRED, by decision: parsing the
+  full amendment set into overlay nodes/edges with spans, and an as-amended
+  answer mode for get_applicable_requirements (Chapter III obligations were
+  amended; the norms served are as-enacted and say so via REF-02).
 
 ## 12. Evaluation
 OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24

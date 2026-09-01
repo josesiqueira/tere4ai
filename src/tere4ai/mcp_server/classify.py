@@ -97,6 +97,30 @@ ARTICLE_5_POINT_BY_FLAG: dict[str, tuple[str, str]] = {
     ),
 }
 
+# Prohibitions INSERTED by the Digital Omnibus on AI (Regulation (EU)
+# 2026/1744, point (7)), applying from 2 December 2026. The base-text graph
+# is pinned pre-amendment (Section 11), so no article-5 point node exists
+# for these yet; hits cite the Omnibus SourceDocument (snapshot-backed,
+# docs/omnibus_amendments.md carries the verified verbatim text) and the
+# applies-from date travels as DATA in legal_status_notes, never as control
+# flow. The flag definitions in system_features.schema.json encode the
+# complete practice including the Article 5(1a)/(1b) qualifiers, mirroring
+# how points (c) to (g) embed their qualifiers in the flag semantics.
+OMNIBUS_SOURCE_ID = "src:omnibus-com-2025-836"
+OMNIBUS_ARTICLE_5_APPLIES_FROM = "2026-12-02"
+OMNIBUS_ARTICLE_5_POINT_BY_FLAG: dict[str, tuple[str, str]] = {
+    "generates_nonconsensual_intimate_material": (
+        "point (ba)",
+        "generating or manipulating realistic intimate or sexually explicit "
+        "material of an identifiable person without explicit consent",
+    ),
+    "generates_csam": (
+        "point (bb)",
+        "generating or manipulating child sexual abuse material (Directive "
+        "2011/93/EU, Article 2, points (c) and (e))",
+    ),
+}
+
 # point (h): "the use of real-time remote biometric identification systems in
 # publicly accessible spaces for the purposes of law enforcement". This one
 # needs BOTH flags: the biometric flag and the law-enforcement-use context.
@@ -169,6 +193,7 @@ ARTICLE_5_POINT_H_EXCULPATING = (
 # NOT treated as false (system_features.schema.json).
 PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
     *ARTICLE_5_POINT_BY_FLAG.keys(),
+    *OMNIBUS_ARTICLE_5_POINT_BY_FLAG.keys(),
     "real_time_remote_biometric_public",
 )
 
@@ -591,6 +616,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             _resolve_prohibition(
                 flag, node_id, fragment, ARTICLE_5_EXCULPATING_FACT.get(flag)
             )
+    for flag, (_point, fragment) in OMNIBUS_ARTICLE_5_POINT_BY_FLAG.items():
+        if flags.get(flag) is True:
+            prohibition_hits.append((flag, OMNIBUS_SOURCE_ID, fragment))
     if flags.get("real_time_remote_biometric_public") is True:
         if flags.get("law_enforcement_use") is True:
             _resolve_prohibition(
@@ -612,6 +640,18 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         for flag, node_id, fragment in prohibition_hits:
             citations.cite(node_id)
             rationale.append(f"rule prohibited: flag {flag} matches {node_id} ({fragment})")
+            if flag in OMNIBUS_ARTICLE_5_POINT_BY_FLAG:
+                point, _ = OMNIBUS_ARTICLE_5_POINT_BY_FLAG[flag]
+                legal_status_notes.append(
+                    f"{node_id}: Article 5(1) {point}, inserted by Regulation "
+                    "(EU) 2026/1744 (Digital Omnibus on AI), prohibits this "
+                    f"practice ({fragment}) with application from "
+                    f"{OMNIBUS_ARTICLE_5_APPLIES_FROM}; the amending text is "
+                    "not yet modelled as graph overlay content, so the "
+                    "citation is the amending instrument itself (verified "
+                    "inventory: docs/omnibus_amendments.md)"
+                )
+                continue
             legal_status_notes.append(
                 f"{node_id}: this practice is a prohibited AI practice under "
                 f"Article 5(1) ({fragment}); placing on the market, putting "
@@ -663,6 +703,13 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             f"{ARTICLE_6_PARAGRAPH_3}: the Article 6(3) derogation applies "
             "only to Annex III systems under Article 6(2), not to the "
             "Article 6(1) embedded-product route"
+        )
+        legal_status_notes.append(
+            f"{OMNIBUS_SOURCE_ID}: Regulation (EU) 2026/1744 inserted "
+            "Article 6(1a) to (1c) narrowing which safety components count "
+            "and moved machinery from Annex I Section A to Section B; the "
+            "graph models the base act as enacted, so re-check this route "
+            "against docs/omnibus_amendments.md"
         )
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"

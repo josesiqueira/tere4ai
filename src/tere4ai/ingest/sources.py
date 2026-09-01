@@ -116,8 +116,13 @@ def layer0(build_id: str, manifest_path: str | Path) -> tuple[list[dict], list[d
         ),
     ]
 
+    # Which SourceDocument a snapshot manifests. Everything not named here
+    # keeps the historical base-act linkage (including the HLEG snapshots,
+    # whose own SourceDocument only exists at Layer 3 publication).
+    source_ids = {"omnibus": OMNIBUS_ID}
     for snap in manifest["snapshots"]:
         file_id = f"srcfile:{snap['file']}"
+        source_id = source_ids.get(snap.get("source_document", ""), BASE_ACT_ID)
         nodes.append(
             {
                 "id": file_id,
@@ -132,10 +137,10 @@ def layer0(build_id: str, manifest_path: str | Path) -> tuple[list[dict], list[d
         )
         edges.append(
             _edge(
-                f"edge:{file_id}-derived-from-{BASE_ACT_ID}",
+                f"edge:{file_id}-derived-from-{source_id}",
                 "DERIVED_FROM_SOURCE",
                 file_id,
-                BASE_ACT_ID,
+                source_id,
                 build_id,
                 f"derivation:source_registry:{snap['file']}",
             )

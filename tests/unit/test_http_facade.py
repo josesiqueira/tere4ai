@@ -59,6 +59,8 @@ TRIAGE_FEATURES = {
         "biometric_categorisation": False,
         "real_time_remote_biometric_public": False,
         "law_enforcement_use": False,
+        "generates_nonconsensual_intimate_material": False,
+        "generates_csam": False,
     },
 }
 
