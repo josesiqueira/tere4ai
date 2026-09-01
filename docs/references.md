@@ -375,6 +375,126 @@ confirm). SUPPORTING. Grounds: privacy compliance KG; a cross-domain sibling.
 European Commission, 2026. VERIFIED. SUPPORTING. Grounds: official high-risk
 classification guidance (OVR-1).
 
+**[ADD-29]** PEER. "Systematic mapping study on requirements engineering for
+regulatory compliance of software systems", Kosenkov, Elahidoost, Gorschek,
+Fischbach, Mendez, Unterkalmsteiner, Fucci, Mohanani, Information and Software
+Technology 178 (2025) 107622. VERIFIED (read in full 2026-09-01). CORE.
+Grounds: the field map (280 studies to 2023-12-31, so pre-LLM); abstractness
+of regulations 96/255; tool support gap 28/249 vs methodology 173/249.
+
+**[ADD-30]** PRE. "From Regulation to Requirements: An Automated Requirement
+Derivation and Explanation Pipeline", Nair and Anish (TCS), arXiv:2607.04448v1
+[cs.SE], 5 Jul 2026, no version of record yet. VERIFIED (read in full
+2026-09-02). CORE. Grounds: closest overlap; GPT-5 pipeline deriving
+system-agnostic requirements from the full GDPR and EU AI Act clause sets
+(F1 0.82/0.78) with a traceability matrix; its outputs never reach a codebase.
+
+**[ADD-31]** PEER. "Addressing Legal Requirements in Requirements Engineering",
+Otto and Anton, 15th IEEE RE Conference (RE 2007), pp. 5-14, DOI
+10.1109/RE.2007.65. VERIFIED (read in full 2026-09-02; author copy). CORE.
+Grounds: the legal-requirements RE survey (38 papers, nine formalisms); "no
+final product or working system ever resulted from the research".
+
+**[ADD-32]** PRE. "From Obligation to Specification: A Survey on Validating EU
+AI Act Requirements in RE", Lai, Giesselbach, Koch, Allende-Cid,
+arXiv:2607.21608v1 [cs.SE], 18 May 2026, no version of record yet. VERIFIED
+(read in full 2026-09-02; despite the title it is a 10-interview practitioner
+study, not a survey). SUPPORTING. Grounds: practitioner demand side; its
+minimum requirement (d) demands explicit uncertainty representation and
+conservative recommendations, unimplemented.
+
+**[ADD-33]** PEER. "Regulatory Requirements Compliance in Requirements
+Engineering: A Systematic Classification and Analysis", M. Mahmudul Hasan
+(NOT Akhigbe; a past error confused them), IJSSOE 6(4), 2016, pp. 22-35
+[VERIFY], DOI 10.4018/IJSSOE.2016100102 [VERIFY]. NOT HELD (IGI Global
+paywall, no preprint; see thesis refs/paywalled.md); every field [VERIFY]
+until the PDF is obtained. SUPPORTING. Grounds: systematic classification of
+regulatory-compliance approaches in RE.
+
+**[ADD-34]** PEER. "Assessing the Accuracy of Legal Implementation Readiness
+Decisions", Massey, Smith, Otto, Anton, IEEE RE 2011, pp. 207-216, DOI
+10.1109/RE.2011.6051661 [VERIFY: DOI not printed in the author copy].
+VERIFIED (read in full 2026-09-02). CORE. Grounds: humans measured at the
+readiness judgment (32 students Fleiss kappa 0.0792, consensus specificity
+0.20 vs experts); motivates tool support and defines "legally implementation
+ready".
+
+**[ADD-35]** PRE. "Learning When Not to Decide: A Framework for Overcoming
+Factual Presumptuousness in AI Adjudication", Afane, Robitschek, Ouyang, Ho,
+arXiv:2604.19895, 2026; forthcoming at ICAIL 2026 [VERIFY: ACM DOI and pages
+once published]. VERIFIED. CORE. Grounds: direct threat to the
+calibrated-abstention claim; an evaluated legal system (SPEC) that withholds
+decisions and names missing operative facts; cede or distinguish.
+
+**[ADD-36]** PRE. "LegalBench-RAG: A Benchmark for Retrieval-Augmented
+Generation in the Legal Domain", Pipitone and Houir Alami, arXiv:2408.10343,
+2024. VERIFIED. CORE. Grounds: exact character-span attribution as the
+retrieval unit in legal RAG; bounds the span-provenance story.
+
+**[ADD-37]** PEER. "A Machine Learning Approach for Tracing Regulatory Codes
+to Product Specific Requirements", Cleland-Huang, Czauderna, Gibiec,
+Emenecker, ICSE 2010, pp. 155-164, DOI 10.1145/1806799.1806825. VERIFIED
+(Crossref; full text NOT HELD, ACM paywall, quote nothing until the PDF is in
+hand). CORE. Grounds: the classic evaluated regulation-to-requirement
+trace-recovery work the last-mile claim positions against.
+
+**[ADD-38]** PRE. "R2Code: A Self-Reflective LLM Framework for
+Requirements-to-Code Traceability", Wang, Keung, Ma, Mao, Chen, Li,
+arXiv:2604.22432, 2026; accepted to IEEE COMPSAC 2026 [VERIFY: final IEEE DOI
+once published]. VERIFIED. CORE. Grounds: generic requirement-to-code tracing
+is occupied; the last-mile claim cedes it and keeps the legal-origin chain.
+
+**[ADD-39]** PEER. "From Law to Gherkin: A Human-Centred Quasi-Experiment on
+the Quality of LLM-Generated Behavioural Specifications from Food-Safety
+Regulations", Hassani, Sabetzadeh, Amyot, Information and Software Technology
+195 (2026) 108122, DOI 10.1016/j.infsof.2026.108122 (open access). VERIFIED.
+CORE. Grounds: closest evaluated regulation-to-specification endpoint short
+of code; bounds the last-mile claim from above.
+
+**[ADD-40]** PEER. "Classifier or Prompt: A Case Study on Legal Requirements
+Traceability", Etezadi, Abualhaija, Arora, Briand, Empirical Software
+Engineering 31(4):85, 2026, DOI 10.1007/s10664-026-10827-1 (VoR paywalled;
+arXiv:2502.04916 held as preprint; quote only from the VoR once obtained).
+VERIFIED (Crossref). CORE. Grounds: strongest recent empirical
+legal-requirements trace-recovery comparison in the LLM era.
+
+**[ADD-41]** PEER. "Identification and Visual Representation of Explicit Legal
+Definitions, Their Relations and Implicit Actors in Regulatory Documents",
+Sai, Rossi, Damaratskaya, Winter, Rinderle-Ma, Computer Law and Security
+Review 58 (2025) 106174, DOI 10.1016/j.clsr.2025.106174 (open access).
+VERIFIED. CORE. Grounds: closest published basis for actor-aware scoping;
+bears on regulator-bound filtering and the actor-resolution audit.
+
+**[ADD-42]** PEER. "Compliance-as-Code for AI-Driven Identity Systems:
+Clause-to-Control Traceability and Machine-Readable Evidence", Nweke and Yeng,
+IEEE Access 14 (2026) 28258-28281, DOI 10.1109/ACCESS.2026.3665991 (open
+access, CC BY 4.0). VERIFIED. CORE. Grounds: clause-to-control-to-evidence
+prior art; its endpoint is controls and evidence, not source-code locations.
+
+**[ADD-43]** PEER. "An Empirical Study on LLM-based Classification of
+Requirements-related Provisions in Food-safety Regulations", Hassani,
+Sabetzadeh, Amyot, Empirical Software Engineering 30(3):72, 2025, DOI
+10.1007/s10664-025-10619-z (VoR paywalled; arXiv:2501.14683 held as preprint;
+quote only from the VoR once obtained). VERIFIED (DBLP, Crossref). CORE.
+Grounds: provision classification by requirements-related concepts, domain
+classes rather than an engineering-response taxonomy.
+
+**[ADD-44]** PRE. "Executable Governance for AI: Translating Policies into
+Rules Using LLMs", Datla, Vurity, Dash, Ahmad, Adnan, Rafi, arXiv:2512.04408,
+2025; accepted to the AAAI-26 AI Governance Workshop [VERIFY: proceedings
+citation once available]. VERIFIED. SUPPORTING. Grounds: LLM extraction
+coupled with deterministic checks; adjacent to the judge-gated
+extraction-audit claim.
+
+**[ADD-45]** PEER. "From Policy to Pipeline: A Governance Framework for AI
+Development and Operations Pipelines", Butt, Iqbal, Arshad, IEEE Access 14
+(2026) 1373-1397, DOI 10.1109/ACCESS.2025.3647479 (open access, CC BY 4.0;
+the 2025 DOI prefix against volume 14 is explained on page 1: published 23
+Dec 2025). VERIFIED. CORE. Grounds: GEAP's signed, content-addressed
+governance artifacts; bears on the provenance and evidence story. Note: the
+triage suspected this citation was fabricated; direct verification 2026-09-02
+found it real.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
