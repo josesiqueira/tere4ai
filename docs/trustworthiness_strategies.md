@@ -212,7 +212,7 @@ merit, this document says so explicitly instead of inventing a citation.
 ### 16. Version-pinned legal sources with amendment overlay (DEC-12)
 - Grounding: REF-01, REF-02, REF-04 (all OFF).
 - Implementation: src/tere4ai/ingest/sources.py:66-110 (base in_force,
-  Omnibus adopted_not_yet_applicable, AMENDS and HAS_VERSION edges, never
+  Omnibus in_force with merged_into_base false, AMENDS and HAS_VERSION edges, never
   merged); gate G6 gates.py:126-141.
 - Tests: tests/unit/test_sources.py:10, :32.
 - See it: the coverage page's sources card with legal_status badges.

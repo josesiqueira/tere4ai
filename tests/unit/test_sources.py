@@ -14,7 +14,8 @@ def test_version_pin_nodes_and_edges():
     base = by_id[BASE_ACT_ID]
     omnibus = by_id[OMNIBUS_ID]
     assert base["legal_status"] == "in_force"
-    assert omnibus["legal_status"] == "adopted_not_yet_applicable"
+    assert omnibus["legal_status"] == "in_force"
+    assert omnibus["merged_into_base"] is False
 
     edge_types = {(e["edge_type"], e["from"], e["to"]) for e in edges}
     assert ("AMENDS", OMNIBUS_ID, BASE_ACT_ID) in edge_types

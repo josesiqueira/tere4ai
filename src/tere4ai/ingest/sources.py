@@ -6,14 +6,16 @@
 Emits the SourceDocument nodes and versioning edges required by
 docs/architecture.md Section 11:
   - base Act (Regulation (EU) 2024/1689), legal_status in_force
-  - Digital Omnibus on AI (COM(2025) 836), legal_status
-    adopted_not_yet_applicable, linked to the base Act by AMENDS and
-    HAS_VERSION edges, carrying the deferred high-risk deadlines
+  - Digital Omnibus on AI (Regulation (EU) 2026/1744), legal_status
+    in_force, linked to the base Act by AMENDS and HAS_VERSION edges,
+    carrying the deferred high-risk deadlines and an explicit
+    merged_into_base=False marker
   - the frozen SourceFile snapshot(s) from data/snapshots/MANIFEST.json
 
-Omnibus edits are never merged into the base text (Section 11 version pin).
-The final published OJ number for the Omnibus is still open; see
-docs/references.md REF-02 [VERIFY].
+Omnibus edits are never merged into the base text (Section 11 version pin);
+now that the Omnibus is in force, merged_into_base states that explicitly.
+Published identity verified on EUR-Lex 2026-09-02: Regulation (EU) 2026/1744,
+OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026 (REF-02).
 """
 
 from __future__ import annotations
@@ -77,15 +79,20 @@ def layer0(build_id: str, manifest_path: str | Path) -> tuple[list[dict], list[d
             "id": OMNIBUS_ID,
             "layer": 0,
             "type": "SourceDocument",
-            "title": "Digital Omnibus on AI, COM(2025) 836 final, procedure 2025/0359(COD)",
-            "celex": "52025PC0836",
-            "eli": "",
-            "legal_status": "adopted_not_yet_applicable",
+            "title": "Digital Omnibus on AI, Regulation (EU) 2026/1744",
+            "celex": "32026R1744",
+            "eli": "http://data.europa.eu/eli/reg/2026/1744/oj",
+            "legal_status": "in_force",
+            "merged_into_base": False,
             "notes": (
-                "Adopted amending instrument; defers standalone Annex III high-risk to "
+                "Amending instrument, OJ L, 2026/1744, 24.7.2026, in force since "
+                "27.7.2026; adopted from COM(2025) 836 final, procedure "
+                "2025/0359(COD), which the stable node id still names. Defers "
+                "standalone Annex III high-risk to "
                 f"{OMNIBUS_DEFERRED_DEADLINES['annex_iii_standalone_high_risk']} and embedded "
-                f"Annex I to {OMNIBUS_DEFERRED_DEADLINES['annex_i_embedded_high_risk']}. "
-                "Final OJ number pending verification (REF-02). Never merged into base text."
+                f"Annex I to {OMNIBUS_DEFERRED_DEADLINES['annex_i_embedded_high_risk']}, "
+                "both confirmed against the OJ text (REF-02). Never merged into "
+                "base text: merged_into_base stays False."
             ),
         },
     ]

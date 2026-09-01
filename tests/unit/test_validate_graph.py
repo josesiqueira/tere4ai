@@ -62,6 +62,18 @@ def test_version_pin_gate():
     dump = _real_dump()
     for n in dump["nodes"]:
         if n["id"] == "src:omnibus-com-2025-836":
+            n["merged_into_base"] = True
+    report = validate_build(dump)
+    assert any("G6" in f and "silent replacement" in f for f in report.failures)
+
+
+def test_version_pin_gate_missing_merge_marker():
+    # An in-force amending instrument must SAY merged_into_base False; an
+    # absent marker is treated as silent replacement, not as innocence.
+    dump = _real_dump()
+    for n in dump["nodes"]:
+        if n["id"] == "src:omnibus-com-2025-836":
             n["legal_status"] = "in_force"
+            n.pop("merged_into_base", None)
     report = validate_build(dump)
     assert any("G6" in f and "silent replacement" in f for f in report.failures)

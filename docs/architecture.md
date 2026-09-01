@@ -297,17 +297,22 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
 
 - Sources carry legal_status: in_force, adopted_not_yet_applicable, proposed,
   draft, non_binding, superseded, unknown_needs_review.
-- The Digital Omnibus on AI (REF-02) is adopted and changes the in-force text
-  and the high-risk dates (standalone Annex III high-risk to at the latest 2
+- The Digital Omnibus on AI (REF-02) is in force (Regulation (EU) 2026/1744,
+  OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026) and changes the base
+  text and the high-risk dates (standalone Annex III high-risk to at the latest 2
   December 2027; embedded Annex I to 2 August 2028), and softens Article 4 AI
   literacy among others. Model it as a distinct SourceDocument linked to the base
   Act by AMENDS and HAS_VERSION edges. The graph must answer a provision "as
   enacted" versus "as amended", with dates.
-- VERSION PIN (decided for M1): pin Regulation (EU) 2024/1689 as the base with
-  legal_status in_force. Model the Omnibus (COM(2025) 836) as a separate source
-  with legal_status adopted_not_yet_applicable, carrying the deadlines above.
-  Adoption and deadlines are verified; only the final published OJ number and
-  date remain to confirm at build time. Do not merge Omnibus edits into the base
+- VERSION PIN (decided for M1, labelling updated 2026-09-02): pin Regulation
+  (EU) 2024/1689 as the base with legal_status in_force. Model the Omnibus
+  (Regulation (EU) 2026/1744, formerly COM(2025) 836) as a separate source
+  with legal_status in_force and an explicit merged_into_base false marker,
+  carrying the deadlines above. Published identity, entry into force
+  (27.7.2026) and both deadlines were verified against the OJ text on
+  2026-09-02 (REF-02); legal_status stopped working as the merge marker the
+  day the Omnibus entered into force, so gate G6 now checks merged_into_base
+  instead. Do not merge Omnibus edits into the base
   text; keep them as an overlay so both versions are answerable.
 
 ## 12. Evaluation

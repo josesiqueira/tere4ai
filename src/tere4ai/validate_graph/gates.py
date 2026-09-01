@@ -123,14 +123,27 @@ def validate_build(
         if e["from"] in recital_ids and e["edge_type"] in HIERARCHY_EDGES - {"HAS_RECITAL"}:
             report.failures.append(f"G5 recital with operative child: {e['edge_id']}")
 
-    # G6: version pin intact (base in force; amendment distinct and marked)
+    # G6: version pin intact (base in force; amendment distinct, never merged).
+    # Since Regulation (EU) 2026/1744 entered into force on 2026-07-27 the
+    # amending instrument is legitimately in_force, so legal_status can no
+    # longer double as the merge marker; the explicit merged_into_base field
+    # carries that invariant. An in-force amending instrument that does not
+    # explicitly say merged_into_base False is treated as silent replacement.
     sources = {n["id"]: n for n in dump["nodes"] if n.get("type") == "SourceDocument"}
     base = sources.get("src:eu-ai-act:oj-2024-07-12")
     omnibus = sources.get("src:omnibus-com-2025-836")
     if base is None or base.get("legal_status") != "in_force":
         report.failures.append("G6 base act missing or not marked in_force")
     if omnibus is not None:
-        if omnibus.get("legal_status") == "in_force":
+        if omnibus.get("merged_into_base") is True:
+            report.failures.append(
+                "G6 amending instrument merged into the base text: "
+                "silent replacement forbidden"
+            )
+        if (
+            omnibus.get("legal_status") == "in_force"
+            and omnibus.get("merged_into_base") is not False
+        ):
             report.failures.append(
                 "G6 amending instrument marked in_force: silent replacement forbidden"
             )

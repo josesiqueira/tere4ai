@@ -43,21 +43,21 @@ ANNEX_III_POINT_5B = "eu-ai-act:annex-iii:point-5:b"
 ANNEX_III_POINT_5C = "eu-ai-act:annex-iii:point-5:c"
 
 # Timeline as DATA, never control flow (architecture.md Section 11: the
-# Omnibus is an overlay, both versions stay answerable). Checked 2026-07-20:
-# Parliament approved 16 June 2026, Council 29 June 2026; the final OJ text
-# is not yet published, so the status stays
-# adopted_not_yet_applicable and the date must be reconfirmed against the
-# OJ text when it lands.
+# Omnibus is an overlay, both versions stay answerable). Checked 2026-07-20
+# (Parliament approved 16 June 2026, Council 29 June 2026); reconfirmed
+# 2026-09-02 against the published OJ text: Regulation (EU) 2026/1744,
+# OJ L, 2026/1744, 24.7.2026, in force since 27 July 2026, and the
+# 2 December 2027 date below is quoted from the amended text.
 FRIA_APPLIES_FROM = {
     "date": "2027-12-02",
     "meaning": (
         "standalone Annex III high-risk obligations, Article 27 included, "
         "apply at the latest from this date under the Digital Omnibus on AI"
     ),
-    "legal_status": "adopted_not_yet_applicable",
+    "legal_status": "in_force",
     "source": (
-        "REF-02: Digital Omnibus on AI (COM(2025) 836); final Official "
-        "Journal (OJ) citation pending"
+        "REF-02: Digital Omnibus on AI, Regulation (EU) 2026/1744, "
+        "Official Journal (OJ) L, 2026/1744, 24.7.2026, CELEX 32026R1744"
     ),
 }
 

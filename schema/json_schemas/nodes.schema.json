@@ -48,6 +48,7 @@
         "celex": { "type": "string" },
         "eli": { "type": "string" },
         "legal_status": { "$ref": "#/$defs/legalStatus" },
+        "merged_into_base": { "type": "boolean" },
         "notes": { "type": "string" }
       },
       "required": ["title", "legal_status"]

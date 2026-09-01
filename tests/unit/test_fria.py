@@ -255,14 +255,14 @@ def test_applies_from_is_data_never_control_flow():
         block = assess_fria_applicability(*args)
         applies_from = block["applies_from"]
         assert applies_from["date"] == "2027-12-02"
-        assert applies_from["legal_status"] == "adopted_not_yet_applicable"
+        assert applies_from["legal_status"] == "in_force"
         assert "OJ" in applies_from["source"]
 
 
 def test_applies_from_source_carries_no_internal_task_references():
     """The applies_from source rides on every classify envelope, so it is
-    public-facing text: it must name the amending instrument and the pending
-    OJ citation, never an internal task-board reference."""
+    public-facing text: it must name the amending instrument and its OJ
+    citation, never an internal task-board reference."""
     for args in (
         ("high_risk", POINT_5, {"creditworthiness_evaluation": True}, {}),
         ("minimal_or_none", None, {}, {}),
@@ -271,8 +271,8 @@ def test_applies_from_source_carries_no_internal_task_references():
         block = assess_fria_applicability(*args)
         source = block["applies_from"]["source"]
         assert "TASKS.md" not in source
-        assert "COM(2025) 836" in source
-        assert "pending" in source
+        assert "2026/1744" in source
+        assert "24.7.2026" in source
 
 
 def test_vocabulary_is_closed_and_output_never_claims_compliance():
