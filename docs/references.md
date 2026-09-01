@@ -223,9 +223,17 @@ high-risk determination; FRIA), Future of Life Institute,
 artificialintelligenceact.eu. VERIFIED. SUPPORTING. Grounds: a baseline and a
 classification-logic source for classify_ai_system. Not the European Commission.
 
-**[REF-31]** STD. Model Context Protocol specification (2025-06-18),
-modelcontextprotocol.io. VERIFIED. SUPPORTING. Grounds: MCP security and consent
-(SEC rules, ACC tools).
+**[REF-31]** STD. Model Context Protocol specification (revision 2026-07-28;
+the spec versions by date and has no semantic version), modelcontextprotocol.io.
+VERIFIED (revision confirmed current 2026-09-01). SUPPORTING. Grounds: MCP
+security and consent (SEC rules, ACC tools); the core security and trust
+principles (user consent, data privacy, tool safety with tool descriptions
+treated as untrusted); statelessness (no protocol sessions; cross-call state
+only as explicit server-minted handles, which this server does not need);
+deterministic tools/list ordering (spec SHOULD). Authorization is OPTIONAL in
+the spec and OAuth 2.1 is a SHOULD for HTTP transports; the scoped t4a_ Bearer
+keys are a documented deviation (architecture.md Section 8). The served
+protocol still negotiates 2025-11-25 pending fastmcp support for 2026-07-28.
 
 **[REF-32]** PROJ. Graphify (Graphify-Labs),
 github.com/Graphify-Labs/graphify. VERIFIED. SUPPORTING. Grounds: provenance and

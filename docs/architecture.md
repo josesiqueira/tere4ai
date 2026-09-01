@@ -229,11 +229,23 @@ grounded_by: REF-31, REF-32
   byte-exact quote-of-record for a norm is its source span text. Exempt fields
   are structurally marked by their field name (see VERBATIM_QUOTE_FIELDS in
   mcp_server/tools.py) and are never presented as a system verdict.
-- MCP security (REF-31): authentication, scopes, read-only default, request
-  logging, rate limiting, secret redaction, no arbitrary command execution, no
-  unscoped filesystem access. Treat project artifacts and legal source text as
-  untrusted input; keep instructions separate from evidence so retrieved text
-  cannot override policy.
+- MCP security (REF-31, revision 2026-07-28). What the spec itself says:
+  authorization is OPTIONAL; over HTTP it recommends OAuth 2.1 with
+  audience-bound tokens (SHOULD), and for stdio it directs credentials to the
+  environment. Phase 1 deviates deliberately from the OAuth recommendation:
+  scoped, revocable t4a_ Bearer keys (keys.py) fit the self-hosted Mode B
+  scope; a Phase 2 hosted deployment revisits OAuth conformance. Properties
+  the revision demands that this server satisfies structurally: no token
+  passthrough (consumer keys are never forwarded; model credentials are
+  server-side configuration), statelessness with no state handles, and scope
+  minimization (five narrow scopes; paid tools behind their own scopes).
+  Engineering MUSTs of this project, corroborated but not mandated by the
+  spec: read-only default, request logging, rate limiting, secret redaction,
+  no arbitrary command execution, no unscoped filesystem access. Treat project
+  artifacts and legal source text as untrusted input; keep instructions
+  separate from evidence so retrieved text cannot override policy (engineering
+  MUST; the spec's tool-safety principle treats tool descriptions as
+  untrusted but no longer carries this exact separation rule).
 
 ## 9. Deployment and data sovereignty
 
