@@ -605,3 +605,24 @@ def test_consolidate_merges_and_tags_by_kind(tmp_path):
     append_event(b, {"timestamp": "2026-07-10T01:00:00+00:00", "verdict": "rejected"})
     merged = consolidate({"extraction": a, "runtime_grounding": b})
     assert [e["log_kind"] for e in merged] == ["runtime_grounding", "extraction"]
+
+
+def test_repo_root_env_override(monkeypatch, tmp_path):
+    """B54: a wheel install points TERE4AI_REPO_ROOT at a checkout; the
+    default stays parents[3] (the editable-install repo root)."""
+    from tere4ai.eval import harness
+
+    monkeypatch.setenv("TERE4AI_REPO_ROOT", str(tmp_path))
+    assert harness._repo_root() == tmp_path.resolve()
+    monkeypatch.delenv("TERE4AI_REPO_ROOT")
+    assert harness._repo_root() == Path(harness.__file__).resolve().parents[3]
+
+
+def test_read_config_of_record_names_the_missing_path(tmp_path):
+    from tere4ai.eval import harness
+
+    missing = tmp_path / "eval" / "config_evaluated.yaml"
+    with pytest.raises(harness.EvalAssetMissingError) as exc:
+        harness.read_config_of_record(missing)
+    assert str(missing) in str(exc.value)
+    assert "TERE4AI_REPO_ROOT" in str(exc.value)

@@ -146,3 +146,55 @@ def test_fixture_repo_with_em_dash_fails(tmp_path):
     assert result.returncode == 1, out
     assert "[dash]" in out
     assert "src/pkg/mod.py" in out
+
+
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-C", str(root), *args],
+        check=True,
+        capture_output=True,
+        env={
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@t",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@t",
+            "HOME": str(root),
+            "PATH": "/usr/bin:/bin",
+        },
+    )
+
+
+def test_untracked_files_stay_out_of_matrix_and_gates(tmp_path):
+    """B55: the checker scans the git index, so an untracked file with tags,
+    dashes, or an absolute home path must neither write matrix rows nor fail
+    a gate; it does not exist on a fresh clone."""
+    root = make_fake_repo(tmp_path)
+    _git(root, "init", "-q")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "fixture")
+    home = "/" + "home/"
+    (root / "scripts" / "untracked_probe.py").write_text(
+        '"""@implements: DEC-02\n@grounded_by: REF-99\n"""\n'
+        f'P = "{home}nobody/x"\n',
+        encoding="utf-8",
+    )
+    result = run_checker(root=root)
+    out = result.stdout + result.stderr
+    assert result.returncode == 0, out
+    content = (root / "docs" / "traceability.md").read_text(encoding="utf-8")
+    assert "untracked_probe" not in content
+    assert "[unknown-ref]" not in out
+    assert "[abs-path]" not in out
+
+
+def test_gate5_absolute_home_path_fails(tmp_path):
+    """B53 Gate 5: a tracked source hardcoding an absolute home path fails.
+    The fixture repo is not a git checkout, so the filesystem fallback makes
+    every file 'tracked'."""
+    home = "/" + "home/"
+    root = make_fake_repo(tmp_path, module_body=f'VALUE = "{home}somebody/data"\n')
+    result = run_checker(root=root)
+    out = result.stdout + result.stderr
+    assert result.returncode == 1, out
+    assert "[abs-path]" in out
+    assert "src/pkg/mod.py" in out

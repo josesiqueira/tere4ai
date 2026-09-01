@@ -42,7 +42,18 @@ from tere4ai.eval.strategies import STRATEGY_NAMES, build_strategy
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.judge.config import ModelConfig, load_model_config
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+
+def _repo_root() -> Path:
+    """Repo root for eval assets, correct via parents[3] only under an
+    editable install. eval/ is not shipped inside the wheel, so a wheel
+    install must point TERE4AI_REPO_ROOT at a repository checkout."""
+    override = os.environ.get("TERE4AI_REPO_ROOT")
+    if override:
+        return Path(override).resolve()
+    return Path(__file__).resolve().parents[3]
+
+
+REPO_ROOT = _repo_root()
 EVAL_CONFIG_PATH = REPO_ROOT / "eval" / "config_evaluated.yaml"
 RESULTS_DIR = REPO_ROOT / "eval" / "results"
 GOLD_SEED_PATH = REPO_ROOT / "eval" / "gold" / "gold_seed.json"
@@ -72,6 +83,10 @@ class LiveGateError(RuntimeError):
     """A live run was requested without the TERE4AI_LIVE_TESTS=1 env gate."""
 
 
+class EvalAssetMissingError(FileNotFoundError):
+    """An eval asset is absent, usually a wheel install without TERE4AI_REPO_ROOT."""
+
+
 def read_config_of_record(config_path: Path = EVAL_CONFIG_PATH) -> dict[str, str]:
     """Generator and judge model ids from eval/config_evaluated.yaml.
 
@@ -81,6 +96,12 @@ def read_config_of_record(config_path: Path = EVAL_CONFIG_PATH) -> dict[str, str
     that file is supported, which keeps the guard dependency-free and makes
     an unexpected file shape fail loudly.
     """
+    if not config_path.is_file():
+        raise EvalAssetMissingError(
+            f"eval config of record not found: {config_path}. eval/ ships "
+            "with the repository, not the wheel; under a non-editable "
+            "install set TERE4AI_REPO_ROOT to a repository checkout."
+        )
     section = None
     values: dict[str, str] = {}
     for raw_line in config_path.read_text(encoding="utf-8").splitlines():

@@ -10,7 +10,13 @@ Stdlib only. Usage:
     python scripts/check_traceability.py [--root PATH]
 
 Exit codes: 0 on success, 1 on any failure (unknown REF id, unknown DEC id,
-expected decision not implemented, or a forbidden dash character found).
+expected decision not implemented, a forbidden dash character, or an
+absolute home path in tracked sources).
+
+Scans the GIT INDEX, not the filesystem (B55): an untracked local file must
+never write rows into docs/traceability.md, because those rows would not
+exist on a fresh clone and CI's diff gate would fail. Outside a git checkout
+the scan falls back to the filesystem.
 """
 
 from __future__ import annotations
@@ -18,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -49,6 +56,21 @@ GROUNDED_BY_LINE_RE = re.compile(r"@grounded_by\s*:\s*(.*)")
 PARTIAL_NOTE_RE = re.compile(r"\(partial:\s*([^)]*)\)")
 
 
+def tracked_files(root: Path) -> set[str] | None:
+    """Relative posix paths in the git index, or None when git is unusable
+    (then the filesystem scan stands alone). Untracked files must not enter
+    the matrix or the gates (B55)."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z"],
+            capture_output=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return {name for name in out.decode("utf-8").split("\0") if name}
+
+
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
@@ -76,7 +98,12 @@ def parse_ref_ids(references_md: Path) -> set[str]:
     return set(REF_DEF_RE.findall(read_text(references_md)))
 
 
-def iter_scan_files(root: Path, dirs: tuple[str, ...], suffixes: tuple[str, ...]):
+def iter_scan_files(
+    root: Path,
+    dirs: tuple[str, ...],
+    suffixes: tuple[str, ...],
+    tracked: set[str] | None,
+):
     for d in dirs:
         base = root / d
         if not base.is_dir():
@@ -84,13 +111,16 @@ def iter_scan_files(root: Path, dirs: tuple[str, ...], suffixes: tuple[str, ...]
         for path in sorted(base.rglob("*")):
             if not path.is_file() or path.suffix not in suffixes:
                 continue
+            rel = path.relative_to(root).as_posix()
+            if tracked is not None and rel not in tracked:
+                continue
             rel_parts = path.relative_to(root).parts
             if any(part in EXCLUDED_DIR_NAMES for part in rel_parts):
                 continue
             yield path
 
 
-def scan_tags(root: Path) -> list[dict]:
+def scan_tags(root: Path, tracked: set[str] | None = None) -> list[dict]:
     """Scan .py files under src/ and scripts/ for @implements / @grounded_by.
 
     Returns one record per file that carries at least one tag with at least
@@ -98,7 +128,7 @@ def scan_tags(root: Path) -> list[dict]:
     [ref ids]}.
     """
     records: list[dict] = []
-    for path in iter_scan_files(root, TAG_SCAN_DIRS, (".py",)):
+    for path in iter_scan_files(root, TAG_SCAN_DIRS, (".py",), tracked):
         implements: list[tuple[str, str | None]] = []
         grounded_by: list[str] = []
         for line in read_text(path).splitlines():
@@ -123,7 +153,9 @@ def scan_tags(root: Path) -> list[dict]:
     return records
 
 
-def discover_tests(root: Path, decision_ids: list[str]) -> dict[str, list[str]]:
+def discover_tests(
+    root: Path, decision_ids: list[str], tracked: set[str] | None = None
+) -> dict[str, list[str]]:
     """Best effort: for each DEC id, list test files under tests/ that
     mention it. Empty list when none."""
     tests_by_dec: dict[str, list[str]] = {dec: [] for dec in decision_ids}
@@ -134,6 +166,8 @@ def discover_tests(root: Path, decision_ids: list[str]) -> dict[str, list[str]]:
         rel_parts = path.relative_to(root).parts
         if any(part in EXCLUDED_DIR_NAMES for part in rel_parts):
             continue
+        if tracked is not None and path.relative_to(root).as_posix() not in tracked:
+            continue
         text = read_text(path)
         rel = path.relative_to(root).as_posix()
         for dec in decision_ids:
@@ -142,16 +176,34 @@ def discover_tests(root: Path, decision_ids: list[str]) -> dict[str, list[str]]:
     return tests_by_dec
 
 
-def scan_dashes(root: Path) -> list[str]:
+def scan_dashes(root: Path, tracked: set[str] | None = None) -> list[str]:
     """Return failure messages for forbidden dash characters in .py and .md
     files under the dash-scan directories."""
     failures: list[str] = []
-    for path in iter_scan_files(root, DASH_SCAN_DIRS, (".py", ".md")):
+    for path in iter_scan_files(root, DASH_SCAN_DIRS, (".py", ".md"), tracked):
         for lineno, line in enumerate(read_text(path).splitlines(), start=1):
             for char in DASH_RE.findall(line):
                 failures.append(
                     f"{path.relative_to(root).as_posix()}:{lineno}: "
                     f"forbidden {FORBIDDEN_DASHES[char]}"
+                )
+    return failures
+
+
+ABS_PATH_SCAN_DIRS = ("src", "scripts", "docs")
+ABS_HOME_RE = re.compile("(?:/" + "home/|/" + "Users/)")
+
+
+def scan_abs_paths(root: Path, tracked: set[str] | None = None) -> list[str]:
+    """Gate 5 (B53): tracked sources and docs must not hardcode absolute
+    home paths; they break every machine but the author's."""
+    failures: list[str] = []
+    for path in iter_scan_files(root, ABS_PATH_SCAN_DIRS, (".py", ".md"), tracked):
+        for lineno, line in enumerate(read_text(path).splitlines(), start=1):
+            if ABS_HOME_RE.search(line):
+                failures.append(
+                    f"{path.relative_to(root).as_posix()}:{lineno}: "
+                    "absolute home path"
                 )
     return failures
 
@@ -253,8 +305,11 @@ def main(argv: list[str] | None = None) -> int:
 
     decision_ids = parse_decision_ids(architecture_md)
     ref_ids = parse_ref_ids(references_md)
-    tag_records = scan_tags(root)
-    tests_by_dec = discover_tests(root, decision_ids)
+    tracked = tracked_files(root)
+    if tracked is None:
+        print("WARN [setup] not a git checkout; scanning the filesystem instead")
+    tag_records = scan_tags(root, tracked)
+    tests_by_dec = discover_tests(root, decision_ids, tracked)
     expected, expected_warning = load_expected(root)
 
     failures: list[str] = []
@@ -288,8 +343,12 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     # Gate 4: no em dashes or en dashes in .py or .md files.
-    for msg in scan_dashes(root):
+    for msg in scan_dashes(root, tracked):
         failures.append(f"FAIL [dash] {msg}")
+
+    # Gate 5: no absolute home paths in tracked sources and docs (B53).
+    for msg in scan_abs_paths(root, tracked):
+        failures.append(f"FAIL [abs-path] {msg}")
 
     # Generate the matrix even when gates fail, so the report aids debugging.
     matrix = build_matrix(decision_ids, tag_records, tests_by_dec)
