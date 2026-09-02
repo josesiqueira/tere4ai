@@ -758,3 +758,13 @@ def test_non_finite_json_literals_degrade_to_clean_422_never_500(client, path, b
     # client still succeeds right after the attack.
     follow_up = client.post("/api/classify", json={"features": TRIAGE_FEATURES})
     assert follow_up.status_code == 200
+
+
+def test_schema_endpoint_serves_features_schema_with_version(client):
+    response = client.get("/api/schema/system_features")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schema"]["$schema"].startswith("http")
+    assert "flags" in body["schema"]["properties"]
+    assert len(body["schema_sha256"]) == 64
+    assert body["graph_version"]

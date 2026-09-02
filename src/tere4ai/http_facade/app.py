@@ -38,6 +38,7 @@ Behavioral contract:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -204,6 +205,16 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         app.state.norms = _load_json(base / "norms_core.json")
         app.state.alignments = _load_json(base / "alignments_core.json")
         app.state.hleg_nodes = _load_hleg_nodes()
+        schema_path = (
+            _PROJECT_ROOT / "schema" / "json_schemas" / "system_features.schema.json"
+        )
+        try:
+            raw = schema_path.read_bytes()
+            app.state.features_schema = json.loads(raw)
+            app.state.features_schema_sha256 = hashlib.sha256(raw).hexdigest()
+        except OSError:
+            app.state.features_schema = None
+            app.state.features_schema_sha256 = None
         missing = [
             name
             for name, payload in (("layer1.json", app.state.dump), ("norms_core.json", app.state.norms))
@@ -403,6 +414,25 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                 "ok": True,
                 "graph_version": _graph_version(request),
                 "norms_build": norms_build,
+            }
+        )
+
+    @app.get("/api/schema/system_features")
+    def features_schema(request: Request) -> JSONResponse:
+        # The dashboard validates project features against THIS document
+        # (spec A8): serving it, rather than letting consumers vendor a
+        # copy, is what keeps both sides of the wire on one contract.
+        schema = request.app.state.features_schema
+        if schema is None:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "features schema unavailable on this checkout"},
+            )
+        return JSONResponse(
+            content={
+                "schema": schema,
+                "schema_sha256": request.app.state.features_schema_sha256,
+                "graph_version": _graph_version(request),
             }
         )
 
