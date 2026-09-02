@@ -802,6 +802,9 @@ def test_report_endpoint_renders_html_from_session_jsonl(client):
     # reads "does not certify EU AI Act compliance and does not replace legal
     # review", never the literal phrase "legal advice": check for that instead.
     assert "does not certify eu ai act compliance" in response.text.lower()
+    # Provenance must be a stable name, never a random temp filename leaked
+    # into the report header or an untitled session's h1 fallback.
+    assert "posted-session.jsonl" in response.text
 
 
 def test_report_endpoint_rejects_empty_and_oversized(client):

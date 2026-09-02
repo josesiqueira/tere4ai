@@ -23,6 +23,17 @@ Behavioral contract:
   trace_alignment envelope per unique requested id, passed through
   unmodified, so the assess page can render HLEG alignment chips for all
   served norms with a single request instead of one call per norm.
+- GET /api/schema/system_features serves the dashboard's feature-input JSON
+  Schema plus a sha256 digest of the on-disk file and the graph_version, so
+  a consumer can detect drift (503 when the schema file is missing or
+  unreadable).
+- GET /api/coverage and GET /api/alignments are deterministic and free: the
+  M1 structural coverage view and the corpus-wide accepted HLEG assertions
+  plus the accepted norms that have none (alignments additionally needs
+  alignments_core.json, same clean 503 as /api/explain).
+- POST /api/report is a pure, stateless render: session JSONL in, the
+  self-contained audit-grade HTML report out (422 on empty or oversized
+  input).
 - /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
   plus Anthropic runtime grounding judge). /api/elicit performs a PAID
   generator call (fact elicitation, no judge). Model clients are built lazily
@@ -74,8 +85,7 @@ from tere4ai.mcp_server.tools import (
     coverage_report,
     make_envelope,
 )
-from tere4ai.report.ingest import ingest_inputs
-from tere4ai.report.render import render_report
+from tere4ai.report.render import render_report_from_paths
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DUMP_DIR = _PROJECT_ROOT / "data" / "graph_dumps"
@@ -219,6 +229,9 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         try:
             raw = FEATURES_SCHEMA_PATH.read_bytes()
             app.state.features_schema = json.loads(raw)
+            # Digest over the on-disk file bytes, not the served JSON body: a
+            # version token for consumers to detect drift, not something
+            # reproducible by re-hashing the response's "schema" field.
             app.state.features_schema_sha256 = hashlib.sha256(raw).hexdigest()
         except (OSError, json.JSONDecodeError):
             app.state.features_schema = None
@@ -347,7 +360,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "evidence evaluation behind a runtime grounding judge. Not legal "
             "advice; never claims compliance.\n\n"
             "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
-            "/api/trace, /api/trace/batch and GET /api/span/{span_id}, "
+            "/api/trace, /api/trace/batch, /api/report and GET /api/span/{span_id}, "
+            "/api/coverage, /api/alignments, /api/schema/system_features, "
             "/api/demo/sessions, /api/demo/sessions/{name} "
             "(free, deterministic); "
             "POST /api/evidence, /api/backlog, /api/elicit (paid model calls, marked with "
@@ -764,21 +778,13 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
     def report(request: Request, body: ReportRequest) -> Response:
         # The thin facade route B41 anticipated: session JSONL in, the
         # self-contained audit-grade HTML out. Pure rendering, no state.
-        with tempfile.NamedTemporaryFile(
-            "w", suffix=".jsonl", encoding="utf-8", delete=False
-        ) as handle:
-            handle.write(body.session_jsonl)
-            tmp_path = Path(handle.name)
-        try:
-            result = ingest_inputs([tmp_path])
-            html = render_report(
-                result.exchanges,
-                result.problems,
-                source_names=result.source_names,
-                header_flags=result.header_flags,
-            )
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        # A stable basename (not a random temp name) so the rendered
+        # report's provenance header and any description fallback read
+        # "posted-session.jsonl", never a throwaway tmpXXXX name.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir) / "posted-session.jsonl"
+            tmp_path.write_text(body.session_jsonl, encoding="utf-8")
+            html = render_report_from_paths([tmp_path])
         return Response(content=html, media_type="text/html")
 
     return app
