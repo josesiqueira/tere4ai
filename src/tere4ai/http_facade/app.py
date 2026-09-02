@@ -70,6 +70,7 @@ from tere4ai.mcp_server.spans import (
 from tere4ai.mcp_server.tools import (
     NON_LEGAL_ADVICE_NOTICE,
     STATUS_VOCABULARY,
+    coverage_report,
     make_envelope,
 )
 
@@ -435,6 +436,19 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                 "graph_version": _graph_version(request),
             }
         )
+
+    @app.get("/api/coverage")
+    def coverage(request: Request) -> JSONResponse:
+        # Deterministic and free: the M1 structural coverage view.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        payload = coverage_report(
+            request.app.state.dump,
+            norms_payload=request.app.state.norms,
+            alignments_payload=request.app.state.alignments,
+        )
+        return JSONResponse(content=_sanitize_non_finite(payload))
 
     @app.post("/api/classify")
     def classify(request: Request, body: ClassifyRequest) -> JSONResponse:

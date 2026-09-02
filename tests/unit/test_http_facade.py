@@ -768,3 +768,11 @@ def test_schema_endpoint_serves_features_schema_with_version(client):
     assert "flags" in body["schema"]["properties"]
     assert len(body["schema_sha256"]) == 64
     assert body["graph_version"]
+
+
+def test_coverage_endpoint_returns_structural_coverage(client):
+    response = client.get("/api/coverage")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["graph_version"]
+    assert "articles" in json.dumps(body)
