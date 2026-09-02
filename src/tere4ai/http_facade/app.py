@@ -42,6 +42,7 @@ import hashlib
 import json
 import math
 import os
+import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -73,6 +74,8 @@ from tere4ai.mcp_server.tools import (
     coverage_report,
     make_envelope,
 )
+from tere4ai.report.ingest import ingest_inputs
+from tere4ai.report.render import render_report
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DUMP_DIR = _PROJECT_ROOT / "data" / "graph_dumps"
@@ -140,6 +143,10 @@ class TraceRequest(BaseModel):
 
 class TraceBatchRequest(BaseModel):
     ids: list[str] = Field(min_length=1, max_length=MAX_TRACE_BATCH_IDS)
+
+
+class ReportRequest(BaseModel):
+    session_jsonl: str = Field(min_length=1, max_length=10 * 1024 * 1024)
 
 
 def _sanitize_non_finite(value: Any) -> Any:
@@ -387,6 +394,14 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                         "path": "/api/demo/sessions/{name}",
                         "paid": False,
                     },
+                    "schema_system_features": {
+                        "method": "GET",
+                        "path": "/api/schema/system_features",
+                        "paid": False,
+                    },
+                    "coverage": {"method": "GET", "path": "/api/coverage", "paid": False},
+                    "alignments": {"method": "GET", "path": "/api/alignments", "paid": False},
+                    "report": {"method": "POST", "path": "/api/report", "paid": False},
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
                     "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
                     "elicit": {"method": "POST", "path": "/api/elicit", "paid": True},
@@ -744,6 +759,27 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         return PlainTextResponse(
             candidate.read_text(encoding="utf-8"), media_type="application/jsonl"
         )
+
+    @app.post("/api/report")
+    def report(request: Request, body: ReportRequest) -> Response:
+        # The thin facade route B41 anticipated: session JSONL in, the
+        # self-contained audit-grade HTML out. Pure rendering, no state.
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".jsonl", encoding="utf-8", delete=False
+        ) as handle:
+            handle.write(body.session_jsonl)
+            tmp_path = Path(handle.name)
+        try:
+            result = ingest_inputs([tmp_path])
+            html = render_report(
+                result.exchanges,
+                result.problems,
+                source_names=result.source_names,
+                header_flags=result.header_flags,
+            )
+        finally:
+            tmp_path.unlink(missing_ok=True)
+        return Response(content=html, media_type="text/html")
 
     return app
 

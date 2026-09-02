@@ -786,3 +786,25 @@ def test_alignments_endpoint_lists_accepted_and_orphan_norms(client):
     assert all(a["judge_verdict"] == "accepted" for a in body["accepted"][:5])
     assert len(body["norms_without_alignment"]) > 0
     assert isinstance(body["norms_without_alignment"][0], str)
+
+
+def test_report_endpoint_renders_html_from_session_jsonl(client):
+    fixture = (
+        Path(__file__).resolve().parents[1]
+        / "fixtures" / "demo_sessions" / "spamguard-classify.jsonl"
+    )
+    response = client.post(
+        "/api/report", json={"session_jsonl": fixture.read_text(encoding="utf-8")}
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    # The actual honesty notice text (NON_LEGAL_ADVICE_NOTICE, mcp_server/tools.py)
+    # reads "does not certify EU AI Act compliance and does not replace legal
+    # review", never the literal phrase "legal advice": check for that instead.
+    assert "does not certify eu ai act compliance" in response.text.lower()
+
+
+def test_report_endpoint_rejects_empty_and_oversized(client):
+    assert client.post("/api/report", json={"session_jsonl": ""}).status_code == 422
+    big = "x" * (10 * 1024 * 1024 + 1)
+    assert client.post("/api/report", json={"session_jsonl": big}).status_code == 422
