@@ -808,3 +808,17 @@ def test_report_endpoint_rejects_empty_and_oversized(client):
     assert client.post("/api/report", json={"session_jsonl": ""}).status_code == 422
     big = "x" * (10 * 1024 * 1024 + 1)
     assert client.post("/api/report", json={"session_jsonl": big}).status_code == 422
+
+
+def test_schema_endpoint_degrades_cleanly_on_malformed_schema_file(monkeypatch, tmp_path):
+    # A corrupted checkout (bad JSON, not just a missing file) must degrade to
+    # the same clean 503 the route already returns for a missing file, never
+    # crash the whole facade at startup (json.loads raises JSONDecodeError,
+    # a ValueError subclass, which the original except OSError did not catch).
+    bad_schema = tmp_path / "system_features.schema.json"
+    bad_schema.write_text("{not valid json", encoding="utf-8")
+    monkeypatch.setattr(facade, "FEATURES_SCHEMA_PATH", bad_schema)
+    with TestClient(facade.create_app()) as broken_client:
+        response = broken_client.get("/api/schema/system_features")
+    assert response.status_code == 503
+    assert "features schema unavailable" in response.json()["error"]

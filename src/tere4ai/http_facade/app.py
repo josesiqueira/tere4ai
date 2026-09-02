@@ -81,6 +81,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DUMP_DIR = _PROJECT_ROOT / "data" / "graph_dumps"
 SNAPSHOTS_DIR = _PROJECT_ROOT / "data" / "snapshots"
 DUMP_DIR_ENV = "TERE4AI_DUMP_DIR"
+FEATURES_SCHEMA_PATH = (
+    _PROJECT_ROOT / "schema" / "json_schemas" / "system_features.schema.json"
+)
 
 # Default facade port for the demo flow (README, web/src/app/assess).
 FACADE_PORT = 8008
@@ -213,14 +216,11 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         app.state.norms = _load_json(base / "norms_core.json")
         app.state.alignments = _load_json(base / "alignments_core.json")
         app.state.hleg_nodes = _load_hleg_nodes()
-        schema_path = (
-            _PROJECT_ROOT / "schema" / "json_schemas" / "system_features.schema.json"
-        )
         try:
-            raw = schema_path.read_bytes()
+            raw = FEATURES_SCHEMA_PATH.read_bytes()
             app.state.features_schema = json.loads(raw)
             app.state.features_schema_sha256 = hashlib.sha256(raw).hexdigest()
-        except OSError:
+        except (OSError, json.JSONDecodeError):
             app.state.features_schema = None
             app.state.features_schema_sha256 = None
         missing = [
