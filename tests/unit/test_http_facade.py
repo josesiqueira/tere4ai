@@ -776,3 +776,13 @@ def test_coverage_endpoint_returns_structural_coverage(client):
     body = response.json()
     assert body["graph_version"]
     assert "articles" in json.dumps(body)
+
+
+def test_alignments_endpoint_lists_accepted_and_orphan_norms(client):
+    response = client.get("/api/alignments")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["accepted"]) > 400
+    assert all(a["judge_verdict"] == "accepted" for a in body["accepted"][:5])
+    assert len(body["norms_without_alignment"]) > 0
+    assert isinstance(body["norms_without_alignment"][0], str)

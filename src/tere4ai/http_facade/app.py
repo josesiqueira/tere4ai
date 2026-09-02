@@ -485,6 +485,35 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             },
         )
 
+    @app.get("/api/alignments")
+    def alignments(request: Request) -> JSONResponse:
+        # Corpus-wide accepted HLEG assertions plus the accepted norms
+        # that have none: absence is also reviewable (spec, Reviewer).
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        missing_alignments = _alignments_unavailable(request)
+        if missing_alignments is not None:
+            return missing_alignments
+        assertions = (request.app.state.alignments or {}).get("assertions", [])
+        accepted = [a for a in assertions if a.get("judge_verdict") == "accepted"]
+        aligned_norm_ids = {a.get("source_norm_id") for a in accepted}
+        accepted_norms = [
+            n.get("norm_id")
+            for n in (request.app.state.norms or {}).get("norms", [])
+            if n.get("judge_verdict") == "accepted"
+        ]
+        orphans = [nid for nid in accepted_norms if nid not in aligned_norm_ids]
+        return JSONResponse(
+            content=_sanitize_non_finite(
+                {
+                    "graph_version": _graph_version(request),
+                    "accepted": accepted,
+                    "norms_without_alignment": orphans,
+                }
+            )
+        )
+
     @app.post("/api/explain")
     def explain(request: Request, body: ExplainRequest) -> JSONResponse:
         # Deterministic and free; unknown norm ids come back as a clean
