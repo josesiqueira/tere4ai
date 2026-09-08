@@ -1287,7 +1287,6 @@ def _render_backlog(
     out.append("</ol>")
     dropped = ans.get("dropped_items")
     merged = ans.get("merged_items")
-    truncated = ans.get("truncated")
     dropped_n = len(dropped) if isinstance(dropped, list) else dropped
     merged_n = len(merged) if isinstance(merged, list) else merged
     out.append(
@@ -1295,8 +1294,7 @@ def _render_backlog(
         + emit_field("dropped_items", dropped_n)
         + " items dropped, "
         + emit_field("merged_items", merged_n)
-        + " merged, "
-        + ("truncated" if truncated else "not truncated")
+        + " merged (no norm cap, no truncation, B71)"
         + "</p>"
     )
     notes = ans.get("notes")

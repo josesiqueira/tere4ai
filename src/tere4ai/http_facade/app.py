@@ -41,9 +41,8 @@ Behavioral contract:
   clean JSON error. Paid responses carry the header X-TERE4AI-Paid-Call.
 - GET /api/demo/sessions and /api/demo/sessions/{name}: read-only demo replay
   data, enabled only when TERE4AI_DEMO_SESSIONS_DIR is set.
-- The backlog endpoint caps the norms used at MAX_BACKLOG_NORMS (10)
-  regardless of the tool's own maximum; the cap is never silent (the tool
-  notes the truncation in the answer).
+- The backlog endpoint passes every norm through; there is no cap
+  (2026-09-08, B71).
 - CORS is open only to the local demo UI origin (localhost:3111).
 """
 
@@ -100,9 +99,6 @@ FACADE_PORT = 8008
 
 # The demo UI's local origin; the facade is loopback-intended, so nothing else.
 ALLOWED_ORIGINS = ("http://localhost:3111", "http://127.0.0.1:3111")
-
-# Facade-level cap on backlog input norms, regardless of the tool's own max.
-MAX_BACKLOG_NORMS = 10
 
 # Cap on ids per /api/trace/batch request. The published build serves at most
 # a few hundred accepted norms, so 500 covers every real assessment while
@@ -706,8 +702,6 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                 body.system_context,
                 generator,
                 judge,
-                # Facade-level cap; the tool notes any truncation, never silent.
-                max_norms=MAX_BACKLOG_NORMS,
                 graph_version=_graph_version(request),
             )
         except ValueError as exc:

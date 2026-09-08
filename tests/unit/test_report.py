@@ -123,7 +123,7 @@ def test_loose_backlog_envelope_fingerprints_and_renders() -> None:
     assert 'data-envelope-field="dropped_items"' in backlog_body
     assert 'data-envelope-field="merged_items"' in backlog_body
     assert "items dropped" in backlog_body and "merged" in backlog_body
-    assert "not truncated" in backlog_body
+    assert "truncated" not in backlog_body
 
 
 def test_mixed_graph_versions_banner(tmp_path: Path) -> None:

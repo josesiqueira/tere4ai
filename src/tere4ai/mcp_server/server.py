@@ -53,9 +53,6 @@ NORMS_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "norms_core.json"
 ALIGNMENTS_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "alignments_core.json"
 SNAPSHOTS_DIR = _PROJECT_ROOT / "data" / "snapshots"
 
-# Facade-parity cap on backlog input norms (http_facade.app.MAX_BACKLOG_NORMS).
-MAX_BACKLOG_NORMS = 10
-
 _READ_ONLY = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False}
 # Paid tools stay read-only against the graph but reach external model APIs.
 _READ_ONLY_PAID = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": True}
@@ -585,7 +582,6 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
         system_context,
         generator,
         judge,
-        max_norms=MAX_BACKLOG_NORMS,
         graph_version=_graph_version(dump),
     )
 

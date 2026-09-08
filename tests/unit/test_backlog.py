@@ -2,11 +2,11 @@
 
 Uses FakeClient only: no network, no keys, no graph dumps. Verifies the
 behavioral safeguards: items citing unknown norm_ids are mechanically
-dropped and counted, truncation beyond max_norms is flagged (no silent
-caps), the obligation/prohibition to "must" mapping is honored, non-accepted
-norms are refused, a judge-rejected backlog degrades to
-requires_human_review with the rationale attached, and the runtime log
-carries no key material.
+dropped and counted, every norm given reaches the generator with no cap
+and no truncation (B71, decided 2026-09-08), the obligation/prohibition to
+"must" mapping is honored, non-accepted norms are refused, a
+judge-rejected backlog degrades to requires_human_review with the
+rationale attached, and the runtime log carries no key material.
 """
 
 from __future__ import annotations
@@ -119,7 +119,7 @@ def test_happy_path_status_and_items(tmp_path):
     answer = envelope["answer"]
     assert len(answer["items"]) == 2
     assert answer["dropped_items"] == 0
-    assert answer["truncated"] is False
+    assert "truncated" not in answer
     assert answer["judge_rationale"] == "Items stay within the cited norms."
     assert answer["judge_model"] == "fake-judge"
     cited = {norm_id for it in answer["items"] for norm_id in it["norm_ids"]}
@@ -160,20 +160,35 @@ def test_all_items_dropped_degrades_without_judge_call(tmp_path):
     assert judge.calls == []
 
 
-def test_truncation_beyond_max_norms_is_flagged_never_silent(tmp_path):
-    envelope, generator, _, _ = run_tool(
-        gen_items(item("Risk management process", [NORM_A["norm_id"]])),
-        JUDGE_ACCEPT,
-        tmp_path,
-        max_norms=2,
+def test_all_given_norms_reach_the_generator_no_cap_no_truncation(tmp_path):
+    """B71 (decided 2026-09-08): no norm cap, no truncation, anywhere on the
+    backlog path. The tool takes every norm it is given; a call the model
+    cannot serve fails loudly, it is never served with fewer norms."""
+    norms = [make_norm(article, 1) for article in range(1, 61)]
+    received_ids: list[str] = []
+
+    class RecordingGenerator:
+        model = "fake-generator-recording"
+
+        def complete(self, system: str, user: str) -> str:
+            received_ids.extend(
+                norm["norm_id"] for norm in norms if norm["norm_id"] in user
+            )
+            return gen_items(item("Full backlog", [norms[0]["norm_id"]]))
+
+    judge = FakeClient({"": JUDGE_ACCEPT}, model="fake-judge")
+    envelope = generate_control_backlog(
+        norms,
+        "A high-risk AI triage system for a hospital.",
+        RecordingGenerator(),
+        judge,
+        prompt_version="v1",
+        graph_version="build-test",
+        log_path=tmp_path / "runtime_log.jsonl",
     )
-    answer = envelope["answer"]
-    assert answer["truncated"] is True
-    assert any("max_norms=2" in note for note in answer["notes"])
-    # The generator never saw the truncated norm.
-    _, gen_user = generator.calls[0]
-    assert NORM_C["norm_id"] not in gen_user
-    assert NORM_A["norm_id"] in gen_user and NORM_B["norm_id"] in gen_user
+    assert received_ids == [norm["norm_id"] for norm in norms]
+    assert len(received_ids) == 60
+    assert "truncated" not in envelope["answer"]
 
 
 def test_obligation_and_prohibition_map_to_must_in_the_fake_path(tmp_path):

@@ -22,8 +22,10 @@ by having a plan. Every safeguard is behavioral:
   is returned. A non-accepting verdict degrades the status to
   "requires_human_review" with the judge rationale attached, never silently
   (Section 13).
-- No silent caps: inputs beyond max_norms are truncated with
-  answer.truncated set to true and an explicit note.
+- No caps: every norm given reaches the generator (B71, decided 2026-09-08).
+  There is no max_norms parameter and no truncation path; a call the
+  generator or judge cannot serve fails loudly (a degraded envelope or an
+  error), never with a shorter input.
 """
 
 from __future__ import annotations
@@ -48,7 +50,6 @@ from tere4ai.mcp_server.tools import make_envelope
 
 TOOL_NAME = "generate_control_backlog"
 
-DEFAULT_MAX_NORMS = 25
 PRIORITIES = ("must", "should")
 # Deontic types whose norms make a backlog item mandatory (Section 3).
 MUST_DEONTIC_TYPES = ("obligation", "prohibition")
@@ -222,7 +223,6 @@ def generate_control_backlog(
     generator: ModelClient,
     judge: ModelClient,
     prompt_version: str = "v1",
-    max_norms: int = DEFAULT_MAX_NORMS,
     graph_version: str = "unknown",
     log_path: Path | None = None,
 ) -> dict[str, Any]:
@@ -255,23 +255,16 @@ def generate_control_backlog(
         )
 
     notes: list[str] = []
-    truncated = len(norms) > max_norms
-    used_norms = norms[:max_norms]
-    if truncated:
-        notes.append(
-            f"input of {len(norms)} norms exceeds max_norms={max_norms}; "
-            f"only the first {max_norms} were used (no silent caps, Section 13)"
-        )
-    known_ids = {norm.get("norm_id") for norm in used_norms}
+    known_ids = {norm.get("norm_id") for norm in norms}
     deontic_by_id = {
-        norm.get("norm_id"): norm.get("deontic_type") for norm in used_norms
+        norm.get("norm_id"): norm.get("deontic_type") for norm in norms
     }
     conditions_by_id = {
-        norm.get("norm_id"): norm.get("conditions") or [] for norm in used_norms
+        norm.get("norm_id"): norm.get("conditions") or [] for norm in norms
     }
 
     gen_prompt = load_prompt("generate_backlog", prompt_version)
-    gen_user = _generator_user_message(used_norms, system_context)
+    gen_user = _generator_user_message(norms, system_context)
     parsed, error = _call_json_with_retry(generator, gen_prompt, gen_user)
     _log_event(
         log_path,
@@ -309,7 +302,7 @@ def generate_control_backlog(
     # untrusted system context travels as delimited data, never instructions.
     check = ground_check(
         json.dumps({"tool": TOOL_NAME, "items": items}, ensure_ascii=False, indent=1),
-        used_norms,
+        norms,
         system_context if system_context.strip() else None,
         judge,
         prompt_version=prompt_version,
@@ -332,7 +325,7 @@ def generate_control_backlog(
 
     source_nodes: list[str] = []
     source_spans: list[dict[str, Any]] = []
-    for norm in used_norms:
+    for norm in norms:
         node_id = norm.get("source_node_id")
         if node_id and node_id not in source_nodes:
             source_nodes.append(node_id)
@@ -345,7 +338,6 @@ def generate_control_backlog(
         "items": items,
         "dropped_items": dropped_items,
         "merged_items": merged_items,
-        "truncated": truncated,
         "notes": notes,
         "judge_rationale": check["rationale"],
         "judge_model": judge.model,
