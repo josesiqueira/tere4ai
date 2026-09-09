@@ -825,3 +825,100 @@ def test_schema_endpoint_degrades_cleanly_on_malformed_schema_file(monkeypatch, 
         response = broken_client.get("/api/schema/system_features")
     assert response.status_code == 503
     assert "features schema unavailable" in response.json()["error"]
+
+
+# A lone UTF-16 surrogate is legal JSON (an escaped \ud800) and parses to a
+# Python str, but that str cannot be encoded as UTF-8. Before the B63 guard
+# it passed Pydantic and reached the response encoder, or the error-detail
+# encoder, and surfaced as an uncaught UnicodeEncodeError, a raw 500. Same
+# class as the NaN/Infinity hole above. One case per POST route, with the
+# surrogate at a top-level string, inside a list, and inside a free dict.
+LONE_SURROGATE = '"\\ud800"'
+LONE_SURROGATE_ATTACK_BODIES = [
+    pytest.param(
+        "/api/classify",
+        '{"features": {"purpose": ' + LONE_SURROGATE + "}}",
+        id="classify-nested-dict",
+    ),
+    pytest.param(
+        "/api/requirements",
+        '{"classification": {}, "actor": ' + LONE_SURROGATE + "}",
+        id="requirements-actor",
+    ),
+    pytest.param(
+        "/api/requirements",
+        '{"classification": {"answer": ' + LONE_SURROGATE + "}}",
+        id="requirements-nested-dict",
+    ),
+    pytest.param("/api/explain", '{"norm_id": ' + LONE_SURROGATE + "}", id="explain"),
+    pytest.param("/api/trace", '{"id": ' + LONE_SURROGATE + "}", id="trace"),
+    pytest.param(
+        "/api/trace/batch",
+        '{"ids": ["norm:eu-ai-act:article-9:paragraph-1:n1", ' + LONE_SURROGATE + "]}",
+        id="trace-batch-nested-list",
+    ),
+    pytest.param(
+        "/api/report", '{"session_jsonl": ' + LONE_SURROGATE + "}", id="report"
+    ),
+    pytest.param(
+        "/api/evidence",
+        '{"norm_id": ' + LONE_SURROGATE + ', "artifact_type": "a", "content": "b"}',
+        id="evidence-norm-id",
+    ),
+    pytest.param(
+        "/api/evidence",
+        '{"norm_id": "n", "artifact_type": "a", "content": ' + LONE_SURROGATE + "}",
+        id="evidence-content",
+    ),
+    pytest.param(
+        "/api/backlog",
+        '{"norm_ids": [' + LONE_SURROGATE + '], "system_context": "c"}',
+        id="backlog-nested-list",
+    ),
+    pytest.param(
+        "/api/backlog",
+        '{"norm_ids": ["n"], "system_context": ' + LONE_SURROGATE + "}",
+        id="backlog-system-context",
+    ),
+    pytest.param(
+        "/api/elicit", '{"description": ' + LONE_SURROGATE + "}", id="elicit"
+    ),
+]
+
+
+@pytest.mark.parametrize("path, body", LONE_SURROGATE_ATTACK_BODIES)
+def test_lone_surrogate_strings_degrade_to_clean_422_never_500(client, path, body):
+    response = client.post(
+        path, content=body, headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 422
+
+    parsed = response.json()
+    assert "detail" in parsed
+    text = response.text
+    assert "Traceback" not in text
+    assert str(facade._PROJECT_ROOT) not in text
+    assert re.search(r"/[\w./-]+\.py", text) is None
+    # The guard's message is the only trace of the rejected value; the raw
+    # surrogate is never echoed back (it could not be encoded anyway).
+    assert facade.UNENCODABLE_STRING_MESSAGE in text
+    assert "\ud800" not in text
+    assert "\\ud800" not in text
+
+    follow_up = client.post("/api/classify", json={"features": TRIAGE_FEATURES})
+    assert follow_up.status_code == 200
+
+
+def test_utf8_guard_accepts_legitimate_non_ascii_text(client):
+    # Real non-ASCII (accents, an emoji, a paired surrogate that JSON
+    # decodes to one astral code point) is valid UTF-8 and must pass the
+    # guard untouched: an unknown id is a clean envelope, not a 422.
+    response = client.post(
+        "/api/explain",
+        content='{"norm_id": "norm:\\u00e4\\u00f6:\\ud83d\\ude00"}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 200
+    envelope = response.json()
+    assert envelope["status"] == "not_applicable"
+    assert envelope["answer"]["found"] is False

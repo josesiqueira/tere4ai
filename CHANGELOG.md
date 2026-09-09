@@ -37,6 +37,21 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   rdflib roundtrip and full-norm-coverage integration tests.
 
 ### Runtime tools
+- Facade-wide UTF-8 encodability guard (B63, 2026-09-09). An escaped lone
+  UTF-16 surrogate such as {"session_jsonl": "\ud800"} is legal JSON that
+  parses to a Python str no UTF-8 encoder accepts; it passed Pydantic and
+  crashed the response encoder, or the error-detail encoder, as an uncaught
+  UnicodeEncodeError, a raw 500 on eight of the nine POST routes. Same class
+  as the NaN/Infinity hole closed earlier. Every facade request model now
+  inherits a before-validator that walks the raw body (top-level strings,
+  lists, free dicts and their keys) and rejects the first unencodable string
+  with a 422; the validation-error handler sanitizes unencodable strings in
+  the echoed input the way it already sanitized non-finite floats, so the
+  422 itself is always encodable. Twelve attack cases (one or two per route,
+  surrogate at top level, in a list, in a nested dict) and one regression
+  for legitimate non-ASCII text (accents, an astral emoji) in
+  tests/unit/test_http_facade.py. Surfaced by the B45 plan 1 final review;
+  pre-existing, not a regression.
 - MCP coverage_report parity with the facade (B62, 2026-09-09). The MCP
   wrapper called the coverage function with the dump alone, so layer 2 and
   layer 3 read count 0 and not_started over MCP while GET /api/coverage,

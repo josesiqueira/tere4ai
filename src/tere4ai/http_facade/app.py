@@ -62,7 +62,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.judge.config import ModelConfigError, load_model_config
@@ -117,44 +117,88 @@ REQUEST_LOG_ENV = "TERE4AI_REQUEST_LOG"
 DEFAULT_REQUEST_LOG = _PROJECT_ROOT / "data" / "review_queue" / "facade_requests.jsonl"
 
 
-class ClassifyRequest(BaseModel):
+# Section 13 guard shared by every request model (B63). JSON allows an
+# escaped lone UTF-16 surrogate such as "\ud800"; it parses to a Python str
+# that cannot be encoded as UTF-8, so it passes Pydantic untouched and only
+# fails later, in the response encoder or in the error-detail encoder, as an
+# uncaught UnicodeEncodeError (a raw 500). Same class as the NaN/Infinity
+# hole closed by _sanitize_non_finite. The guard walks the raw body once,
+# before field validation, so a surrogate nested in a free dict or a list is
+# caught the same way as one in a top-level string field.
+UNENCODABLE_STRING_MESSAGE = "string is not UTF-8 encodable (lone surrogate rejected)"
+
+
+def _is_utf8_encodable(value: str) -> bool:
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def _reject_unencodable(value: Any) -> None:
+    """Raise ValueError if any string anywhere in value is not UTF-8."""
+    if isinstance(value, str):
+        if not _is_utf8_encodable(value):
+            raise ValueError(UNENCODABLE_STRING_MESSAGE)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _reject_unencodable(key)
+            _reject_unencodable(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _reject_unencodable(item)
+
+
+class _Utf8GuardedModel(BaseModel):
+    """Base for every facade request model: rejects unencodable strings at
+    the door so they surface as a 422 with the other validation errors."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _guard_utf8(cls, data: Any) -> Any:
+        _reject_unencodable(data)
+        return data
+
+
+class ClassifyRequest(_Utf8GuardedModel):
     features: dict[str, Any]
 
 
-class RequirementsRequest(BaseModel):
+class RequirementsRequest(_Utf8GuardedModel):
     classification: dict[str, Any]
     actor: str | None = None
 
 
-class ElicitRequest(BaseModel):
+class ElicitRequest(_Utf8GuardedModel):
     description: str = Field(min_length=30)
 
 
-class EvidenceRequest(BaseModel):
+class EvidenceRequest(_Utf8GuardedModel):
     norm_id: str
     artifact_type: str
     content: str
     artifact_id: str | None = None
 
 
-class BacklogRequest(BaseModel):
+class BacklogRequest(_Utf8GuardedModel):
     norm_ids: list[str] = Field(min_length=1)
     system_context: str
 
 
-class ExplainRequest(BaseModel):
+class ExplainRequest(_Utf8GuardedModel):
     norm_id: str
 
 
-class TraceRequest(BaseModel):
+class TraceRequest(_Utf8GuardedModel):
     id: str
 
 
-class TraceBatchRequest(BaseModel):
+class TraceBatchRequest(_Utf8GuardedModel):
     ids: list[str] = Field(min_length=1, max_length=MAX_TRACE_BATCH_IDS)
 
 
-class ReportRequest(BaseModel):
+class ReportRequest(_Utf8GuardedModel):
     session_jsonl: str = Field(min_length=1, max_length=10 * 1024 * 1024)
 
 
@@ -178,6 +222,25 @@ def _sanitize_non_finite(value: Any) -> Any:
         return {key: _sanitize_non_finite(v) for key, v in value.items()}
     if isinstance(value, list):
         return [_sanitize_non_finite(v) for v in value]
+    return value
+
+
+def _sanitize_unencodable(value: Any) -> Any:
+    """Replace strings that are not UTF-8 encodable anywhere in a
+    validation-error payload with an honest placeholder.
+
+    Pydantic echoes the offending input back in the error detail, so a lone
+    surrogate rejected by _Utf8GuardedModel (or by any other validator)
+    would otherwise crash the response encoder exactly as it crashed the
+    route. Dict keys are sanitized too, since the raw body's keys are part
+    of the echoed input.
+    """
+    if isinstance(value, str):
+        return value if _is_utf8_encodable(value) else "unencodable string rejected"
+    if isinstance(value, dict):
+        return {_sanitize_unencodable(key): _sanitize_unencodable(v) for key, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_unencodable(v) for v in value]
     return value
 
 
@@ -262,13 +325,15 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
     ) -> JSONResponse:
         # Same {"detail": [...]} shape as FastAPI's default handler (clients
         # and existing tests see no difference), but with non-finite floats
-        # sanitized before encoding. A NaN/Infinity/-Infinity JSON literal in
+        # and unencodable strings sanitized before encoding. A NaN/Infinity/-Infinity JSON literal in
         # the request body parses fine, Pydantic rejects it and echoes the
         # value into exc.errors(), and the strict response encoder used
         # below would otherwise raise ValueError and surface as an uncaught
         # 500 (the bug this handler closes; Section 13, no silent
         # degradation, but never a raw 500 either).
-        errors = _sanitize_non_finite(jsonable_encoder(exc.errors()))
+        # Unencodable strings (lone surrogates, B63) get the same treatment:
+        # the echoed input would crash the encoder just like a NaN would.
+        errors = _sanitize_unencodable(_sanitize_non_finite(jsonable_encoder(exc.errors())))
         return JSONResponse(status_code=422, content={"detail": errors})
 
     # Section 8 hardening: fixed-window per-client rate limit and a body-free
