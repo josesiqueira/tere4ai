@@ -76,6 +76,9 @@ export default function LandingPage() {
             <Link href="/agent" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
               Agent replay
             </Link>
+            <Link href="/mcp-demo" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
+              MCP demo
+            </Link>
             <Link href="/coverage" className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground">
               Coverage
             </Link>
@@ -200,6 +203,11 @@ export default function LandingPage() {
             The same question, &quot;what does the Act require of this system&quot;, produces
             four very different and equally useful answers. Each card below is a one-click
             scenario on the assess page: the form fills, the deterministic ladder runs live.
+            All five are also recorded end to end, request by request, on the{" "}
+            <Link href="/mcp-demo" className="font-medium text-foreground underline underline-offset-2">
+              MCP demo
+            </Link>{" "}
+            page.
           </p>
           <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <TierCard pill="minimal_or_none" n="0" what="requirements" href="/assess">

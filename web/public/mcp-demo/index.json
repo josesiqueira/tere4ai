@@ -1,0 +1,852 @@
+{
+  "graph_versions": [
+    "build-3b753e5e9297"
+  ],
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.",
+  "systems": [
+    {
+      "blurb": "An email spam and phishing filter. The useful answer is the negative one: no high-risk apparatus to build, on the record.",
+      "classification": {
+        "confidence": 0.5,
+        "fria": "unknown",
+        "missing_facts": [
+          "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+        ],
+        "prohibited": false,
+        "rationale": [
+          "rule uncertain: no rule fired but prohibition-relevant (Article 5) flags are unknown, so the classification cannot be settled deterministically; the named facts must be provided before a minimal verdict is safe"
+        ],
+        "risk_category": "uncertain",
+        "source_nodes": [],
+        "status": "requires_human_review"
+      },
+      "exchanges": [
+        {
+          "seq": 1,
+          "status": "requires_human_review",
+          "tool": "classify_ai_system"
+        },
+        {
+          "seq": 2,
+          "status": "requires_human_review",
+          "tool": "get_applicable_requirements"
+        },
+        {
+          "seq": 3,
+          "status": "satisfied_with_evidence",
+          "tool": "source_trace"
+        },
+        {
+          "seq": 4,
+          "status": "satisfied_with_evidence",
+          "tool": "resolve_span"
+        }
+      ],
+      "key": "minimalrisk",
+      "label": "Minimal risk",
+      "product": "SpamGuard",
+      "repo_ref": null,
+      "report": "/mcp-demo/minimalrisk.html",
+      "requirements": {
+        "articles": 0,
+        "message": "The classification is uncertain because prohibition-relevant facts are unknown. No requirements are returned until the missing facts are provided or a human reviewer settles the classification.",
+        "needs_human_review_total": null,
+        "per_article": {},
+        "returned": 0,
+        "total_accepted_in_scope": null
+      },
+      "session_file": "minimalrisk.jsonl",
+      "trace": null
+    },
+    {
+      "blurb": "A webshop support assistant. Transparency duties under Article 50, one gap closed in code and tagged, one tag the server refuses because the norm behind it is still in human review.",
+      "classification": {
+        "confidence": 0.5,
+        "fria": "does_not_apply",
+        "missing_facts": [
+          "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+        ],
+        "prohibited": false,
+        "rationale": [
+          "rule transparency: flag interacts_with_natural_persons matches eu-ai-act:article-50:paragraph-1 (interaction with natural persons must be disclosed)",
+          "rule transparency: flag generates_synthetic_content matches eu-ai-act:article-50:paragraph-2 (synthetic content must be marked as artificially generated or manipulated)",
+          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited"
+        ],
+        "risk_category": "transparency_only",
+        "source_nodes": [
+          "eu-ai-act:article-50:paragraph-1",
+          "eu-ai-act:article-50:paragraph-2"
+        ],
+        "status": "requires_human_review"
+      },
+      "exchanges": [
+        {
+          "seq": 1,
+          "status": "requires_human_review",
+          "tool": "classify_ai_system"
+        },
+        {
+          "seq": 2,
+          "status": "requires_human_review",
+          "tool": "get_applicable_requirements"
+        },
+        {
+          "seq": 3,
+          "status": "requires_human_review",
+          "tool": "trace_implementation"
+        },
+        {
+          "seq": 4,
+          "status": "satisfied_with_evidence",
+          "tool": "explain_requirement"
+        },
+        {
+          "seq": 5,
+          "status": "requires_human_review",
+          "tool": "explain_requirement"
+        },
+        {
+          "seq": 6,
+          "status": "satisfied_with_evidence",
+          "tool": "source_trace"
+        },
+        {
+          "seq": 7,
+          "status": "satisfied_with_evidence",
+          "tool": "resolve_span"
+        }
+      ],
+      "key": "limitedrisk",
+      "label": "Limited risk",
+      "product": "ShopBot",
+      "repo_ref": "demo/mcp_demo/projects/shopbot",
+      "report": "/mcp-demo/limitedrisk.html",
+      "requirements": {
+        "articles": 1,
+        "message": null,
+        "needs_human_review_total": 1,
+        "per_article": {
+          "article-50": {
+            "accepted": 13,
+            "needs_human_review": 1
+          }
+        },
+        "returned": 13,
+        "total_accepted_in_scope": 13
+      },
+      "session_file": "limitedrisk.jsonl",
+      "trace": {
+        "applicable_norms": 13,
+        "code_index": [
+          {
+            "claims": [
+              {
+                "accepted": true,
+                "action": "ensure",
+                "article": "article-50",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-50:paragraph-2:n1:transparency:1",
+                    "final_score": 0.82,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  }
+                ],
+                "line": 23,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-50:paragraph-2:n1",
+                "object": "that the outputs of the ai system are marked in a machine-readable format and detectable as artificially generated or manipulated",
+                "source_span_id": "span:050.002"
+              },
+              {
+                "accepted": true,
+                "action": "be provided",
+                "article": "article-50",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-50:paragraph-5:n1:human-agency-and-oversight:1",
+                    "final_score": 0.75,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:human-agency-and-oversight"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-50:paragraph-5:n1:transparency:2",
+                    "final_score": 0.8099999999999999,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-50:paragraph-5:n1:diversity-non-discrimination-and-fairness:3",
+                    "final_score": 0.75,
+                    "relation_type": "supports",
+                    "target_id": "hleg:diversity-non-discrimination-and-fairness"
+                  }
+                ],
+                "line": 43,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-50:paragraph-5:n1",
+                "object": "the information referred to in paragraphs 1 to 4",
+                "source_span_id": "span:050.005"
+              },
+              {
+                "accepted": false,
+                "action": null,
+                "article": null,
+                "hleg_alignments": [],
+                "line": 44,
+                "modal": null,
+                "norm_id": "norm:eu-ai-act:article-50:paragraph-1:n1",
+                "object": null,
+                "refusal_reason": "norm exists but is not judge-accepted (judge_verdict=rejected, review_status=needs_review); norms awaiting or failing review are excluded from runtime answers",
+                "source_span_id": null
+              }
+            ],
+            "path": "src/shopbot/chat.py"
+          }
+        ],
+        "invalid_tags": 1,
+        "tag_convention": "@implements: <norm-id>",
+        "trace_note": "A trace is a developer claim that code implements a norm, recorded as an `@implements: <norm-id>` tag at the cited location. It is not evidence and does not change any evidence status; submit artifacts through evaluate_project_evidence to move a norm up the calibrated ladder.",
+        "traced": 2,
+        "untraced": 11
+      }
+    },
+    {
+      "blurb": "A creditworthiness scorer. Annex III point 5, the Article 27 impact assessment duty attaches, and the backlog is larger than the sprint anyone had planned.",
+      "classification": {
+        "confidence": 0.5,
+        "fria": "unknown",
+        "missing_facts": [
+          "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+        ],
+        "prohibited": false,
+        "rationale": [
+          "rule high_risk: flag essential_services_access matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)",
+          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited"
+        ],
+        "risk_category": "high_risk",
+        "source_nodes": [
+          "eu-ai-act:annex-iii:point-5",
+          "eu-ai-act:article-6:paragraph-2"
+        ],
+        "status": "requires_human_review"
+      },
+      "exchanges": [
+        {
+          "seq": 1,
+          "status": "requires_human_review",
+          "tool": "classify_ai_system"
+        },
+        {
+          "seq": 2,
+          "status": "requires_human_review",
+          "tool": "get_applicable_requirements"
+        },
+        {
+          "seq": 3,
+          "status": "requires_human_review",
+          "tool": "trace_implementation"
+        },
+        {
+          "seq": 4,
+          "status": "satisfied_with_evidence",
+          "tool": "explain_requirement"
+        },
+        {
+          "seq": 5,
+          "status": "satisfied_with_evidence",
+          "tool": "explain_requirement"
+        },
+        {
+          "seq": 6,
+          "status": "satisfied_with_evidence",
+          "tool": "source_trace"
+        },
+        {
+          "seq": 7,
+          "status": "satisfied_with_evidence",
+          "tool": "resolve_span"
+        },
+        {
+          "seq": 8,
+          "status": "satisfied_with_evidence",
+          "tool": "source_trace"
+        },
+        {
+          "seq": 9,
+          "status": "satisfied_with_evidence",
+          "tool": "resolve_span"
+        }
+      ],
+      "key": "highrisk",
+      "label": "High risk",
+      "product": "CredScore",
+      "repo_ref": "demo/mcp_demo/projects/credscore",
+      "report": "/mcp-demo/highrisk.html",
+      "requirements": {
+        "articles": 23,
+        "message": null,
+        "needs_human_review_total": 36,
+        "per_article": {
+          "article-10": {
+            "accepted": 20,
+            "needs_human_review": 5
+          },
+          "article-11": {
+            "accepted": 9,
+            "needs_human_review": 0
+          },
+          "article-12": {
+            "accepted": 6,
+            "needs_human_review": 0
+          },
+          "article-13": {
+            "accepted": 17,
+            "needs_human_review": 2
+          },
+          "article-14": {
+            "accepted": 14,
+            "needs_human_review": 5
+          },
+          "article-15": {
+            "accepted": 10,
+            "needs_human_review": 0
+          },
+          "article-16": {
+            "accepted": 25,
+            "needs_human_review": 1
+          },
+          "article-17": {
+            "accepted": 18,
+            "needs_human_review": 4
+          },
+          "article-18": {
+            "accepted": 7,
+            "needs_human_review": 0
+          },
+          "article-19": {
+            "accepted": 3,
+            "needs_human_review": 0
+          },
+          "article-20": {
+            "accepted": 5,
+            "needs_human_review": 0
+          },
+          "article-21": {
+            "accepted": 2,
+            "needs_human_review": 0
+          },
+          "article-22": {
+            "accepted": 11,
+            "needs_human_review": 2
+          },
+          "article-23": {
+            "accepted": 13,
+            "needs_human_review": 0
+          },
+          "article-24": {
+            "accepted": 12,
+            "needs_human_review": 0
+          },
+          "article-25": {
+            "accepted": 11,
+            "needs_human_review": 1
+          },
+          "article-26": {
+            "accepted": 26,
+            "needs_human_review": 5
+          },
+          "article-27": {
+            "accepted": 9,
+            "needs_human_review": 2
+          },
+          "article-50": {
+            "accepted": 13,
+            "needs_human_review": 1
+          },
+          "article-72": {
+            "accepted": 6,
+            "needs_human_review": 2
+          },
+          "article-73": {
+            "accepted": 17,
+            "needs_human_review": 3
+          },
+          "article-8": {
+            "accepted": 4,
+            "needs_human_review": 0
+          },
+          "article-9": {
+            "accepted": 19,
+            "needs_human_review": 3
+          }
+        },
+        "returned": 277,
+        "total_accepted_in_scope": 277
+      },
+      "session_file": "highrisk.jsonl",
+      "trace": {
+        "applicable_norms": 277,
+        "code_index": [
+          {
+            "claims": [
+              {
+                "accepted": true,
+                "action": "technically allow for the automatic recording",
+                "article": "article-12",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-1:n1:transparency:1",
+                    "final_score": 0.79,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-1:n1:accountability:2",
+                    "final_score": 0.8160000000000001,
+                    "relation_type": "supports",
+                    "target_id": "hleg:accountability"
+                  }
+                ],
+                "line": 7,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+                "object": "events (logs) over the lifetime of the system",
+                "source_span_id": "span:012.001"
+              },
+              {
+                "accepted": true,
+                "action": "provide",
+                "article": "article-12",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-3:n1:transparency:1",
+                    "final_score": 0.7,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-3:n1:accountability:2",
+                    "final_score": 0.774,
+                    "relation_type": "supports",
+                    "target_id": "hleg:accountability"
+                  }
+                ],
+                "line": 29,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-12:paragraph-3:n1",
+                "object": "logging capabilities that provide, at a minimum, recording of the period of each use of the system (start date and time and end date and time of each use)",
+                "source_span_id": "span:012.003"
+              },
+              {
+                "accepted": true,
+                "action": "provide",
+                "article": "article-12",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-3:n3:transparency:1",
+                    "final_score": 0.8300000000000001,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-3:n3:accountability:2",
+                    "final_score": 0.8039999999999999,
+                    "relation_type": "supports",
+                    "target_id": "hleg:accountability"
+                  }
+                ],
+                "line": 30,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-12:paragraph-3:n3",
+                "object": "logging capabilities that provide, at a minimum, the input data for which the search has led to a match",
+                "source_span_id": "span:012.003"
+              },
+              {
+                "accepted": true,
+                "action": "provide",
+                "article": "article-12",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-3:n4:transparency:1",
+                    "final_score": 0.82,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-3:n4:accountability:2",
+                    "final_score": 0.8,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:accountability"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-12:paragraph-3:n4:human-agency-and-oversight:3",
+                    "final_score": 0.6799999999999999,
+                    "relation_type": "supports",
+                    "target_id": "hleg:human-agency-and-oversight"
+                  }
+                ],
+                "line": 45,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-12:paragraph-3:n4",
+                "object": "logging capabilities that provide, at a minimum, the identification of the natural persons involved in the verification of the results, as referred to in Article 14(5)",
+                "source_span_id": "span:012.003"
+              }
+            ],
+            "path": "src/credscore/audit_log.py"
+          },
+          {
+            "claims": [
+              {
+                "accepted": true,
+                "action": "be provided",
+                "article": "article-14",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-14:paragraph-4:n1:human-agency-and-oversight:1",
+                    "final_score": 0.82,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:human-agency-and-oversight"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-14:paragraph-4:n1:transparency:2",
+                    "final_score": 0.826,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-14:paragraph-4:n1:technical-robustness-and-safety:3",
+                    "final_score": 0.7,
+                    "relation_type": "supports",
+                    "target_id": "hleg:technical-robustness-and-safety"
+                  }
+                ],
+                "line": 35,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-14:paragraph-4:n1",
+                "object": "the high-risk AI system to the deployer in such a way that natural persons to whom human oversight is assigned are enabled, as appropriate and proportionate, to properly understand the relevant capacities and limitations of the high-risk AI system and be able to duly monitor its operation, including in view of detecting and addressing anomalies, dysfunctions and unexpected performance",
+                "source_span_id": "span:014.004"
+              },
+              {
+                "accepted": true,
+                "action": "be provided",
+                "article": "article-14",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-14:paragraph-4:n2:human-agency-and-oversight:1",
+                    "final_score": 0.86,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:human-agency-and-oversight"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-14:paragraph-4:n2:transparency:2",
+                    "final_score": 0.8140000000000001,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-14:paragraph-4:n2:technical-robustness-and-safety:3",
+                    "final_score": 0.75,
+                    "relation_type": "supports",
+                    "target_id": "hleg:technical-robustness-and-safety"
+                  }
+                ],
+                "line": 36,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-14:paragraph-4:n2",
+                "object": "the high-risk AI system to the deployer in such a way that natural persons to whom human oversight is assigned are enabled, as appropriate and proportionate, to remain aware of the possible tendency of automatically relying or over-relying on the output produced by a high-risk AI system (automation bias), in particular for high-risk AI systems used to provide information or recommendations for decisions to be taken by natural persons",
+                "source_span_id": "span:014.004"
+              }
+            ],
+            "path": "src/credscore/decision.py"
+          },
+          {
+            "claims": [
+              {
+                "accepted": true,
+                "action": "design and develop",
+                "article": "article-13",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-13:paragraph-1:n1:transparency:1",
+                    "final_score": 0.8240000000000001,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-13:paragraph-1:n1:human-agency-and-oversight:2",
+                    "final_score": 0.742,
+                    "relation_type": "supports",
+                    "target_id": "hleg:human-agency-and-oversight"
+                  }
+                ],
+                "line": 31,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-13:paragraph-1:n1",
+                "object": "high-risk AI systems in such a way as to ensure that their operation is sufficiently transparent",
+                "source_span_id": "span:013.001"
+              },
+              {
+                "accepted": true,
+                "action": "ensure",
+                "article": "article-13",
+                "hleg_alignments": [
+                  {
+                    "assertion_id": "align:eu-ai-act:article-13:paragraph-1:n2:transparency:1",
+                    "final_score": 0.8300000000000001,
+                    "relation_type": "directly_operationalizes",
+                    "target_id": "hleg:transparency"
+                  },
+                  {
+                    "assertion_id": "align:eu-ai-act:article-13:paragraph-1:n2:human-agency-and-oversight:2",
+                    "final_score": 0.748,
+                    "relation_type": "partially_operationalizes",
+                    "target_id": "hleg:human-agency-and-oversight"
+                  }
+                ],
+                "line": 32,
+                "modal": "shall",
+                "norm_id": "norm:eu-ai-act:article-13:paragraph-1:n2",
+                "object": "an appropriate type and degree of transparency",
+                "source_span_id": "span:013.001"
+              }
+            ],
+            "path": "src/credscore/scoring.py"
+          }
+        ],
+        "invalid_tags": 0,
+        "tag_convention": "@implements: <norm-id>",
+        "trace_note": "A trace is a developer claim that code implements a norm, recorded as an `@implements: <norm-id>` tag at the cited location. It is not evidence and does not change any evidence status; submit artifacts through evaluate_project_evidence to move a norm up the calibrated ladder.",
+        "traced": 8,
+        "untraced": 269
+      }
+    },
+    {
+      "blurb": "Workplace emotion inference. Article 5(1)(f) bans the practice, so the answer carries zero requirements and one citation.",
+      "classification": {
+        "confidence": 1.0,
+        "fria": "does_not_apply",
+        "missing_facts": [
+          "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+        ],
+        "prohibited": true,
+        "rationale": [
+          "rule prohibited: flag emotion_recognition_workplace_or_education matches eu-ai-act:article-5:paragraph-1:point-f (inferring emotions of a natural person in the areas of workplace and education institutions)"
+        ],
+        "risk_category": "prohibited",
+        "source_nodes": [
+          "eu-ai-act:article-5:paragraph-1:point-f"
+        ],
+        "status": "potentially_applicable"
+      },
+      "exchanges": [
+        {
+          "seq": 1,
+          "status": "potentially_applicable",
+          "tool": "classify_ai_system"
+        },
+        {
+          "seq": 2,
+          "status": "potentially_applicable",
+          "tool": "classify_ai_system"
+        },
+        {
+          "seq": 3,
+          "status": "not_applicable",
+          "tool": "get_applicable_requirements"
+        },
+        {
+          "seq": 4,
+          "status": "satisfied_with_evidence",
+          "tool": "source_trace"
+        },
+        {
+          "seq": 5,
+          "status": "satisfied_with_evidence",
+          "tool": "resolve_span"
+        }
+      ],
+      "key": "unacceptablerisk",
+      "label": "Unacceptable risk",
+      "product": "MoodWatch",
+      "repo_ref": null,
+      "report": "/mcp-demo/unacceptablerisk.html",
+      "requirements": {
+        "articles": 0,
+        "message": "This system falls under an Article 5 prohibited AI practice. Prohibited systems receive no engineering requirements: placing on the market, putting into service, and use are banned, so no requirement backlog can make the system permissible. Seek legal review.",
+        "needs_human_review_total": null,
+        "per_article": {},
+        "returned": 0,
+        "total_accepted_in_scope": null
+      },
+      "session_file": "unacceptablerisk.jsonl",
+      "trace": null
+    },
+    {
+      "blurb": "The same engine with the medical or safety exception left unknown. The ladder refuses to settle the tier and names the single fact that would.",
+      "classification": {
+        "confidence": 0.5,
+        "fria": "unknown",
+        "missing_facts": [
+          "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.critical_infrastructure_safety is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.education_scoring_or_access is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.employment_decisions is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.essential_services_access is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.creditworthiness_evaluation is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.life_health_insurance_risk_pricing is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.law_enforcement_use is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.migration_asylum_border_use is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.justice_democratic_use is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.emotion_recognition_medical_or_safety is unknown; the point (f) medical or safety exception decides whether emotion_recognition_workplace_or_education is prohibited (Article 5); absence does not settle the ban, so the classification stays for human review"
+        ],
+        "prohibited": false,
+        "rationale": [
+          "rule high_risk: flag emotion_recognition matches Annex III category 'biometrics' (eu-ai-act:annex-iii:point-1), high-risk under Article 6(2)",
+          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited"
+        ],
+        "risk_category": "high_risk",
+        "source_nodes": [
+          "eu-ai-act:annex-iii:point-1",
+          "eu-ai-act:article-6:paragraph-2"
+        ],
+        "status": "requires_human_review"
+      },
+      "exchanges": [
+        {
+          "seq": 1,
+          "status": "requires_human_review",
+          "tool": "classify_ai_system"
+        },
+        {
+          "seq": 2,
+          "status": "requires_human_review",
+          "tool": "get_applicable_requirements"
+        },
+        {
+          "seq": 3,
+          "status": "satisfied_with_evidence",
+          "tool": "source_trace"
+        },
+        {
+          "seq": 4,
+          "status": "satisfied_with_evidence",
+          "tool": "resolve_span"
+        }
+      ],
+      "key": "abstention",
+      "label": "Abstention",
+      "product": "MoodWatch driver fatigue variant",
+      "repo_ref": null,
+      "report": "/mcp-demo/abstention.html",
+      "requirements": {
+        "articles": 23,
+        "message": null,
+        "needs_human_review_total": 36,
+        "per_article": {
+          "article-10": {
+            "accepted": 20,
+            "needs_human_review": 5
+          },
+          "article-11": {
+            "accepted": 9,
+            "needs_human_review": 0
+          },
+          "article-12": {
+            "accepted": 6,
+            "needs_human_review": 0
+          },
+          "article-13": {
+            "accepted": 17,
+            "needs_human_review": 2
+          },
+          "article-14": {
+            "accepted": 14,
+            "needs_human_review": 5
+          },
+          "article-15": {
+            "accepted": 10,
+            "needs_human_review": 0
+          },
+          "article-16": {
+            "accepted": 25,
+            "needs_human_review": 1
+          },
+          "article-17": {
+            "accepted": 18,
+            "needs_human_review": 4
+          },
+          "article-18": {
+            "accepted": 7,
+            "needs_human_review": 0
+          },
+          "article-19": {
+            "accepted": 3,
+            "needs_human_review": 0
+          },
+          "article-20": {
+            "accepted": 5,
+            "needs_human_review": 0
+          },
+          "article-21": {
+            "accepted": 2,
+            "needs_human_review": 0
+          },
+          "article-22": {
+            "accepted": 11,
+            "needs_human_review": 2
+          },
+          "article-23": {
+            "accepted": 13,
+            "needs_human_review": 0
+          },
+          "article-24": {
+            "accepted": 12,
+            "needs_human_review": 0
+          },
+          "article-25": {
+            "accepted": 11,
+            "needs_human_review": 1
+          },
+          "article-26": {
+            "accepted": 26,
+            "needs_human_review": 5
+          },
+          "article-27": {
+            "accepted": 9,
+            "needs_human_review": 2
+          },
+          "article-50": {
+            "accepted": 13,
+            "needs_human_review": 1
+          },
+          "article-72": {
+            "accepted": 6,
+            "needs_human_review": 2
+          },
+          "article-73": {
+            "accepted": 17,
+            "needs_human_review": 3
+          },
+          "article-8": {
+            "accepted": 4,
+            "needs_human_review": 0
+          },
+          "article-9": {
+            "accepted": 19,
+            "needs_human_review": 3
+          }
+        },
+        "returned": 277,
+        "total_accepted_in_scope": 277
+      },
+      "session_file": "abstention.jsonl",
+      "trace": null
+    }
+  ]
+}

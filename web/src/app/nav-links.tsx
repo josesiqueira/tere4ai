@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Bot,
   Workflow,
+  Terminal,
   UserCheck,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ const ITEMS = [
   { href: "/coverage", label: "Coverage", icon: BookOpenCheck },
   { href: "/assess", label: "Assess", icon: ClipboardList },
   { href: "/agent", label: "Agent", icon: Bot },
+  { href: "/mcp-demo", label: "MCP demo", icon: Terminal },
   { href: "/how-it-works", label: "How it works", icon: Workflow },
   { href: "/review", label: "Review", icon: UserCheck },
 ];

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tere4ai": {
+      "command": "/home/jose/Dev/Trustworthy/tere4ai2/.venv/bin/python",
+      "args": [
+        "-m",
+        "tere4ai.mcp_server.server"
+      ]
+    }
+  }
+}
