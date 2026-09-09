@@ -219,7 +219,15 @@ def coverage_report() -> dict[str, Any]:
     dump = _read_dump()
     if dump is None:
         return _dump_missing_envelope()
-    return tools.coverage_report(dump)
+    # B62: pass the judged payloads like GET /api/coverage does, so the
+    # layer 2 and 3 blocks report real counts instead of dump-derived zeros.
+    # They are optional for the tool, so a missing payload degrades that
+    # block rather than the whole report.
+    return tools.coverage_report(
+        dump,
+        norms_payload=_read_json(NORMS_PATH),
+        alignments_payload=_read_json(ALIGNMENTS_PATH),
+    )
 
 
 @mcp.tool(annotations=_READ_ONLY)

@@ -37,6 +37,15 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   rdflib roundtrip and full-norm-coverage integration tests.
 
 ### Runtime tools
+- MCP coverage_report parity with the facade (B62, 2026-09-09). The MCP
+  wrapper called the coverage function with the dump alone, so layer 2 and
+  layer 3 read count 0 and not_started over MCP while GET /api/coverage,
+  which passes the judged norms and alignments payloads, reported the real
+  counts with verdict breakdowns. The wrapper now passes both payloads like
+  the neighbouring tools, and a parity case in
+  tests/unit/test_facade_mcp_parity.py goes through the wrapper itself so
+  the two surfaces cannot drift again. Pre-existing since the facade route
+  landed, surfaced by the B45 plan 1 final review.
 - Section 8 envelope contract: the mandatory response-field set is now a
   named constant (SECTION_8_ENVELOPE_FIELDS) and a cross-cutting test fires
   every envelope-returning facade endpoint across all classification tiers,

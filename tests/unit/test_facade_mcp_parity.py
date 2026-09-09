@@ -186,3 +186,38 @@ def test_unknown_norm_parity_on_clean_envelope(client):
         client.app.state.alignments,
     )
     assert _canon(via_http) == _canon(direct)
+
+
+def test_coverage_parity_via_mcp_wrapper(client, monkeypatch):
+    """B62: the MCP coverage_report wrapper must feed the judged norms and
+    alignments payloads to tools.coverage_report exactly like GET
+    /api/coverage does. Unlike the other cases this one goes through the
+    server wrapper, not the tool function, because the drift was in the
+    wrapper's argument list: it passed only the dump, so layer 2 and 3
+    read count 0 / not_started over MCP while the facade reported the
+    real judged counts. Both surfaces are fed the same in-memory payloads
+    so only the wrapper's pass-through is under test."""
+    from tere4ai.mcp_server import server
+
+    state = client.app.state
+    monkeypatch.setattr(server, "_read_dump", lambda *a, **k: state.dump)
+
+    def _read_json(path):
+        if path == server.NORMS_PATH:
+            return state.norms
+        if path == server.ALIGNMENTS_PATH:
+            return state.alignments
+        return None
+
+    monkeypatch.setattr(server, "_read_json", _read_json)
+
+    via_http = client.get("/api/coverage").json()
+    via_mcp = server.coverage_report()
+    assert _canon(via_http) == _canon(via_mcp)
+    # Guard against a vacuous pass: the judged layers must be populated
+    # with verdict breakdowns, which only the payload-fed path produces.
+    answer = via_mcp["answer"]
+    assert answer["layer2_nodes"]["count"] > 0
+    assert "verdicts" in answer["layer2_nodes"]
+    assert answer["layer3_nodes"]["count"] > 0
+    assert "verdicts" in answer["layer3_nodes"]
