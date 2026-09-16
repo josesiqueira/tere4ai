@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
@@ -33,6 +34,16 @@ def _attach_source_text(norms: list[dict], layer1: dict) -> None:
         node = nodes.get(norm.get("source_node_id", ""))
         if node is not None and node.get("text"):
             norm["source_text"] = node["text"]
+
+
+def _sampling_of(client: object) -> str:
+    """What the client actually sent (B74); "unknown" for a stub without the record."""
+    return str(getattr(client, "sampling", "unknown"))
+
+
+def _usage_of(client: object) -> dict:
+    """Provider-reported token counts over this run; empty for a stub."""
+    return dict(getattr(client, "usage", None) or {})
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -156,6 +167,9 @@ def main(argv: list[str] | None = None) -> int:
         "build": {
             **payload.get("build", {}),
             "alignment_models": cfg.as_public_dict(),
+            "alignment_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+            "alignment_usage": {"generator": _usage_of(generator), "judge": _usage_of(judge)},
+            "aligned_at": datetime.now(UTC).isoformat(),
             "alignment_prompt_version": args.prompt_version,
         },
         **result,

@@ -5,6 +5,35 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Models and build identity (2026-09-16, B74)
+- Production models moved to `gpt-6-astra` (generator) and `claude-opus-5`
+  (judge); both ids verified against the providers' live model lists on
+  2026-09-16. Defaults updated in `.env.example`, `docker-compose.yml` and
+  `deploy/rahti/deployment-facade.yaml`. The evaluation records under
+  `eval/` keep naming the models they were measured with.
+- Model clients: a rejected `temperature: 0` is learned once per client
+  instead of costing one refused request per call (gpt-6-astra answers 400
+  for it; the anthropic SDK 1.x no longer accepts the keyword). JSON mode
+  survives a temperature rejection on the generator. Each client reports
+  `.sampling` as "0", "provider default (rejected by the model)", "mixed"
+  or "no replies", and both build entry points record it, the provider
+  token usage and a timestamp in the dump's `build` record
+  (`extraction_sampling`, `extraction_usage`, `extracted_at`;
+  `alignment_sampling`, `alignment_usage`, `aligned_at`).
+- The judge's output cap is 16000 tokens (was 2048): current Claude models
+  think before answering and the thinking counts against `max_tokens`.
+- Served build id. The facade's `/api/health` (`graph_version`,
+  `norms_build`) and every envelope from both transports now carry the
+  chained id `<snapshot build>+chain-<12hex>` that `publish_layer23`
+  stamps on the published graph, recomputed over the exact dump files
+  served. Before, only the legal snapshot hash was reported, which does
+  not change when the norms are re-extracted, so a rebuild was
+  indistinguishable from the build it replaced and a dashboard campaign
+  pinned to the old build could be graded on the new one.
+  `tere4ai.graph_store.build_chain.served_build_id` and
+  `stamp_served_build` implement it; a directory without published norms
+  keeps the bare snapshot id.
+
 ### Repository (2026-08-28)
 - Repository split. The research record moved to a separate private repository:
   the task board, design plans and specs, research inputs, the audit journal and

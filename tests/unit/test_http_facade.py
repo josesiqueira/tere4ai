@@ -922,3 +922,22 @@ def test_utf8_guard_accepts_legitimate_non_ascii_text(client):
     envelope = response.json()
     assert envelope["status"] == "not_applicable"
     assert envelope["answer"]["found"] is False
+
+
+def test_health_build_ids_carry_the_publication_chain_of_the_served_dumps(client):
+    """B74: the id the dashboard pins a campaign to must change when the
+    norms are re-extracted, so it is the chained id publish_layer23 stamps,
+    recomputed over the exact files this facade serves."""
+    from tere4ai.graph_store.build_chain import build_chain, chained_build_id
+
+    body = client.get("/api/health").json()
+    chain = build_chain(
+        _DUMP_DIR / "layer1.json",
+        _DUMP_DIR / "norms_core.json",
+        _DUMP_DIR / "alignments_core.json",
+    )
+    base = json.loads((_DUMP_DIR / "norms_core.json").read_text(encoding="utf-8"))["build"]["build_id"]
+    expected = chained_build_id(base, chain)
+    assert body["norms_build"] == expected
+    assert body["graph_version"] == expected
+    assert body["graph_version"].count("+chain-") == 1

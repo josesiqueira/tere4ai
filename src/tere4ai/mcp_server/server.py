@@ -36,6 +36,7 @@ from typing import Any
 from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
 
+from tere4ai.graph_store.build_chain import stamp_served_build
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_rules
 from tere4ai.mcp_server import classify as classify_rules
@@ -91,9 +92,13 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.is_file():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+    # A dump is served under the publication chain of the directory it was
+    # read from (B74), so graph_version names the published build, not
+    # merely the legal snapshot every rebuild shares.
+    return stamp_served_build(payload, path.parent)
 
 
 def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:

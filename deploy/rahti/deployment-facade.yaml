@@ -42,9 +42,9 @@ spec:
             # Same model defaults as docker-compose.yml; override via Secret
             # or a ConfigMap in a real deployment.
             - name: TERE4AI_GENERATOR_MODEL
-              value: "gpt-5.2"
+              value: "gpt-6-astra"
             - name: TERE4AI_JUDGE_MODEL
-              value: "claude-opus-4-8"
+              value: "claude-opus-5"
           resources:
             # Unvalidated guesses: the facade loads the graph dumps into
             # memory at startup. Measure before trusting these numbers.

@@ -65,6 +65,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field, model_validator
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+from tere4ai.graph_store.build_chain import stamp_served_build
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_tool
 from tere4ai.mcp_server import classify as classify_tool
@@ -281,9 +282,11 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         base = Path(dump_dir or os.environ.get(DUMP_DIR_ENV) or DEFAULT_DUMP_DIR)
-        app.state.dump = _load_json(base / "layer1.json")
-        app.state.norms = _load_json(base / "norms_core.json")
-        app.state.alignments = _load_json(base / "alignments_core.json")
+        # Served under the publication chain of this directory (B74): the
+        # id the dashboard pins a campaign to changes when the norms change.
+        app.state.dump = stamp_served_build(_load_json(base / "layer1.json"), base)
+        app.state.norms = stamp_served_build(_load_json(base / "norms_core.json"), base)
+        app.state.alignments = stamp_served_build(_load_json(base / "alignments_core.json"), base)
         app.state.hleg_nodes = _load_hleg_nodes()
         try:
             raw = FEATURES_SCHEMA_PATH.read_bytes()

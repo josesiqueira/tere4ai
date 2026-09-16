@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
@@ -24,6 +25,10 @@ from tere4ai.extract_norms.pipeline import (
     extract_norms,
 )
 from tere4ai.judge.config import load_model_config
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 def _slug(node_ids: list[str]) -> str:
@@ -41,6 +46,16 @@ def _slug(node_ids: list[str]) -> str:
         parts.append(f"plus{len(node_ids) - 2}")
     parts.append(digest)
     return "_".join(parts)
+
+
+def _sampling_of(client: object) -> str:
+    """What the client actually sent (B74); "unknown" for a stub without the record."""
+    return str(getattr(client, "sampling", "unknown"))
+
+
+def _usage_of(client: object) -> dict:
+    """Provider-reported token counts over this run; empty for a stub."""
+    return dict(getattr(client, "usage", None) or {})
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -154,6 +169,9 @@ def main(argv: list[str] | None = None) -> int:
         "build": {
             **dump.get("build", {}),
             "extraction_models": cfg.as_public_dict(),
+            "extraction_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+            "extraction_usage": {"generator": _usage_of(generator), "judge": _usage_of(judge)},
+            "extracted_at": _now_iso(),
             "prompt_version": args.prompt_version,
         },
         **merged,

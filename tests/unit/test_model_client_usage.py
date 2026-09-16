@@ -89,3 +89,157 @@ def test_judge_without_usage_block_counts_only_the_call():
     judge = _judge_with([_anthropic_response("v")])
     judge.complete("s", "u")
     assert judge.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0}
+
+
+# B74: current-generation models reject sampling parameters. A rejection is
+# learned once per client (never one wasted request per call), JSON mode
+# survives a temperature rejection, and the client reports what it actually
+# sent in the same vocabulary the dashboard's judge records.
+
+
+class _Rejecting:
+    """Stub transport: raises the given message when a listed kwarg is sent."""
+
+    def __init__(self, reject: dict[str, str], response):
+        self.reject = reject
+        self.response = response
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        for key, message in self.reject.items():
+            if key in kwargs:
+                raise RuntimeError(message)
+        return self.response
+
+
+def _generator_over(transport: _Rejecting) -> OpenAIGenerator:
+    gen = OpenAIGenerator.__new__(OpenAIGenerator)
+    gen.model = "stub-generator"
+    gen.usage = _new_usage()
+    gen._init_sampling()
+    gen._client = SimpleNamespace(chat=SimpleNamespace(completions=transport))
+    return gen
+
+
+def _judge_over(transport: _Rejecting) -> AnthropicJudge:
+    judge = AnthropicJudge.__new__(AnthropicJudge)
+    judge.model = "stub-judge"
+    judge.usage = _new_usage()
+    judge._max_tokens = 16
+    judge._init_sampling()
+    judge._client = SimpleNamespace(messages=transport)
+    return judge
+
+
+def test_generator_sends_temperature_zero_and_json_mode_by_default():
+    transport = _Rejecting({}, _openai_response('{"ok": true}', 1, 1))
+    gen = _generator_over(transport)
+    gen.complete("s", "u")
+    assert transport.calls[0]["temperature"] == 0
+    assert transport.calls[0]["response_format"] == {"type": "json_object"}
+    assert gen.sampling == "0"
+
+
+def test_generator_keeps_json_mode_when_only_temperature_is_rejected():
+    transport = _Rejecting(
+        {"temperature": "Unsupported value: 'temperature' does not support 0 with this model."},
+        _openai_response('{"ok": true}', 1, 1),
+    )
+    gen = _generator_over(transport)
+    assert gen.complete("s", "u") == '{"ok": true}'
+    assert "temperature" not in transport.calls[-1]
+    assert transport.calls[-1]["response_format"] == {"type": "json_object"}
+    assert gen.sampling == "provider default (rejected by the model)"
+
+
+def test_generator_learns_the_rejection_once():
+    transport = _Rejecting(
+        {"temperature": "temperature is not supported"}, _openai_response("x", 1, 1)
+    )
+    gen = _generator_over(transport)
+    gen.complete("s", "u")
+    gen.complete("s", "u")
+    gen.complete("s", "u")
+    # one rejected attempt, then one clean call per complete(): 4, not 6
+    assert len(transport.calls) == 4
+    assert all("temperature" not in call for call in transport.calls[1:])
+    assert gen.usage["calls"] == 3
+
+
+def test_generator_drops_json_mode_only_when_the_model_rejects_it():
+    transport = _Rejecting(
+        {"response_format": "response_format is not supported"}, _openai_response("x", 1, 1)
+    )
+    gen = _generator_over(transport)
+    gen.complete("s", "u")
+    assert "response_format" not in transport.calls[-1]
+    assert transport.calls[-1]["temperature"] == 0
+
+
+def test_generator_reraises_any_other_error():
+    transport = _Rejecting({"model": "invalid api key"}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport)
+    try:
+        gen.complete("s", "u")
+    except RuntimeError as exc:
+        assert "invalid api key" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("an unrelated provider error must propagate")
+    assert len(transport.calls) == 1
+
+
+def test_generator_sampling_is_mixed_when_a_rejection_arrives_mid_run():
+    transport = _Rejecting({}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport)
+    gen.complete("s", "u")
+    transport.reject = {"temperature": "temperature unsupported"}
+    gen.complete("s", "u")
+    assert gen.sampling == "mixed"
+
+
+def test_sampling_before_any_reply_is_no_replies():
+    gen = _generator_over(_Rejecting({}, _openai_response("x")))
+    assert gen.sampling == "no replies"
+
+
+def test_judge_default_output_cap_leaves_room_for_thinking():
+    import inspect
+
+    default = inspect.signature(AnthropicJudge.__init__).parameters["max_tokens"].default
+    assert default >= 16000
+
+
+def test_judge_learns_a_temperature_rejection_once_and_reports_it():
+    transport = _Rejecting(
+        {"temperature": "Messages.create() got an unexpected keyword argument 'temperature'"},
+        _anthropic_response("v", 2, 1),
+    )
+    judge = _judge_over(transport)
+    assert judge.complete("s", "u") == "v"
+    assert judge.complete("s", "u") == "v"
+    assert len(transport.calls) == 3
+    assert "temperature" not in transport.calls[-1]
+    assert transport.calls[-1]["max_tokens"] == 16
+    assert judge.sampling == "provider default (rejected by the model)"
+    assert judge.usage["calls"] == 2
+
+
+def test_judge_reports_temperature_zero_when_accepted():
+    transport = _Rejecting({}, _anthropic_response("v", 2, 1))
+    judge = _judge_over(transport)
+    judge.complete("s", "u")
+    assert transport.calls[0]["temperature"] == 0
+    assert judge.sampling == "0"
+
+
+def test_judge_reads_only_text_blocks_past_a_thinking_block():
+    response = SimpleNamespace(
+        content=[
+            SimpleNamespace(type="thinking", thinking=""),
+            SimpleNamespace(type="text", text='{"verdict": "accepted"}'),
+        ],
+        usage=SimpleNamespace(input_tokens=5, output_tokens=7),
+    )
+    judge = _judge_over(_Rejecting({}, response))
+    assert judge.complete("s", "u") == '{"verdict": "accepted"}'

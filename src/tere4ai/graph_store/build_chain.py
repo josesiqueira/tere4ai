@@ -144,3 +144,66 @@ def verify_dumps_against_chain(
                 f"live dump for role '{role}'; integrity is not established",
             )
     return True, f"dumps verified against build chain {chain['chain_id']}"
+
+
+# B74 (2026-09-16): the id a dump is SERVED under. publish_layer23 stamps
+# <base>+chain-<12hex> on every published node and edge, but the facade and
+# the MCP server used to report only the base id, the legal snapshot hash,
+# which does not change when the norms are re-extracted with other models.
+# A rebuild was therefore indistinguishable from the build it replaced, and
+# the dashboard, which pins a campaign to this id, could not refuse grading
+# a campaign on the wrong build. The served id is now the chain over the
+# exact files in the dump directory, the same recipe publication uses, and
+# the base id alone only when no norms are published there (a structural,
+# Layer 1 only checkout). Cached per directory on the files' size and mtime
+# so a per-call reader does not re-hash six megabytes on every tool call.
+_SERVED_CHAIN_CACHE: dict[tuple, str] = {}
+
+
+def _served_chain_id(dump_dir: Path) -> str | None:
+    layer1 = dump_dir / "layer1.json"
+    norms = dump_dir / "norms_core.json"
+    alignments = dump_dir / "alignments_core.json"
+    if not (layer1.is_file() and norms.is_file()):
+        return None
+    present = [layer1, norms] + ([alignments] if alignments.is_file() else [])
+    try:
+        key = tuple((p.name, p.stat().st_size, p.stat().st_mtime_ns) for p in present)
+    except OSError:
+        return None
+    cache_key = (str(dump_dir.resolve()), key)
+    cached = _SERVED_CHAIN_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        chain = build_chain(layer1, norms, alignments if alignments.is_file() else None)
+    except OSError:
+        return None
+    _SERVED_CHAIN_CACHE[cache_key] = chain["chain_id"]
+    return chain["chain_id"]
+
+
+def served_build_id(dump_dir: Path | str, base_build_id: str) -> str:
+    """<base>+chain-<12hex> over the dumps in dump_dir, or the base id alone
+    when that directory publishes no norms. Idempotent on an already chained
+    base (the suffix is replaced, never stacked)."""
+    chain_id = _served_chain_id(Path(dump_dir))
+    if chain_id is None:
+        return base_build_id
+    return chained_build_id(base_build_id, {"chain_id": chain_id})
+
+
+def stamp_served_build(payload: Any, dump_dir: Path | str) -> Any:
+    """Rewrite payload["build"]["build_id"] to the served id, in place.
+
+    Applied once at load by every reader of a dump directory so each
+    envelope's graph_version and the health answer's norms_build name the
+    published build, not merely its snapshot. Payloads without a build
+    record (fixtures, non-dump files) are returned untouched."""
+    if not isinstance(payload, dict):
+        return payload
+    build = payload.get("build")
+    if not isinstance(build, dict) or "build_id" not in build:
+        return payload
+    build["build_id"] = served_build_id(dump_dir, str(build["build_id"]))
+    return payload
