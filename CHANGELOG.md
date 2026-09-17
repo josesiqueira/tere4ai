@@ -7,12 +7,18 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ### Human review decisions (2026-09-17, B77 plan 1)
 - The decisions file gains two new decision kinds, `replace` and `add`, each
-  carrying a human-written norm in `payload`: `replace` overwrites the slot
-  fields of an existing norm named by `queue_id`, `add` appends a brand new
-  norm whose id is `queue_id`; `apply_decisions` stamps both with
-  `extraction_method: "human"`, `extractor_model: "human:<reviewer>"`,
-  `confidence: 1.0`, `judge_verdict` and `review_status` `"accepted"`, and
-  `judge_run_id: None`.
+  carrying a human-written norm in `payload` (a required `actor_explicit`
+  key, nullable, plus the other norm slots): `replace` overwrites the slot
+  fields of an existing norm named by `queue_id` but refuses to move it to
+  another `source_node_id` or `source_span_id` (reject plus add is the way
+  to re-attribute a norm), `add` appends a brand new norm whose id is
+  `queue_id`; `apply_decisions` stamps both with `extraction_method: "human"`,
+  `extractor_model: "human:<reviewer>"`, `confidence: 1.0`, `judge_verdict`
+  and `review_status` `"accepted"`, and `judge_run_id: None`. A payload that
+  sets `actor_inferred` to anything other than `None` or
+  `"unspecified_needs_review"` must also carry
+  `actor_inference_source_node_id`, mirroring the norms schema's conditional
+  rule.
 - New provenance class `HUMAN_AUTHORED` in `schema/json_schemas/edges.schema.json`,
   recorded in `human_review.provenance` for both new decision kinds.
 - `GET /api/units` (Task 1, B77 plan 1) serves every core source unit with

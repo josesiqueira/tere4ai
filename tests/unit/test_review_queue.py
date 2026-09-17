@@ -520,3 +520,46 @@ def test_edges_schema_lists_human_authored():
     schema = json.loads((Path(__file__).resolve().parents[2] / "schema" / "json_schemas" / "edges.schema.json").read_text())
     text = json.dumps(schema)
     assert "HUMAN_AUTHORED" in text
+
+
+# --- review fix round 1: actor_explicit required, replace cannot move a norm ----
+
+
+def test_record_decision_add_requires_actor_explicit():
+    bad = dict(HUMAN_NORM)
+    bad.pop("actor_explicit")
+    with pytest.raises(ValueError, match="actor_explicit"):
+        record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "missing actor_explicit", "annotator a", payload=bad)
+
+
+def test_record_decision_add_requires_inference_source_when_actor_inferred_is_set():
+    bad = {**HUMAN_NORM, "actor_explicit": None, "actor_inferred": "provider"}
+    bad.pop("actor_inference_source_node_id", None)
+    with pytest.raises(ValueError, match="actor_inference_source_node_id"):
+        record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "inferred actor without a source", "annotator a", payload=bad)
+
+
+def test_apply_decisions_add_defaults_actor_inference_fields_to_none():
+    payload = {"norms": []}
+    decisions = {}
+    bare = dict(HUMAN_NORM)
+    bare.pop("actor_inferred", None)
+    bare.pop("actor_inference_source_node_id", None)
+    record_decision(decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "no inference given", "annotator a", payload=bare)
+    out = apply_decisions(payload, decisions)
+    added = out["norms"][0]
+    assert "actor_inferred" in added and added["actor_inferred"] is None
+    assert "actor_inference_source_node_id" in added and added["actor_inference_source_node_id"] is None
+
+
+def test_apply_decisions_replace_refuses_to_move_a_norm_to_another_span():
+    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": "x", "source_span_id": "s",
+                          "deontic_type": "permission", "modal": "may", "actor_explicit": None,
+                          "action": "old", "object": "old", "extraction_method": "llm_extract_v1",
+                          "extractor_model": "gpt-6-astra", "confidence": 0.4,
+                          "judge_verdict": "rejected", "review_status": "rejected", "judge_run_id": "r1"}]}
+    decisions = {}
+    record_decision(decisions, "norm:x:n1", "replace", "the sentence is an obligation", "annotator a",
+                    payload={**HUMAN_NORM, "source_node_id": "y", "source_span_id": "s"})
+    with pytest.raises(ValueError, match="cannot move"):
+        apply_decisions(payload, decisions)

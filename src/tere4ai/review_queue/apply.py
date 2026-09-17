@@ -60,6 +60,8 @@ def _stamp_human_norm(item: dict[str, Any], entry: dict[str, Any]) -> None:
     item.setdefault("conditions", [])
     item.setdefault("exceptions", [])
     item.setdefault("lifecycle_phase_ids", [])
+    item.setdefault("actor_inferred", None)
+    item.setdefault("actor_inference_source_node_id", None)
     item["extraction_method"] = "human"
     item["extractor_model"] = f"human:{entry['reviewer']}"
     item["extractor_prompt_version"] = "n/a"
@@ -96,6 +98,14 @@ def apply_decisions(
         if decision == "replace":
             if id_field != "norm_id":
                 raise ValueError("replace applies to norms only")
+            norm_id = item.get(id_field)
+            replace_payload = entry["payload"]
+            for moved_field in ("source_node_id", "source_span_id"):
+                if moved_field in replace_payload and replace_payload[moved_field] != item.get(moved_field):
+                    raise ValueError(
+                        f"replace cannot move norm {norm_id!r}: {moved_field} differs; "
+                        "use reject plus add"
+                    )
             _stamp_human_norm(item, entry)
         else:
             item["judge_verdict"] = _VERDICT[decision]

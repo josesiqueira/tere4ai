@@ -28,7 +28,9 @@ from typing import Any
 EXCERPT_CHARS = 280
 
 VALID_DECISIONS = ("accept", "reject", "replace", "add")
-HUMAN_NORM_REQUIRED = ("source_node_id", "source_span_id", "deontic_type", "modal", "action", "object")
+HUMAN_NORM_REQUIRED = (
+    "source_node_id", "source_span_id", "deontic_type", "modal", "actor_explicit", "action", "object",
+)
 
 
 def _excerpt(text: str | None) -> str:
@@ -218,6 +220,16 @@ def record_decision(
         missing = [k for k in HUMAN_NORM_REQUIRED if k not in payload]
         if missing:
             raise ValueError(f"payload is missing {', '.join(missing)}")
+        actor_inferred = payload.get("actor_inferred")
+        if (
+            actor_inferred is not None
+            and actor_inferred != "unspecified_needs_review"
+            and not payload.get("actor_inference_source_node_id")
+        ):
+            raise ValueError(
+                f"payload sets actor_inferred={actor_inferred!r} but is missing "
+                "actor_inference_source_node_id"
+            )
         entry["payload"] = dict(payload)
     elif payload is not None:
         raise ValueError(f"decision {decision!r} takes no payload")
