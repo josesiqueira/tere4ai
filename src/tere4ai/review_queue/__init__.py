@@ -10,6 +10,7 @@ from tere4ai.review_queue.queue import (
     load_decisions,
     record_decision,
     save_decisions,
+    validate_human_payload,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "load_decisions",
     "record_decision",
     "save_decisions",
+    "validate_human_payload",
 ]

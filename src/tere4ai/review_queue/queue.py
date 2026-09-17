@@ -172,14 +172,58 @@ def list_pending(
     return items
 
 
+def validate_human_payload(decision: Any, payload: dict[str, Any] | None) -> None:
+    """Check one decision entry's payload, whoever wrote the file.
+
+    replace and add carry a human-written norm: every field in
+    HUMAN_NORM_REQUIRED must be present, and an actor_inferred value of any
+    kind, the "unspecified_needs_review" sentinel included, must name the
+    node the inference came from. Every other decision takes no payload.
+    record_decision, load_decisions and apply_decisions all go through this,
+    so a decisions file exported by the dashboard is held to the same rules
+    as one written by the review CLI.
+    """
+    if decision not in VALID_DECISIONS:
+        raise ValueError(f"decision must be one of {VALID_DECISIONS}, got {decision!r}")
+    if decision not in ("replace", "add"):
+        if payload is not None:
+            raise ValueError(f"decision {decision!r} takes no payload")
+        return
+    if not isinstance(payload, dict):
+        raise ValueError(f"decision {decision!r} requires a payload with the norm's slots")
+    missing = [k for k in HUMAN_NORM_REQUIRED if k not in payload]
+    if missing:
+        raise ValueError(f"payload is missing {', '.join(missing)}")
+    actor_inferred = payload.get("actor_inferred")
+    if actor_inferred is not None and not payload.get("actor_inference_source_node_id"):
+        raise ValueError(
+            f"payload sets actor_inferred={actor_inferred!r} but is missing "
+            "actor_inference_source_node_id"
+        )
+
+
 def load_decisions(path: Path | str) -> dict[str, dict[str, Any]]:
-    """Load the decisions file; an absent file is an empty decision set."""
+    """Load the decisions file; an absent file is an empty decision set.
+
+    Every entry is validated on the way in (validate_human_payload), so a
+    file produced outside record_decision, for example the annotation
+    campaign export, cannot carry a malformed human norm into publish.
+    """
     path = Path(path)
     if not path.is_file():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError(f"decisions file {path} must hold a JSON object")
+    for queue_id, entry in data.items():
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"decisions file {path}: entry {queue_id!r} must be a JSON object"
+            )
+        try:
+            validate_human_payload(entry.get("decision"), entry.get("payload"))
+        except ValueError as exc:
+            raise ValueError(f"decisions file {path}: entry {queue_id!r}: {exc}") from exc
     return data
 
 
@@ -214,21 +258,9 @@ def record_decision(
         "reviewer": reviewer.strip(),
         "decided_at": decided_at or datetime.now(UTC).isoformat(),
     }
+    validate_human_payload(decision, payload)
     if decision in ("replace", "add"):
-        if not isinstance(payload, dict):
-            raise ValueError(f"decision {decision!r} requires a payload with the norm's slots")
-        missing = [k for k in HUMAN_NORM_REQUIRED if k not in payload]
-        if missing:
-            raise ValueError(f"payload is missing {', '.join(missing)}")
-        actor_inferred = payload.get("actor_inferred")
-        if actor_inferred is not None and not payload.get("actor_inference_source_node_id"):
-            raise ValueError(
-                f"payload sets actor_inferred={actor_inferred!r} but is missing "
-                "actor_inference_source_node_id"
-            )
-        entry["payload"] = dict(payload)
-    elif payload is not None:
-        raise ValueError(f"decision {decision!r} takes no payload")
+        entry["payload"] = dict(payload or {})
     decisions[queue_id] = entry
     return entry
 

@@ -20,7 +20,18 @@ human_review.provenance over the judge-derived class when persisting edges.
 from __future__ import annotations
 
 import copy
+import json
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
+
+from jsonschema import Draft202012Validator
+
+from tere4ai.review_queue.queue import validate_human_payload
+
+NORMS_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "norms.schema.json"
+)
 
 _PROVENANCE = {
     "accept": "HUMAN_REVIEWED_ACCEPTED",
@@ -33,6 +44,28 @@ _SLOT_FIELDS = (
     "source_node_id", "source_span_id", "deontic_type", "modal", "actor_explicit", "actor_inferred",
     "actor_inference_source_node_id", "action", "object", "conditions", "exceptions", "lifecycle_phase_ids",
 )
+# The actor triple is the human's alone: a field the payload omits becomes
+# None rather than inheriting the model's inferred actor onto a norm the
+# human is credited with authoring (B77 plan 1 final review).
+_ACTOR_FIELDS = ("actor_explicit", "actor_inferred", "actor_inference_source_node_id")
+
+
+@lru_cache(maxsize=1)
+def _norm_validator() -> Draft202012Validator:
+    schema = json.loads(NORMS_SCHEMA_PATH.read_text(encoding="utf-8"))
+    return Draft202012Validator(schema)
+
+
+def _validate_human_norm(item: dict[str, Any]) -> None:
+    """Check a completed human norm against schema/json_schemas/norms.schema.json."""
+    errors = sorted(_norm_validator().iter_errors(item), key=lambda e: list(e.path))
+    if not errors:
+        return
+    first = errors[0]
+    field = ".".join(str(part) for part in first.path) or "the norm"
+    raise ValueError(
+        f"human norm {item.get('norm_id')!r} fails norms.schema.json at {field}: {first.message}"
+    )
 
 
 def _items_and_id_field(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
@@ -57,11 +90,16 @@ def _stamp_human_norm(item: dict[str, Any], entry: dict[str, Any]) -> None:
     for field in _SLOT_FIELDS:
         if field in payload:
             item[field] = copy.deepcopy(payload[field])
+    for field in _ACTOR_FIELDS:
+        item[field] = copy.deepcopy(payload.get(field))
     item.setdefault("conditions", [])
     item.setdefault("exceptions", [])
     item.setdefault("lifecycle_phase_ids", [])
-    item.setdefault("actor_inferred", None)
-    item.setdefault("actor_inference_source_node_id", None)
+    # The clause ids belong to the text the human just wrote: they are
+    # re-materialised from conditions and exceptions by canonicalize_norms at
+    # publish, never inherited from the model's clause nodes.
+    item["condition_ids"] = []
+    item["exception_ids"] = []
     item["extraction_method"] = "human"
     item["extractor_model"] = f"human:{entry['reviewer']}"
     item["extractor_prompt_version"] = "n/a"
@@ -85,6 +123,13 @@ def apply_decisions(
     same way accept and reject already ignore ids absent from the payload.
     This lets one decisions file, mixing norm and assertion ids, be applied
     to both the norms pass and the alignments pass of a single publish run.
+
+    Every replace and add payload is validated again here
+    (tere4ai.review_queue.queue.validate_human_payload), and the completed
+    norm is validated against schema/json_schemas/norms.schema.json, so the
+    producer of the decisions file does not matter: a malformed human norm
+    raises ValueError naming the norm and the failing field instead of
+    reaching the graph.
     """
     new_payload = copy.deepcopy(payload)
     if not decisions:
@@ -111,7 +156,9 @@ def apply_decisions(
                         f"replace cannot move norm {norm_id!r}: {moved_field} differs; "
                         "use reject plus add"
                     )
+            validate_human_payload(decision, entry.get("payload"))
             _stamp_human_norm(item, entry)
+            _validate_human_norm(item)
         else:
             item["judge_verdict"] = _VERDICT[decision]
             item["review_status"] = _VERDICT[decision]
@@ -127,10 +174,10 @@ def apply_decisions(
                 "norm_id": queue_id,
                 "layer": 2,
                 "type": "NormativeStatement",
-                "condition_ids": [],
-                "exception_ids": [],
             }
+            validate_human_payload("add", entry.get("payload"))
             _stamp_human_norm(new_norm, entry)
+            _validate_human_norm(new_norm)
             new_norm["human_review"] = _human_review(entry, "add")
             items.append(new_norm)
         elif entry["decision"] == "replace" and queue_id not in present:

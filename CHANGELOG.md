@@ -22,6 +22,22 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   recorded in `human_review.provenance` for both new decision kinds.
 - `GET /api/units` (Task 1, B77 plan 1) serves every core source unit with
   all candidate norms and judge runs.
+- Every human norm is validated before it is accepted, whoever produced the
+  decisions file: the payload checks live in `validate_human_payload`, which
+  `record_decision`, `load_decisions` (every entry) and `apply_decisions`
+  (every `replace` and `add`) all call, and `apply_decisions` validates the
+  completed norm against `schema/json_schemas/norms.schema.json`, raising
+  with the norm id and the failing field instead of publishing it.
+- A `replace` takes its actor triple (`actor_explicit`, `actor_inferred`,
+  `actor_inference_source_node_id`) from the payload alone: a key the human
+  omits becomes null rather than inheriting the model's inferred actor onto
+  a norm recorded as `HUMAN_AUTHORED`.
+- The clause ids follow the human's text: `replace` and `add` reset
+  `condition_ids` and `exception_ids`, and `scripts/publish_layer23.py` runs
+  `canonicalize_norms` over the applied norms payload, so `HAS_CONDITION`
+  and `HAS_EXCEPTION` are re-materialised from the human's `conditions` and
+  `exceptions` wording (a removed condition loses its edge, an added one
+  gains its clause node).
 
 ### Diagrams (2026-09-17)
 - Diagram files carry the date they were produced: the 2026-07-19

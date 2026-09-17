@@ -605,3 +605,222 @@ def test_apply_decisions_skips_norm_only_decisions_on_alignments_payload():
     untouched = next(a for a in out["assertions"] if a["id"] == "align:x:2")
     assert "human_review" not in untouched
     assert untouched["judge_verdict"] == "accepted"
+
+
+# --- final review: payload validation, actor reset, clause re-materialisation --
+
+
+def _publish_module(name: str = "publish_layer23_final"):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        name, ROOT / "scripts" / "publish_layer23.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_apply_decisions_refuses_an_invalid_modal():
+    decisions = {}
+    record_decision(
+        decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+        "the modal is not in the schema", "annotator a",
+        payload={**HUMAN_NORM, "modal": "kinda_must"},
+    )
+    with pytest.raises(ValueError, match="modal"):
+        apply_decisions({"norms": []}, decisions)
+
+
+def test_apply_decisions_refuses_an_invalid_lifecycle_phase():
+    decisions = {}
+    record_decision(
+        decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+        "the phase is not in the schema", "annotator a",
+        payload={**HUMAN_NORM, "lifecycle_phase_ids": ["not_a_phase"]},
+    )
+    with pytest.raises(ValueError, match="lifecycle_phase_ids"):
+        apply_decisions({"norms": []}, decisions)
+
+
+def test_apply_decisions_refuses_an_invalid_actor_role():
+    decisions = {}
+    record_decision(
+        decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+        "the actor role is not in the schema", "annotator a",
+        payload={
+            **HUMAN_NORM,
+            "actor_inferred": "chief_officer",
+            "actor_inference_source_node_id": "eu-ai-act:article-16",
+        },
+    )
+    with pytest.raises(ValueError, match="actor_inferred"):
+        apply_decisions({"norms": []}, decisions)
+
+
+def test_apply_decisions_names_the_norm_in_a_schema_violation():
+    decisions = {}
+    record_decision(
+        decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+        "the deontic type is not in the schema", "annotator a",
+        payload={**HUMAN_NORM, "deontic_type": "NOT_A_TYPE"},
+    )
+    with pytest.raises(ValueError, match="norm:eu-ai-act:article-12:paragraph-1:h1"):
+        apply_decisions({"norms": []}, decisions)
+
+
+def test_load_decisions_refuses_an_add_without_actor_explicit(tmp_path):
+    bad = dict(HUMAN_NORM)
+    bad.pop("actor_explicit")
+    path = tmp_path / "decisions.json"
+    path.write_text(
+        json.dumps(
+            {
+                "norm:eu-ai-act:article-12:paragraph-1:h1": {
+                    "decision": "add",
+                    "rationale": "written by another producer",
+                    "reviewer": "annotator a",
+                    "decided_at": "2026-09-18T00:00:00+00:00",
+                    "payload": bad,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="actor_explicit"):
+        load_decisions(path)
+
+
+def test_load_decisions_refuses_a_replace_without_a_payload(tmp_path):
+    path = tmp_path / "decisions.json"
+    path.write_text(
+        json.dumps(
+            {
+                "norm:x:n1": {
+                    "decision": "replace",
+                    "rationale": "no payload at all",
+                    "reviewer": "annotator a",
+                    "decided_at": "2026-09-18T00:00:00+00:00",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="payload"):
+        load_decisions(path)
+
+
+def test_apply_decisions_validates_a_payload_no_recorder_checked():
+    # an entry assembled by hand, bypassing record_decision entirely
+    decisions = {
+        "norm:eu-ai-act:article-12:paragraph-1:h1": {
+            "decision": "add",
+            "rationale": "hand-assembled entry",
+            "reviewer": "annotator a",
+            "decided_at": "2026-09-18T00:00:00+00:00",
+            "payload": {k: v for k, v in HUMAN_NORM.items() if k != "action"},
+        }
+    }
+    with pytest.raises(ValueError, match="action"):
+        apply_decisions({"norms": []}, decisions)
+
+
+def _inferred_actor_norm():
+    return {
+        "norms": [
+            {
+                "norm_id": "norm:x:n1",
+                "source_node_id": "x",
+                "source_span_id": "s",
+                "deontic_type": "obligation",
+                "modal": "shall",
+                "actor_explicit": None,
+                "actor_inferred": "provider",
+                "actor_inference_source_node_id": "eu-ai-act:article-16",
+                "action": "old",
+                "object": "old",
+                "conditions": ["old cond"],
+                "exceptions": ["old exc"],
+                "condition_ids": ["cond:deadbeef1234"],
+                "exception_ids": ["exc:cafebabe0001"],
+                "extraction_method": "llm_extract_v1",
+                "extractor_model": "gpt-6-astra",
+                "confidence": 0.4,
+                "judge_verdict": "needs_human_review",
+                "review_status": "needs_review",
+                "judge_run_id": "r1",
+            }
+        ]
+    }
+
+
+def test_replace_resets_the_actor_triple_from_the_payload():
+    decisions = {}
+    payload = {
+        **HUMAN_NORM,
+        "source_node_id": "x",
+        "source_span_id": "s",
+        "actor_explicit": "the provider",
+    }
+    payload.pop("actor_inferred")
+    payload.pop("actor_inference_source_node_id")
+    record_decision(decisions, "norm:x:n1", "replace", "the actor is named in the text", "annotator a", payload=payload)
+    out = apply_decisions(_inferred_actor_norm(), decisions)
+    norm = out["norms"][0]
+    assert norm["actor_explicit"] == "the provider"
+    assert norm["actor_inferred"] is None
+    assert norm["actor_inference_source_node_id"] is None
+
+
+def test_replace_clears_stale_clause_ids():
+    decisions = {}
+    payload = {
+        **HUMAN_NORM,
+        "source_node_id": "x",
+        "source_span_id": "s",
+        "conditions": [],
+        "exceptions": [],
+    }
+    record_decision(decisions, "norm:x:n1", "replace", "the condition is not in the text", "annotator a", payload=payload)
+    out = apply_decisions(_inferred_actor_norm(), decisions)
+    norm = out["norms"][0]
+    assert norm["conditions"] == [] and norm["exceptions"] == []
+    assert norm["condition_ids"] == [] and norm["exception_ids"] == []
+
+
+def test_publish_helper_drops_the_edge_to_a_removed_condition():
+    publish = _publish_module("publish_layer23_clause_drop")
+    decisions = {}
+    payload = {
+        **HUMAN_NORM,
+        "source_node_id": "x",
+        "source_span_id": "s",
+        "conditions": [],
+        "exceptions": [],
+    }
+    record_decision(decisions, "norm:x:n1", "replace", "the condition is not in the text", "annotator a", payload=payload)
+    applied = publish.apply_human_decisions(_inferred_actor_norm(), decisions)
+    assert applied["norms"][0]["condition_ids"] == []
+    g = norms_to_graph(applied, build_id="b-test")
+    assert [e for e in g["edges"] if e["edge_type"] == "HAS_CONDITION"] == []
+    assert [e for e in g["edges"] if e["edge_type"] == "HAS_EXCEPTION"] == []
+    assert [n for n in g["nodes"] if n.get("type") == "Condition"] == []
+
+
+def test_publish_helper_materialises_a_human_written_condition():
+    publish = _publish_module("publish_layer23_clause_add")
+    decisions = {}
+    record_decision(
+        decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+        "the unit holds an obligation", "annotator a", payload=HUMAN_NORM,
+    )
+    applied = publish.apply_human_decisions({"norms": []}, decisions)
+    added = applied["norms"][0]
+    assert len(added["condition_ids"]) == 1
+    g = norms_to_graph(applied, build_id="b-test")
+    edges = [e for e in g["edges"] if e["edge_type"] == "HAS_CONDITION"]
+    assert len(edges) == 1
+    assert edges[0]["from"] == "norm:eu-ai-act:article-12:paragraph-1:h1"
+    assert edges[0]["to"] == added["condition_ids"][0]
+    clause = next(n for n in g["nodes"] if n.get("type") == "Condition")
+    assert clause["text"] == "over the lifetime of the system"
