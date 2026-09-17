@@ -221,11 +221,7 @@ def record_decision(
         if missing:
             raise ValueError(f"payload is missing {', '.join(missing)}")
         actor_inferred = payload.get("actor_inferred")
-        if (
-            actor_inferred is not None
-            and actor_inferred != "unspecified_needs_review"
-            and not payload.get("actor_inference_source_node_id")
-        ):
+        if actor_inferred is not None and not payload.get("actor_inference_source_node_id"):
             raise ValueError(
                 f"payload sets actor_inferred={actor_inferred!r} but is missing "
                 "actor_inference_source_node_id"

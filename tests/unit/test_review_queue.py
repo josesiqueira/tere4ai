@@ -563,3 +563,10 @@ def test_apply_decisions_replace_refuses_to_move_a_norm_to_another_span():
                     payload={**HUMAN_NORM, "source_node_id": "y", "source_span_id": "s"})
     with pytest.raises(ValueError, match="cannot move"):
         apply_decisions(payload, decisions)
+
+
+def test_record_decision_add_requires_inference_source_even_for_the_sentinel():
+    bad = {**HUMAN_NORM, "actor_explicit": None, "actor_inferred": "unspecified_needs_review"}
+    bad.pop("actor_inference_source_node_id", None)
+    with pytest.raises(ValueError, match="actor_inference_source_node_id"):
+        record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "sentinel actor without a source", "annotator a", payload=bad)

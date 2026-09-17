@@ -15,10 +15,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   `queue_id`; `apply_decisions` stamps both with `extraction_method: "human"`,
   `extractor_model: "human:<reviewer>"`, `confidence: 1.0`, `judge_verdict`
   and `review_status` `"accepted"`, and `judge_run_id: None`. A payload that
-  sets `actor_inferred` to anything other than `None` or
-  `"unspecified_needs_review"` must also carry
-  `actor_inference_source_node_id`, mirroring the norms schema's conditional
-  rule.
+  sets `actor_inferred` to any non-null value, the `"unspecified_needs_review"`
+  sentinel included, must also carry `actor_inference_source_node_id`,
+  mirroring the norms schema's conditional rule with no carve-out.
 - New provenance class `HUMAN_AUTHORED` in `schema/json_schemas/edges.schema.json`,
   recorded in `human_review.provenance` for both new decision kinds.
 - `GET /api/units` (Task 1, B77 plan 1) serves every core source unit with
