@@ -78,8 +78,13 @@ def apply_decisions(
 
     Never mutates the input. accept and reject flip an existing item; replace
     overwrites an existing norm's slots with the human's; add appends a new
-    norm (norms payloads only). A decision naming an id that exists for add,
-    or that is absent for replace, is an error, never a silent skip.
+    norm (norms payloads only). On a norms payload, a decision naming an id
+    that exists for add, or that is absent for replace, is an error, never a
+    silent skip. replace and add are norm-only decisions: on any other
+    payload (for example alignments), they do not apply and are skipped, the
+    same way accept and reject already ignore ids absent from the payload.
+    This lets one decisions file, mixing norm and assertion ids, be applied
+    to both the norms pass and the alignments pass of a single publish run.
     """
     new_payload = copy.deepcopy(payload)
     if not decisions:
@@ -112,9 +117,12 @@ def apply_decisions(
             item["review_status"] = _VERDICT[decision]
         item["human_review"] = _human_review(entry, decision)
     for queue_id, entry in decisions.items():
+        if id_field != "norm_id" and entry["decision"] in ("add", "replace"):
+            # replace and add are norm-only; on an alignments (or any other
+            # non-norms) payload they simply do not apply here, so one
+            # decisions file can serve both publish passes.
+            continue
         if entry["decision"] == "add" and queue_id not in present:
-            if id_field != "norm_id":
-                raise ValueError("add applies to norms only")
             new_norm: dict[str, Any] = {
                 "norm_id": queue_id,
                 "layer": 2,

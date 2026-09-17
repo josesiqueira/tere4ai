@@ -365,6 +365,13 @@ def test_publish_applies_decisions_before_gates(tmp_path, monkeypatch, capsys):
         decisions, "norm:eu-ai-act:article-5:paragraph-2:n4", "accept", "grounded", "jose"
     )
     record_decision(decisions, "align:x:1", "reject", "forced connection", "jose")
+    # a decisions file mixing a norm-only add with alignment decisions must
+    # serve both publish passes: the add applies to the norms pass and is
+    # skipped, not an error, on the alignments pass (B77 plan 1 review, R16).
+    record_decision(
+        decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+        "the unit holds an obligation", "annotator a", payload=HUMAN_NORM,
+    )
     decisions_path = tmp_path / "decisions.json"
     save_decisions(decisions, decisions_path)
 
@@ -400,9 +407,16 @@ def test_publish_applies_decisions_before_gates(tmp_path, monkeypatch, capsys):
     assert decided_norm["human_review"]["provenance"] == "HUMAN_REVIEWED_ACCEPTED"
     decided_align = next(a for a in seen["alignments"] if a["id"] == "align:x:1")
     assert decided_align["judge_verdict"] == "rejected"
+    added_norm = next(
+        n for n in seen["norms"] if n["norm_id"] == "norm:eu-ai-act:article-12:paragraph-1:h1"
+    )
+    assert added_norm["human_review"]["provenance"] == "HUMAN_AUTHORED"
+    assert not any(
+        a.get("id") == "norm:eu-ai-act:article-12:paragraph-1:h1" for a in seen["alignments"]
+    )
 
     out = capsys.readouterr().out
-    assert "human review: 2 decisions applied" in out
+    assert "human review: 3 decisions applied" in out
     assert out.index("human review") < out.index("gates:")
     # the dumps on disk are untouched
     on_disk = json.loads(norms_path.read_text(encoding="utf-8"))
@@ -570,3 +584,24 @@ def test_record_decision_add_requires_inference_source_even_for_the_sentinel():
     bad.pop("actor_inference_source_node_id", None)
     with pytest.raises(ValueError, match="actor_inference_source_node_id"):
         record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "sentinel actor without a source", "annotator a", payload=bad)
+
+
+def test_apply_decisions_skips_norm_only_decisions_on_alignments_payload():
+    decisions = {}
+    record_decision(decisions, "align:x:1", "accept", "relation holds on both spans", "jose")
+    record_decision(
+        decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+        "the unit holds an obligation", "annotator a", payload=HUMAN_NORM,
+    )
+    record_decision(
+        decisions, "norm:x:n1", "replace", "the sentence is an obligation",
+        "annotator a", payload=HUMAN_NORM,
+    )
+    out = apply_decisions(_alignments_payload(), decisions)
+    assert len(out["assertions"]) == 2
+    accepted = next(a for a in out["assertions"] if a["id"] == "align:x:1")
+    assert accepted["judge_verdict"] == "accepted" and accepted["review_status"] == "accepted"
+    assert accepted["human_review"]["provenance"] == "HUMAN_REVIEWED_ACCEPTED"
+    untouched = next(a for a in out["assertions"] if a["id"] == "align:x:2")
+    assert "human_review" not in untouched
+    assert untouched["judge_verdict"] == "accepted"
