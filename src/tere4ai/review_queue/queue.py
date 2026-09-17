@@ -27,7 +27,8 @@ from typing import Any
 
 EXCERPT_CHARS = 280
 
-VALID_DECISIONS = ("accept", "reject")
+VALID_DECISIONS = ("accept", "reject", "replace", "add")
+HUMAN_NORM_REQUIRED = ("source_node_id", "source_span_id", "deontic_type", "modal", "action", "object")
 
 
 def _excerpt(text: str | None) -> str:
@@ -187,12 +188,15 @@ def record_decision(
     rationale: str,
     reviewer: str,
     decided_at: str | None = None,
+    payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Add or update one decision in the in-memory decision set.
 
-    Validates the full who/when/what/why record (Section 7: every decision is
-    logged): refuses an empty rationale or reviewer and an unknown decision.
-    Returns the recorded entry.
+    accept and reject adjudicate an existing item. replace and add (B77
+    plan 1) carry a human-written norm in payload: replace overwrites the
+    slots of the existing norm queue_id names; add appends a new norm whose
+    id is queue_id (norm:<unit>:h<n>). Both require the slot fields in
+    HUMAN_NORM_REQUIRED so the schema gate at publish cannot be surprised.
     """
     if not queue_id or not str(queue_id).strip():
         raise ValueError("queue_id must be a non-empty string")
@@ -202,12 +206,21 @@ def record_decision(
         raise ValueError("rationale is required and must be non-empty")
     if not isinstance(reviewer, str) or not reviewer.strip():
         raise ValueError("reviewer is required and must be non-empty")
-    entry = {
+    entry: dict[str, Any] = {
         "decision": decision,
         "rationale": rationale.strip(),
         "reviewer": reviewer.strip(),
         "decided_at": decided_at or datetime.now(UTC).isoformat(),
     }
+    if decision in ("replace", "add"):
+        if not isinstance(payload, dict):
+            raise ValueError(f"decision {decision!r} requires a payload with the norm's slots")
+        missing = [k for k in HUMAN_NORM_REQUIRED if k not in payload]
+        if missing:
+            raise ValueError(f"payload is missing {', '.join(missing)}")
+        entry["payload"] = dict(payload)
+    elif payload is not None:
+        raise ValueError(f"decision {decision!r} takes no payload")
     decisions[queue_id] = entry
     return entry
 

@@ -39,6 +39,7 @@
         "LLM_JUDGED_REJECTED",
         "HUMAN_REVIEWED_ACCEPTED",
         "HUMAN_REVIEWED_REJECTED",
+        "HUMAN_AUTHORED",
         "AMBIGUOUS_NEEDS_REVIEW"
       ]
     },

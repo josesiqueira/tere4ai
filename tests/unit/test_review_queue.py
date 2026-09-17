@@ -439,3 +439,84 @@ def test_publish_without_decisions_file_is_silent(tmp_path, monkeypatch, capsys)
     )
     assert rc == 0
     assert "human review" not in capsys.readouterr().out
+
+
+HUMAN_NORM = {
+    "source_node_id": "eu-ai-act:article-12:paragraph-1",
+    "source_span_id": "span:fmx:art_12.par_1",
+    "deontic_type": "obligation",
+    "modal": "shall",
+    "actor_explicit": "high-risk AI systems",
+    "actor_inferred": None,
+    "actor_inference_source_node_id": None,
+    "action": "technically allow for",
+    "object": "the automatic recording of events (logs)",
+    "conditions": ["over the lifetime of the system"],
+    "exceptions": [],
+    "lifecycle_phase_ids": ["cross_phase"],
+}
+
+
+def test_record_decision_replace_requires_a_payload():
+    with pytest.raises(ValueError, match="payload"):
+        record_decision({}, "norm:x:n1", "replace", "wrong object", "annotator a")
+
+
+def test_record_decision_add_requires_source_node_and_span():
+    bad = dict(HUMAN_NORM)
+    bad.pop("source_span_id")
+    with pytest.raises(ValueError, match="source_span_id"):
+        record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "missing norm", "annotator a", payload=bad)
+
+
+def test_apply_decisions_replace_overwrites_slots_and_stamps_human_provenance():
+    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": "x", "source_span_id": "s",
+                          "deontic_type": "permission", "modal": "may", "actor_explicit": None,
+                          "action": "old", "object": "old", "extraction_method": "llm_extract_v1",
+                          "extractor_model": "gpt-6-astra", "confidence": 0.4,
+                          "judge_verdict": "rejected", "review_status": "rejected", "judge_run_id": "r1"}]}
+    decisions = {}
+    record_decision(decisions, "norm:x:n1", "replace", "the sentence is an obligation", "annotator a",
+                    payload={**HUMAN_NORM, "source_node_id": "x", "source_span_id": "s"})
+    out = apply_decisions(payload, decisions)
+    norm = out["norms"][0]
+    assert norm["deontic_type"] == "obligation" and norm["action"] == "technically allow for"
+    assert norm["extraction_method"] == "human"
+    assert norm["extractor_model"] == "human:annotator a"
+    assert norm["confidence"] == 1.0
+    assert norm["judge_verdict"] == "accepted" and norm["review_status"] == "accepted"
+    assert norm["judge_run_id"] is None
+    assert norm["human_review"]["provenance"] == "HUMAN_AUTHORED"
+    assert payload["norms"][0]["action"] == "old"  # input untouched
+
+
+def test_apply_decisions_add_appends_a_new_norm():
+    payload = {"norms": []}
+    decisions = {}
+    record_decision(decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "the unit holds an obligation", "annotator a", payload=HUMAN_NORM)
+    out = apply_decisions(payload, decisions)
+    assert len(out["norms"]) == 1
+    added = out["norms"][0]
+    assert added["norm_id"] == "norm:eu-ai-act:article-12:paragraph-1:h1"
+    assert added["human_review"]["provenance"] == "HUMAN_AUTHORED"
+    assert added["extraction_method"] == "human"
+
+
+def test_apply_decisions_add_refuses_a_duplicate_norm_id():
+    payload = {"norms": [{"norm_id": "norm:u:h1", "source_node_id": "u", "source_span_id": "s",
+                          "deontic_type": "obligation", "modal": "shall", "actor_explicit": "x",
+                          "action": "a", "object": "o", "extraction_method": "human",
+                          "extractor_model": "human:b", "confidence": 1.0,
+                          "judge_verdict": "accepted", "review_status": "accepted"}]}
+    decisions = {}
+    record_decision(decisions, "norm:u:h1", "add", "dup", "annotator a", payload=HUMAN_NORM)
+    with pytest.raises(ValueError, match="already exists"):
+        apply_decisions(payload, decisions)
+
+
+def test_edges_schema_lists_human_authored():
+    import json
+    from pathlib import Path
+    schema = json.loads((Path(__file__).resolve().parents[2] / "schema" / "json_schemas" / "edges.schema.json").read_text())
+    text = json.dumps(schema)
+    assert "HUMAN_AUTHORED" in text

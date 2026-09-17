@@ -5,6 +5,19 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Human review decisions (2026-09-17, B77 plan 1)
+- The decisions file gains two new decision kinds, `replace` and `add`, each
+  carrying a human-written norm in `payload`: `replace` overwrites the slot
+  fields of an existing norm named by `queue_id`, `add` appends a brand new
+  norm whose id is `queue_id`; `apply_decisions` stamps both with
+  `extraction_method: "human"`, `extractor_model: "human:<reviewer>"`,
+  `confidence: 1.0`, `judge_verdict` and `review_status` `"accepted"`, and
+  `judge_run_id: None`.
+- New provenance class `HUMAN_AUTHORED` in `schema/json_schemas/edges.schema.json`,
+  recorded in `human_review.provenance` for both new decision kinds.
+- `GET /api/units` (Task 1, B77 plan 1) serves every core source unit with
+  all candidate norms and judge runs.
+
 ### Diagrams (2026-09-17)
 - Diagram files carry the date they were produced: the 2026-07-19
   architecture diagram and the 2026-07-20 judge diagram keep their content

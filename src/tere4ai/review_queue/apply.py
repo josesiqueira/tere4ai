@@ -10,6 +10,9 @@ NEW payload in which each decided item gets:
 - a human_review record {reviewer, decided_at, rationale, provenance} with
   provenance HUMAN_REVIEWED_ACCEPTED or HUMAN_REVIEWED_REJECTED
   (architecture.md Section 2 provenance classes).
+replace and add (B77 plan 1) carry a human-written norm instead: replace
+overwrites an existing norm's slots, add appends a brand new norm, and both
+stamp extraction_method "human" and human_review.provenance HUMAN_AUTHORED.
 The graph adapter (tere4ai.graph_store.layer23) prefers
 human_review.provenance over the judge-derived class when persisting edges.
 """
@@ -22,8 +25,14 @@ from typing import Any
 _PROVENANCE = {
     "accept": "HUMAN_REVIEWED_ACCEPTED",
     "reject": "HUMAN_REVIEWED_REJECTED",
+    "replace": "HUMAN_AUTHORED",
+    "add": "HUMAN_AUTHORED",
 }
-_VERDICT = {"accept": "accepted", "reject": "rejected"}
+_VERDICT = {"accept": "accepted", "reject": "rejected", "replace": "accepted", "add": "accepted"}
+_SLOT_FIELDS = (
+    "source_node_id", "source_span_id", "deontic_type", "modal", "actor_explicit", "actor_inferred",
+    "actor_inference_source_node_id", "action", "object", "conditions", "exceptions", "lifecycle_phase_ids",
+)
 
 
 def _items_and_id_field(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
@@ -34,19 +43,47 @@ def _items_and_id_field(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], 
     raise ValueError("payload has neither 'norms' nor 'assertions'; cannot apply decisions")
 
 
+def _human_review(entry: dict[str, Any], decision: str) -> dict[str, Any]:
+    return {
+        "reviewer": entry["reviewer"],
+        "decided_at": entry["decided_at"],
+        "rationale": entry["rationale"],
+        "provenance": _PROVENANCE[decision],
+    }
+
+
+def _stamp_human_norm(item: dict[str, Any], entry: dict[str, Any]) -> None:
+    payload = entry["payload"]
+    for field in _SLOT_FIELDS:
+        if field in payload:
+            item[field] = copy.deepcopy(payload[field])
+    item.setdefault("conditions", [])
+    item.setdefault("exceptions", [])
+    item.setdefault("lifecycle_phase_ids", [])
+    item["extraction_method"] = "human"
+    item["extractor_model"] = f"human:{entry['reviewer']}"
+    item["extractor_prompt_version"] = "n/a"
+    item["confidence"] = 1.0
+    item["judge_verdict"] = "accepted"
+    item["review_status"] = "accepted"
+    item["judge_run_id"] = None
+
+
 def apply_decisions(
     payload: dict[str, Any], decisions: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
     """Return a new payload with the human decisions applied.
 
-    Never mutates the input. Items whose stable id (norm_id for norms, id for
-    assertions) has a decision get verdict, status, and a human_review
-    provenance record; everything else passes through untouched.
+    Never mutates the input. accept and reject flip an existing item; replace
+    overwrites an existing norm's slots with the human's; add appends a new
+    norm (norms payloads only). A decision naming an id that exists for add,
+    or that is absent for replace, is an error, never a silent skip.
     """
     new_payload = copy.deepcopy(payload)
     if not decisions:
         return new_payload
     items, id_field = _items_and_id_field(new_payload)
+    present = {item.get(id_field) for item in items}
     for item in items:
         entry = decisions.get(item.get(id_field, ""))
         if entry is None:
@@ -54,14 +91,32 @@ def apply_decisions(
         decision = entry["decision"]
         if decision not in _VERDICT:
             raise ValueError(f"unknown decision {decision!r} for {item.get(id_field)!r}")
-        item["judge_verdict"] = _VERDICT[decision]
-        item["review_status"] = _VERDICT[decision]
-        item["human_review"] = {
-            "reviewer": entry["reviewer"],
-            "decided_at": entry["decided_at"],
-            "rationale": entry["rationale"],
-            "provenance": _PROVENANCE[decision],
-        }
+        if decision == "add":
+            raise ValueError(f"norm {item.get(id_field)!r} already exists; an add decision cannot reuse its id")
+        if decision == "replace":
+            if id_field != "norm_id":
+                raise ValueError("replace applies to norms only")
+            _stamp_human_norm(item, entry)
+        else:
+            item["judge_verdict"] = _VERDICT[decision]
+            item["review_status"] = _VERDICT[decision]
+        item["human_review"] = _human_review(entry, decision)
+    for queue_id, entry in decisions.items():
+        if entry["decision"] == "add" and queue_id not in present:
+            if id_field != "norm_id":
+                raise ValueError("add applies to norms only")
+            new_norm: dict[str, Any] = {
+                "norm_id": queue_id,
+                "layer": 2,
+                "type": "NormativeStatement",
+                "condition_ids": [],
+                "exception_ids": [],
+            }
+            _stamp_human_norm(new_norm, entry)
+            new_norm["human_review"] = _human_review(entry, "add")
+            items.append(new_norm)
+        elif entry["decision"] == "replace" and queue_id not in present:
+            raise ValueError(f"replace names {queue_id!r}, which is not in the payload")
     return new_payload
 
 
