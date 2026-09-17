@@ -214,14 +214,16 @@ def build() -> str:
     )
     arrow(560, 580, 620, 640)
     arrow(920, 700, 1060, 620)
-    text(940, 912, "the graph and project evidence never leave the machine in self-hosted mode",
-         size=13, fill=FAINT, style="italic")
-    text(
-        W / 2, 950,
-        "The read-only demo web UI in web/ (shown at MAISA, August 2026) is retained for the "
-        "MCP demo recording and screenshots; the dashboard's Use view supersedes it as the product surface.",
-        size=12.5, fill=FAINT, style="italic",
-    )
+    # Notes sit between the Tier 3 arrow (x 470) and the model-call arrow
+    # (x above 1000 at these heights) so no arrow crosses any text.
+    text(500, 912, "the graph and project evidence never leave the machine in self-hosted mode",
+         size=12.5, fill=FAINT, anchor="start", style="italic")
+    for i, line in enumerate((
+        "The read-only demo web UI in web/ (shown at MAISA, August 2026) is retained",
+        "for the MCP demo recording and screenshots; the dashboard's Use view",
+        "supersedes it as the product surface.",
+    )):
+        text(500, 950 + 18 * i, line, size=12.5, fill=FAINT, anchor="start", style="italic")
 
     # Sovereignty
     zone_label(40, 996, "RUNTIME MODELS & DATA SOVEREIGNTY")
@@ -230,7 +232,7 @@ def build() -> str:
         ["experimental: fully on-machine, lower quality"],
         "#3fb950", "#0c1a10", dashed=True,
     )
-    arrow(560, 790, 560, 1020, "Tier 3 option", lx=470, ly=975)
+    arrow(470, 790, 470, 1020, "Tier 3 option", lx=380, ly=975)
     _parts.append(
         f'<line x1="70" y1="1150" x2="{W - 70}" y2="1150" stroke="#f85149" '
         'stroke-width="1.6" stroke-dasharray="10,7"/>'
@@ -246,7 +248,7 @@ def build() -> str:
          "config from .env, never hardcoded; degraded envelope if absent"],
         "#e3b341", "#1d1403",
     )
-    arrow(800, 790, 1180, 1180, "generator + judge calls", lx=1010, ly=1085)
+    arrow(920, 760, 1180, 1180, "generator + judge calls", lx=1075, ly=1000)
 
     # Build-time lane
     zone_label(40, 1402, "BUILD-TIME (offline) - producing the knowledge graph")
