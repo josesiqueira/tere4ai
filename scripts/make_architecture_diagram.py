@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-W, H = 1680, 2090
+W, H = 1680, 2112
 FONT = "DejaVu Sans, sans-serif"
 BG = "#0b0e14"
 INK = "#e6edf3"
@@ -150,23 +150,28 @@ def build() -> str:
 
     # Consumers
     zone_label(40, 136, "CONSUMERS")
+    # Status per view is stated on the diagram (AGENTS.md honesty rule):
+    # designed items are intent as of DIAGRAM_DATE, never shipped code.
     box(
-        225, 156, 340, 150, "Coding Agent",
+        225, 156, 340, 170, "Coding Agent",
         ["Claude Code, Cursor, ...", "speaks MCP, reads SKILL.md",
          "discovery: /llms.txt, /.well-known",
          "also the dashboard's project door (MCP stdio)"],
         "#a371f7", "#191426",
     )
     box(
-        605, 156, 560, 150, "Human (Browser): tere4ai-dashboard",
+        605, 156, 560, 170, "Human (Browser): tere4ai-dashboard",
         ["Build: the graph as a wizard, live progress, layer closing",
-         "Evaluate: calibration campaigns, judge runs, specialists",
-         "Use: projects, classification, requirements, backlog, traces (the product)",
-         "Research (owner only): lineage across phases, numbers, verdicts, exports"],
-        "#4493f8", "#0f1a2b",
+         "(designed 2026-09-17, not built)",
+         "Evaluate: calibration campaigns, judge runs, specialists (campaigns and judge runner",
+         "built; the view is designed, not built)",
+         "Use: projects, classification, requirements, backlog, traces (the product, built)",
+         "Research (owner only): campaigns, verdicts, exports (built); lineage across phases",
+         "(designed)"],
+        "#4493f8", "#0f1a2b", line_size=12,
     )
     box(
-        1240, 156, 400, 150, "Phase 2+ consumers",
+        1240, 156, 400, 170, "Phase 2+ consumers",
         ["remote agents, REST clients", "added with the hosted SaaS"],
         "#6e7681", "#11151c", dashed=True,
     )
@@ -180,8 +185,8 @@ def build() -> str:
     text(250, 392, "SELF-HOSTED: everything inside this frame runs on the user's machine",
          size=15, fill="#39d2c0", anchor="start", weight="bold")
 
-    arrow(395, 306, 448, 436, "MCP (stdio / localhost)", lx=450, ly=350)
-    arrow(1000, 306, 800, 636, "HTTP facade", lx=935, ly=480)
+    arrow(395, 326, 448, 436, "MCP (stdio / localhost)", lx=450, ly=352)
+    arrow(1000, 326, 800, 636, "HTTP facade", lx=935, ly=480)
 
     box(
         280, 440, 340, 140, "TERE4AI MCP Server",
@@ -298,14 +303,14 @@ def build() -> str:
 
     # Evaluate lane. Specialist grading sits under the human review queue and
     # the versioned dumps so both cross-lane arrows stay clear of the notes.
-    zone_label(40, 1690, "EVALUATE - measuring the tool (separate diagram to follow)")
+    zone_label(40, 1690, "EVALUATE - measuring the tool (views designed, not built; separate diagram to follow)")
     eval_y = 1714
     eval_h = 150
     eboxes = [
-        ("Benchmark and ablations", ["REF-15 AI Act Evaluation Benchmark;", "ladder: plain LLM, RAG, graph,", "graph + build judge,", "graph + runtime judge"], "#9aa4ad", "#141920"),
-        ("Judge error rates (H1)", ["50 blind-labelled judge decisions;", "false accept, false reject"], "#a371f7", "#191426"),
-        ("Judge calibration (B68)", ["eight candidate models grade the same", "items; EMD with permutation null,", "weighted kappa, inter-specialist", "ceiling; Python cross-check"], "#a371f7", "#191426"),
-        ("Specialist grading", ["dashboard campaigns, personal links;", "HLEG alignments: correct / incorrect /", "cannot decide; tailored requirements:", "1 to 5 rubric; Layer 2 blind subset", "for recall"], "#d2649a", "#231018"),
+        ("Benchmark and ablations", ["REF-15 AI Act Evaluation Benchmark;", "ladder: plain LLM, RAG, graph,", "graph + build judge,", "graph + runtime judge; run 2026-07"], "#9aa4ad", "#141920"),
+        ("Judge error rates (H1)", ["50 blind-labelled judge decisions;", "false accept, false reject;", "sheet drawn, labels pending"], "#a371f7", "#191426"),
+        ("Judge calibration (B68)", ["eight candidate models grade the same", "items; EMD with permutation null,", "weighted kappa, inter-specialist", "ceiling; Python cross-check;", "code shipped 2026-09-16, first run pending"], "#a371f7", "#191426"),
+        ("Specialist grading", ["dashboard campaigns, personal links;", "HLEG alignments: correct / incorrect /", "cannot decide; tailored requirements:", "1 to 5 rubric; Layer 2 blind subset", "for recall (designed)"], "#d2649a", "#231018"),
     ]
     en = len(eboxes)
     ebw = (W - 80 - gap * (en - 1)) / en
@@ -352,6 +357,10 @@ def build() -> str:
          "Spec: docs/architecture.md; references: docs/references.md; visual system: "
          "DESIGN.md; agent rules: AGENTS.md. Regenerate: scripts/make_architecture_diagram.py. "
          f"Diagram date {DIAGRAM_DATE}; the 2026-07-19 version is kept beside it.",
+         size=12, fill=FAINT, style="italic")
+    text(W / 2, 2096,
+         "Items marked designed are intent as of the diagram date, not shipped code; "
+         "the traceability record (docs/traceability.md) states what is implemented.",
          size=12, fill=FAINT, style="italic")
 
     _parts.append("</svg>")

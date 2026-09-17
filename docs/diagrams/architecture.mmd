@@ -9,7 +9,7 @@ flowchart TB
 
 subgraph CONSUMERS["CONSUMERS"]
   CA["Coding Agent<br/>Claude Code, Cursor, ...<br/>speaks MCP, reads SKILL.md<br/>discovery: /llms.txt, /.well-known"]
-  HB["Human (Browser): tere4ai-dashboard<br/>Build: the graph as a wizard, live progress, layer closing<br/>Evaluate: calibration campaigns, judge runs, specialists<br/>Use: projects, classification, requirements, backlog, traces (the product)<br/>Research (owner only): lineage across phases, numbers, verdicts, exports"]
+  HB["Human (Browser): tere4ai-dashboard<br/>Build: the graph as a wizard, live progress, layer closing (designed 2026-09-17, not built)<br/>Evaluate: calibration campaigns, judge runs, specialists (campaigns and judge runner built; the view is designed, not built)<br/>Use: projects, classification, requirements, backlog, traces (the product, built)<br/>Research (owner only): campaigns, verdicts, exports (built); lineage across phases (designed)"]
   P2C["Phase 2+ consumers<br/>remote agents, REST clients<br/>added with the hosted SaaS"]
 end
 
@@ -34,12 +34,12 @@ subgraph BUILD["BUILD TIME (offline), producing the knowledge graph. Full struct
   SRC --> PARSE --> EXTRACT --> JUDGES --> QUEUE --> NEO --> DUMPS
 end
 
-subgraph EVALUATE["EVALUATE (measuring the tool; separate diagram to follow)"]
+subgraph EVALUATE["EVALUATE (measuring the tool; views designed, not built; separate diagram to follow)"]
   direction LR
-  GRADE["Specialist grading<br/>dashboard campaigns, personal links;<br/>HLEG alignments: correct / incorrect / cannot decide;<br/>tailored requirements: 1 to 5 rubric;<br/>Layer 2 blind subset for recall"]
-  CALIB["Judge calibration (B68)<br/>eight candidate models grade the same items;<br/>EMD with permutation null, weighted kappa,<br/>inter-specialist ceiling; Python cross-check"]
-  ERR["Judge error rates (H1)<br/>50 blind-labelled judge decisions;<br/>false accept, false reject"]
-  BENCH["Benchmark and ablations<br/>REF-15 AI Act Evaluation Benchmark;<br/>ladder: plain LLM, RAG, graph,<br/>graph + build judge, graph + runtime judge"]
+  GRADE["Specialist grading<br/>dashboard campaigns, personal links;<br/>HLEG alignments: correct / incorrect / cannot decide;<br/>tailored requirements: 1 to 5 rubric;<br/>Layer 2 blind subset for recall (designed)"]
+  CALIB["Judge calibration (B68)<br/>eight candidate models grade the same items;<br/>EMD with permutation null, weighted kappa,<br/>inter-specialist ceiling; Python cross-check;<br/>code shipped 2026-09-16, first run pending"]
+  ERR["Judge error rates (H1)<br/>50 blind-labelled judge decisions;<br/>false accept, false reject;<br/>sheet drawn, labels pending"]
+  BENCH["Benchmark and ablations<br/>REF-15 AI Act Evaluation Benchmark;<br/>ladder: plain LLM, RAG, graph,<br/>graph + build judge, graph + runtime judge; run 2026-07"]
 end
 
 subgraph PHASE2["PHASE 2+ (later): MULTI-TENANT HOSTED SaaS on Rahti (CSC, EU), same service layer and graph. Only transport, auth, and tenancy change; core code stays identical."]
@@ -66,6 +66,8 @@ GRADE -.->|"decisions, once closing rules are set"| QUEUE
 %% dashboard + Docker Compose; OpenAI generator, Anthropic judges; AGPL-3.0.
 %% Spec: docs/architecture.md; references: docs/references.md; visual system:
 %% DESIGN.md; agent rules: AGENTS.md.
+%% Items marked designed are intent as of the diagram date, not shipped code;
+%% the traceability record (docs/traceability.md) states what is implemented.
 %% Regenerate the polished SVG: scripts/make_architecture_diagram.py.
 
 classDef agent stroke:#a371f7,fill:#191426,color:#e6edf3

@@ -25,6 +25,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   queue box states what the code does today and the agreed direction.
 - To follow, with the four-views design: a separate evaluation diagram and
   a new judge diagram (the 2026-07-20 one predates B74 and B68).
+- Status is stated on the diagram (AGENTS.md honesty rule): every view and
+  Evaluate item is marked built, designed, run or pending, and the credit
+  line says that designed items are intent as of the diagram date, not
+  shipped code; docs/traceability.md states what is implemented. The
+  architecture test requires those marks.
 
 ### Models and build identity (2026-09-16, B74)
 - Production models moved to `gpt-6-astra` (generator) and `claude-opus-5`

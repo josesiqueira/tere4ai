@@ -42,6 +42,9 @@ DECIDED_FACTS = (
     "tere4ai-dashboard",
     "EVALUATE",
     "Research",
+    # Planned surfaces are marked as such on the diagram (honesty rule).
+    "designed 2026-09-17, not built",
+    "not shipped code",
 )
 
 
