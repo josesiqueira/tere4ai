@@ -31,6 +31,10 @@ Behavioral contract:
   M1 structural coverage view and the corpus-wide accepted HLEG assertions
   plus the accepted norms that have none (alignments additionally needs
   alignments_core.json, same clean 503 as /api/explain).
+- GET /api/units is deterministic and free: the Layer 2 annotation queue,
+  every core source unit (dump order) with every candidate norm and its
+  judge run, whatever their verdict. 503 when core_nodes.txt is missing
+  (B77 plan 1).
 - POST /api/report is a pure, stateless render: session JSONL in, the
   self-contained audit-grade HTML report out (422 on empty or oversized
   input).
@@ -287,6 +291,12 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         app.state.dump = stamp_served_build(_load_json(base / "layer1.json"), base)
         app.state.norms = stamp_served_build(_load_json(base / "norms_core.json"), base)
         app.state.alignments = stamp_served_build(_load_json(base / "alignments_core.json"), base)
+        core_path = base / "core_nodes.txt"
+        app.state.core_nodes = (
+            [n.strip() for n in core_path.read_text(encoding="utf-8").split(",") if n.strip()]
+            if core_path.is_file()
+            else None
+        )
         app.state.hleg_nodes = _load_hleg_nodes()
         try:
             raw = FEATURES_SCHEMA_PATH.read_bytes()
@@ -479,6 +489,7 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                     },
                     "coverage": {"method": "GET", "path": "/api/coverage", "paid": False},
                     "alignments": {"method": "GET", "path": "/api/alignments", "paid": False},
+                    "units": {"method": "GET", "path": "/api/units", "paid": False},
                     "report": {"method": "POST", "path": "/api/report", "paid": False},
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
                     "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
@@ -606,6 +617,65 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                 }
             )
         )
+
+    @app.get("/api/units")
+    def units(request: Request) -> JSONResponse:
+        # B77 plan 1: the Layer 2 annotation queue. Every core source unit in
+        # the Act's order with EVERY candidate norm and its judge run,
+        # rejected and pending included: the annotators' object of work is
+        # the model's proposal, so this is the one endpoint that serves
+        # judge opinions to the dashboard on purpose (spec G Section 4).
+        # Deterministic and free.
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        core = request.app.state.core_nodes
+        if not core:
+            return JSONResponse(status_code=503, content={"error": "core node list unavailable"})
+        from tere4ai.extract_norms.pipeline import expand_source_units
+
+        dump = request.app.state.dump or {}
+        norms_payload = request.app.state.norms or {}
+        runs = {r.get("id"): r for r in norms_payload.get("judge_runs", []) if isinstance(r, dict)}
+        by_unit: dict[str, list[dict[str, Any]]] = {}
+        for norm in norms_payload.get("norms", []):
+            if not isinstance(norm, dict):
+                continue
+            run = runs.get(norm.get("judge_run_id")) or {}
+            candidate = {
+                key: norm.get(key)
+                for key in (
+                    "norm_id", "deontic_type", "modal", "actor_explicit", "actor_inferred",
+                    "actor_inference_source_node_id", "action", "object", "conditions",
+                    "exceptions", "lifecycle_phase_ids", "extractor_model",
+                    "extractor_prompt_version", "judge_verdict", "review_status",
+                )
+            }
+            candidate["judge"] = {
+                "run_id": norm.get("judge_run_id"),
+                "model": run.get("judge_model"),
+                "prompt_version": run.get("prompt_version"),
+                "verdict": run.get("verdict"),
+                "scores": run.get("scores"),
+                "rationale": run.get("rationale"),
+            }
+            by_unit.setdefault(str(norm.get("source_node_id")), []).append(candidate)
+        units_out = []
+        for unit in expand_source_units(dump, core):
+            node_id = unit["node_id"]
+            units_out.append({
+                "id": node_id,
+                "type": unit["node_type"],
+                "span_id": unit.get("span_id"),
+                "article_id": ":".join(node_id.split(":")[:2]),
+                "text": unit.get("text") or "",
+                "candidates": by_unit.get(node_id, []),
+            })
+        return JSONResponse(content=_sanitize_non_finite({
+            "graph_version": _graph_version(request),
+            "core_nodes": core,
+            "units": units_out,
+        }))
 
     @app.post("/api/explain")
     def explain(request: Request, body: ExplainRequest) -> JSONResponse:

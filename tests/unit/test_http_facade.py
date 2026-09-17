@@ -941,3 +941,49 @@ def test_health_build_ids_carry_the_publication_chain_of_the_served_dumps(client
     assert body["norms_build"] == expected
     assert body["graph_version"] == expected
     assert body["graph_version"].count("+chain-") == 1
+
+
+def test_units_serves_every_core_unit_with_all_candidates(client):
+    """B77 plan 1, Task 1: the Layer 2 annotation queue is every core source
+    unit in the Act's order, each with every candidate norm and its judge
+    run, rejected and pending ones included (spec G Section 5)."""
+    response = client.get("/api/units")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["graph_version"].startswith("build-")
+    assert isinstance(body["core_nodes"], list) and body["core_nodes"]
+    units = body["units"]
+    assert len(units) == 405
+    first = units[0]
+    for key in ("id", "type", "span_id", "article_id", "text", "candidates"):
+        assert key in first
+    assert first["type"] in ("Paragraph", "Point", "AnnexItem")
+    verdicts = {c["judge_verdict"] for u in units for c in u["candidates"]}
+    assert verdicts <= {"accepted", "rejected", "needs_human_review"}
+    assert "rejected" in verdicts
+    candidate = next(c for u in units for c in u["candidates"])
+    for key in ("norm_id", "deontic_type", "modal", "action", "object", "conditions", "exceptions",
+                "extractor_model", "judge_verdict", "judge"):
+        assert key in candidate
+    assert set(candidate["judge"]) == {"run_id", "model", "prompt_version", "verdict", "scores", "rationale"}
+
+
+def test_units_keeps_the_dump_order_and_groups_by_source_node(client):
+    body = client.get("/api/units").json()
+    ids = [u["id"] for u in body["units"]]
+    assert len(ids) == len(set(ids))
+    for unit in body["units"]:
+        for candidate in unit["candidates"]:
+            assert candidate["norm_id"].startswith(f"norm:{unit['id']}:")
+
+
+def test_units_503_without_a_core_node_list(tmp_path):
+    """A dump directory without core_nodes.txt cannot say which units are
+    the core; the answer is a clean 503, never an empty queue."""
+    import json as _json
+    (tmp_path / "layer1.json").write_text(_json.dumps({"build": {"build_id": "build-x"}, "nodes": [], "edges": []}))
+    (tmp_path / "norms_core.json").write_text(_json.dumps({"build": {"build_id": "build-x"}, "norms": [], "judge_runs": []}))
+    with TestClient(facade.create_app(dump_dir=tmp_path)) as test_client:
+        response = test_client.get("/api/units")
+    assert response.status_code == 503
+    assert response.json() == {"error": "core node list unavailable"}
