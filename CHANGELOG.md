@@ -5,6 +5,27 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Diagrams (2026-09-17)
+- Diagram files carry the date they were produced: the 2026-07-19
+  architecture diagram and the 2026-07-20 judge diagram keep their content
+  under dated names (`tere4ai_v2_architecture_2026-07-19.svg/.png`,
+  `judge_diagram_2026-07-20.svg/.png`); each generator has a `DIAGRAM_DATE`
+  and writes `<name>_<date>.svg`, so an older dated file is history, never
+  a test failure. The web page and the mermaid companions point at the dated
+  names.
+- New architecture diagram, `tere4ai_v2_architecture_2026-09-17`: the
+  browser consumer is the tere4ai-dashboard with four views (Build,
+  Evaluate, Use, Research); the demo web UI is no longer drawn as the
+  product surface (retained in `web/` for the MCP demo recording and
+  screenshots); the served build id carries the publication chain and the
+  model ids are gpt-6-astra and claude-opus-5 (B74).
+- Evaluate is drawn as its own phase (specialist grading, judge calibration
+  B68, judge error rates H1, benchmark and ablations) feeding decisions
+  back to the human review queue once closing rules are set; the review
+  queue box states what the code does today and the agreed direction.
+- To follow, with the four-views design: a separate evaluation diagram and
+  a new judge diagram (the 2026-07-20 one predates B74 and B68).
+
 ### Models and build identity (2026-09-16, B74)
 - Production models moved to `gpt-6-astra` (generator) and `claude-opus-5`
   (judge); both ids verified against the providers' live model lists on

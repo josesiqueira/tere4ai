@@ -9,8 +9,13 @@ a derived artifact like everything else in the build: run it and the SVG
 is rewritten byte-identically (no timestamps, no randomness).
 
   .venv/bin/python scripts/make_architecture_diagram.py
-  inkscape tere4ai_v2_architecture.svg \
-      --export-filename=tere4ai_v2_architecture.png --export-width=3360
+  inkscape tere4ai_v2_architecture_<date>.svg \
+      --export-filename=tere4ai_v2_architecture_<date>.png --export-width=3360
+
+Diagram files carry the date they were produced (DIAGRAM_DATE). A dated
+file that no longer matches this generator is history, not an error: bump
+DIAGRAM_DATE when the content changes and the previous file stays beside
+the new one (tere4ai_v2_architecture_2026-07-19.svg is the first).
 
 Content decisions encoded here (kept in sync with docs/architecture.md):
 node IDs are parser-derived, not eIds (Section 6); the judge family is
@@ -18,15 +23,19 @@ Anthropic Claude, independent from the OpenAI generator (DEC-07); judge
 calls leave the machine just like generator calls (Section 9 sovereignty);
 the runtime serves versioned, checksummed JSON dumps and needs no live
 database (Neo4j is the build-time store and optional for browsing and RDF
-export); rejected or uncertain items go to a human review queue and are
-never served as accepted.
+export); uncertain items go to a human review queue and are never served
+as accepted. Since 2026-09-17 (B74 session design): the browser consumer
+is the tere4ai-dashboard with four views (Build, Evaluate, Use, Research),
+the demo web UI is no longer drawn as the product surface, the served
+build id carries the publication chain, and Evaluate (measuring the tool)
+is drawn as its own phase; a separate evaluation diagram follows.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-W, H = 1680, 1780
+W, H = 1680, 2090
 FONT = "DejaVu Sans, sans-serif"
 BG = "#0b0e14"
 INK = "#e6edf3"
@@ -34,7 +43,11 @@ MUTED = "#9aa4ad"
 FAINT = "#6e7681"
 ARROW = "#8b98a5"
 
-OUT_PATH = Path(__file__).resolve().parents[1] / "tere4ai_v2_architecture.svg"
+DIAGRAM_DATE = "2026-09-17"
+OUT_PATH = (
+    Path(__file__).resolve().parents[1]
+    / f"tere4ai_v2_architecture_{DIAGRAM_DATE}.svg"
+)
 
 _parts: list[str] = []
 
@@ -107,6 +120,15 @@ def zone_label(x: float, y: float, s: str) -> None:
     text(x, y, s, size=15, fill=FAINT, anchor="start", weight="bold", spacing="1.5")
 
 
+def dashed_arrow(x1: float, y1: float, x2: float, y2: float, label: str = "", lx: float | None = None, ly: float | None = None, anchor: str = "start") -> None:
+    _parts.append(
+        f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{ARROW}" '
+        f'stroke-width="1.6" stroke-dasharray="7,5" marker-end="url(#ah)"/>'
+    )
+    if label:
+        text(lx if lx is not None else (x1 + x2) / 2 + 8, ly if ly is not None else (y1 + y2) / 2 - 6, label, size=12, fill=FAINT, anchor=anchor, style="italic")
+
+
 def build() -> str:
     _parts.clear()
     _parts.append(
@@ -121,26 +143,30 @@ def build() -> str:
     text(
         W / 2,
         86,
-        "Phase 1: self-hosted core with a thin demo Web UI. "
-        "The multi-tenant hosted SaaS is Phase 2+ over the same code.",
+        "Phase 1: self-hosted core; the browser consumer is the tere4ai-dashboard "
+        "(a separate repository). The multi-tenant hosted SaaS is Phase 2+ over the same code.",
         size=17,
     )
 
     # Consumers
     zone_label(40, 136, "CONSUMERS")
     box(
-        245, 156, 320, 122, "Coding Agent",
+        225, 156, 340, 150, "Coding Agent",
         ["Claude Code, Cursor, ...", "speaks MCP, reads SKILL.md",
-         "discovery: /llms.txt, /.well-known"],
+         "discovery: /llms.txt, /.well-known",
+         "also the dashboard's project door (MCP stdio)"],
         "#a371f7", "#191426",
     )
     box(
-        605, 156, 320, 122, "Human (Browser)",
-        ["demo, screenshots,", "coverage matrix, review queue, viva"],
+        605, 156, 560, 150, "Human (Browser): tere4ai-dashboard",
+        ["Build: the graph as a wizard, live progress, layer closing",
+         "Evaluate: calibration campaigns, judge runs, specialists",
+         "Use: projects, classification, requirements, backlog, traces (the product)",
+         "Research (owner only): lineage across phases, numbers, verdicts, exports"],
         "#4493f8", "#0f1a2b",
     )
     box(
-        1240, 156, 400, 122, "Phase 2+ consumers",
+        1240, 156, 400, 150, "Phase 2+ consumers",
         ["remote agents, REST clients", "added with the hosted SaaS"],
         "#6e7681", "#11151c", dashed=True,
     )
@@ -154,8 +180,8 @@ def build() -> str:
     text(250, 392, "SELF-HOSTED: everything inside this frame runs on the user's machine",
          size=15, fill="#39d2c0", anchor="start", weight="bold")
 
-    arrow(405, 278, 448, 436, "MCP (stdio / localhost)", lx=272, ly=330)
-    arrow(765, 278, 800, 436, "HTTP", lx=790, ly=330)
+    arrow(395, 306, 448, 436, "MCP (stdio / localhost)", lx=450, ly=350)
+    arrow(1000, 306, 800, 636, "HTTP facade", lx=935, ly=480)
 
     box(
         280, 440, 340, 140, "TERE4AI MCP Server",
@@ -164,14 +190,6 @@ def build() -> str:
          "+ batch evidence; free tools are",
          "deterministic, paid tools marked"],
         "#d2649a", "#231018",
-    )
-    box(
-        660, 440, 340, 140, "Demo Web UI",
-        ["Next.js, per @DESIGN.md",
-         "thin, read-only HTTP facade client",
-         "every screen: citations, judge",
-         "verdict, status, legal notice"],
-        "#4493f8", "#0f1a2b",
     )
     box(
         420, 640, 500, 150, "Domain / Service Layer",
@@ -183,55 +201,63 @@ def build() -> str:
         "#e3b341", "#1d1704",
     )
     box(
-        1060, 470, 480, 190, "Knowledge graph artifacts",
+        1060, 450, 480, 215, "Knowledge graph artifacts",
         ["versioned JSON dumps + frozen snapshots,",
          "every file sha256-checksummed (build chain)",
          "full Act mirror; judged norms; reified HLEG",
          "alignments; provenance on every edge",
+         "served build id = snapshot hash + chain",
+         "over the exact dump files served (B74)",
          "runtime needs NO live database",
          "Neo4j optional: browsing + n10s RDF export"],
         "#4493f8", "#0d1726",
     )
     arrow(560, 580, 620, 640)
-    arrow(830, 580, 740, 640)
     arrow(920, 700, 1060, 620)
     text(940, 912, "the graph and project evidence never leave the machine in self-hosted mode",
          size=13, fill=FAINT, style="italic")
+    text(
+        W / 2, 950,
+        "The read-only demo web UI in web/ (shown at MAISA, August 2026) is retained for the "
+        "MCP demo recording and screenshots; the dashboard's Use view supersedes it as the product surface.",
+        size=12.5, fill=FAINT, style="italic",
+    )
 
     # Sovereignty
-    zone_label(40, 986, "RUNTIME MODELS & DATA SOVEREIGNTY")
+    zone_label(40, 996, "RUNTIME MODELS & DATA SOVEREIGNTY")
     box(
-        345, 1010, 500, 92, "Local model (Tier 3)",
+        345, 1020, 500, 92, "Local model (Tier 3)",
         ["experimental: fully on-machine, lower quality"],
         "#3fb950", "#0c1a10", dashed=True,
     )
-    arrow(560, 790, 560, 1010, "Tier 3 option", lx=470, ly=960)
+    arrow(560, 790, 560, 1020, "Tier 3 option", lx=470, ly=975)
     _parts.append(
-        f'<line x1="70" y1="1140" x2="{W - 70}" y2="1140" stroke="#f85149" '
+        f'<line x1="70" y1="1150" x2="{W - 70}" y2="1150" stroke="#f85149" '
         'stroke-width="1.6" stroke-dasharray="10,7"/>'
     )
-    text(80, 1132, "ON-MACHINE (sovereign)", size=14, fill="#f85149", anchor="start", weight="bold")
-    text(W - 80, 1132, "LEAVES THE MACHINE", size=14, fill="#f85149", anchor="end", weight="bold")
+    text(80, 1142, "ON-MACHINE (sovereign)", size=14, fill="#f85149", anchor="start", weight="bold")
+    text(W - 80, 1142, "LEAVES THE MACHINE", size=14, fill="#f85149", anchor="end", weight="bold")
     box(
-        980, 1170, 560, 128, "Model APIs (runtime internals)",
-        ["generator: OpenAI (extraction, alignment, answers)",
-         "judges: Anthropic Claude, an independent model",
-         "family with uncorrelated failure modes (DEC-07)",
+        960, 1180, 600, 150, "Model APIs (runtime internals)",
+        ["generator: OpenAI gpt-6-astra (extraction, alignment, answers)",
+         "judges: Anthropic Claude claude-opus-5, an independent model",
+         "family with uncorrelated failure modes (DEC-07); ids since 2026-09-16 (B74)",
+         "temperature 0 requested, provider default where rejected, recorded per build",
          "config from .env, never hardcoded; degraded envelope if absent"],
         "#e3b341", "#1d1403",
     )
-    arrow(800, 790, 1180, 1170, "generator + judge calls", lx=1010, ly=1075)
+    arrow(800, 790, 1180, 1180, "generator + judge calls", lx=1010, ly=1085)
 
     # Build-time lane
-    zone_label(40, 1372, "BUILD-TIME (offline) - producing the knowledge graph")
-    lane_y = 1396
-    lane_h = 130
+    zone_label(40, 1402, "BUILD-TIME (offline) - producing the knowledge graph")
+    lane_y = 1426
+    lane_h = 150
     boxes = [
         ("EU AI Act + HLEG", ["OJ text via CELLAR / ELI", "frozen + checksummed"], "#6e7681", "#11151c"),
         ("Deterministic parse", ["structure from frozen HTML", "+ Formex; node IDs derived", "from parsed structure, no LLM;", "cross-refs by rule first"], "#9aa4ad", "#141920"),
         ("LLM extraction", ["deontic norms + HLEG", "alignments (OpenAI", "generator, judged next)"], "#e3b341", "#1d1704"),
         ("JUDGES", ["extraction + mapping judges", "(Anthropic Claude, DEC-07)", "accept / reject / review"], "#a371f7", "#191426"),
-        ("Human review queue", ["rejected or uncertain items", "adjudicated by a human;", "never served as accepted"], "#d2649a", "#231018"),
+        ("Human review queue", ["today: needs_human_review", "items via scripts/review_cli.py", "(accept / reject); rejected", "candidates are dropped;", "never served as accepted"], "#d2649a", "#231018"),
         ("Neo4j KG + gates", ["validation gates G1-G6;", "a failing build is not", "published"], "#4493f8", "#0d1726"),
         ("Versioned dumps", ["published JSON artifacts,", "sha256 build chain;", "what the runtime serves"], "#39d2c0", "#0a1a18"),
     ]
@@ -239,8 +265,14 @@ def build() -> str:
     gap = 18
     bw = (W - 80 - gap * (n - 1)) / n
     x = 40
+    queue_bottom = (0.0, 0.0)
+    dumps_bottom = (0.0, 0.0)
     for i, (title, lines, stroke, fill) in enumerate(boxes):
         box(x, lane_y, bw, lane_h, title, lines, stroke, fill, title_size=15.5, line_size=11.5)
+        if title == "Human review queue":
+            queue_bottom = (x + bw / 2, lane_y + lane_h)
+        if title == "Versioned dumps":
+            dumps_bottom = (x + bw / 2, lane_y + lane_h)
         if i < n - 1:
             arrow(x + bw, lane_y + lane_h / 2, x + bw + gap, lane_y + lane_h / 2)
         x += bw + gap
@@ -250,14 +282,50 @@ def build() -> str:
         "The v1 poster query is kept as a regression fixture over the regenerated graph.",
         size=12.5, fill=FAINT, anchor="start", style="italic",
     )
+    text(
+        40, lane_y + lane_h + 46,
+        "Human review queue, direction (2026-09-17): every core source unit reviewable in the "
+        "dashboard's Build view",
+        size=12.5, fill=FAINT, anchor="start", style="italic",
+    )
+    text(
+        40, lane_y + lane_h + 64,
+        "with accept, reject, correct and add, plus a blind subset for recall.",
+        size=12.5, fill=FAINT, anchor="start", style="italic",
+    )
+
+    # Evaluate lane. Specialist grading sits under the human review queue and
+    # the versioned dumps so both cross-lane arrows stay clear of the notes.
+    zone_label(40, 1690, "EVALUATE - measuring the tool (separate diagram to follow)")
+    eval_y = 1714
+    eval_h = 150
+    eboxes = [
+        ("Benchmark and ablations", ["REF-15 AI Act Evaluation Benchmark;", "ladder: plain LLM, RAG, graph,", "graph + build judge,", "graph + runtime judge"], "#9aa4ad", "#141920"),
+        ("Judge error rates (H1)", ["50 blind-labelled judge decisions;", "false accept, false reject"], "#a371f7", "#191426"),
+        ("Judge calibration (B68)", ["eight candidate models grade the same", "items; EMD with permutation null,", "weighted kappa, inter-specialist", "ceiling; Python cross-check"], "#a371f7", "#191426"),
+        ("Specialist grading", ["dashboard campaigns, personal links;", "HLEG alignments: correct / incorrect /", "cannot decide; tailored requirements:", "1 to 5 rubric; Layer 2 blind subset", "for recall"], "#d2649a", "#231018"),
+    ]
+    en = len(eboxes)
+    ebw = (W - 80 - gap * (en - 1)) / en
+    x = 40
+    grading_left = (0.0, 0.0)
+    for i, (title, lines, stroke, fill) in enumerate(eboxes):
+        box(x, eval_y, ebw, eval_h, title, lines, stroke, fill, title_size=15.5, line_size=12)
+        if title == "Specialist grading":
+            grading_left = (x + 40, eval_y)
+        x += ebw + gap
+    arrow(dumps_bottom[0], dumps_bottom[1], dumps_bottom[0], eval_y,
+          "build artefacts + runtime envelopes", lx=1240, ly=eval_y - 62)
+    dashed_arrow(grading_left[0], grading_left[1], queue_bottom[0], queue_bottom[1],
+                 "decisions, once closing rules are set", lx=1175, ly=eval_y - 62, anchor="end")
 
     # Phase 2+
-    zone_label(40, 1596, "PHASE 2+ (later)")
+    zone_label(40, 1906, "PHASE 2+ (later)")
     _parts.append(
-        '<rect x="225" y="1614" width="1425" height="104" rx="16" fill="none" '
+        '<rect x="225" y="1924" width="1425" height="104" rx="16" fill="none" '
         'stroke="#6e7681" stroke-width="2" stroke-dasharray="7,5"/>'
     )
-    text(250, 1640, "MULTI-TENANT HOSTED SaaS on Rahti (CSC, EU), same service layer and graph",
+    text(250, 1950, "MULTI-TENANT HOSTED SaaS on Rahti (CSC, EU), same service layer and graph",
          size=15, fill=MUTED, anchor="start", weight="bold")
     cols = [
         ("REST API", "API keys, rate limits"),
@@ -267,20 +335,21 @@ def build() -> str:
     ]
     cx = 340
     for title, sub in cols:
-        text(cx, 1672, title, size=15, fill=INK, weight="bold", anchor="start")
-        text(cx, 1694, sub, size=12.5, anchor="start")
+        text(cx, 1982, title, size=15, fill=INK, weight="bold", anchor="start")
+        text(cx, 2004, sub, size=12.5, anchor="start")
         cx += 340
-    text(250, 1712, "Only transport, auth, and tenancy change. Core code stays identical.",
+    text(250, 2022, "Only transport, auth, and tenancy change. Core code stays identical.",
          size=12.5, fill=FAINT, anchor="start", style="italic")
 
     # Footer
-    text(W / 2, 1750,
-         "Stack: Python + FastAPI + FastMCP + Neo4j (n10s RDF export) + Next.js demo UI + "
+    text(W / 2, 2056,
+         "Stack: Python + FastAPI + FastMCP + Neo4j (n10s RDF export) + the Next.js dashboard + "
          "Docker Compose; OpenAI generator, Anthropic judges; AGPL-3.0",
          size=13.5, fill=MUTED)
-    text(W / 2, 1770,
+    text(W / 2, 2076,
          "Spec: docs/architecture.md; references: docs/references.md; visual system: "
-         "DESIGN.md; agent rules: AGENTS.md. Regenerate: scripts/make_architecture_diagram.py",
+         "DESIGN.md; agent rules: AGENTS.md. Regenerate: scripts/make_architecture_diagram.py. "
+         f"Diagram date {DIAGRAM_DATE}; the 2026-07-19 version is kept beside it.",
          size=12, fill=FAINT, style="italic")
 
     _parts.append("</svg>")

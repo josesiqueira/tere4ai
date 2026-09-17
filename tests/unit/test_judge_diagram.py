@@ -36,7 +36,7 @@ REQUIRED_FACTS = (
 
 def test_committed_svg_matches_the_generator_output():
     assert OUT_PATH.read_text(encoding="utf-8") == build(), (
-        "judge_diagram.svg differs from its generator; run "
+        "the dated judge_diagram svg differs from its generator; run "
         ".venv/bin/python scripts/make_judge_diagram.py and re-render the PNG"
     )
 

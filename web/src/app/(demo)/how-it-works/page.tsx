@@ -64,7 +64,7 @@ export default function HowItWorksPage() {
             Architecture
           </h2>
           <img
-            src="/tere4ai_v2_architecture.svg"
+            src="/tere4ai_v2_architecture_2026-09-17.svg"
             alt="TERE4AI v2 architecture: frozen sources, deterministic parser, knowledge graph, judged pipelines, MCP server and facade"
             className="w-full rounded-lg border bg-card p-2"
           />
@@ -75,7 +75,7 @@ export default function HowItWorksPage() {
             The judge pipeline
           </h2>
           <img
-            src="/judge_diagram.svg"
+            src="/judge_diagram_2026-07-20.svg"
             alt="Judge pipeline: generator proposals gated by build-time extraction and mapping judges and a runtime grounding judge from an independent model family"
             className="w-full rounded-lg border bg-card p-2"
           />

@@ -9,9 +9,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent.parent
 
+# Diagram files are dated (the date they were produced); the web page serves
+# the current architecture diagram and the current judge diagram.
 PAIRS = [
-    ("tere4ai_v2_architecture.svg", "web/public/tere4ai_v2_architecture.svg"),
-    ("judge_diagram.svg", "web/public/judge_diagram.svg"),
+    (
+        "tere4ai_v2_architecture_2026-09-17.svg",
+        "web/public/tere4ai_v2_architecture_2026-09-17.svg",
+    ),
+    ("judge_diagram_2026-07-20.svg", "web/public/judge_diagram_2026-07-20.svg"),
 ]
 
 

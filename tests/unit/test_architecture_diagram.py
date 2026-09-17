@@ -37,12 +37,17 @@ DECIDED_FACTS = (
     "regression fixture",
     "runtime needs NO live database",
     "never 'compliant'",
+    # Since 2026-09-17: the dashboard is the browser consumer with four views,
+    # and Evaluate is drawn as its own phase (B74 session design).
+    "tere4ai-dashboard",
+    "EVALUATE",
+    "Research",
 )
 
 
 def test_committed_svg_matches_the_generator_output():
     assert OUT_PATH.read_text(encoding="utf-8") == build(), (
-        "tere4ai_v2_architecture.svg differs from its generator; run "
+        "the dated tere4ai_v2_architecture svg differs from its generator; run "
         ".venv/bin/python scripts/make_architecture_diagram.py and re-render "
         "the PNG"
     )

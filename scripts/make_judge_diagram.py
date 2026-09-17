@@ -9,8 +9,13 @@ can never accept); no numeric thresholds anywhere (the verdict decides,
 the five scores are recorded evidence); every decision logged.
 
   .venv/bin/python scripts/make_judge_diagram.py
-  inkscape judge_diagram.svg --export-filename=judge_diagram.png \
+  inkscape judge_diagram_<date>.svg --export-filename=judge_diagram_<date>.png \
       --export-width=3360
+
+Diagram files carry the date they were produced (DIAGRAM_DATE). A dated
+file that no longer matches this generator is history, not an error: bump
+DIAGRAM_DATE when the content changes and the previous file stays beside
+the new one.
 """
 
 from __future__ import annotations
@@ -31,7 +36,8 @@ HUMAN = "#d2649a"    # human review
 OK = "#3fb950"       # accepted
 BAD = "#f85149"      # rejected / degraded
 
-OUT_PATH = Path(__file__).resolve().parents[1] / "judge_diagram.svg"
+DIAGRAM_DATE = "2026-07-20"
+OUT_PATH = Path(__file__).resolve().parents[1] / f"judge_diagram_{DIAGRAM_DATE}.svg"
 
 _parts: list[str] = []
 
