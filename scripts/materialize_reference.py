@@ -71,6 +71,10 @@ def main(argv: list[str] | None = None) -> int:
     if out.exists():
         print(f"not materialised: {out} exists; a reference file is never overwritten", file=sys.stderr)
         return 1
+    for required in (args.decisions, args.manifest):
+        if not required.is_file():
+            print(f"not materialised: file not found: {required}", file=sys.stderr)
+            return 1
 
     dump_dir = args.dump_dir or args.pristine.parent
     store = BuildRecordStore(dump_dir)
@@ -108,6 +112,9 @@ def main(argv: list[str] | None = None) -> int:
         store.finish_execution(record_id, run_id, status="failed", error=str(exc))
         print(f"not materialised: {exc}", file=sys.stderr)
         return 1
+    except Exception as exc:
+        store.finish_execution(record_id, run_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+        raise
     applied = result["build"]["reference"]["decisions_applied"]
     store.finish_execution(
         record_id, run_id, status="done",

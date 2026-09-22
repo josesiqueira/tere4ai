@@ -145,3 +145,45 @@ def test_cli_refuses_a_freeze_pinned_to_another_build(tmp_path, capsys):
     m.write_text(json.dumps(_manifest(d, pinned_build_id="build-b+chain-999999999999")))
     rc = cli.main(["--pristine", str(pristine), "--decisions", str(d), "--manifest", str(m), "--source-build-id", "build-b+chain-000000000000"])
     assert rc == 1 and "taken on build" in capsys.readouterr().err
+
+
+def test_cli_records_failed_on_any_exception_and_reraises(tmp_path, monkeypatch):
+    cli = _cli()
+    d = _decisions(tmp_path)
+    pristine = tmp_path / "norms_core.json"
+    pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}))
+    m = tmp_path / "freeze.json"
+    m.write_text(json.dumps(_manifest(d)))
+
+    def _boom(*args, **kwargs):
+        raise KeyError("boom")
+
+    monkeypatch.setattr(cli, "materialize", _boom)
+    with pytest.raises(KeyError):
+        cli.main(["--pristine", str(pristine), "--decisions", str(d), "--manifest", str(m),
+                  "--source-build-id", "build-b+chain-000000000000"])
+    out = tmp_path / "norms_core.reference.json"
+    assert not out.exists()
+    store = BuildRecordStore(tmp_path)
+    record_id = store.resolve("core.reference")
+    ex = store.read(record_id)["executions"][-1]
+    assert ex["status"] == "failed" and "boom" in ex["error"]
+
+
+def test_cli_refuses_a_missing_decisions_file(tmp_path, capsys):
+    cli = _cli()
+    pristine = tmp_path / "norms_core.json"
+    pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}))
+    missing_decisions = tmp_path / "missing_decisions.json"
+    m = tmp_path / "freeze.json"
+    m.write_text(json.dumps({
+        "schema_version": "freeze_manifest.v1", "campaign_type": "layer2_annotation", "campaign_id": "c1",
+        "freeze_id": "f1", "stage": "production", "round": None, "pinned_build_id": "build-b+chain-000000000000",
+        "guideline_version": "v1", "scope_core_nodes": ["eu-ai-act:article-9"], "units_in_scope": 1,
+        "units_adjudicated": 1, "units_undecided": 0, "rows_included": ["row1"], "decisions_sha256": "0" * 64,
+        "frozen_at": "2026-09-19T00:00:00+00:00",
+    }))
+    rc = cli.main(["--pristine", str(pristine), "--decisions", str(missing_decisions), "--manifest", str(m),
+                  "--source-build-id", "build-b+chain-000000000000"])
+    assert rc == 1 and "file not found" in capsys.readouterr().err
+    assert not (tmp_path / "norms_core.reference.json").exists()
