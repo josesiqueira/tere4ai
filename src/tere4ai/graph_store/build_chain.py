@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 # Roles are fixed vocabulary so chain records are comparable across builds.
-INPUT_ROLES = ("layer1_dump", "norms", "alignments", "decisions")
+INPUT_ROLES = ("layer1_dump", "norms", "alignments", "decisions", "freeze_manifest")
 
 
 def sha256_of_file(path: Path | str) -> str:
@@ -58,28 +58,38 @@ def build_chain(
     norms_path: Path | str,
     alignments_path: Path | str | None = None,
     decisions_path: Path | str | None = None,
+    manifest_paths: list[Path | str] | None = None,
 ) -> dict[str, Any]:
     """Checksum the publication inputs and compose the chain record.
 
     Returns {"chain_id", "inputs": [{"role", "file", "sha256"}, ...]}.
     Optional inputs that do not exist on disk are omitted (not hashed as
-    empty), so the record states exactly what was used.
+    empty), so the record states exactly what was used. Several freeze
+    manifests enter under one role: the checksum map carries their
+    digests sorted and joined, so any manifest change changes the id and
+    their order does not (D-G21); a build without manifests keeps the
+    legacy id exactly.
     """
-    paths: list[tuple[str, Path]] = [
-        ("layer1_dump", Path(layer1_path)),
-        ("norms", Path(norms_path)),
-    ]
+    paths: list[tuple[str, Path]] = [("layer1_dump", Path(layer1_path)), ("norms", Path(norms_path))]
     if alignments_path is not None:
         paths.append(("alignments", Path(alignments_path)))
     if decisions_path is not None and Path(decisions_path).is_file():
         paths.append(("decisions", Path(decisions_path)))
+    for m in manifest_paths or []:
+        paths.append(("freeze_manifest", Path(m)))
 
     inputs = []
     checksums: dict[str, str] = {}
+    manifest_digests: list[str] = []
     for role, path in paths:
         digest = sha256_of_file(path)
-        checksums[role] = digest
         inputs.append({"role": role, "file": path.name, "sha256": digest})
+        if role == "freeze_manifest":
+            manifest_digests.append(digest)
+        else:
+            checksums[role] = digest
+    if manifest_digests:
+        checksums["freeze_manifest"] = ",".join(sorted(manifest_digests))
     return {"chain_id": compose_chain_id(checksums), "inputs": inputs}
 
 
@@ -96,6 +106,8 @@ def chained_build_id(base_build_id: str, chain: dict[str, Any]) -> str:
 
 def verify_dumps_against_chain(
     dump_dir: Path | str,
+    *,
+    chain_id: str | None = None,
 ) -> tuple[bool, str]:
     """Recompute the published dumps' chain and match it to a recorded chain.
 
@@ -106,8 +118,40 @@ def verify_dumps_against_chain(
     record, i.e. the dump has drifted from any published build. This turns
     the CI-only build-chain check into one the runtime can call at load, so a
     tampered or corrupted dump is refused loudly instead of served.
+
+    With chain_id given (Task 10 passes the active manifest's), this instead
+    reads publications/<chain_id>.json: every file it names must exist under
+    dump_dir with the recorded digest, including every freeze_manifest input,
+    and the recomputed build_chain over those files must equal chain_id.
+    Without chain_id, the legacy behaviour over layer1.json, norms_core.json,
+    alignments_core.json is unchanged.
     """
     directory = Path(dump_dir)
+    if chain_id is not None:
+        manifest_path = directory / "publications" / f"{chain_id}.json"
+        if not manifest_path.is_file():
+            return False, f"no publication manifest for chain {chain_id}"
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return False, f"publication manifest {chain_id} is unreadable: {exc}"
+        recorded = {(i["role"], i["file"]): i["sha256"] for i in manifest.get("inputs", [])}
+        for (role, name), digest in recorded.items():
+            path = directory / name
+            if not path.is_file():
+                return False, f"{role} file {name} named by publication {chain_id} is missing"
+            if sha256_of_file(path) != digest:
+                return False, f"{role} file {name} differs from the digest publication {chain_id} recorded"
+        files = manifest.get("files", {})
+        manifests = [directory / name for (role, name) in recorded if role == "freeze_manifest"]
+        chain = build_chain(
+            directory / files["layer1_dump"], directory / files["norms"],
+            alignments_path=directory / files["alignments"] if files.get("alignments") else None,
+            manifest_paths=manifests or None,
+        )
+        if chain["chain_id"] != chain_id:
+            return False, f"the files recompute to chain {chain['chain_id']}, not {chain_id}"
+        return True, f"files verified against publication {chain_id}"
     layer1 = directory / "layer1.json"
     norms = directory / "norms_core.json"
     alignments = directory / "alignments_core.json"

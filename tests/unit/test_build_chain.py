@@ -14,6 +14,7 @@ from tere4ai.graph_store.build_chain import (
     chained_build_id,
     compose_chain_id,
     sha256_of_file,
+    verify_dumps_against_chain,
 )
 
 
@@ -83,3 +84,56 @@ class TestChainedBuildId:
         second = chained_build_id(first, {"chain_id": "bbbbbbbbbbbb"})
         assert second == "build-2026+chain-bbbbbbbbbbbb"
         assert second.count("+chain-") == 1
+
+
+class TestManifestsInTheChain:
+    def test_each_manifest_changes_the_id_and_order_does_not(self, tmp_path):
+        layer1 = _write(tmp_path, "layer1.json", {"nodes": [1]})
+        norms = _write(tmp_path, "norms.json", {"norms": [2]})
+        m1 = _write(tmp_path, "m1.json", {"freeze_id": "f1"})
+        m2 = _write(tmp_path, "m2.json", {"freeze_id": "f2"})
+        both = build_chain(layer1, norms, manifest_paths=[m1, m2])
+        swapped = build_chain(layer1, norms, manifest_paths=[m2, m1])
+        assert both["chain_id"] == swapped["chain_id"]
+        assert [i["role"] for i in both["inputs"]] == ["layer1_dump", "norms", "freeze_manifest", "freeze_manifest"]
+        m1.write_text(json.dumps({"freeze_id": "f1b"}), encoding="utf-8")
+        assert build_chain(layer1, norms, manifest_paths=[m1, m2])["chain_id"] != both["chain_id"]
+        m1.write_text(json.dumps({"freeze_id": "f1"}), encoding="utf-8")
+        m2.write_text(json.dumps({"freeze_id": "f2b"}), encoding="utf-8")
+        assert build_chain(layer1, norms, manifest_paths=[m1, m2])["chain_id"] != both["chain_id"]
+
+    def test_without_manifests_the_legacy_id_is_unchanged(self, tmp_path):
+        layer1 = _write(tmp_path, "layer1.json", {"nodes": [1]})
+        norms = _write(tmp_path, "norms.json", {"norms": [2]})
+        assert build_chain(layer1, norms)["chain_id"] == build_chain(layer1, norms, manifest_paths=None)["chain_id"]
+        assert build_chain(layer1, norms, manifest_paths=[])["chain_id"] == build_chain(layer1, norms)["chain_id"]
+
+
+class TestVerifyAgainstPublication:
+    def _publication(self, tmp_path, manifests):
+        layer1 = _write(tmp_path, "layer1.json", {"nodes": [1]})
+        norms = _write(tmp_path, "norms_core.reference.json", {"norms": [2]})
+        chain = build_chain(layer1, norms, manifest_paths=manifests)
+        pub_dir = tmp_path / "publications"
+        pub_dir.mkdir()
+        (pub_dir / f"{chain['chain_id']}.json").write_text(json.dumps({
+            "schema_version": "publication.v1", "chain_id": chain["chain_id"], "build_id": "b+chain-" + chain["chain_id"],
+            "inputs": chain["inputs"], "files": {"layer1_dump": "layer1.json", "norms": "norms_core.reference.json", "alignments": None},
+        }), encoding="utf-8")
+        return chain["chain_id"]
+
+    def test_verifies_named_files_and_manifests(self, tmp_path):
+        m = _write(tmp_path, "freeze-f1.json", {"freeze_id": "f1"})
+        chain_id = self._publication(tmp_path, [m])
+        ok, detail = verify_dumps_against_chain(tmp_path, chain_id=chain_id)
+        assert ok, detail
+        m.write_text(json.dumps({"freeze_id": "tampered"}), encoding="utf-8")
+        ok, detail = verify_dumps_against_chain(tmp_path, chain_id=chain_id)
+        assert not ok and "freeze-f1.json" in detail
+        m.unlink()
+        ok, detail = verify_dumps_against_chain(tmp_path, chain_id=chain_id)
+        assert not ok and "missing" in detail
+
+    def test_unknown_chain_id_is_refused(self, tmp_path):
+        ok, detail = verify_dumps_against_chain(tmp_path, chain_id="000000000000")
+        assert not ok and "no publication manifest" in detail
