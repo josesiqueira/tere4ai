@@ -27,30 +27,15 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes  # noqa: E402
 from tere4ai.align_hleg_altai.hleg_subtopics import build_hleg_subtopics  # noqa: E402
-from tere4ai.canonicalize.canonicalizer import canonicalize_norms  # noqa: E402
 from tere4ai.graph_store.build_chain import build_chain, chained_build_id  # noqa: E402
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
 from tere4ai.graph_store.store import GraphStore  # noqa: E402
 from tere4ai.review_queue import apply_decisions, count_applied, load_decisions  # noqa: E402
+from tere4ai.review_queue.materialize import apply_human_decisions  # noqa: E402
 from tere4ai.validate_graph.gates import validate_build  # noqa: E402
 from tere4ai.validate_graph.postload import validate_postload  # noqa: E402
 
 DEFAULT_DECISIONS = ROOT / "data" / "review_queue" / "decisions.json"
-
-
-def apply_human_decisions(
-    norms_payload: dict, decisions: dict[str, dict]
-) -> dict:
-    """Apply the decisions to a norms payload and re-materialise its clauses.
-
-    A human replace or add rewrites the norm's conditions and exceptions
-    text, and that text is the only source of the Condition and Exception
-    nodes and of the HAS_CONDITION and HAS_EXCEPTION edges. apply_decisions
-    clears the model's clause ids, so canonicalize_norms runs again over the
-    applied payload to rebuild them (it is deterministic and a second run
-    over an untouched norm is a no-op).
-    """
-    return canonicalize_norms(apply_decisions(norms_payload, decisions))
 
 
 def main(argv: list[str] | None = None) -> int:

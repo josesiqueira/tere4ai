@@ -19,6 +19,7 @@ from tere4ai.review_queue import (
     record_decision,
     save_decisions,
 )
+from tere4ai.review_queue.materialize import apply_human_decisions
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMPS = ROOT / "data" / "graph_dumps"
@@ -789,7 +790,6 @@ def test_replace_clears_stale_clause_ids():
 
 
 def test_publish_helper_drops_the_edge_to_a_removed_condition():
-    publish = _publish_module("publish_layer23_clause_drop")
     decisions = {}
     payload = {
         **HUMAN_NORM,
@@ -799,7 +799,7 @@ def test_publish_helper_drops_the_edge_to_a_removed_condition():
         "exceptions": [],
     }
     record_decision(decisions, "norm:x:n1", "replace", "the condition is not in the text", "annotator a", payload=payload)
-    applied = publish.apply_human_decisions(_inferred_actor_norm(), decisions)
+    applied = apply_human_decisions(_inferred_actor_norm(), decisions)
     assert applied["norms"][0]["condition_ids"] == []
     g = norms_to_graph(applied, build_id="b-test")
     assert [e for e in g["edges"] if e["edge_type"] == "HAS_CONDITION"] == []
@@ -808,13 +808,12 @@ def test_publish_helper_drops_the_edge_to_a_removed_condition():
 
 
 def test_publish_helper_materialises_a_human_written_condition():
-    publish = _publish_module("publish_layer23_clause_add")
     decisions = {}
     record_decision(
         decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
         "the unit holds an obligation", "annotator a", payload=HUMAN_NORM,
     )
-    applied = publish.apply_human_decisions({"norms": []}, decisions)
+    applied = apply_human_decisions({"norms": []}, decisions)
     added = applied["norms"][0]
     assert len(added["condition_ids"]) == 1
     g = norms_to_graph(applied, build_id="b-test")
