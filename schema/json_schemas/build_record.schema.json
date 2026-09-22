@@ -356,7 +356,7 @@
         "units_adjudicated": {"type": ["integer", "null"]},
         "units_undecided": {"type": ["integer", "null"]},
         "scope_core_nodes": {"type": ["array", "null"], "items": {"type": "string"}},
-        "decisions_applied": {"type": "boolean"},
+        "decisions_applied": {"type": "integer"},
         "materialized_at": {"type": "string"}
       },
       "required": [
