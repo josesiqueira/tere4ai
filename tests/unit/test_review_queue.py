@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.graph_store.build_chain import sha256_of_file
+from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph
 from tere4ai.review_queue import (
     apply_decisions,
@@ -19,7 +21,7 @@ from tere4ai.review_queue import (
     record_decision,
     save_decisions,
 )
-from tere4ai.review_queue.materialize import apply_human_decisions
+from tere4ai.review_queue.materialize import apply_human_decisions, materialize
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMPS = ROOT / "data" / "graph_dumps"
@@ -345,21 +347,20 @@ def test_human_decided_alignment_edges_carry_human_provenance():
 # --- publish integration ------------------------------------------------------
 
 
-def test_publish_applies_decisions_before_gates(tmp_path, monkeypatch, capsys):
-    import importlib.util
+def _publish_fixture_manifest(campaign_type, campaign_id, freeze_id, decisions_sha256, pinned):
+    common = {"schema_version": "freeze_manifest.v1", "campaign_type": campaign_type, "campaign_id": campaign_id,
+              "freeze_id": freeze_id, "pinned_build_id": pinned, "rows_included": ["r"],
+              "decisions_sha256": decisions_sha256, "frozen_at": "2026-09-19T10:00:00+00:00"}
+    if campaign_type == "hleg_alignment":
+        # A Layer 3 decisions manifest is what sub-project 4 will export; here it only has to bind.
+        return {**common, "verdicts_sha256": "v" * 64}
+    return {**common, "stage": "production", "round": None, "guideline_version": "v1",
+            "scope_core_nodes": ["eu-ai-act:article-9"], "units_in_scope": 3, "units_adjudicated": 3,
+            "units_undecided": 0}
 
-    spec = importlib.util.spec_from_file_location(
-        "publish_layer23", ROOT / "scripts" / "publish_layer23.py"
-    )
-    publish = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(publish)
 
-    norms_path = tmp_path / "norms.json"
-    norms_path.write_text(json.dumps(_norms_payload()), encoding="utf-8")
-    align_path = tmp_path / "alignments.json"
-    align_path.write_text(json.dumps(_alignments_payload()), encoding="utf-8")
-    dump_path = tmp_path / "layer1.json"
-    dump_path.write_text(json.dumps(_layer1_dump()), encoding="utf-8")
+def test_materialised_reference_reaches_the_gates(tmp_path, monkeypatch):
+    publish = _publish_module("publish_layer23_reference")
 
     decisions = {}
     record_decision(
@@ -367,14 +368,42 @@ def test_publish_applies_decisions_before_gates(tmp_path, monkeypatch, capsys):
     )
     record_decision(decisions, "align:x:1", "reject", "forced connection", "jose")
     # a decisions file mixing a norm-only add with alignment decisions must
-    # serve both publish passes: the add applies to the norms pass and is
-    # skipped, not an error, on the alignments pass (B77 plan 1 review, R16).
+    # serve both materialisations: the add applies to the norms file and is
+    # skipped, not an error, on the alignments file (B77 plan 1 review, R16).
     record_decision(
         decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
         "the unit holds an obligation", "annotator a", payload=HUMAN_NORM,
     )
     decisions_path = tmp_path / "decisions.json"
     save_decisions(decisions, decisions_path)
+    digest = sha256_of_file(decisions_path)
+    source = "b-test+chain-000000000000"
+
+    pristine_norms = _norms_payload()
+    norms_manifest = _publish_fixture_manifest("layer2_annotation", "c2", "f2", digest, source)
+    norms_ref = materialize("norms", pristine_norms, decisions, norms_manifest, source_sha256="s" * 64,
+                            source_build_id=source, decisions_sha256=digest)
+    norms_path = tmp_path / "norms_core.reference.json"
+    norms_path.write_text(json.dumps(norms_ref), encoding="utf-8")
+    align_manifest = _publish_fixture_manifest("hleg_alignment", "c3", "f3", digest, source)
+    align_ref = materialize("alignments", _alignments_payload(), decisions, align_manifest, source_sha256="a" * 64,
+                            source_build_id=source, decisions_sha256=digest)
+    align_ref["build"]["alignment_input_sha256"] = sha256_of_file(norms_path)
+    align_path = tmp_path / "alignments_core.adjudicated.json"
+    align_path.write_text(json.dumps(align_ref), encoding="utf-8")
+    manifest_paths = []
+    for name, manifest in (("freeze-f2.json", norms_manifest), ("freeze-f3.json", align_manifest)):
+        (tmp_path / name).write_text(json.dumps(manifest), encoding="utf-8")
+        manifest_paths += ["--manifest", str(tmp_path / name)]
+    dump_path = tmp_path / "layer1.json"
+    dump_path.write_text(json.dumps(_layer1_dump()), encoding="utf-8")
+
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core.reference", "b-test", sha256_of_file(dump_path))
+    run = store.start_execution(rid, command="materialize_reference", covers_steps=["L2.4"], argv=[], inputs=[],
+                                config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    store.finish_execution(rid, run, status="done",
+                           outputs=[{"role": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
 
     seen = {}
 
@@ -395,12 +424,13 @@ def test_publish_applies_decisions_before_gates(tmp_path, monkeypatch, capsys):
             "--norms", str(norms_path),
             "--alignments", str(align_path),
             "--dump", str(dump_path),
-            "--decisions", str(decisions_path),
             "--gates-only",
+            *manifest_paths,
+            "--dump-dir", str(tmp_path),
         ]
     )
     assert rc == 0
-    # the gates saw the payloads with human decisions already applied
+    # the gates saw the reference files, human decisions applied once by materialisation
     decided_norm = next(
         n for n in seen["norms"] if n["norm_id"] == "norm:eu-ai-act:article-5:paragraph-2:n4"
     )
@@ -415,35 +445,21 @@ def test_publish_applies_decisions_before_gates(tmp_path, monkeypatch, capsys):
     assert not any(
         a.get("id") == "norm:eu-ai-act:article-12:paragraph-1:h1" for a in seen["alignments"]
     )
-
-    out = capsys.readouterr().out
-    assert "human review: 3 decisions applied" in out
-    assert out.index("human review") < out.index("gates:")
-    # the dumps on disk are untouched
-    on_disk = json.loads(norms_path.read_text(encoding="utf-8"))
-    assert on_disk["norms"][0]["judge_verdict"] == "needs_human_review"
+    # the pristine input is untouched by materialisation
+    assert pristine_norms["norms"][0]["judge_verdict"] == "needs_human_review"
+    assert "human_review" not in pristine_norms["norms"][0]
+    ex = store.read(rid)["executions"][-1]
+    assert ex["status"] == "done" and ex["covers_steps"] == ["P.1"]
 
 
-def test_publish_without_decisions_file_is_silent(tmp_path, monkeypatch, capsys):
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location(
-        "publish_layer23_nodec", ROOT / "scripts" / "publish_layer23.py"
-    )
-    publish = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(publish)
+def test_publish_retires_the_decisions_flag(tmp_path, capsys):
+    publish = _publish_module("publish_layer23_nodec")
 
     norms_path = tmp_path / "norms.json"
     norms_path.write_text(json.dumps(_norms_payload()), encoding="utf-8")
     dump_path = tmp_path / "layer1.json"
     dump_path.write_text(json.dumps(_layer1_dump()), encoding="utf-8")
 
-    class _Report:
-        passed = True
-        failures = []
-        stats = {}
-
-    monkeypatch.setattr(publish, "validate_build", lambda *a, **k: _Report())
     rc = publish.main(
         [
             "--norms", str(norms_path),
@@ -452,8 +468,9 @@ def test_publish_without_decisions_file_is_silent(tmp_path, monkeypatch, capsys)
             "--gates-only",
         ]
     )
-    assert rc == 0
-    assert "human review" not in capsys.readouterr().out
+    assert rc == 2
+    assert "scripts/materialize_reference.py" in capsys.readouterr().err
+    assert not (tmp_path / "build_records").exists()
 
 
 HUMAN_NORM = {
