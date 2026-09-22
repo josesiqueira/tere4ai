@@ -187,3 +187,11 @@ def test_cli_refuses_a_missing_decisions_file(tmp_path, capsys):
                   "--source-build-id", "build-b+chain-000000000000"])
     assert rc == 1 and "file not found" in capsys.readouterr().err
     assert not (tmp_path / "norms_core.reference.json").exists()
+
+
+def test_materialize_refuses_a_freeze_of_the_other_kind(tmp_path):
+    d = _decisions(tmp_path)
+    pristine = {"build": {"build_id": "build-b"}, "assertions": [], "mapping_runs": [], "judge_runs": []}
+    with pytest.raises(MaterializeError, match="f1.*alignments.*hleg_alignment.*layer2_annotation"):
+        materialize("alignments", pristine, json.loads(d.read_text()), _manifest(d), source_sha256="s" * 64,
+                    source_build_id="build-b+chain-000000000000", decisions_sha256=sha256_of_file(d))

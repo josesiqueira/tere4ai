@@ -79,3 +79,12 @@ def test_target_state_records_no_credentials(tmp_path):
     set_target_state(tmp_path, state="loading", build_id="b", uri="neo4j+s://neo4j:hunter2@db.example:7687/x?y=1", reason=None)
     assert read_target_state(tmp_path)["uri"] == "neo4j+s://db.example:7687"
     assert "hunter2" not in (tmp_path / "NEO4J_TARGET.json").read_text()
+
+
+def test_one_manifest_binds_one_reference_of_its_own_kind():
+    norms_ref = _ref()
+    align_ref = {**_ref(kind="alignments"), "campaign_type": "layer2_annotation"}
+    with pytest.raises(PublicationError, match="f1 is bound to two reference blocks"):
+        bind_manifests([norms_ref, align_ref], [_manifest()])
+    with pytest.raises(PublicationError, match="f1.*alignments.*hleg_alignment.*layer2_annotation"):
+        bind_manifests([align_ref], [_manifest()])

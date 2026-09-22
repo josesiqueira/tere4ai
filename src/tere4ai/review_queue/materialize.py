@@ -31,6 +31,7 @@ from tere4ai.review_queue.apply import apply_decisions, count_applied
 
 _SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "build_record.schema.json"
 _TYPES = {"layer2_annotation": "freeze_manifest_layer2", "hleg_alignment": "freeze_manifest_hleg"}
+CAMPAIGN_TYPE_OF_KIND = {"norms": "layer2_annotation", "alignments": "hleg_alignment"}
 
 
 class MaterializeError(ValueError):
@@ -94,6 +95,11 @@ def materialize(kind: str, pristine: dict[str, Any], decisions: dict[str, dict[s
                 source_sha256: str, source_build_id: str, decisions_sha256: str) -> dict[str, Any]:
     if kind not in ("norms", "alignments"):
         raise MaterializeError(f"kind must be norms or alignments, got {kind!r}")
+    if manifest.get("campaign_type") != CAMPAIGN_TYPE_OF_KIND[kind]:
+        raise MaterializeError(
+            f"freeze {manifest.get('freeze_id')}: a {kind} file needs a {CAMPAIGN_TYPE_OF_KIND[kind]} freeze, "
+            f"the manifest is {manifest.get('campaign_type')!r}"
+        )
     if already_materialised(pristine):
         raise MaterializeError(f"the {kind} payload already carries human decisions; materialise from the pristine dump")
     if not decisions:

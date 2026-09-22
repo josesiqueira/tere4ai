@@ -16,16 +16,19 @@ files the facade serves.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 from tere4ai.graph_store.build_record import atomic_write_json
-from tere4ai.review_queue.materialize import _validator
+from tere4ai.review_queue.materialize import CAMPAIGN_TYPE_OF_KIND, _validator
 
 PUBLICATIONS_DIRNAME = "publications"
 TARGET_FILENAME = "NEO4J_TARGET.json"
+CURRENT_POINTER_FILENAME = "BUILD_CHAIN_CURRENT.txt"
 PUBLICATION_SCHEMA_VERSION = "publication.v1"
 GATES = ("G1", "G2", "G3", "G4", "G5", "G6")
 POSTLOAD_GATES = ("P1", "P2", "P3", "P4", "P5")
@@ -50,7 +53,8 @@ def _read(path: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _check(definition: str, payload: dict[str, Any]) -> None:
+def check_schema(definition: str, payload: dict[str, Any]) -> None:
+    """Raise PublicationError when payload does not validate against the schema definition."""
     errors = sorted(_validator(definition).iter_errors(payload), key=lambda e: list(e.path))
     if errors:
         where = "/".join(str(p) for p in errors[0].path) or "the payload"
@@ -77,13 +81,34 @@ def manifest_path(dump_dir: Path | str, chain_id: str) -> Path:
     return Path(dump_dir) / PUBLICATIONS_DIRNAME / f"{chain_id}.json"
 
 
+def publication_manifest(publication: dict[str, Any], *, record_id: str, inputs: list[dict[str, Any]],
+                         files: dict[str, str | None]) -> dict[str, Any]:
+    """The publication manifest payload, validated against the schema before anyone writes it."""
+    payload = {"schema_version": PUBLICATION_SCHEMA_VERSION, **publication, "record_id": record_id,
+               "inputs": inputs, "files": files}
+    check_schema("publication_manifest", payload)
+    return payload
+
+
 def write_publication_manifest(dump_dir: Path | str, publication: dict[str, Any], *, record_id: str,
                                inputs: list[dict[str, Any]], files: dict[str, str | None]) -> Path:
     path = manifest_path(dump_dir, publication["chain_id"])
-    payload = {"schema_version": PUBLICATION_SCHEMA_VERSION, **publication, "record_id": record_id,
-               "inputs": inputs, "files": files}
-    _check("publication_manifest", payload)
-    _write(path, payload)
+    _write(path, publication_manifest(publication, record_id=record_id, inputs=inputs, files=files))
+    return path
+
+
+def write_current_pointer(dump_dir: Path | str, chain_id: str) -> Path:
+    """BUILD_CHAIN_CURRENT.txt through a temp file in the same directory and
+    os.replace, so a reader sees the old id or the new one, never a partial."""
+    path = Path(dump_dir) / CURRENT_POINTER_FILENAME
+    fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=".txt", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(chain_id + "\n")
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
     return path
 
 
@@ -131,7 +156,15 @@ def bind_manifests(references: list[dict[str, Any]], manifests: list[dict[str, A
             )
         if len(matches) > 1:
             raise PublicationError(f"freeze {ref['freeze_id']} is named twice among the manifests")
+        if matches[0] in used:
+            raise PublicationError(f"freeze {ref['freeze_id']} is bound to two reference blocks")
         m = manifests[matches[0]]
+        wanted = CAMPAIGN_TYPE_OF_KIND.get(ref.get("kind"))
+        if m.get("campaign_type") != wanted:
+            raise PublicationError(
+                f"freeze {ref['freeze_id']}: a {ref.get('kind')} reference needs a {wanted} freeze, "
+                f"the manifest is {m.get('campaign_type')!r}"
+            )
         if m.get("decisions_sha256") != ref.get("decisions_sha256"):
             raise PublicationError(
                 f"freeze {ref['freeze_id']}: manifest decisions digest differs from the one materialised"

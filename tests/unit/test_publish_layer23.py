@@ -122,12 +122,16 @@ def test_publication_artifacts_do_not_exist_while_loading(tmp_path, monkeypatch)
     def fake_postload(driver, build_id, expected_norms, expected_assertions=None):
         observed["chains"] = list(tmp_path.glob("build_chain_*.json"))
         observed["state"] = read_target_state(tmp_path)["state"]
+        observed["manifests"] = list(tmp_path.glob("publications/*"))
+        observed["pointer"] = (tmp_path / "BUILD_CHAIN_CURRENT.txt").read_text() if (tmp_path / "BUILD_CHAIN_CURRENT.txt").exists() else None
+        observed["publication"] = store.read(rid)["publication"]
         return _Report([])
 
     _fakes(monkeypatch, cli)
     monkeypatch.setattr(cli, "validate_postload", fake_postload)
     assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]) == 0
     assert observed["chains"] == [] and observed["state"] == "loading"
+    assert observed["manifests"] == [] and observed["pointer"] is None and observed["publication"] is None
 
 
 def test_load_exception_marks_target_unavailable_and_closes_driver(tmp_path, monkeypatch):
@@ -232,3 +236,16 @@ def test_exception_before_the_load_records_failed_and_leaves_no_target_state(tmp
     ex = store.read(rid)["executions"][-1]
     assert ex["status"] == "failed" and "bad norm payload" in ex["error"] and len(ex["gates"]) == 6
     assert read_target_state(tmp_path) is None and not list(tmp_path.glob("build_chain_*.json"))
+
+
+def test_schema_invalid_publication_records_failed_and_writes_nothing(tmp_path, monkeypatch, capsys):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    monkeypatch.setattr(cli, "gating_of", lambda n, a: {"layer2": "robot", "layer3": "llm"})
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)])
+    assert rc == 1 and "does not validate" in capsys.readouterr().err
+    assert not list(tmp_path.glob("build_chain_*.json")) and not (tmp_path / "publications").exists()
+    assert not (tmp_path / "BUILD_CHAIN_CURRENT.txt").exists() and store.read(rid)["publication"] is None
+    ex = store.read(rid)["executions"][-1]
+    assert ex["status"] == "failed" and len(ex["gates"]) == 11

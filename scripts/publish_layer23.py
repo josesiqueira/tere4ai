@@ -43,18 +43,27 @@ from tere4ai.graph_store.build_chain import (  # noqa: E402
     chained_build_id,
     sha256_of_file,
 )
-from tere4ai.graph_store.build_record import BuildRecordStore, gate_entries  # noqa: E402
+from tere4ai.graph_store.build_record import (  # noqa: E402
+    BuildRecordStore,
+    atomic_write_json,
+    gate_entries,
+)
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
 from tere4ai.graph_store.publication import (  # noqa: E402
+    CURRENT_POINTER_FILENAME,
     GATES,
     POSTLOAD_GATES,
+    PUBLICATIONS_DIRNAME,
     PublicationError,
     bind_manifests,
+    check_schema,
     gating_of,
+    manifest_path,
     public_uri,
+    publication_manifest,
     set_target_state,
     whole_build_label,
-    write_publication_manifest,
+    write_current_pointer,
 )
 from tere4ai.graph_store.store import GraphStore  # noqa: E402
 from tere4ai.review_queue.materialize import (  # noqa: E402
@@ -136,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     build_id: str | None = None
     loading = False
     driver = None
+    written: list[str] = []
 
     def finish(status: str, *, error: str | None = None, **fields) -> None:
         nonlocal finished
@@ -257,18 +267,36 @@ def main(argv: list[str] | None = None) -> int:
             "postload_gates": postload_gates, "manifests": _manifest_refs(bound),
         }
         chain_path = dump_dir / f"build_chain_{chain['chain_id']}.json"
-        chain_path.write_text(json.dumps({**publication, **chain, "record_id": record_id}, indent=2) + "\n",
-                              encoding="utf-8")
-        write_publication_manifest(dump_dir, publication, record_id=record_id, inputs=chain["inputs"],
-                                   files={"layer1_dump": args.dump.name, "norms": args.norms.name,
-                                          "alignments": args.alignments.name if args.alignments else None})
-        (dump_dir / "BUILD_CHAIN_CURRENT.txt").write_text(chain["chain_id"] + "\n", encoding="utf-8")
+        chain_record = {**publication, **chain, "record_id": record_id}
+        # Everything is validated before the first write, so a schema failure
+        # leaves no publication artefact behind.
+        try:
+            check_schema("publication", publication)
+            manifest = publication_manifest(publication, record_id=record_id, inputs=chain["inputs"],
+                                            files={"layer1_dump": args.dump.name, "norms": args.norms.name,
+                                                   "alignments": args.alignments.name if args.alignments else None})
+        except PublicationError as exc:
+            return fail(f"NOT published: the publication does not validate: {exc}", gates + postload_gates)
+        # Write order: the chain record, the record's publication block, the
+        # publication manifest (activation consumes it, so it goes last and a
+        # partial publication can never be activated), then the pointer.
+        atomic_write_json(chain_path, chain_record)
+        written.append(chain_path.name)
         store.set_publication(record_id, publication)
+        written.append(f"record {record_id} publication block")
+        mpath = manifest_path(dump_dir, chain["chain_id"])
+        mpath.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(mpath, manifest)
+        written.append(f"{PUBLICATIONS_DIRNAME}/{mpath.name}")
+        write_current_pointer(dump_dir, chain["chain_id"])
+        written.append(CURRENT_POINTER_FILENAME)
         finish("done", gates=gates + postload_gates,
                outputs=[{"role": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
                counts={"nodes": nodes, "edges": edges})
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
+        if written:
+            error += f"; already written, clean up by hand: {', '.join(written)}"
         if loading:
             set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=error)
         if not finished:
