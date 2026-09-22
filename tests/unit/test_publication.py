@@ -170,6 +170,8 @@ def test_facade_and_mcp_serve_the_activated_build_and_refuse_a_drifted_one(tmp_p
         health = client.get("/api/health")
         assert health.status_code == 503 and "norms" in health.json()["error"]
     assert server._read_dump() is None
+    refused = server.coverage_report()["missing_facts"][0]
+    assert "differs" in refused and "norms_core.json" in refused and "build it with" not in refused
 
 
 def test_loaded_build_is_taken_once_per_mcp_call(tmp_path, monkeypatch):

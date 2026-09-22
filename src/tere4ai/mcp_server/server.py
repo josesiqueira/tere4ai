@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +38,12 @@ from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
 
 from tere4ai.graph_store.build_chain import stamp_served_build
-from tere4ai.graph_store.publication import LoadedBuild, active_manifest, load_active
+from tere4ai.graph_store.publication import (
+    ACTIVE_POINTER,
+    LoadedBuild,
+    active_manifest,
+    load_active,
+)
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_rules
 from tere4ai.mcp_server import classify as classify_rules
@@ -169,7 +175,12 @@ def _invalid_input_envelope(detail: str, dump: dict[str, Any] | None = None) -> 
     )
 
 
-def _dump_missing_envelope() -> dict[str, Any]:
+def _dump_missing_envelope(detail: str | None = None) -> dict[str, Any]:
+    # A refused activated build (drifted file, unreadable pointer or
+    # manifest, D-G21) names its reason, never the rebuild hint, which
+    # would be the wrong remedy (Section 13: no silent degradation).
+    if detail:
+        return tools.dump_unavailable_envelope(detail)
     # Name the file, not the absolute server path (audit W4: no filesystem
     # layout disclosure to the consumer).
     return tools.dump_unavailable_envelope(
@@ -233,7 +244,7 @@ def coverage_report() -> dict[str, Any]:
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     # B62: pass the judged payloads like GET /api/coverage does, so the
     # layer 2 and 3 blocks report real counts instead of dump-derived zeros.
     # They are optional for the tool, so a missing payload degrades that
@@ -258,7 +269,7 @@ def source_trace(node_id: str) -> dict[str, Any]:
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     return tools.source_trace(dump, node_id, snapshots_dir=SNAPSHOTS_DIR)
 
 
@@ -273,7 +284,7 @@ def explain_requirement(norm_id: str) -> dict[str, Any]:
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
@@ -294,7 +305,7 @@ def trace_alignment(id: str) -> dict[str, Any]:
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     alignments_payload = loaded.alignments
     if alignments_payload is None:
         return _alignments_missing_envelope()
@@ -310,7 +321,7 @@ def resolve_span(span_id: str) -> dict[str, Any]:
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     return spans_rules.resolve_span_envelope(
         span_id, dump, SNAPSHOTS_DIR, extra_nodes=_hleg_nodes()
     )
@@ -346,7 +357,7 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     return classify_rules.classify_ai_system(features, dump)
 
 
@@ -372,7 +383,7 @@ def trace_implementation(
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
@@ -406,7 +417,7 @@ def get_applicable_requirements(
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     if not isinstance(classification, dict):
         return _invalid_input_envelope(
             "'classification' must be a dict (the classify_ai_system envelope "
@@ -443,7 +454,7 @@ def evaluate_project_evidence(
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
@@ -502,7 +513,7 @@ def evaluate_project_evidence_batch(
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
@@ -563,7 +574,7 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
     loaded = _active()
     dump = loaded.dump
     if dump is None:
-        return _dump_missing_envelope()
+        return _dump_missing_envelope(loaded.error)
     norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
@@ -635,6 +646,12 @@ def _check_dump_integrity_at_startup() -> None:
     from tere4ai.graph_store.build_chain import verify_dumps_against_chain
 
     manifest = active_manifest(DUMP_PATH.parent)
+    if manifest is None and (DUMP_PATH.parent / ACTIVE_POINTER).is_file():
+        print(
+            f"TERE4AI: the activation pointer {ACTIVE_POINTER} or its publication manifest is "
+            "unreadable; running the legacy three-file integrity check instead",
+            file=sys.stderr,
+        )
     ok, detail = verify_dumps_against_chain(
         DUMP_PATH.parent, chain_id=manifest["chain_id"] if manifest else None
     )
