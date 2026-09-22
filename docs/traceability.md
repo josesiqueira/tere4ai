@@ -20,4 +20,4 @@
 | DEC-13 | REF-17, REF-16 | src/tere4ai/elicit_features/elicitor.py, src/tere4ai/mcp_server/elicit.py, scripts/elicit_benchmark_features.py | tests/unit/test_elicit_envelope.py | implemented |
 | DEC-14 | REF-01, REF-30 | src/tere4ai/mcp_server/fria.py | tests/unit/test_envelope_contract.py, tests/unit/test_fria.py | implemented |
 | DEC-15 | ADD-14, ADD-15 | src/tere4ai/mcp_server/trace_code.py, src/tere4ai/report/__init__.py, src/tere4ai/report/__main__.py, src/tere4ai/report/ingest.py, src/tere4ai/report/render.py, src/tere4ai/trace_scan/__init__.py, src/tere4ai/trace_scan/__main__.py, scripts/build_mcp_demo_index.py, scripts/record_mcp_demo.py | tests/unit/test_trace_code.py | implemented |
-| DEC-16 | REF-27, ADD-20 | src/tere4ai/graph_store/build_record.py |  | implemented |
+| DEC-16 | REF-27, ADD-20 | src/tere4ai/graph_store/build_record.py, src/tere4ai/graph_store/checkpoints.py |  | implemented |
