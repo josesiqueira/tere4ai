@@ -162,12 +162,12 @@ class BuildRecordStore:
 
     def _aliases(self) -> dict[str, str]:
         p = self.dir / ALIASES_FILENAME
-        if not p.is_file():
-            return {}
         try:
             data = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except FileNotFoundError:
             return {}
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RecordError(f"alias index {p} is unreadable: {exc}") from exc
         return data if isinstance(data, dict) else {}
 
     # ---- queries

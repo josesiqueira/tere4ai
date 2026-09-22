@@ -35,6 +35,16 @@ def test_create_record_indexes_alias_and_validates_on_read(tmp_path):
     assert store.resolve("core.b74") == rid and store.resolve(rid) == rid and store.resolve("nope") is None
 
 
+def test_corrupted_alias_index_raises_instead_of_being_overwritten(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    (tmp_path / "build_records" / "aliases.json").write_text("{", encoding="utf-8")
+    with pytest.raises(RecordError):
+        store.resolve("x")
+    with pytest.raises(RecordError):
+        store.create_record("x", None, None)
+    assert (tmp_path / "build_records" / "aliases.json").read_text(encoding="utf-8") == "{"
+
+
 def test_descendant_takes_the_alias_and_parent_keeps_history(tmp_path):
     store = BuildRecordStore(tmp_path)
     parent = store.create_record("core", "b", "abc")
