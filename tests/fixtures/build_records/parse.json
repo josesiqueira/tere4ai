@@ -1,159 +1,209 @@
 {
-  "schema_version": "build_record.v1",
-  "record_id": "r1parse00000",
-  "aliases": [],
-  "parent_record_id": null,
-  "base_build_id": null,
-  "created_at": "2026-09-18T23:55:00+00:00",
-  "layer1_digest": null,
-  "executions": [
+ "aliases": [
+  "parse-20260919T000000",
+  "layer1-4a3d43751c40"
+ ],
+ "base_build_id": "build-b",
+ "created_at": "2026-09-19T00:00:00+00:00",
+ "depends_on_state": {
+  "L2.1": "done",
+  "L2.2": "not_started",
+  "L2.3": "not_started",
+  "L2.4": "not_started",
+  "L3.1": "not_started",
+  "L3.2": "not_started",
+  "L3.3": "not_started",
+  "L3.4": "not_started",
+  "L3.5": "not_started",
+  "P.1": "not_started",
+  "P.2": "not_started"
+ },
+ "executions": [
+  {
+   "argv": [
+    "--manifest",
+    "manifest.json"
+   ],
+   "checkpoint_file": null,
+   "command": "parse_legal_structure",
+   "completed_keys": [],
+   "config": {
+    "manifest_files_count": 1
+   },
+   "counts": {
+    "edges": 0,
+    "manifest_files": [
+     {
+      "file": "a.html",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+     }
+    ],
+    "manifest_files_count": 1,
+    "nodes": 2,
+    "nodes_by_type": {
+     "Article": 1,
+     "Recital": 1
+    },
+    "review_queue": 1
+   },
+   "covers_steps": [
+    "L0.1",
+    "L1.1"
+   ],
+   "ended_at": "2026-09-19T00:00:00+00:00",
+   "error": null,
+   "expected_total": null,
+   "gates": [
     {
-      "run_id": "run1parse000",
-      "command": "parse_legal_structure",
-      "covers_steps": [
-        "L0.1",
-        "L1.1"
-      ],
-      "status": "done",
-      "started_at": "2026-09-18T23:50:00+00:00",
-      "ended_at": "2026-09-18T23:55:00+00:00",
-      "heartbeat_at": "2026-09-18T23:55:00+00:00",
-      "argv": [
-        "--source",
-        "eur-lex-html"
-      ],
-      "resumes_run_id": null,
-      "inputs": [
-        {
-          "role": "html_snapshot",
-          "file": "eur_lex_2024_1689.html",
-          "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
-        }
-      ],
-      "outputs": [
-        {
-          "role": "layer1_dump",
-          "file": "layer1.json",
-          "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
-        }
-      ],
-      "config": {},
-      "models": null,
-      "prompt_sha256": null,
-      "sampling": null,
-      "usage": null,
-      "checkpoint_file": null,
-      "work_unit": null,
-      "expected_total": null,
-      "inherited_keys": [],
-      "inherited_from": null,
-      "completed_keys": [],
-      "counts": {
-        "nodes": 2,
-        "edges": 0,
-        "nodes_by_type": {
-          "Article": 1,
-          "Recital": 1
-        },
-        "review_queue": 1,
-        "manifest_files": [
-          {
-            "file": "a.html",
-            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-          }
-        ],
-        "manifest_files_count": 1
-      },
-      "gates": [
-        {
-          "name": "G1",
-          "ok": true,
-          "detail": "article count matches the frozen snapshot"
-        },
-        {
-          "name": "G2",
-          "ok": true,
-          "detail": "recital count matches the frozen snapshot"
-        },
-        {
-          "name": "G3",
-          "ok": true,
-          "detail": "annex count matches the frozen snapshot"
-        },
-        {
-          "name": "G4",
-          "ok": true,
-          "detail": "no orphan legal node"
-        },
-        {
-          "name": "G5",
-          "ok": true,
-          "detail": "cross references resolve within the parsed structure"
-        },
-        {
-          "name": "G6",
-          "ok": true,
-          "detail": "merged_into_base marker present on the Omnibus source"
-        }
-      ],
-      "work_failures": null,
-      "error": null,
-      "liveness": "ended",
-      "progress": null,
-      "provenance": {
-        "run_id": "recorded",
-        "started_at": "recorded",
-        "ended_at": "recorded",
-        "heartbeat_at": "recorded",
-        "counts": "recorded",
-        "gates": "recorded",
-        "outputs": "recorded"
-      },
-      "reasons": {}
+     "detail": "article count matches the frozen snapshot",
+     "name": "G1",
+     "ok": true
+    },
+    {
+     "detail": "recital count matches the frozen snapshot",
+     "name": "G2",
+     "ok": true
+    },
+    {
+     "detail": "annex count matches the frozen snapshot",
+     "name": "G3",
+     "ok": true
+    },
+    {
+     "detail": "no orphan legal node",
+     "name": "G4",
+     "ok": true
+    },
+    {
+     "detail": "cross references resolve within the parsed structure",
+     "name": "G5",
+     "ok": true
+    },
+    {
+     "detail": "merged_into_base marker present on the Omnibus source",
+     "name": "G6",
+     "ok": true
     }
-  ],
-  "publication": null,
-  "steps": {
-    "L0.1": "done",
-    "L1.1": "done",
-    "L2.1": "not_started",
-    "L2.2": "not_started",
-    "L2.3": "not_started",
-    "L2.4": "not_started",
-    "L3.1": "not_started",
-    "L3.2": "not_started",
-    "L3.3": "not_started",
-    "L3.4": "not_started",
-    "L3.5": "not_started",
-    "P.1": "not_started",
-    "P.2": "not_started"
-  },
-  "depends_on_state": {
-    "L2.1": "done",
-    "L2.2": "not_started",
-    "L2.3": "not_started",
-    "L2.4": "not_started",
-    "L3.1": "not_started",
-    "L3.2": "not_started",
-    "L3.3": "not_started",
-    "L3.4": "not_started",
-    "L3.5": "not_started",
-    "P.1": "not_started",
-    "P.2": "not_started"
-  },
-  "served": false,
-  "observed_at": "2026-09-19T00:00:00+00:00",
-  "synthesised": false,
-  "parse_record_id": null,
-  "provenance": {
-    "created_at": "recorded",
-    "base_build_id": "unavailable",
-    "layer1_digest": "unavailable",
-    "parse_record_id": "unavailable"
-  },
-  "reasons": {
-    "base_build_id": "not established before Layer 2",
-    "layer1_digest": "this record creates the layer1 dump",
-    "parse_record_id": "not derived from another parse record"
+   ],
+   "heartbeat_at": "2026-09-19T00:00:00+00:00",
+   "inherited_from": null,
+   "inherited_keys": [],
+   "inputs": [
+    {
+     "file": "manifest.json",
+     "role": "manifest",
+     "sha256": "a4e67e9914bfc030ba266c378c8efb049b255ef5ddea46ca052fe2152cbb2a32"
+    }
+   ],
+   "liveness": "ended",
+   "models": null,
+   "outputs": [
+    {
+     "file": "layer1.json",
+     "role": "layer1_dump",
+     "sha256": "4a3d43751c4000edd79e07d9011ae847602ffffc76649e2f62a40b362ae9a178"
+    }
+   ],
+   "progress": null,
+   "prompt_sha256": null,
+   "provenance": {
+    "argv": "recorded",
+    "checkpoint_file": "unavailable",
+    "command": "recorded",
+    "completed_keys": "recorded",
+    "config": "recorded",
+    "counts": "recorded",
+    "covers_steps": "recorded",
+    "ended_at": "recorded",
+    "error": "unavailable",
+    "expected_total": "unavailable",
+    "gates": "recorded",
+    "heartbeat_at": "recorded",
+    "inherited_from": "unavailable",
+    "inherited_keys": "recorded",
+    "inputs": "recorded",
+    "liveness": "derived",
+    "models": "unavailable",
+    "outputs": "recorded",
+    "progress": "unavailable",
+    "prompt_sha256": "unavailable",
+    "resumes_run_id": "unavailable",
+    "run_id": "recorded",
+    "sampling": "unavailable",
+    "started_at": "recorded",
+    "status": "recorded",
+    "usage": "unavailable",
+    "work_failures": "unavailable",
+    "work_unit": "unavailable"
+   },
+   "reasons": {
+    "checkpoint_file": "the command has no work units",
+    "error": "the execution ended without error",
+    "expected_total": "the command has no work units",
+    "inherited_from": "the execution inherited no work",
+    "models": "the command calls no model",
+    "progress": "the command has no work units",
+    "prompt_sha256": "the command calls no model",
+    "resumes_run_id": "the execution is not a resume",
+    "sampling": "the command calls no model",
+    "usage": "the command calls no model",
+    "work_failures": "not recorded by the command",
+    "work_unit": "the command has no work units"
+   },
+   "resumes_run_id": null,
+   "run_id": "run1parse000",
+   "sampling": null,
+   "started_at": "2026-09-19T00:00:00+00:00",
+   "status": "done",
+   "usage": null,
+   "work_failures": null,
+   "work_unit": null
   }
+ ],
+ "layer1_digest": "4a3d43751c4000edd79e07d9011ae847602ffffc76649e2f62a40b362ae9a178",
+ "observed_at": "2026-09-19T00:00:00+00:00",
+ "parent_record_id": null,
+ "parse_record_id": null,
+ "provenance": {
+  "aliases": "recorded",
+  "base_build_id": "recorded",
+  "created_at": "recorded",
+  "depends_on_state": "derived",
+  "executions": "recorded",
+  "layer1_digest": "recorded",
+  "observed_at": "derived",
+  "parent_record_id": "unavailable",
+  "parse_record_id": "unavailable",
+  "publication": "unavailable",
+  "record_id": "recorded",
+  "schema_version": "recorded",
+  "served": "derived",
+  "steps": "derived",
+  "synthesised": "derived"
+ },
+ "publication": null,
+ "reasons": {
+  "parent_record_id": "the record has no parent record",
+  "parse_record_id": "the record holds its own parse execution",
+  "publication": "the record is not published"
+ },
+ "record_id": "r1parse00000",
+ "schema_version": "build_record.v1",
+ "served": false,
+ "steps": {
+  "L0.1": "done",
+  "L1.1": "done",
+  "L2.1": "not_started",
+  "L2.2": "not_started",
+  "L2.3": "not_started",
+  "L2.4": "not_started",
+  "L3.1": "not_started",
+  "L3.2": "not_started",
+  "L3.3": "not_started",
+  "L3.4": "not_started",
+  "L3.5": "not_started",
+  "P.1": "not_started",
+  "P.2": "not_started"
+ },
+ "synthesised": false
 }

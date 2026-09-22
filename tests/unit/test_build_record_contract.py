@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from tests.fixtures.build_records.regenerate import main as regenerate
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "build_record.schema.json"
@@ -59,3 +60,9 @@ def test_fixtures_state_the_honesty_rules():
     ex = resumed["executions"][-1]
     assert ex["resumes_run_id"] == "run2prev0000" and ex["inherited_from"] == "run2prev0000"
     assert ex["progress"] == {"completed": 5, "expected_total": 5, "work_unit": "batches", "inherited": 3, "source": "record"}
+
+
+def test_fixtures_are_byte_stable_against_the_presenter():
+    produced = regenerate()
+    for name, text in produced.items():
+        assert (FIXTURES / name).read_text(encoding="utf-8") == text, f"{name} drifted: run python -m tests.fixtures.build_records.regenerate and commit"
