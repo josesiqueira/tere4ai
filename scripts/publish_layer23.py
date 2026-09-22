@@ -277,23 +277,27 @@ def main(argv: list[str] | None = None) -> int:
         core_nodes = _core_nodes(dump_dir)
         if core_nodes is None and gating == {"layer2": "human", "layer3": "human"}:
             print(f"label withheld: {LABEL_NEEDS_CORE_NODES} ({dump_dir})")
-        set_target_state(dump_dir, state="available", build_id=build_id, uri=uri, reason=None)
-        loading = False
         publication = {
             "chain_id": chain["chain_id"], "build_id": build_id, "published_at": datetime.now(UTC).isoformat(),
             "gating": gating, "label": whole_build_label(gating, bound, core_nodes), "gates": gates,
             "postload_gates": postload_gates, "manifests": _manifest_refs(bound),
         }
         chain_record = {**publication, **chain, "record_id": record_id}
-        # Everything is validated before the first write, so a schema failure
-        # leaves no publication artefact behind.
+        # Everything is validated before the target is declared available and
+        # before the first write, so a schema failure leaves no publication
+        # artefact behind and Neo4j marked unavailable, never available.
         try:
             check_schema("publication", publication)
             manifest = publication_manifest(publication, record_id=record_id, inputs=chain["inputs"],
                                             files={"layer1_dump": args.dump.name, "norms": args.norms.name,
                                                    "alignments": args.alignments.name if args.alignments else None})
         except PublicationError as exc:
-            return fail(f"NOT published: the publication does not validate: {exc}", gates + postload_gates)
+            reason = f"the publication does not validate: {exc}"
+            set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+            loading = False
+            return fail(f"NOT published: {reason}", gates + postload_gates)
+        set_target_state(dump_dir, state="available", build_id=build_id, uri=uri, reason=None)
+        loading = False
         # Write order: the chain record, the record's publication block, the
         # publication manifest (activation consumes it, so it goes last and a
         # partial publication can never be activated), then the pointer.
@@ -310,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
         finish("done", gates=gates + postload_gates,
                outputs=[{"role": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
                counts={"nodes": nodes, "edges": edges})
-    except Exception as exc:
+    except BaseException as exc:  # an interrupt too: the target never stays loading, the execution never running
         error = f"{type(exc).__name__}: {exc}"
         if written:
             error += f"; already written, clean up by hand: {', '.join(written)}"

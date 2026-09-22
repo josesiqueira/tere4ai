@@ -250,6 +250,8 @@ def test_schema_invalid_publication_records_failed_and_writes_nothing(tmp_path, 
     assert not (tmp_path / "BUILD_CHAIN_CURRENT.txt").exists() and store.read(rid)["publication"] is None
     ex = store.read(rid)["executions"][-1]
     assert ex["status"] == "failed" and len(ex["gates"]) == 11
+    target = read_target_state(tmp_path)
+    assert target["state"] == "unavailable" and "does not validate" in target["reason"], "never available unpublished"
 
 
 NORM = {
@@ -347,3 +349,21 @@ def test_republishing_identical_inputs_is_refused_and_history_kept(tmp_path, mon
     child = next(r for r in store.list_records() if r.get("parent_record_id") == rid)
     assert child["executions"][-1]["status"] == "failed" and child["executions"][-1]["error"] == message
     assert read_target_state(tmp_path)["state"] == "available", "the target state of the first publication stands"
+
+
+def test_an_interrupt_during_the_load_leaves_the_target_unavailable_and_the_execution_failed(tmp_path, monkeypatch):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    driver = _fakes(monkeypatch, cli)
+
+    class InterruptedStore:
+        def load_dump(self, dump, driver):
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "GraphStore", InterruptedStore)
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)])
+    target = read_target_state(tmp_path)
+    assert target["state"] == "unavailable" and "KeyboardInterrupt" in target["reason"] and driver.closed
+    ex = store.read(rid)["executions"][-1]
+    assert ex["status"] == "failed" and "KeyboardInterrupt" in ex["error"]
