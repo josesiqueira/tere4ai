@@ -143,7 +143,7 @@ def build() -> str:
         HUMAN, "#231018", title_size=13)
 
     # Lane 2: mapping judge
-    lane_label(452, "BUILD TIME 2 - HLEG ETHICS ALIGNMENT  (align_hleg_altai/pipeline.py)")
+    lane_label(452, "BUILD TIME 2 - HLEG ETHICS ALIGNMENT  (align_hleg/pipeline.py)")
     y = 472
     box(40, y, 240, 124, "Accepted norm",
         ["only judge-accepted norms", "are ever aligned", "+ one of the 7 closed", "HLEG requirements"],
@@ -248,7 +248,7 @@ def build() -> str:
          "labeling (task 25); scores are recorded, not calibrated.",
          size=13, fill=MUTED)
     text(W / 2, 1556,
-         "Sources: extract_norms/pipeline.py, align_hleg_altai/pipeline.py, judge/runtime_grounding.py, "
+         "Sources: extract_norms/pipeline.py, align_hleg/pipeline.py, judge/runtime_grounding.py, "
          "judge/audit_log.py, prompts/. Regenerate: scripts/make_judge_diagram.py",
          size=12, fill=FAINT, style="italic")
 

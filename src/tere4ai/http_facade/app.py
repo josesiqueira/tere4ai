@@ -263,7 +263,7 @@ def _load_hleg_nodes() -> list[dict[str, Any]]:
     """The seven HLEG requirement nodes for target-side span resolution;
     empty when the frozen HLEG text or its checksum is unavailable."""
     try:
-        from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
+        from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 
         return build_hleg_nodes()
     except Exception:  # noqa: BLE001 - degrade to dump-only span resolution
@@ -593,7 +593,7 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             status_code=503,
             content={
                 "error": "alignments payload unavailable: missing or unreadable "
-                "alignments_core.json; build it with python -m tere4ai.align_hleg_altai"
+                "alignments_core.json; build it with python -m tere4ai.align_hleg"
             },
         )
 

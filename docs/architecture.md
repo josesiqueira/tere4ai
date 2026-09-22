@@ -456,7 +456,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   verify: src/canonicalize/ actor table; actor_inference test.
 - DEC-05: reified AlignmentAssertion nodes. grounded_by REF-24, REF-21, REF-10.
   Defense: a mapping is an auditable claim, not law; store-portable.
-  verify: src/align_hleg_altai/; query for accepted mapping without evidence returns zero.
+  verify: src/align_hleg/; query for accepted mapping without evidence returns zero.
 - DEC-06: dual/triple judges. grounded_by REF-16, REF-24, REF-27.
   Defense: unjudged legal grounding is only 50 to 68 percent correct.
   verify: src/judge/ three entry points; runtime_grounding test asserts no answer without a verdict.
@@ -617,7 +617,7 @@ tere4ai2/
   AGENTS.md  USER.md
   docs/            architecture.md  references.md  DESIGN.md  traceability.md (generated)
   src/tere4ai/     ingest/ parse_legal_structure/ resolve_crossrefs/
-                   extract_norms/ canonicalize/ align_hleg_altai/ judge/
+                   extract_norms/ canonicalize/ align_hleg/ judge/
                    validate_graph/ graph_store/ mcp_server/ http_facade/ eval/
   web/             Next.js demo UI (thin, read-only; per docs/DESIGN.md)
   schema/          json_schemas/ cypher_constraints/ rdf_export/

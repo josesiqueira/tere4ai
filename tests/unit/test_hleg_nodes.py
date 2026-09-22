@@ -5,7 +5,7 @@ from pathlib import Path
 
 from jsonschema import validate
 
-from tere4ai.align_hleg_altai.hleg_nodes import CANONICAL, build_hleg_nodes
+from tere4ai.align_hleg.hleg_nodes import CANONICAL, build_hleg_nodes
 
 ROOT = Path(__file__).resolve().parents[2]
 ALIGN_SCHEMA = json.loads(

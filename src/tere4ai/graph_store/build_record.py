@@ -322,7 +322,7 @@ def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
     another layer1.json is another assembly. An open descendant already
     continuing that record is reused before a new one is made. Returns the record id and a
     message to print, or None when nothing needs to be said. Shared by every
-    recording command (extract_norms, align_hleg_altai) so the rule and its
+    recording command (extract_norms, align_hleg) so the rule and its
     message stay in one place."""
     existing = store.resolve(ref)
     if existing is None:

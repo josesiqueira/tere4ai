@@ -33,7 +33,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tere4ai.align_hleg_altai.pipeline import _quote_found
+from tere4ai.align_hleg.pipeline import _quote_found
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import (
     _call_json_with_retry,

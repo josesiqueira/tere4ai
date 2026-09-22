@@ -5,7 +5,7 @@
  "base_build_id": "build-b",
  "created_at": "2026-09-19T00:00:00+00:00",
  "depends_on_state": {
-  "L2.3": "done_shared",
+  "L2.3": "inherited",
   "L3.4": "done",
   "L3.5": "not_started",
   "P.1": "done",
@@ -127,7 +127,7 @@
     "norms_core.reference.json"
    ],
    "checkpoint_file": "alignments_core.reference.checkpoint.jsonl",
-   "command": "align_hleg_altai",
+   "command": "align_hleg",
    "completed_keys": [
     "batch:0:n"
    ],
@@ -287,10 +287,10 @@
  "schema_version": "build_record.v1",
  "served": false,
  "steps": {
-  "L0.1": "done_shared",
-  "L1.1": "done_shared",
-  "L2.1": "done_shared",
-  "L2.2": "done_shared",
+  "L0.1": "inherited",
+  "L1.1": "inherited",
+  "L2.1": "inherited",
+  "L2.2": "inherited",
   "L2.3": "not_started",
   "L2.4": "done",
   "L3.1": "done",

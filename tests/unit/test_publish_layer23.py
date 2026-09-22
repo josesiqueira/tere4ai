@@ -296,7 +296,7 @@ def _align_fakes(monkeypatch, cli):
 
 def test_the_readme_intermediate_build_publishes_human_then_llm(tmp_path, monkeypatch):
     """Materialise the norms, align over the reference file, publish with the one Layer 2 manifest."""
-    import tere4ai.align_hleg_altai.__main__ as align_cli
+    import tere4ai.align_hleg.__main__ as align_cli
 
     layer1 = tmp_path / "layer1.json"
     layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))

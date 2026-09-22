@@ -19,7 +19,7 @@
     "norms_align-test.json"
    ],
    "checkpoint_file": "alignments_align-test.checkpoint.jsonl",
-   "command": "align_hleg_altai",
+   "command": "align_hleg",
    "completed_keys": [
     "batch:0:norm-a",
     "batch:1:norm-b",
@@ -137,7 +137,7 @@
     "--resume"
    ],
    "checkpoint_file": "alignments_align-test.checkpoint.jsonl",
-   "command": "align_hleg_altai",
+   "command": "align_hleg",
    "completed_keys": [
     "batch:3:norm-d",
     "batch:4:norm-e"
@@ -302,8 +302,8 @@
  "schema_version": "build_record.v1",
  "served": false,
  "steps": {
-  "L0.1": "done_shared",
-  "L1.1": "done_shared",
+  "L0.1": "inherited",
+  "L1.1": "inherited",
   "L2.1": "not_recorded",
   "L2.2": "not_recorded",
   "L2.3": "not_started",

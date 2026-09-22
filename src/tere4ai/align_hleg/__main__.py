@@ -1,4 +1,4 @@
-"""Build entry point: python -m tere4ai.align_hleg_altai --norms data/graph_dumps/norms_<slug>.json
+"""Build entry point: python -m tere4ai.align_hleg --norms data/graph_dumps/norms_<slug>.json
 
 @implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the L3.1 to L3.3 execution record)
 @grounded_by: REF-24, REF-21, REF-10, REF-16, ADD-20
@@ -20,8 +20,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
-from tere4ai.align_hleg_altai.pipeline import align_norms
+from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
+from tere4ai.align_hleg.pipeline import align_norms
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.extract_norms.pipeline import DEFAULT_DUMP_PATH, REPO_ROOT, load_prompt, prompt_sha256
 from tere4ai.graph_store.build_chain import sha256_of_file
@@ -63,7 +63,7 @@ def _usage_of(client: object) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m tere4ai.align_hleg_altai",
+        prog="python -m tere4ai.align_hleg",
         description="Judged alignment of accepted norms to the seven HLEG requirements (M2).",
     )
     parser.add_argument(
@@ -182,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
     judge = AnthropicJudge(cfg)
     hleg_nodes = build_hleg_nodes()
     run_id = store.start_execution(
-        record_id, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"],
+        record_id, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"],
         argv=list(sys.argv[1:] if argv is None else argv), inputs=inputs, config=config,
         expected_total=len(batches), work_unit="batches", checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),
         resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,

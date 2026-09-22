@@ -5,6 +5,21 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Vocabulary: `align_hleg` and the `inherited` step state (2026-09-23)
+- The Layer 3 command is `python -m tere4ai.align_hleg`, renamed from
+  `align_hleg_altai`. The graph aligns norms with the seven HLEG
+  requirements only: ALTAI items were planned behind a licence check that
+  never cleared and were never emitted, so the old name promised something
+  the build does not do. ALTAI stays a future option (thesis, 2026-09-23).
+  Build records store the new command name; no record on disk carried the
+  old one, and checkpoint paths derive from the output path, so the B74
+  resume is unaffected.
+- The step state `done_shared` is renamed `inherited` in the build record
+  contract (schema, the six fixtures, `GET /api/builds`): the build did not
+  run the step and uses the artefact a lineage record produced, which the
+  reason names by record id, resolved by the artefact digest, not by
+  position in the chain.
+
 ### Build records, materialisation, publication and activation (2026-09-22, B77 plan 2a)
 - Build records for every pipeline command with validated resume;
   `scripts/materialize_reference.py`; publication after the post-load gates

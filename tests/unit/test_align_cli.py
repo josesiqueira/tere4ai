@@ -42,7 +42,7 @@ def _fakes(monkeypatch, cli, batches):
 
 
 def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
-    import tere4ai.align_hleg_altai.__main__ as cli
+    import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, norms = _norms_file(tmp_path, 3)
     out = tmp_path / "alignments_test.json"
@@ -52,7 +52,7 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
     rid = store.create_record("test", "b", None)
     inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
               {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]
-    prev = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j"},
@@ -72,7 +72,7 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
 
 
 def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypatch):
-    import tere4ai.align_hleg_altai.__main__ as cli
+    import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, _ = _norms_file(tmp_path, 3)
     out = tmp_path / "alignments_test.json"
@@ -90,7 +90,7 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
 
 
 def test_align_over_a_materialised_file_joins_that_files_record(tmp_path, monkeypatch):
-    import tere4ai.align_hleg_altai.__main__ as cli
+    import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, _ = _norms_file(tmp_path, 2, name="norms_core.reference.json")
     out = tmp_path / "alignments_core.reference.json"
@@ -103,11 +103,11 @@ def test_align_over_a_materialised_file_joins_that_files_record(tmp_path, monkey
                            outputs=[{"role": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)])
     assert rc == 0
-    assert [e["command"] for e in store.read(rid)["executions"]] == ["materialize_reference", "align_hleg_altai"]
+    assert [e["command"] for e in store.read(rid)["executions"]] == ["materialize_reference", "align_hleg"]
 
 
 def test_align_stale_checkpoint_exit_2(tmp_path, monkeypatch, capsys):
-    import tere4ai.align_hleg_altai.__main__ as cli
+    import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, _ = _norms_file(tmp_path, 2)
     out = tmp_path / "alignments_test.json"
@@ -118,7 +118,7 @@ def test_align_stale_checkpoint_exit_2(tmp_path, monkeypatch, capsys):
 
 
 def test_align_never_overwrites_an_input_of_a_publication(tmp_path, monkeypatch, capsys):
-    import tere4ai.align_hleg_altai.__main__ as cli
+    import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, _ = _norms_file(tmp_path, 2)
     batches: list[int] = []
@@ -139,7 +139,7 @@ def test_align_never_overwrites_an_input_of_a_publication(tmp_path, monkeypatch,
 def test_resume_over_a_published_producer_continues_in_the_same_descendant(tmp_path, monkeypatch):
     import pytest
 
-    import tere4ai.align_hleg_altai.__main__ as cli
+    import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, _ = _norms_file(tmp_path, 3)
     out = tmp_path / "alignments_test.json"
@@ -174,7 +174,7 @@ def test_resume_over_a_published_producer_continues_in_the_same_descendant(tmp_p
 
 
 def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch, capsys):
-    import tere4ai.align_hleg_altai.__main__ as cli
+    import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, norms = _norms_file(tmp_path, 3)
     out = tmp_path / "alignments_test.json"
@@ -184,7 +184,7 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
     rid = store.create_record("test", "b", None)
     inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
               {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]
-    prev = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
                                  models={"generator_model": "g-old", "judge_model": "j"},

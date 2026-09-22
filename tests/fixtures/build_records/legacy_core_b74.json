@@ -226,7 +226,7 @@
   {
    "argv": null,
    "checkpoint_file": "alignments_core.b74.checkpoint.jsonl",
-   "command": "align_hleg_altai",
+   "command": "align_hleg",
    "completed_keys": [],
    "config": {},
    "counts": {},

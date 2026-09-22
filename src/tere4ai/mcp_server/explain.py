@@ -109,7 +109,7 @@ def _hleg_nodes() -> list[dict[str, Any]]:
     """The seven HLEG requirement nodes (deterministic, checksum-verified
     builder); empty when the frozen HLEG text is unavailable or drifted."""
     try:
-        from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
+        from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 
         return build_hleg_nodes()
     except Exception:  # noqa: BLE001 - degrade to dump-only span files

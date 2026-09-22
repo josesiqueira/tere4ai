@@ -69,8 +69,8 @@ def _fixture_norm() -> dict:
 
 
 def test_live_alignment_of_article_9_1_against_hleg():
-    from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
-    from tere4ai.align_hleg_altai.pipeline import align_norms
+    from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
+    from tere4ai.align_hleg.pipeline import align_norms
     from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
     from tere4ai.judge.config import load_model_config
 

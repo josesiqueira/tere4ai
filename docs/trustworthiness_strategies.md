@@ -104,7 +104,7 @@ merit, this document says so explicitly instead of inventing a citation.
 - Grounding: ADD-16, REF-24 as above; REF-10 (PEER, mapping sibling);
   quote verification grounded by ADD-18 (PEER, hallucination detection) and
   ADD-19 (PEER, faithfulness metrics).
-- Implementation: src/tere4ai/align_hleg_altai/pipeline.py:308-341 (verbatim
+- Implementation: src/tere4ai/align_hleg/pipeline.py:308-341 (verbatim
   quote gate BEFORE the judge; failures logged as mechanical:quote_check and
   never judged), :345-357 (verdict gate, relation-type correction against the
   closed set).
@@ -139,7 +139,7 @@ merit, this document says so explicitly instead of inventing a citation.
 - Grounding: ADD-18 (PEER, hallucination detection), ADD-19 (PEER), REF-16.
 - Implementation: src/tere4ai/mcp_server/evidence.py:196-212 (fabricated
   quotes dropped; a quote-bearing assessment with zero surviving quotes
-  downgrades to cannot_assess); align_hleg_altai/pipeline.py:82-86.
+  downgrades to cannot_assess); align_hleg/pipeline.py:82-86.
 - Tests: tests/unit/test_adversarial_evidence.py:99 (quotes drop even when the
   scripted judge is fooled), :113; tests/unit/test_evidence.py:136, :150.
 - See it: envelope answer.dropped_quotes.
@@ -177,7 +177,7 @@ merit, this document says so explicitly instead of inventing a citation.
 
 ### 12. Reified AlignmentAssertions (auditable claims, not truth edges) (DEC-05)
 - Grounding: REF-21 (PEER, edge-information tradeoff), REF-10 (PEER), REF-24.
-- Implementation: align_hleg_altai/pipeline.py:391-409;
+- Implementation: align_hleg/pipeline.py:391-409;
   graph_store/layer23.py:204-275 (no direct norm-to-HLEG edge exists);
   gate G4 validate_graph/gates.py:112-119.
 - Tests: tests/unit/test_align_hleg.py:150; tests/unit/test_validate_graph.py:40.

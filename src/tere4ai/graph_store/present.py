@@ -41,9 +41,9 @@ from tere4ai.graph_store.checkpoints import progress, read_checkpoint
 DEPENDS_ON = {"L1.1": "L0.1", "L2.1": "L1.1", "L2.2": "L2.1", "L2.3": "L2.2", "L2.4": "L2.3", "L3.1": "L2.2",
               "L3.2": "L3.1", "L3.3": "L3.2", "L3.4": "L3.3", "L3.5": "L3.4", "P.1": "L3.3", "P.2": "P.1"}
 RESULT_KEYS_OF = {"extract_norms": ("norms", "judge_runs", "stats"),
-                  "align_hleg_altai": ("assertions", "mapping_runs", "judge_runs", "stats")}
-KEY_FIELD_OF = {"extract_norms": "group", "align_hleg_altai": "batch"}
-MODEL_COMMANDS = ("extract_norms", "align_hleg_altai")
+                  "align_hleg": ("assertions", "mapping_runs", "judge_runs", "stats")}
+KEY_FIELD_OF = {"extract_norms": "group", "align_hleg": "batch"}
+MODEL_COMMANDS = ("extract_norms", "align_hleg")
 PARSE_STEPS = ("L0.1", "L1.1")
 
 NOT_RECORDED = "not recorded by the command"
@@ -199,7 +199,7 @@ class _Lineage:
                 if step in problems:
                     return "failed", problems[step]
                 if state == "done":
-                    return "done_shared", f"done in record {source_id}"
+                    return "inherited", f"done in record {source_id}"
                 return state, f"{state} in record {source_id}"
             deeper = self.resolve(source, step, seen | {source_id})
             if deeper is not None:
@@ -215,7 +215,7 @@ def step_states(record: dict[str, Any], store: BuildRecordStore | None, dump_dir
     covering a step decides it; a done execution whose artefact is missing or
     drifted renders its steps failed, with the cause written into reasons
     (when given). A step the record does not cover is resolved through its
-    lineage (_Lineage): done_shared naming the covering record only while
+    lineage (_Lineage): inherited naming the covering record only while
     that record's artefact stands, not_recorded when its input was produced
     before build records existed. Synthesised records read their digests
     from the artefacts themselves and are not re-verified."""
@@ -495,7 +495,7 @@ def _align_execution(payload: dict[str, Any], name: str, digest: str) -> dict[st
         rejects = None
     version = build.get("alignment_prompt_version")
     return _derived_execution(
-        "align_hleg_altai", ["L3.1", "L3.2", "L3.3"],
+        "align_hleg", ["L3.1", "L3.2", "L3.3"],
         models=build.get("alignment_models"), sampling=build.get("alignment_sampling"),
         usage=build.get("alignment_usage"),
         prompt_sha256={"generator": None, "judge": _first_judge_prompt(payload)},
@@ -593,7 +593,7 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
         else:
             keys = list(dict.fromkeys(e["batch"] for e in read.entries))
             executions.append(_derived_execution(
-                "align_hleg_altai", list(align_steps), status="running",
+                "align_hleg", list(align_steps), status="running",
                 checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir), work_unit="batches",
                 expected_total=None, inherited_keys=keys, inherited_from="legacy",
             ))

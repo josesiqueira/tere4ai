@@ -96,7 +96,7 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     inputs = [{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)},
               {"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}]
     rid = store.create_record("align-test", BASE, layer1_digest)
-    common = {"command": "align_hleg_altai", "covers_steps": ["L3.1", "L3.2", "L3.3"], "inputs": inputs,
+    common = {"command": "align_hleg", "covers_steps": ["L3.1", "L3.2", "L3.3"], "inputs": inputs,
               "config": {"batch_size": 20, "prompt_version": "v1"}, "expected_total": 5, "work_unit": "batches",
               "checkpoint_file": "alignments_align-test.checkpoint.jsonl",
               "models": {"generator_model": "g", "judge_model": "j"},
@@ -215,7 +215,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
         counts={"source_units": 1, "candidates": 1, "verdicts": {"accepted": 1}, "invalid_norms_count": 0},
         work_failures={"nodes_failed": 0, "norms_failed": 0},
     )
-    align_common = {"command": "align_hleg_altai", "covers_steps": ["L3.1", "L3.2", "L3.3"],
+    align_common = {"command": "align_hleg", "covers_steps": ["L3.1", "L3.2", "L3.3"],
                     "config": {"batch_size": 20, "prompt_version": "v1"}, "expected_total": 1,
                     "work_unit": "batches", "models": MODELS, "prompt_sha256": prompts, "sampling": sampling}
     align_counts = {"norms_total": 1, "norms_skipped_not_accepted": 0, "zero_alignment_norms": 0, "candidates": 1,

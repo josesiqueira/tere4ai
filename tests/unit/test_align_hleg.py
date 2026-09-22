@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from tere4ai.align_hleg_altai.pipeline import MECHANICAL_JUDGE_MODEL, align_norms
+from tere4ai.align_hleg.pipeline import MECHANICAL_JUDGE_MODEL, align_norms
 from tere4ai.extract_norms.model_clients import FakeClient
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

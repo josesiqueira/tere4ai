@@ -1,6 +1,6 @@
 """Tests for the Layer 2/3 graph adapter (persistence of norms and alignments)."""
 
-from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
+from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph
 from tere4ai.graph_store.store import EDGE_TYPES, NODE_LABELS, GraphStore
 

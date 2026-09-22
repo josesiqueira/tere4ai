@@ -214,7 +214,7 @@ const NOTICE =
 
 /* The seven HLEG Trustworthy AI requirements are a closed canonical set
    (USER.md domain guardrails). Ids and labels below are exactly those of
-   the graph build (align_hleg_altai/hleg_nodes.py CANONICAL, over the
+   the graph build (align_hleg/hleg_nodes.py CANONICAL, over the
    frozen 2019 HLEG guidelines text). An id outside this map falls back to
    the raw id; a name is never invented. */
 const HLEG_LABELS: Record<string, string> = {

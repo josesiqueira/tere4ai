@@ -50,7 +50,7 @@ EJ -->|accepted| PUB
 EJ -->|rejected| EXC
 EJ -->|"needs review / unusable output"| HRQ1
 
-subgraph LANE2["BUILD TIME 2: HLEG ETHICS ALIGNMENT (align_hleg_altai/pipeline.py)"]
+subgraph LANE2["BUILD TIME 2: HLEG ETHICS ALIGNMENT (align_hleg/pipeline.py)"]
   direction LR
   AN["Accepted norm<br/>only judge-accepted norms are ever aligned<br/>+ one of the 7 closed HLEG requirements"]
   GEN2["Generator (OpenAI)<br/>proposes up to 3 candidate alignments,<br/>each with a source quote AND a target quote<br/>(evidence both sides)"]

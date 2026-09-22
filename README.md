@@ -234,7 +234,7 @@ manifest from the dashboard, copy the manifest into `data/graph_dumps/`
 
     .venv/bin/python scripts/materialize_reference.py --pristine data/graph_dumps/norms_core.json \
         --decisions <decisions.json> --manifest <freeze-manifest.json>
-    python -m tere4ai.align_hleg_altai --norms data/graph_dumps/norms_core.reference.json
+    python -m tere4ai.align_hleg --norms data/graph_dumps/norms_core.reference.json
     .venv/bin/python scripts/publish_layer23.py --norms data/graph_dumps/norms_core.reference.json \
         --alignments data/graph_dumps/alignments_core.reference.json --manifest data/graph_dumps/<freeze-manifest.json>
     .venv/bin/python scripts/activate_build.py <chain id printed by publish>

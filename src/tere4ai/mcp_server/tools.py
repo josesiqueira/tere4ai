@@ -274,7 +274,7 @@ def coverage_report(
     presence of the Section 10 high-risk core article set.
 
     When the judged M2 build artifacts are passed (norms_payload from
-    extract_norms, alignments_payload from align_hleg_altai), the layer 2 and
+    extract_norms, alignments_payload from align_hleg), the layer 2 and
     3 blocks report the real judged counts with verdict breakdowns instead of
     the dump-derived zeros.
     """

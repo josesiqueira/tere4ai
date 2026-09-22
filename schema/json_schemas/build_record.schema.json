@@ -63,7 +63,7 @@
       "required": ["L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.3", "L3.4", "L3.5", "P.1", "P.2"]
     },
     "stepState": {
-      "enum": ["done", "done_shared", "running", "failed", "not_started", "not_recorded"]
+      "enum": ["done", "inherited", "running", "failed", "not_started", "not_recorded"]
     },
     "provenanceValue": {
       "enum": ["recorded", "derived", "unavailable"]

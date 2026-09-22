@@ -278,13 +278,13 @@ def test_context_for_is_not_a_hierarchy_edge_and_recitals_stay_context_only(dump
 
 @pytest.fixture(scope="module")
 def subtopics():
-    from tere4ai.align_hleg_altai.hleg_subtopics import build_hleg_subtopics
+    from tere4ai.align_hleg.hleg_subtopics import build_hleg_subtopics
 
     return build_hleg_subtopics()
 
 
 def test_subtopic_count_and_closed_parents(subtopics):
-    from tere4ai.align_hleg_altai.hleg_nodes import CANONICAL
+    from tere4ai.align_hleg.hleg_nodes import CANONICAL
 
     nodes = subtopics["nodes"]
     assert len(nodes) >= 10
@@ -327,7 +327,7 @@ def test_has_subtopic_edges(subtopics):
 def test_ambiguous_headings_are_skipped_and_reported(subtopics):
     """Never guess: candidates failing the strict heading test are excluded
     from the nodes and recorded in the module-level report."""
-    from tere4ai.align_hleg_altai.hleg_subtopics import SKIPPED_REPORT
+    from tere4ai.align_hleg.hleg_subtopics import SKIPPED_REPORT
 
     skipped = subtopics["skipped"]
     assert skipped == SKIPPED_REPORT
@@ -345,7 +345,7 @@ def test_ambiguous_headings_are_skipped_and_reported(subtopics):
 
 
 def test_subtopics_deterministic(subtopics):
-    from tere4ai.align_hleg_altai.hleg_subtopics import build_hleg_subtopics
+    from tere4ai.align_hleg.hleg_subtopics import build_hleg_subtopics
 
     assert build_hleg_subtopics() == subtopics
 
@@ -420,7 +420,7 @@ def test_no_model_calls_in_new_modules():
         "parse_legal_structure/definitions.py",
         "parse_legal_structure/subparagraphs.py",
         "parse_legal_structure/recital_links.py",
-        "align_hleg_altai/hleg_subtopics.py",
+        "align_hleg/hleg_subtopics.py",
     )
     for mod in modules:
         src = (ROOT / "src" / "tere4ai" / mod).read_text(encoding="utf-8")

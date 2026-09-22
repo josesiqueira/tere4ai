@@ -303,7 +303,7 @@ def test_resolve_span_envelope_known_and_unknown(dump, node_ids):
 
 
 def test_resolve_span_extra_nodes_cover_hleg_spans(dump):
-    from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
+    from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 
     hleg_nodes = build_hleg_nodes()
     resolved = resolve_span(

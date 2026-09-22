@@ -36,8 +36,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes  # noqa: E402
-from tere4ai.align_hleg_altai.hleg_subtopics import build_hleg_subtopics  # noqa: E402
+from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes  # noqa: E402
+from tere4ai.align_hleg.hleg_subtopics import build_hleg_subtopics  # noqa: E402
 from tere4ai.graph_store.build_chain import (  # noqa: E402
     build_chain,
     chained_build_id,

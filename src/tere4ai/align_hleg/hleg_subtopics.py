@@ -37,7 +37,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from tere4ai.align_hleg_altai.hleg_nodes import (
+from tere4ai.align_hleg.hleg_nodes import (
     _HEADING,
     CANONICAL,
     DEFAULT_MANIFEST,

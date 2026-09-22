@@ -30,7 +30,7 @@ def test_list_and_detail_validate_and_carry_liveness_progress_and_target(tmp_pat
     _legacy_dumps(tmp_path)
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core.b74", "build-b", "x")
-    run = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=["--norms", "n"],
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=["--norms", "n"],
         inputs=[], config={"batch_size": 20}, expected_total=26, work_unit="batches",
         checkpoint_file="alignments_core.b74.checkpoint.jsonl")
     (tmp_path / "alignments_core.b74.checkpoint.jsonl").write_text("".join(

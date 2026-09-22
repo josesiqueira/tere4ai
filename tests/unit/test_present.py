@@ -33,7 +33,7 @@ def test_steps_prefer_the_newest_execution_and_share_the_parse(tmp_path):
                                    expected_total=2, work_unit="groups", checkpoint_file="norms_core.checkpoint.jsonl",
                                    resumes_run_id=first, inherited_from=first)
     steps, depends, parse_id = step_states(store.read(rid), store, tmp_path)
-    assert steps["L2.1"] == "running" and steps["L0.1"] == "done_shared" and parse_id == parse
+    assert steps["L2.1"] == "running" and steps["L0.1"] == "inherited" and parse_id == parse
     assert steps["L3.1"] == "not_started"
     assert depends["L3.1"] == "running"
     assert "L1.1" not in depends, "a shared parse step is done, not pending"
@@ -64,7 +64,7 @@ def test_done_needs_the_artefact_with_the_recorded_digest(tmp_path):
 def test_present_marks_recorded_unavailable_and_derived(tmp_path):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core", "b", None)
-    run = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=["--norms", "n"],
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=["--norms", "n"],
                                 inputs=[], config={"batch_size": 20}, expected_total=26, work_unit="batches",
                                 checkpoint_file="alignments_core.checkpoint.jsonl")
     ck = tmp_path / "alignments_core.checkpoint.jsonl"
@@ -109,11 +109,11 @@ def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_pat
     assert ex["run_id"] is None and ex["models"] == {"generator_model": "g", "judge_model": "j"} and ex["usage"] is None
     assert ex["prompt_sha256"] == {"generator": None, "judge": "abc"} and ex["counts"]["candidates"] == 442
     b74 = records["core.b74"]
-    align = next(e for e in b74["executions"] if e["command"] == "align_hleg_altai")
+    align = next(e for e in b74["executions"] if e["command"] == "align_hleg")
     assert align["status"] == "running" and align["heartbeat_at"] is None and align["inherited_from"] == "legacy"
     assert len(align["inherited_keys"]) == 15 and align["expected_total"] is None and b74["publication"] is None
     p = present_record(b74, tmp_path, NOW, full["chain_id"], None)
-    ex = next(e for e in p["executions"] if e["command"] == "align_hleg_altai")
+    ex = next(e for e in p["executions"] if e["command"] == "align_hleg")
     assert ex["liveness"] == "unknown" and ex["progress"] == {"completed": 15, "expected_total": None, "work_unit": "batches", "inherited": 15, "source": "checkpoint"}
     assert ex["provenance"]["run_id"] == "unavailable" and ex["reasons"]["run_id"] == "not recorded before DEC-16"
     assert ex["provenance"]["inherited_keys"] == "derived" and p["steps"]["P.1"] == "not_recorded"
@@ -160,7 +160,7 @@ def _out(tmp_path, name, role, text):
     return {"role": role, "file": name, "sha256": sha256_of_file(tmp_path / name)}
 
 
-def test_lineage_steps_are_done_shared_only_while_the_ancestor_artefact_stands(tmp_path):
+def test_lineage_steps_are_inherited_only_while_the_ancestor_artefact_stands(tmp_path):
     store = BuildRecordStore(tmp_path)
     layer1 = _out(tmp_path, "layer1.json", "layer1_dump", "{}")
     parent = store.create_record("core", "b", layer1["sha256"])
@@ -172,15 +172,15 @@ def test_lineage_steps_are_done_shared_only_while_the_ancestor_artefact_stands(t
     ref = _out(tmp_path, "norms_core.reference.json", "norms_reference", '{"norms": [1]}')
     _done(store, child, "materialize_reference", ["L2.4"], [ref], inputs=[{**norms, "role": "norms"}])
     align = _out(tmp_path, "alignments_core.reference.json", "alignments", '{"assertions": []}')
-    _done(store, child, "align_hleg_altai", ["L3.1", "L3.2", "L3.3"], [align], inputs=[{**ref, "role": "norms"}])
+    _done(store, child, "align_hleg", ["L3.1", "L3.2", "L3.3"], [align], inputs=[{**ref, "role": "norms"}])
 
     reasons: dict = {}
     steps, depends, parse_id = step_states(store.read(child), store, tmp_path, reasons)
-    assert [steps[s] for s in ("L0.1", "L1.1", "L2.1", "L2.2")] == ["done_shared"] * 4 and parse_id == parent
+    assert [steps[s] for s in ("L0.1", "L1.1", "L2.1", "L2.2")] == ["inherited"] * 4 and parse_id == parent
     assert all(reasons[s] == f"done in record {parent}" for s in ("L0.1", "L1.1", "L2.1", "L2.2"))
     assert steps["L2.4"] == steps["L3.3"] == "done" and steps["L2.3"] == "not_started"
     assert steps["P.1"] == steps["P.2"] == "not_started", "a publication is never inherited"
-    assert depends["P.1"] == "done" and depends["P.2"] == "not_started" and depends["L2.3"] == "done_shared"
+    assert depends["P.1"] == "done" and depends["P.2"] == "not_started" and depends["L2.3"] == "inherited"
 
     (tmp_path / "norms_core.json").unlink()
     reasons = {}
@@ -191,7 +191,7 @@ def test_lineage_steps_are_done_shared_only_while_the_ancestor_artefact_stands(t
     empty = store.create_record("core.next", "b", layer1["sha256"], parent_record_id=parent)
     reasons = {}
     steps = step_states(store.read(empty), store, tmp_path, reasons)[0]
-    assert steps["L1.1"] == "done_shared" and steps["L2.1"] == "failed" and steps["L3.1"] == "not_started"
+    assert steps["L1.1"] == "inherited" and steps["L2.1"] == "failed" and steps["L3.1"] == "not_started"
 
 
 def test_an_input_without_a_producing_record_is_not_recorded(tmp_path):
@@ -199,7 +199,7 @@ def test_an_input_without_a_producing_record_is_not_recorded(tmp_path):
     (tmp_path / "layer1.json").write_text("{}")
     norms = _out(tmp_path, "norms_core.b74.json", "norms", '{"norms": []}')
     rid = store.create_record("core.b74", "b", sha256_of_file(tmp_path / "layer1.json"))
-    run = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                 inputs=[norms], config={}, expected_total=26, work_unit="batches", checkpoint_file=None)
     assert run
     reasons: dict = {}

@@ -199,7 +199,7 @@ def _norms_missing_envelope() -> dict[str, Any]:
 def _alignments_missing_envelope() -> dict[str, Any]:
     return tools.dump_unavailable_envelope(
         f"judged alignments payload '{ALIGNMENTS_PATH.name}' not available; "
-        "build it with python -m tere4ai.align_hleg_altai"
+        "build it with python -m tere4ai.align_hleg"
     )
 
 
@@ -331,7 +331,7 @@ def _hleg_nodes() -> list[dict[str, Any]]:
     """The seven HLEG requirement nodes (target-side spans live outside the
     Layer 0+1 dump); empty when the frozen HLEG text is unavailable."""
     try:
-        from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
+        from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 
         return build_hleg_nodes()
     except Exception:  # noqa: BLE001 - degrade to dump-only span resolution

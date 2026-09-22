@@ -50,7 +50,7 @@ def test_list_fixture_validates():
 
 def test_fixtures_state_the_honesty_rules():
     b74 = json.loads((FIXTURES / "legacy_core_b74.json").read_text())
-    align = next(e for e in b74["executions"] if e["command"] == "align_hleg_altai")
+    align = next(e for e in b74["executions"] if e["command"] == "align_hleg")
     assert align["status"] == "running" and align["liveness"] == "unknown"
     assert align["progress"]["expected_total"] is None and align["progress"]["completed"] == 15
     assert align["provenance"]["run_id"] == "unavailable" and align["provenance"]["inherited_keys"] == "derived"
@@ -61,7 +61,7 @@ def test_fixtures_state_the_honesty_rules():
     assert "predates the load" in core["reasons"]["P.2"] and "G1 to G6" in core["reasons"]["P.1"]
     mid = json.loads((FIXTURES / "intermediate_build.json").read_text())
     parent = mid["parent_record_id"]
-    assert all(mid["steps"][s] == "done_shared" and mid["reasons"][s] == f"done in record {parent}"
+    assert all(mid["steps"][s] == "inherited" and mid["reasons"][s] == f"done in record {parent}"
                for s in ("L0.1", "L1.1", "L2.1", "L2.2"))
     assert all(mid["steps"][s] == "done" for s in ("L2.4", "L3.1", "L3.2", "L3.3"))
     assert mid["steps"]["P.1"] == mid["steps"]["P.2"] == "not_started" and mid["publication"] is None
