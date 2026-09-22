@@ -253,11 +253,13 @@ def main(argv: list[str] | None = None) -> int:
             record_id, run_id, status="done",
             outputs=[{"role": "alignments", "file": relative_to_dump_dir(out_path, dump_dir),
                      "sha256": sha256_of_file(out_path)}],
-            counts={"norms_total": stats.get("norms_total", 0),
-                    "norms_skipped_not_accepted": stats.get("norms_skipped_not_accepted", 0),
-                    "zero_alignment_norms": stats.get("zero_alignment_norms", 0),
-                    "candidates": stats.get("candidates", 0), "verdicts": stats.get("verdicts", {}),
-                    "mechanical_rejects_count": len(stats.get("mechanical_rejects", []))},
+            # A count the stats do not hold is null, never zero (D-G25).
+            counts={"norms_total": stats.get("norms_total"),
+                    "norms_skipped_not_accepted": stats.get("norms_skipped_not_accepted"),
+                    "zero_alignment_norms": stats.get("zero_alignment_norms"),
+                    "candidates": stats.get("candidates"), "verdicts": stats.get("verdicts"),
+                    "mechanical_rejects_count": (len(stats["mechanical_rejects"])
+                                                 if isinstance(stats.get("mechanical_rejects"), list) else None)},
             usage=usage(), sampling=out_payload["build"]["alignment_sampling"], completed_keys=completed,
             work_failures={"nodes_failed": 0, "norms_failed": len(stats.get("norms_failed", []))},
         )

@@ -85,6 +85,8 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
     assert ex["covers_steps"] == ["L3.1", "L3.2", "L3.3"] and ex["expected_total"] == 2 and ex["config"]["batch_size"] == 2
     assert {i["role"] for i in ex["inputs"]} == {"norms", "layer1_dump"} and ex["counts"]["mechanical_rejects_count"] == 0
     assert ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0} and ex["prompt_sha256"]["judge"]
+    assert ex["counts"]["norms_total"] == 3 and ex["counts"]["candidates"] is None, "a count the stats lack is null"
+    assert ex["counts"]["norms_skipped_not_accepted"] is None and ex["counts"]["zero_alignment_norms"] is None
 
 
 def test_align_over_a_materialised_file_joins_that_files_record(tmp_path, monkeypatch):
