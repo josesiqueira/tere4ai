@@ -74,8 +74,15 @@ def verify_freeze_manifest(manifest: dict[str, Any], decisions_path: Path | str 
 
 
 def already_materialised(payload: dict[str, Any]) -> bool:
-    if isinstance(payload.get("build"), dict) and payload["build"].get("reference"):
-        return True
+    """True when the payload carries human decisions: its own reference block
+    (for an alignments payload, one of kind alignments only; an upstream norms
+    marker is not its own) or an item with a human_review record."""
+    build = payload.get("build") if isinstance(payload.get("build"), dict) else {}
+    ref = build.get("reference")
+    if ref:
+        is_alignments = "assertions" in payload and "norms" not in payload
+        if not is_alignments or (isinstance(ref, dict) and ref.get("kind") == "alignments"):
+            return True
     items = payload.get("norms") or payload.get("assertions") or []
     return any(isinstance(i, dict) and i.get("human_review") for i in items)
 

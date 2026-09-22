@@ -13,6 +13,7 @@ import pytest
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.publication import read_target_state
+from tere4ai.review_queue.materialize import already_materialised
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -249,3 +250,80 @@ def test_schema_invalid_publication_records_failed_and_writes_nothing(tmp_path, 
     assert not (tmp_path / "BUILD_CHAIN_CURRENT.txt").exists() and store.read(rid)["publication"] is None
     ex = store.read(rid)["executions"][-1]
     assert ex["status"] == "failed" and len(ex["gates"]) == 11
+
+
+NORM = {
+    "norm_id": "norm:eu-ai-act:article-9:paragraph-1:n1", "layer": 2, "type": "NormativeStatement",
+    "source_node_id": "eu-ai-act:article-9:paragraph-1", "source_span_id": "span:x", "deontic_type": "obligation",
+    "modal": "shall", "actor_explicit": "providers", "actor_inferred": None, "actor_inference_source_node_id": None,
+    "action": "establish", "object": "a risk management system", "conditions": [], "exceptions": [],
+    "condition_ids": [], "exception_ids": [], "lifecycle_phase_ids": [], "extraction_method": "llm_extract_v1",
+    "extractor_model": "g", "extractor_prompt_version": "v1", "confidence": 0.9, "judge_verdict": "accepted",
+    "judge_run_id": "judgerun:x", "review_status": "accepted", "source_text": "t",
+}
+PINNED = "build-b+chain-000000000000"
+
+
+def _script(name):
+    spec = importlib.util.spec_from_file_location(f"{name}_w3", ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _align_fakes(monkeypatch, cli):
+    def fake_align(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+        return {"assertions": [{"id": f"align:{c['norm_id']}"} for c in chunk], "mapping_runs": [], "judge_runs": [],
+                "stats": {"norms_total": len(chunk), "verdicts": {"accepted": len(chunk)}, "mechanical_rejects": []}}
+
+    class FakeCfg:
+        def as_public_dict(self):
+            return {"generator_model": "g", "judge_model": "j"}
+
+    class FakeClient:
+        sampling = "0"
+        usage = {"calls": 1, "input_tokens": 1, "output_tokens": 1}
+
+    monkeypatch.setattr(cli, "align_norms", fake_align)
+    monkeypatch.setattr(cli, "load_model_config", lambda: FakeCfg())
+    monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg: FakeClient())
+    monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg: FakeClient())
+    monkeypatch.setattr(cli, "build_hleg_nodes", lambda: [])
+    monkeypatch.setattr(cli, "load_prompt", lambda kind, version: f"{kind}-{version}")
+
+
+def test_the_readme_intermediate_build_publishes_human_then_llm(tmp_path, monkeypatch):
+    """Materialise the norms, align over the reference file, publish with the one Layer 2 manifest."""
+    import tere4ai.align_hleg_altai.__main__ as align_cli
+
+    layer1 = tmp_path / "layer1.json"
+    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    pristine = tmp_path / "norms_core.json"
+    pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}))
+    decisions = tmp_path / "decisions.json"
+    decisions.write_text(json.dumps({NORM["norm_id"]: {"decision": "reject", "rationale": "not a norm",
+                                                       "reviewer": "adj", "decided_at": "t"}}))
+    freeze = tmp_path / "freeze-f1.json"
+    freeze.write_text(json.dumps({
+        "schema_version": "freeze_manifest.v1", "campaign_type": "layer2_annotation", "campaign_id": "c1",
+        "freeze_id": "f1", "stage": "production", "round": None, "pinned_build_id": PINNED, "guideline_version": "v1",
+        "scope_core_nodes": ["eu-ai-act:article-9"], "units_in_scope": 1, "units_adjudicated": 1, "units_undecided": 0,
+        "rows_included": ["row1"], "decisions_sha256": sha256_of_file(decisions), "frozen_at": "t"}))
+    assert _script("materialize_reference").main(["--pristine", str(pristine), "--decisions", str(decisions),
+                                                  "--manifest", str(freeze), "--source-build-id", PINNED]) == 0
+    reference = tmp_path / "norms_core.reference.json"
+    _align_fakes(monkeypatch, align_cli)
+    aligned = tmp_path / "alignments_core.reference.json"
+    assert align_cli.main(["--norms", str(reference), "--dump", str(layer1), "--out", str(aligned)]) == 0
+    build = json.loads(aligned.read_text())["build"]
+    assert "reference" not in build and build["norms_reference"]["freeze_id"] == "f1"
+    assert not already_materialised(json.loads(aligned.read_text())), "the alignments carry no decision of their own"
+
+    cli = _publish()
+    _fakes(monkeypatch, cli)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(reference), "--alignments", str(aligned),
+                   "--manifest", str(freeze), "--dump-dir", str(tmp_path)])
+    assert rc == 0
+    chain = json.loads(next(tmp_path.glob("build_chain_*.json")).read_text())
+    assert chain["gating"] == {"layer2": "human", "layer3": "llm"} and chain["label"] is None
+    assert [m["freeze_id"] for m in chain["manifests"]] == ["f1"]

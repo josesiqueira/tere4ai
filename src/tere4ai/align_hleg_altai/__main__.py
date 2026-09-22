@@ -205,9 +205,16 @@ def main(argv: list[str] | None = None) -> int:
                     for k, v in value.items():
                         bucket[k] = bucket.get(k, 0) + v
 
+        # The norms file's own reference block (a materialised Layer 2) is
+        # upstream provenance, kept under norms_reference: build.reference is
+        # written only by materialisation of the alignments themselves, so a
+        # copied marker never reads as a Layer 3 decision (gating, binding).
+        upstream = dict(payload.get("build", {}))
+        norms_reference = upstream.pop("reference", None)
         out_payload = {
             "build": {
-                **payload.get("build", {}),
+                **upstream,
+                "norms_reference": norms_reference,
                 "alignment_models": cfg.as_public_dict(),
                 "alignment_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
                 "alignment_usage": usage(),

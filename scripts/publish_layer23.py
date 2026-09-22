@@ -81,6 +81,11 @@ def _manifest_refs(bound: list[dict]) -> list[dict]:
     return [{k: m[k] for k in MANIFEST_REF_KEYS} for m in bound]
 
 
+def _reference(payload: dict | None) -> dict | None:
+    ref = (payload or {}).get("build", {}).get("reference")
+    return ref if isinstance(ref, dict) else None
+
+
 def _core_nodes(dump_dir: Path) -> list[str] | None:
     core_path = dump_dir / "core_nodes.txt"
     if not core_path.is_file():
@@ -173,8 +178,10 @@ def main(argv: list[str] | None = None) -> int:
             if recorded is not None and recorded != norms_digest:
                 return fail("NOT published: alignments were computed over a different norms file than --norms")
         # (3) Every reference block bound to exactly one freeze manifest.
-        references = [p["build"]["reference"] for p in (norms_payload, alignments_payload)
-                      if p and p.get("build", {}).get("reference")]
+        # Each file's own reference block: the alignments' only when it is
+        # of kind alignments (an older file may carry a copied norms marker).
+        references = [ref for ref, kind in ((_reference(norms_payload), "norms"), (_reference(alignments_payload), "alignments"))
+                      if ref is not None and ref.get("kind") == kind]
         for m in args.manifest:
             if m.resolve().parent != dump_dir.resolve():
                 return fail(f"NOT published: copy the freeze manifest {m.name} into {dump_dir} first; "
