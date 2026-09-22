@@ -78,6 +78,13 @@ def test_whole_build_label_needs_both_layers_production_complete_and_in_scope():
     assert whole_build_label({"layer2": "human", "layer3": "human"}, [{**l2, "units_adjudicated": 0}, l3], core) is None
     assert whole_build_label({"layer2": "human", "layer3": "human"}, [{**l2, "scope_core_nodes": ["x"]}, l3], core) is None
     assert whole_build_label({"layer2": "human", "layer3": "human"}, [l2], core) is None, "one manifest cannot cover two layers"
+    assert whole_build_label({"layer2": "human", "layer3": "human"}, [l2, l3], None) is None, "no core_nodes.txt, no label"
+    wider = ["eu-ai-act:article-9", "eu-ai-act:article-10"]
+    assert whole_build_label({"layer2": "human", "layer3": "human"},
+                             [l2, {**l3, "scope_core_nodes": wider, "units_in_scope": 1}], core) is None
+    assert whole_build_label({"layer2": "human", "layer3": "human"},
+                             [{**l2, "scope_core_nodes": wider}, l3], wider) is None, "the two layers' scopes differ"
+    assert whole_build_label({"layer2": "llm", "layer3": "llm"}, [], None) == "llm-gated", "no scope evidence to check"
 
 
 def test_target_state_round_trip(tmp_path):

@@ -52,6 +52,7 @@ from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # n
 from tere4ai.graph_store.publication import (  # noqa: E402
     CURRENT_POINTER_FILENAME,
     GATES,
+    LABEL_NEEDS_CORE_NODES,
     POSTLOAD_GATES,
     PUBLICATIONS_DIRNAME,
     PublicationError,
@@ -273,11 +274,14 @@ def main(argv: list[str] | None = None) -> int:
             return fail("published data FAILED post-load validation: " + reason, gates + postload_gates)
 
         # (7) Only now does the build exist as a published one (D-G21).
+        core_nodes = _core_nodes(dump_dir)
+        if core_nodes is None and gating == {"layer2": "human", "layer3": "human"}:
+            print(f"label withheld: {LABEL_NEEDS_CORE_NODES} ({dump_dir})")
         set_target_state(dump_dir, state="available", build_id=build_id, uri=uri, reason=None)
         loading = False
         publication = {
             "chain_id": chain["chain_id"], "build_id": build_id, "published_at": datetime.now(UTC).isoformat(),
-            "gating": gating, "label": whole_build_label(gating, bound, _core_nodes(dump_dir)), "gates": gates,
+            "gating": gating, "label": whole_build_label(gating, bound, core_nodes), "gates": gates,
             "postload_gates": postload_gates, "manifests": _manifest_refs(bound),
         }
         chain_record = {**publication, **chain, "record_id": record_id}

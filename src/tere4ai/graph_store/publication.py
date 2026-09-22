@@ -191,24 +191,30 @@ def bind_manifests(references: list[dict[str, Any]], manifests: list[dict[str, A
     return bound
 
 
-def _complete_production(m: dict[str, Any], core_nodes: list[str] | None) -> bool:
+def _complete_production(m: dict[str, Any], core_nodes: list[str]) -> bool:
     if m.get("stage") != "production" or m.get("units_undecided") != 0:
         return False
     if m.get("units_adjudicated") is None or m.get("units_adjudicated") != m.get("units_in_scope"):
         return False
-    if core_nodes is not None and sorted(m.get("scope_core_nodes") or []) != sorted(core_nodes):
-        return False
-    return True
+    return sorted(m.get("scope_core_nodes") or []) == sorted(core_nodes)
+
+
+LABEL_NEEDS_CORE_NODES = "core_nodes.txt is missing from the dump directory: the whole declared core scope cannot be verified"
 
 
 def whole_build_label(gating: dict[str, str], bound: list[dict[str, Any]], core_nodes: list[str] | None) -> str | None:
-    """llm-gated, human-adjudicated, or None (an intermediate or norms-only build)."""
+    """llm-gated, human-adjudicated, or None (an intermediate or norms-only
+    build). The human-adjudicated label fails closed: it needs the declared
+    core scope (core_nodes.txt), both layers' freezes complete in production
+    and both scopes equal to each other and to that core scope."""
     if gating == {"layer2": "llm", "layer3": "llm"}:
         return "llm-gated"
-    if gating != {"layer2": "human", "layer3": "human"}:
+    if gating != {"layer2": "human", "layer3": "human"} or core_nodes is None:
         return None
     by_layer = {m["layer"]: m for m in bound}
     if set(by_layer) != {2, 3}:
+        return None
+    if sorted(by_layer[2].get("scope_core_nodes") or []) != sorted(by_layer[3].get("scope_core_nodes") or []):
         return None
     return "human-adjudicated" if all(_complete_production(by_layer[layer], core_nodes) for layer in (2, 3)) else None
 
