@@ -163,17 +163,23 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if message:
         print(message)
+    # The models and prompt texts a resume must share with the run it
+    # inherits from (D-G20): known before the checkpoint is judged.
+    cfg = load_model_config()
+    models = cfg.as_public_dict()
+    prompts = {"generator": prompt_sha256(load_prompt(GENERATOR_PROMPT_KIND, args.prompt_version)),
+               "judge": prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, args.prompt_version))}
     try:
         plan = prepare_resume(checkpoint_path, "group", RESULT_KEYS, resume=args.resume,
                               accept_legacy=args.accept_legacy_checkpoint, store=store, record_id=record_id,
-                              expected_config=config, expected_inputs=inputs)
+                              expected_config=config, expected_inputs=inputs, expected_models=models,
+                              expected_prompt_sha256=prompts)
     except CheckpointError as exc:
         print(f"refusing to start: {exc}", file=sys.stderr)
         return 2
     if plan.inherited_keys:
         print(f"resume: {len(plan.inherited_keys)} group(s) inherited from {plan.inherited_from}")
 
-    cfg = load_model_config()
     generator = OpenAIGenerator(cfg)
     judge = AnthropicJudge(cfg)
     run_id = store.start_execution(
@@ -182,9 +188,7 @@ def main(argv: list[str] | None = None) -> int:
         expected_total=len(node_ids), work_unit="groups",
         checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),
         resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,
-        models=cfg.as_public_dict(),
-        prompt_sha256={"generator": prompt_sha256(load_prompt(GENERATOR_PROMPT_KIND, args.prompt_version)),
-                       "judge": prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, args.prompt_version))},
+        models=models, prompt_sha256=prompts,
         sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
     )
 

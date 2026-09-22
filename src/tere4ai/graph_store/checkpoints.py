@@ -121,7 +121,11 @@ def _digests(inputs: list[dict[str, Any]]) -> dict[str, str]:
 
 def prepare_resume(path: Path, key_field: str, result_keys: tuple[str, ...], *, resume: bool, accept_legacy: bool,
                    store: BuildRecordStore, record_id: str | None, expected_config: dict[str, Any],
-                   expected_inputs: list[dict[str, Any]]) -> ResumePlan:
+                   expected_inputs: list[dict[str, Any]], expected_models: dict[str, Any] | None = None,
+                   expected_prompt_sha256: dict[str, Any] | None = None) -> ResumePlan:
+    """Plan a resume from the checkpoint, refusing lines written under another
+    configuration, other input digests, other models or other prompt texts
+    (sampling is recorded per execution, not compared)."""
     plan = ResumePlan()
     if not path.is_file() or path.stat().st_size == 0:
         return plan
@@ -153,6 +157,16 @@ def prepare_resume(path: Path, key_field: str, result_keys: tuple[str, ...], *, 
         differing = sorted(r for r in set(theirs) | set(ours) if theirs.get(r) != ours.get(r))
         if differing:
             raise IncompatibleCheckpointError(f"{path.name}: run {run_id} used different inputs: {', '.join(differing)}")
+        for name, expected in (("models", expected_models), ("prompt_sha256", expected_prompt_sha256)):
+            recorded = ex.get(name)
+            if recorded != expected:
+                if isinstance(recorded, dict) and isinstance(expected, dict):
+                    keys = sorted(k for k in set(recorded) | set(expected) if recorded.get(k) != expected.get(k))
+                else:
+                    keys = ["recorded" if recorded is not None else "not recorded"]
+                raise IncompatibleCheckpointError(
+                    f"{path.name}: run {run_id} used different {name}: {', '.join(keys)}"
+                )
     plan.entries_by_key = unique_results(read.entries, key_field)
     plan.inherited_keys = list(plan.entries_by_key)
     plan.resumes_run_id = run_ids[-1] if run_ids else None

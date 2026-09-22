@@ -129,3 +129,25 @@ def test_progress_is_attempt_specific(tmp_path):
     ck.unlink()
     new["completed_keys"] = ["b1", "b2"]
     assert progress(new, ck, "batch", KEYS) == {"completed": 3, "expected_total": 3, "work_unit": "batches", "inherited": 1, "source": "record"}
+
+
+def test_prepare_resume_refuses_other_models_or_prompts(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("t", "b", None)
+    models = {"generator_model": "g", "judge_model": "j"}
+    prompts = {"generator": "1" * 64, "judge": "2" * 64}
+    run = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1"], argv=[], inputs=[], config={},
+                                expected_total=1, work_unit="batches", checkpoint_file="x.checkpoint.jsonl",
+                                models=models, prompt_sha256=prompts)
+    ck = tmp_path / "x.checkpoint.jsonl"
+    ck.write_text(_line("b0", run) + "\n", encoding="utf-8")
+    common = {"resume": True, "accept_legacy": False, "store": store, "record_id": rid, "expected_config": {},
+              "expected_inputs": []}
+    plan = prepare_resume(ck, "batch", KEYS, expected_models=models, expected_prompt_sha256=prompts, **common)
+    assert plan.resumes_run_id == run
+    with pytest.raises(IncompatibleCheckpointError, match="models: judge_model"):
+        prepare_resume(ck, "batch", KEYS, expected_models={**models, "judge_model": "j2"},
+                       expected_prompt_sha256=prompts, **common)
+    with pytest.raises(IncompatibleCheckpointError, match="prompt_sha256: generator"):
+        prepare_resume(ck, "batch", KEYS, expected_models=models,
+                       expected_prompt_sha256={**prompts, "generator": "3" * 64}, **common)

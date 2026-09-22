@@ -54,7 +54,10 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
               {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]
     prev = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
-                                 work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl")
+                                 work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
+                                 models={"generator_model": "g", "judge_model": "j"},
+                                 prompt_sha256={"generator": cli.prompt_sha256("align_hleg-v1"),
+                                                "judge": cli.prompt_sha256("judge_alignment-v1")})
     ckpt = out.with_suffix(".checkpoint.jsonl")
     ckpt.write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}", "result": {
         "assertions": [{"id": "align:pre1"}, {"id": "align:pre2"}], "mapping_runs": [], "judge_runs": [],
@@ -165,3 +168,27 @@ def test_resume_over_a_published_producer_continues_in_the_same_descendant(tmp_p
     children = [r for r in store.list_records() if r.get("parent_record_id") == producer]
     assert len(children) == 1 and [e["status"] for e in children[0]["executions"]] == ["failed", "done"]
     assert children[0]["executions"][1]["resumes_run_id"] == children[0]["executions"][0]["run_id"]
+
+
+
+def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch, capsys):
+    import tere4ai.align_hleg_altai.__main__ as cli
+
+    norms_path, layer1, norms = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("test", "b", None)
+    inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
+              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]
+    prev = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+                                 inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
+                                 work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
+                                 models={"generator_model": "g-old", "judge_model": "j"},
+                                 prompt_sha256={"generator": cli.prompt_sha256("align_hleg-v1"),
+                                                "judge": cli.prompt_sha256("judge_alignment-v1")})
+    out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}", "result": {
+        "assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume", "--batch-size", "2"])
+    assert rc == 2 and "different models: generator_model" in capsys.readouterr().err and batches == []

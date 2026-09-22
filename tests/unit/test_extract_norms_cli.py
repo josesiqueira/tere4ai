@@ -67,7 +67,10 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[],
                                  inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
                                  config={"prompt_version": "v1", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
-                                 expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl")
+                                 expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
+                                 models={"generator_model": "g", "judge_model": "j"},
+                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v1"),
+                                                "judge": cli.prompt_sha256("judge_norms-v1")})
     ckpt = out.with_suffix(".checkpoint.jsonl")
     ckpt.write_text(json.dumps({"run_id": prev, "group": "eu-ai-act:article-9", "result": {
         "norms": [{"norm_id": "norm:eu-ai-act:article-9:n1"}], "judge_runs": [],
