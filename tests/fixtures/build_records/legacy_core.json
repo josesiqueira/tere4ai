@@ -361,7 +361,9 @@
   "parent_record_id": "not recorded before DEC-16",
   "parse_record_id": "not recorded before DEC-16",
   "publication.gates": "not recorded before DEC-16",
-  "publication.postload_gates": "not recorded before DEC-16"
+  "publication.label": "not recorded before DEC-16",
+  "publication.postload_gates": "not recorded before DEC-16",
+  "publication.published_at": "not recorded before DEC-16"
  },
  "record_id": "legacy-core",
  "schema_version": "build_record.v1",
@@ -379,7 +381,7 @@
   "L3.4": "not_recorded",
   "L3.5": "not_recorded",
   "P.1": "not_recorded",
-  "P.2": "not_recorded"
+  "P.2": "done"
  },
  "synthesised": true
 }

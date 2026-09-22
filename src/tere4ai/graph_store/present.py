@@ -119,6 +119,12 @@ def step_states(record: dict[str, Any], store: BuildRecordStore | None, dump_dir
             for step in uncovered_parse:
                 steps[step] = "done_shared"
 
+    # A synthesised record matched to a chain record by its full input set
+    # was published (P.2, derived from that chain record); its gate outcomes
+    # (P.1) were never recorded. A stored record's P steps come only from its
+    # publish execution.
+    if synthesised and record.get("publication") is not None:
+        steps.setdefault("P.2", "done")
     default = _default_state(record)
     for step in STEP_IDS:
         steps.setdefault(step, default)
@@ -443,8 +449,6 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
         try:
             read = read_checkpoint(checkpoint_path, "batch", ())
         except (OSError, UnicodeDecodeError):
-            read = None
-        if read is None:
             for step in align_steps:
                 reasons[step] = f"artefact unreadable: {checkpoint_path.name}"
         else:
@@ -454,7 +458,8 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
                 checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir), work_unit="batches",
                 expected_total=None, inherited_keys=keys, inherited_from="legacy",
             ))
-            reasons["L3.1"] = "legacy checkpoint: results not validated"
+            reasons["L3.1"] = "legacy checkpoint: results not validated" + (
+                "; corrupt lines in the middle were skipped" if read.corrupt_middle else "")
     elif align_path.is_file():
         for step in align_steps:
             reasons[step] = f"artefact unreadable: {align_path.name} is empty"
@@ -474,6 +479,9 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
         reasons["publication"] = "no chain record matches the current artefacts"
     else:
         reasons["publication.gates"] = NOT_RECORDED_LEGACY
+        for key in ("published_at", "label"):
+            if publication[key] is None:
+                reasons[f"publication.{key}"] = NOT_RECORDED_LEGACY
         reasons["publication.postload_gates"] = NOT_RECORDED_LEGACY
 
     return {

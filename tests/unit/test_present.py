@@ -102,6 +102,7 @@ def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_pat
     assert core["publication"]["published_at"] is None and core["publication"]["gating"] == {"layer2": "llm", "layer3": "llm"}
     assert core["publication"]["gates"] is None and core["publication"]["postload_gates"] is None
     assert core["reasons"]["publication.gates"] == "not recorded before DEC-16"
+    assert core["reasons"]["publication.published_at"] == core["reasons"]["publication.label"] == "not recorded before DEC-16"
     ex = next(e for e in core["executions"] if e["command"] == "extract_norms")
     assert ex["run_id"] is None and ex["models"] == {"generator_model": "g", "judge_model": "j"} and ex["usage"] is None
     assert ex["prompt_sha256"] == {"generator": None, "judge": "abc"} and ex["counts"]["candidates"] == 442
@@ -117,6 +118,8 @@ def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_pat
     assert p["provenance"]["publication"] == "unavailable" and "no chain record" in p["reasons"]["publication"]
     pc = present_record(core, tmp_path, NOW, full["chain_id"], None)
     assert pc["served"] is True and pc["provenance"]["publication"] == "derived"
+    assert pc["steps"]["P.2"] == "done" and pc["steps"]["P.1"] == "not_recorded", "published, gate outcomes never recorded"
+    assert p["steps"]["P.2"] == "not_recorded" and p["steps"]["P.1"] == "not_recorded"
     assert present_record(core, tmp_path, NOW, "000000000000", None)["served"] is False
 
 
