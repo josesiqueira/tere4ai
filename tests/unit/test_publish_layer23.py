@@ -327,3 +327,23 @@ def test_the_readme_intermediate_build_publishes_human_then_llm(tmp_path, monkey
     chain = json.loads(next(tmp_path.glob("build_chain_*.json")).read_text())
     assert chain["gating"] == {"layer2": "human", "layer3": "llm"} and chain["label"] is None
     assert [m["freeze_id"] for m in chain["manifests"]] == ["f1"]
+
+
+def test_republishing_identical_inputs_is_refused_and_history_kept(tmp_path, monkeypatch, capsys):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    args = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+    assert cli.main(args) == 0
+    chain_path = next(tmp_path.glob("build_chain_*.json"))
+    chain_id = json.loads(chain_path.read_text())["chain_id"]
+    before = (chain_path.read_bytes(), (tmp_path / "publications" / f"{chain_id}.json").read_bytes())
+    seen: list = []
+    _fakes(monkeypatch, cli, seen=seen)
+    assert cli.main(args) == 1
+    message = f"already published as chain {chain_id}; activate it with scripts/activate_build.py {chain_id}"
+    assert message in capsys.readouterr().err and not [s for s in seen if s[0] == "load"], "refused before the load"
+    assert (chain_path.read_bytes(), (tmp_path / "publications" / f"{chain_id}.json").read_bytes()) == before
+    child = next(r for r in store.list_records() if r.get("parent_record_id") == rid)
+    assert child["executions"][-1]["status"] == "failed" and child["executions"][-1]["error"] == message
+    assert read_target_state(tmp_path)["state"] == "available", "the target state of the first publication stands"

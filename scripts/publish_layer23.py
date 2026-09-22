@@ -221,6 +221,13 @@ def main(argv: list[str] | None = None) -> int:
         # freeze manifests included.
         chain = build_chain(args.dump, args.norms, alignments_path=args.alignments,
                             manifest_paths=args.manifest or None)
+        chain_path = dump_dir / f"build_chain_{chain['chain_id']}.json"
+        if chain_path.exists() or manifest_path(dump_dir, chain["chain_id"]).exists():
+            # The chain id is a function of the input digests: identical
+            # inputs were published already, and published history is never
+            # rewritten (D-G20).
+            return fail(f"already published as chain {chain['chain_id']}; "
+                        f"activate it with scripts/activate_build.py {chain['chain_id']}", gates)
         base_build_id = norms_payload.get("build", {}).get("build_id", "layer2-adhoc")
         build_id = chained_build_id(base_build_id, chain)
         graph = norms_to_graph(norms_payload, build_id=build_id)
@@ -273,7 +280,6 @@ def main(argv: list[str] | None = None) -> int:
             "gating": gating, "label": whole_build_label(gating, bound, _core_nodes(dump_dir)), "gates": gates,
             "postload_gates": postload_gates, "manifests": _manifest_refs(bound),
         }
-        chain_path = dump_dir / f"build_chain_{chain['chain_id']}.json"
         chain_record = {**publication, **chain, "record_id": record_id}
         # Everything is validated before the first write, so a schema failure
         # leaves no publication artefact behind.
