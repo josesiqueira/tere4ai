@@ -110,3 +110,22 @@ def test_align_stale_checkpoint_exit_2(tmp_path, monkeypatch, capsys):
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"batch": "b", "result": {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 2
     assert "--resume" in capsys.readouterr().err
+
+
+def test_align_never_overwrites_an_input_of_a_publication(tmp_path, monkeypatch, capsys):
+    import tere4ai.align_hleg_altai.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    dumps = tmp_path / "data" / "graph_dumps"
+    (dumps / "publications").mkdir(parents=True)
+    out = dumps / "alignments_test.json"
+    out.write_text('{"assertions": ["published"]}')
+    before = out.read_bytes()
+    (dumps / "publications" / "c1.json").write_text(json.dumps(
+        {"chain_id": "c1", "inputs": [{"role": "alignments", "file": out.name, "sha256": sha256_of_file(out)}]}))
+    assert cli.main(["--norms", str(norms_path), "--dump", str(layer1)]) == 1
+    err = capsys.readouterr().err
+    assert "publication c1" in err and "--out" in err and batches == [] and out.read_bytes() == before

@@ -25,7 +25,13 @@ from tere4ai.align_hleg_altai.pipeline import align_norms
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.extract_norms.pipeline import DEFAULT_DUMP_PATH, REPO_ROOT, load_prompt, prompt_sha256
 from tere4ai.graph_store.build_chain import sha256_of_file
-from tere4ai.graph_store.build_record import BuildRecordStore, relative_to_dump_dir, select_record
+from tere4ai.graph_store.build_record import (
+    BuildRecordStore,
+    existing_artefact_digest,
+    published_artefact_owner,
+    relative_to_dump_dir,
+    select_record,
+)
 from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume
 from tere4ai.judge.config import load_model_config
 
@@ -124,6 +130,14 @@ def main(argv: list[str] | None = None) -> int:
     out_path = args.out or (REPO_ROOT / "data" / "graph_dumps" / f"alignments_{slug}.json")
     dump_dir = args.dump_dir or out_path.parent
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    store = BuildRecordStore(dump_dir)
+    # Nothing in a published build is edited in place (spec G Section 2):
+    # refuse before any work when the output names a published artefact.
+    existing = existing_artefact_digest(out_path)
+    owner = published_artefact_owner(store, dump_dir, existing) if existing else None
+    if owner:
+        print(f"refusing to overwrite {out_path.name}: it is {owner}; pass --out with a new slug", file=sys.stderr)
+        return 1
     # fail fast at zero cost if the output path is unwritable (lesson of the
     # lost 2026-07-08 extraction run)
     out_path.touch()
@@ -139,9 +153,12 @@ def main(argv: list[str] | None = None) -> int:
     inputs = [{"role": "norms", "file": relative_to_dump_dir(args.norms, dump_dir), "sha256": norms_digest},
               {"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest}]
     config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size}
-    store = BuildRecordStore(dump_dir)
     ref = args.record or store.find_by_output_digest(norms_digest) or slug
     record_id, message = select_record(store, ref, payload.get("build", {}).get("build_id"), layer1_digest)
+    if message and existing:
+        print(f"refusing to overwrite {out_path.name}: {message}, and the file belongs to the record it continues; "
+              "pass --out with a new slug", file=sys.stderr)
+        return 1
     if message:
         print(message)
     try:

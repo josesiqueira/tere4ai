@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 
 
@@ -73,14 +74,10 @@ def test_parse_exception_in_final_write_is_recorded(tmp_path, monkeypatch):
 
     manifest = _manifest(tmp_path)
     _setup(monkeypatch, cli, tmp_path, _Report([], {}))
-    real_write = cli.Path.write_text
+    def boom(path, payload):
+        raise OSError("disk full")
 
-    def boom(self, *a, **k):
-        if self.name == "layer1.json":
-            raise OSError("disk full")
-        return real_write(self, *a, **k)
-
-    monkeypatch.setattr(cli.Path, "write_text", boom)
+    monkeypatch.setattr(cli, "atomic_write_json", boom)
     with pytest.raises(OSError):
         cli.main(["--dump-dir", str(tmp_path), "--manifest", str(manifest)])
     ex = BuildRecordStore(tmp_path).list_records()[0]["executions"][0]
@@ -103,3 +100,20 @@ def test_parse_success_path_write_failure_is_recorded(tmp_path, monkeypatch):
     ex = record["executions"][0]
     assert len(record["executions"]) == 1
     assert ex["status"] == "failed" and "disk full" in ex["error"]
+
+
+def test_parse_never_overwrites_a_published_layer1(tmp_path, monkeypatch, capsys):
+    import tere4ai.parse_legal_structure.__main__ as cli
+
+    manifest = _manifest(tmp_path)
+    _setup(monkeypatch, cli, tmp_path, _Report([], {}))
+    layer1 = tmp_path / "layer1.json"
+    layer1.write_text('{"nodes": ["published"]}')
+    before = layer1.read_bytes()
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "c1.json").write_text(json.dumps(
+        {"chain_id": "c1", "inputs": [{"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]}))
+    assert cli.main(["--dump-dir", str(tmp_path), "--manifest", str(manifest)]) == 1
+    err = capsys.readouterr().err
+    assert "publication c1" in err and "--dump-dir" in err and layer1.read_bytes() == before
+    assert not (tmp_path / "build_records").exists() or BuildRecordStore(tmp_path).list_records() == []

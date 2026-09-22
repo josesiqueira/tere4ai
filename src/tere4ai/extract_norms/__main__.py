@@ -29,7 +29,13 @@ from tere4ai.extract_norms.pipeline import (
     prompt_sha256,
 )
 from tere4ai.graph_store.build_chain import sha256_of_file
-from tere4ai.graph_store.build_record import BuildRecordStore, relative_to_dump_dir, select_record
+from tere4ai.graph_store.build_record import (
+    BuildRecordStore,
+    existing_artefact_digest,
+    published_artefact_owner,
+    relative_to_dump_dir,
+    select_record,
+)
 from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume
 from tere4ai.judge.config import load_model_config
 
@@ -132,6 +138,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     dump_dir = args.dump_dir or out_path.parent
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    store = BuildRecordStore(dump_dir)
+    # Nothing in a published build is edited in place (spec G Section 2):
+    # refuse before any work when the output names a published artefact.
+    existing = existing_artefact_digest(out_path)
+    owner = published_artefact_owner(store, dump_dir, existing) if existing else None
+    if owner:
+        print(f"refusing to overwrite {out_path.name}: it is {owner}; pass --out with a new slug", file=sys.stderr)
+        return 1
     # fail fast at ZERO cost if the output path is unwritable (the 405-unit
     # core run of 2026-07-08 was lost to a too-long filename at the final write)
     out_path.touch()
@@ -141,9 +155,12 @@ def main(argv: list[str] | None = None) -> int:
     inputs = [{"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir),
                "sha256": layer1_digest}]
     config = {"prompt_version": args.prompt_version, "nodes": node_ids}
-    store = BuildRecordStore(dump_dir)
     record_id, message = select_record(store, args.record or out_path.stem.removeprefix("norms_"),
                                        dump.get("build", {}).get("build_id"), layer1_digest)
+    if message and existing:
+        print(f"refusing to overwrite {out_path.name}: {message}, and the file belongs to the record it continues; "
+              "pass --out with a new slug", file=sys.stderr)
+        return 1
     if message:
         print(message)
     try:

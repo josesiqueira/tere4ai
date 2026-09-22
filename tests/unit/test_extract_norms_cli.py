@@ -172,3 +172,39 @@ def test_extract_failure_records_usage_and_keeps_checkpoint(tmp_path, monkeypatc
     assert ex["status"] == "failed" and "usage limit" in ex["error"]
     assert ex["completed_keys"] == ["eu-ai-act:article-9"] and ex["usage"]["generator"]["calls"] == 2
     assert out.with_suffix(".checkpoint.jsonl").is_file(), "the checkpoint stays for resume"
+
+
+PUBLISHED = {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+             "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [], "postload_gates": [],
+             "manifests": []}
+
+
+def test_extract_never_overwrites_an_artefact_a_published_build_names(tmp_path, monkeypatch, capsys):
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path)
+    dumps = tmp_path / "data" / "graph_dumps"
+    dumps.mkdir(parents=True)
+    slug = cli._slug(["eu-ai-act:article-9"])
+    out = dumps / f"norms_{slug}.json"
+    out.write_text('{"norms": ["published"]}')
+    before = out.read_bytes()
+    store = BuildRecordStore(dumps)
+    rid = store.create_record(slug, "build-b", None)
+    run = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+                                config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
+    store.finish_execution(rid, run, status="done", outputs=[{"role": "norms", "file": out.name, "sha256": cli.sha256_of_file(out)}])
+    store.set_publication(rid, PUBLISHED)
+    assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path)]) == 1
+    err = capsys.readouterr().err
+    assert f"record {rid}" in err and "--out" in err and calls == [] and out.read_bytes() == before
+    assert [r["record_id"] for r in store.list_records()] == [rid], "refused before any record is created"
+
+    # (a) the record continues as a descendant and the file exists, whoever wrote it
+    out.write_text('{"norms": ["edited by hand"]}')
+    before = out.read_bytes()
+    assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path)]) == 1
+    assert "descendant" in capsys.readouterr().err and calls == [] and out.read_bytes() == before

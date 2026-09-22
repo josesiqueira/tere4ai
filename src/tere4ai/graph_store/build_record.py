@@ -331,6 +331,37 @@ def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
     return child, f"record {existing} {why}; continuing as descendant {child}"
 
 
+def existing_artefact_digest(path: Path) -> str | None:
+    """The digest of an existing non-empty file, else None. An empty file is
+    the zero-cost writability probe a command leaves behind, not an artefact."""
+    from tere4ai.graph_store.build_chain import sha256_of_file
+
+    if not path.is_file() or path.stat().st_size == 0:
+        return None
+    return sha256_of_file(path)
+
+
+def published_artefact_owner(store: BuildRecordStore, dump_dir: Path | str, digest: str) -> str | None:
+    """Who publishes the artefact with this digest: an output of a frozen
+    (published) record, or an input a publications/*.json names. None when
+    no published build names it."""
+    for record in store.list_records():
+        if record.get("unreadable") or record.get("publication") is None:
+            continue
+        for ex in record["executions"]:
+            if any(o.get("sha256") == digest for o in ex.get("outputs", [])):
+                return f"an output of record {record['record_id']}, published as chain {record['publication']['chain_id']}"
+    for path in sorted((Path(dump_dir) / "publications").glob("*.json")):
+        try:
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if isinstance(manifest, dict) and any(isinstance(i, dict) and i.get("sha256") == digest
+                                              for i in manifest.get("inputs") or []):
+            return f"an input of publication {manifest.get('chain_id') or path.stem}"
+    return None
+
+
 def relative_to_dump_dir(path: Path, dump_dir: Path) -> str:
     """Path relative to dump_dir when it lies under it, else the absolute path.
     The presenter later resolves dump_dir / this value."""

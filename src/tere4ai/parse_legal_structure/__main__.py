@@ -20,7 +20,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from tere4ai.graph_store.build_chain import sha256_of_file
-from tere4ai.graph_store.build_record import BuildRecordStore, gate_entries
+from tere4ai.graph_store.build_record import (
+    BuildRecordStore,
+    atomic_write_json,
+    existing_artefact_digest,
+    gate_entries,
+    published_artefact_owner,
+)
 from tere4ai.parse_legal_structure.parser import (
     DEFAULT_MANIFEST_PATH,
     DEFAULT_OUT_PATH,
@@ -49,6 +55,12 @@ def main(argv: list[str] | None = None) -> int:
         inputs.append({"role": "manifest", "file": args.manifest.name, "sha256": sha256_of_file(args.manifest)})
 
     store = BuildRecordStore(args.dump_dir)
+    # Nothing in a published build is edited in place (spec G Section 2).
+    existing = existing_artefact_digest(out_path)
+    owner = published_artefact_owner(store, args.dump_dir, existing) if existing else None
+    if owner:
+        print(f"refusing to overwrite {out_path.name}: it is {owner}; parse into a new --dump-dir", file=sys.stderr)
+        return 1
     record_id = store.create_record(f"parse-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}", None, None)
     run_id = store.start_execution(
         record_id, command="parse_legal_structure", covers_steps=["L0.1", "L1.1"], argv=raw_argv, inputs=inputs,
@@ -76,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
                                    error="; ".join(report.failures[:20]))
             print("build NOT published: critical validation failed", file=sys.stderr)
             return 1
-        out_path.write_text(json.dumps(dump, ensure_ascii=False, indent=1), encoding="utf-8")
+        atomic_write_json(out_path, dump)
         tmp_path.unlink(missing_ok=True)
         digest = sha256_of_file(out_path)
         store.finish_execution(
