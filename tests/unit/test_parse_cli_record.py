@@ -85,3 +85,21 @@ def test_parse_exception_in_final_write_is_recorded(tmp_path, monkeypatch):
         cli.main(["--dump-dir", str(tmp_path), "--manifest", str(manifest)])
     ex = BuildRecordStore(tmp_path).list_records()[0]["executions"][0]
     assert ex["status"] == "failed" and "disk full" in ex["error"]
+
+
+def test_parse_success_path_write_failure_is_recorded(tmp_path, monkeypatch):
+    import tere4ai.parse_legal_structure.__main__ as cli
+
+    manifest = _manifest(tmp_path)
+    _setup(monkeypatch, cli, tmp_path, _Report([], {}))
+
+    def boom(self, record_id, alias):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(cli.BuildRecordStore, "add_alias", boom)
+    with pytest.raises(OSError):
+        cli.main(["--dump-dir", str(tmp_path), "--manifest", str(manifest)])
+    record = BuildRecordStore(tmp_path).list_records()[0]
+    ex = record["executions"][0]
+    assert len(record["executions"]) == 1
+    assert ex["status"] == "failed" and "disk full" in ex["error"]

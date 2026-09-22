@@ -79,18 +79,18 @@ def main(argv: list[str] | None = None) -> int:
         out_path.write_text(json.dumps(dump, ensure_ascii=False, indent=1), encoding="utf-8")
         tmp_path.unlink(missing_ok=True)
         digest = sha256_of_file(out_path)
+        store.finish_execution(
+            record_id, run_id, status="done", counts=counts, gates=gates,
+            outputs=[{"role": "layer1_dump", "file": out_path.name, "sha256": digest}],
+        )
+        store.set_layer1_digest(record_id, digest)
+        base = dump.get("build", {}).get("build_id")
+        if base:
+            store.set_base_build_id(record_id, base)
+        store.add_alias(record_id, f"layer1-{digest[:12]}")
     except Exception as exc:  # noqa: BLE001 - recorded, then re-raised for the operator
         store.finish_execution(record_id, run_id, status="failed", error=f"{type(exc).__name__}: {exc}")
         raise
-    store.finish_execution(
-        record_id, run_id, status="done", counts=counts, gates=gates,
-        outputs=[{"role": "layer1_dump", "file": out_path.name, "sha256": digest}],
-    )
-    store.set_layer1_digest(record_id, digest)
-    base = dump.get("build", {}).get("build_id")
-    if base:
-        store.set_base_build_id(record_id, base)
-    store.add_alias(record_id, f"layer1-{digest[:12]}")
     print(f"wrote {out_path}")
     print(f"build_id: {dump['build']['build_id']}")
     print(f"nodes: {len(dump['nodes'])}, edges: {len(dump['edges'])}")

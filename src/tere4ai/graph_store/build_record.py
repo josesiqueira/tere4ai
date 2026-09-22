@@ -302,8 +302,8 @@ class BuildRecordStore:
         self._update(record_id, lambda r: r.__setitem__("layer1_digest", digest))
 
     def add_alias(self, record_id: str, alias: str) -> None:
-        """Add alias to the record and the alias index. Lock order: record, then
-        aliases, so this never deadlocks against create_record's own ordering."""
+        """Add alias to the record and the alias index. The two locks are taken
+        sequentially, record first, then aliases: never held nested."""
         self._update(record_id, lambda r: r["aliases"].append(alias) if alias not in r["aliases"] else None)
         with self._locked("aliases"):
             aliases = self._aliases()
