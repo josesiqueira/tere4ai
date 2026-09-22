@@ -56,8 +56,10 @@ import hashlib
 import json
 import math
 import os
+import re
 import tempfile
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -69,7 +71,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field, model_validator
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
-from tere4ai.graph_store.publication import load_active
+from tere4ai.graph_store.build_record import BuildRecordStore
+from tere4ai.graph_store.present import present_record, summary_of, synthesise_legacy_records
+from tere4ai.graph_store.publication import load_active, read_target_state
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_tool
 from tere4ai.mcp_server import classify as classify_tool
@@ -435,6 +439,7 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "(free, deterministic); "
             "POST /api/evidence, /api/backlog, /api/elicit (paid model calls, marked with "
             "X-TERE4AI-Paid-Call); GET /api/health.\n"
+            "GET /api/builds, GET /api/builds/{ref}: the build records, free, read per request\n"
             "Input schema: schema/json_schemas/system_features.schema.json\n\n"
         )
         return header + (skill.read_text(encoding="utf-8") if skill.exists() else "")
@@ -485,6 +490,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                     "coverage": {"method": "GET", "path": "/api/coverage", "paid": False},
                     "alignments": {"method": "GET", "path": "/api/alignments", "paid": False},
                     "units": {"method": "GET", "path": "/api/units", "paid": False},
+                    "builds": {"method": "GET", "path": "/api/builds", "paid": False},
+                    "build": {"method": "GET", "path": "/api/builds/{ref}", "paid": False},
                     "report": {"method": "POST", "path": "/api/report", "paid": False},
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
                     "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
@@ -671,6 +678,59 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "core_nodes": core,
             "units": units_out,
         }))
+
+    _BUILD_REF_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+    def _served_chain(request: Request) -> str | None:
+        gv = _graph_version(request)
+        return gv.split("+chain-", 1)[1] if "+chain-" in gv else None
+
+    def _synthesised(request: Request) -> list[dict[str, Any]]:
+        return synthesise_legacy_records(request.app.state.dump_dir)
+
+    @app.get("/api/builds")
+    def builds(request: Request) -> JSONResponse:
+        # Spec G 3.1, D-G19, D-G25: the build records read per request,
+        # never cached, every figure dated; nothing is created on a read.
+        dump_dir = request.app.state.dump_dir
+        now = datetime.now(UTC)
+        served = _served_chain(request)
+        store = BuildRecordStore(dump_dir, create=False)
+        summaries: list[dict[str, Any]] = []
+        for record in store.list_records():
+            if record.get("unreadable"):
+                summaries.append({"record_id": record["record_id"], "unreadable": True, "reason": record["reason"],
+                                  "aliases": [], "base_build_id": None, "created_at": None, "synthesised": False,
+                                  "steps": None, "publication": None, "served": False})
+                continue
+            summaries.append(summary_of(present_record(record, dump_dir, now, served, store)))
+        for record in _synthesised(request):
+            summaries.append(summary_of(present_record(record, dump_dir, now, served, store)))
+        return JSONResponse(content=_sanitize_non_finite({
+            "schema_version": "builds_list.v1", "graph_version": _graph_version(request),
+            "observed_at": now.isoformat(), "served_chain_id": served,
+            "publication_target": read_target_state(dump_dir), "builds": summaries,
+        }))
+
+    @app.get("/api/builds/{ref}")
+    def build_detail(ref: str, request: Request) -> JSONResponse:
+        if not _BUILD_REF_RE.match(ref):
+            return JSONResponse(status_code=422, content={"error": "build reference has characters outside [A-Za-z0-9._-]"})
+        dump_dir = request.app.state.dump_dir
+        store = BuildRecordStore(dump_dir, create=False)
+        now = datetime.now(UTC)
+        served = _served_chain(request)
+        record_id = store.resolve(ref)
+        if record_id is not None:
+            try:
+                record = store.read(record_id)
+            except Exception as exc:  # noqa: BLE001 - an unreadable record is reported, never a 500
+                return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {exc}"})
+            return JSONResponse(content=_sanitize_non_finite(present_record(record, dump_dir, now, served, store)))
+        for record in _synthesised(request):
+            if record["record_id"] == ref or ref in record.get("aliases", []):
+                return JSONResponse(content=_sanitize_non_finite(present_record(record, dump_dir, now, served, store)))
+        return JSONResponse(status_code=404, content={"error": f"no build record {ref}"})
 
     @app.post("/api/explain")
     def explain(request: Request, body: ExplainRequest) -> JSONResponse:
