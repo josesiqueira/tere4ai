@@ -24,6 +24,7 @@ from tere4ai.graph_store.build_record import (  # noqa: E402
     atomic_write_json,
     relative_to_dump_dir,
 )
+from tere4ai.graph_store.publication import ACTIVE_POINTER, active_manifest  # noqa: E402
 from tere4ai.review_queue import load_decisions  # noqa: E402
 from tere4ai.review_queue.materialize import (  # noqa: E402
     MaterializeError,
@@ -35,7 +36,11 @@ SUFFIX = {"norms": ".reference", "alignments": ".adjudicated"}
 STEP = {"norms": ["L2.4"], "alignments": ["L3.5"]}
 
 
-def _source_build_id(args, store: BuildRecordStore, pristine_digest: str, base: str | None) -> str | None:
+def _source_build_id(args, store: BuildRecordStore, pristine_digest: str, base: str | None, kind: str) -> str | None:
+    """The build the pristine file was served under, from evidence only: the
+    flag, the published record that produced it, the activated publication
+    when that publication's input of this role IS the pristine file, or
+    (no activation pointer) the legacy chain over the fixed core dumps."""
     if args.source_build_id:
         return args.source_build_id
     rid = store.find_by_output_digest(pristine_digest)
@@ -43,8 +48,16 @@ def _source_build_id(args, store: BuildRecordStore, pristine_digest: str, base: 
         publication = store.read(rid)["publication"]
         if publication:
             return publication["build_id"]
-    dump_dir = args.dump_dir or args.pristine.parent
-    if args.pristine.resolve().parent == Path(dump_dir).resolve() and args.pristine.name in ("norms_core.json", "alignments_core.json") and base:
+    dump_dir = Path(args.dump_dir or args.pristine.parent)
+    if (dump_dir / ACTIVE_POINTER).exists():
+        manifest = active_manifest(dump_dir)
+        if manifest and manifest.get("build_id") and any(
+            isinstance(i, dict) and i.get("role") == kind and i.get("sha256") == pristine_digest
+            for i in manifest.get("inputs") or []
+        ):
+            return str(manifest["build_id"])
+        return None
+    if args.pristine.resolve().parent == dump_dir.resolve() and args.pristine.name in ("norms_core.json", "alignments_core.json") and base:
         return served_build_id(dump_dir, base)
     return None
 
@@ -81,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     digests = {"pristine": sha256_of_file(args.pristine), "decisions": sha256_of_file(args.decisions),
                "manifest": sha256_of_file(args.manifest)}
     base = pristine.get("build", {}).get("build_id")
-    source_build_id = _source_build_id(args, store, digests["pristine"], base)
+    source_build_id = _source_build_id(args, store, digests["pristine"], base, kind)
     if source_build_id is None:
         print("not materialised: cannot establish the build this file was served under; pass --source-build-id", file=sys.stderr)
         return 1

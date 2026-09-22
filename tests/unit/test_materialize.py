@@ -195,3 +195,41 @@ def test_materialize_refuses_a_freeze_of_the_other_kind(tmp_path):
     with pytest.raises(MaterializeError, match="f1.*alignments.*hleg_alignment.*layer2_annotation"):
         materialize("alignments", pristine, json.loads(d.read_text()), _manifest(d), source_sha256="s" * 64,
                     source_build_id="build-b+chain-000000000000", decisions_sha256=sha256_of_file(d))
+
+
+def test_cli_binds_the_served_build_only_when_its_manifest_contains_the_pristine_file(tmp_path, capsys):
+    cli = _cli()
+    d = _decisions(tmp_path)
+    pristine = tmp_path / "norms_core.json"
+    pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}))
+    m = tmp_path / "freeze.json"
+    m.write_text(json.dumps(_manifest(d, pinned_build_id="b74+chain-c10000000000")))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "c10000000000", "activated_at": "t"}))
+    (tmp_path / "publications").mkdir()
+    publication = {"chain_id": "c10000000000", "build_id": "b74+chain-c10000000000",
+                   "inputs": [{"role": "norms", "file": "norms_core.b74.json", "sha256": "b" * 64}],
+                   "files": {"layer1_dump": "layer1.json", "norms": "norms_core.b74.json", "alignments": None}}
+    (tmp_path / "publications" / "c10000000000.json").write_text(json.dumps(publication))
+    args = ["--pristine", str(pristine), "--decisions", str(d), "--manifest", str(m)]
+    assert cli.main(args) == 1
+    assert "cannot establish the build this file was served under; pass --source-build-id" in capsys.readouterr().err
+    assert not (tmp_path / "norms_core.reference.json").exists()
+    publication["inputs"][0]["sha256"] = sha256_of_file(pristine)
+    (tmp_path / "publications" / "c10000000000.json").write_text(json.dumps(publication))
+    assert cli.main(args) == 0
+    written = json.loads((tmp_path / "norms_core.reference.json").read_text())
+    assert written["build"]["reference"]["source_build_id"] == "b74+chain-c10000000000"
+
+
+def test_materialize_refuses_a_decision_naming_no_item_of_the_pristine_file(tmp_path):
+    d = _decisions(tmp_path, {"norm:eu-ai-act:article-99:paragraph-1:n1": {
+        "decision": "accept", "rationale": "r", "reviewer": "adj", "decided_at": "2026-09-19T00:00:00+00:00"}})
+    pristine = {"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}
+    with pytest.raises(MaterializeError, match="not in the pristine norms file, first norm:eu-ai-act:article-99"):
+        materialize("norms", pristine, json.loads(d.read_text()), _manifest(d), source_sha256="s" * 64,
+                    source_build_id="build-b+chain-000000000000", decisions_sha256=sha256_of_file(d))
+    other_kind = {"align:x:1": {"decision": "reject", "rationale": "r", "reviewer": "adj", "decided_at": "t"},
+                  NORM["norm_id"]: {"decision": "reject", "rationale": "r", "reviewer": "adj", "decided_at": "t"}}
+    out = materialize("norms", pristine, other_kind, _manifest(d), source_sha256="s" * 64,
+                      source_build_id="build-b+chain-000000000000", decisions_sha256=sha256_of_file(d))
+    assert out["build"]["reference"]["decisions_applied"] == 1, "an assertion id is the other pass's (R16)"

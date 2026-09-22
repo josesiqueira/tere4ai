@@ -32,6 +32,7 @@ from tere4ai.review_queue.apply import apply_decisions, count_applied
 _SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "build_record.schema.json"
 _TYPES = {"layer2_annotation": "freeze_manifest_layer2", "hleg_alignment": "freeze_manifest_hleg"}
 CAMPAIGN_TYPE_OF_KIND = {"norms": "layer2_annotation", "alignments": "hleg_alignment"}
+ID_PREFIX_OF_KIND = {"norms": "norm:", "alignments": "align:"}
 
 
 class MaterializeError(ValueError):
@@ -111,6 +112,21 @@ def materialize(kind: str, pristine: dict[str, Any], decisions: dict[str, dict[s
         raise MaterializeError(f"the {kind} payload already carries human decisions; materialise from the pristine dump")
     if not decisions:
         raise MaterializeError("a freeze with no decisions materialises nothing")
+    # A non-add decision in this payload's own id namespace must name one of
+    # its items (a freeze taken on another file would otherwise land on
+    # different norms without an error). Ids of the other kind are skipped:
+    # one decisions file serves both materialisations (plan 1, R16).
+    id_field = "norm_id" if kind == "norms" else "id"
+    items_key = "norms" if kind == "norms" else "assertions"
+    present = {item.get(id_field) for item in pristine.get(items_key) or [] if isinstance(item, dict)}
+    unknown = sorted(key for key, entry in decisions.items()
+                     if key.startswith(ID_PREFIX_OF_KIND[kind]) and (entry or {}).get("decision") != "add"
+                     and key not in present)
+    if unknown:
+        raise MaterializeError(
+            f"{len(unknown)} decision(s) name an item not in the pristine {kind} file, first {unknown[0]}; "
+            "the freeze was taken on another file"
+        )
     result = apply_human_decisions(pristine, decisions) if kind == "norms" else apply_decisions(pristine, decisions)
     result = copy.deepcopy(result)
     result.setdefault("build", {})["reference"] = {
