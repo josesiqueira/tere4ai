@@ -14,6 +14,7 @@ from tere4ai.graph_store.build_record import (
     BuildRecordStore,
     FrozenRecordError,
     RecordError,
+    gate_entries,
     liveness,
     scrub_argv,
 )
@@ -154,3 +155,19 @@ def test_liveness_unknown_after_expiry_never_failed():
     assert liveness(fresh, now) == "live" and liveness(stale, now) == "unknown"
     assert liveness({"status": "running", "heartbeat_at": None}, now) == "unknown"
     assert liveness({"status": "done", "heartbeat_at": stale["heartbeat_at"]}, now) == "ended"
+
+
+def test_add_alias_indexes_and_records(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("parse-20260919T100000", None, None)
+    store.add_alias(rid, "layer1-abcdefabcdef")
+    assert store.resolve("layer1-abcdefabcdef") == rid and store.read(rid)["aliases"] == ["parse-20260919T100000", "layer1-abcdefabcdef"]
+
+
+def test_gate_entries_one_per_gate():
+    entries = gate_entries(["G1 orphan legal node: x", "G1 plus 3 more orphans", "G6 base act missing"],
+                           ("G1", "G2", "G3", "G4", "G5", "G6"), {"layer1_nodes": 2})
+    by = {e["name"]: e for e in entries}
+    assert by["G1"] == {"name": "G1", "ok": False, "detail": "G1 orphan legal node: x; G1 plus 3 more orphans"}
+    assert by["G2"]["ok"] and by["G6"]["ok"] is False and len(entries) == 6
+    assert gate_entries([], ("P1", "P2"), {"db_norms": 3})[-1]["detail"] == "db_norms=3"

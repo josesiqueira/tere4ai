@@ -300,3 +300,27 @@ class BuildRecordStore:
 
     def set_layer1_digest(self, record_id: str, digest: str) -> None:
         self._update(record_id, lambda r: r.__setitem__("layer1_digest", digest))
+
+    def add_alias(self, record_id: str, alias: str) -> None:
+        """Add alias to the record and the alias index. Lock order: record, then
+        aliases, so this never deadlocks against create_record's own ordering."""
+        self._update(record_id, lambda r: r["aliases"].append(alias) if alias not in r["aliases"] else None)
+        with self._locked("aliases"):
+            aliases = self._aliases()
+            aliases[alias] = record_id
+            atomic_write_json(self.dir / ALIASES_FILENAME, aliases)
+
+
+def gate_entries(failures: list[str], names: tuple[str, ...], stats: dict[str, Any]) -> list[dict[str, Any]]:
+    """One entry per named gate: ok unless a failure string carries its prefix."""
+    entries = []
+    rendered_stats = ", ".join(f"{k}={v}" for k, v in sorted(stats.items()))
+    for name in names:
+        mine = [f for f in failures if f.startswith(f"{name} ")]
+        entries.append({"name": name, "ok": not mine, "detail": "; ".join(mine)})
+    if rendered_stats:
+        for entry in reversed(entries):
+            if entry["ok"]:
+                entry["detail"] = rendered_stats
+                break
+    return entries
