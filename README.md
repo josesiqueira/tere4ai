@@ -182,6 +182,14 @@ cost). `norms_core.json` and `alignments_core.json` come from the judged
 Layer 2/3 pipeline, which makes paid model calls (architecture.md Section
 6). Neo4j exports (`*.dump`, `*.nt`) are gitignored.
 
+Serving a published build is an explicit act:
+`.venv/bin/python scripts/activate_build.py <chain_id>` verifies the files
+its publication manifest names and writes `ACTIVE_MANIFEST.json`. The MCP
+server loads per call and follows it at once; the HTTP facade loads once at
+startup, so a restart is the only way the facade changes builds. A file that
+drifts from the activated publication refuses service. Without a pointer
+both serve the three fixed dump files as before.
+
 ```bash
 
 # demo web UI (thin, read-only; docs/DESIGN.md)

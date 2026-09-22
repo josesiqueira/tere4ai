@@ -20,6 +20,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import tere4ai.http_facade.app as facade
+from tere4ai.graph_store.publication import LoadedBuild
 from tere4ai.http_facade.app import SNAPSHOTS_DIR
 from tere4ai.mcp_server import classify as classify_tool
 from tere4ai.mcp_server import explain as explain_tool
@@ -200,16 +201,9 @@ def test_coverage_parity_via_mcp_wrapper(client, monkeypatch):
     from tere4ai.mcp_server import server
 
     state = client.app.state
-    monkeypatch.setattr(server, "_read_dump", lambda *a, **k: state.dump)
-
-    def _read_json(path):
-        if path == server.NORMS_PATH:
-            return state.norms
-        if path == server.ALIGNMENTS_PATH:
-            return state.alignments
-        return None
-
-    monkeypatch.setattr(server, "_read_json", _read_json)
+    monkeypatch.setattr(
+        server, "_active", lambda: LoadedBuild(state.dump, state.norms, state.alignments, "b", "manifest", None)
+    )
 
     via_http = client.get("/api/coverage").json()
     via_mcp = server.coverage_report()

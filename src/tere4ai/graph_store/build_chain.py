@@ -250,9 +250,16 @@ def _served_chain_id(dump_dir: Path) -> str | None:
 
 
 def served_build_id(dump_dir: Path | str, base_build_id: str) -> str:
-    """<base>+chain-<12hex> over the dumps in dump_dir, or the base id alone
-    when that directory publishes no norms. Idempotent on an already chained
-    base (the suffix is replaced, never stacked)."""
+    """The activated publication's build id when an activation pointer
+    resolves (D-G21); otherwise <base>+chain-<12hex> over the legacy dumps in
+    dump_dir, or the base id alone when that directory publishes no norms.
+    Idempotent on an already chained base (the suffix is replaced, never
+    stacked)."""
+    from tere4ai.graph_store.publication import active_manifest
+
+    manifest = active_manifest(dump_dir)
+    if manifest and manifest.get("build_id"):
+        return str(manifest["build_id"])
     chain_id = _served_chain_id(Path(dump_dir))
     if chain_id is None:
         return base_build_id

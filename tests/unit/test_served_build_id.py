@@ -92,6 +92,21 @@ class TestServedBuildId:
         assert stamp_served_build(payload, tmp_path) == {"nodes": []}
 
 
+    def test_active_pointer_overrides_the_recomputation(self, tmp_path):
+        from tere4ai.graph_store.publication import activate, write_publication_manifest
+
+        _write(tmp_path, "layer1.json", _dump())
+        _write(tmp_path, "norms_core.json", {"build": {"build_id": BASE}, "norms": []})
+        chain = build_chain(tmp_path / "layer1.json", tmp_path / "norms_core.json")
+        write_publication_manifest(tmp_path, {"chain_id": chain["chain_id"], "build_id": "other+chain-" + chain["chain_id"],
+                                              "published_at": "t", "gating": {"layer2": "llm", "layer3": "absent"},
+                                              "label": None, "gates": [], "postload_gates": [], "manifests": []},
+                                   record_id="r", inputs=chain["inputs"],
+                                   files={"layer1_dump": "layer1.json", "norms": "norms_core.json", "alignments": None})
+        activate(tmp_path, chain["chain_id"])
+        assert served_build_id(tmp_path, BASE) == "other+chain-" + chain["chain_id"]
+
+
 class TestMcpServerReadsStampedDumps:
     def test_read_json_serves_the_chained_id(self, tmp_path):
         layer1 = _write(tmp_path, "layer1.json", _dump())

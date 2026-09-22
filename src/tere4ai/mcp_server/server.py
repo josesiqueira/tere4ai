@@ -37,6 +37,7 @@ from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
 
 from tere4ai.graph_store.build_chain import stamp_served_build
+from tere4ai.graph_store.publication import LoadedBuild, active_manifest, load_active
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_rules
 from tere4ai.mcp_server import classify as classify_rules
@@ -101,8 +102,16 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return stamp_served_build(payload, path.parent)
 
 
+def _active() -> LoadedBuild:
+    """One LoadedBuild per tool call (D-G21): the activated publication when
+    ACTIVE_MANIFEST.json exists (verified on every call, a drifted file
+    refusing service), else the legacy dumps. Read fresh, so the server
+    follows a new activation at its next call."""
+    return load_active(DUMP_PATH.parent)
+
+
 def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:
-    return _read_json(dump_path)
+    return _active().dump
 
 
 def _attach_source_text(norms: list[dict[str, Any]], dump: dict[str, Any]) -> None:
@@ -221,7 +230,8 @@ def coverage_report() -> dict[str, Any]:
     (113 articles, 180 recitals, 13 annexes, chapters I to XIII, high-risk
     core presence), with per-chapter article listing and layer 2/3 status.
     Deterministic and free."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
     # B62: pass the judged payloads like GET /api/coverage does, so the
@@ -230,8 +240,8 @@ def coverage_report() -> dict[str, Any]:
     # block rather than the whole report.
     return tools.coverage_report(
         dump,
-        norms_payload=_read_json(NORMS_PATH),
-        alignments_payload=_read_json(ALIGNMENTS_PATH),
+        norms_payload=loaded.norms,
+        alignments_payload=loaded.alignments,
     )
 
 
@@ -245,7 +255,8 @@ def source_trace(node_id: str) -> dict[str, Any]:
     partial quote is never mistaken for a complete one. Get the full
     verbatim text via resolve_span on the same span_id (or GET
     /api/span/{span_id} on the HTTP facade). Deterministic and free."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
     return tools.source_trace(dump, node_id, snapshots_dir=SNAPSHOTS_DIR)
@@ -259,13 +270,14 @@ def explain_requirement(norm_id: str) -> dict[str, Any]:
     alignment targets with relation types and final scores, and a span
     trace. Non-accepted norms are explained too, with their review status
     stated prominently. Deterministic and free."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
-    norms_payload = _read_json(NORMS_PATH)
+    norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
-    alignments_payload = _read_json(ALIGNMENTS_PATH)
+    alignments_payload = loaded.alignments
     if alignments_payload is None:
         return _alignments_missing_envelope()
     return explain_rules.explain_requirement(norm_id, dump, norms_payload, alignments_payload)
@@ -279,10 +291,11 @@ def trace_alignment(id: str) -> dict[str, Any]:
     and rationale, mapping and judge runs (models, prompt versions), and
     evidence span ids on both sides; never a bare edge. The mappings are
     LLM-generated and not expert-validated. Deterministic and free."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
-    alignments_payload = _read_json(ALIGNMENTS_PATH)
+    alignments_payload = loaded.alignments
     if alignments_payload is None:
         return _alignments_missing_envelope()
     return trace_rules.trace_alignment(id, alignments_payload, dump)
@@ -294,7 +307,8 @@ def resolve_span(span_id: str) -> dict[str, Any]:
     snapshot file, sha256, start, end, and the exact text. Unknown span ids
     and checksum drift come back as clean degraded envelopes, never an
     exception. Deterministic and free."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
     return spans_rules.resolve_span_envelope(
@@ -329,7 +343,8 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     facts (deployer.body_governed_by_public_law,
     deployer.private_entity_providing_public_services). Free, no model
     calls."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
     return classify_rules.classify_ai_system(features, dump)
@@ -354,13 +369,14 @@ def trace_implementation(
     unknown or non-accepted norm id (review-queue norms never count). A trace
     is a developer claim, not evidence; it never raises an evidence status.
     Deterministic and free."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
-    norms_payload = _read_json(NORMS_PATH)
+    norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
-    alignments_payload = _read_json(ALIGNMENTS_PATH)
+    alignments_payload = loaded.alignments
     if alignments_payload is None:
         return _alignments_missing_envelope()
     if not isinstance(classification, dict):
@@ -387,7 +403,8 @@ def get_applicable_requirements(
     filter uses the canonical actor vocabulary (provider, deployer, ...).
     Deterministic selection over the judged build artifact; free, no model
     calls."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
     if not isinstance(classification, dict):
@@ -396,7 +413,7 @@ def get_applicable_requirements(
             f"or its bare answer); got {type(classification).__name__}",
             dump,
         )
-    norms_payload = _read_json(NORMS_PATH)
+    norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
     return requirements_rules.get_applicable_requirements(
@@ -423,10 +440,11 @@ def evaluate_project_evidence(
     surviving verbatim quotes, the gaps, and the judge verdict and
     rationale; a non-accepting judge verdict degrades the status to
     requires_human_review, never silently."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
-    norms_payload = _read_json(NORMS_PATH)
+    norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
     norm = _norm_by_id(norms_payload, norm_id)
@@ -481,10 +499,11 @@ def evaluate_project_evidence_batch(
     article_node_id is a Layer 1 article id such as eu-ai-act:article-9.
     The envelope status is the most conservative per-norm status and the
     judge_verdict is accepted only when every per-norm verdict is."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
-    norms_payload = _read_json(NORMS_PATH)
+    norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
     if not isinstance(article_node_id, str) or not article_node_id.strip():
@@ -541,10 +560,11 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
     (capped at 10; any truncation is noted in the answer, never silent).
     Every backlog item cites only input norm ids; items citing anything else
     are dropped and counted. The judge verdict gates the whole backlog."""
-    dump = _read_dump()
+    loaded = _active()
+    dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope()
-    norms_payload = _read_json(NORMS_PATH)
+    norms_payload = loaded.norms
     if norms_payload is None:
         return _norms_missing_envelope()
     if not norm_ids:
@@ -614,7 +634,10 @@ def _check_dump_integrity_at_startup() -> None:
         return
     from tere4ai.graph_store.build_chain import verify_dumps_against_chain
 
-    ok, detail = verify_dumps_against_chain(DUMP_PATH.parent)
+    manifest = active_manifest(DUMP_PATH.parent)
+    ok, detail = verify_dumps_against_chain(
+        DUMP_PATH.parent, chain_id=manifest["chain_id"] if manifest else None
+    )
     if ok:
         return
     message = f"TERE4AI dump integrity check FAILED: {detail}"

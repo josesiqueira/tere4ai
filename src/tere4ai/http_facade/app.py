@@ -69,7 +69,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field, model_validator
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
-from tere4ai.graph_store.build_chain import stamp_served_build
+from tere4ai.graph_store.publication import load_active
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_tool
 from tere4ai.mcp_server import classify as classify_tool
@@ -249,15 +249,6 @@ def _sanitize_unencodable(value: Any) -> Any:
     return value
 
 
-def _load_json(path: Path) -> dict[str, Any] | None:
-    if not path.is_file():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-
-
 def _load_hleg_nodes() -> list[dict[str, Any]]:
     """The seven HLEG requirement nodes for target-side span resolution;
     empty when the frozen HLEG text or its checksum is unavailable."""
@@ -286,11 +277,15 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         base = Path(dump_dir or os.environ.get(DUMP_DIR_ENV) or DEFAULT_DUMP_DIR)
-        # Served under the publication chain of this directory (B74): the
-        # id the dashboard pins a campaign to changes when the norms change.
-        app.state.dump = stamp_served_build(_load_json(base / "layer1.json"), base)
-        app.state.norms = stamp_served_build(_load_json(base / "norms_core.json"), base)
-        app.state.alignments = stamp_served_build(_load_json(base / "alignments_core.json"), base)
+        # One loader for the facade and the MCP server (D-G21): the activated
+        # publication when ACTIVE_MANIFEST.json exists (verified, a drifted
+        # file refusing service), else the legacy files under the directory's
+        # chain (B74). Loaded once here: a restart is the only way the facade
+        # changes builds.
+        loaded = load_active(base)
+        app.state.dump, app.state.norms, app.state.alignments = loaded.dump, loaded.norms, loaded.alignments
+        app.state.served_source = loaded.source
+        app.state.dump_dir = base
         core_path = base / "core_nodes.txt"
         app.state.core_nodes = (
             [n.strip() for n in core_path.read_text(encoding="utf-8").split(",") if n.strip()]
@@ -314,7 +309,7 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             if payload is None
         ]
         # Name the files, not the absolute server directory (audit W4).
-        app.state.load_error = (
+        app.state.load_error = loaded.error or (
             f"graph dumps unavailable: missing or unreadable {', '.join(missing)}; "
             "build them with python -m tere4ai.parse_legal_structure "
             "and python -m tere4ai.extract_norms"

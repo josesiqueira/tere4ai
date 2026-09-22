@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -210,3 +211,93 @@ def whole_build_label(gating: dict[str, str], bound: list[dict[str, Any]], core_
     if set(by_layer) != {2, 3}:
         return None
     return "human-adjudicated" if all(_complete_production(by_layer[layer], core_nodes) for layer in (2, 3)) else None
+
+
+ACTIVE_POINTER = "ACTIVE_MANIFEST.json"
+_LEGACY_FILES = {"layer1_dump": "layer1.json", "norms": "norms_core.json", "alignments": "alignments_core.json"}
+
+
+class ActivationError(RuntimeError):
+    pass
+
+
+@dataclass
+class LoadedBuild:
+    """What the facade (at startup) and the MCP server (per tool call) serve.
+
+    source is "manifest" when an activation pointer exists, "legacy" when
+    the three fixed dump files are served; error is set, and the payloads
+    are None, when the activated publication's files have drifted."""
+
+    dump: dict[str, Any] | None
+    norms: dict[str, Any] | None
+    alignments: dict[str, Any] | None
+    build_id: str | None
+    source: str
+    error: str | None
+
+
+def active_manifest(dump_dir: Path | str) -> dict[str, Any] | None:
+    """The publication manifest the activation pointer names, or None (no
+    pointer, an unreadable pointer, an unreadable manifest)."""
+    dump_dir = Path(dump_dir)
+    pointer = _read(dump_dir / ACTIVE_POINTER)
+    if not pointer or "chain_id" not in pointer:
+        return None
+    return _read(manifest_path(dump_dir, str(pointer["chain_id"])))
+
+
+def activate(dump_dir: Path | str, chain_id: str) -> dict[str, Any]:
+    """Select a published build: its files must verify against its
+    publication manifest, then the pointer is written atomically."""
+    from tere4ai.graph_store.build_chain import verify_dumps_against_chain
+
+    dump_dir = Path(dump_dir)
+    ok, detail = verify_dumps_against_chain(dump_dir, chain_id=chain_id)
+    if not ok:
+        raise ActivationError(detail)
+    pointer = {"chain_id": chain_id, "activated_at": datetime.now(UTC).isoformat()}
+    _write(dump_dir / ACTIVE_POINTER, pointer)
+    return pointer
+
+
+def _stamp(payload: dict[str, Any] | None, build_id: str) -> dict[str, Any] | None:
+    if isinstance(payload, dict) and isinstance(payload.get("build"), dict):
+        payload["build"]["build_id"] = build_id
+    return payload
+
+
+def load_active(dump_dir: Path | str) -> LoadedBuild:
+    """The one loader: the activated publication when a pointer exists
+    (verified, then its three files stamped with its build id), otherwise
+    the three legacy files stamped with the served id as before. Every call
+    reads fresh; nothing is cached here."""
+    from tere4ai.graph_store.build_chain import stamp_served_build, verify_dumps_against_chain
+
+    dump_dir = Path(dump_dir)
+    pointer = _read(dump_dir / ACTIVE_POINTER)
+    if pointer is None:
+        if (dump_dir / ACTIVE_POINTER).is_file():
+            return LoadedBuild(None, None, None, None, "manifest", "the activation pointer is unreadable")
+        # Each payload keeps its own base id under the directory's chain,
+        # exactly as the per-file stamping did before the loader existed.
+        dump = stamp_served_build(_read(dump_dir / _LEGACY_FILES["layer1_dump"]), dump_dir)
+        norms = stamp_served_build(_read(dump_dir / _LEGACY_FILES["norms"]), dump_dir)
+        alignments = stamp_served_build(_read(dump_dir / _LEGACY_FILES["alignments"]), dump_dir)
+        build_id = None
+        if dump is not None:
+            build_id = str(dump.get("build", {}).get("build_id", "unknown"))
+        return LoadedBuild(dump, norms, alignments, build_id, "legacy", None)
+    chain_id = str(pointer.get("chain_id"))
+    manifest = _read(manifest_path(dump_dir, chain_id))
+    if manifest is None:
+        return LoadedBuild(None, None, None, None, "manifest", f"no readable publication manifest for chain {chain_id}")
+    ok, detail = verify_dumps_against_chain(dump_dir, chain_id=chain_id)
+    if not ok:
+        return LoadedBuild(None, None, None, manifest.get("build_id"), "manifest", detail)
+    files = manifest["files"]
+    build_id = str(manifest["build_id"])
+    dump = _stamp(_read(dump_dir / files["layer1_dump"]), build_id)
+    norms = _stamp(_read(dump_dir / files["norms"]), build_id)
+    alignments = _stamp(_read(dump_dir / files["alignments"]), build_id) if files.get("alignments") else None
+    return LoadedBuild(dump, norms, alignments, build_id, "manifest", None)

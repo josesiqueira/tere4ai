@@ -2,16 +2,30 @@
 
 from __future__ import annotations
 
-import pytest
+import importlib.util
+import json
+from pathlib import Path
 
+import pytest
+from fastapi.testclient import TestClient
+
+from tere4ai.graph_store.build_chain import build_chain, served_build_id
 from tere4ai.graph_store.publication import (
+    ACTIVE_POINTER,
+    ActivationError,
     PublicationError,
+    activate,
+    active_manifest,
     bind_manifests,
     gating_of,
+    load_active,
     read_target_state,
     set_target_state,
     whole_build_label,
+    write_publication_manifest,
 )
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _ref(freeze="f1", kind="norms", digest="d" * 64, ctype="layer2_annotation", source="build-b+chain-000000000000"):
@@ -88,3 +102,116 @@ def test_one_manifest_binds_one_reference_of_its_own_kind():
         bind_manifests([norms_ref, align_ref], [_manifest()])
     with pytest.raises(PublicationError, match="f1.*alignments.*hleg_alignment.*layer2_annotation"):
         bind_manifests([align_ref], [_manifest()])
+
+
+def _dumps(tmp_path):
+    files = {}
+    for role, name, payload in (("layer1_dump", "layer1.json", {"build": {"build_id": "build-b"}, "nodes": [], "edges": []}),
+                                ("norms", "norms_core.json", {"build": {"build_id": "build-b"}, "norms": []}),
+                                ("alignments", "alignments_core.json", {"build": {"build_id": "build-b"}, "assertions": []})):
+        p = tmp_path / name
+        p.write_text(json.dumps(payload))
+        files[role] = p
+    return files
+
+
+def _publish_fixture(tmp_path, files):
+    chain = build_chain(files["layer1_dump"], files["norms"], alignments_path=files["alignments"])
+    publication = {"chain_id": chain["chain_id"], "build_id": "build-b+chain-" + chain["chain_id"], "published_at": "t",
+                   "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [], "postload_gates": [],
+                   "manifests": []}
+    write_publication_manifest(tmp_path, publication, record_id="r", inputs=chain["inputs"],
+                               files={"layer1_dump": "layer1.json", "norms": "norms_core.json", "alignments": "alignments_core.json"})
+    return chain["chain_id"]
+
+
+def test_activate_verifies_and_writes_the_pointer(tmp_path):
+    files = _dumps(tmp_path)
+    chain_id = _publish_fixture(tmp_path, files)
+    with pytest.raises(ActivationError, match="no publication"):
+        activate(tmp_path, "000000000000")
+    assert activate(tmp_path, chain_id)["chain_id"] == chain_id
+    assert active_manifest(tmp_path)["chain_id"] == chain_id
+    files["norms"].write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [1]}))
+    with pytest.raises(ActivationError, match="norms"):
+        activate(tmp_path, chain_id)
+
+
+def test_load_active_prefers_the_pointer_and_falls_back_to_legacy(tmp_path):
+    files = _dumps(tmp_path)
+    legacy = load_active(tmp_path)
+    assert legacy.source == "legacy" and legacy.error is None and legacy.build_id == served_build_id(tmp_path, "build-b")
+    chain_id = _publish_fixture(tmp_path, files)
+    activate(tmp_path, chain_id)
+    loaded = load_active(tmp_path)
+    assert loaded.source == "manifest" and loaded.build_id == "build-b+chain-" + chain_id
+    assert loaded.norms["build"]["build_id"] == loaded.build_id and loaded.alignments is not None
+    assert served_build_id(tmp_path, "build-b") == loaded.build_id
+    files["alignments"].write_text("{}")
+    drifted = load_active(tmp_path)
+    assert drifted.source == "manifest" and drifted.norms is None and "alignments" in drifted.error
+
+
+def test_facade_and_mcp_serve_the_activated_build_and_refuse_a_drifted_one(tmp_path, monkeypatch):
+    import tere4ai.http_facade.app as facade
+    import tere4ai.mcp_server.server as server
+
+    files = _dumps(tmp_path)
+    chain_id = _publish_fixture(tmp_path, files)
+    activate(tmp_path, chain_id)
+    with TestClient(facade.create_app(tmp_path)) as client:
+        assert client.get("/api/health").json()["norms_build"] == "build-b+chain-" + chain_id
+    monkeypatch.setattr(server, "DUMP_PATH", tmp_path / "layer1.json")
+    assert server._read_dump()["build"]["build_id"] == "build-b+chain-" + chain_id
+    report = server.coverage_report()
+    assert report["graph_version"] == "build-b+chain-" + chain_id
+    files["norms"].write_text("{}")
+    with TestClient(facade.create_app(tmp_path)) as client:
+        health = client.get("/api/health")
+        assert health.status_code == 503 and "norms" in health.json()["error"]
+    assert server._read_dump() is None
+
+
+def test_loaded_build_is_taken_once_per_mcp_call(tmp_path, monkeypatch):
+    import tere4ai.mcp_server.server as server
+
+    calls = []
+    original = server._active
+
+    def counting():
+        calls.append(1)
+        return original()
+
+    files = _dumps(tmp_path)
+    chain_id = _publish_fixture(tmp_path, files)
+    activate(tmp_path, chain_id)
+    monkeypatch.setattr(server, "DUMP_PATH", tmp_path / "layer1.json")
+    monkeypatch.setattr(server, "_active", counting)
+    server.explain_requirement("norm:none")
+    assert len(calls) == 1, "one LoadedBuild per tool call, never one per payload"
+
+
+def _activate_cli():
+    spec = importlib.util.spec_from_file_location("activate_build_cli", ROOT / "scripts" / "activate_build.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_activate_build_cli_refuses_an_unknown_or_drifted_chain_and_activates_a_valid_one(tmp_path, capsys):
+    cli = _activate_cli()
+    files = _dumps(tmp_path)
+    chain_id = _publish_fixture(tmp_path, files)
+    assert cli.main(["000000000000", "--dump-dir", str(tmp_path)]) == 1
+    err = capsys.readouterr().err
+    assert "not activated" in err and "no publication" in err
+    assert not (tmp_path / ACTIVE_POINTER).exists()
+    assert cli.main([chain_id, "--dump-dir", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert "build-b+chain-" + chain_id in out and "restart the facade to serve it" in out
+    assert json.loads((tmp_path / ACTIVE_POINTER).read_text())["chain_id"] == chain_id
+    (tmp_path / ACTIVE_POINTER).unlink()
+    files["norms"].write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [1]}))
+    assert cli.main([chain_id, "--dump-dir", str(tmp_path)]) == 1
+    assert "norms" in capsys.readouterr().err
+    assert not (tmp_path / ACTIVE_POINTER).exists()

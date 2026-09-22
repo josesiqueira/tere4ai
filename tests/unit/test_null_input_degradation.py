@@ -15,6 +15,7 @@ any model client is constructed (same wrapper-level guard as audit D9).
 
 import pytest
 
+from tere4ai.graph_store.publication import LoadedBuild
 from tere4ai.mcp_server import server
 from tere4ai.mcp_server.tools import NON_LEGAL_ADVICE_NOTICE
 
@@ -52,16 +53,11 @@ NORMS_PAYLOAD = {
 @pytest.fixture()
 def offline_server(monkeypatch):
     """Server wrappers over synthetic dumps; paid clients must never be built."""
-    monkeypatch.setattr(server, "_read_dump", lambda *a, **k: DUMP)
-
-    def _read_json(path):
-        if path == server.NORMS_PATH:
-            return NORMS_PAYLOAD
-        if path == server.ALIGNMENTS_PATH:
-            return {"assertions": []}
-        return None
-
-    monkeypatch.setattr(server, "_read_json", _read_json)
+    monkeypatch.setattr(
+        server,
+        "_active",
+        lambda: LoadedBuild(DUMP, NORMS_PAYLOAD, {"assertions": []}, "build-fixture", "manifest", None),
+    )
 
     def _no_paid_clients():
         raise AssertionError(
