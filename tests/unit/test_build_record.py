@@ -16,6 +16,7 @@ from tere4ai.graph_store.build_record import (
     RecordError,
     gate_entries,
     liveness,
+    relative_to_dump_dir,
     scrub_argv,
     select_record,
 )
@@ -206,3 +207,13 @@ def test_select_record_creates_reuses_or_continues_as_descendant(tmp_path):
     grandchild, message = select_record(store, "other", "build-b", "N" * 64)
     assert grandchild != other_rid and store.read(grandchild)["parent_record_id"] == other_rid
     assert message == f"record {other_rid} was built on another Layer 1; continuing as descendant {grandchild}"
+
+
+def test_relative_to_dump_dir_relative_under_and_absolute_outside(tmp_path):
+    dump_dir = tmp_path / "dumps"
+    dump_dir.mkdir()
+    under = dump_dir / "norms_test.json"
+    assert relative_to_dump_dir(under, dump_dir) == "norms_test.json"
+
+    outside = tmp_path / "elsewhere" / "norms_test.json"
+    assert relative_to_dump_dir(outside, dump_dir) == str(outside)

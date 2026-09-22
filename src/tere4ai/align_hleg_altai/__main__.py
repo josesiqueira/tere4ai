@@ -1,13 +1,15 @@
 """Build entry point: python -m tere4ai.align_hleg_altai --norms data/graph_dumps/norms_<slug>.json
 
-@implements: DEC-05, DEC-06 (partial: mapping judge)
-@grounded_by: REF-24, REF-21, REF-10, REF-16
+@implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the L3.1 to L3.3 execution record)
+@grounded_by: REF-24, REF-21, REF-10, REF-16, ADD-20
 
 Runs the judged alignment pipeline over the accepted norms in the given
 norms dump, against the seven HLEG requirement nodes, and writes
 data/graph_dumps/alignments_<slug>.json. Norm source text is resolved from
 the layer1 dump via each norm's source_node_id. Use --dry-run to list the
-norms that would be aligned without calling any model.
+norms that would be aligned without calling any model. Every attempt writes
+an execution record covering L3.1 to L3.3 into the build record store
+(D-G20), with run ids on every checkpoint line and a validated resume.
 """
 
 from __future__ import annotations
@@ -21,8 +23,15 @@ from pathlib import Path
 from tere4ai.align_hleg_altai.hleg_nodes import build_hleg_nodes
 from tere4ai.align_hleg_altai.pipeline import align_norms
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
-from tere4ai.extract_norms.pipeline import DEFAULT_DUMP_PATH, REPO_ROOT
+from tere4ai.extract_norms.pipeline import DEFAULT_DUMP_PATH, REPO_ROOT, load_prompt, prompt_sha256
+from tere4ai.graph_store.build_chain import sha256_of_file
+from tere4ai.graph_store.build_record import BuildRecordStore, relative_to_dump_dir, select_record
+from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume
 from tere4ai.judge.config import load_model_config
+
+ALIGN_PROMPT_KIND = "align_hleg"
+JUDGE_PROMPT_KIND = "judge_alignment"
+RESULT_KEYS = ("assertions", "mapping_runs", "judge_runs", "stats")
 
 
 def _attach_source_text(norms: list[dict], layer1: dict) -> None:
@@ -84,6 +93,12 @@ def main(argv: list[str] | None = None) -> int:
         "--batch-size", type=int, default=20,
         help="norms per checkpointed batch (default 20)",
     )
+    parser.add_argument("--dump-dir", type=Path, default=None,
+                        help="where build records live (default: the output directory)")
+    parser.add_argument("--record", default=None,
+                        help="build record alias or id (default: the record that wrote the norms file, else the slug)")
+    parser.add_argument("--accept-legacy-checkpoint", action="store_true",
+                        help="inherit checkpoint lines written before build records existed (no run id)")
     args = parser.parse_args(argv)
 
     payload = json.loads(args.norms.read_text(encoding="utf-8"))
@@ -106,9 +121,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     slug = args.norms.stem.removeprefix("norms_")
-    out_path = args.out or (
-        REPO_ROOT / "data" / "graph_dumps" / f"alignments_{slug}.json"
-    )
+    out_path = args.out or (REPO_ROOT / "data" / "graph_dumps" / f"alignments_{slug}.json")
+    dump_dir = args.dump_dir or out_path.parent
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # fail fast at zero cost if the output path is unwritable (lesson of the
     # lost 2026-07-08 extraction run)
@@ -120,68 +134,111 @@ def main(argv: list[str] | None = None) -> int:
         chunk = norms[i : i + args.batch_size]
         batches.append((f"batch:{i}:{chunk[0]['norm_id']}", chunk))
 
-    done: set[str] = set()
-    partials: list[dict] = []
-    if args.resume and checkpoint_path.exists():
-        for line in checkpoint_path.read_text(encoding="utf-8").splitlines():
-            entry = json.loads(line)
-            done.add(entry["batch"])
-            partials.append(entry["result"])
-        print(f"resume: {len(done)} batch(es) already checkpointed")
+    norms_digest = sha256_of_file(args.norms)
+    layer1_digest = sha256_of_file(args.dump)
+    inputs = [{"role": "norms", "file": relative_to_dump_dir(args.norms, dump_dir), "sha256": norms_digest},
+              {"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest}]
+    config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size}
+    store = BuildRecordStore(dump_dir)
+    ref = args.record or store.find_by_output_digest(norms_digest) or slug
+    record_id, message = select_record(store, ref, payload.get("build", {}).get("build_id"), layer1_digest)
+    if message:
+        print(message)
+    try:
+        plan = prepare_resume(checkpoint_path, "batch", RESULT_KEYS, resume=args.resume,
+                              accept_legacy=args.accept_legacy_checkpoint, store=store, record_id=record_id,
+                              expected_config=config, expected_inputs=inputs)
+    except CheckpointError as exc:
+        print(f"refusing to start: {exc}", file=sys.stderr)
+        return 2
+    if plan.inherited_keys:
+        print(f"resume: {len(plan.inherited_keys)} batch(es) inherited from {plan.inherited_from}")
 
     cfg = load_model_config()
     generator = OpenAIGenerator(cfg)
     judge = AnthropicJudge(cfg)
     hleg_nodes = build_hleg_nodes()
-
-    with checkpoint_path.open("a", encoding="utf-8") as ckpt:
-        for batch_key, chunk in batches:
-            if batch_key in done:
-                continue
-            partial = align_norms(
-                chunk, hleg_nodes, generator, judge,
-                prompt_version=args.prompt_version, build_id=build_id,
-            )
-            ckpt.write(json.dumps({"batch": batch_key, "result": partial}) + "\n")
-            ckpt.flush()
-            partials.append(partial)
-            print(f"  {batch_key}: {len(partial['assertions'])} assertions, "
-                  f"verdicts {partial['stats'].get('verdicts', {})}", flush=True)
-
-    result: dict = {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}
-    for partial in partials:
-        result["assertions"].extend(partial["assertions"])
-        result["mapping_runs"].extend(partial["mapping_runs"])
-        result["judge_runs"].extend(partial["judge_runs"])
-        for key, value in partial["stats"].items():
-            if isinstance(value, int):
-                result["stats"][key] = result["stats"].get(key, 0) + value
-            elif isinstance(value, list):
-                result["stats"].setdefault(key, []).extend(value)
-            elif isinstance(value, dict):
-                bucket = result["stats"].setdefault(key, {})
-                for k, v in value.items():
-                    bucket[k] = bucket.get(k, 0) + v
-
-    out_payload = {
-        "build": {
-            **payload.get("build", {}),
-            "alignment_models": cfg.as_public_dict(),
-            "alignment_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
-            "alignment_usage": {"generator": _usage_of(generator), "judge": _usage_of(judge)},
-            "aligned_at": datetime.now(UTC).isoformat(),
-            "alignment_prompt_version": args.prompt_version,
-        },
-        **result,
-    }
-    tmp_path = out_path.with_suffix(".writing.json")
-    tmp_path.write_text(
-        json.dumps(out_payload, ensure_ascii=False, indent=1), encoding="utf-8"
+    run_id = store.start_execution(
+        record_id, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"],
+        argv=list(sys.argv[1:] if argv is None else argv), inputs=inputs, config=config,
+        expected_total=len(batches), work_unit="batches", checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),
+        resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,
+        models=cfg.as_public_dict(),
+        prompt_sha256={"generator": prompt_sha256(load_prompt(ALIGN_PROMPT_KIND, args.prompt_version)),
+                       "judge": prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, args.prompt_version))},
+        sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
     )
-    tmp_path.replace(out_path)
+
+    partials: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
+    completed: list[str] = []
+
+    def usage() -> dict:
+        return {"generator": _usage_of(generator), "judge": _usage_of(judge)}
+
+    try:
+        with checkpoint_path.open("a", encoding="utf-8") as ckpt:
+            for batch_key, chunk in batches:
+                if batch_key in plan.entries_by_key:
+                    continue
+                partial = align_norms(chunk, hleg_nodes, generator, judge,
+                                      prompt_version=args.prompt_version, build_id=build_id)
+                ckpt.write(json.dumps({"run_id": run_id, "batch": batch_key, "result": partial}) + "\n")
+                ckpt.flush()
+                partials.append(partial)
+                completed.append(batch_key)
+                store.heartbeat(record_id, run_id)
+                print(f"  {batch_key}: {len(partial['assertions'])} assertions, "
+                      f"verdicts {partial['stats'].get('verdicts', {})}", flush=True)
+
+        result: dict = {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}
+        for partial in partials:
+            result["assertions"].extend(partial["assertions"])
+            result["mapping_runs"].extend(partial["mapping_runs"])
+            result["judge_runs"].extend(partial["judge_runs"])
+            for key, value in partial["stats"].items():
+                if isinstance(value, int):
+                    result["stats"][key] = result["stats"].get(key, 0) + value
+                elif isinstance(value, list):
+                    result["stats"].setdefault(key, []).extend(value)
+                elif isinstance(value, dict):
+                    bucket = result["stats"].setdefault(key, {})
+                    for k, v in value.items():
+                        bucket[k] = bucket.get(k, 0) + v
+
+        out_payload = {
+            "build": {
+                **payload.get("build", {}),
+                "alignment_models": cfg.as_public_dict(),
+                "alignment_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+                "alignment_usage": usage(),
+                "alignment_input_sha256": norms_digest,
+                "aligned_at": datetime.now(UTC).isoformat(),
+                "alignment_prompt_version": args.prompt_version,
+            },
+            **result,
+        }
+        tmp_path = out_path.with_suffix(".writing.json")
+        tmp_path.write_text(json.dumps(out_payload, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp_path.replace(out_path)
+        stats = result["stats"]
+        store.finish_execution(
+            record_id, run_id, status="done",
+            outputs=[{"role": "alignments", "file": relative_to_dump_dir(out_path, dump_dir),
+                     "sha256": sha256_of_file(out_path)}],
+            counts={"norms_total": stats.get("norms_total", 0),
+                    "norms_skipped_not_accepted": stats.get("norms_skipped_not_accepted", 0),
+                    "zero_alignment_norms": stats.get("zero_alignment_norms", 0),
+                    "candidates": stats.get("candidates", 0), "verdicts": stats.get("verdicts", {}),
+                    "mechanical_rejects_count": len(stats.get("mechanical_rejects", []))},
+            usage=usage(), sampling=out_payload["build"]["alignment_sampling"], completed_keys=completed,
+            work_failures={"nodes_failed": 0, "norms_failed": len(stats.get("norms_failed", []))},
+        )
+    except Exception as exc:  # noqa: BLE001 - recorded with what is known, then re-raised
+        store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
+                               error=f"{type(exc).__name__}: {exc}")
+        raise
     checkpoint_path.unlink(missing_ok=True)
 
-    stats = result["stats"]
     print(f"wrote {out_path}")
     print(
         f"norms: {stats.get('norms_total', 0)} total, "

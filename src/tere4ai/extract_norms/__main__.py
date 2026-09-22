@@ -29,7 +29,7 @@ from tere4ai.extract_norms.pipeline import (
     prompt_sha256,
 )
 from tere4ai.graph_store.build_chain import sha256_of_file
-from tere4ai.graph_store.build_record import BuildRecordStore, select_record
+from tere4ai.graph_store.build_record import BuildRecordStore, relative_to_dump_dir, select_record
 from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume
 from tere4ai.judge.config import load_model_config
 
@@ -67,15 +67,6 @@ def _sampling_of(client: object) -> str:
 def _usage_of(client: object) -> dict:
     """Provider-reported token counts over this run; empty for a stub."""
     return dict(getattr(client, "usage", None) or {})
-
-
-def _relative_to_dump_dir(path: Path, dump_dir: Path) -> str:
-    """Path relative to dump_dir when it lies under it, else the absolute path.
-    The presenter later resolves dump_dir / this value."""
-    try:
-        return str(path.relative_to(dump_dir))
-    except ValueError:
-        return str(path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -147,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     checkpoint_path = out_path.with_suffix(".checkpoint.jsonl")
 
     layer1_digest = sha256_of_file(args.dump)
-    inputs = [{"role": "layer1_dump", "file": _relative_to_dump_dir(args.dump, dump_dir),
+    inputs = [{"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir),
                "sha256": layer1_digest}]
     config = {"prompt_version": args.prompt_version, "nodes": node_ids}
     store = BuildRecordStore(dump_dir)
@@ -172,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
         record_id, command="extract_norms", covers_steps=["L2.1", "L2.2"],
         argv=list(sys.argv[1:] if argv is None else argv), inputs=inputs, config=config,
         expected_total=len(node_ids), work_unit="groups",
-        checkpoint_file=_relative_to_dump_dir(checkpoint_path, dump_dir),
+        checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),
         resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,
         models=cfg.as_public_dict(),
         prompt_sha256={"generator": prompt_sha256(load_prompt(GENERATOR_PROMPT_KIND, args.prompt_version)),
@@ -239,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         stats = merged["stats"]
         store.finish_execution(
             record_id, run_id, status="done",
-            outputs=[{"role": "norms", "file": _relative_to_dump_dir(out_path, dump_dir),
+            outputs=[{"role": "norms", "file": relative_to_dump_dir(out_path, dump_dir),
                      "sha256": sha256_of_file(out_path)}],
             counts={"source_units": stats["source_units"], "candidates": stats["candidates"],
                     "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"])},

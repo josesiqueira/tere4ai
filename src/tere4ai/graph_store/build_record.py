@@ -331,6 +331,15 @@ def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
     return child, f"record {existing} {why}; continuing as descendant {child}"
 
 
+def relative_to_dump_dir(path: Path, dump_dir: Path) -> str:
+    """Path relative to dump_dir when it lies under it, else the absolute path.
+    The presenter later resolves dump_dir / this value."""
+    try:
+        return str(path.relative_to(dump_dir))
+    except ValueError:
+        return str(path)
+
+
 def gate_entries(failures: list[str], names: tuple[str, ...], stats: dict[str, Any]) -> list[dict[str, Any]]:
     """One entry per named gate: ok unless a failure string carries its prefix."""
     entries = []
