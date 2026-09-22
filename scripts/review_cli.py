@@ -5,7 +5,8 @@
 
 Pure-argv CLI, no interactive prompts (agent friendly). Decisions never touch
 the pipeline dumps: they accumulate in data/review_queue/decisions.json and
-are applied at publish time by scripts/publish_layer23.py.
+are materialised once, from a decisions file and its freeze manifest, by
+scripts/materialize_reference.py; publication consumes the reference file.
 
 Usage:
   .venv/bin/python scripts/review_cli.py list [--kind norm|alignment|crossref]

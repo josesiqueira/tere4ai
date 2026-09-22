@@ -217,6 +217,52 @@ cd web && npm run build && npx next start -p 3111
 plus Anthropic runtime grounding judge; keys in .env, see .env.example) and
 mark their responses with the X-TERE4AI-Paid-Call header.
 
+## Build records, materialisation, publication and activation
+
+Every build command (parse, extract, align, materialise, publish) writes an
+execution record under `data/graph_dumps/build_records/` (DEC-16): what
+ran, over which inputs (by digest), with which models and prompts, how far
+it got (validated checkpoint keys against the expected total), how it
+ended, and one outcome per gate. The facade serves them free on
+`GET /api/builds` and `GET /api/builds/<record id or alias>`; the
+dashboard's Build view reads only these routes. Every field says whether
+it was recorded by the command, derived afterwards, or is unavailable.
+
+Human decisions never edit a dump. Export the decisions file and its freeze
+manifest from the dashboard, copy the manifest into `data/graph_dumps/`
+(publication names its inputs by file under that directory), then:
+
+    .venv/bin/python scripts/materialize_reference.py --pristine data/graph_dumps/norms_core.json \
+        --decisions <decisions.json> --manifest <freeze-manifest.json>
+    python -m tere4ai.align_hleg_altai --norms data/graph_dumps/norms_core.reference.json
+    .venv/bin/python scripts/publish_layer23.py --norms data/graph_dumps/norms_core.reference.json \
+        --alignments data/graph_dumps/alignments_core.reference.json --manifest data/graph_dumps/<freeze-manifest.json>
+    .venv/bin/python scripts/activate_build.py <chain id printed by publish>
+
+Publish writes `build_chain_<id>.json` and `publications/<id>.json` only
+after the post-load gates pass; `BUILD_CHAIN_CURRENT.txt` records the
+latest publication and selects nothing; `NEO4J_TARGET.json` says whether
+the database holds a validated build. Activation verifies the
+publication's files and writes `ACTIVE_MANIFEST.json`; restart the facade
+to serve it (the MCP server follows the pointer on its next call). Without
+a pointer the facade serves the `*_core.json` files under their recomputed
+chain, as before.
+
+A run that stops (a usage limit, a crash) leaves its checkpoint; rerun
+with `--resume` to continue it under a new run id that names the one it
+resumes, after the inputs and configuration are checked; add
+`--accept-legacy-checkpoint` for a checkpoint written before build records
+existed. Starting the same output without `--resume` while a checkpoint
+exists is refused. A published record is frozen: further work on the same
+alias continues as a descendant record.
+
+Tracked in git because they are publication evidence or inputs:
+`build_chain_*.json`, `publications/`, `BUILD_CHAIN_CURRENT.txt`,
+`*.reference.json`, `*.adjudicated.json`, the core dumps. Ignored because
+they are per-checkout run state: `build_records/`, `*.checkpoint.jsonl`,
+`*.writing.json`, `*.building.json`, `ACTIVE_MANIFEST.json`,
+`NEO4J_TARGET.json`.
+
 ## Status
 
 M1 to M3 implemented, M4 harness ready (see docs/architecture.md Section 14

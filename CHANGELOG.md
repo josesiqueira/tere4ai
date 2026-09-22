@@ -5,6 +5,15 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Build records, materialisation, publication and activation (2026-09-22, B77 plan 2a)
+- Build records for every pipeline command with validated resume;
+  `scripts/materialize_reference.py`; publication after the post-load gates
+  with per-layer gating, per-gate outcomes, freeze manifests in the chain id
+  and a Neo4j target state; explicit activation (`scripts/activate_build.py`)
+  with one loader for the facade and the MCP server; `GET /api/builds` and
+  `GET /api/builds/{ref}` with a JSON schema and fixtures for the dashboard
+  (DEC-16, B77 plan 2a). `publish_layer23 --decisions` retired.
+
 ### Human review decisions (2026-09-17, B77 plan 1)
 - The decisions file gains two new decision kinds, `replace` and `add`, each
   carrying a human-written norm in `payload` (a required `actor_explicit`
