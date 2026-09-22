@@ -565,11 +565,12 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
 
     norms_digest = _digest(norms_path)
     norms_payload = _read_json_or_none(norms_path)
-    if isinstance(norms_payload, dict):
+    if isinstance(norms_payload, dict) and isinstance(norms_payload.get("norms"), list):
         executions.append(_extract_execution(norms_payload, norms_path.name, norms_digest))
     else:
+        problem = "malformed" if isinstance(norms_payload, dict) else "unreadable"
         for step in ("L2.1", "L2.2"):
-            reasons[step] = f"artefact unreadable: {norms_path.name}"
+            reasons[step] = f"artefact {problem}: {norms_path.name}"
 
     align_path = dump_dir / f"alignments_{slug}.json"
     checkpoint_path = dump_dir / f"alignments_{slug}.checkpoint.jsonl"
@@ -577,11 +578,12 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
     align_steps = ("L3.1", "L3.2", "L3.3")
     if has_alignments:
         payload = _read_json_or_none(align_path)
-        if isinstance(payload, dict):
+        if isinstance(payload, dict) and isinstance(payload.get("assertions"), list):
             executions.append(_align_execution(payload, align_path.name, _digest(align_path)))
         else:
+            problem = "malformed" if isinstance(payload, dict) else "unreadable"
             for step in align_steps:
-                reasons[step] = f"artefact unreadable: {align_path.name}"
+                reasons[step] = f"artefact {problem}: {align_path.name}"
     elif checkpoint_path.is_file():
         try:
             read = read_checkpoint(checkpoint_path, "batch", ())

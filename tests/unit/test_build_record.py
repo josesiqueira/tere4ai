@@ -111,13 +111,13 @@ def test_failed_execution_keeps_error_and_partial_usage(tmp_path):
 def test_invalid_file_is_reported_not_raised_in_list_and_raised_on_read(tmp_path):
     store = BuildRecordStore(tmp_path)
     store.create_record("t", "b", None)
-    (tmp_path / "build_records" / "broken.json").write_text("{not json", encoding="utf-8")
-    (tmp_path / "build_records" / "shape.json").write_text(json.dumps({"record_id": "shape"}), encoding="utf-8")
+    (tmp_path / "build_records" / "0000000b0000.json").write_text("{not json", encoding="utf-8")
+    (tmp_path / "build_records" / "00000005a0e0.json").write_text(json.dumps({"record_id": "x"}), encoding="utf-8")
     listed = {r["record_id"]: r for r in store.list_records()}
-    assert listed["broken"]["unreadable"] and "JSON" in listed["broken"]["reason"]
-    assert listed["shape"]["unreadable"] and "is a required property" in listed["shape"]["reason"]
+    assert listed["0000000b0000"]["unreadable"] and "JSON" in listed["0000000b0000"]["reason"]
+    assert listed["00000005a0e0"]["unreadable"] and "is a required property" in listed["00000005a0e0"]["reason"]
     with pytest.raises(RecordError):
-        store.read("shape")
+        store.read("00000005a0e0")
     assert not list((tmp_path / "build_records").glob("tmp*"))
 
 
@@ -243,3 +243,13 @@ def test_select_record_reuses_the_open_descendant_of_a_frozen_record(tmp_path):
     assert [r["record_id"] for r in store.list_records() if r.get("parent_record_id") == parent] == [child]
     other, _ = select_record(store, parent, "build-b", "M" * 64)
     assert other != child, "a descendant on another Layer 1 is another assembly"
+
+
+def test_list_records_skips_files_that_are_not_records(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("t", "b", None)
+    records = tmp_path / "build_records"
+    (records / "tmpab_12xyz.json").write_text((records / f"{rid}.json").read_text(), encoding="utf-8")
+    (records / "tmp0123456789.json").write_text("{partial", encoding="utf-8")
+    (records / "notes.json").write_text("{}", encoding="utf-8")
+    assert [r["record_id"] for r in store.list_records()] == [rid], "a temp file mid-write is never a record"

@@ -207,3 +207,14 @@ def test_an_input_without_a_producing_record_is_not_recorded(tmp_path):
     assert steps["L2.1"] == steps["L2.2"] == steps["L0.1"] == steps["L1.1"] == "not_recorded" and parse_id is None
     assert reasons["L2.1"] == reasons["L0.1"] == "produced before DEC-16"
     assert steps["L3.1"] == "running" and steps["L2.3"] == "not_started"
+
+
+def test_a_malformed_legacy_payload_yields_no_execution_and_a_reason(tmp_path):
+    (tmp_path / "norms_core.json").write_text(json.dumps({"build": {"build_id": "b"}, "stats": {}}))
+    (tmp_path / "alignments_core.json").write_text(json.dumps({"build": {"build_id": "b"}, "assertions": "none"}))
+    record = synthesise_legacy_records(tmp_path)[0]
+    assert record["executions"] == []
+    p = present_record(record, tmp_path, NOW, None, None)
+    assert p["steps"]["L2.1"] == p["steps"]["L3.1"] == "not_recorded"
+    assert p["reasons"]["L2.2"] == "artefact malformed: norms_core.json"
+    assert p["reasons"]["L3.3"] == "artefact malformed: alignments_core.json"

@@ -36,7 +36,7 @@ def test_list_and_detail_validate_and_carry_liveness_progress_and_target(tmp_pat
     (tmp_path / "alignments_core.b74.checkpoint.jsonl").write_text("".join(
         json.dumps({"run_id": run, "batch": f"batch:{i}:n", "result": {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n"
         for i in range(0, 300, 20)))
-    (tmp_path / "build_records" / "broken.json").write_text("{", encoding="utf-8")
+    (tmp_path / "build_records" / "0000000b0000.json").write_text("{", encoding="utf-8")
     set_target_state(tmp_path, state="available", build_id="b", uri="bolt://x", reason=None)
     with TestClient(facade.create_app(tmp_path)) as client:
         listed = client.get("/api/builds").json()
@@ -44,7 +44,7 @@ def test_list_and_detail_validate_and_carry_liveness_progress_and_target(tmp_pat
         assert listed["publication_target"]["state"] == "available" and listed["observed_at"]
         by = {b["record_id"]: b for b in listed["builds"]}
         assert by[rid]["steps"]["L3.1"] == "running" and by[rid]["served"] is False and by[rid]["synthesised"] is False
-        assert by["broken"]["unreadable"] and by["broken"]["reason"]
+        assert by["0000000b0000"]["unreadable"] and by["0000000b0000"]["reason"]
         assert by["legacy-core"]["synthesised"] and by["legacy-core"]["steps"]["P.1"] == "not_recorded"
         detail = client.get("/api/builds/core.b74").json()
         assert not list(_validator("presented_record").iter_errors(detail))

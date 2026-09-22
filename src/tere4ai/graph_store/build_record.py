@@ -18,6 +18,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 import tempfile
 import uuid
 from contextlib import contextmanager
@@ -34,6 +35,7 @@ SCHEMA_VERSION = "build_record.v1"
 HEARTBEAT_EXPIRY_SECONDS = 300
 STEP_IDS = ("L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.3", "L3.4", "L3.5", "P.1", "P.2")
 _REDACT_MARKERS = ("key", "token", "secret")
+RECORD_FILE_STEM = re.compile(r"^(?:[0-9a-f]{12}|legacy-.+)$")
 _SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "build_record.schema.json"
 
 
@@ -181,7 +183,9 @@ class BuildRecordStore:
         if not self.dir.is_dir():
             return out
         for p in sorted(self.dir.glob("*.json")):
-            if p.name == ALIASES_FILENAME:
+            # Only names a record can have: a temp file of atomic_write_json
+            # (tmp*.json), mid-write or left by a killed process, never is one.
+            if not RECORD_FILE_STEM.match(p.stem):
                 continue
             try:
                 out.append(self._read_raw(p))

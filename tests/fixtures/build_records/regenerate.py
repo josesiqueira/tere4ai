@@ -32,7 +32,7 @@ from tere4ai.graph_store.present import present_record, summary_of, synthesise_l
 from tere4ai.graph_store.publication import read_target_state
 
 FIXTURE_DIR = Path(__file__).resolve().parent
-FIXED_IDS = ["r1parse00000", "run1parse000", "r2align00000", "run2prev0000", "run2align000",
+FIXED_IDS = ["a00000000001", "run1parse000", "a00000000002", "run2prev0000", "run2align000",
              "a00000000003", "run3parse000", "run3extract0", "run3align000", "run3publish0",
              "a00000000004", "run4mat00000", "run4align000"]
 FIXED_NOW = "2026-09-19T00:00:00+00:00"
