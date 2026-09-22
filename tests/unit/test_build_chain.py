@@ -137,3 +137,29 @@ class TestVerifyAgainstPublication:
     def test_unknown_chain_id_is_refused(self, tmp_path):
         ok, detail = verify_dumps_against_chain(tmp_path, chain_id="000000000000")
         assert not ok and "no publication manifest" in detail
+
+    def test_malformed_publication_manifest_fails_closed(self, tmp_path):
+        layer1 = _write(tmp_path, "layer1.json", {"nodes": [1]})
+        norms = _write(tmp_path, "norms_core.reference.json", {"norms": [2]})
+        chain = build_chain(layer1, norms)
+        pub_dir = tmp_path / "publications"
+        pub_dir.mkdir()
+
+        missing_files_key = "aaaaaaaaaaaa"
+        (pub_dir / f"{missing_files_key}.json").write_text(json.dumps({
+            "schema_version": "publication.v1", "chain_id": missing_files_key,
+            "inputs": chain["inputs"], "files": {"norms": "norms_core.reference.json"},
+        }), encoding="utf-8")
+        ok, detail = verify_dumps_against_chain(tmp_path, chain_id=missing_files_key)
+        assert not ok and "malformed" in detail
+
+        missing_sha_key = "bbbbbbbbbbbb"
+        bad_inputs = [dict(i) for i in chain["inputs"]]
+        del bad_inputs[0]["sha256"]
+        (pub_dir / f"{missing_sha_key}.json").write_text(json.dumps({
+            "schema_version": "publication.v1", "chain_id": missing_sha_key,
+            "inputs": bad_inputs,
+            "files": {"layer1_dump": "layer1.json", "norms": "norms_core.reference.json"},
+        }), encoding="utf-8")
+        ok, detail = verify_dumps_against_chain(tmp_path, chain_id=missing_sha_key)
+        assert not ok and "malformed" in detail

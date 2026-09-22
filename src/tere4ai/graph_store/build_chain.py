@@ -135,14 +135,36 @@ def verify_dumps_against_chain(
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             return False, f"publication manifest {chain_id} is unreadable: {exc}"
-        recorded = {(i["role"], i["file"]): i["sha256"] for i in manifest.get("inputs", [])}
+        inputs_raw = manifest.get("inputs")
+        if not isinstance(inputs_raw, list):
+            return False, f"publication manifest {chain_id} is malformed: missing or invalid inputs"
+        recorded: dict[tuple[str, str], str] = {}
+        for entry in inputs_raw:
+            if not isinstance(entry, dict):
+                return False, f"publication manifest {chain_id} is malformed: an inputs entry is not an object"
+            missing = [k for k in ("role", "file", "sha256") if entry.get(k) is None]
+            if missing:
+                return (
+                    False,
+                    f"publication manifest {chain_id} is malformed: "
+                    f"an inputs entry is missing {', '.join(missing)}",
+                )
+            recorded[(entry["role"], entry["file"])] = entry["sha256"]
         for (role, name), digest in recorded.items():
             path = directory / name
             if not path.is_file():
                 return False, f"{role} file {name} named by publication {chain_id} is missing"
             if sha256_of_file(path) != digest:
                 return False, f"{role} file {name} differs from the digest publication {chain_id} recorded"
-        files = manifest.get("files", {})
+        files = manifest.get("files")
+        if not isinstance(files, dict):
+            return False, f"publication manifest {chain_id} is malformed: missing or invalid files"
+        missing_files = [k for k in ("layer1_dump", "norms") if not files.get(k)]
+        if missing_files:
+            return (
+                False,
+                f"publication manifest {chain_id} is malformed: files is missing {', '.join(missing_files)}",
+            )
         manifests = [directory / name for (role, name) in recorded if role == "freeze_manifest"]
         chain = build_chain(
             directory / files["layer1_dump"], directory / files["norms"],
