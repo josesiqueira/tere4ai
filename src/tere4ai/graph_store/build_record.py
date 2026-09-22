@@ -315,7 +315,8 @@ def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
                   layer1_digest: str | None) -> tuple[str, str | None]:
     """Reuse an open record built on the same Layer 1; otherwise continue as a
     descendant (D-G20): a published record is frozen, and a record built on
-    another layer1.json is another assembly. Returns the record id and a
+    another layer1.json is another assembly. An open descendant already
+    continuing that record is reused before a new one is made. Returns the record id and a
     message to print, or None when nothing needs to be said. Shared by every
     recording command (extract_norms, align_hleg_altai) so the rule and its
     message stay in one place."""
@@ -327,6 +328,13 @@ def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
     if record["publication"] is None and same_layer1:
         return existing, None
     why = "is published" if record["publication"] is not None else "was built on another Layer 1"
+    # An open descendant of that record under the same alias and Layer 1
+    # already continues it (an earlier attempt): reuse it, so a resume finds
+    # the run ids its checkpoint names and no attempt leaves an orphan.
+    for candidate in store._valid_records_newest_first():
+        if (candidate["parent_record_id"] == existing and ref in candidate["aliases"]
+                and candidate["publication"] is None and candidate["layer1_digest"] in (None, layer1_digest)):
+            return candidate["record_id"], f"record {existing} {why}; continuing in descendant {candidate['record_id']}"
     child = store.create_record(ref, base_build_id, layer1_digest, parent_record_id=existing)
     return child, f"record {existing} {why}; continuing as descendant {child}"
 

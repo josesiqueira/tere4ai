@@ -129,3 +129,39 @@ def test_align_never_overwrites_an_input_of_a_publication(tmp_path, monkeypatch,
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1)]) == 1
     err = capsys.readouterr().err
     assert "publication c1" in err and "--out" in err and batches == [] and out.read_bytes() == before
+
+
+def test_resume_over_a_published_producer_continues_in_the_same_descendant(tmp_path, monkeypatch):
+    import pytest
+
+    import tere4ai.align_hleg_altai.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    store = BuildRecordStore(tmp_path)
+    producer = store.create_record("test", "b", sha256_of_file(layer1))
+    run = store.start_execution(producer, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+                                config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
+    store.finish_execution(producer, run, status="done",
+                           outputs=[{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
+    store.set_publication(producer, {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+                                     "gating": {"layer2": "llm", "layer3": "absent"}, "label": None, "gates": [],
+                                     "postload_gates": [], "manifests": []})
+    inner = cli.align_norms
+
+    def flaky(chunk, *a, **k):
+        if len(batches) == 1:
+            batches.append(-1)
+            raise RuntimeError("usage limit reached")
+        return inner(chunk, *a, **k)
+
+    monkeypatch.setattr(cli, "align_norms", flaky)
+    args = ["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"]
+    with pytest.raises(RuntimeError):
+        cli.main(args)
+    assert cli.main(args + ["--resume"]) == 0
+    children = [r for r in store.list_records() if r.get("parent_record_id") == producer]
+    assert len(children) == 1 and [e["status"] for e in children[0]["executions"]] == ["failed", "done"]
+    assert children[0]["executions"][1]["resumes_run_id"] == children[0]["executions"][0]["run_id"]

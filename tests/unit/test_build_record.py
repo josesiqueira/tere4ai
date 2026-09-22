@@ -217,3 +217,18 @@ def test_relative_to_dump_dir_relative_under_and_absolute_outside(tmp_path):
 
     outside = tmp_path / "elsewhere" / "norms_test.json"
     assert relative_to_dump_dir(outside, dump_dir) == str(outside)
+
+
+def test_select_record_reuses_the_open_descendant_of_a_frozen_record(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    parent = store.create_record("core", "build-b", "L" * 64)
+    store.set_publication(parent, {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+                                   "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [],
+                                   "postload_gates": [], "manifests": []})
+    child, message = select_record(store, parent, "build-b", "L" * 64)
+    assert message == f"record {parent} is published; continuing as descendant {child}"
+    again, message = select_record(store, parent, "build-b", "L" * 64)
+    assert again == child and message == f"record {parent} is published; continuing in descendant {child}"
+    assert [r["record_id"] for r in store.list_records() if r.get("parent_record_id") == parent] == [child]
+    other, _ = select_record(store, parent, "build-b", "M" * 64)
+    assert other != child, "a descendant on another Layer 1 is another assembly"
