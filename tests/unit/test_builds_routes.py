@@ -71,3 +71,28 @@ def test_routes_read_per_request_and_never_create_the_records_directory(tmp_path
         rid = store.create_record("core.b75", "build-b", None)
         second = client.get("/api/builds").json()
         assert rid in {b["record_id"] for b in second["builds"]} and rid not in {b["record_id"] for b in first["builds"]}
+
+
+def test_one_unreadable_artefact_or_record_never_fails_the_list(tmp_path):
+    _legacy_dumps(tmp_path)
+    (tmp_path / "norms_x.json").mkdir()  # unreadable as a file whatever the user running the suite
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core.b75", "build-b", None)
+    store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
+                          expected_total=1, work_unit="groups", checkpoint_file=None)
+    path = tmp_path / "build_records" / f"{rid}.json"
+    record = json.loads(path.read_text())
+    record["executions"][0]["heartbeat_at"] = "not a timestamp"
+    path.write_text(json.dumps(record))
+    with TestClient(facade.create_app(tmp_path)) as client:
+        response = client.get("/api/builds")
+        assert response.status_code == 200
+        listed = response.json()
+        assert not list(_validator("builds_list").iter_errors(listed))
+        by = {b["record_id"]: b for b in listed["builds"]}
+        assert by["legacy-x"]["unreadable"] and "norms_x.json" in by["legacy-x"]["reason"]
+        assert str(tmp_path) not in by["legacy-x"]["reason"], "the reason names the file, never its path"
+        assert by[rid]["unreadable"] and "not a timestamp" in by[rid]["reason"]
+        assert by["legacy-core"]["unreadable"] is False and by["legacy-core"]["steps"]["L2.1"] == "done"
+        assert client.get("/api/builds/legacy-x").status_code == 404
+        assert client.get(f"/api/builds/{rid}").status_code == 404

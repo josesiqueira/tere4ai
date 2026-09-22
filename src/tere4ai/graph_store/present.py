@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -380,6 +381,20 @@ def present_record(record: dict[str, Any], dump_dir: Path, now: datetime, served
     return presented
 
 
+_PATH_RE = re.compile(r"(?:[A-Za-z]:)?(?:[^\\/\s'\"]*[\\/])+([^\\/\s'\"]+)")
+
+
+def exception_reason(exc: BaseException) -> str:
+    """The exception as a one-line reason with every path reduced to its file
+    name: the builds list names what could not be read, never where."""
+    return _PATH_RE.sub(r"\1", f"{type(exc).__name__}: {exc}")
+
+
+def unreadable(record_id: str, reason: str, aliases: list[str] | None = None) -> dict[str, Any]:
+    """The marker list_records uses for a record that cannot be presented."""
+    return {"record_id": record_id, "aliases": list(aliases or []), "unreadable": True, "reason": reason}
+
+
 def summary_of(presented: dict[str, Any]) -> dict[str, Any]:
     """One row of the builds list (schema summary). An unreadable record
     (store.list_records marks it) keeps its id and reason and nothing else."""
@@ -621,7 +636,11 @@ def synthesise_legacy_records(dump_dir: Path) -> list[dict[str, Any]]:
     store = BuildRecordStore(dump_dir, create=False)
     taken = {alias for r in store.list_records() if not r.get("unreadable") for alias in r.get("aliases", [])}
     layer1_path = dump_dir / "layer1.json"
-    layer1_digest = _digest(layer1_path) if layer1_path.is_file() else None
+    layer1_error = None
+    try:
+        layer1_digest = _digest(layer1_path) if layer1_path.is_file() else None
+    except OSError:
+        layer1_digest, layer1_error = None, f"artefact unreadable: {layer1_path.name}"
     layer1_payload = _read_json_or_none(layer1_path) if layer1_digest is not None else None
     chains = _chain_records(dump_dir)
     records = []
@@ -632,5 +651,14 @@ def synthesise_legacy_records(dump_dir: Path) -> list[dict[str, Any]]:
         slug = name[len("norms_"):-len(".json")]
         if slug in taken:
             continue
-        records.append(_synthesise_one(dump_dir, slug, norms_path, layer1_path, layer1_digest, layer1_payload, chains))
+        # One unreadable artefact never fails the list (spec 7(b)): the slug
+        # is reported unreadable, with the reason, and the others stand.
+        try:
+            record = _synthesise_one(dump_dir, slug, norms_path, layer1_path, layer1_digest, layer1_payload, chains)
+        except Exception as exc:  # noqa: BLE001 - reported per slug, never raised out of the list
+            records.append(unreadable(f"legacy-{slug}", exception_reason(exc), [slug]))
+            continue
+        if layer1_error:
+            record["reasons"].update({step: layer1_error for step in PARSE_STEPS})
+        records.append(record)
     return records

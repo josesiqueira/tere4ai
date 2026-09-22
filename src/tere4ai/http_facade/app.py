@@ -72,7 +72,13 @@ from pydantic import BaseModel, Field, model_validator
 
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.graph_store.build_record import BuildRecordStore
-from tere4ai.graph_store.present import present_record, summary_of, synthesise_legacy_records
+from tere4ai.graph_store.present import (
+    exception_reason,
+    present_record,
+    summary_of,
+    synthesise_legacy_records,
+    unreadable,
+)
 from tere4ai.graph_store.publication import load_active, read_target_state
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_tool
@@ -697,15 +703,16 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         served = _served_chain(request)
         store = BuildRecordStore(dump_dir, create=False)
         summaries: list[dict[str, Any]] = []
-        for record in store.list_records():
+        # Spec 7(b): one unreadable record or artefact never fails the list;
+        # it is its own unreadable row with the reason.
+        for record in [*store.list_records(), *_synthesised(request)]:
             if record.get("unreadable"):
-                summaries.append({"record_id": record["record_id"], "unreadable": True, "reason": record["reason"],
-                                  "aliases": [], "base_build_id": None, "created_at": None, "synthesised": False,
-                                  "steps": None, "publication": None, "served": False})
+                summaries.append(summary_of(record))
                 continue
-            summaries.append(summary_of(present_record(record, dump_dir, now, served, store)))
-        for record in _synthesised(request):
-            summaries.append(summary_of(present_record(record, dump_dir, now, served, store)))
+            try:
+                summaries.append(summary_of(present_record(record, dump_dir, now, served, store)))
+            except Exception as exc:  # noqa: BLE001 - reported as the record's row, never a 500
+                summaries.append(summary_of(unreadable(record["record_id"], exception_reason(exc))))
         return JSONResponse(content=_sanitize_non_finite({
             "schema_version": "builds_list.v1", "graph_version": _graph_version(request),
             "observed_at": now.isoformat(), "served_chain_id": served,
@@ -726,11 +733,20 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                 record = store.read(record_id)
             except Exception as exc:  # noqa: BLE001 - an unreadable record is reported, never a 500
                 return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {exc}"})
-            return JSONResponse(content=_sanitize_non_finite(present_record(record, dump_dir, now, served, store)))
+            return _presented_or_404(ref, record, dump_dir, now, served, store)
         for record in _synthesised(request):
             if record["record_id"] == ref or ref in record.get("aliases", []):
-                return JSONResponse(content=_sanitize_non_finite(present_record(record, dump_dir, now, served, store)))
+                if record.get("unreadable"):
+                    return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {record['reason']}"})
+                return _presented_or_404(ref, record, dump_dir, now, served, store)
         return JSONResponse(status_code=404, content={"error": f"no build record {ref}"})
+
+    def _presented_or_404(ref, record, dump_dir, now, served, store) -> JSONResponse:
+        try:
+            presented = present_record(record, dump_dir, now, served, store)
+        except Exception as exc:  # noqa: BLE001 - an unpresentable record is reported, never a 500
+            return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {exception_reason(exc)}"})
+        return JSONResponse(content=_sanitize_non_finite(presented))
 
     @app.post("/api/explain")
     def explain(request: Request, body: ExplainRequest) -> JSONResponse:
