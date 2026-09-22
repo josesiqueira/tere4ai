@@ -1,0 +1,126 @@
+{
+  "schema_version": "build_record.v1",
+  "record_id": "legacy-core.b74",
+  "aliases": [
+    "core.b74"
+  ],
+  "parent_record_id": "legacy-core",
+  "base_build_id": "build-3b753e5e9297",
+  "created_at": null,
+  "layer1_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+  "executions": [
+    {
+      "run_id": null,
+      "command": "align_hleg_altai",
+      "covers_steps": [
+        "L3.1",
+        "L3.2",
+        "L3.3",
+        "L3.4",
+        "L3.5"
+      ],
+      "status": "running",
+      "started_at": null,
+      "ended_at": null,
+      "heartbeat_at": null,
+      "argv": null,
+      "resumes_run_id": null,
+      "inputs": [],
+      "outputs": [],
+      "config": {},
+      "models": {
+        "generator": "openai-align-v1"
+      },
+      "prompt_sha256": null,
+      "sampling": null,
+      "usage": null,
+      "checkpoint_file": "alignments_core.b74.checkpoint.jsonl",
+      "work_unit": "batches",
+      "expected_total": null,
+      "inherited_keys": [
+        "batch:0:norm-0000",
+        "batch:1:norm-0001",
+        "batch:2:norm-0002",
+        "batch:3:norm-0003",
+        "batch:4:norm-0004",
+        "batch:5:norm-0005",
+        "batch:6:norm-0006",
+        "batch:7:norm-0007",
+        "batch:8:norm-0008",
+        "batch:9:norm-0009",
+        "batch:10:norm-0010",
+        "batch:11:norm-0011",
+        "batch:12:norm-0012",
+        "batch:13:norm-0013",
+        "batch:14:norm-0014"
+      ],
+      "inherited_from": "legacy",
+      "completed_keys": [],
+      "counts": {
+        "alignments_created": 15
+      },
+      "gates": [],
+      "work_failures": null,
+      "error": null,
+      "liveness": "unknown",
+      "progress": {
+        "completed": 15,
+        "expected_total": null,
+        "work_unit": "batches",
+        "inherited": 15,
+        "source": "checkpoint"
+      },
+      "provenance": {
+        "run_id": "unavailable",
+        "started_at": "unavailable",
+        "ended_at": "unavailable",
+        "heartbeat_at": "unavailable",
+        "usage": "unavailable",
+        "gates": "unavailable",
+        "counts": "derived",
+        "models": "derived",
+        "inherited_keys": "derived"
+      },
+      "reasons": {
+        "run_id": "not recorded before DEC-16",
+        "started_at": "not recorded before DEC-16",
+        "ended_at": "not recorded before DEC-16",
+        "heartbeat_at": "not recorded before DEC-16",
+        "usage": "not recorded before DEC-16",
+        "gates": "not recorded before DEC-16"
+      }
+    }
+  ],
+  "publication": null,
+  "steps": {
+    "L0.1": "done",
+    "L1.1": "done",
+    "L2.1": "done",
+    "L2.2": "done",
+    "L2.3": "done",
+    "L2.4": "done",
+    "L3.1": "running",
+    "L3.2": "running",
+    "L3.3": "running",
+    "L3.4": "running",
+    "L3.5": "running",
+    "P.1": "not_recorded",
+    "P.2": "not_recorded"
+  },
+  "depends_on_state": {},
+  "served": false,
+  "observed_at": "2026-09-19T00:00:00+00:00",
+  "synthesised": true,
+  "parse_record_id": null,
+  "provenance": {
+    "created_at": "unavailable",
+    "layer1_digest": "derived",
+    "base_build_id": "derived",
+    "parse_record_id": "unavailable",
+    "parent_record_id": "derived"
+  },
+  "reasons": {
+    "created_at": "not recorded before DEC-16",
+    "parse_record_id": "not recorded before DEC-16"
+  }
+}

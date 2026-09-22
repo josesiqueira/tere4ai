@@ -1,0 +1,413 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai/schema/build_record.v1",
+  "title": "TERE4AI v2 build record",
+  "description": "Machine-readable contract for build records (docs/architecture.md DEC-16): one execution record per command attempt, publication written only after the post-load gates, and the presented shape served over the API. Every presented field carries a provenance of recorded, derived or unavailable; nothing is guessed.",
+  "$defs": {
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "ok": {"type": "boolean"},
+        "detail": {"type": "string"}
+      },
+      "required": ["name", "ok", "detail"]
+    },
+    "artifact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {"type": "string"},
+        "file": {"type": "string"},
+        "sha256": {"type": "string"}
+      },
+      "required": ["role", "file", "sha256"]
+    },
+    "work_failures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodes_failed": {"type": "integer"},
+        "norms_failed": {"type": "integer"}
+      },
+      "required": ["nodes_failed", "norms_failed"]
+    },
+    "gating": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "layer2": {"enum": ["llm", "human"]},
+        "layer3": {"enum": ["llm", "human", "absent"]}
+      },
+      "required": ["layer2", "layer3"]
+    },
+    "step_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "L0.1": {"$ref": "#/$defs/stepState"},
+        "L1.1": {"$ref": "#/$defs/stepState"},
+        "L2.1": {"$ref": "#/$defs/stepState"},
+        "L2.2": {"$ref": "#/$defs/stepState"},
+        "L2.3": {"$ref": "#/$defs/stepState"},
+        "L2.4": {"$ref": "#/$defs/stepState"},
+        "L3.1": {"$ref": "#/$defs/stepState"},
+        "L3.2": {"$ref": "#/$defs/stepState"},
+        "L3.3": {"$ref": "#/$defs/stepState"},
+        "L3.4": {"$ref": "#/$defs/stepState"},
+        "L3.5": {"$ref": "#/$defs/stepState"},
+        "P.1": {"$ref": "#/$defs/stepState"},
+        "P.2": {"$ref": "#/$defs/stepState"}
+      },
+      "required": ["L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.3", "L3.4", "L3.5", "P.1", "P.2"]
+    },
+    "stepState": {
+      "enum": ["done", "done_shared", "running", "failed", "not_started", "not_recorded"]
+    },
+    "provenanceValue": {
+      "enum": ["recorded", "derived", "unavailable"]
+    },
+    "provenanceMap": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/provenanceValue"}
+    },
+    "reasonsMap": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "dependsOnStateMap": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/stepState"}
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {"type": ["string", "null"]},
+        "command": {"type": "string"},
+        "covers_steps": {"type": "array", "items": {"type": "string"}},
+        "status": {"enum": ["running", "done", "failed"]},
+        "started_at": {"type": ["string", "null"]},
+        "ended_at": {"type": ["string", "null"]},
+        "heartbeat_at": {"type": ["string", "null"]},
+        "argv": {"type": ["array", "null"], "items": {"type": "string"}},
+        "resumes_run_id": {"type": ["string", "null"]},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "config": {"type": "object", "additionalProperties": true},
+        "models": {"type": ["object", "null"], "additionalProperties": true},
+        "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
+        "sampling": {"type": ["object", "null"], "additionalProperties": true},
+        "usage": {"type": ["object", "null"], "additionalProperties": true},
+        "checkpoint_file": {"type": ["string", "null"]},
+        "work_unit": {"enum": ["groups", "batches", null]},
+        "expected_total": {"type": ["integer", "null"]},
+        "inherited_keys": {"type": "array", "items": {"type": "string"}},
+        "inherited_from": {"type": ["string", "null"]},
+        "completed_keys": {"type": "array", "items": {"type": "string"}},
+        "counts": {"type": "object", "additionalProperties": true},
+        "gates": {"type": "array", "items": {"$ref": "#/$defs/gate"}},
+        "work_failures": {"anyOf": [{"$ref": "#/$defs/work_failures"}, {"type": "null"}]},
+        "error": {"type": ["string", "null"]}
+      },
+      "required": [
+        "run_id", "command", "covers_steps", "status", "started_at", "ended_at", "heartbeat_at",
+        "argv", "resumes_run_id", "inputs", "outputs", "config", "models", "prompt_sha256",
+        "sampling", "usage", "checkpoint_file", "work_unit", "expected_total", "inherited_keys",
+        "inherited_from", "completed_keys", "counts", "gates", "work_failures", "error"
+      ]
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "completed": {"type": "integer"},
+        "expected_total": {"type": ["integer", "null"]},
+        "work_unit": {"enum": ["groups", "batches", null]},
+        "inherited": {"type": "integer"},
+        "source": {"type": "string"}
+      },
+      "required": ["completed", "expected_total", "work_unit", "inherited", "source"]
+    },
+    "presented_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {"type": ["string", "null"]},
+        "command": {"type": "string"},
+        "covers_steps": {"type": "array", "items": {"type": "string"}},
+        "status": {"enum": ["running", "done", "failed"]},
+        "started_at": {"type": ["string", "null"]},
+        "ended_at": {"type": ["string", "null"]},
+        "heartbeat_at": {"type": ["string", "null"]},
+        "argv": {"type": ["array", "null"], "items": {"type": "string"}},
+        "resumes_run_id": {"type": ["string", "null"]},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "config": {"type": "object", "additionalProperties": true},
+        "models": {"type": ["object", "null"], "additionalProperties": true},
+        "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
+        "sampling": {"type": ["object", "null"], "additionalProperties": true},
+        "usage": {"type": ["object", "null"], "additionalProperties": true},
+        "checkpoint_file": {"type": ["string", "null"]},
+        "work_unit": {"enum": ["groups", "batches", null]},
+        "expected_total": {"type": ["integer", "null"]},
+        "inherited_keys": {"type": "array", "items": {"type": "string"}},
+        "inherited_from": {"type": ["string", "null"]},
+        "completed_keys": {"type": "array", "items": {"type": "string"}},
+        "counts": {"type": "object", "additionalProperties": true},
+        "gates": {"type": "array", "items": {"$ref": "#/$defs/gate"}},
+        "work_failures": {"anyOf": [{"$ref": "#/$defs/work_failures"}, {"type": "null"}]},
+        "error": {"type": ["string", "null"]},
+        "liveness": {"enum": ["live", "unknown", "ended"]},
+        "progress": {"anyOf": [{"$ref": "#/$defs/progress"}, {"type": "null"}]},
+        "provenance": {"$ref": "#/$defs/provenanceMap"},
+        "reasons": {"$ref": "#/$defs/reasonsMap"}
+      },
+      "required": [
+        "run_id", "command", "covers_steps", "status", "started_at", "ended_at", "heartbeat_at",
+        "argv", "resumes_run_id", "inputs", "outputs", "config", "models", "prompt_sha256",
+        "sampling", "usage", "checkpoint_file", "work_unit", "expected_total", "inherited_keys",
+        "inherited_from", "completed_keys", "counts", "gates", "work_failures", "error",
+        "liveness", "progress", "provenance", "reasons"
+      ]
+    },
+    "manifest_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "campaign_id": {"type": "string"},
+        "freeze_id": {"type": "string"},
+        "campaign_type": {"enum": ["layer2_annotation", "hleg_alignment"]},
+        "stage": {"type": ["string", "null"]},
+        "decisions_sha256": {"type": "string"},
+        "layer": {"type": "integer", "enum": [2, 3]}
+      },
+      "required": ["campaign_id", "freeze_id", "campaign_type", "stage", "decisions_sha256", "layer"]
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chain_id": {"type": "string"},
+        "build_id": {"type": "string"},
+        "published_at": {"type": ["string", "null"]},
+        "gating": {"$ref": "#/$defs/gating"},
+        "label": {"enum": ["llm-gated", "human-adjudicated", null]},
+        "gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
+        "postload_gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
+        "manifests": {"type": "array", "items": {"$ref": "#/$defs/manifest_ref"}}
+      },
+      "required": ["chain_id", "build_id", "published_at", "gating", "label", "gates", "postload_gates", "manifests"]
+    },
+    "stored_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "build_record.v1"},
+        "record_id": {"type": "string"},
+        "aliases": {"type": "array", "items": {"type": "string"}},
+        "parent_record_id": {"type": ["string", "null"]},
+        "base_build_id": {"type": ["string", "null"]},
+        "created_at": {"type": ["string", "null"]},
+        "layer1_digest": {"type": ["string", "null"]},
+        "executions": {"type": "array", "items": {"$ref": "#/$defs/execution"}},
+        "publication": {"anyOf": [{"$ref": "#/$defs/publication"}, {"type": "null"}]}
+      },
+      "required": [
+        "schema_version", "record_id", "aliases", "parent_record_id", "base_build_id",
+        "created_at", "layer1_digest", "executions", "publication"
+      ]
+    },
+    "presented_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "build_record.v1"},
+        "record_id": {"type": "string"},
+        "aliases": {"type": "array", "items": {"type": "string"}},
+        "parent_record_id": {"type": ["string", "null"]},
+        "base_build_id": {"type": ["string", "null"]},
+        "created_at": {"type": ["string", "null"]},
+        "layer1_digest": {"type": ["string", "null"]},
+        "executions": {"type": "array", "items": {"$ref": "#/$defs/presented_execution"}},
+        "publication": {"anyOf": [{"$ref": "#/$defs/publication"}, {"type": "null"}]},
+        "steps": {"$ref": "#/$defs/step_map"},
+        "depends_on_state": {"$ref": "#/$defs/dependsOnStateMap"},
+        "served": {"type": "boolean"},
+        "observed_at": {"type": "string"},
+        "synthesised": {"type": "boolean"},
+        "parse_record_id": {"type": ["string", "null"]},
+        "provenance": {"$ref": "#/$defs/provenanceMap"},
+        "reasons": {"$ref": "#/$defs/reasonsMap"}
+      },
+      "required": [
+        "schema_version", "record_id", "aliases", "parent_record_id", "base_build_id",
+        "created_at", "layer1_digest", "executions", "publication",
+        "steps", "depends_on_state", "served", "observed_at", "synthesised",
+        "parse_record_id", "provenance", "reasons"
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "record_id": {"type": "string"},
+        "aliases": {"type": "array", "items": {"type": "string"}},
+        "base_build_id": {"type": ["string", "null"]},
+        "created_at": {"type": ["string", "null"]},
+        "synthesised": {"type": "boolean"},
+        "steps": {"anyOf": [{"$ref": "#/$defs/step_map"}, {"type": "null"}]},
+        "publication": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "chain_id": {"type": "string"},
+                "label": {"enum": ["llm-gated", "human-adjudicated", null]},
+                "published_at": {"type": ["string", "null"]}
+              },
+              "required": ["chain_id", "label", "published_at"]
+            },
+            {"type": "null"}
+          ]
+        },
+        "served": {"type": "boolean"},
+        "unreadable": {"type": "boolean"},
+        "reason": {"type": ["string", "null"]}
+      },
+      "required": ["record_id", "aliases", "base_build_id", "created_at", "synthesised", "steps", "publication", "served", "unreadable", "reason"]
+    },
+    "builds_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "builds_list.v1"},
+        "graph_version": {"type": "string"},
+        "observed_at": {"type": "string"},
+        "served_chain_id": {"type": ["string", "null"]},
+        "publication_target": {"anyOf": [{"$ref": "#/$defs/neo4j_target"}, {"type": "null"}]},
+        "builds": {"type": "array", "items": {"$ref": "#/$defs/summary"}}
+      },
+      "required": ["schema_version", "graph_version", "observed_at", "served_chain_id", "publication_target", "builds"]
+    },
+    "freeze_manifest_layer2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "freeze_manifest.v1"},
+        "campaign_type": {"const": "layer2_annotation"},
+        "campaign_id": {"type": "string"},
+        "freeze_id": {"type": "string"},
+        "stage": {"enum": ["pilot", "production"]},
+        "round": {"type": ["integer", "null"]},
+        "pinned_build_id": {"type": "string"},
+        "guideline_version": {"type": "string"},
+        "scope_core_nodes": {"type": "array", "items": {"type": "string"}},
+        "units_in_scope": {"type": "integer"},
+        "units_adjudicated": {"type": "integer"},
+        "units_undecided": {"type": "integer"},
+        "rows_included": {"type": "array", "items": {"type": "string"}},
+        "decisions_sha256": {"type": "string"},
+        "frozen_at": {"type": "string"}
+      },
+      "required": [
+        "schema_version", "campaign_type", "campaign_id", "freeze_id", "stage", "round",
+        "pinned_build_id", "guideline_version", "scope_core_nodes", "units_in_scope",
+        "units_adjudicated", "units_undecided", "rows_included", "decisions_sha256", "frozen_at"
+      ]
+    },
+    "freeze_manifest_hleg": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "freeze_manifest.v1"},
+        "campaign_type": {"const": "hleg_alignment"},
+        "campaign_id": {"type": "string"},
+        "freeze_id": {"type": "string"},
+        "pinned_build_id": {"type": "string"},
+        "rows_included": {"type": "array", "items": {"type": "string"}},
+        "verdicts_sha256": {"type": "string"},
+        "decisions_sha256": {"type": ["string", "null"]},
+        "frozen_at": {"type": "string"}
+      },
+      "required": [
+        "schema_version", "campaign_type", "campaign_id", "freeze_id", "pinned_build_id",
+        "rows_included", "verdicts_sha256", "decisions_sha256", "frozen_at"
+      ]
+    },
+    "reference_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["norms", "alignments"]},
+        "layer": {"type": "integer", "enum": [2, 3]},
+        "source_sha256": {"type": "string"},
+        "source_build_id": {"type": "string"},
+        "decisions_sha256": {"type": "string"},
+        "campaign_id": {"type": "string"},
+        "freeze_id": {"type": "string"},
+        "campaign_type": {"enum": ["layer2_annotation", "hleg_alignment"]},
+        "stage": {"type": ["string", "null"], "enum": ["pilot", "production", null]},
+        "round": {"type": ["integer", "null"]},
+        "units_in_scope": {"type": ["integer", "null"]},
+        "units_adjudicated": {"type": ["integer", "null"]},
+        "units_undecided": {"type": ["integer", "null"]},
+        "scope_core_nodes": {"type": ["array", "null"], "items": {"type": "string"}},
+        "decisions_applied": {"type": "boolean"},
+        "materialized_at": {"type": "string"}
+      },
+      "required": [
+        "kind", "layer", "source_sha256", "source_build_id", "decisions_sha256", "campaign_id",
+        "freeze_id", "campaign_type", "stage", "round", "units_in_scope", "units_adjudicated",
+        "units_undecided", "scope_core_nodes", "decisions_applied", "materialized_at"
+      ]
+    },
+    "publication_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "publication.v1"},
+        "record_id": {"type": "string"},
+        "chain_id": {"type": "string"},
+        "build_id": {"type": "string"},
+        "published_at": {"type": ["string", "null"]},
+        "gating": {"$ref": "#/$defs/gating"},
+        "label": {"enum": ["llm-gated", "human-adjudicated", null]},
+        "gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
+        "postload_gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
+        "manifests": {"type": "array", "items": {"$ref": "#/$defs/manifest_ref"}},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "layer1_dump": {"type": "string"},
+            "norms": {"type": "string"},
+            "alignments": {"type": ["string", "null"]}
+          },
+          "required": ["layer1_dump", "norms", "alignments"]
+        }
+      },
+      "required": [
+        "schema_version", "record_id", "chain_id", "build_id", "published_at", "gating", "label",
+        "gates", "postload_gates", "manifests", "inputs", "files"
+      ]
+    },
+    "neo4j_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {"enum": ["loading", "available", "unavailable"]},
+        "build_id": {"type": ["string", "null"]},
+        "uri": {"type": "string"},
+        "since": {"type": "string"},
+        "reason": {"type": ["string", "null"]}
+      },
+      "required": ["state", "build_id", "uri", "since", "reason"]
+    }
+  },
+  "$ref": "#/$defs/presented_record"
+}

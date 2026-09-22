@@ -1,0 +1,159 @@
+{
+  "schema_version": "build_record.v1",
+  "record_id": "r1parse00000",
+  "aliases": [],
+  "parent_record_id": null,
+  "base_build_id": null,
+  "created_at": "2026-09-18T23:55:00+00:00",
+  "layer1_digest": null,
+  "executions": [
+    {
+      "run_id": "run1parse000",
+      "command": "parse_legal_structure",
+      "covers_steps": [
+        "L0.1",
+        "L1.1"
+      ],
+      "status": "done",
+      "started_at": "2026-09-18T23:50:00+00:00",
+      "ended_at": "2026-09-18T23:55:00+00:00",
+      "heartbeat_at": "2026-09-18T23:55:00+00:00",
+      "argv": [
+        "--source",
+        "eur-lex-html"
+      ],
+      "resumes_run_id": null,
+      "inputs": [
+        {
+          "role": "html_snapshot",
+          "file": "eur_lex_2024_1689.html",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ],
+      "outputs": [
+        {
+          "role": "layer1_dump",
+          "file": "layer1.json",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "config": {},
+      "models": null,
+      "prompt_sha256": null,
+      "sampling": null,
+      "usage": null,
+      "checkpoint_file": null,
+      "work_unit": null,
+      "expected_total": null,
+      "inherited_keys": [],
+      "inherited_from": null,
+      "completed_keys": [],
+      "counts": {
+        "nodes": 2,
+        "edges": 0,
+        "nodes_by_type": {
+          "Article": 1,
+          "Recital": 1
+        },
+        "review_queue": 1,
+        "manifest_files": [
+          {
+            "file": "a.html",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ],
+        "manifest_files_count": 1
+      },
+      "gates": [
+        {
+          "name": "G1",
+          "ok": true,
+          "detail": "article count matches the frozen snapshot"
+        },
+        {
+          "name": "G2",
+          "ok": true,
+          "detail": "recital count matches the frozen snapshot"
+        },
+        {
+          "name": "G3",
+          "ok": true,
+          "detail": "annex count matches the frozen snapshot"
+        },
+        {
+          "name": "G4",
+          "ok": true,
+          "detail": "no orphan legal node"
+        },
+        {
+          "name": "G5",
+          "ok": true,
+          "detail": "cross references resolve within the parsed structure"
+        },
+        {
+          "name": "G6",
+          "ok": true,
+          "detail": "merged_into_base marker present on the Omnibus source"
+        }
+      ],
+      "work_failures": null,
+      "error": null,
+      "liveness": "ended",
+      "progress": null,
+      "provenance": {
+        "run_id": "recorded",
+        "started_at": "recorded",
+        "ended_at": "recorded",
+        "heartbeat_at": "recorded",
+        "counts": "recorded",
+        "gates": "recorded",
+        "outputs": "recorded"
+      },
+      "reasons": {}
+    }
+  ],
+  "publication": null,
+  "steps": {
+    "L0.1": "done",
+    "L1.1": "done",
+    "L2.1": "not_started",
+    "L2.2": "not_started",
+    "L2.3": "not_started",
+    "L2.4": "not_started",
+    "L3.1": "not_started",
+    "L3.2": "not_started",
+    "L3.3": "not_started",
+    "L3.4": "not_started",
+    "L3.5": "not_started",
+    "P.1": "not_started",
+    "P.2": "not_started"
+  },
+  "depends_on_state": {
+    "L2.1": "done",
+    "L2.2": "not_started",
+    "L2.3": "not_started",
+    "L2.4": "not_started",
+    "L3.1": "not_started",
+    "L3.2": "not_started",
+    "L3.3": "not_started",
+    "L3.4": "not_started",
+    "L3.5": "not_started",
+    "P.1": "not_started",
+    "P.2": "not_started"
+  },
+  "served": false,
+  "observed_at": "2026-09-19T00:00:00+00:00",
+  "synthesised": false,
+  "parse_record_id": null,
+  "provenance": {
+    "created_at": "recorded",
+    "base_build_id": "unavailable",
+    "layer1_digest": "unavailable",
+    "parse_record_id": "unavailable"
+  },
+  "reasons": {
+    "base_build_id": "not established before Layer 2",
+    "layer1_digest": "this record creates the layer1 dump",
+    "parse_record_id": "not derived from another parse record"
+  }
+}

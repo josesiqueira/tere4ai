@@ -1,0 +1,292 @@
+{
+  "schema_version": "build_record.v1",
+  "record_id": "legacy-core",
+  "aliases": [
+    "core"
+  ],
+  "parent_record_id": null,
+  "base_build_id": "build-3b753e5e9297",
+  "created_at": null,
+  "layer1_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+  "executions": [
+    {
+      "run_id": null,
+      "command": "parse_legal_structure",
+      "covers_steps": [
+        "L0.1",
+        "L1.1"
+      ],
+      "status": "done",
+      "started_at": null,
+      "ended_at": null,
+      "heartbeat_at": null,
+      "argv": null,
+      "resumes_run_id": null,
+      "inputs": [],
+      "outputs": [],
+      "config": {},
+      "models": null,
+      "prompt_sha256": null,
+      "sampling": null,
+      "usage": null,
+      "checkpoint_file": null,
+      "work_unit": null,
+      "expected_total": null,
+      "inherited_keys": [],
+      "inherited_from": "legacy",
+      "completed_keys": [],
+      "counts": {
+        "nodes": 815,
+        "edges": 700,
+        "review_queue": 0
+      },
+      "gates": [],
+      "work_failures": null,
+      "error": null,
+      "liveness": "ended",
+      "progress": null,
+      "provenance": {
+        "run_id": "unavailable",
+        "started_at": "unavailable",
+        "ended_at": "unavailable",
+        "heartbeat_at": "unavailable",
+        "usage": "unavailable",
+        "gates": "unavailable",
+        "counts": "derived",
+        "inherited_keys": "derived"
+      },
+      "reasons": {
+        "run_id": "not recorded before DEC-16",
+        "started_at": "not recorded before DEC-16",
+        "ended_at": "not recorded before DEC-16",
+        "heartbeat_at": "not recorded before DEC-16",
+        "usage": "not recorded before DEC-16",
+        "gates": "not recorded before DEC-16"
+      }
+    },
+    {
+      "run_id": null,
+      "command": "extract_norms",
+      "covers_steps": [
+        "L2.1",
+        "L2.2",
+        "L2.3",
+        "L2.4"
+      ],
+      "status": "done",
+      "started_at": null,
+      "ended_at": null,
+      "heartbeat_at": null,
+      "argv": null,
+      "resumes_run_id": null,
+      "inputs": [],
+      "outputs": [],
+      "config": {},
+      "models": {
+        "generator": "openai-extract-v1"
+      },
+      "prompt_sha256": null,
+      "sampling": null,
+      "usage": null,
+      "checkpoint_file": null,
+      "work_unit": "groups",
+      "expected_total": null,
+      "inherited_keys": [
+        "group:article-9",
+        "group:article-10"
+      ],
+      "inherited_from": "legacy",
+      "completed_keys": [],
+      "counts": {
+        "norms_created": 240,
+        "review_queue": 12
+      },
+      "gates": [],
+      "work_failures": null,
+      "error": null,
+      "liveness": "ended",
+      "progress": null,
+      "provenance": {
+        "run_id": "unavailable",
+        "started_at": "unavailable",
+        "ended_at": "unavailable",
+        "heartbeat_at": "unavailable",
+        "usage": "unavailable",
+        "gates": "unavailable",
+        "counts": "derived",
+        "inherited_keys": "derived",
+        "models": "derived"
+      },
+      "reasons": {
+        "run_id": "not recorded before DEC-16",
+        "started_at": "not recorded before DEC-16",
+        "ended_at": "not recorded before DEC-16",
+        "heartbeat_at": "not recorded before DEC-16",
+        "usage": "not recorded before DEC-16",
+        "gates": "not recorded before DEC-16"
+      }
+    },
+    {
+      "run_id": null,
+      "command": "align_hleg_altai",
+      "covers_steps": [
+        "L3.1",
+        "L3.2",
+        "L3.3",
+        "L3.4",
+        "L3.5"
+      ],
+      "status": "done",
+      "started_at": null,
+      "ended_at": null,
+      "heartbeat_at": null,
+      "argv": null,
+      "resumes_run_id": null,
+      "inputs": [],
+      "outputs": [],
+      "config": {},
+      "models": {
+        "generator": "openai-align-v1"
+      },
+      "prompt_sha256": null,
+      "sampling": null,
+      "usage": null,
+      "checkpoint_file": null,
+      "work_unit": "batches",
+      "expected_total": null,
+      "inherited_keys": [
+        "batch:0:norm-a",
+        "batch:1:norm-b"
+      ],
+      "inherited_from": "legacy",
+      "completed_keys": [],
+      "counts": {
+        "alignments_created": 180,
+        "review_queue": 8
+      },
+      "gates": [],
+      "work_failures": null,
+      "error": null,
+      "liveness": "ended",
+      "progress": null,
+      "provenance": {
+        "run_id": "unavailable",
+        "started_at": "unavailable",
+        "ended_at": "unavailable",
+        "heartbeat_at": "unavailable",
+        "usage": "unavailable",
+        "gates": "unavailable",
+        "counts": "derived",
+        "inherited_keys": "derived",
+        "models": "derived"
+      },
+      "reasons": {
+        "run_id": "not recorded before DEC-16",
+        "started_at": "not recorded before DEC-16",
+        "ended_at": "not recorded before DEC-16",
+        "heartbeat_at": "not recorded before DEC-16",
+        "usage": "not recorded before DEC-16",
+        "gates": "not recorded before DEC-16"
+      }
+    },
+    {
+      "run_id": null,
+      "command": "publish_layer23",
+      "covers_steps": [
+        "P.1",
+        "P.2"
+      ],
+      "status": "done",
+      "started_at": null,
+      "ended_at": null,
+      "heartbeat_at": null,
+      "argv": null,
+      "resumes_run_id": null,
+      "inputs": [],
+      "outputs": [],
+      "config": {},
+      "models": null,
+      "prompt_sha256": null,
+      "sampling": null,
+      "usage": null,
+      "checkpoint_file": null,
+      "work_unit": null,
+      "expected_total": null,
+      "inherited_keys": [],
+      "inherited_from": "legacy",
+      "completed_keys": [],
+      "counts": {
+        "published_nodes": 815
+      },
+      "gates": [],
+      "work_failures": null,
+      "error": null,
+      "liveness": "ended",
+      "progress": null,
+      "provenance": {
+        "run_id": "unavailable",
+        "started_at": "unavailable",
+        "ended_at": "unavailable",
+        "heartbeat_at": "unavailable",
+        "usage": "unavailable",
+        "gates": "unavailable",
+        "counts": "derived",
+        "inherited_keys": "derived"
+      },
+      "reasons": {
+        "run_id": "not recorded before DEC-16",
+        "started_at": "not recorded before DEC-16",
+        "ended_at": "not recorded before DEC-16",
+        "heartbeat_at": "not recorded before DEC-16",
+        "usage": "not recorded before DEC-16",
+        "gates": "not recorded before DEC-16"
+      }
+    }
+  ],
+  "publication": {
+    "chain_id": "7442562dce5c",
+    "build_id": "build-3b753e5e9297+chain-7442562dce5c",
+    "published_at": null,
+    "gating": {
+      "layer2": "llm",
+      "layer3": "llm"
+    },
+    "label": null,
+    "gates": null,
+    "postload_gates": null,
+    "manifests": []
+  },
+  "steps": {
+    "L0.1": "done",
+    "L1.1": "done",
+    "L2.1": "done",
+    "L2.2": "done",
+    "L2.3": "done",
+    "L2.4": "done",
+    "L3.1": "done",
+    "L3.2": "done",
+    "L3.3": "done",
+    "L3.4": "done",
+    "L3.5": "done",
+    "P.1": "done",
+    "P.2": "done"
+  },
+  "depends_on_state": {},
+  "served": true,
+  "observed_at": "2026-09-19T00:00:00+00:00",
+  "synthesised": true,
+  "parse_record_id": null,
+  "provenance": {
+    "created_at": "unavailable",
+    "layer1_digest": "derived",
+    "base_build_id": "derived",
+    "parse_record_id": "unavailable",
+    "publication": "derived"
+  },
+  "reasons": {
+    "created_at": "not recorded before DEC-16",
+    "parse_record_id": "not recorded before DEC-16",
+    "publication.gates": "not recorded before DEC-16",
+    "publication.postload_gates": "not recorded before DEC-16"
+  }
+}

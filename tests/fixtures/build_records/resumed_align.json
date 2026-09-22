@@ -1,0 +1,214 @@
+{
+  "schema_version": "build_record.v1",
+  "record_id": "r2align00000",
+  "aliases": [],
+  "parent_record_id": null,
+  "base_build_id": "build-a1b2c3d4e5f6",
+  "created_at": "2026-09-18T10:00:00+00:00",
+  "layer1_digest": "6666666666666666666666666666666666666666666666666666666666666666",
+  "executions": [
+    {
+      "run_id": "run2prev0000",
+      "command": "align_hleg_altai",
+      "covers_steps": [
+        "L3.1"
+      ],
+      "status": "failed",
+      "started_at": "2026-09-18T10:00:00+00:00",
+      "ended_at": "2026-09-18T10:20:00+00:00",
+      "heartbeat_at": "2026-09-18T10:19:00+00:00",
+      "argv": [
+        "--nodes",
+        "eu-ai-act:hleg-core"
+      ],
+      "resumes_run_id": null,
+      "inputs": [
+        {
+          "role": "norms_dump",
+          "file": "norms_core.json",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "outputs": [],
+      "config": {
+        "prompt_version": "v1"
+      },
+      "models": {
+        "generator": "openai-generator-v1"
+      },
+      "prompt_sha256": {
+        "align_prompt": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "sampling": {
+        "temperature": 0
+      },
+      "usage": {
+        "prompt_tokens": 1200,
+        "completion_tokens": 340
+      },
+      "checkpoint_file": "alignments_core.checkpoint.jsonl",
+      "work_unit": "batches",
+      "expected_total": 5,
+      "inherited_keys": [],
+      "inherited_from": null,
+      "completed_keys": [
+        "batch:0:norm-a",
+        "batch:1:norm-b",
+        "batch:2:norm-c"
+      ],
+      "counts": {
+        "alignments_created": 3
+      },
+      "gates": [],
+      "work_failures": null,
+      "error": "timeout calling the alignment model on batch:3:norm-d",
+      "liveness": "ended",
+      "progress": {
+        "completed": 3,
+        "expected_total": 5,
+        "work_unit": "batches",
+        "inherited": 0,
+        "source": "record"
+      },
+      "provenance": {
+        "run_id": "recorded",
+        "started_at": "recorded",
+        "ended_at": "recorded",
+        "heartbeat_at": "recorded",
+        "usage": "recorded",
+        "gates": "recorded",
+        "counts": "recorded"
+      },
+      "reasons": {}
+    },
+    {
+      "run_id": "run2align000",
+      "command": "align_hleg_altai",
+      "covers_steps": [
+        "L3.1"
+      ],
+      "status": "done",
+      "started_at": "2026-09-18T11:00:00+00:00",
+      "ended_at": "2026-09-18T11:15:00+00:00",
+      "heartbeat_at": "2026-09-18T11:15:00+00:00",
+      "argv": [
+        "--nodes",
+        "eu-ai-act:hleg-core"
+      ],
+      "resumes_run_id": "run2prev0000",
+      "inputs": [
+        {
+          "role": "norms_dump",
+          "file": "norms_core.json",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "outputs": [
+        {
+          "role": "alignments_dump",
+          "file": "alignments_core.json",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+        }
+      ],
+      "config": {
+        "prompt_version": "v1"
+      },
+      "models": {
+        "generator": "openai-generator-v1"
+      },
+      "prompt_sha256": {
+        "align_prompt": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "sampling": {
+        "temperature": 0
+      },
+      "usage": {
+        "prompt_tokens": 2400,
+        "completion_tokens": 680
+      },
+      "checkpoint_file": "alignments_core.checkpoint.jsonl",
+      "work_unit": "batches",
+      "expected_total": 5,
+      "inherited_keys": [
+        "batch:0:norm-a",
+        "batch:1:norm-b",
+        "batch:2:norm-c"
+      ],
+      "inherited_from": "run2prev0000",
+      "completed_keys": [
+        "batch:3:norm-d",
+        "batch:4:norm-e"
+      ],
+      "counts": {
+        "alignments_created": 5
+      },
+      "gates": [
+        {
+          "name": "G1",
+          "ok": true,
+          "detail": "no accepted alignment without evidence spans on both sides"
+        },
+        {
+          "name": "G2",
+          "ok": true,
+          "detail": "mapping judge verdicts recorded for every batch"
+        }
+      ],
+      "work_failures": null,
+      "error": null,
+      "liveness": "ended",
+      "progress": {
+        "completed": 5,
+        "expected_total": 5,
+        "work_unit": "batches",
+        "inherited": 3,
+        "source": "record"
+      },
+      "provenance": {
+        "run_id": "recorded",
+        "started_at": "recorded",
+        "ended_at": "recorded",
+        "heartbeat_at": "recorded",
+        "usage": "recorded",
+        "gates": "recorded",
+        "counts": "recorded"
+      },
+      "reasons": {}
+    }
+  ],
+  "publication": null,
+  "steps": {
+    "L0.1": "done",
+    "L1.1": "done",
+    "L2.1": "done",
+    "L2.2": "done",
+    "L2.3": "done",
+    "L2.4": "done",
+    "L3.1": "done",
+    "L3.2": "not_started",
+    "L3.3": "not_started",
+    "L3.4": "not_started",
+    "L3.5": "not_started",
+    "P.1": "not_started",
+    "P.2": "not_started"
+  },
+  "depends_on_state": {
+    "L3.2": "done",
+    "L3.3": "not_started",
+    "L3.4": "not_started",
+    "L3.5": "not_started",
+    "P.1": "not_started",
+    "P.2": "not_started"
+  },
+  "served": false,
+  "observed_at": "2026-09-19T00:00:00+00:00",
+  "synthesised": false,
+  "parse_record_id": "r1parse00000",
+  "provenance": {
+    "created_at": "recorded",
+    "base_build_id": "recorded",
+    "layer1_digest": "recorded",
+    "parse_record_id": "recorded"
+  },
+  "reasons": {}
+}

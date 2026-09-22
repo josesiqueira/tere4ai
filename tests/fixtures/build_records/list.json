@@ -1,0 +1,121 @@
+{
+  "schema_version": "builds_list.v1",
+  "graph_version": "build-3b753e5e9297+chain-7442562dce5c",
+  "observed_at": "2026-09-19T00:00:00+00:00",
+  "served_chain_id": "7442562dce5c",
+  "publication_target": null,
+  "builds": [
+    {
+      "record_id": "r1parse00000",
+      "aliases": [],
+      "base_build_id": null,
+      "created_at": "2026-09-18T23:55:00+00:00",
+      "synthesised": false,
+      "steps": {
+        "L0.1": "done",
+        "L1.1": "done",
+        "L2.1": "not_started",
+        "L2.2": "not_started",
+        "L2.3": "not_started",
+        "L2.4": "not_started",
+        "L3.1": "not_started",
+        "L3.2": "not_started",
+        "L3.3": "not_started",
+        "L3.4": "not_started",
+        "L3.5": "not_started",
+        "P.1": "not_started",
+        "P.2": "not_started"
+      },
+      "publication": null,
+      "served": false,
+      "unreadable": false,
+      "reason": null
+    },
+    {
+      "record_id": "r2align00000",
+      "aliases": [],
+      "base_build_id": "build-a1b2c3d4e5f6",
+      "created_at": "2026-09-18T10:00:00+00:00",
+      "synthesised": false,
+      "steps": {
+        "L0.1": "done",
+        "L1.1": "done",
+        "L2.1": "done",
+        "L2.2": "done",
+        "L2.3": "done",
+        "L2.4": "done",
+        "L3.1": "done",
+        "L3.2": "not_started",
+        "L3.3": "not_started",
+        "L3.4": "not_started",
+        "L3.5": "not_started",
+        "P.1": "not_started",
+        "P.2": "not_started"
+      },
+      "publication": null,
+      "served": false,
+      "unreadable": false,
+      "reason": null
+    },
+    {
+      "record_id": "legacy-core",
+      "aliases": [
+        "core"
+      ],
+      "base_build_id": "build-3b753e5e9297",
+      "created_at": null,
+      "synthesised": true,
+      "steps": {
+        "L0.1": "done",
+        "L1.1": "done",
+        "L2.1": "done",
+        "L2.2": "done",
+        "L2.3": "done",
+        "L2.4": "done",
+        "L3.1": "done",
+        "L3.2": "done",
+        "L3.3": "done",
+        "L3.4": "done",
+        "L3.5": "done",
+        "P.1": "done",
+        "P.2": "done"
+      },
+      "publication": {
+        "chain_id": "7442562dce5c",
+        "label": null,
+        "published_at": null
+      },
+      "served": true,
+      "unreadable": false,
+      "reason": null
+    },
+    {
+      "record_id": "legacy-core.b74",
+      "aliases": [
+        "core.b74"
+      ],
+      "base_build_id": "build-3b753e5e9297",
+      "created_at": null,
+      "synthesised": true,
+      "steps": {
+        "L0.1": "done",
+        "L1.1": "done",
+        "L2.1": "done",
+        "L2.2": "done",
+        "L2.3": "done",
+        "L2.4": "done",
+        "L3.1": "running",
+        "L3.2": "running",
+        "L3.3": "running",
+        "L3.4": "running",
+        "L3.5": "running",
+        "P.1": "not_recorded",
+        "P.2": "not_recorded"
+      },
+      "publication": null,
+      "served": false,
+      "unreadable": false,
+      "reason": null
+    }
+  ]
+}
