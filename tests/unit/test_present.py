@@ -19,11 +19,13 @@ NOW = datetime(2026, 9, 19, tzinfo=UTC)
 
 def test_steps_prefer_the_newest_execution_and_share_the_parse(tmp_path):
     store = BuildRecordStore(tmp_path)
+    (tmp_path / "layer1.json").write_text("{}")
+    layer1_digest = sha256_of_file(tmp_path / "layer1.json")
     parse = store.create_record("parse-x", None, None)
     run = store.start_execution(parse, command="parse_legal_structure", covers_steps=["L0.1", "L1.1"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
-    store.finish_execution(parse, run, status="done", outputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": "L" * 64}])
-    rid = store.create_record("core", "b", "L" * 64)
+    store.finish_execution(parse, run, status="done", outputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": layer1_digest}])
+    rid = store.create_record("core", "b", layer1_digest)
     first = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
                                   expected_total=2, work_unit="groups", checkpoint_file="norms_core.checkpoint.jsonl")
     store.finish_execution(rid, first, status="failed", error="x")
@@ -118,7 +120,11 @@ def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_pat
     assert p["provenance"]["publication"] == "unavailable" and "no chain record" in p["reasons"]["publication"]
     pc = present_record(core, tmp_path, NOW, full["chain_id"], None)
     assert pc["served"] is True and pc["provenance"]["publication"] == "derived"
-    assert pc["steps"]["P.2"] == "done" and pc["steps"]["P.1"] == "not_recorded", "published, gate outcomes never recorded"
+    assert pc["steps"]["P.2"] == "not_recorded" and pc["steps"]["P.1"] == "not_recorded", "a legacy chain record proves no recorded gate"
+    assert pc["reasons"]["P.1"] == ("a legacy chain record was written only after G1 to G6 passed; "
+                                    "per-gate outcomes were not recorded before DEC-16")
+    assert pc["reasons"]["P.2"] == ("the chain record predates the load; load and post-load gates "
+                                    "were not recorded before DEC-16")
     assert p["steps"]["P.2"] == "not_recorded" and p["steps"]["P.1"] == "not_recorded"
     assert present_record(core, tmp_path, NOW, "000000000000", None)["served"] is False
 
@@ -136,3 +142,68 @@ def test_a_stored_alias_suppresses_the_legacy_synthesis(tmp_path):
     (tmp_path / "norms_core.json").write_text(json.dumps({"build": {"build_id": "b"}, "norms": [], "judge_runs": [], "stats": {}}))
     BuildRecordStore(tmp_path).create_record("core", "b", None)
     assert synthesise_legacy_records(tmp_path) == []
+
+
+PUB = {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+       "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [], "postload_gates": [],
+       "manifests": []}
+
+
+def _done(store, rid, command, steps, outputs, inputs=()):
+    run = store.start_execution(rid, command=command, covers_steps=steps, argv=[], inputs=list(inputs), config={},
+                                expected_total=None, work_unit=None, checkpoint_file=None)
+    store.finish_execution(rid, run, status="done", outputs=outputs)
+
+
+def _out(tmp_path, name, role, text):
+    (tmp_path / name).write_text(text)
+    return {"role": role, "file": name, "sha256": sha256_of_file(tmp_path / name)}
+
+
+def test_lineage_steps_are_done_shared_only_while_the_ancestor_artefact_stands(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    layer1 = _out(tmp_path, "layer1.json", "layer1_dump", "{}")
+    parent = store.create_record("core", "b", layer1["sha256"])
+    _done(store, parent, "parse_legal_structure", ["L0.1", "L1.1"], [layer1])
+    norms = _out(tmp_path, "norms_core.json", "norms", '{"norms": []}')
+    _done(store, parent, "extract_norms", ["L2.1", "L2.2"], [norms])
+    store.set_publication(parent, PUB)
+    child = store.create_record("core.reference", "b", layer1["sha256"], parent_record_id=parent)
+    ref = _out(tmp_path, "norms_core.reference.json", "norms_reference", '{"norms": [1]}')
+    _done(store, child, "materialize_reference", ["L2.4"], [ref], inputs=[{**norms, "role": "norms"}])
+    align = _out(tmp_path, "alignments_core.reference.json", "alignments", '{"assertions": []}')
+    _done(store, child, "align_hleg_altai", ["L3.1", "L3.2", "L3.3"], [align], inputs=[{**ref, "role": "norms"}])
+
+    reasons: dict = {}
+    steps, depends, parse_id = step_states(store.read(child), store, tmp_path, reasons)
+    assert [steps[s] for s in ("L0.1", "L1.1", "L2.1", "L2.2")] == ["done_shared"] * 4 and parse_id == parent
+    assert all(reasons[s] == f"done in record {parent}" for s in ("L0.1", "L1.1", "L2.1", "L2.2"))
+    assert steps["L2.4"] == steps["L3.3"] == "done" and steps["L2.3"] == "not_started"
+    assert steps["P.1"] == steps["P.2"] == "not_started", "a publication is never inherited"
+    assert depends["P.1"] == "done" and depends["P.2"] == "not_started" and depends["L2.3"] == "done_shared"
+
+    (tmp_path / "norms_core.json").unlink()
+    reasons = {}
+    steps = step_states(store.read(child), store, tmp_path, reasons)[0]
+    assert steps["L2.1"] == steps["L2.2"] == "failed" and reasons["L2.1"] == "artefact norms_core.json missing"
+
+    # parent_record_id alone: a descendant that has done nothing yet
+    empty = store.create_record("core.next", "b", layer1["sha256"], parent_record_id=parent)
+    reasons = {}
+    steps = step_states(store.read(empty), store, tmp_path, reasons)[0]
+    assert steps["L1.1"] == "done_shared" and steps["L2.1"] == "failed" and steps["L3.1"] == "not_started"
+
+
+def test_an_input_without_a_producing_record_is_not_recorded(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    (tmp_path / "layer1.json").write_text("{}")
+    norms = _out(tmp_path, "norms_core.b74.json", "norms", '{"norms": []}')
+    rid = store.create_record("core.b74", "b", sha256_of_file(tmp_path / "layer1.json"))
+    run = store.start_execution(rid, command="align_hleg_altai", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+                                inputs=[norms], config={}, expected_total=26, work_unit="batches", checkpoint_file=None)
+    assert run
+    reasons: dict = {}
+    steps, _, parse_id = step_states(store.read(rid), store, tmp_path, reasons)
+    assert steps["L2.1"] == steps["L2.2"] == steps["L0.1"] == steps["L1.1"] == "not_recorded" and parse_id is None
+    assert reasons["L2.1"] == reasons["L0.1"] == "produced before DEC-16"
+    assert steps["L3.1"] == "running" and steps["L2.3"] == "not_started"

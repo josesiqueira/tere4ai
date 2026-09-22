@@ -84,20 +84,27 @@ def _artefact_problem(execution: dict[str, Any], dump_dir: Path) -> str | None:
     return None
 
 
-def step_states(record: dict[str, Any], store: BuildRecordStore | None, dump_dir: Path,
-                reasons: dict[str, str] | None = None) -> tuple[dict, dict, str | None]:
-    """(steps, depends_on_state, parse_record_id). The newest execution
-    covering a step decides it; a done execution whose artefact is missing or
-    drifted renders its steps failed, with the cause written into reasons
-    (when given). Synthesised records read their digests from the artefacts
-    themselves and are not re-verified."""
-    synthesised = bool(record.get("synthesised"))
+LEGACY_P1_REASON = ("a legacy chain record was written only after G1 to G6 passed; "
+                    "per-gate outcomes were not recorded before DEC-16")
+LEGACY_P2_REASON = ("the chain record predates the load; load and post-load gates "
+                    "were not recorded before DEC-16")
+PRODUCED_BEFORE_RECORDS = "produced before DEC-16"
+# Steps a record can share with the records it builds on. Publication is
+# never inherited: a build is published only by its own publish execution.
+SHAREABLE_STEPS = tuple(s for s in STEP_IDS if not s.startswith("P."))
+STEPS_OF_INPUT_ROLE = {"norms": ("L2.1", "L2.2"), "alignments": ("L3.1", "L3.2", "L3.3")}
+
+
+def _own_states(record: dict[str, Any], dump_dir: Path, verify: bool) -> tuple[dict[str, str], dict[str, str]]:
+    """(state per step, artefact problem per step) from the record's own
+    executions: the newest covering execution decides; a done execution
+    whose artefact is missing or drifted renders its steps failed."""
     steps: dict[str, str] = {}
     problems: dict[str, str] = {}
     for ex in record.get("executions", []):
         state = ex["status"]
         problem = None
-        if state == "done" and not synthesised:
+        if state == "done" and verify:
             problem = _artefact_problem(ex, dump_dir)
             if problem:
                 state = "failed"
@@ -109,22 +116,137 @@ def step_states(record: dict[str, Any], store: BuildRecordStore | None, dump_dir
                 problems[step] = problem
             else:
                 problems.pop(step, None)
+    return steps, problems
+
+
+class _Lineage:
+    """Resolve a step no execution of a record covers through the records it
+    builds on (spec 3.1: done elsewhere is neither not started nor not
+    recorded): the parse record of its Layer 1, the record that produced a
+    norms or alignments input its earliest consuming execution read, then
+    its parent record. Reads the store once per presentation."""
+
+    def __init__(self, store: BuildRecordStore, dump_dir: Path) -> None:
+        self.dump_dir = dump_dir
+        self.records = store._valid_records_newest_first()
+        self.by_id = {r["record_id"]: r for r in self.records}
+        self._own: dict[str, tuple[dict[str, str], dict[str, str]]] = {}
+
+    def own(self, record: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+        rid = record["record_id"]
+        if rid not in self._own:
+            self._own[rid] = _own_states(record, self.dump_dir, verify=True)
+        return self._own[rid]
+
+    def producer(self, digest: str) -> str | None:
+        for record in self.records:
+            for ex in record["executions"]:
+                if any(o.get("sha256") == digest for o in ex.get("outputs", [])):
+                    return record["record_id"]
+        return None
+
+    def parse_producer(self, layer1_digest: str) -> str | None:
+        for record in self.records:
+            for ex in record["executions"]:
+                if ex.get("command") == "parse_legal_structure" and any(
+                    o.get("role") == "layer1_dump" and o.get("sha256") == layer1_digest for o in ex.get("outputs", [])
+                ):
+                    return record["record_id"]
+        return None
+
+    def sources(self, record: dict[str, Any]) -> tuple[list[tuple[str, tuple[str, ...] | None]], dict[str, str]]:
+        """([(record id, steps it may answer or None for any)], not-recorded
+        markers per step for inputs with a digest but no producing record)."""
+        rid = record.get("record_id")
+        out: list[tuple[str, tuple[str, ...] | None]] = []
+        markers: dict[str, str] = {}
+        if record.get("layer1_digest"):
+            found = self.parse_producer(record["layer1_digest"])
+            if found is None:
+                for step in PARSE_STEPS:
+                    markers[step] = PRODUCED_BEFORE_RECORDS
+            elif found != rid:
+                out.append((found, PARSE_STEPS))
+        consuming = next((ex for ex in record.get("executions", [])
+                          if any(i.get("role") in STEPS_OF_INPUT_ROLE and i.get("sha256") for i in ex.get("inputs", []))),
+                         None)
+        for inp in (consuming or {}).get("inputs", []):
+            if inp.get("role") not in STEPS_OF_INPUT_ROLE or not inp.get("sha256"):
+                continue
+            found = self.producer(inp["sha256"])
+            if found is None:
+                for step in STEPS_OF_INPUT_ROLE[inp["role"]]:
+                    markers.setdefault(step, PRODUCED_BEFORE_RECORDS)
+            elif found != rid:
+                out.append((found, None))
+        if record.get("parent_record_id"):
+            out.append((record["parent_record_id"], None))
+        return out, markers
+
+    def resolve(self, record: dict[str, Any], step: str, seen: frozenset[str]) -> tuple[str, str] | None:
+        """(state, reason) for a step the record does not cover itself, or None."""
+        sources, markers = self.sources(record)
+        for source_id, only in sources:
+            if source_id in seen or (only is not None and step not in only):
+                continue
+            source = self.by_id.get(source_id)
+            if source is None:
+                continue
+            states, problems = self.own(source)
+            if step in states:
+                state = states[step]
+                if step in problems:
+                    return "failed", problems[step]
+                if state == "done":
+                    return "done_shared", f"done in record {source_id}"
+                return state, f"{state} in record {source_id}"
+            deeper = self.resolve(source, step, seen | {source_id})
+            if deeper is not None:
+                return deeper
+        if step in markers:
+            return "not_recorded", markers[step]
+        return None
+
+
+def step_states(record: dict[str, Any], store: BuildRecordStore | None, dump_dir: Path,
+                reasons: dict[str, str] | None = None) -> tuple[dict, dict, str | None]:
+    """(steps, depends_on_state, parse_record_id). The newest execution
+    covering a step decides it; a done execution whose artefact is missing or
+    drifted renders its steps failed, with the cause written into reasons
+    (when given). A step the record does not cover is resolved through its
+    lineage (_Lineage): done_shared naming the covering record only while
+    that record's artefact stands, not_recorded when its input was produced
+    before build records existed. Synthesised records read their digests
+    from the artefacts themselves and are not re-verified."""
+    synthesised = bool(record.get("synthesised"))
+    steps, problems = _own_states(record, Path(dump_dir), verify=not synthesised)
 
     parse_record_id = None
-    uncovered_parse = [s for s in PARSE_STEPS if s not in steps]
-    if uncovered_parse and store is not None and record.get("layer1_digest"):
-        found = store.find_parse_record(record["layer1_digest"])
-        if found and found != record.get("record_id"):
-            parse_record_id = found
-            for step in uncovered_parse:
-                steps[step] = "done_shared"
+    if store is not None:
+        lineage = _Lineage(store, Path(dump_dir))
+        if record.get("layer1_digest") and any(s not in steps for s in PARSE_STEPS):
+            found = lineage.parse_producer(record["layer1_digest"])
+            if found and found != record.get("record_id"):
+                parse_record_id = found
+        seen = frozenset({record.get("record_id")})
+        for step in SHAREABLE_STEPS:
+            if step in steps:
+                continue
+            resolved = lineage.resolve(record, step, seen)
+            if resolved is None:
+                continue
+            state, why = resolved
+            if synthesised and state == "not_recorded":
+                continue  # the synthesis states its own reasons for what it could not read
+            steps[step] = state
+            problems[step] = why
 
-    # A synthesised record matched to a chain record by its full input set
-    # was published (P.2, derived from that chain record); its gate outcomes
-    # (P.1) were never recorded. A stored record's P steps come only from its
-    # publish execution.
+    # A legacy chain record was written after the critical gates and BEFORE
+    # the load (the defect D-G21 names): it proves neither the per-gate
+    # outcomes nor the load, so both P steps stay not recorded, with why.
     if synthesised and record.get("publication") is not None:
-        steps.setdefault("P.2", "done")
+        problems.setdefault("P.1", LEGACY_P1_REASON)
+        problems.setdefault("P.2", LEGACY_P2_REASON)
     default = _default_state(record)
     for step in STEP_IDS:
         steps.setdefault(step, default)

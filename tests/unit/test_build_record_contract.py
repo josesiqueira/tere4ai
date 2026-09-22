@@ -12,7 +12,8 @@ from tests.fixtures.build_records.regenerate import main as regenerate
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "build_record.schema.json"
 FIXTURES = ROOT / "tests" / "fixtures" / "build_records"
-EXPECTED = {"parse.json", "resumed_align.json", "legacy_core.json", "legacy_core_b74.json", "list.json"}
+EXPECTED = {"parse.json", "resumed_align.json", "legacy_core.json", "legacy_core_b74.json", "intermediate_build.json",
+            "list.json"}
 
 
 def _schema():
@@ -56,6 +57,15 @@ def test_fixtures_state_the_honesty_rules():
     assert b74["publication"] is None and b74["steps"]["P.1"] == "not_recorded"
     core = json.loads((FIXTURES / "legacy_core.json").read_text())
     assert core["provenance"]["publication"] == "derived" and core["publication"]["published_at"] is None
+    assert core["steps"]["P.1"] == core["steps"]["P.2"] == "not_recorded", "a legacy chain record proves no load"
+    assert "predates the load" in core["reasons"]["P.2"] and "G1 to G6" in core["reasons"]["P.1"]
+    mid = json.loads((FIXTURES / "intermediate_build.json").read_text())
+    parent = mid["parent_record_id"]
+    assert all(mid["steps"][s] == "done_shared" and mid["reasons"][s] == f"done in record {parent}"
+               for s in ("L0.1", "L1.1", "L2.1", "L2.2"))
+    assert all(mid["steps"][s] == "done" for s in ("L2.4", "L3.1", "L3.2", "L3.3"))
+    assert mid["steps"]["P.1"] == mid["steps"]["P.2"] == "not_started" and mid["publication"] is None
+    assert mid["depends_on_state"]["P.1"] == "done" and mid["depends_on_state"]["P.2"] == "not_started"
     resumed = json.loads((FIXTURES / "resumed_align.json").read_text())
     ex = resumed["executions"][-1]
     assert ex["resumes_run_id"] == "run2prev0000" and ex["inherited_from"] == "run2prev0000"
