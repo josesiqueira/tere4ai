@@ -543,6 +543,51 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   (no model imports); trace_implementation MCP tool in server.py;
   tests/unit/test_trace_code.py.
 
+- DEC-16: every build command writes an execution record; a frozen
+  campaign's decisions are materialised once into a reference file;
+  publication writes the chain record only after the post-load gates and
+  activation is explicit (added 2026-09-19, revised 2026-09-20; spec G
+  D-G20, D-G21, D-G27 in the private research repository). Engineering
+  MUST (reproducibility, traceability, no silent degradation, Section 13);
+  corroborated by ADD-20 (PROV activities link used entities to generated
+  entities) and REF-27.
+  Defense: a build in progress has no build id, so it is named by a stable
+  record id holding one execution record per command attempt (run id, the
+  steps covered, start, end, heartbeat, inputs and outputs by digest,
+  models, prompt hashes, sampling, usage, counts, one outcome per gate);
+  checkpoint lines carry the run id and a resume validates the inputs and
+  configuration it inherits; an expired heartbeat is reported as liveness
+  unknown, never as failed; the dump slug is an alias resolving to the
+  newest record; a published record is frozen and later work continues as
+  a descendant. Human decisions enter the graph through
+  scripts/materialize_reference.py, which applies a freeze's decisions
+  exactly once (apply_decisions then canonicalize_norms) into a new file
+  whose build block records the freeze manifest's identity and coverage,
+  after checking the manifest against its typed schema, its digest and
+  the build the freeze was taken on; the pristine dump is never edited and
+  nothing is overwritten. publish_layer23 binds every human-gated layer to
+  exactly one freeze manifest, verifies that the alignments were computed
+  over the norms file it is given, runs the gates, records the Neo4j
+  target as loading, loads, runs the post-load gates, and only then writes
+  build_chain_<id>.json (published_at, per-gate outcomes, gating per layer,
+  the whole-build label llm-gated or human-adjudicated, or none for an
+  intermediate or partial build) and publications/<id>.json; several
+  manifests enter the chain id order-independently. BUILD_CHAIN_CURRENT.txt
+  records the latest publication and selects nothing; scripts/activate_build.py
+  verifies the publication's files and writes the activation pointer; the
+  facade (at startup) and the MCP server (once per tool call) load through
+  one loader and serve the pointer's build, a drifted file refusing
+  service. GET /api/builds and GET /api/builds/{ref} serve the records per
+  request, every field marked recorded, derived or unavailable with a
+  reason, with an observation time; builds made before this decision are
+  synthesised from their artefacts with nothing invented, matched to a
+  chain record by their full input set. Contract with the dashboard:
+  schema/json_schemas/build_record.schema.json and
+  tests/fixtures/build_records/. Tests: tests/unit/test_build_record*.py,
+  test_checkpoints.py, test_parse_cli_record.py, test_materialize.py,
+  test_publish_layer23.py, test_publication.py, test_present.py,
+  test_builds_routes.py.
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)
