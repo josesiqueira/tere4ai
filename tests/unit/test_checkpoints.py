@@ -151,3 +151,16 @@ def test_prepare_resume_refuses_other_models_or_prompts(tmp_path):
     with pytest.raises(IncompatibleCheckpointError, match="prompt_sha256: generator"):
         prepare_resume(ck, "batch", KEYS, expected_models=models,
                        expected_prompt_sha256={**prompts, "generator": "3" * 64}, **common)
+
+
+def test_progress_of_an_ended_execution_comes_from_its_record(tmp_path):
+    ck = tmp_path / "x.checkpoint.jsonl"
+    ck.write_text(_line("b0", "later") + "\n", encoding="utf-8")  # a later run reused the path
+    done = {"run_id": "early", "status": "done", "inherited_keys": [], "inherited_from": None,
+            "completed_keys": ["b0", "b1", "b2"], "expected_total": 3, "work_unit": "batches"}
+    assert progress(done, ck, "batch", KEYS) == {"completed": 3, "expected_total": 3, "work_unit": "batches",
+                                                 "inherited": 0, "source": "record"}
+    failed = {**done, "status": "failed", "completed_keys": ["b0"], "inherited_keys": ["a0"]}
+    assert progress(failed, ck, "batch", KEYS)["completed"] == 2 and progress(failed, ck, "batch", KEYS)["source"] == "record"
+    running = {**done, "status": "running", "run_id": "later", "completed_keys": []}
+    assert progress(running, ck, "batch", KEYS)["source"] == "checkpoint"

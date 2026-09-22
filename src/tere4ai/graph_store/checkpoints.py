@@ -176,8 +176,13 @@ def prepare_resume(path: Path, key_field: str, result_keys: tuple[str, ...], *, 
 
 def progress(execution: dict[str, Any], checkpoint_path: Path, key_field: str,
              result_keys: tuple[str, ...]) -> dict[str, Any]:
+    """Completed work units of one execution. An ended execution (done or
+    failed) counts what its record holds, whatever the checkpoint file holds
+    now (a later run may reuse the path); only a running one, or a
+    synthesised one without a run id, reads the checkpoint."""
     inherited = list(execution.get("inherited_keys") or [])
-    if checkpoint_path.is_file():
+    ended = execution.get("status") in ("done", "failed")
+    if checkpoint_path.is_file() and not ended:
         read = read_checkpoint(checkpoint_path, key_field, result_keys)
         run_id = execution.get("run_id")
         if run_id is None:
