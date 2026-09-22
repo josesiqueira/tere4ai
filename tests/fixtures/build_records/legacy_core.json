@@ -357,6 +357,8 @@
   "published_at": null
  },
  "reasons": {
+  "P.1": "a legacy chain record was written only after G1 to G6 passed; per-gate outcomes were not recorded before DEC-16",
+  "P.2": "the chain record predates the load; load and post-load gates were not recorded before DEC-16",
   "created_at": "not recorded before DEC-16",
   "parent_record_id": "not recorded before DEC-16",
   "parse_record_id": "not recorded before DEC-16",
@@ -381,7 +383,7 @@
   "L3.4": "not_recorded",
   "L3.5": "not_recorded",
   "P.1": "not_recorded",
-  "P.2": "done"
+  "P.2": "not_recorded"
  },
  "synthesised": true
 }

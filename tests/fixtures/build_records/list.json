@@ -9,7 +9,7 @@
    "created_at": "2026-09-19T00:00:00+00:00",
    "publication": null,
    "reason": null,
-   "record_id": "r1parse00000",
+   "record_id": "a00000000001",
    "served": false,
    "steps": {
     "L0.1": "done",
@@ -37,13 +37,13 @@
    "created_at": "2026-09-19T00:00:00+00:00",
    "publication": null,
    "reason": null,
-   "record_id": "r2align00000",
+   "record_id": "a00000000002",
    "served": false,
    "steps": {
     "L0.1": "done_shared",
     "L1.1": "done_shared",
-    "L2.1": "not_started",
-    "L2.2": "not_started",
+    "L2.1": "not_recorded",
+    "L2.2": "not_recorded",
     "L2.3": "not_started",
     "L2.4": "not_started",
     "L3.1": "done",
@@ -84,7 +84,7 @@
     "L3.4": "not_recorded",
     "L3.5": "not_recorded",
     "P.1": "not_recorded",
-    "P.2": "done"
+    "P.2": "not_recorded"
    },
    "synthesised": true,
    "unreadable": false
@@ -115,6 +115,66 @@
     "P.2": "not_recorded"
    },
    "synthesised": true,
+   "unreadable": false
+  },
+  {
+   "aliases": [
+    "core"
+   ],
+   "base_build_id": "build-b",
+   "created_at": "2026-09-19T00:00:00+00:00",
+   "publication": {
+    "chain_id": "ce368dbdc119",
+    "label": "llm-gated",
+    "published_at": "2026-09-19T00:00:00+00:00"
+   },
+   "reason": null,
+   "record_id": "a00000000003",
+   "served": false,
+   "steps": {
+    "L0.1": "done",
+    "L1.1": "done",
+    "L2.1": "done",
+    "L2.2": "done",
+    "L2.3": "not_started",
+    "L2.4": "not_started",
+    "L3.1": "done",
+    "L3.2": "done",
+    "L3.3": "done",
+    "L3.4": "not_started",
+    "L3.5": "not_started",
+    "P.1": "done",
+    "P.2": "done"
+   },
+   "synthesised": false,
+   "unreadable": false
+  },
+  {
+   "aliases": [
+    "core.reference"
+   ],
+   "base_build_id": "build-b",
+   "created_at": "2026-09-19T00:00:00+00:00",
+   "publication": null,
+   "reason": null,
+   "record_id": "a00000000004",
+   "served": false,
+   "steps": {
+    "L0.1": "done_shared",
+    "L1.1": "done_shared",
+    "L2.1": "done_shared",
+    "L2.2": "done_shared",
+    "L2.3": "not_started",
+    "L2.4": "done",
+    "L3.1": "done",
+    "L3.2": "done",
+    "L3.3": "done",
+    "L3.4": "not_started",
+    "L3.5": "not_started",
+    "P.1": "not_started",
+    "P.2": "not_started"
+   },
+   "synthesised": false,
    "unreadable": false
   }
  ],
