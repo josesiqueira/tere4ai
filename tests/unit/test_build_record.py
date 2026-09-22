@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -216,7 +217,17 @@ def test_relative_to_dump_dir_relative_under_and_absolute_outside(tmp_path):
     assert relative_to_dump_dir(under, dump_dir) == "norms_test.json"
 
     outside = tmp_path / "elsewhere" / "norms_test.json"
-    assert relative_to_dump_dir(outside, dump_dir) == str(outside)
+    assert relative_to_dump_dir(outside, dump_dir) == str(outside.resolve())
+
+
+def test_relative_to_dump_dir_resolves_mixed_relative_and_absolute_paths(tmp_path, monkeypatch):
+    dump_dir = tmp_path / "dumps"
+    dump_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert relative_to_dump_dir(Path("dumps/norms_test.json"), dump_dir.resolve()) == "norms_test.json"
+    assert relative_to_dump_dir(dump_dir.resolve() / "x.json", Path("dumps")) == "x.json"
+    outside = relative_to_dump_dir(Path("elsewhere/norms_test.json"), dump_dir.resolve())
+    assert outside == str((tmp_path / "elsewhere" / "norms_test.json").resolve()) and Path(outside).is_absolute()
 
 
 def test_select_record_reuses_the_open_descendant_of_a_frozen_record(tmp_path):

@@ -372,11 +372,14 @@ def published_artefact_owner(store: BuildRecordStore, dump_dir: Path | str, dige
 
 def relative_to_dump_dir(path: Path, dump_dir: Path) -> str:
     """Path relative to dump_dir when it lies under it, else the absolute path.
+    Both are resolved first, so a relative --out beside an absolute
+    --dump-dir (or the reverse) is compared as the same file system place.
     The presenter later resolves dump_dir / this value."""
+    resolved = Path(path).resolve()
     try:
-        return str(path.relative_to(dump_dir))
+        return str(resolved.relative_to(Path(dump_dir).resolve()))
     except ValueError:
-        return str(path)
+        return str(resolved)
 
 
 def gate_entries(failures: list[str], names: tuple[str, ...], stats: dict[str, Any]) -> list[dict[str, Any]]:
