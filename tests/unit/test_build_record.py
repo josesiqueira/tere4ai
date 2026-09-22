@@ -17,6 +17,7 @@ from tere4ai.graph_store.build_record import (
     gate_entries,
     liveness,
     scrub_argv,
+    select_record,
 )
 
 
@@ -171,3 +172,37 @@ def test_gate_entries_one_per_gate():
     assert by["G1"] == {"name": "G1", "ok": False, "detail": "G1 orphan legal node: x; G1 plus 3 more orphans"}
     assert by["G2"]["ok"] and by["G6"]["ok"] is False and len(entries) == 6
     assert gate_entries([], ("P1", "P2"), {"db_norms": 3})[-1]["detail"] == "db_norms=3"
+
+
+def test_select_record_creates_reuses_or_continues_as_descendant(tmp_path):
+    store = BuildRecordStore(tmp_path)
+
+    # a new ref creates a record and prints nothing
+    rid, message = select_record(store, "core", "build-b", "L" * 64)
+    assert message is None and store.resolve("core") == rid
+    assert store.read(rid)["layer1_digest"] == "L" * 64 and store.read(rid)["base_build_id"] == "build-b"
+
+    # a compatible record (same digest, not published) is reused
+    again, message = select_record(store, "core", "build-b", "L" * 64)
+    assert again == rid and message is None
+
+    # a record with no recorded layer1_digest yet is reused whatever digest this run has
+    store2 = BuildRecordStore(tmp_path / "unset")
+    open_rid = store2.create_record("open", "build-b", None)
+    reused, message = select_record(store2, "open", "build-b", "K" * 64)
+    assert reused == open_rid and message is None
+
+    # a frozen record continues as a descendant, with the exact message text
+    store.set_publication(rid, {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+                               "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [],
+                               "postload_gates": [], "manifests": []})
+    child, message = select_record(store, "core", "build-b", "L" * 64)
+    assert child != rid and store.read(child)["parent_record_id"] == rid
+    assert message == f"record {rid} is published; continuing as descendant {child}"
+    assert store.resolve("core") == child
+
+    # a record built on another Layer 1 also continues as a descendant
+    other_rid, _ = select_record(store, "other", "build-b", "M" * 64)
+    grandchild, message = select_record(store, "other", "build-b", "N" * 64)
+    assert grandchild != other_rid and store.read(grandchild)["parent_record_id"] == other_rid
+    assert message == f"record {other_rid} was built on another Layer 1; continuing as descendant {grandchild}"

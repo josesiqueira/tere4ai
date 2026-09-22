@@ -311,6 +311,26 @@ class BuildRecordStore:
             atomic_write_json(self.dir / ALIASES_FILENAME, aliases)
 
 
+def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
+                  layer1_digest: str | None) -> tuple[str, str | None]:
+    """Reuse an open record built on the same Layer 1; otherwise continue as a
+    descendant (D-G20): a published record is frozen, and a record built on
+    another layer1.json is another assembly. Returns the record id and a
+    message to print, or None when nothing needs to be said. Shared by every
+    recording command (extract_norms, align_hleg_altai) so the rule and its
+    message stay in one place."""
+    existing = store.resolve(ref)
+    if existing is None:
+        return store.create_record(ref, base_build_id, layer1_digest), None
+    record = store.read(existing)
+    same_layer1 = record["layer1_digest"] in (None, layer1_digest)
+    if record["publication"] is None and same_layer1:
+        return existing, None
+    why = "is published" if record["publication"] is not None else "was built on another Layer 1"
+    child = store.create_record(ref, base_build_id, layer1_digest, parent_record_id=existing)
+    return child, f"record {existing} {why}; continuing as descendant {child}"
+
+
 def gate_entries(failures: list[str], names: tuple[str, ...], stats: dict[str, Any]) -> list[dict[str, Any]]:
     """One entry per named gate: ok unless a failure string carries its prefix."""
     entries = []
