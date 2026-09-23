@@ -240,8 +240,13 @@ class EvaluationRecordStore:
             atomic_write_json(self._path(record_id), record)
         return record_id
 
-    def keep_output(self, record_id: str, role: str, path: Path | str) -> dict[str, Any]:
+    def keep_output(self, record_id: str, role: str, path: Path | str, *,
+                    name: str | None = None) -> dict[str, Any]:
         """Copy the output's bytes under the record's directory; the copy is never overwritten.
+
+        The recorded file is `name` when given (a writer that copies from a
+        run-private temp file names the compatibility file it lands as, G3),
+        else the source's own name; the copy is always `<role><suffix>`.
 
         The existence check and the copy happen under the record's lock, and the
         copy itself lands via a unique temp file plus os.replace, so a reader
@@ -266,7 +271,7 @@ class EvaluationRecordStore:
                 if os.path.exists(tmp):
                     os.unlink(tmp)
         # the copy's own bytes: a source rewritten after the copy cannot make it read as drifted
-        ref = {"role": role, "file": src.name, "sha256": sha256_of_file(target)}
+        ref = {"role": role, "file": name if name is not None else src.name, "sha256": sha256_of_file(target)}
         ref["copy"] = str(target.relative_to(self.dir))
         return ref
 

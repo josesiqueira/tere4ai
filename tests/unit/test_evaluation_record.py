@@ -231,3 +231,15 @@ def test_two_processes_cannot_interleave_a_finish(tmp_path):
         p.join()
     results = sorted(q.get() for _ in ps)
     assert results[0] != "ok" and results[1] == "ok", "exactly one finish wins under the lock"
+
+
+def test_keep_output_records_the_given_name_and_keeps_the_copy_under_its_role(tmp_path):
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None})
+    tmp = tmp_path / "tmpab12cd.json"
+    tmp.write_text('{"a": 1}')
+    ref = store.keep_output(rid, "artifact", tmp, name="eval_build-b_plain_llm.json")
+    assert ref["file"] == "eval_build-b_plain_llm.json" and ref["copy"] == f"{rid}/artifact.json"
+    assert ref["sha256"] == er.sha256_of_file(tmp)
+    store.finish(rid, status="failed", error="x")

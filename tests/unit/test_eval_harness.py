@@ -30,7 +30,7 @@ from tere4ai.eval.harness import (
 )
 from tere4ai.eval.strategies import STRATEGY_NAMES, TfidfIndex, build_strategy
 from tere4ai.extract_norms.model_clients import FakeClient
-from tere4ai.graph_store.build_chain import build_chain
+from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
 from tere4ai.judge.config import ModelConfig
 from tere4ai.mcp_server.classify import classify_ai_system
 
@@ -715,7 +715,7 @@ def test_a_manifest_lacking_a_role_raises_the_asset_error_before_begin(tmp_path)
 
 
 def _keep_output_fails(monkeypatch):
-    def boom(self, record_id, role, path):
+    def boom(self, record_id, role, path, **kw):
         raise OSError("copy refused")
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
 
@@ -726,7 +726,7 @@ def test_a_failing_keep_output_after_the_artifact_write_fails_the_record(tmp_pat
     with pytest.raises(OSError, match="copy refused"):
         run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
                  results_dir=tmp_path / "r", record_store=store)
-    assert list((tmp_path / "r").glob("*.json")), "the compatibility file was written"
+    assert not list((tmp_path / "r").glob("*.json")), "no compatibility file and no temp file left (G3)"
     (rec,) = store.list_records()
     assert rec["outcome"]["status"] == "failed" and "copy refused" in rec["outcome"]["error"]
 
@@ -779,7 +779,7 @@ def test_a_writer_stores_its_failure_with_the_file_name_only(tmp_path, monkeypat
     store = EvaluationRecordStore(tmp_path)
     deep = tmp_path / "very" / "deep" / "artifact.json"
 
-    def boom(self, record_id, role, path):
+    def boom(self, record_id, role, path, **kw):
         raise FileNotFoundError(2, "No such file or directory", str(deep))
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
     with pytest.raises(FileNotFoundError):
@@ -801,3 +801,34 @@ def test_an_offline_run_with_graph_full_records_the_runtime_judge_prompt_hash(tm
         "runtime_grounding": prompt_sha256(load_prompt("runtime_grounding", "v1"))}
     plain = run_eval(list(GOLD_3)[:1], ["plain_llm"], results_dir=tmp_path / "r2", **kw)
     assert store.read(plain["record_id"])["prompt_sha256"] is None
+
+
+def test_the_record_keeps_this_runs_artifact_bytes_under_the_compatibility_name(tmp_path):
+    store = EvaluationRecordStore(tmp_path)
+    out = run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
+                   results_dir=tmp_path / "r", record_store=store)
+    out_path = Path(out["artifact_path"])
+    (ref,) = store.read(out["record_id"])["outputs"]
+    assert ref["role"] == "artifact" and ref["file"] == out_path.name
+    assert ref["sha256"] == sha256_of_file(store.dir / ref["copy"]) == sha256_of_file(out_path)
+    assert [p.name for p in (tmp_path / "r").iterdir()] == [out_path.name], "no temp file left"
+
+
+def test_a_concurrent_writer_replacing_the_shared_path_never_lands_in_this_record(tmp_path, monkeypatch):
+    store = EvaluationRecordStore(tmp_path)
+    real_keep = EvaluationRecordStore.keep_output
+    other = b'{"another run": true}\n'
+
+    def interleaved(self, record_id, role, path, **kw):
+        # run B replaces the shared deterministic path between A's write and A's copy
+        for p in (tmp_path / "r").glob("eval_*.json"):
+            p.write_bytes(other)
+        (tmp_path / "r" / kw.get("name", "x")).write_bytes(other)
+        return real_keep(self, record_id, role, path, **kw)
+    monkeypatch.setattr(EvaluationRecordStore, "keep_output", interleaved)
+    out = run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
+                   results_dir=tmp_path / "r", record_store=store)
+    (ref,) = store.read(out["record_id"])["outputs"]
+    kept = json.loads((store.dir / ref["copy"]).read_bytes())
+    assert kept["item_ids"] == out["item_ids"] and kept["results"] == out["results"], "this run's bytes"
+    assert Path(out["artifact_path"]).read_bytes() == (store.dir / ref["copy"]).read_bytes()

@@ -34,6 +34,7 @@ import hashlib
 import json
 import os
 import sys
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -420,7 +421,22 @@ def run_eval(
         out_dir = results_dir or RESULTS_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / results_artifact_name(build_id, strategy_names)
-        atomic_write_json(out_path, artifact)
+        ref = None
+        if record_store is not None and record_id is not None:
+            # the record copies this run's own bytes from a run-private temp
+            # file, never the shared deterministic path another run of the
+            # same build and strategies may be replacing (G3)
+            fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=".json", dir=str(out_dir))
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    fh.write(json.dumps(artifact, ensure_ascii=False, indent=1) + "\n")
+                ref = record_store.keep_output(record_id, "artifact", tmp, name=out_path.name)
+                os.replace(tmp, out_path)
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
+        else:
+            atomic_write_json(out_path, artifact)
         artifact["artifact_path"] = str(out_path)
         artifact["record_id"] = record_id
         if record_store is not None and record_id is not None:
@@ -428,7 +444,6 @@ def run_eval(
                               if r.get("error")})
             intended = [item["id"] for item in items]
             completed = [i for i in intended if i not in set(errored)]
-            ref = record_store.keep_output(record_id, "artifact", out_path)
 
             def _client_field(client: Any, field: str) -> Any:
                 return getattr(client, field, None) if client is not None else None
