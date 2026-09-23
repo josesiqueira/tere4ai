@@ -357,42 +357,44 @@ def run_eval(
             item_selection=[item["id"] for item in items], intended_items=[item["id"] for item in items],
         )
 
-    results: dict[str, dict[str, Any]] = {}
-    for name in strategy_names:
-        strategy = strategies[name]
-        per_item: dict[str, Any] = {}
-        for item in items:
-            started = time.perf_counter()
-            try:
-                outcome = strategy(item)
-            except Exception as exc:  # noqa: BLE001 (one bad item never kills the run)
-                outcome = {
-                    "answer_text": "",
-                    "citations": [],
-                    "risk_category": None,
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
-            outcome["latency_s"] = round(time.perf_counter() - started, 6)
-            per_item[item["id"]] = outcome
-        results[name] = {
-            "models": dict(getattr(strategy, "models", {})),
-            "items": per_item,
+    # the failure path covers everything from begin to finish (F3): a raise
+    # or a KeyboardInterrupt in the loop finishes the record failed
+    try:
+        results: dict[str, dict[str, Any]] = {}
+        for name in strategy_names:
+            strategy = strategies[name]
+            per_item: dict[str, Any] = {}
+            for item in items:
+                started = time.perf_counter()
+                try:
+                    outcome = strategy(item)
+                except Exception as exc:  # noqa: BLE001 (one bad item never kills the run)
+                    outcome = {
+                        "answer_text": "",
+                        "citations": [],
+                        "risk_category": None,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                outcome["latency_s"] = round(time.perf_counter() - started, 6)
+                per_item[item["id"]] = outcome
+            results[name] = {
+                "models": dict(getattr(strategy, "models", {})),
+                "items": per_item,
+            }
+
+        artifact = {
+            "build_id": build_id,
+            "live": live,
+            "config": config_public,
+            "strategies": strategy_names,
+            "n_items": len(items),
+            "item_ids": [item["id"] for item in items],
+            "results": results,
         }
 
-    artifact = {
-        "build_id": build_id,
-        "live": live,
-        "config": config_public,
-        "strategies": strategy_names,
-        "n_items": len(items),
-        "item_ids": [item["id"] for item in items],
-        "results": results,
-    }
-
-    out_dir = results_dir or RESULTS_DIR
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / results_artifact_name(build_id, strategy_names)
-    try:
+        out_dir = results_dir or RESULTS_DIR
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / results_artifact_name(build_id, strategy_names)
         atomic_write_json(out_path, artifact)
         artifact["artifact_path"] = str(out_path)
         artifact["record_id"] = record_id
@@ -420,7 +422,7 @@ def run_eval(
     except BaseException as exc:
         if record_store is not None and record_id is not None:
             try:
-                record_store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+                record_store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
             except EvaluationRecordError:
                 pass
         raise

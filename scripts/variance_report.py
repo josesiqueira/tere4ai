@@ -233,6 +233,12 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)
+        if store is not None and record_id is not None:
+            common = sorted({i for name in comparisons for i in set(per_a[name]) & set(per_b[name])})
+            store.finish(record_id, status="completed", completed_items=common, intended_items=common,
+                         outputs=[store.keep_output(record_id, "study", args.out)],
+                         counts={"common_items": len(common),
+                                 "label_flips": sum(c["label_flips"] for c in comparisons.values())}, notes=notes)
     except BaseException as exc:
         if store is not None and record_id is not None:
             try:
@@ -249,11 +255,6 @@ def main(argv: list[str] | None = None) -> int:
     shown = args.out.relative_to(ROOT) if args.out.is_relative_to(ROOT) else args.out
     print(f"wrote {shown}")
     if store is not None and record_id is not None:
-        common = sorted({i for name in comparisons for i in set(per_a[name]) & set(per_b[name])})
-        store.finish(record_id, status="completed", completed_items=common, intended_items=common,
-                     outputs=[store.keep_output(record_id, "study", args.out)],
-                     counts={"common_items": len(common),
-                             "label_flips": sum(c["label_flips"] for c in comparisons.values())}, notes=notes)
         print(f"evaluation record {record_id} written under {store.dir}")
     return 0
 

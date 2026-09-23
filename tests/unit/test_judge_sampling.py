@@ -458,6 +458,19 @@ def test_draw_cleans_up_the_temp_file_and_fails_the_record_when_the_sheet_write_
     assert "disk full" in records[0]["outcome"]["error"]
 
 
+def test_draw_fails_the_record_when_keep_output_raises_after_the_sheet_write(tmp_path, monkeypatch):
+    _write_payloads(tmp_path)
+
+    def boom(self, record_id, role, path):
+        raise OSError("copy refused")
+    monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
+    with pytest.raises(OSError, match="copy refused"):
+        sampling.main(_draw_argv(tmp_path))
+    assert (tmp_path / "sheet.json").is_file(), "the compatibility file was written"
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == "failed" and "copy refused" in rec["outcome"]["error"]
+
+
 # The E1 label and compute acts (DEC-17): actor and time per item, an
 # analysis record with rates per judge kind and pooled -----------------
 

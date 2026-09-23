@@ -711,3 +711,35 @@ def test_a_manifest_lacking_a_role_raises_the_asset_error_before_begin(tmp_path)
         run_eval(list(GOLD_3)[:1], ["plain_llm"], generator_factory=make_generator, results_dir=tmp_path / "r",
                  record_store=store, dump_dir=tmp_path)
     assert store.list_records() == []
+
+
+def _keep_output_fails(monkeypatch):
+    def boom(self, record_id, role, path):
+        raise OSError("copy refused")
+    monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
+
+
+def test_a_failing_keep_output_after_the_artifact_write_fails_the_record(tmp_path, monkeypatch):
+    store = EvaluationRecordStore(tmp_path)
+    _keep_output_fails(monkeypatch)
+    with pytest.raises(OSError, match="copy refused"):
+        run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
+                 results_dir=tmp_path / "r", record_store=store)
+    assert list((tmp_path / "r").glob("*.json")), "the compatibility file was written"
+    (rec,) = store.list_records()
+    assert rec["outcome"]["status"] == "failed" and "copy refused" in rec["outcome"]["error"]
+
+
+def test_a_keyboard_interrupt_inside_the_strategy_loop_fails_the_record(tmp_path):
+    items = list(GOLD_3)[:2]
+
+    def interrupted(item):
+        if item["id"] == items[1]["id"]:
+            raise KeyboardInterrupt
+        return {"answer_text": "a", "citations": []}
+    store = EvaluationRecordStore(tmp_path)
+    with pytest.raises(KeyboardInterrupt):
+        run_eval(items, {"plain_llm": interrupted}, results_dir=tmp_path / "r", record_store=store)
+    (rec,) = store.list_records()
+    assert rec["outcome"]["status"] == "failed" and rec["outcome"]["error"] == "KeyboardInterrupt: "
+    assert rec["ended_at"] is not None

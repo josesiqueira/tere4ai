@@ -718,6 +718,13 @@ def main(argv: list[str] | None = None) -> int:
         args.sheet.parent.mkdir(parents=True, exist_ok=True)
         _write_atomic(args.sheet, json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
         _write_atomic(args.sheet_md, render_sheet_md(sheet) + "\n")
+        if store is not None and record_id is not None:
+            ids = [it["decision_id"] for it in sheet["items"]]
+            store.finish(record_id, status="completed", completed_items=ids,
+                         outputs=[store.keep_output(record_id, "sheet_json", args.sheet),
+                                  store.keep_output(record_id, "sheet_md", args.sheet_md)],
+                         counts={"population": sheet["sampling"]["population"], "sampled": sheet["sampling"]["total"],
+                                 "unjoinable": len(sheet["sampling"]["unjoinable_judge_runs_excluded"])})
     except BaseException as exc:
         if store is not None and record_id is not None:
             try:
@@ -725,13 +732,6 @@ def main(argv: list[str] | None = None) -> int:
             except EvaluationRecordError:
                 pass
         raise
-    if store is not None and record_id is not None:
-        ids = [it["decision_id"] for it in sheet["items"]]
-        store.finish(record_id, status="completed", completed_items=ids,
-                     outputs=[store.keep_output(record_id, "sheet_json", args.sheet),
-                              store.keep_output(record_id, "sheet_md", args.sheet_md)],
-                     counts={"population": sheet["sampling"]["population"], "sampled": sheet["sampling"]["total"],
-                             "unjoinable": len(sheet["sampling"]["unjoinable_judge_runs_excluded"])})
     strata = ", ".join(
         f"{s['judge_kind']}/{s['verdict']}={s['sampled']}" for s in sheet["sampling"]["strata"]
     )

@@ -1,4 +1,7 @@
-"""Variance report tests (#60, DEC-17): flips, citation Jaccard, determinism check."""
+"""Variance report tests (#60, DEC-17): flips, citation Jaccard, determinism check.
+
+DEC-17: the comparison record names runs by digest only, binds to no
+publication, and ends failed on any exception from begin to finish."""
 
 from __future__ import annotations
 
@@ -128,3 +131,24 @@ def test_main_removes_the_temp_file_when_the_markdown_write_fails(tmp_path, monk
     rec = [x for x in store.list_records() if x["kind"] == "comparison"][0]
     assert rec["outcome"]["status"] == "failed"
     assert "disk full" in rec["outcome"]["error"]
+
+
+def test_a_failing_keep_output_after_the_study_write_fails_the_record(tmp_path, monkeypatch):
+    a, b = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    r = {"i1": {"risk_category": "high", "citations": [], "answer_text": "x"}}
+    _checkpoint(a, r)
+    _checkpoint(b, r)
+    bench = tmp_path / "bench.json"
+    bench.write_text(json.dumps({"scenarios": [], "qa": []}))
+    store = EvaluationRecordStore(tmp_path)
+    out = tmp_path / "study.md"
+
+    def boom(self, record_id, role, path):
+        raise OSError("copy refused")
+    monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
+    with pytest.raises(OSError, match="copy refused"):
+        vr.main(["--run-a", str(a), "--run-b", str(b), "--benchmark", str(bench), "--out", str(out),
+                 "--dump-dir", str(tmp_path)])
+    assert out.is_file(), "the compatibility file was written"
+    (rec,) = store.list_records()
+    assert rec["outcome"]["status"] == "failed" and "copy refused" in rec["outcome"]["error"]
