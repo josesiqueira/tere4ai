@@ -1,6 +1,6 @@
 """Stratified deterministic sample of judge decisions for FA/FR gold labels.
 
-@implements: DEC-11
+@implements: DEC-11, DEC-17
 @grounded_by: REF-16
 
 Implements the judge false-accept / false-reject labelling step of
@@ -36,13 +36,25 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import sys
+import tempfile
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.eval.evaluation_record import (  # noqa: E402
+    EvaluationRecordError,
+    EvaluationRecordStore,
+    code_version,
+    file_ref,
+    observe_publication,
+    served_input_paths,
+)
 from tere4ai.eval.metrics import JUDGE_GOLD_LABELS, judge_error_rates  # noqa: E402
 
 NORMS_PATH = ROOT / "data" / "graph_dumps" / "norms_core.json"
@@ -196,12 +208,24 @@ def _source_excerpt(
     return {"node_id": node_id, "text": _excerpt(node.get("text"))}
 
 
+def _write_atomic(path: Path, text: str) -> None:
+    fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=path.suffix, dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 def build_sheet(
     norms_payload: dict[str, Any],
     alignments_payload: dict[str, Any],
     layer1_payload: dict[str, Any],
     total: int = TOTAL_SAMPLE,
     minimum: int = MIN_PER_STRATUM,
+    sample: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the label sheet dict: deterministic for fixed input payloads."""
     decisions, unjoinable = load_decisions(norms_payload, alignments_payload)
@@ -297,6 +321,7 @@ def build_sheet(
             "layer1": layer1_payload.get("build", {}).get("build_id"),
         },
         "items": items,
+        **({"sample": sample} if sample is not None else {}),
     }
 
 
@@ -414,12 +439,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--sheet", type=Path, default=SHEET_JSON)
     parser.add_argument("--sheet-md", type=Path, default=SHEET_MD)
-    parser.add_argument("--norms", type=Path, default=NORMS_PATH)
-    parser.add_argument("--alignments", type=Path, default=ALIGNMENTS_PATH)
-    parser.add_argument("--layer1", type=Path, default=LAYER1_PATH)
+    parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps")
+    parser.add_argument("--norms", type=Path, default=None)
+    parser.add_argument("--alignments", type=Path, default=None)
+    parser.add_argument("--layer1", type=Path, default=None)
     parser.add_argument(
         "--force", action="store_true",
         help="overwrite an existing sheet even if it already carries human labels",
+    )
+    parser.add_argument(
+        "--no-record", action="store_true",
+        help="draw without writing an evaluation record",
     )
     args = parser.parse_args(argv)
 
@@ -442,24 +472,56 @@ def main(argv: list[str] | None = None) -> int:
             print("false rejects: " + ", ".join(rates["false_reject_ids"]))
         return 0
 
+    served = served_input_paths(args.dump_dir)
+    norms_path = args.norms or served.get("norms", args.dump_dir / "norms_core.json")
+    alignments_path = args.alignments or served.get("alignments", args.dump_dir / "alignments_core.json")
+    layer1_path = args.layer1 or served.get("layer1_dump", args.dump_dir / "layer1.json")
+
     if args.sheet.exists() and not args.force:
         existing = _load(args.sheet)
-        labelled = sum(
-            1 for it in existing.get("items", []) if it.get("human_label") is not None
-        )
-        if labelled:
-            print(
-                f"refusing to overwrite {args.sheet}: it already carries "
-                f"{labelled} human labels; pass --force to discard them"
-            )
-            return 1
+        items = existing.get("items", [])
+        labelled = sum(1 for it in items if it.get("human_label") is not None)
+        print(f"refusing to overwrite {args.sheet}: a sheet exists ({labelled} of {len(items)} items labelled); "
+              "pass --force to draw a fresh sample")
+        return 1
 
-    sheet = build_sheet(_load(args.norms), _load(args.alignments), _load(args.layer1))
-    args.sheet.parent.mkdir(parents=True, exist_ok=True)
-    args.sheet.write_text(
-        json.dumps(sheet, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
-    )
-    args.sheet_md.write_text(render_sheet_md(sheet) + "\n", encoding="utf-8")
+    norms_payload, alignments_payload, layer1_payload = _load(norms_path), _load(alignments_path), _load(layer1_path)
+    store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
+    publication, publication_reason = observe_publication(args.dump_dir)
+    build = {"base_build_id": str(norms_payload.get("build", {}).get("build_id")) if norms_payload.get("build") else None,
+             "publication": publication, "publication_reason": publication_reason}
+    sample = {"sample_id": "sample-" + uuid.uuid4().hex[:12], "record_id": None,
+              "drawn_at": datetime.now(UTC).isoformat(), "build": build}
+    inputs = [file_ref("norms", norms_path), file_ref("alignments", alignments_path), file_ref("layer1_dump", layer1_path)]
+    sheet = build_sheet(norms_payload, alignments_payload, layer1_payload, sample=sample)
+    record_id = None
+    if store is not None:
+        record_id = store.begin(kind="sample", step="E1", command="sample_judge_decisions",
+                                argv=list(argv) if argv is not None else sys.argv[1:], inputs=inputs, build=build,
+                                config={"total": TOTAL_SAMPLE, "minimum": MIN_PER_STRATUM, "code_version": code_version(ROOT),
+                                        "strata": sheet["sampling"]["strata"], "population": sheet["sampling"]["population"]},
+                                relations={"sample_id": sample["sample_id"]},
+                                intended_items=[it["decision_id"] for it in sheet["items"]])
+        sample["record_id"] = record_id
+        sheet["sample"] = sample  # the record id lands in the sheet before it is written
+    try:
+        args.sheet.parent.mkdir(parents=True, exist_ok=True)
+        _write_atomic(args.sheet, json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
+        _write_atomic(args.sheet_md, render_sheet_md(sheet) + "\n")
+    except BaseException as exc:
+        if store is not None and record_id is not None:
+            try:
+                store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+            except EvaluationRecordError:
+                pass
+        raise
+    if store is not None and record_id is not None:
+        ids = [it["decision_id"] for it in sheet["items"]]
+        store.finish(record_id, status="completed", completed_items=ids,
+                     outputs=[store.keep_output(record_id, "sheet_json", args.sheet),
+                              store.keep_output(record_id, "sheet_md", args.sheet_md)],
+                     counts={"population": sheet["sampling"]["population"], "sampled": sheet["sampling"]["total"],
+                             "unjoinable": len(sheet["sampling"]["unjoinable_judge_runs_excluded"])})
     strata = ", ".join(
         f"{s['judge_kind']}/{s['verdict']}={s['sampled']}" for s in sheet["sampling"]["strata"]
     )

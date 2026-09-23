@@ -2,10 +2,12 @@
 scripts/elicitation_error_report.py.
 
 Covers DEC-11 (evaluation support: judge FA/FR labelling sample and the
-run 2 elicitation error report). The sampling tests run on small synthetic payloads (hermetic) plus the real
-published artifacts for the determinism and stratum-count checks; the error
-report tests run only against the real artifacts and skip when those are
-absent. No model, no network, anywhere.
+run 2 elicitation error report) and DEC-17 (the E1 draw act: an immutable
+sample id, any-sheet overwrite protection, a sample record). The sampling
+tests run on small synthetic payloads (hermetic) plus the real published
+artifacts for the determinism and stratum-count checks; the error report
+tests run only against the real artifacts and skip when those are absent.
+No model, no network, anywhere.
 """
 
 from __future__ import annotations
@@ -17,6 +19,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from tere4ai.eval.evaluation_record import EvaluationRecordStore
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -335,3 +339,94 @@ def test_error_report_finds_exactly_the_three_run2_items(tmp_path: Path):
     assert "flag:predictive_policing_profiling" in text
     assert "domain:critical_infrastructure" in text
     assert "domain:education" in text
+
+
+# The E1 draw act (DEC-17): an immutable sample id, any-sheet overwrite
+# protection, a sample record --------------------------------------------
+
+
+def _payloads():
+    """Norms, alignments and layer1 payloads with 80 joinable decisions: main() always draws TOTAL_SAMPLE (50)
+    and allocate_stratified refuses a smaller population."""
+    payloads = _synthetic_payloads(extraction={"accepted": 30, "rejected": 12, "needs_human_review": 8},
+                                   mapping={"accepted": 20, "rejected": 10})
+    return payloads  # the three payloads in the order build_sheet takes them; unpack as line 155 does
+
+
+def _write_payloads(tmp_path):
+    norms, alignments, layer1 = _payloads()
+    (tmp_path / "norms_core.json").write_text(json.dumps(norms))
+    (tmp_path / "alignments_core.json").write_text(json.dumps(alignments))
+    (tmp_path / "layer1.json").write_text(json.dumps(layer1))
+
+
+def _draw_argv(tmp_path, *extra):
+    return ["--dump-dir", str(tmp_path), "--sheet", str(tmp_path / "sheet.json"),
+            "--sheet-md", str(tmp_path / "sheet.md"), *extra]
+
+
+def test_draw_refuses_any_existing_sheet_without_force(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    first = json.loads((tmp_path / "sheet.json").read_text())
+    assert sampling.main(_draw_argv(tmp_path)) == 1
+    assert "a sheet exists (0 of" in capsys.readouterr().out
+    assert json.loads((tmp_path / "sheet.json").read_text()) == first, "an unlabelled sheet is protected too"
+    assert sampling.main(_draw_argv(tmp_path, "--force")) == 0
+    assert json.loads((tmp_path / "sheet.json").read_text())["sample"]["sample_id"] != first["sample"]["sample_id"]
+
+
+def test_draw_binds_the_sample_to_the_observed_publication_or_the_base_id(tmp_path):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    store = EvaluationRecordStore(tmp_path, create=False)
+    rec = store.read(sheet["sample"]["record_id"])
+    assert rec["kind"] == "sample" and rec["relations"]["sample_id"] == sheet["sample"]["sample_id"]
+    assert rec["build"]["publication"] is None and rec["build"]["publication_reason"].startswith("no ACTIVE_MANIFEST")
+    assert rec["build"]["base_build_id"] == sheet["builds"]["norms_core"]
+    assert sheet["sample"]["build"] == rec["build"]
+    assert rec["outcome"]["completed_items"] == [it["decision_id"] for it in sheet["items"]]
+    assert {i["role"] for i in rec["inputs"]} == {"norms", "alignments", "layer1_dump"}
+    assert {o["role"] for o in rec["outputs"]} == {"sheet_json", "sheet_md"}
+    assert (store.dir / [o for o in rec["outputs"] if o["role"] == "sheet_json"][0]["copy"]).read_bytes() == (tmp_path / "sheet.json").read_bytes()
+    assert rec["counts"]["sampled"] == len(sheet["items"]) and rec["counts"]["unjoinable"] == 0
+    assert rec["config"]["strata"] == sheet["sampling"]["strata"] and rec["config"]["population"] == sheet["sampling"]["population"]
+    # a publication, once activated, is what the sample binds to
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({"build_id": "build-b+chain-abc", "files": {}}))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
+    assert sampling.main(_draw_argv(tmp_path, "--force")) == 0
+    sheet2 = json.loads((tmp_path / "sheet.json").read_text())
+    assert sheet2["sample"]["build"]["publication"]["build_id"] == "build-b+chain-abc"
+
+
+def test_draw_with_no_record_writes_a_sheet_without_a_record_id(tmp_path):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path, "--no-record")) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    assert sheet["sample"]["record_id"] is None and sheet["sample"]["sample_id"].startswith("sample-")
+    assert not (tmp_path / "evaluation_records").exists()
+
+
+def test_draw_cleans_up_the_temp_file_and_fails_the_record_when_the_sheet_write_raises(tmp_path, monkeypatch):
+    _write_payloads(tmp_path)
+    real_replace = sampling.os.replace
+
+    def _boom(src, dst, *args, **kwargs):
+        # Only the sheet write fails: the record store's own atomic writes
+        # (begin, then finish in the except branch) must still land.
+        if Path(dst) == tmp_path / "sheet.json":
+            raise OSError("disk full")
+        return real_replace(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(sampling.os, "replace", _boom)
+    with pytest.raises(OSError, match="disk full"):
+        sampling.main(_draw_argv(tmp_path))
+    assert not (tmp_path / "sheet.json").exists()
+    assert list(tmp_path.glob("tmp*")) == []
+    store = EvaluationRecordStore(tmp_path, create=False)
+    records = store.list_records()
+    assert len(records) == 1
+    assert records[0]["outcome"]["status"] == "failed"
+    assert "disk full" in records[0]["outcome"]["error"]
