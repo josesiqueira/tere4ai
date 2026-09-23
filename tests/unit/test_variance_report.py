@@ -103,6 +103,8 @@ def test_main_records_a_comparison_naming_the_runs_it_can_resolve(tmp_path):
     (study,) = rec["outputs"]
     assert study["role"] == "study" and (store.dir / study["copy"]).read_bytes() == out.read_bytes()
     assert rec["models"] is None
+    assert rec["build"]["publication"] is None
+    assert rec["build"]["publication_reason"] == "a comparison reads run files, not the served build"
 
 
 def test_main_removes_the_temp_file_when_the_markdown_write_fails(tmp_path, monkeypatch):

@@ -697,7 +697,10 @@ def main(argv: list[str] | None = None) -> int:
 
     norms_payload, alignments_payload, layer1_payload = _load(norms_path), _load(alignments_path), _load(layer1_path)
     store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
-    publication, publication_reason = observe_publication(args.dump_dir)
+    if args.norms is None and args.alignments is None and args.layer1 is None:
+        publication, publication_reason = observe_publication(args.dump_dir)
+    else:  # a record binds to a publication only when it read the publication's files (F4)
+        publication, publication_reason = None, "explicit input files given; the run did not read the served publication"
     build = {"base_build_id": str(norms_payload.get("build", {}).get("build_id")) if norms_payload.get("build") else None,
              "publication": publication, "publication_reason": publication_reason}
     sample = {"sample_id": "sample-" + uuid.uuid4().hex[:12], "record_id": None,

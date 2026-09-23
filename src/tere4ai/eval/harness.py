@@ -347,7 +347,11 @@ def run_eval(
         models = None
         if live:
             models = {name: dict(getattr(strategies[name], "models", {})) for name in strategy_names}
-        publication, publication_reason = observe_publication(dump_dir or LAYER1_DUMP_PATH.parent)
+        # bind to a publication only when both served roles were read here (F4)
+        if {"layer1_dump", "norms"} <= set(read_paths):
+            publication, publication_reason = observe_publication(dump_dir or LAYER1_DUMP_PATH.parent)
+        else:
+            publication, publication_reason = None, "the harness did not read the served files"
         record_id = record_store.begin(
             kind="run", step="E6", command="eval_harness", argv=list(argv or []), inputs=inputs,
             build={"base_build_id": build_id if build_id != "unknown-build" else None,

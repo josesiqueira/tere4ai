@@ -427,6 +427,22 @@ def test_draw_refuses_when_the_active_publication_names_no_norms_file(tmp_path, 
     assert (tmp_path / "sheet.json").exists()
 
 
+def test_a_draw_with_an_explicit_input_file_binds_to_no_publication(tmp_path):
+    _write_payloads(tmp_path)
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({
+        "build_id": "build-b+chain-abc",
+        "files": {"layer1_dump": "layer1.json", "norms": "norms_core.json", "alignments": "alignments_core.json"},
+    }))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
+    assert sampling.main(_draw_argv(tmp_path, "--norms", str(tmp_path / "norms_core.json"))) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    rec = EvaluationRecordStore(tmp_path, create=False).read(sheet["sample"]["record_id"])
+    assert rec["build"]["publication"] is None
+    assert rec["build"]["publication_reason"] == "explicit input files given; the run did not read the served publication"
+    assert sheet["sample"]["build"] == rec["build"]
+
+
 def test_draw_with_no_record_writes_a_sheet_without_a_record_id(tmp_path):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path, "--no-record")) == 0

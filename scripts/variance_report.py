@@ -47,7 +47,6 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordStore,
     code_version,
     file_ref,
-    observe_publication,
 )
 
 _spec = importlib.util.spec_from_file_location(
@@ -212,12 +211,12 @@ def main(argv: list[str] | None = None) -> int:
                 notes.append(f"{role} is named by no record")
             compares.append(found)  # None stays in the list: the schema allows it (R8)
         benchmark_path = args.benchmark or harness.BENCHMARK_SAMPLE_PATH
-        publication, publication_reason = observe_publication(args.dump_dir)
         record_id = store.begin(
             kind="comparison", step="E6", command="variance_report",
             argv=list(argv) if argv is not None else sys.argv[1:],
             inputs=[refs["run_a"], refs["run_b"], file_ref("benchmark", benchmark_path)],
-            build={"base_build_id": None, "publication": publication, "publication_reason": publication_reason},
+            build={"base_build_id": None, "publication": None,
+                   "publication_reason": "a comparison reads run files, not the served build"},
             config={"code_version": code_version(ROOT)}, relations={"compares": compares},
         )
     try:

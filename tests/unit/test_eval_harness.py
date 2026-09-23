@@ -743,3 +743,23 @@ def test_a_keyboard_interrupt_inside_the_strategy_loop_fails_the_record(tmp_path
     (rec,) = store.list_records()
     assert rec["outcome"]["status"] == "failed" and rec["outcome"]["error"] == "KeyboardInterrupt: "
     assert rec["ended_at"] is not None
+
+
+def test_a_preloaded_dump_or_prebuilt_strategies_bind_to_no_publication(tmp_path):
+    _write_legacy_dumps(tmp_path)
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({
+        "build_id": "build-b+chain-abc", "files": {"layer1_dump": "layer1.json", "norms": "norms_core.json"}}))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
+    store = EvaluationRecordStore(tmp_path)
+    kw = {"generator_factory": make_generator, "results_dir": tmp_path / "r", "record_store": store,
+          "dump_dir": tmp_path}
+    preloaded = run_eval(list(GOLD_3)[:1], ["plain_llm"], dump=MINI_DUMP, **kw)
+    prebuilt = run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
+                        results_dir=tmp_path / "r2", record_store=store, dump_dir=tmp_path)
+    for out in (preloaded, prebuilt):
+        rec = store.read(out["record_id"])
+        assert rec["build"]["publication"] is None
+        assert rec["build"]["publication_reason"] == "the harness did not read the served files"
+    served = store.read(run_eval(list(GOLD_3)[:1], ["plain_llm"], **{**kw, "results_dir": tmp_path / "r3"})["record_id"])
+    assert served["build"]["publication"]["build_id"] == "build-b+chain-abc"
