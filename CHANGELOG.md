@@ -5,6 +5,35 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Evaluation records, the E1 acts, GET /api/evaluations, list lineage, judge run fields (2026-09-23, B77 plan 3a)
+- DEC-17: one immutable evaluation record per measurement run of E1 and
+  E6 (`src/tere4ai/eval/evaluation_record.py`), written by the ablation
+  runner, the eval harness, the variance report and the judge-decision
+  sampler; origin and outcome as two fields; identity by file digests plus
+  the observed publication; outputs copied immutably; the July 2026
+  measurements presented as legacy records that state only what their
+  files state (`present_evaluation.py`).
+- E1 as three recorded acts: the draw under an immutable sample id with
+  any-sheet overwrite protection; `--label` and `--label-file` with `--by`,
+  recording actor and time per item; `--compute` refusing an unattributed
+  label, rates per judge kind and pooled, null on an empty denominator
+  (`metrics.judge_error_rates`, METRICS_VERSION metrics.v2).
+- The draw over an active publication whose manifest lacks a role refuses
+  with a sentence and exit code 2 unless `--norms`, `--alignments` or
+  `--layer1` names the file directly.
+- `GET /api/evaluations` and `GET /api/evaluations/{ref}`: free, read per
+  request, grouped by build identity, an unreadable file its own row, an
+  outage a 503 never an empty list; the schema and fifteen fixtures under
+  `tests/fixtures/evaluation_records/` are the dashboard's contract.
+- The builds list rows carry `lineage` (inherited-from record ids per
+  step, consumed freezes with the consuming step; spec G D-G44); the
+  build record fixtures regenerated.
+- `GET /api/units` candidates and traced assertions (the MCP trace tool,
+  `/api/trace`, `/api/trace/batch`) carry the judge run's `completed_at`
+  and `prompt_sha256`, null where the dump lacks it (spec G D-G39).
+- `data/graph_dumps/evaluation_records/` joins the artefact policy
+  (git-ignored).
+
 ### Judge model: claude-opus-5-5 (2026-09-23)
 - `TERE4AI_JUDGE_MODEL` names Claude Opus 5.5 (`claude-opus-5-5`, listed by
   the Models API, created 2026-09-21) in `.env.example`, `docker-compose.yml`

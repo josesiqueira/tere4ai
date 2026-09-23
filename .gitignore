@@ -57,6 +57,7 @@ web/tsconfig.tsbuildinfo
 # build run state (DEC-16): per-checkout, regenerable; the chain records,
 # publication manifests and reference files stay tracked
 data/graph_dumps/build_records/
+data/graph_dumps/evaluation_records/
 data/graph_dumps/*.checkpoint.jsonl
 data/graph_dumps/*.writing.json
 data/graph_dumps/*.building.json
