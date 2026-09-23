@@ -3,7 +3,7 @@
  "build": {
   "base_build_id": "build-3b753e5e9297",
   "publication": null,
-  "publication_reason": "not recorded: the sheet predates the publication chain"
+  "publication_reason": null
  },
  "command": "sample_judge_decisions",
  "config": {},
@@ -27,9 +27,9 @@
    "copy": null,
    "copy_reason": "legacy: the file on disk is the record",
    "copy_state": "not_kept",
-   "file": "legacy_judge_label_sheet.json",
+   "file": "judge_label_sheet.json",
    "role": "sheet_json",
-   "sha256": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0"
+   "sha256": "636f445d6cf8f585e5825a2c3fd1d70664ecef5319383a048826c930e12ff4f1"
   }
  ],
  "prompt_sha256": null,
@@ -45,33 +45,38 @@
   "item_selection_sha256": "unavailable",
   "kind": "derived",
   "models": "derived",
-  "notes": "recorded",
+  "notes": "unavailable",
   "origin": "derived",
   "outcome": "unavailable",
   "outputs": "derived",
   "prompt_sha256": "unavailable",
   "prompt_versions": "unavailable",
+  "record_id": "derived",
   "relations": "unavailable",
   "sampling": "unavailable",
+  "schema_version": "derived",
   "started_at": "unavailable",
   "step": "derived",
   "usage": "unavailable"
  },
  "reasons": {
-  "argv": "not recorded: the legacy sheet predates argv logging",
-  "config": "not recorded: no configuration survives for this sheet",
-  "ended_at": "not recorded: the legacy sheet predates timestamped runs",
-  "inputs": "not recorded: no manifest lists the input files for this sheet",
-  "item_selection_sha256": "not recorded: the legacy sheet predates selection digests",
-  "outcome": "not recorded: no per-item draw record survives for this sheet",
-  "prompt_sha256": "not recorded: the legacy sheet predates prompt hashing",
-  "prompt_versions": "not recorded: the legacy sheet predates prompt versioning",
+  "argv": "not recorded: the file states none",
+  "build": "derived: the sheet names its base build",
+  "config": "not recorded: the file states none",
+  "ended_at": "not recorded: the file states none",
+  "inputs": "not recorded: the file states none",
+  "item_selection_sha256": "not recorded: the file states none",
+  "models": "derived: the one judge model every item of the sheet names",
+  "notes": "not recorded: the file states none",
+  "outcome": "not recorded: the sheet states no outcome",
+  "prompt_sha256": "not recorded: the file states none",
+  "prompt_versions": "not recorded: the file states none",
   "relations": "not recorded: the sheet predates sample ids",
-  "sampling": "not recorded: the legacy sheet predates sampling configuration logging",
-  "started_at": "not recorded: the legacy sheet predates timestamped runs",
-  "usage": "not recorded: the legacy sheet predates usage logging"
+  "sampling": "not recorded: the file states none",
+  "started_at": "not recorded: the sheet states no date",
+  "usage": "not recorded: the file states none"
  },
- "record_id": "legacy-000000000002",
+ "record_id": "legacy-636f445d6cf8",
  "relations": {
   "compares": [],
   "labelling_record_ids": [],

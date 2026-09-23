@@ -3,16 +3,16 @@
  "build": {
   "base_build_id": null,
   "publication": null,
-  "publication_reason": "not recorded: the summary and its checkpoint carry no build id"
+  "publication_reason": null
  },
  "command": "run_ablations",
  "config": {
   "strategies": [
-   "plain_llm",
-   "vector_rag",
-   "graph_no_judge",
    "graph_build_judge",
-   "graph_full"
+   "graph_full",
+   "graph_no_judge",
+   "plain_llm",
+   "vector_rag"
   ]
  },
  "counts": {
@@ -37,7 +37,7 @@
    "copy_state": "not_kept",
    "file": "ablation_run1_summary.json",
    "role": "summary",
-   "sha256": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
+   "sha256": "dc810e7c686ebbc6d5e33f58182f0854d849f98999e196f6e5c674e86645b5df"
   }
  ],
  "prompt_sha256": null,
@@ -53,33 +53,35 @@
   "item_selection_sha256": "unavailable",
   "kind": "derived",
   "models": "derived",
-  "notes": "recorded",
+  "notes": "unavailable",
   "origin": "derived",
   "outcome": "unavailable",
   "outputs": "derived",
   "prompt_sha256": "unavailable",
   "prompt_versions": "unavailable",
-  "relations": "unavailable",
+  "record_id": "derived",
+  "relations": "derived",
   "sampling": "unavailable",
+  "schema_version": "derived",
   "started_at": "unavailable",
   "step": "derived",
   "usage": "unavailable"
  },
  "reasons": {
-  "argv": "not recorded: the legacy runner logged no argv",
+  "argv": "not recorded: the file states none",
   "build": "not recorded: the summary and its checkpoint carry no build id",
-  "ended_at": "not recorded: no analysis file states a date for this summary",
-  "inputs": "not recorded: no manifest lists the input files for this summary",
-  "item_selection_sha256": "not recorded: legacy summary carries no item selection digest",
-  "outcome": "not recorded: no per-item completion record survives for this summary",
-  "prompt_sha256": "not recorded: legacy summary carries no prompt hash",
-  "prompt_versions": "not recorded: legacy summary carries no prompt version",
-  "relations": "not recorded: no relation is recoverable from the summary file alone",
-  "sampling": "not recorded: legacy summary carries no sampling config",
+  "ended_at": "not recorded: the file states none",
+  "inputs": "not recorded: the file states none",
+  "item_selection_sha256": "not recorded: the file states none",
+  "notes": "not recorded: the file states none",
+  "outcome": "not recorded: the summary states no outcome",
+  "prompt_sha256": "not recorded: the ablation runner reads no prompt hash",
+  "prompt_versions": "not recorded: the file states none",
+  "sampling": "not recorded: the file states none",
   "started_at": "not recorded: no analysis file states a date for this summary",
-  "usage": "not recorded: legacy summary carries no usage log"
+  "usage": "not recorded: the file states none"
  },
- "record_id": "legacy-000000000001",
+ "record_id": "legacy-dc810e7c686e",
  "relations": {
   "compares": [],
   "labelling_record_ids": [],

@@ -7,12 +7,74 @@
     {
      "build_key": "build-b+chain-x",
      "build_kind": "publication",
+     "command": "sample_judge_decisions",
+     "counts": {
+      "abstained": 0,
+      "gold_accept": 1,
+      "gold_reject": 1,
+      "scored": 2
+     },
+     "ended_at": "2026-09-25T13:00:00+00:00",
+     "kind": "analysis",
+     "models": null,
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e1c000000001",
+     "started_at": "2026-09-25T12:00:00+00:00",
+     "status": "completed",
+     "step": "E1",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "sample_judge_decisions",
+     "counts": {
+      "items": 2,
+      "labelled_now": 2,
+      "labelled_total": 2
+     },
+     "ended_at": "2026-09-25T11:00:00+00:00",
+     "kind": "labelling",
+     "models": null,
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e1b000000001",
+     "started_at": "2026-09-25T10:00:00+00:00",
+     "status": "completed",
+     "step": "E1",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "sample_judge_decisions",
+     "counts": {
+      "population": 4,
+      "sampled": 2,
+      "unjoinable": 0
+     },
+     "ended_at": "2026-09-24T13:00:00+00:00",
+     "kind": "sample",
+     "models": null,
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e1a000000001",
+     "started_at": "2026-09-24T12:00:00+00:00",
+     "status": "completed",
+     "step": "E1",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
      "command": "run_ablations",
      "counts": {
       "items_total": 2,
+      "items_with_errors": 0,
       "units_without_usage": 0
      },
-     "ended_at": "2026-09-24T10:05:00+00:00",
+     "ended_at": "2026-09-24T11:00:00+00:00",
      "kind": "run",
      "models": {
       "generator_model": "g",
@@ -20,7 +82,7 @@
      },
      "origin": "recorded",
      "reason": null,
-     "record_id": "e6a000000002",
+     "record_id": "e6b000000002",
      "started_at": "2026-09-24T10:00:00+00:00",
      "status": "completed",
      "step": "E6",
@@ -32,9 +94,139 @@
      "command": "run_ablations",
      "counts": {
       "items_total": 2,
+      "items_with_errors": 0,
+      "units_resumed": 1,
       "units_without_usage": 0
      },
-     "ended_at": "2026-09-23T10:05:00+00:00",
+     "ended_at": "2026-09-23T13:00:00+00:00",
+     "kind": "run",
+     "models": {
+      "generator_model": "g",
+      "judge_model": "j"
+     },
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6b000000001",
+     "started_at": "2026-09-23T12:00:00+00:00",
+     "status": "completed",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 2
+     },
+     "ended_at": "2026-09-23T11:00:00+00:00",
+     "kind": "run",
+     "models": {
+      "generator_model": "g",
+      "judge_model": "j"
+     },
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6f000000001",
+     "started_at": "2026-09-23T10:00:00+00:00",
+     "status": "failed",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 2,
+      "items_with_errors": 1,
+      "units_without_usage": 0
+     },
+     "ended_at": "2026-09-22T13:00:00+00:00",
+     "kind": "run",
+     "models": {
+      "generator_model": "g",
+      "judge_model": "j"
+     },
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6e000000001",
+     "started_at": "2026-09-22T12:00:00+00:00",
+     "status": "partial",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "eval_harness",
+     "counts": {
+      "items_total": 1,
+      "items_with_errors": 0
+     },
+     "ended_at": "2026-09-22T11:00:00+00:00",
+     "kind": "run",
+     "models": null,
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6d000000001",
+     "started_at": "2026-09-22T10:00:00+00:00",
+     "status": "completed",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "variance_report",
+     "counts": {
+      "common_items": 2,
+      "label_flips": 0
+     },
+     "ended_at": "2026-09-21T13:00:00+00:00",
+     "kind": "comparison",
+     "models": null,
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6c000000001",
+     "started_at": "2026-09-21T12:00:00+00:00",
+     "status": "completed",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 2,
+      "items_with_errors": 0,
+      "units_without_usage": 0
+     },
+     "ended_at": "2026-09-20T13:00:00+00:00",
+     "kind": "run",
+     "models": {
+      "generator_model": "g",
+      "judge_model": "j"
+     },
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6a000000002",
+     "started_at": "2026-09-20T12:00:00+00:00",
+     "status": "completed",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 2,
+      "items_with_errors": 0,
+      "units_without_usage": 0
+     },
+     "ended_at": "2026-09-20T11:00:00+00:00",
      "kind": "run",
      "models": {
       "generator_model": "g",
@@ -43,49 +235,9 @@
      "origin": "recorded",
      "reason": null,
      "record_id": "e6a000000001",
-     "started_at": "2026-09-23T10:00:00+00:00",
+     "started_at": "2026-09-20T10:00:00+00:00",
      "status": "completed",
      "step": "E6",
-     "unreadable": false
-    },
-    {
-     "build_key": "build-b+chain-x",
-     "build_kind": "publication",
-     "command": "compute_judge_error_rates",
-     "counts": {
-      "abstained": 0,
-      "gold_accept": 1,
-      "gold_reject": 1,
-      "scored": 2
-     },
-     "ended_at": "2026-09-23T09:10:02+00:00",
-     "kind": "analysis",
-     "models": null,
-     "origin": "recorded",
-     "reason": null,
-     "record_id": "e1c000000001",
-     "started_at": "2026-09-23T09:10:00+00:00",
-     "status": null,
-     "step": "E1",
-     "unreadable": false
-    },
-    {
-     "build_key": "build-b+chain-x",
-     "build_kind": "publication",
-     "command": "sample_judge_decisions",
-     "counts": {
-      "population": 4,
-      "sampled": 2
-     },
-     "ended_at": "2026-09-23T09:01:00+00:00",
-     "kind": "sample",
-     "models": null,
-     "origin": "recorded",
-     "reason": null,
-     "record_id": "e1a000000001",
-     "started_at": "2026-09-23T09:00:00+00:00",
-     "status": "completed",
-     "step": "E1",
      "unreadable": false
     }
    ]
@@ -100,9 +252,10 @@
      "command": "run_ablations",
      "counts": {
       "items_total": 2,
+      "items_with_errors": 0,
       "units_without_usage": 0
      },
-     "ended_at": "2026-09-25T10:05:00+00:00",
+     "ended_at": "2026-09-21T11:00:00+00:00",
      "kind": "run",
      "models": {
       "generator_model": "g",
@@ -111,9 +264,36 @@
      "origin": "recorded",
      "reason": null,
      "record_id": "e6a000000003",
-     "started_at": "2026-09-25T10:00:00+00:00",
+     "started_at": "2026-09-21T10:00:00+00:00",
      "status": "completed",
      "step": "E6",
+     "unreadable": false
+    }
+   ]
+  },
+  {
+   "build_key": "build-3b753e5e9297",
+   "build_kind": "base",
+   "records": [
+    {
+     "build_key": "build-3b753e5e9297",
+     "build_kind": "base",
+     "command": "sample_judge_decisions",
+     "counts": {
+      "items": 50,
+      "labelled": 0
+     },
+     "ended_at": null,
+     "kind": "sample",
+     "models": {
+      "judge_model": "claude-opus-4-8"
+     },
+     "origin": "legacy",
+     "reason": null,
+     "record_id": "legacy-636f445d6cf8",
+     "started_at": null,
+     "status": null,
+     "step": "E1",
      "unreadable": false
     }
    ]
@@ -137,7 +317,7 @@
      },
      "origin": "legacy",
      "reason": null,
-     "record_id": "legacy-000000000001",
+     "record_id": "legacy-dc810e7c686e",
      "started_at": null,
      "status": null,
      "step": "E6",
@@ -147,7 +327,7 @@
   }
  ],
  "observed_at": "2026-09-23T00:00:00+00:00",
- "order": "grouped by build identity, each group's records newest started_at first, records without a date last",
+ "order": "groups by the newest started_at in the group, newest first; inside a group newest started_at first; records without a date last, by record id; the group with no build identity last",
  "schema_version": "evaluations_list.v1",
  "served_build_id": "build-b+chain-x"
 }

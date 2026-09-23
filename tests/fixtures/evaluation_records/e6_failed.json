@@ -22,23 +22,22 @@
   ]
  },
  "counts": {
-  "items_total": 2,
-  "units_without_usage": 2
+  "items_total": 2
  },
- "ended_at": "2026-09-23T14:01:00+00:00",
+ "ended_at": "2026-09-23T11:00:00+00:00",
  "inputs": [
   {
-   "file": "layer1_dump.json",
+   "file": "layer1.json",
    "role": "layer1_dump",
    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   {
-   "file": "norms.json",
+   "file": "norms_core.json",
    "role": "norms",
    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   {
-   "file": "benchmark.json",
+   "file": "benchmark_sample.json",
    "role": "benchmark",
    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   },
@@ -48,12 +47,12 @@
    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   {
-   "file": "features.json",
+   "file": "benchmark_features.json",
    "role": "features",
    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   }
  ],
- "item_selection_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+ "item_selection_sha256": "8cecca935708aca7ed57e43c607666d13ace2e7cbe579071fbfe4fadcfb3f45e",
  "kind": "run",
  "models": {
   "generator_model": "g",
@@ -94,14 +93,17 @@
   "outputs": "recorded",
   "prompt_sha256": "unavailable",
   "prompt_versions": "recorded",
+  "record_id": "recorded",
   "relations": "recorded",
   "sampling": "recorded",
+  "schema_version": "recorded",
   "started_at": "recorded",
   "step": "recorded",
-  "usage": "recorded"
+  "usage": "unavailable"
  },
  "reasons": {
-  "prompt_sha256": "not recorded: the ablation runner reads no prompt hash"
+  "prompt_sha256": "not recorded: the ablation runner reads no prompt hash",
+  "usage": "not recorded"
  },
  "record_id": "e6f000000001",
  "relations": {
@@ -116,19 +118,8 @@
   "judge": "provider default"
  },
  "schema_version": "evaluation_record.v1",
- "started_at": "2026-09-23T14:00:00+00:00",
+ "started_at": "2026-09-23T10:00:00+00:00",
  "step": "E6",
  "synthesised": false,
- "usage": {
-  "generator": {
-   "calls": 2,
-   "input_tokens": 10,
-   "output_tokens": 4
-  },
-  "judge": {
-   "calls": 1,
-   "input_tokens": 5,
-   "output_tokens": 2
-  }
- }
+ "usage": null
 }

@@ -15,9 +15,10 @@
   },
   "publication_reason": null
  },
- "command": "label_judge_decision",
+ "command": "sample_judge_decisions",
  "config": {
   "by": "Jose",
+  "forced": [],
   "labels": {
    "jr-1": "accept",
    "jr-2": "reject"
@@ -28,12 +29,12 @@
   "labelled_now": 2,
   "labelled_total": 2
  },
- "ended_at": "2026-09-23T09:05:05+00:00",
+ "ended_at": "2026-09-25T11:00:00+00:00",
  "inputs": [
   {
    "file": "judge_label_sheet.json",
    "role": "sheet_before",
-   "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+   "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
   }
  ],
  "item_selection_sha256": null,
@@ -42,7 +43,18 @@
  "notes": [],
  "observed_at": "2026-09-23T00:00:00+00:00",
  "origin": "recorded",
- "outcome": null,
+ "outcome": {
+  "completed_items": [
+   "jr-1",
+   "jr-2"
+  ],
+  "error": null,
+  "intended_items": [
+   "jr-1",
+   "jr-2"
+  ],
+  "status": "completed"
+ },
  "outputs": [
   {
    "copy": "e1b000000001/sheet_after.json",
@@ -50,7 +62,7 @@
    "copy_state": "present",
    "file": "judge_label_sheet.json",
    "role": "sheet_after",
-   "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0"
+   "sha256": "2202fa8412cc9ff04b26f09d1c01426126eabdc48965762e8244fdd21a15dbeb"
   }
  ],
  "prompt_sha256": null,
@@ -68,24 +80,25 @@
   "models": "unavailable",
   "notes": "recorded",
   "origin": "recorded",
-  "outcome": "unavailable",
+  "outcome": "recorded",
   "outputs": "recorded",
   "prompt_sha256": "unavailable",
   "prompt_versions": "unavailable",
+  "record_id": "recorded",
   "relations": "recorded",
   "sampling": "unavailable",
+  "schema_version": "recorded",
   "started_at": "recorded",
   "step": "recorded",
   "usage": "unavailable"
  },
  "reasons": {
-  "item_selection_sha256": "not applicable: a labelling act selects no benchmark items",
-  "models": "not applicable: label_judge_decision calls no model",
-  "outcome": "not applicable: a labelling act has no intended or completed items, see counts",
-  "prompt_sha256": "not applicable: label_judge_decision calls no model",
-  "prompt_versions": "not applicable: label_judge_decision calls no model",
-  "sampling": "not applicable: label_judge_decision calls no model",
-  "usage": "not applicable: label_judge_decision calls no model"
+  "item_selection_sha256": "not recorded",
+  "models": "not recorded",
+  "prompt_sha256": "not recorded",
+  "prompt_versions": "not recorded",
+  "sampling": "not recorded",
+  "usage": "not recorded"
  },
  "record_id": "e1b000000001",
  "relations": {
@@ -97,7 +110,7 @@
  },
  "sampling": null,
  "schema_version": "evaluation_record.v1",
- "started_at": "2026-09-23T09:05:00+00:00",
+ "started_at": "2026-09-25T10:00:00+00:00",
  "step": "E1",
  "synthesised": false,
  "usage": null

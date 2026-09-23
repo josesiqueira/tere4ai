@@ -14,6 +14,7 @@
  },
  "command": "sample_judge_decisions",
  "config": {
+  "code_version": "0000000000ab",
   "minimum": 3,
   "strata": [
    {
@@ -27,22 +28,23 @@
  },
  "counts": {
   "population": 4,
-  "sampled": 2
+  "sampled": 2,
+  "unjoinable": 0
  },
- "ended_at": "2026-09-23T09:01:00+00:00",
+ "ended_at": "2026-09-24T13:00:00+00:00",
  "inputs": [
   {
-   "file": "norms.json",
+   "file": "norms_core.json",
    "role": "norms",
    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   {
-   "file": "alignments.json",
+   "file": "alignments_core.json",
    "role": "alignments",
-   "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+   "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
   },
   {
-   "file": "layer1_dump.json",
+   "file": "layer1.json",
    "role": "layer1_dump",
    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   }
@@ -67,20 +69,20 @@
  },
  "outputs": [
   {
-   "copy": "e1a000000001/sheet.json",
+   "copy": "e1a000000001/sheet_json.json",
    "copy_reason": null,
    "copy_state": "present",
    "file": "judge_label_sheet.json",
    "role": "sheet_json",
-   "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+   "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
   },
   {
-   "copy": "e1a000000001/sheet.md",
+   "copy": "e1a000000001/sheet_md.md",
    "copy_reason": null,
    "copy_state": "present",
    "file": "judge_label_sheet.md",
    "role": "sheet_md",
-   "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+   "sha256": "894e2bb67e87c0d0cbb0b00ff6d7e374849bcf2378001b73823d341744196f68"
   }
  ],
  "prompt_sha256": null,
@@ -102,19 +104,21 @@
   "outputs": "recorded",
   "prompt_sha256": "unavailable",
   "prompt_versions": "unavailable",
+  "record_id": "recorded",
   "relations": "recorded",
   "sampling": "unavailable",
+  "schema_version": "recorded",
   "started_at": "recorded",
   "step": "recorded",
   "usage": "unavailable"
  },
  "reasons": {
-  "item_selection_sha256": "not applicable: an E1 sample draw selects decisions, not benchmark items",
-  "models": "not applicable: sample_judge_decisions calls no model",
-  "prompt_sha256": "not applicable: sample_judge_decisions calls no model",
-  "prompt_versions": "not applicable: sample_judge_decisions calls no model",
-  "sampling": "not applicable: sample_judge_decisions calls no model",
-  "usage": "not applicable: sample_judge_decisions calls no model"
+  "item_selection_sha256": "not recorded",
+  "models": "not recorded",
+  "prompt_sha256": "not recorded",
+  "prompt_versions": "not recorded",
+  "sampling": "not recorded",
+  "usage": "not recorded"
  },
  "record_id": "e1a000000001",
  "relations": {
@@ -126,7 +130,7 @@
  },
  "sampling": null,
  "schema_version": "evaluation_record.v1",
- "started_at": "2026-09-23T09:00:00+00:00",
+ "started_at": "2026-09-24T12:00:00+00:00",
  "step": "E1",
  "synthesised": false,
  "usage": null

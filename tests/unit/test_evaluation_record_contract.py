@@ -92,3 +92,10 @@ def test_fixtures_state_the_honesty_rules():
     assert other["build"]["publication"] is None and other["build"]["base_build_id"] == "build-c"
     offline = _fixture("e6_offline.json")
     assert offline["config"]["mode"] == "offline" and offline["models"] is None
+
+
+def test_fixtures_are_byte_stable(tmp_path):
+    from tests.fixtures.evaluation_records.regenerate import main as regenerate
+
+    for path in regenerate(tmp_path):
+        assert path.read_bytes() == (FIXTURES / path.name).read_bytes(), f"{path.name} drifted: rerun regenerate"
