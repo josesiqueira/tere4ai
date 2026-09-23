@@ -44,7 +44,7 @@ spec:
             - name: TERE4AI_GENERATOR_MODEL
               value: "gpt-6-astra"
             - name: TERE4AI_JUDGE_MODEL
-              value: "claude-opus-5"
+              value: "claude-opus-5-5"
           resources:
             # Unvalidated guesses: the facade loads the graph dumps into
             # memory at startup. Measure before trusting these numbers.

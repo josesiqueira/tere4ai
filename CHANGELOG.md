@@ -5,6 +5,19 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Judge model: claude-opus-5-5 (2026-09-23)
+- `TERE4AI_JUDGE_MODEL` names Claude Opus 5.5 (`claude-opus-5-5`, listed by
+  the Models API, created 2026-09-21) in `.env.example`, `docker-compose.yml`
+  and the Rahti deployment; the local `.env` follows. No client change: the
+  judge client sends no thinking or tool_choice parameter, learns a rejected
+  temperature once and caps output at 16000 tokens, all of which Opus 5.5
+  accepts. Recorded: Opus 5.5 cannot disable thinking and its provider
+  default effort is medium where Opus 5's was high; the client sets no
+  effort, so the provider default runs (spec F D-F16, D-F17). The B74
+  extraction of 2026-09-16 (judged by claude-opus-5) stays on disk as
+  history; the graph is rebuilt from Layer 0 with the current models
+  (thesis HISTORY 2026-09-23).
+
 ### Vocabulary: `align_hleg` and the `inherited` step state (2026-09-23)
 - The Layer 3 command is `python -m tere4ai.align_hleg`, renamed from
   `align_hleg_altai`. The graph aligns norms with the seven HLEG
