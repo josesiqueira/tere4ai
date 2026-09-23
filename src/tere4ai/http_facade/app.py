@@ -1,6 +1,6 @@
 """Thin HTTP facade for the M3 demo web UI.
 
-@implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log)
+@implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log), DEC-17
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
@@ -70,6 +70,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field, model_validator
 
+from tere4ai.eval.evaluation_record import RECORD_FILE_STEM as _EVAL_REF_RE
+from tere4ai.eval.evaluation_record import EvaluationRecordStore
+from tere4ai.eval.present_evaluation import (
+    ORDER_SENTENCE,
+    group_summaries,
+    present_evaluation,
+    synthesise_legacy_evaluations,
+    unreadable_row,
+)
+from tere4ai.eval.present_evaluation import summary_of as evaluation_summary_of
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import (
@@ -280,9 +290,11 @@ def _build_paid_clients() -> tuple[Any, Any]:
     return OpenAIGenerator(cfg), AnthropicJudge(cfg)
 
 
-def create_app(dump_dir: Path | str | None = None) -> FastAPI:
+def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None = None) -> FastAPI:
     """Facade app factory. dump_dir overrides the graph dump location
-    (also settable via the TERE4AI_DUMP_DIR environment variable)."""
+    (also settable via the TERE4AI_DUMP_DIR environment variable). eval_root
+    overrides the checkout root the evaluation routes read eval/ and docs/
+    legacy files from (also settable via TERE4AI_EVAL_ROOT)."""
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -296,6 +308,7 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         app.state.dump, app.state.norms, app.state.alignments = loaded.dump, loaded.norms, loaded.alignments
         app.state.served_source = loaded.source
         app.state.dump_dir = base
+        app.state.eval_root = Path(eval_root or os.environ.get("TERE4AI_EVAL_ROOT") or _PROJECT_ROOT)
         core_path = base / "core_nodes.txt"
         app.state.core_nodes = (
             [n.strip() for n in core_path.read_text(encoding="utf-8").split(",") if n.strip()]
@@ -446,6 +459,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
             "POST /api/evidence, /api/backlog, /api/elicit (paid model calls, marked with "
             "X-TERE4AI-Paid-Call); GET /api/health.\n"
             "GET /api/builds, GET /api/builds/{ref}: the build records, free, read per request\n"
+            "GET /api/evaluations, GET /api/evaluations/{ref}: the evaluation records (E1, E6), "
+            "free, read per request\n"
             "Input schema: schema/json_schemas/system_features.schema.json\n\n"
         )
         return header + (skill.read_text(encoding="utf-8") if skill.exists() else "")
@@ -498,6 +513,8 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
                     "units": {"method": "GET", "path": "/api/units", "paid": False},
                     "builds": {"method": "GET", "path": "/api/builds", "paid": False},
                     "build": {"method": "GET", "path": "/api/builds/{ref}", "paid": False},
+                    "evaluations": {"method": "GET", "path": "/api/evaluations", "paid": False},
+                    "evaluation": {"method": "GET", "path": "/api/evaluations/{ref}", "paid": False},
                     "report": {"method": "POST", "path": "/api/report", "paid": False},
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
                     "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
@@ -747,6 +764,51 @@ def create_app(dump_dir: Path | str | None = None) -> FastAPI:
         except Exception as exc:  # noqa: BLE001 - an unpresentable record is reported, never a 500
             return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {exception_reason(exc)}"})
         return JSONResponse(content=_sanitize_non_finite(presented))
+
+    @app.get("/api/evaluations")
+    def evaluations(request: Request) -> JSONResponse:
+        # Spec G D-G33, D-G34: the evaluation records read per request, never
+        # cached, grouped by build identity, every row dated; nothing is
+        # created on a read; an outage is an outage, never an empty list.
+        dump_dir = request.app.state.dump_dir
+        now = datetime.now(UTC)
+        store = EvaluationRecordStore(dump_dir, create=False)
+        try:
+            stored = store.list_records()
+        except OSError as exc:
+            return JSONResponse(status_code=503, content={"error": f"evaluation records unavailable: {exception_reason(exc)}"})
+        rows: list[dict[str, Any]] = []
+        for record in [*stored, *synthesise_legacy_evaluations(request.app.state.eval_root, store)]:
+            if record.get("unreadable"):
+                rows.append(unreadable_row(record["record_id"], record["reason"]))
+                continue
+            try:
+                rows.append(evaluation_summary_of(present_evaluation(record, store, now)))
+            except Exception as exc:  # noqa: BLE001 - reported as the record's row, never a 500
+                rows.append(unreadable_row(record["record_id"], exception_reason(exc)))
+        return JSONResponse(content=_sanitize_non_finite({
+            "schema_version": "evaluations_list.v1", "observed_at": now.isoformat(),
+            "served_build_id": _graph_version(request), "order": ORDER_SENTENCE, "groups": group_summaries(rows),
+        }))
+
+    @app.get("/api/evaluations/{ref}")
+    def evaluation_detail(ref: str, request: Request) -> JSONResponse:
+        if not _EVAL_REF_RE.match(ref):
+            return JSONResponse(status_code=422, content={"error": "evaluation record reference outside the id syntax"})
+        store = EvaluationRecordStore(request.app.state.dump_dir, create=False)
+        now = datetime.now(UTC)
+        if (store.dir / f"{ref}.json").is_file():
+            try:
+                record = store.read(ref)
+            except Exception as exc:  # noqa: BLE001 - an unreadable record is reported, never a 500
+                return JSONResponse(status_code=404, content={"error": f"evaluation record {ref} is unreadable: {exception_reason(exc)}"})
+            return JSONResponse(content=_sanitize_non_finite(present_evaluation(record, store, now)))
+        for record in synthesise_legacy_evaluations(request.app.state.eval_root, store):
+            if record["record_id"] == ref:
+                if record.get("unreadable"):
+                    return JSONResponse(status_code=404, content={"error": f"evaluation record {ref} is unreadable: {record['reason']}"})
+                return JSONResponse(content=_sanitize_non_finite(present_evaluation(record, store, now)))
+        return JSONResponse(status_code=404, content={"error": f"no evaluation record {ref}"})
 
     @app.post("/api/explain")
     def explain(request: Request, body: ExplainRequest) -> JSONResponse:
