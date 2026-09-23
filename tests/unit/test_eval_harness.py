@@ -3,6 +3,9 @@
 Offline only: every strategy runs on FakeClient (scripted, no network).
 Live behaviour is tested exclusively as refusal paths (the gate and the
 config guard must raise); no test here may ever call a model.
+
+Also covers DEC-17: run_eval and main record one E6 evaluation record per
+run and write the results artifact atomically.
 """
 
 import json
@@ -10,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.eval.evaluation_record import EvaluationRecordStore
 from tere4ai.eval.harness import (
     BENCHMARK_RISK_MAP,
     EVAL_CONFIG_PATH,
@@ -626,3 +630,56 @@ def test_read_config_of_record_names_the_missing_path(tmp_path):
         harness.read_config_of_record(missing)
     assert str(missing) in str(exc.value)
     assert "TERE4AI_REPO_ROOT" in str(exc.value)
+
+
+# Evaluation records (DEC-17) ---------------------------------------------------
+
+
+def test_run_eval_records_an_offline_run_with_the_artifact_copied(tmp_path):
+    strategies_map = build_all_strategies(tmp_path)
+    items = list(GOLD_3)
+    store = EvaluationRecordStore(tmp_path)
+    out = run_eval(items, strategies_map, results_dir=tmp_path / "results", record_store=store, argv=["--offline"])
+    rec = store.read(out["record_id"])
+    assert rec["kind"] == "run" and rec["command"] == "eval_harness" and rec["config"]["mode"] == "offline"
+    assert rec["models"] is None and rec["usage"] is None and rec["outcome"]["status"] == "completed"
+    assert rec["outcome"]["intended_items"] == [i["id"] for i in items]
+    (artifact,) = rec["outputs"]
+    assert artifact["role"] == "artifact" and (store.dir / artifact["copy"]).read_bytes() == Path(out["artifact_path"]).read_bytes()
+    assert [i["role"] for i in rec["inputs"]] == ["gold_seed"], "prebuilt strategies: the harness read no dump"
+    assert rec["notes"] == ["the strategies were passed prebuilt; the harness did not read their inputs"]
+
+
+def test_run_eval_item_error_yields_a_partial_record(tmp_path):
+    items = list(GOLD_3)[:2]
+    second = items[1]["id"]
+
+    def broken(item):
+        if item["id"] == second:
+            raise ValueError("no")
+        return {"answer_text": "a", "citations": [], "risk_category": "high"}
+    store = EvaluationRecordStore(tmp_path)
+    out = run_eval(items, {"plain_llm": broken}, results_dir=tmp_path / "r", record_store=store)
+    rec = store.read(out["record_id"])
+    assert rec["outcome"]["status"] == "partial" and rec["outcome"]["completed_items"] == [items[0]["id"]]
+
+
+def test_run_eval_without_a_store_records_nothing_and_writes_atomically(tmp_path, monkeypatch):
+    items = list(GOLD_3)[:1]
+    out = run_eval(items, {"plain_llm": lambda item: {"answer_text": "a", "citations": [], "risk_category": "high"}},
+                   results_dir=tmp_path / "r")
+    assert out["record_id"] is None and not (tmp_path / "evaluation_records").exists()
+    assert not list((tmp_path / "r").glob("tmp*")), "no temp file is left behind"
+    assert Path(out["artifact_path"]).read_text().endswith("\n")
+
+
+def test_main_records_by_default_and_not_with_no_record(tmp_path, monkeypatch, capsys):
+    from tere4ai.eval import harness as h
+    args = ["--strategies", "plain_llm", "--results-dir", str(tmp_path / "r"), "--dump-dir", str(tmp_path)]
+    assert h.main(args) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["command"] == "eval_harness" and rec["argv"][:2] == ["--strategies", "plain_llm"]
+    assert [i["role"] for i in rec["inputs"]] == ["layer1_dump", "norms", "gold_seed"], "the names branch read the dumps"
+    assert rec["inputs"][0]["file"] == "layer1.json" and rec["sampling"] is None, "the offline stub reports no sampling"
+    assert h.main(args + ["--no-record"]) == 0
+    assert len(EvaluationRecordStore(tmp_path, create=False).list_records()) == 1

@@ -1,6 +1,6 @@
 """M4 evaluation harness: run the ablation ladder over gold/benchmark items.
 
-@implements: DEC-11
+@implements: DEC-11, DEC-17
 @grounded_by: REF-15, REF-16, REF-17
 
 Runs the five Section 12 ablation conditions (strategies.py) over evaluation
@@ -33,13 +33,24 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from tere4ai.eval.evaluation_record import (
+    EvaluationRecordError,
+    EvaluationRecordStore,
+    code_version,
+    file_ref,
+    observe_publication,
+    served_input_paths,
+)
+from tere4ai.eval.metrics import METRICS_VERSION
 from tere4ai.eval.strategies import STRATEGY_NAMES, build_strategy
 from tere4ai.extract_norms.model_clients import ModelClient
+from tere4ai.graph_store.build_record import atomic_write_json
 from tere4ai.judge.config import ModelConfig, load_model_config
 
 
@@ -261,6 +272,10 @@ def run_eval(
     results_dir: Path | None = None,
     judge_log_path: Path | None = None,
     config_path: Path = EVAL_CONFIG_PATH,
+    record_store: EvaluationRecordStore | None = None,
+    argv: list[str] | None = None,
+    input_paths: dict[str, Path] | None = None,
+    dump_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Run every strategy over every item; write and return the results dict.
 
@@ -274,6 +289,12 @@ def run_eval(
     fake or stub clients. live=True additionally requires TERE4AI_LIVE_TESTS=1
     and a loaded model config matching eval/config_evaluated.yaml (DEC-07),
     otherwise the run refuses to start.
+
+    When record_store is given, one E6 "run" evaluation record (DEC-17) is
+    written per call, covering the inputs actually read from disk, the
+    models, usage and sampling the harness built, and the outcome
+    (completed or partial by per-item errors). record_store=None (the
+    default) records nothing and behaves exactly as before.
     """
     config_public: dict[str, str]
     if live:
@@ -282,13 +303,18 @@ def run_eval(
     else:
         config_public = {"mode": "offline", "note": "no live model was called"}
 
+    read_paths: dict[str, Path] = {}
+    generator = judge = None
     if not isinstance(strategies, dict):
         if generator_factory is None:
             raise ValueError("strategy names were given but no generator_factory")
+        served = served_input_paths(dump_dir or LAYER1_DUMP_PATH.parent)
         if dump is None:
-            dump = json.loads(LAYER1_DUMP_PATH.read_text(encoding="utf-8"))
+            dump = json.loads(served["layer1_dump"].read_text(encoding="utf-8"))
+            read_paths["layer1_dump"] = served["layer1_dump"]
         if norms_payload is None:
-            norms_payload = json.loads(NORMS_PATH.read_text(encoding="utf-8"))
+            norms_payload = json.loads(served["norms"].read_text(encoding="utf-8"))
+            read_paths["norms"] = served["norms"]
         generator = generator_factory()
         judge = None
         if "graph_full" in strategies:
@@ -305,6 +331,28 @@ def run_eval(
 
     build_id = str((dump or {}).get("build", {}).get("build_id", "unknown-build"))
     strategy_names = sorted(strategies)
+
+    record_id = None
+    notes: list[str] = []
+    if record_store is not None:
+        inputs = [file_ref(role, path) for role, path in read_paths.items()]
+        if not read_paths:
+            notes.append("the strategies were passed prebuilt; the harness did not read their inputs")
+        inputs.append(file_ref("gold_seed", (input_paths or {}).get("gold_seed", GOLD_SEED_PATH)))
+        if input_paths and "benchmark" in input_paths:
+            inputs.append(file_ref("benchmark", input_paths["benchmark"]))
+        models = None
+        if live:
+            models = {name: dict(getattr(strategies[name], "models", {})) for name in strategy_names}
+        publication, publication_reason = observe_publication(dump_dir or LAYER1_DUMP_PATH.parent)
+        record_id = record_store.begin(
+            kind="run", step="E6", command="eval_harness", argv=list(argv or []), inputs=inputs,
+            build={"base_build_id": build_id if build_id != "unknown-build" else None,
+                   "publication": publication, "publication_reason": publication_reason},
+            models=models, config={**config_public, "strategies": strategy_names,
+                                   "metrics_version": METRICS_VERSION, "code_version": code_version(REPO_ROOT)},
+            item_selection=[item["id"] for item in items], intended_items=[item["id"] for item in items],
+        )
 
     results: dict[str, dict[str, Any]] = {}
     for name in strategy_names:
@@ -341,10 +389,38 @@ def run_eval(
     out_dir = results_dir or RESULTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / results_artifact_name(build_id, strategy_names)
-    out_path.write_text(
-        json.dumps(artifact, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
-    )
-    artifact["artifact_path"] = str(out_path)
+    try:
+        atomic_write_json(out_path, artifact)
+        artifact["artifact_path"] = str(out_path)
+        artifact["record_id"] = record_id
+        if record_store is not None and record_id is not None:
+            errored = sorted({item_id for block in results.values() for item_id, r in block["items"].items()
+                              if r.get("error")})
+            intended = [item["id"] for item in items]
+            completed = [i for i in intended if i not in set(errored)]
+            ref = record_store.keep_output(record_id, "artifact", out_path)
+
+            def _client_field(client: Any, field: str) -> Any:
+                return getattr(client, field, None) if client is not None else None
+            usage = sampling = None
+            if generator is not None:
+                usage = {"generator": _client_field(generator, "usage"), "judge": _client_field(judge, "usage")}
+                sampling = {"generator": _client_field(generator, "sampling"),
+                            "judge": _client_field(judge, "sampling")}
+                if usage["generator"] is None and usage["judge"] is None:
+                    usage = None
+                if sampling["generator"] is None and sampling["judge"] is None:
+                    sampling = None
+            record_store.finish(record_id, status="completed" if not errored else "partial", completed_items=completed,
+                                outputs=[ref], usage=usage, sampling=sampling, notes=notes,
+                                counts={"items_total": len(items), "items_with_errors": len(errored)})
+    except BaseException as exc:
+        if record_store is not None and record_id is not None:
+            try:
+                record_store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+            except EvaluationRecordError:
+                pass
+        raise
     return artifact
 
 
@@ -391,12 +467,18 @@ def main(argv: list[str] | None = None) -> int:
              "and a model config matching eval/config_evaluated.yaml (costs money)",
     )
     parser.add_argument("--results-dir", type=Path, default=None)
+    parser.add_argument("--dump-dir", type=Path, default=REPO_ROOT / "data" / "graph_dumps",
+                        help="where evaluation_records/ live; layer1.json and norms_core.json "
+                             "are always read from the checked-out data/graph_dumps")
+    parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
     args = parser.parse_args(argv)
 
     names = [n.strip() for n in args.strategies.split(",") if n.strip()]
     items = load_gold_items(args.gold)
     if args.benchmark_sample:
         items += load_benchmark_items()
+
+    record_store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
 
     if args.live:
         cfg = guard_live_config()  # refuse before any client is constructed
@@ -416,12 +498,18 @@ def main(argv: list[str] | None = None) -> int:
         judge_factory=judge_factory,
         live=args.live,
         results_dir=args.results_dir,
+        record_store=record_store,
+        argv=list(argv) if argv is not None else sys.argv[1:],
+        input_paths={"gold_seed": args.gold,
+                     **({"benchmark": BENCHMARK_SAMPLE_PATH} if args.benchmark_sample else {})},
     )
     print(
         f"wrote {artifact['artifact_path']} "
         f"({artifact['n_items']} items x {len(artifact['strategies'])} strategies, "
         f"live={artifact['live']})"
     )
+    if artifact.get("record_id"):
+        print(f"evaluation record {artifact['record_id']}")
     return 0
 
 
