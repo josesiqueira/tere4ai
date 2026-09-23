@@ -247,3 +247,20 @@ def test_lineage_of_names_inherited_records_and_consumed_freezes():
     row = summary_of(presented)
     assert row["lineage"]["inherited_from"]["L0.1"] == "r1"
     assert summary_of({"record_id": "x", "unreadable": True, "reason": "r"})["lineage"] is None
+
+
+def test_lineage_of_reads_consumed_freezes_from_a_real_publication(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", "b", None)
+    publication = {
+        "chain_id": "c1", "build_id": "b+chain-c1", "published_at": "t",
+        "gating": {"layer2": "human", "layer3": "llm"}, "label": "human-adjudicated",
+        "gates": [], "postload_gates": [],
+        "manifests": [{"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation",
+                      "stage": "production", "decisions_sha256": "9" * 64, "layer": 2}],
+    }
+    store.set_publication(rid, publication)
+    presented = present_record(store.read(rid), tmp_path, NOW, None, store)
+    assert summary_of(presented)["lineage"]["consumed_freezes"] == [
+        {"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation", "stage": "production",
+         "layer": 2, "step": "L2.4", "manifest_sha256": None}]

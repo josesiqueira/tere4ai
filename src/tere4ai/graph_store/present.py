@@ -403,7 +403,12 @@ def lineage_of(presented: dict[str, Any]) -> dict[str, Any]:
     """The relationships the dashboard's record page joins on (D-G44): the
     record each inherited step came from, and the freezes this build consumed,
     from the publication's manifests when published, else from the digests
-    of the materialise executions' manifest inputs."""
+    of the materialise executions' manifest inputs. A published record reports
+    its freezes by identity (campaign and freeze ids), with a null digest; an
+    unpublished record reports them by digest instead, with a null identity.
+    `publication.get("manifests")` truthiness stands in for published, because
+    bind_manifests never publishes a human-gated build with an empty
+    manifests list (R19, publication.py)."""
     inherited: dict[str, str | None] = {}
     reasons = presented.get("reasons") or {}
     for step, state in (presented.get("steps") or {}).items():
