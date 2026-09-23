@@ -21,18 +21,30 @@ Default mode writes:
   The judge verdict is folded away per the protocol (the annotator labels
   blind and opens the verdict only afterwards).
 
+The label act (--label <decision id> <accept|reject> [--rationale TEXT], or
+--label-file <csv> with columns decision_id,human_label,human_rationale)
+both require --by <name>: each labelled item records human_label,
+human_rationale, labelled_by, and labelled_at (who and when, per item).
+Relabelling an item that already carries a label is refused unless --force
+is passed. Every invocation writes one labelling evaluation record.
+
 --compute reads the filled sheet and prints the FA/FR rates via
-tere4ai.eval.metrics.judge_error_rates. Label semantics per the protocol:
-human_label is "accept" when ALL extraction-judge (or mapping-judge)
-criteria hold and "reject" on any single failure; the judge verdicts stay
-"accepted" / "rejected" / "needs_human_review" and needs_human_review is an
-abstention, never an FA or FR. --compute refuses while any human_label is
-still null.
+tere4ai.eval.metrics.judge_error_rates_by_kind, pooled and per judge kind
+(the sheet's "mapping" kind is reported as "alignment"). Label semantics per
+the protocol: human_label is "accept" when ALL extraction-judge (or
+mapping-judge) criteria hold and "reject" on any single failure; the judge
+verdicts stay "accepted" / "rejected" / "needs_human_review" and
+needs_human_review is an abstention, never an FA or FR. --compute refuses
+while any human_label is still null or was recorded without an actor and a
+time; a rate with an empty denominator prints as null, never 0.0. This is a
+sample estimate: population weighting is not designed. --compute writes one
+analysis evaluation record.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
@@ -55,7 +67,11 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     observe_publication,
     served_input_paths,
 )
-from tere4ai.eval.metrics import JUDGE_GOLD_LABELS, judge_error_rates  # noqa: E402
+from tere4ai.eval.metrics import (  # noqa: E402
+    JUDGE_GOLD_LABELS,
+    METRICS_VERSION,
+    judge_error_rates_by_kind,
+)
 
 SHEET_JSON = ROOT / "eval" / "gold" / "judge_label_sheet.json"
 SHEET_MD = ROOT / "eval" / "gold" / "judge_label_sheet.md"
@@ -380,12 +396,18 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
             lines += [f"Node `{excerpt['node_id']}`:", "", f"> {excerpt['text']}"]
         else:
             lines.append(f"Not resolvable: {excerpt.get('note', 'no source text')}")
+        lines += ["", "### Your label", ""]
+        if item.get("human_label"):
+            lines.append(f"- human_label: {item['human_label']}")
+            lines.append(f"- human_rationale: {item.get('human_rationale') or ''}")
+            if item.get("labelled_by"):
+                lines.append(f"- labelled_by: {item['labelled_by']}")
+            if item.get("labelled_at"):
+                lines.append(f"- labelled_at: {item['labelled_at']}")
+        else:
+            lines.append("- human_label (accept | reject): fill in judge_label_sheet.json")
+            lines.append("- human_rationale: fill in judge_label_sheet.json")
         lines += [
-            "",
-            "### Your label",
-            "",
-            "- human_label (accept | reject): fill in judge_label_sheet.json",
-            "- human_rationale: fill in judge_label_sheet.json",
             "",
             "<details><summary>Judge verdict (open only AFTER labelling)</summary>",
             "",
@@ -399,10 +421,11 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
 
 
 def compute_error_rates(sheet: dict[str, Any]) -> dict[str, Any]:
-    """FA/FR from a filled sheet via metrics.judge_error_rates.
+    """FA/FR from a filled sheet, pooled and per judge kind (D-G33).
 
-    Raises ValueError when any human_label is still null (listing how many
-    remain) or holds a value outside the protocol's accept/reject set.
+    Raises ValueError when any human_label is still null, holds a value
+    outside the protocol's accept/reject set, or was typed without an actor
+    and a time (the label act of this script records both).
     """
     items = sheet.get("items", [])
     unlabelled = [it["decision_id"] for it in items if it.get("human_label") is None]
@@ -419,13 +442,116 @@ def compute_error_rates(sheet: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(
             f"human_label must be one of {JUDGE_GOLD_LABELS}; invalid on: " + ", ".join(bad)
         )
+    unattributed = [
+        it["decision_id"] for it in items if not it.get("labelled_by") or not it.get("labelled_at")
+    ]
+    if unattributed:
+        raise ValueError(
+            f"refusing to compute: {len(unattributed)} items carry a label without an "
+            "actor or a time; record them through --label. Unattributed: "
+            + ", ".join(unattributed)
+        )
     verdicts = {it["decision_id"]: it["judge_run"]["verdict"] for it in items}
     gold_labels = {it["decision_id"]: it["human_label"] for it in items}
-    return judge_error_rates(verdicts, gold_labels)
+    kinds: dict[str, str] = {}
+    for it in items:
+        kind = (it.get("stratum") or {}).get("judge_kind")
+        if kind:
+            kinds[it["decision_id"]] = "alignment" if kind == "mapping" else kind
+    rates = judge_error_rates_by_kind(verdicts, gold_labels, kinds)
+    return {
+        **rates,
+        "metrics_version": METRICS_VERSION,
+        "note": "sample estimate: population weighting is not designed",
+    }
 
 
 def _load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
+    """The E1 label act: record human_label, human_rationale, labelled_by
+    and labelled_at per item, then write one labelling evaluation record.
+    """
+    if not args.by:
+        print("--by <name> is required: the label act records who labelled")
+        return 2
+    sheet = _load(args.sheet)
+    by_id = {it["decision_id"]: it for it in sheet.get("items", [])}
+    wanted: dict[str, tuple[str, str]] = {}
+    if args.label:
+        wanted[args.label[0]] = (args.label[1], args.rationale)
+    if args.label_file:
+        with args.label_file.open(encoding="utf-8", newline="") as fh:
+            for row in csv.DictReader(fh):
+                wanted[row["decision_id"]] = (row["human_label"], row.get("human_rationale") or "")
+    unknown = [i for i in wanted if i not in by_id]
+    bad = [i for i, (label, _) in wanted.items() if label not in JUDGE_GOLD_LABELS]
+    if unknown or bad:
+        print(f"unknown decision ids: {unknown}; labels outside {JUDGE_GOLD_LABELS}: {bad}")
+        return 2
+    already = [i for i in wanted if by_id[i].get("human_label") is not None]
+    if already and not args.force:
+        it = by_id[already[0]]
+        print(f"refusing to relabel {already[0]}: labelled by {it.get('labelled_by')} at "
+              f"{it.get('labelled_at')}; pass --force to replace")
+        return 1
+    store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
+    sample_id = (sheet.get("sample") or {}).get("sample_id")
+    notes = [] if sample_id else ["the sheet predates sample ids"]
+    record_id = None
+    if store is not None:
+        record_id = store.begin(
+            kind="labelling", step="E1", command="sample_judge_decisions",
+            argv=list(argv) if argv is not None else sys.argv[1:],
+            inputs=[file_ref("sheet_before", args.sheet)],
+            build=(sheet.get("sample") or {}).get("build") or {
+                "base_build_id": sheet.get("builds", {}).get("norms_core"),
+                "publication": None,
+                "publication_reason": "the sheet predates sample ids",
+            },
+            config={"by": args.by, "labels": {i: label for i, (label, _) in wanted.items()}, "forced": already},
+            relations={"sample_id": sample_id}, intended_items=list(wanted),
+        )
+    now = datetime.now(UTC).isoformat()
+    for decision_id, (label, rationale) in wanted.items():
+        by_id[decision_id].update({
+            "human_label": label, "human_rationale": rationale or None,
+            "labelled_by": args.by, "labelled_at": now,
+        })
+    _write_atomic(args.sheet, json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
+    _write_atomic(args.sheet_md, render_sheet_md(sheet) + "\n")
+    labelled_total = sum(1 for it in sheet["items"] if it.get("human_label") is not None)
+    if store is not None and record_id is not None:
+        store.finish(
+            record_id, status="completed", completed_items=list(wanted),
+            outputs=[store.keep_output(record_id, "sheet_after", args.sheet)],
+            counts={"labelled_now": len(wanted), "labelled_total": labelled_total, "items": len(sheet["items"])},
+            notes=notes,
+        )
+    print(f"labelled {len(wanted)} item(s) by {args.by}; {labelled_total} of {len(sheet['items'])} labelled")
+    return 0
+
+
+def _fmt_rate(rate: float | None, numerator: int, denominator: int, what: str) -> str:
+    if rate is None:
+        return f"null (no {what} item scored)"
+    return f"{rate:.4f} ({numerator} of {denominator} {what})"
+
+
+def _print_rates(label: str, r: dict[str, Any]) -> None:
+    c = r["counts"]
+    print(f"[{label}] scored: {c['scored']} (gold accept {c['gold_accept']}, gold reject {c['gold_reject']}, "
+          f"abstained {c['abstained']})")
+    print(f"[{label}] false_accept_rate: "
+          f"{_fmt_rate(r['false_accept_rate'], c['false_accepts'], c['gold_reject'], 'gold-reject')}")
+    print(f"[{label}] false_reject_rate: "
+          f"{_fmt_rate(r['false_reject_rate'], c['false_rejects'], c['gold_accept'], 'gold-accept')}")
+    if r["false_accept_ids"]:
+        print(f"[{label}] false accepts: " + ", ".join(r["false_accept_ids"]))
+    if r["false_reject_ids"]:
+        print(f"[{label}] false rejects: " + ", ".join(r["false_reject_ids"]))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -448,25 +574,74 @@ def main(argv: list[str] | None = None) -> int:
         "--no-record", action="store_true",
         help="draw without writing an evaluation record",
     )
+    parser.add_argument(
+        "--label", nargs=2, metavar=("DECISION_ID", "LABEL"), default=None,
+        help="label one decision id accept or reject",
+    )
+    parser.add_argument(
+        "--label-file", type=Path, default=None,
+        help="a csv with columns decision_id,human_label,human_rationale",
+    )
+    parser.add_argument("--by", default=None, help="who is labelling (required by --label/--label-file)")
+    parser.add_argument("--rationale", default="", help="rationale for --label")
     args = parser.parse_args(argv)
 
+    if args.label or args.label_file:
+        return _label_act(args, argv)
+
     if args.compute:
+        sheet = _load(args.sheet)
         try:
-            rates = compute_error_rates(_load(args.sheet))
+            rates = compute_error_rates(sheet)
         except ValueError as exc:
             print(str(exc))
             return 2
-        counts = rates["counts"]
-        print(f"scored: {counts['scored']} (gold accept {counts['gold_accept']}, "
-              f"gold reject {counts['gold_reject']}, abstained {counts['abstained']})")
-        print(f"false_accept_rate: {rates['false_accept_rate']:.4f} "
-              f"({counts['false_accepts']} of {counts['gold_reject']} gold-reject)")
-        print(f"false_reject_rate: {rates['false_reject_rate']:.4f} "
-              f"({counts['false_rejects']} of {counts['gold_accept']} gold-accept)")
-        if rates["false_accept_ids"]:
-            print("false accepts: " + ", ".join(rates["false_accept_ids"]))
-        if rates["false_reject_ids"]:
-            print("false rejects: " + ", ".join(rates["false_reject_ids"]))
+        store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
+        sample_id = (sheet.get("sample") or {}).get("sample_id")
+        ids = [it["decision_id"] for it in sheet["items"]]
+        pooled = rates["pooled"]
+        record_id = None
+        if store is not None:
+            labelling_ids = [
+                r["record_id"] for r in sorted(
+                    (
+                        r for r in store.list_records()
+                        if not r.get("unreadable") and r["kind"] == "labelling"
+                        and r["ended_at"] and sample_id and r["relations"]["sample_id"] == sample_id
+                    ),
+                    key=lambda r: (r["ended_at"], r["record_id"]),
+                )
+            ]
+            record_id = store.begin(
+                kind="analysis", step="E1", command="sample_judge_decisions",
+                argv=list(argv) if argv is not None else sys.argv[1:],
+                inputs=[file_ref("sheet_labelled", args.sheet)],
+                build=(sheet.get("sample") or {}).get("build") or {
+                    "base_build_id": sheet.get("builds", {}).get("norms_core"),
+                    "publication": None,
+                    "publication_reason": "the sheet predates sample ids",
+                },
+                config={"metrics_version": METRICS_VERSION},
+                relations={"sample_id": sample_id, "labelling_record_ids": labelling_ids},
+                intended_items=ids,
+            )
+            rates_path = args.sheet.with_name("error_rates.json")
+            _write_atomic(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
+            store.finish(
+                record_id, status="completed", completed_items=ids,
+                outputs=[store.keep_output(record_id, "error_rates", rates_path)],
+                counts={
+                    "scored": pooled["counts"]["scored"], "abstained": pooled["counts"]["abstained"],
+                    "gold_accept": pooled["counts"]["gold_accept"], "gold_reject": pooled["counts"]["gold_reject"],
+                },
+                notes=[rates["note"]],
+            )
+        _print_rates("pooled", pooled)
+        for kind, r in rates["by_kind"].items():
+            _print_rates(kind, r)
+        print(rates["note"])
+        if record_id is not None:
+            print(f"evaluation record {record_id} written under {store.dir}")
         return 0
 
     served = served_input_paths(args.dump_dir)

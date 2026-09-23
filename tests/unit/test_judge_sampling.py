@@ -247,6 +247,8 @@ def _mini_sheet(labels: list[str | None], verdicts: list[str]) -> dict:
                 "judge_run": {"verdict": verdicts[i]},
                 "human_label": labels[i],
                 "human_rationale": None if labels[i] is None else "because",
+                "labelled_by": None if labels[i] is None else "tester",
+                "labelled_at": None if labels[i] is None else "2026-01-01T00:00:00+00:00",
             }
             for i in range(len(labels))
         ]
@@ -275,7 +277,7 @@ def test_compute_fa_fr_hand_computed():
         ["accept", "reject", "accept", "reject", "accept"],
         ["accepted", "accepted", "rejected", "rejected", "needs_human_review"],
     )
-    rates = sampling.compute_error_rates(sheet)
+    rates = sampling.compute_error_rates(sheet)["pooled"]
     assert rates["false_accept_rate"] == pytest.approx(0.5)
     assert rates["false_reject_rate"] == pytest.approx(1 / 3)
     assert rates["counts"]["abstained"] == 1
@@ -454,3 +456,92 @@ def test_draw_cleans_up_the_temp_file_and_fails_the_record_when_the_sheet_write_
     assert len(records) == 1
     assert records[0]["outcome"]["status"] == "failed"
     assert "disk full" in records[0]["outcome"]["error"]
+
+
+# The E1 label and compute acts (DEC-17): actor and time per item, an
+# analysis record with rates per judge kind and pooled -----------------
+
+
+def test_label_act_records_actor_time_and_a_labelling_record(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    first = sheet["items"][0]["decision_id"]
+    assert sampling.main(_draw_argv(tmp_path, "--label", first, "accept")) == 2, "--by is required"
+    assert sampling.main(
+        _draw_argv(tmp_path, "--label", first, "accept", "--by", "Jose", "--rationale", "clear")
+    ) == 0
+    after = json.loads((tmp_path / "sheet.json").read_text())
+    item = after["items"][0]
+    assert item["human_label"] == "accept" and item["human_rationale"] == "clear"
+    assert item["labelled_by"] == "Jose" and item["labelled_at"]
+    store = EvaluationRecordStore(tmp_path, create=False)
+    rec = [r for r in store.list_records() if r["kind"] == "labelling"][0]
+    assert rec["config"] == {"by": "Jose", "labels": {first: "accept"}, "forced": []}
+    assert rec["relations"]["sample_id"] == sheet["sample"]["sample_id"]
+    assert rec["counts"] == {"labelled_now": 1, "labelled_total": 1, "items": len(sheet["items"])}
+    assert [i["role"] for i in rec["inputs"]] == ["sheet_before"]
+    assert [o["role"] for o in rec["outputs"]] == ["sheet_after"]
+    assert sampling.main(_draw_argv(tmp_path, "--label", first, "reject", "--by", "Ana")) == 1
+    assert "refusing to relabel" in capsys.readouterr().out
+    assert json.loads((tmp_path / "sheet.json").read_text())["items"][0]["human_label"] == "accept"
+    assert sampling.main(
+        _draw_argv(tmp_path, "--label", first, "reject", "--by", "Ana", "--force")
+    ) == 0
+    forced = max((r for r in store.list_records() if r["kind"] == "labelling"), key=lambda r: r["ended_at"])
+    assert forced["config"]["forced"] == [first]
+    assert sampling.main(_draw_argv(tmp_path, "--label", "nope", "accept", "--by", "Jose")) == 2
+    assert sampling.main(
+        _draw_argv(tmp_path, "--label", first, "maybe", "--by", "Jose", "--force")
+    ) == 2
+
+
+def test_label_file_labels_many_in_one_record(tmp_path):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    ids = [it["decision_id"] for it in sheet["items"]]
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text("decision_id,human_label,human_rationale\n" + "".join(f"{i},accept,ok\n" for i in ids))
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose")) == 0
+    rec = [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "labelling"][0]
+    assert rec["counts"]["labelled_now"] == len(ids) and rec["outcome"]["completed_items"] == ids
+
+
+def test_compute_refuses_a_label_without_actor_or_time(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    for it in sheet["items"]:
+        it["human_label"] = "accept"  # typed by hand, no actor, no time
+    (tmp_path / "sheet.json").write_text(json.dumps(sheet))
+    assert sampling.main(_draw_argv(tmp_path, "--compute")) == 2
+    assert "without an actor or a time" in capsys.readouterr().out
+    assert not [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "analysis"]
+
+
+def test_compute_reports_null_on_an_empty_denominator_and_never_zero(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    ids = [it["decision_id"] for it in sheet["items"]]
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text("decision_id,human_label,human_rationale\n" + "".join(f"{i},accept,\n" for i in ids))
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose")) == 0
+    assert sampling.main(_draw_argv(tmp_path, "--compute")) == 0
+    out = capsys.readouterr().out
+    assert "false_accept_rate: null (no gold-reject item scored)" in out
+    assert "0.0000 (0 of 0" not in out
+    store = EvaluationRecordStore(tmp_path, create=False)
+    rec = [r for r in store.list_records() if r["kind"] == "analysis"][0]
+    rates = json.loads((store.dir / rec["outputs"][0]["copy"]).read_text())
+    assert rates["pooled"]["false_accept_rate"] is None and rates["metrics_version"] == "metrics.v2"
+    assert set(rates["by_kind"]) <= {"extraction", "alignment"}, "the sheet's 'mapping' kind is reported as alignment"
+    assert rec["relations"]["sample_id"] == sheet["sample"]["sample_id"]
+    labelling = [r for r in store.list_records() if r["kind"] == "labelling"]
+    assert rec["relations"]["labelling_record_ids"] == [r["record_id"] for r in labelling]
+    assert rec["notes"] == ["sample estimate: population weighting is not designed"]
+    assert rec["counts"]["scored"] == len(ids) and rec["counts"]["abstained"] >= 3, (
+        "the minimum per stratum draws abstentions"
+    )
+    assert rec["outcome"]["intended_items"] == ids and rec["outcome"]["completed_items"] == ids
