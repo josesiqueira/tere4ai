@@ -1,9 +1,12 @@
-"""Variance report tests (#60): flips, citation Jaccard, determinism check."""
+"""Variance report tests (#60, DEC-17): flips, citation Jaccard, determinism check."""
 
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
+
+from tere4ai.eval.evaluation_record import EvaluationRecordStore
 
 ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
@@ -67,3 +70,31 @@ def test_determinism_check_passes_on_identical_graph_runs():
     text = vr.render_markdown(Path("a.jsonl"), Path("b.jsonl"), comparisons)
     assert "flipped 0 labels" in text
     assert "DETERMINISM CHECK FAILED" not in text
+
+
+def _checkpoint(path, results_by_item):
+    path.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": results_by_item}) + "\n")
+
+
+def test_main_records_a_comparison_naming_the_runs_it_can_resolve(tmp_path):
+    a, b = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    r = {"i1": {"risk_category": "high", "citations": [], "answer_text": "x"}, "i2": {"risk_category": "high", "citations": [], "answer_text": "y"}}
+    _checkpoint(a, r)
+    _checkpoint(b, {**r, "i2": {**r["i2"], "risk_category": "low"}})
+    bench = tmp_path / "bench.json"
+    bench.write_text(json.dumps({"scenarios": [], "qa": []}))
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None})
+    store.finish(rid, status="completed", outputs=[store.keep_output(rid, "checkpoint", a)])
+    out = tmp_path / "study.md"
+    assert vr.main(["--run-a", str(a), "--run-b", str(b), "--benchmark", str(bench), "--out", str(out),
+                    "--dump-dir", str(tmp_path)]) == 0
+    rec = [x for x in store.list_records() if x["kind"] == "comparison"][0]
+    assert rec["relations"]["compares"] == [rid, None] and "run_b is named by no record" in rec["notes"]
+    assert {i["role"] for i in rec["inputs"]} == {"run_a", "run_b", "benchmark"}
+    assert rec["outcome"]["status"] == "completed" and rec["outcome"]["completed_items"] == ["i1", "i2"]
+    assert rec["counts"]["common_items"] == 2 and rec["counts"]["label_flips"] == 0, "flips count gold items only (R7)"
+    (study,) = rec["outputs"]
+    assert study["role"] == "study" and (store.dir / study["copy"]).read_bytes() == out.read_bytes()
+    assert rec["models"] is None

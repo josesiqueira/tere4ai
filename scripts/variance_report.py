@@ -1,6 +1,6 @@
 """Repeat-run variance report over two ablation runs (#60).
 
-@implements: DEC-11 (partial: repeat-run variance study)
+@implements: DEC-11 (partial: repeat-run variance study), DEC-17
 @grounded_by: REF-15, REF-16
 
 Compares two runs of the same ladder over the same items and the same
@@ -32,12 +32,23 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+from tere4ai.eval import harness  # noqa: E402
+from tere4ai.eval.evaluation_record import (  # noqa: E402
+    EvaluationRecordError,
+    EvaluationRecordStore,
+    code_version,
+    file_ref,
+    observe_publication,
+)
 
 _spec = importlib.util.spec_from_file_location(
     "ablation_deepdive", ROOT / "scripts" / "ablation_deepdive.py"
@@ -184,17 +195,47 @@ def main(argv: list[str] | None = None) -> int:
         help="benchmark payload both runs used (default: the frozen sample)",
     )
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps",
+                        help="where layer1.json, norms_core.json and evaluation_records/ live")
+    parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
     args = parser.parse_args(argv)
 
-    per_a, per_b = load_results(args.run_a), load_results(args.run_b)
-    gold = gold_risk_by_item(args.benchmark)
-    comparisons = {
-        name: compare_strategy(per_a[name], per_b[name], gold)
-        for name in sorted(set(per_a) & set(per_b))
-    }
-    args.out.write_text(
-        render_markdown(args.run_a, args.run_b, comparisons), encoding="utf-8"
-    )
+    store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
+    record_id = None
+    notes: list[str] = []
+    if store is not None:
+        refs = {"run_a": file_ref("run_a", args.run_a), "run_b": file_ref("run_b", args.run_b)}
+        compares = []
+        for role in ("run_a", "run_b"):
+            found = store.find_by_output_digest(refs[role]["sha256"]) or store.find_by_output_file(refs[role]["file"])
+            if found is None:
+                notes.append(f"{role} is named by no record")
+            compares.append(found)  # None stays in the list: the schema allows it (R8)
+        benchmark_path = args.benchmark or harness.BENCHMARK_SAMPLE_PATH
+        publication, publication_reason = observe_publication(args.dump_dir)
+        record_id = store.begin(
+            kind="comparison", step="E6", command="variance_report",
+            argv=list(argv) if argv is not None else sys.argv[1:],
+            inputs=[refs["run_a"], refs["run_b"], file_ref("benchmark", benchmark_path)],
+            build={"base_build_id": None, "publication": publication, "publication_reason": publication_reason},
+            config={"code_version": code_version(ROOT)}, relations={"compares": compares},
+        )
+    try:
+        per_a, per_b = load_results(args.run_a), load_results(args.run_b)
+        gold = gold_risk_by_item(args.benchmark)
+        comparisons = {name: compare_strategy(per_a[name], per_b[name], gold) for name in sorted(set(per_a) & set(per_b))}
+        text = render_markdown(args.run_a, args.run_b, comparisons)
+        fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=".md", dir=str(args.out.parent))
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, args.out)
+    except BaseException as exc:
+        if store is not None and record_id is not None:
+            try:
+                store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+            except EvaluationRecordError:
+                pass
+        raise
     for name, c in comparisons.items():
         print(
             f"{name}: flips {c['label_flips']}/{c['labelled_items']} | "
@@ -203,6 +244,13 @@ def main(argv: list[str] | None = None) -> int:
         )
     shown = args.out.relative_to(ROOT) if args.out.is_relative_to(ROOT) else args.out
     print(f"wrote {shown}")
+    if store is not None and record_id is not None:
+        common = sorted({i for name in comparisons for i in set(per_a[name]) & set(per_b[name])})
+        store.finish(record_id, status="completed", completed_items=common, intended_items=common,
+                     outputs=[store.keep_output(record_id, "study", args.out)],
+                     counts={"common_items": len(common),
+                             "label_flips": sum(c["label_flips"] for c in comparisons.values())}, notes=notes)
+        print(f"evaluation record {record_id} written under {store.dir}")
     return 0
 
 
