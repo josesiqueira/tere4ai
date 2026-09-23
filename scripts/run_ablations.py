@@ -34,13 +34,25 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     served_input_paths,
 )
 from tere4ai.eval.metrics import METRICS_VERSION  # noqa: E402
+from tere4ai.eval.present_evaluation import JULY_CHECKPOINT_DIGESTS, JULY_DIGESTS  # noqa: E402
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator  # noqa: E402
+from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.judge.config import load_model_config  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
 CHECKPOINT = RESULTS_DIR / "ablation_checkpoint.jsonl"
 SUMMARY = RESULTS_DIR / "ablation_summary.json"
 BATCH_SIZE = 10
+# the pinned July summaries and checkpoints: never appended to, never rewritten
+JULY_PROTECTED = frozenset(JULY_DIGESTS.values()) | frozenset(JULY_CHECKPOINT_DIGESTS.values())
+
+
+def _july_refusal(path: Path) -> str | None:
+    """The refusal sentence when path holds the bytes of a July file, else None."""
+    if path.is_file() and sha256_of_file(path) in JULY_PROTECTED:
+        return (f"refusing to write {path}: its bytes are the July 2026 measurement; "
+                "pass --summary or --checkpoint with another path")
+    return None
 
 
 def load_items(benchmark_path=None, features_path=None) -> list[dict]:
@@ -78,8 +90,16 @@ def main(argv: list[str] | None = None) -> int:
                         help="where layer1.json, norms_core.json and evaluation_records/ live")
     parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
     parser.add_argument("--repeat-of", default=None, help="record id of the run this run repeats")
+    parser.add_argument("--resume-unrecorded", action="store_true",
+                        help="resume a checkpoint no evaluation record names (the note is recorded)")
     args = parser.parse_args(argv)
     checkpoint_path, summary_path = args.checkpoint, args.summary
+    # the July files are protected whether or not the run records (F1)
+    for target in (checkpoint_path, summary_path):
+        refusal = _july_refusal(target)
+        if refusal is not None:
+            print(refusal)
+            return 2
 
     paths = served_input_paths(args.dump_dir)
     dump = json.loads(paths["layer1_dump"].read_text())
@@ -102,9 +122,21 @@ def main(argv: list[str] | None = None) -> int:
             unit_results.append(entry)
         print(f"resume: {len(done)} unit(s) already checkpointed")
 
+    notes: list[str] = []
+    resumes = None
+    if done:
+        # a read-only lookup, so a --no-record run is refused the same way
+        resumes = EvaluationRecordStore(args.dump_dir, create=False).find_by_checkpoint_file(checkpoint_path.name)
+        if resumes is None:
+            if not args.resume_unrecorded:
+                print(f"refusing to resume {checkpoint_path}: no evaluation record names it; pass "
+                      "--resume-unrecorded to resume it anyway (the note is recorded) or --checkpoint "
+                      "with a fresh path")
+                return 2
+            notes.append("resumed from a checkpoint no record names")
+
     store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
     record_id = None
-    notes: list[str] = []
     if store is not None:
         if args.repeat_of is not None:
             try:
@@ -120,12 +152,8 @@ def main(argv: list[str] | None = None) -> int:
             file_ref("gold_seed", harness.GOLD_SEED_PATH),
             file_ref("features", features_path),
         ]
-        resumes = None
         if done:
             inputs.append(file_ref("checkpoint_resumed", checkpoint_path))
-            resumes = store.find_by_output_file(checkpoint_path.name)
-            if resumes is None:
-                notes.append("resumed from a checkpoint no record names")
         publication, publication_reason = observe_publication(args.dump_dir)
         record_id = store.begin(
             kind="run", step="E6", command="run_ablations", argv=list(argv) if argv is not None else sys.argv[1:],
@@ -137,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
                 "metrics_version": METRICS_VERSION, "code_version": code_version(ROOT), "mode": "live"},
             item_selection=[i["id"] for i in items], intended_items=[i["id"] for i in items],
             relations={"repeat_of": args.repeat_of, "resumes_record_id": resumes},
-            counts={"units_resumed": len(done)},
+            counts={"units_resumed": len(done)}, checkpoint_file=checkpoint_path.name,
         )
 
     try:

@@ -44,6 +44,13 @@ LEGACY_E6 = (
      "2026-07-11", "", "38a7682b396a286d3a010e45b56e7ee5f25100c60302307f186c31ed9e53b16f"),
 )
 JULY_DIGESTS = {row[0]: row[6] for row in LEGACY_E6}
+# the sha256 of the four tracked July checkpoints: the July bytes, never rewritten
+JULY_CHECKPOINT_DIGESTS = {
+    "ablation_run1_checkpoint.jsonl": "7a4fb16e3880f3c45df1e22b9987ffe504d61e1bba2ca15d646a074d1a6309b6",
+    "ablation_checkpoint.jsonl": "11d114d51e35b3f06c7a4fead8f5dcfffb6ffa4f2e1414f8464c3c618dec9180",
+    "ablation_full_checkpoint.jsonl": "de7d7c1f7211a5c247caf8d2d8ee22f3568b96b9148dee7647df2c4ca5a79c40",
+    "ablation_variance_checkpoint.jsonl": "43f9c2a12f5590cd17b2dcfb241d9e0e62dbc4e4b6debac0d4433be06a3d5825",
+}
 NOT_JULY_BYTES = "not recorded: the file's bytes are not the July bytes this phrase dates"
 NO_DATE = "not recorded: no analysis file states a date for this summary"
 LEGACY_STUDY = "variance_study.md"

@@ -128,6 +128,24 @@ def test_lookups_by_output_file_digest_and_input_digest(tmp_path):
     store.finish(rid2, status="failed", error="boom")
 
 
+def test_find_by_checkpoint_file_names_the_newest_begin_of_any_status_then_falls_back_to_outputs(tmp_path):
+    store = EvaluationRecordStore(tmp_path)
+    build = {"base_build_id": None, "publication": None, "publication_reason": "x"}
+    done = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[], build=build)
+    ckpt = tmp_path / "old.jsonl"
+    ckpt.write_text("{}\n")
+    store.finish(done, status="completed", outputs=[store.keep_output(done, "checkpoint", ckpt)])
+    assert store.find_by_checkpoint_file("old.jsonl") == done, "the old rule: a finished record's output"
+    failed = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[], build=build,
+                         checkpoint_file="c.jsonl")
+    store.finish(failed, status="failed", error="boom")
+    running = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[], build=build,
+                          checkpoint_file="c.jsonl")
+    assert store.read(running)["config"] == {"checkpoint_file": "c.jsonl"}
+    assert store.find_by_checkpoint_file("c.jsonl") == running
+    assert store.find_by_checkpoint_file("other.jsonl") is None
+
+
 def test_observe_publication_and_served_paths_follow_the_pointer_or_the_legacy_names(tmp_path):
     pub, reason = er.observe_publication(tmp_path)
     assert pub is None and reason.startswith("no ACTIVE_MANIFEST.json")

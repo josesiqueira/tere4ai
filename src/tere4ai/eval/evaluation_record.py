@@ -182,6 +182,19 @@ class EvaluationRecordStore:
                 return r["record_id"]
         return None
 
+    def find_by_checkpoint_file(self, name: str) -> str | None:
+        """The record a resume of the checkpoint file `name` continues.
+
+        The newest readable record (by started_at, any status: running and
+        failed included) whose config names the checkpoint file at begin,
+        else the newest finished record with an output of that file name,
+        else None."""
+        rows = [r for r in self.list_records()
+                if not r.get("unreadable") and (r.get("config") or {}).get("checkpoint_file") == name]
+        if rows:
+            return max(rows, key=lambda r: (r["started_at"], r["record_id"]))["record_id"]
+        return self.find_by_output_file(name)
+
     def find_by_output_digest(self, sha256: str) -> str | None:
         for r in self._finished_newest_first():
             if any(o["sha256"] == sha256 for o in r["outputs"]):
@@ -200,7 +213,8 @@ class EvaluationRecordStore:
               prompt_versions: dict[str, Any] | None = None, prompt_sha256: dict[str, Any] | None = None,
               sampling: dict[str, Any] | None = None, config: dict[str, Any] | None = None,
               item_selection: list[str] | None = None, intended_items: list[str] | tuple[str, ...] = (),
-              relations: dict[str, Any] | None = None, counts: dict[str, Any] | None = None) -> str:
+              relations: dict[str, Any] | None = None, counts: dict[str, Any] | None = None,
+              checkpoint_file: str | None = None) -> str:
         if kind not in KINDS or step not in STEPS:
             raise EvaluationRecordError(f"unknown kind {kind!r} or step {step!r}")
         record_id = _new_id()
@@ -213,7 +227,9 @@ class EvaluationRecordStore:
             "build": dict(build), "inputs": list(inputs),
             "item_selection_sha256": digest_of_ids(list(item_selection)) if item_selection is not None else None,
             "models": models, "prompt_versions": prompt_versions, "prompt_sha256": prompt_sha256,
-            "sampling": sampling, "usage": None, "config": dict(config or {}), "counts": dict(counts or {}),
+            "sampling": sampling, "usage": None,
+            "config": {**(config or {}), **({"checkpoint_file": checkpoint_file} if checkpoint_file else {})},
+            "counts": dict(counts or {}),
             "outputs": [], "relations": {**_empty_relations(), **(relations or {})}, "notes": [],
         }
         with self._locked(record_id):

@@ -1,4 +1,8 @@
-"""scripts/run_ablations.py writes one evaluation record per run (D-G33, E6, DEC-17)."""
+"""scripts/run_ablations.py writes one evaluation record per run (D-G33, E6, DEC-17).
+
+Also DEC-17's guards: an unrecorded checkpoint is never resumed by default,
+the July files are never written, and a resume names its failed predecessor.
+"""
 
 from __future__ import annotations
 
@@ -123,9 +127,10 @@ def test_a_resumed_run_names_its_predecessor_or_says_none_does(runner, tmp_path)
     assert second["relations"]["resumes_record_id"] == first["record_id"]
     assert any(i["role"] == "checkpoint_resumed" for i in second["inputs"])
     assert second["counts"]["units_resumed"] == 1
-    # a checkpoint no record names
+    # a checkpoint no record names: resumed only with the explicit flag
     (tmp_path / "results" / "orphan.jsonl").write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {}}) + "\n")
-    assert runner.main(_argv(tmp_path, "--checkpoint", str(tmp_path / "results" / "orphan.jsonl"))) == 0
+    assert runner.main(_argv(tmp_path, "--checkpoint", str(tmp_path / "results" / "orphan.jsonl"),
+                             "--resume-unrecorded")) == 0
     third = max(store.list_records(), key=lambda r: r["started_at"])
     assert third["relations"]["resumes_record_id"] is None
     assert "resumed from a checkpoint no record names" in third["notes"]
@@ -136,7 +141,7 @@ def test_repeat_of_must_resolve_and_no_record_writes_nothing(runner, tmp_path, c
     assert "no evaluation record 000000000000" in capsys.readouterr().out
     assert runner.main(_argv(tmp_path, "--no-record")) == 0
     assert EvaluationRecordStore(tmp_path, create=False).list_records() == []
-    assert runner.main(_argv(tmp_path)) == 0
+    assert runner.main(_argv(tmp_path, "--resume-unrecorded")) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert runner.main(_argv(tmp_path, "--repeat-of", rec["record_id"], "--checkpoint",
                              str(tmp_path / "results" / "ckpt2.jsonl"))) == 0
@@ -151,3 +156,78 @@ def test_a_refused_live_gate_records_nothing(runner, monkeypatch, tmp_path):
     with pytest.raises(harness.LiveGateError):
         runner.main(_argv(tmp_path))
     assert not (tmp_path / "evaluation_records").exists()
+
+
+def _july(name: str) -> bytes:
+    return (ROOT / "eval" / "results" / name).read_bytes()
+
+
+def test_a_default_path_resume_over_the_july_checkpoint_bytes_refuses_and_records_nothing(runner, monkeypatch,
+                                                                                         tmp_path, capsys):
+    results = tmp_path / "results"
+    results.mkdir()
+    ckpt, summary = results / "ablation_checkpoint.jsonl", results / "ablation_summary.json"
+    ckpt.write_bytes(_july("ablation_checkpoint.jsonl"))
+    monkeypatch.setattr(runner, "CHECKPOINT", ckpt)
+    monkeypatch.setattr(runner, "SUMMARY", summary)
+    for extra in ((), ("--resume-unrecorded",), ("--no-record",)):
+        assert runner.main(["--dump-dir", str(tmp_path), *extra]) == 2
+        assert (f"refusing to write {ckpt}: its bytes are the July 2026 measurement; pass --summary or "
+                "--checkpoint with another path") in capsys.readouterr().out
+    assert ckpt.read_bytes() == _july("ablation_checkpoint.jsonl") and not summary.exists()
+    assert not (tmp_path / "evaluation_records").exists() or EvaluationRecordStore(
+        tmp_path, create=False).list_records() == []
+
+
+def test_a_summary_target_holding_the_july_bytes_refuses(runner, tmp_path, capsys):
+    results = tmp_path / "results"
+    results.mkdir()
+    summary = results / "ablation_summary.json"
+    summary.write_bytes(_july("ablation_full_summary.json"))
+    argv = ["--dump-dir", str(tmp_path), "--checkpoint", str(results / "fresh.jsonl"), "--summary", str(summary)]
+    for extra in ((), ("--no-record",)):
+        assert runner.main([*argv, *extra]) == 2
+        assert f"refusing to write {summary}: its bytes are the July 2026 measurement" in capsys.readouterr().out
+    assert summary.read_bytes() == _july("ablation_full_summary.json")
+    assert not (results / "fresh.jsonl").exists()
+
+
+def test_an_unrecorded_checkpoint_is_resumed_only_with_the_flag(runner, tmp_path, capsys):
+    results = tmp_path / "results"
+    results.mkdir()
+    orphan = results / "orphan.jsonl"
+    orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {}}) + "\n")
+    argv = _argv(tmp_path, "--checkpoint", str(orphan))
+    for extra in ((), ("--no-record",)):
+        assert runner.main([*argv, *extra]) == 2
+        assert (f"refusing to resume {orphan}: no evaluation record names it; pass --resume-unrecorded to resume "
+                "it anyway (the note is recorded) or --checkpoint with a fresh path") in capsys.readouterr().out
+    assert EvaluationRecordStore(tmp_path, create=False).list_records() == []
+    assert runner.main([*argv, "--resume-unrecorded"]) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["relations"]["resumes_record_id"] is None
+    assert rec["notes"] == ["resumed from a checkpoint no record names"]
+    assert rec["config"]["checkpoint_file"] == "orphan.jsonl"
+
+
+def test_a_resume_after_a_failed_run_names_the_failed_record(runner, monkeypatch, tmp_path):
+    monkeypatch.setattr(runner.strategies, "STRATEGY_NAMES", ["plain_llm", "vector_rag"])
+    real_build = runner.strategies.build_strategy
+
+    def failing_second(name, **kw):
+        if name == "vector_rag" and runner._TEST_CALLS.get("fail_second"):
+            raise RuntimeError("provider refused")
+        return real_build(name, **kw)
+    monkeypatch.setattr(runner.strategies, "build_strategy", failing_second)
+    runner._TEST_CALLS["fail_second"] = True
+    with pytest.raises(RuntimeError, match="provider refused"):
+        runner.main(_argv(tmp_path))
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (failed,) = store.list_records()
+    assert failed["outcome"]["status"] == "failed" and failed["outputs"] == []
+    assert (tmp_path / "results" / "ablation_checkpoint.jsonl").read_text().count("\n") == 1
+    runner._TEST_CALLS["fail_second"] = False
+    assert runner.main(_argv(tmp_path)) == 0
+    resumed = [r for r in store.list_records() if r["record_id"] != failed["record_id"]][0]
+    assert resumed["relations"]["resumes_record_id"] == failed["record_id"]
+    assert resumed["notes"] == [] and resumed["counts"]["units_resumed"] == 1

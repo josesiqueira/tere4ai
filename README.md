@@ -282,7 +282,10 @@ false accept and false reject rates per judge kind and pooled, a rate with
 an empty denominator being null, never 0.0, and every rate a sample
 estimate). `--dump-dir` is where `layer1.json`, `norms_core.json` and
 `evaluation_records/` live, for the runner, the harness and the sampler
-alike. A draw over an active publication whose manifest lacks a role
+alike. The runner refuses (exit code 2) to resume a checkpoint that no
+record names unless `--resume-unrecorded` is given, the note then recorded.
+The runner refuses (exit code 2) to append to or rewrite a file whose bytes
+are a pinned July 2026 summary or checkpoint, `--no-record` or not. A draw over an active publication whose manifest lacks a role
 refuses with a sentence and exit code 2 unless `--norms`, `--alignments`
 or `--layer1` is given. The routes `GET /api/evaluations` (grouped by
 build identity, newest first, records without a date last, the group with
