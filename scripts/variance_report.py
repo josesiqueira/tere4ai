@@ -216,7 +216,9 @@ def main(argv: list[str] | None = None) -> int:
         record_id = store.begin(
             kind="comparison", step="E6", command="variance_report",
             argv=list(argv) if argv is not None else sys.argv[1:],
-            inputs=[refs["run_a"], refs["run_b"], file_ref("benchmark", benchmark_path)],
+            # gold_risk_by_item also reads the gold seed (G8)
+            inputs=[refs["run_a"], refs["run_b"], file_ref("benchmark", benchmark_path),
+                    file_ref("gold_seed", harness.GOLD_SEED_PATH)],
             build={"base_build_id": None, "publication": None,
                    "publication_reason": "a comparison reads run files, not the served build"},
             config={"code_version": code_version(ROOT)}, relations={"compares": compares},

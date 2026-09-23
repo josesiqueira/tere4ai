@@ -33,6 +33,14 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   and `prompt_sha256`, null where the dump lacks it (spec G D-G39).
 - `data/graph_dumps/evaluation_records/` joins the artefact policy
   (git-ignored).
+- Codex review fix wave (G1 to G8): a record binds to a publication only
+  when `verify_dumps_against_chain` accepts the served bytes; a checkpoint
+  resumes only the record its `<checkpoint>.record` sidecar names; the
+  harness copies its own artifact bytes, never the shared path's; a label
+  act refuses a sheet whose bytes are not the last recorded act's output;
+  a record file that is not UTF-8 is an unreadable row; the detail route
+  answers 404 on an unreadable copy; the runner records the features cache
+  only when read; the variance comparison names the gold seed.
 
 ### Judge model: claude-opus-5-5 (2026-09-23)
 - `TERE4AI_JUDGE_MODEL` names Claude Opus 5.5 (`claude-opus-5-5`, listed by

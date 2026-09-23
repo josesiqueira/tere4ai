@@ -11,7 +11,9 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.eval import harness
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
+from tere4ai.graph_store.build_chain import sha256_of_file
 
 ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
@@ -97,7 +99,10 @@ def test_main_records_a_comparison_naming_the_runs_it_can_resolve(tmp_path):
                     "--dump-dir", str(tmp_path)]) == 0
     rec = [x for x in store.list_records() if x["kind"] == "comparison"][0]
     assert rec["relations"]["compares"] == [rid, None] and "run_b is named by no record" in rec["notes"]
-    assert {i["role"] for i in rec["inputs"]} == {"run_a", "run_b", "benchmark"}
+    assert {i["role"] for i in rec["inputs"]} == {"run_a", "run_b", "benchmark", "gold_seed"}
+    (gold_seed,) = [i for i in rec["inputs"] if i["role"] == "gold_seed"]
+    assert gold_seed["file"] == harness.GOLD_SEED_PATH.name
+    assert gold_seed["sha256"] == sha256_of_file(harness.GOLD_SEED_PATH), "the gold seed the comparison reads (G8)"
     assert rec["outcome"]["status"] == "completed" and rec["outcome"]["completed_items"] == ["i1", "i2"]
     assert rec["counts"]["common_items"] == 2 and rec["counts"]["label_flips"] == 0, "flips count gold items only (R7)"
     (study,) = rec["outputs"]
