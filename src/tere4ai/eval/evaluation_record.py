@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -220,16 +221,30 @@ class EvaluationRecordStore:
         return record_id
 
     def keep_output(self, record_id: str, role: str, path: Path | str) -> dict[str, Any]:
-        """Copy the output's bytes under the record's directory; the copy is never overwritten."""
+        """Copy the output's bytes under the record's directory; the copy is never overwritten.
+
+        The existence check and the copy happen under the record's lock, and the
+        copy itself lands via a unique temp file plus os.replace, so a reader
+        never observes a partial copy and two concurrent callers for the same
+        record and role never race past the "already exists" refusal.
+        """
         if not self.create:
             raise EvaluationRecordError("read-only store: no writes")
         src = Path(path)
         target_dir = self.dir / record_id
         target_dir.mkdir(exist_ok=True)
         target = target_dir / f"{role}{src.suffix}"
-        if target.exists():
-            raise EvaluationRecordError(f"output copy exists: {target.relative_to(self.dir)}")
-        shutil.copyfile(src, target)
+        with self._locked(record_id):
+            if target.exists():
+                raise EvaluationRecordError(f"output copy exists: {target.relative_to(self.dir)}")
+            fd, tmp = tempfile.mkstemp(prefix="tmp", dir=str(target_dir))
+            try:
+                os.close(fd)
+                shutil.copyfile(src, tmp)
+                os.replace(tmp, target)
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
         ref = file_ref(role, src)
         ref["copy"] = str(target.relative_to(self.dir))
         return ref

@@ -1,4 +1,4 @@
-"""The evaluation record store (D-G33): begin, finish, copies, locks, lookups, read-only."""
+"""The evaluation record store (D-G33, DEC-17): begin, finish, copies, locks, lookups, read-only."""
 
 from __future__ import annotations
 
@@ -59,6 +59,19 @@ def test_finish_records_outcome_outputs_and_usage_and_is_final(tmp_path):
     assert rec["ended_at"] is not None and rec["outputs"] == [ref] and rec["usage"] == {"generator": {"calls": 1}}
     with pytest.raises(EvaluationRecordError, match="already ended"):
         store.finish(rid, status="completed")
+    with pytest.raises(EvaluationRecordError, match="exists"):
+        store.keep_output(rid, "summary", out)
+
+
+def test_keep_output_leaves_no_temp_file_and_still_refuses_a_second_copy(tmp_path):
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None})
+    out = tmp_path / "ablation_summary.json"
+    out.write_text("{}")
+    store.keep_output(rid, "summary", out)
+    record_dir = store.dir / rid
+    assert not [p.name for p in record_dir.iterdir() if p.name.startswith("tmp")]
     with pytest.raises(EvaluationRecordError, match="exists"):
         store.keep_output(rid, "summary", out)
 
