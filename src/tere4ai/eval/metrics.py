@@ -1,6 +1,6 @@
 """M4 evaluation metrics: pure functions over eval results and gold labels.
 
-@implements: DEC-11
+@implements: DEC-11, DEC-17
 @grounded_by: REF-16, REF-15
 
 Implements the Section 12 metric set that the M4 harness reports per
@@ -29,6 +29,8 @@ from typing import Any
 JUDGE_GOLD_LABELS = ("accept", "reject")
 # Judge verdicts as produced by the judges (tere4ai.judge.runtime_grounding).
 JUDGE_VERDICTS = ("accepted", "rejected", "needs_human_review")
+
+METRICS_VERSION = "metrics.v2"  # v2: an empty denominator yields None (was 0.0 in v1)
 
 
 def precision(tp: int, fp: int) -> float:
@@ -168,6 +170,8 @@ def judge_error_rates(
     - needs_human_review is an abstention: counted separately, never a
       false accept or false reject (the item goes to a human, which is the
       designed degradation path, architecture.md Section 13).
+
+    A rate with an empty denominator is None, never 0.0 (D-G33): nothing was measured.
     """
     false_accepts: list[str] = []
     false_rejects: list[str] = []
@@ -190,8 +194,9 @@ def judge_error_rates(
         elif verdict == "rejected" and gold == "accept":
             false_rejects.append(item_id)
     return {
-        "false_accept_rate": len(false_accepts) / gold_reject_n if gold_reject_n else 0.0,
-        "false_reject_rate": len(false_rejects) / gold_accept_n if gold_accept_n else 0.0,
+        "false_accept_rate": (len(false_accepts) / gold_reject_n) if gold_reject_n else None,
+        "false_reject_rate": (len(false_rejects) / gold_accept_n) if gold_accept_n else None,
+        "denominators": {"false_accept": gold_reject_n, "false_reject": gold_accept_n},
         "counts": {
             "false_accepts": len(false_accepts),
             "false_rejects": len(false_rejects),
@@ -204,3 +209,25 @@ def judge_error_rates(
         "false_reject_ids": false_rejects,
         "abstained_ids": abstained,
     }
+
+
+def judge_error_rates_by_kind(
+    verdicts: dict[str, str],
+    gold_labels: dict[str, str],
+    kinds: dict[str, str],
+) -> dict[str, Any]:
+    """The rates pooled over every scored id and apart per judge kind.
+
+    kinds maps an id to its judge kind ("extraction", "alignment"); an id
+    without a kind is scored in the pool only. Per kind the rates are
+    computed over that kind's ids alone, so a kind with no gold-reject item
+    reports a None false-accept rate rather than borrowing the other kind's
+    denominator.
+    """
+    pooled = judge_error_rates(verdicts, gold_labels)
+    by_kind: dict[str, Any] = {}
+    for kind in sorted(set(kinds.values())):
+        ids = {i for i, k in kinds.items() if k == kind}
+        by_kind[kind] = judge_error_rates({i: v for i, v in verdicts.items() if i in ids},
+                                          {i: g for i, g in gold_labels.items() if i in ids})
+    return {"pooled": pooled, "by_kind": by_kind}

@@ -1,16 +1,19 @@
 """Unit tests for the M4 evaluation metrics (pure functions, synthetic data).
 
 Every expected value below is hand-computed from the synthetic counts; no
-model, no network, no real results file.
+model, no network, no real results file. DEC-17: the judge error rate tests
+below assert the metrics.v2 null-on-empty-denominator behaviour.
 """
 
 import pytest
 
 from tere4ai.eval.metrics import (
+    METRICS_VERSION,
     citation_completeness,
     f1,
     hallucinated_citation_rate,
     judge_error_rates,
+    judge_error_rates_by_kind,
     precision,
     prf1,
     recall,
@@ -158,8 +161,31 @@ def test_judge_error_rates_exact():
 
 def test_judge_error_rates_empty_and_invalid_gold():
     out = judge_error_rates({}, {})
-    assert out["false_accept_rate"] == 0.0
-    assert out["false_reject_rate"] == 0.0
+    assert out["false_accept_rate"] is None
+    assert out["false_reject_rate"] is None
+    assert out["denominators"] == {"false_accept": 0, "false_reject": 0}
     assert out["counts"]["scored"] == 0
     with pytest.raises(ValueError):
         judge_error_rates({"n1": "accepted"}, {"n1": "maybe"})
+
+
+def test_judge_error_rates_are_null_on_an_empty_denominator_never_zero():
+    out = judge_error_rates({"a": "accepted", "b": "rejected"}, {"a": "accept", "b": "accept"})
+    assert out["false_accept_rate"] is None, "no gold-reject item: the rate is undefined, not 0.0"
+    assert out["false_reject_rate"] == 0.5
+    assert out["denominators"] == {"false_accept": 0, "false_reject": 2}
+    assert out["counts"]["gold_reject"] == 0
+
+
+def test_judge_error_rates_by_kind_reports_each_kind_and_the_pool():
+    verdicts = {"e1": "accepted", "e2": "rejected", "m1": "accepted", "m2": "needs_human_review"}
+    gold = {"e1": "reject", "e2": "accept", "m1": "accept", "m2": "reject"}
+    kinds = {"e1": "extraction", "e2": "extraction", "m1": "alignment", "m2": "alignment"}
+    out = judge_error_rates_by_kind(verdicts, gold, kinds)
+    assert set(out) == {"pooled", "by_kind"} and set(out["by_kind"]) == {"alignment", "extraction"}
+    assert out["by_kind"]["extraction"]["false_accept_rate"] == 1.0
+    assert out["by_kind"]["extraction"]["false_reject_rate"] == 1.0
+    assert out["by_kind"]["alignment"]["false_accept_rate"] == 0.0, "m2 abstained but counts as a gold-reject item"
+    assert out["by_kind"]["alignment"]["counts"]["abstained"] == 1
+    assert out["pooled"]["counts"]["scored"] == 4 and out["pooled"]["false_accept_rate"] == 0.5
+    assert METRICS_VERSION == "metrics.v2"
