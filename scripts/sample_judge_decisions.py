@@ -486,6 +486,38 @@ def _sample_build(sheet: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# the output role through which each recorded act of the chain wrote the sheet
+_SHEET_ROLE_BY_KIND = {"sample": "sheet_json", "labelling": "sheet_after"}
+
+
+def _last_act_refusal(sheet_path: Path, sheet: dict[str, Any], dump_dir: Path) -> str | None:
+    """The refusal sentence unless the sheet's bytes are the bytes the newest
+    completed draw or label act of its sample wrote, else None (G4).
+
+    A read-only lookup, so a --no-record label act is checked the same way;
+    a --no-record label act therefore breaks the chain for the next act.
+    """
+    sample_id = (sheet.get("sample") or {}).get("sample_id")
+    acts = sorted(
+        (
+            r for r in EvaluationRecordStore(dump_dir, create=False).list_records()
+            if not r.get("unreadable") and r["kind"] in _SHEET_ROLE_BY_KIND
+            and r["outcome"]["status"] == "completed" and sample_id
+            and r["relations"]["sample_id"] == sample_id
+        ),
+        key=lambda r: (r["ended_at"], r["record_id"]),
+    )
+    if not acts:
+        return (f"refusing to label {sheet_path}: no recorded draw or label act names sample {sample_id} "
+                "on this store")
+    last = acts[-1]
+    written = [o["sha256"] for o in last["outputs"] if o["role"] == _SHEET_ROLE_BY_KIND[last["kind"]]]
+    if sha256_of_file(sheet_path) not in written:
+        return (f"refusing to label {sheet_path}: its bytes are not the bytes the last recorded act wrote "
+                f"({last['record_id']})")
+    return None
+
+
 def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     """The E1 label act: record human_label, human_rationale, labelled_by
     and labelled_at per item, then write one labelling evaluation record.
@@ -498,6 +530,10 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         # the July sheet stays intact: a label act needs a drawn sample (F6)
         print(f"refusing to label {args.sheet}: it was not drawn through a recorded draw (no sample block); "
               "draw a recorded sample first")
+        return 2
+    refusal = _last_act_refusal(args.sheet, sheet, args.dump_dir)
+    if refusal is not None:
+        print(refusal)
         return 2
     by_id = {it["decision_id"]: it for it in sheet.get("items", [])}
     wanted: dict[str, tuple[str, str]] = {}

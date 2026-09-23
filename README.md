@@ -276,7 +276,10 @@ only: `--repeat-of <record id>` to name the run this one repeats), `scripts/vari
 refuses to overwrite any existing sheet without `--force` and binds the
 sample to the activated publication or to the base build id; `--label
 <decision id> <accept|reject> --by <name>` or `--label-file <csv> --by
-<name>`, which record actor and time per item; `--compute`, which refuses a
+<name>`, which record actor and time per item and refuse (exit code 2) a
+sheet whose bytes are not the bytes the last recorded draw or label act of
+its sample wrote, so a `--no-record` label act breaks the chain for the
+next one; `--compute`, which refuses a
 label without an actor or a time and writes an analysis record with the
 false accept and false reject rates per judge kind and pooled, a rate with
 an empty denominator being null, never 0.0, and every rate a sample

@@ -743,3 +743,60 @@ def test_compute_lists_only_completed_label_acts_and_notes_a_sheet_no_act_names(
     (copied,) = EvaluationRecordStore(other, create=False).list_records()
     assert "no labelling record on this store names the sheet's bytes" in copied["notes"]
     assert copied["relations"]["labelling_record_ids"] == []
+
+
+# Codex fix wave G4: a label act reads only the bytes the last recorded act wrote
+
+
+def test_a_label_act_chains_on_the_draw_then_on_the_previous_label_act(tmp_path):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[0], "accept", "--by", "Jose")) == 0
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[1], "reject", "--by", "Jose")) == 0
+    labelling = [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "labelling"]
+    assert len(labelling) == 2
+
+
+def test_a_label_act_refuses_a_sheet_hand_edited_after_the_draw_and_records_nothing(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (draw,) = store.list_records()
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    sheet["items"][1]["human_label"] = "reject"  # a hand edit riding into the next label act
+    (tmp_path / "sheet.json").write_text(json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
+    before = (tmp_path / "sheet.json").read_bytes()
+    capsys.readouterr()
+    for extra in ((), ("--no-record",)):
+        assert sampling.main(_draw_argv(tmp_path, "--label", sheet["items"][0]["decision_id"], "accept",
+                                        "--by", "Jose", *extra)) == 2
+        assert (f"refusing to label {tmp_path / 'sheet.json'}: its bytes are not the bytes the last recorded "
+                f"act wrote ({draw['record_id']})") in capsys.readouterr().out
+    assert (tmp_path / "sheet.json").read_bytes() == before
+    assert store.list_records() == [draw]
+
+
+def test_a_label_act_refuses_a_sheet_whose_sample_no_record_names(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path, "--no-record")) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    sample_id = sheet["sample"]["sample_id"]
+    capsys.readouterr()
+    for extra in ((), ("--no-record",)):
+        assert sampling.main(_draw_argv(tmp_path, "--label", sheet["items"][0]["decision_id"], "accept",
+                                        "--by", "Jose", *extra)) == 2
+        assert (f"refusing to label {tmp_path / 'sheet.json'}: no recorded draw or label act names sample "
+                f"{sample_id} on this store") in capsys.readouterr().out
+    assert not (tmp_path / "evaluation_records").exists() or EvaluationRecordStore(
+        tmp_path, create=False).list_records() == []
+
+
+def test_an_unrecorded_label_act_breaks_the_chain_for_the_next_recorded_one(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[0], "accept", "--by", "Jose", "--no-record")) == 0
+    capsys.readouterr()
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[1], "accept", "--by", "Jose")) == 2
+    assert "its bytes are not the bytes the last recorded act wrote" in capsys.readouterr().out
