@@ -102,6 +102,10 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     paths = served_input_paths(args.dump_dir)
+    for role in ("layer1_dump", "norms"):
+        if role not in paths:
+            print(f"refusing to run: the active publication names no {role} file")
+            return 2
     dump = json.loads(paths["layer1_dump"].read_text())
     norms_payload = json.loads(paths["norms"].read_text())
     items = load_items(args.benchmark, args.features)

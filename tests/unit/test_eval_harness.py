@@ -5,7 +5,8 @@ Live behaviour is tested exclusively as refusal paths (the gate and the
 config guard must raise); no test here may ever call a model.
 
 Also covers DEC-17: run_eval and main record one E6 evaluation record per
-run and write the results artifact atomically.
+run and write the results artifact atomically, refuse a served manifest
+lacking a role, and finish the record failed on any exception.
 """
 
 import json
@@ -696,3 +697,17 @@ def test_main_records_by_default_and_not_with_no_record(tmp_path):
     assert rec["build"]["base_build_id"] == "build-b", "the dumps were read from tmp_path, not the checkout"
     assert h.main(args + ["--no-record"]) == 0
     assert len(EvaluationRecordStore(tmp_path, create=False).list_records()) == 1
+
+
+def test_a_manifest_lacking_a_role_raises_the_asset_error_before_begin(tmp_path):
+    from tere4ai.eval import harness as h
+    _write_legacy_dumps(tmp_path)
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "chain-xyz.json").write_text(json.dumps({
+        "build_id": "build-xyz", "files": {"layer1_dump": "layer1.json"}}))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-xyz"}))
+    store = EvaluationRecordStore(tmp_path)
+    with pytest.raises(h.EvalAssetMissingError, match="^the active publication names no norms file$"):
+        run_eval(list(GOLD_3)[:1], ["plain_llm"], generator_factory=make_generator, results_dir=tmp_path / "r",
+                 record_store=store, dump_dir=tmp_path)
+    assert store.list_records() == []

@@ -309,6 +309,9 @@ def run_eval(
         if generator_factory is None:
             raise ValueError("strategy names were given but no generator_factory")
         served = served_input_paths(dump_dir or LAYER1_DUMP_PATH.parent)
+        for role, preloaded in (("layer1_dump", dump), ("norms", norms_payload)):
+            if preloaded is None and role not in served:
+                raise EvalAssetMissingError(f"the active publication names no {role} file")
         if dump is None:
             dump = json.loads(served["layer1_dump"].read_text(encoding="utf-8"))
             read_paths["layer1_dump"] = served["layer1_dump"]

@@ -231,3 +231,17 @@ def test_a_resume_after_a_failed_run_names_the_failed_record(runner, monkeypatch
     resumed = [r for r in store.list_records() if r["record_id"] != failed["record_id"]][0]
     assert resumed["relations"]["resumes_record_id"] == failed["record_id"]
     assert resumed["notes"] == [] and resumed["counts"]["units_resumed"] == 1
+
+
+def _publish_only_layer1(tmp_path):
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "chain-xyz.json").write_text(json.dumps({
+        "build_id": "build-xyz", "files": {"layer1_dump": "layer1.json"}}))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-xyz"}))
+
+
+def test_a_manifest_lacking_a_role_refuses_with_a_sentence(runner, tmp_path, capsys):
+    _publish_only_layer1(tmp_path)
+    assert runner.main(_argv(tmp_path)) == 2
+    assert "refusing to run: the active publication names no norms file" in capsys.readouterr().out
+    assert not (tmp_path / "evaluation_records").exists()
