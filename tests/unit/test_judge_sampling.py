@@ -674,3 +674,63 @@ def test_label_file_refuses_a_missing_file_or_missing_columns(tmp_path, capsys):
     assert not [r for r in store.list_records() if r["kind"] == "labelling"]
     sheet = json.loads((tmp_path / "sheet.json").read_text())
     assert all(it["human_label"] is None for it in sheet["items"])
+
+
+# Fix wave F7: --compute reads the bytes the last label act wrote -----------
+
+
+def _label_all(tmp_path, label="accept"):
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    ids = [it["decision_id"] for it in sheet["items"]]
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text("decision_id,human_label,human_rationale\n" + "".join(f"{i},{label},\n" for i in ids))
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose", "--force")) == 0
+    return ids
+
+
+def test_compute_refuses_a_sheet_hand_edited_after_the_last_label_act(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    _label_all(tmp_path)
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (label_rec,) = [r for r in store.list_records() if r["kind"] == "labelling"]
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    sheet["items"][0]["human_label"] = "reject"  # a hand edit that keeps labelled_by and labelled_at
+    (tmp_path / "sheet.json").write_text(json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
+    capsys.readouterr()
+    assert sampling.main(_draw_argv(tmp_path, "--compute")) == 2
+    assert ("refusing to compute: the sheet's bytes are not the bytes the last label act wrote "
+            f"({label_rec['record_id']}); label through --label or --label-file") in capsys.readouterr().out
+    assert not [r for r in store.list_records() if r["kind"] == "analysis"]
+
+
+def test_compute_lists_only_completed_label_acts_and_notes_a_sheet_no_act_names(tmp_path, monkeypatch):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    _label_all(tmp_path)
+    store = EvaluationRecordStore(tmp_path, create=False)
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    real_replace = sampling.os.replace
+
+    def _boom(src, dst, *args, **kwargs):
+        if Path(dst) == tmp_path / "sheet.json":
+            raise OSError("disk full")
+        return real_replace(src, dst, *args, **kwargs)
+    monkeypatch.setattr(sampling.os, "replace", _boom)
+    with pytest.raises(OSError):
+        _label_all(tmp_path, "reject")
+    monkeypatch.setattr(sampling.os, "replace", real_replace)
+    assert sampling.main(_draw_argv(tmp_path, "--compute")) == 0
+    completed = [r["record_id"] for r in store.list_records()
+                 if r["kind"] == "labelling" and r["outcome"]["status"] == "completed"]
+    (analysis,) = [r for r in store.list_records() if r["kind"] == "analysis"]
+    assert analysis["relations"]["labelling_record_ids"] == completed and len(completed) == 1
+    # the same labelled bytes on another store (copied here): computed, with the note
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    (other / "sheet.json").write_text(json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
+    assert sampling.main(["--dump-dir", str(other), "--sheet", str(other / "sheet.json"),
+                          "--sheet-md", str(other / "sheet.md"), "--compute"]) == 0
+    (copied,) = EvaluationRecordStore(other, create=False).list_records()
+    assert "no labelling record on this store names the sheet's bytes" in copied["notes"]
+    assert copied["relations"]["labelling_record_ids"] == []

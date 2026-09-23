@@ -38,7 +38,8 @@ mapping-judge) criteria hold and "reject" on any single failure; the judge
 verdicts stay "accepted" / "rejected" / "needs_human_review" and
 needs_human_review is an abstention, never an FA or FR. --compute refuses
 while any human_label is still null or was recorded without an actor and a
-time; a rate with an empty denominator prints as null, never 0.0. This is a
+time, and while the sheet's bytes are not the bytes the newest completed
+label act on this store wrote (a hand edit after labelling); a rate with an empty denominator prints as null, never 0.0. This is a
 sample estimate: population weighting is not designed. --compute writes one
 analysis evaluation record.
 """
@@ -74,6 +75,7 @@ from tere4ai.eval.metrics import (  # noqa: E402
     METRICS_VERSION,
     judge_error_rates_by_kind,
 )
+from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 
 SHEET_JSON = ROOT / "eval" / "gold" / "judge_label_sheet.json"
 SHEET_MD = ROOT / "eval" / "gold" / "judge_label_sheet.md"
@@ -626,22 +628,33 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(str(exc))
             return 2
-        store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
         sample_id = (sheet.get("sample") or {}).get("sample_id")
+        # completed label acts only, oldest first; the newest must have written these bytes (F7)
+        labelling = sorted(
+            (
+                r for r in EvaluationRecordStore(args.dump_dir, create=False).list_records()
+                if not r.get("unreadable") and r["kind"] == "labelling"
+                and r["outcome"]["status"] == "completed" and sample_id
+                and r["relations"]["sample_id"] == sample_id
+            ),
+            key=lambda r: (r["ended_at"], r["record_id"]),
+        )
+        labelling_ids = [r["record_id"] for r in labelling]
+        compute_notes: list[str] = []
+        if labelling:
+            newest = labelling[-1]
+            written = [o["sha256"] for o in newest["outputs"] if o["role"] == "sheet_after"]
+            if sha256_of_file(args.sheet) not in written:
+                print("refusing to compute: the sheet's bytes are not the bytes the last label act wrote "
+                      f"({newest['record_id']}); label through --label or --label-file")
+                return 2
+        else:
+            compute_notes.append("no labelling record on this store names the sheet's bytes")
+        store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
         ids = [it["decision_id"] for it in sheet["items"]]
         pooled = rates["pooled"]
         record_id = None
         if store is not None:
-            labelling_ids = [
-                r["record_id"] for r in sorted(
-                    (
-                        r for r in store.list_records()
-                        if not r.get("unreadable") and r["kind"] == "labelling"
-                        and r["ended_at"] and sample_id and r["relations"]["sample_id"] == sample_id
-                    ),
-                    key=lambda r: (r["ended_at"], r["record_id"]),
-                )
-            ]
             record_id = store.begin(
                 kind="analysis", step="E1", command="sample_judge_decisions",
                 argv=list(argv) if argv is not None else sys.argv[1:],
@@ -652,7 +665,7 @@ def main(argv: list[str] | None = None) -> int:
                 intended_items=ids,
             )
             rates_path = args.sheet.with_name("error_rates.json")
-            notes = [rates["note"]]
+            notes = [rates["note"], *compute_notes]
             try:
                 _write_atomic(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
                 store.finish(
