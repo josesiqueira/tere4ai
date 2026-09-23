@@ -310,6 +310,8 @@ continues that record only when the store can read it and it names the same
 checkpoint file; otherwise the runner refuses (exit code 2) and says why. A
 checkpoint without a sidecar, a `--no-record` run's included, is resumed
 only with `--resume-unrecorded`. The resuming record takes the sidecar over.
+The sidecar is local state, git-ignored like the records: removing it makes
+the checkpoint one no record names.
 
 ## Status
 

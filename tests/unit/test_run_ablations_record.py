@@ -315,6 +315,8 @@ def test_a_sidecar_the_store_cannot_confirm_refuses_the_resume_and_records_nothi
         assert runner.main(_argv(tmp_path, *extra)) == 2
         out = capsys.readouterr().out
         assert f"refusing to resume {ckpt}: its sidecar names evaluation record {rid}, {why}" in out
+        assert out.rstrip().endswith(f"remove the sidecar {ckpt.name}.record to resume it as a checkpoint "
+                                     "no record names (--resume-unrecorded)"), "the way out (G2b)"
     assert len(store.list_records()) == 1, "no record written"
 
 

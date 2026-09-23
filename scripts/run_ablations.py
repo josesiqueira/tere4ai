@@ -89,7 +89,10 @@ def resolve_resume(checkpoint_path: Path, dump_dir: Path) -> tuple[str | None, s
     sidecar = sidecar_path(checkpoint_path)
     if not sidecar.exists():
         return None, None
-    fresh = "pass --checkpoint with a fresh path"
+    # every sidecar refusal ends with the way out (G2b): a broken chain is not
+    # "no record names it", but removing the sidecar makes it exactly that
+    fresh = (f"pass --checkpoint with a fresh path, or remove the sidecar {sidecar.name} to resume it as a "
+             "checkpoint no record names (--resume-unrecorded)")
     try:
         data = json.loads(sidecar.read_text(encoding="utf-8"))
         rid = data["record_id"]
@@ -99,7 +102,7 @@ def resolve_resume(checkpoint_path: Path, dump_dir: Path) -> tuple[str | None, s
     except (OSError, ValueError, KeyError, TypeError) as exc:
         reason = exception_reason(exc)
         return None, (f"refusing to resume {checkpoint_path}: its sidecar {sidecar.name} is not readable "
-                      f"({reason}); remove it to resume the checkpoint as unrecorded, or {fresh}")
+                      f"({reason}); {fresh}")
     if named != checkpoint_path.name:
         return None, (f"refusing to resume {checkpoint_path}: its sidecar {sidecar.name} names the checkpoint "
                       f"file {named}; {fresh}")

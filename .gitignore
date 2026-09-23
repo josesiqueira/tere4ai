@@ -58,6 +58,10 @@ web/tsconfig.tsbuildinfo
 # publication manifests and reference files stay tracked
 data/graph_dumps/build_records/
 data/graph_dumps/evaluation_records/
+# the runner's checkpoint sidecar (G2b): local state like the records; a
+# fresh clone resumes a committed checkpoint only with --resume-unrecorded
+eval/results/*.record
+*.jsonl.record
 data/graph_dumps/*.checkpoint.jsonl
 data/graph_dumps/*.writing.json
 data/graph_dumps/*.building.json
