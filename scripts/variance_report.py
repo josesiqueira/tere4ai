@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         refs = {"run_a": file_ref("run_a", args.run_a), "run_b": file_ref("run_b", args.run_b)}
         compares = []
         for role in ("run_a", "run_b"):
-            found = store.find_by_output_digest(refs[role]["sha256"]) or store.find_by_output_file(refs[role]["file"])
+            found = store.find_by_output_digest(refs[role]["sha256"])  # by digest only (F5)
             if found is None:
                 notes.append(f"{role} is named by no record")
             compares.append(found)  # None stays in the list: the schema allows it (R8)

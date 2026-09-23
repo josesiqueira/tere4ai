@@ -154,3 +154,24 @@ def test_a_failing_keep_output_after_the_study_write_fails_the_record(tmp_path, 
     assert out.is_file(), "the compatibility file was written"
     (rec,) = store.list_records()
     assert rec["outcome"]["status"] == "failed" and "copy refused" in rec["outcome"]["error"]
+
+
+def test_a_run_is_named_by_digest_only_never_by_its_file_name(tmp_path):
+    a, b = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    r = {"i1": {"risk_category": "high", "citations": [], "answer_text": "x"}}
+    other = tmp_path / "other"
+    other.mkdir()
+    _checkpoint(other / "b.jsonl", {"i9": r["i1"]})  # the same name, other bytes
+    _checkpoint(a, r)
+    _checkpoint(b, r)
+    bench = tmp_path / "bench.json"
+    bench.write_text(json.dumps({"scenarios": [], "qa": []}))
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None})
+    store.finish(rid, status="completed", outputs=[store.keep_output(rid, "checkpoint", other / "b.jsonl")])
+    assert vr.main(["--run-a", str(a), "--run-b", str(b), "--benchmark", str(bench), "--out",
+                    str(tmp_path / "study.md"), "--dump-dir", str(tmp_path)]) == 0
+    rec = [x for x in store.list_records() if x["kind"] == "comparison"][0]
+    assert rec["relations"]["compares"] == [None, None]
+    assert rec["notes"] == ["run_a is named by no record", "run_b is named by no record"]
