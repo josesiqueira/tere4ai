@@ -777,3 +777,17 @@ def test_a_writer_stores_its_failure_with_the_file_name_only(tmp_path, monkeypat
                  results_dir=tmp_path / "r", record_store=store)
     (rec,) = store.list_records()
     assert rec["outcome"]["error"] == "FileNotFoundError: [Errno 2] No such file or directory: 'artifact.json'"
+
+
+def test_an_offline_run_with_graph_full_records_the_runtime_judge_prompt_hash(tmp_path):
+    from tere4ai.eval import harness as h
+    from tere4ai.judge.runtime_grounding import load_prompt, prompt_sha256
+    _write_legacy_dumps(tmp_path)
+    store = EvaluationRecordStore(tmp_path)
+    kw = {"generator_factory": h.OfflineStubClient, "judge_factory": h.OfflineStubClient, "record_store": store,
+          "dump_dir": tmp_path, "judge_log_path": tmp_path / "judge_log.jsonl"}
+    full = run_eval(list(GOLD_3)[:1], ["plain_llm", "graph_full"], results_dir=tmp_path / "r", **kw)
+    assert store.read(full["record_id"])["prompt_sha256"] == {
+        "runtime_grounding": prompt_sha256(load_prompt("runtime_grounding", "v1"))}
+    plain = run_eval(list(GOLD_3)[:1], ["plain_llm"], results_dir=tmp_path / "r2", **kw)
+    assert store.read(plain["record_id"])["prompt_sha256"] is None

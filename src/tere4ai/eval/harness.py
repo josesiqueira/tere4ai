@@ -262,6 +262,26 @@ def results_artifact_name(build_id: str, strategy_names: list[str]) -> str:
     return f"eval_{build_id}_{digest}.json"
 
 
+def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -> dict[str, str] | None:
+    """The runtime grounding judge's prompt hash per prompt version, for every
+    graph_full condition in the set, else None (no runtime judge was called).
+
+    Hashed the way tere4ai.judge.runtime_grounding does (load_prompt, then
+    prompt_sha256), never reimplemented; the key is "runtime_grounding" for
+    the v1 prompt and "runtime_grounding@<version>" for a variant."""
+    from tere4ai.judge.runtime_grounding import load_prompt, prompt_sha256
+
+    hashes: dict[str, str] = {}
+    for name, models in models_by_strategy.items():
+        base, _, suffix = name.partition("@")
+        if base != "graph_full":
+            continue
+        version = (models or {}).get("judge_prompt_version") or suffix or "v1"
+        key = "runtime_grounding" if version == "v1" else f"runtime_grounding@{version}"
+        hashes[key] = prompt_sha256(load_prompt("runtime_grounding", version))
+    return hashes or None
+
+
 def run_eval(
     items: list[dict[str, Any]],
     strategies: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] | list[str],
@@ -421,8 +441,11 @@ def run_eval(
                     usage = None
                 if sampling["generator"] is None and sampling["judge"] is None:
                     sampling = None
+            prompt_hashes = runtime_judge_prompt_sha256(
+                {name: dict(getattr(strategies[name], "models", {})) for name in strategy_names})
             record_store.finish(record_id, status="completed" if not errored else "partial", completed_items=completed,
                                 outputs=[ref], usage=usage, sampling=sampling, notes=notes,
+                                prompt_sha256=prompt_hashes,
                                 counts={"items_total": len(items), "items_with_errors": len(errored)})
     except BaseException as exc:
         if record_store is not None and record_id is not None:

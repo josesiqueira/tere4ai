@@ -372,6 +372,7 @@ def main(argv: list[str] | None = None) -> int:
             store.finish(
                 record_id, status="completed" if len(completed) == len(intended) else "partial",
                 completed_items=completed, outputs=outputs, usage=usage_total, prompt_versions=strategy_models,
+                prompt_sha256=harness.runtime_judge_prompt_sha256(strategy_models),
                 sampling={"generator": generator.sampling, "judge": judge.sampling},
                 counts={"items_total": len(items), "units_without_usage": units_without_usage,
                         "items_with_errors": len(errored)},

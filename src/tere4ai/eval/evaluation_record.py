@@ -279,7 +279,7 @@ class EvaluationRecordStore:
                usage: dict[str, Any] | None = None, counts: dict[str, Any] | None = None,
                notes: list[str] | tuple[str, ...] = (), models: dict[str, Any] | None = None,
                prompt_versions: dict[str, Any] | None = None, sampling: dict[str, Any] | None = None,
-               relations: dict[str, Any] | None = None) -> None:
+               relations: dict[str, Any] | None = None, prompt_sha256: dict[str, Any] | None = None) -> None:
         if status not in STATUSES or status == "running":
             raise EvaluationRecordError(f"finish status must be completed, partial or failed, not {status!r}")
         with self._locked(record_id):
@@ -297,6 +297,8 @@ class EvaluationRecordStore:
                 record["models"] = models
             if prompt_versions is not None:
                 record["prompt_versions"] = prompt_versions
+            if prompt_sha256 is not None:
+                record["prompt_sha256"] = prompt_sha256
             if sampling is not None:
                 record["sampling"] = sampling
             if counts:

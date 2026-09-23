@@ -245,3 +245,11 @@ def test_a_manifest_lacking_a_role_refuses_with_a_sentence(runner, tmp_path, cap
     assert runner.main(_argv(tmp_path)) == 2
     assert "refusing to run: the active publication names no norms file" in capsys.readouterr().out
     assert not (tmp_path / "evaluation_records").exists()
+
+
+def test_a_run_with_graph_full_records_the_runtime_judge_prompt_hash(runner, monkeypatch, tmp_path):
+    from tere4ai.judge.runtime_grounding import load_prompt, prompt_sha256
+    monkeypatch.setattr(runner.strategies, "STRATEGY_NAMES", ["plain_llm", "graph_full"])
+    assert runner.main(_argv(tmp_path)) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["prompt_sha256"] == {"runtime_grounding": prompt_sha256(load_prompt("runtime_grounding", "v1"))}
