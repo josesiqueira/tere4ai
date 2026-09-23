@@ -6,6 +6,11 @@
 Every presented field carries a provenance (recorded, derived, unavailable
 with a reason); an output copy is verified by digest; a legacy record states
 only what its files state (spec G D-G33, D-G34).
+
+The July judge label sheet is pinned to its bytes (JULY_SHEET_DIGEST) like
+the July summaries: a sheet with other bytes is either a recorded draw
+(its sample.record_id resolves; the draw's record lists it) or an
+unrecorded draw, which is the owner's choice and is not listed at all.
 """
 
 from __future__ import annotations
@@ -51,6 +56,8 @@ JULY_CHECKPOINT_DIGESTS = {
     "ablation_full_checkpoint.jsonl": "de7d7c1f7211a5c247caf8d2d8ee22f3568b96b9148dee7647df2c4ca5a79c40",
     "ablation_variance_checkpoint.jsonl": "43f9c2a12f5590cd17b2dcfb241d9e0e62dbc4e4b6debac0d4433be06a3d5825",
 }
+# the sha256 of eval/gold/judge_label_sheet.json as drawn in July: the July bytes, never rewritten
+JULY_SHEET_DIGEST = "a2c5e190bf97b7fe631e61ec7a6315d500734eeba6c5dbf596a56fae84f0c909"
 NOT_JULY_BYTES = "not recorded: the file's bytes are not the July bytes this phrase dates"
 NO_DATE = "not recorded: no analysis file states a date for this summary"
 LEGACY_STUDY = "variance_study.md"
@@ -299,11 +306,23 @@ def _recorded_sheet(store: EvaluationRecordStore | None, path: Path) -> bool:
         return False
 
 
+def _july_sheet(path: Path, dated_digests: dict[str, str]) -> bool:
+    """True when the sheet's bytes are the pinned July bytes (or the caller's
+    dated_digests entry for the sheet); an unreadable sheet stays a candidate
+    so it is reported as its own unreadable row."""
+    try:
+        return sha256_of_file(path) == dated_digests.get(LEGACY_SHEET, JULY_SHEET_DIGEST)
+    except OSError:
+        return True
+
+
 def synthesise_legacy_evaluations(root: Path | str, store: EvaluationRecordStore | None = None,
                                   dated_digests: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """Legacy records for the July 2026 files that exist under root and that no
     recorded run wrote; read-only. A stated date applies only to the bytes
-    dated_digests names for the file (default: the July digests)."""
+    dated_digests names for the file (default: the July digests); the sheet
+    is the July sample only when its bytes are the pinned ones (or the
+    dated_digests entry for judge_label_sheet.json)."""
     dated_digests = JULY_DIGESTS if dated_digests is None else dated_digests
     root = Path(root)
     results = root / "eval" / "results"
@@ -336,7 +355,7 @@ def synthesise_legacy_evaluations(root: Path | str, store: EvaluationRecordStore
                 record_id = _legacy_id_of_name(LEGACY_STUDY)
             records.append(unreadable_row(record_id, exception_reason(exc)))
     sheet = root / "eval" / "gold" / LEGACY_SHEET
-    if sheet.is_file() and not _recorded_sheet(store, sheet):
+    if sheet.is_file() and not _recorded_sheet(store, sheet) and _july_sheet(sheet, dated_digests):
         try:
             records.append(_legacy_sheet(sheet))
         except Exception as exc:  # noqa: BLE001

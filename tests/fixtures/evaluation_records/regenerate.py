@@ -202,8 +202,11 @@ def main(out_dir: Path | None = None) -> list[Path]:
         legacy_root = _legacy_root(tmp / "legacy")
         summary = legacy_root / "eval" / "results" / "ablation_run1_summary.json"
         # the synthetic summary's own digest; no analysis file dates run 1, so it stays undated
+        sheet = legacy_root / "eval" / "gold" / "judge_label_sheet.json"
+        # the synthetic sheet's own digest stands in for the pinned July sheet digest
         legacy = synthesise_legacy_evaluations(legacy_root, store,
-                                               dated_digests={summary.name: sha256_of_file(summary)})
+                                               dated_digests={summary.name: sha256_of_file(summary),
+                                                              sheet.name: sha256_of_file(sheet)})
         legacy_presented = [present_evaluation(r, store, NOW) for r in legacy]
         for rid, name in names.items():
             path = out_dir / f"{name}.json"

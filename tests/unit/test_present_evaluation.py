@@ -1,4 +1,6 @@
-"""The evaluation presenter, the list projection and the legacy synthesis (D-G33, D-G34, DEC-17)."""
+"""The evaluation presenter, the list projection and the legacy synthesis (D-G33, D-G34, DEC-17).
+
+DEC-17 fix wave: the July sheet is pinned to its bytes like the summaries."""
 
 from __future__ import annotations
 
@@ -123,7 +125,11 @@ SUMMARIES = ("ablation_run1_summary.json", "ablation_summary.json", "ablation_fu
 def _dated(root):
     """The synthetic summaries' own digests: the bytes the synthetic analysis phrases date."""
     results = root / "eval" / "results"
-    return {name: sha256_of_file(results / name) for name in SUMMARIES if (results / name).is_file()}
+    dated = {name: sha256_of_file(results / name) for name in SUMMARIES if (results / name).is_file()}
+    sheet = root / "eval" / "gold" / "judge_label_sheet.json"
+    if sheet.is_file():
+        dated["judge_label_sheet.json"] = sha256_of_file(sheet)  # the synthetic sheet stands in for July's
+    return dated
 
 
 def test_legacy_synthesis_states_only_what_the_files_state(tmp_path):
@@ -244,6 +250,16 @@ def test_a_stated_phrase_never_dates_bytes_that_are_not_the_july_bytes(tmp_path)
     default = {r["outputs"][0]["file"]: r for r in pe.synthesise_legacy_evaluations(root)
                if not r.get("unreadable") and r["kind"] == "run"}
     assert all(r["started_at"] is None for r in default.values()), "the pinned July digests date only July bytes"
+
+
+def test_a_sheet_whose_bytes_are_not_the_pinned_ones_is_not_the_legacy_sample(tmp_path):
+    root = _legacy_root(tmp_path)
+    kinds = [r["kind"] for r in pe.synthesise_legacy_evaluations(root) if not r.get("unreadable")]
+    assert "sample" not in kinds, "the synthetic sheet's bytes are not the pinned July bytes"
+    kinds = [r["kind"] for r in pe.synthesise_legacy_evaluations(root, dated_digests=_dated(root))
+             if not r.get("unreadable")]
+    assert kinds.count("sample") == 1, "the caller's dated_digests entry overrides the pin"
+    assert pe.JULY_SHEET_DIGEST == sha256_of_file(ROOT / "eval" / "gold" / "judge_label_sheet.json")
 
 
 def test_an_unreadable_study_is_named_by_its_bytes(tmp_path):

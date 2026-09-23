@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.eval import present_evaluation as pe
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -449,6 +450,33 @@ def test_draw_with_no_record_writes_a_sheet_without_a_record_id(tmp_path):
     sheet = json.loads((tmp_path / "sheet.json").read_text())
     assert sheet["sample"]["record_id"] is None and sheet["sample"]["sample_id"].startswith("sample-")
     assert not (tmp_path / "evaluation_records").exists()
+
+
+def test_a_no_record_draws_sheet_is_not_synthesised_as_the_july_legacy_sample(tmp_path):
+    _write_payloads(tmp_path)
+    gold = tmp_path / "root" / "eval" / "gold"
+    gold.mkdir(parents=True)
+    argv = ["--dump-dir", str(tmp_path), "--sheet", str(gold / "judge_label_sheet.json"),
+            "--sheet-md", str(gold / "judge_label_sheet.md"), "--no-record"]
+    assert sampling.main(argv) == 0
+    records = pe.synthesise_legacy_evaluations(tmp_path / "root", EvaluationRecordStore(tmp_path, create=False))
+    assert records == [], "an unrecorded draw is not the July sample, and is not listed"
+
+
+def test_the_label_act_refuses_a_sheet_without_a_sample_block(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    del sheet["sample"]
+    (tmp_path / "sheet.json").write_text(json.dumps(sheet))
+    before = (tmp_path / "sheet.json").read_bytes(), (tmp_path / "sheet.md").read_bytes()
+    records_before = EvaluationRecordStore(tmp_path, create=False).list_records()
+    first = sheet["items"][0]["decision_id"]
+    assert sampling.main(_draw_argv(tmp_path, "--label", first, "accept", "--by", "jose")) == 2
+    assert (f"refusing to label {tmp_path / 'sheet.json'}: it was not drawn through a recorded draw "
+            "(no sample block); draw a recorded sample first") in capsys.readouterr().out
+    assert ((tmp_path / "sheet.json").read_bytes(), (tmp_path / "sheet.md").read_bytes()) == before
+    assert EvaluationRecordStore(tmp_path, create=False).list_records() == records_before
 
 
 def test_draw_cleans_up_the_temp_file_and_fails_the_record_when_the_sheet_write_raises(tmp_path, monkeypatch):

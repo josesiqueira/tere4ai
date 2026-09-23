@@ -26,7 +26,9 @@ The label act (--label <decision id> <accept|reject> [--rationale TEXT], or
 both require --by <name>: each labelled item records human_label,
 human_rationale, labelled_by, and labelled_at (who and when, per item).
 Relabelling an item that already carries a label is refused unless --force
-is passed. Every invocation writes one labelling evaluation record.
+is passed. A sheet without a sample block (the July sheet) is refused: draw
+a recorded sample first. Every invocation writes one labelling evaluation
+record.
 
 --compute reads the filled sheet and prints the FA/FR rates via
 tere4ai.eval.metrics.judge_error_rates_by_kind, pooled and per judge kind
@@ -489,6 +491,11 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         print("--by <name> is required: the label act records who labelled")
         return 2
     sheet = _load(args.sheet)
+    if not isinstance(sheet.get("sample"), dict):
+        # the July sheet stays intact: a label act needs a drawn sample (F6)
+        print(f"refusing to label {args.sheet}: it was not drawn through a recorded draw (no sample block); "
+              "draw a recorded sample first")
+        return 2
     by_id = {it["decision_id"]: it for it in sheet.get("items", [])}
     wanted: dict[str, tuple[str, str]] = {}
     if args.label:
