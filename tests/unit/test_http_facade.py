@@ -965,7 +965,10 @@ def test_units_serves_every_core_unit_with_all_candidates(client):
     for key in ("norm_id", "deontic_type", "modal", "action", "object", "conditions", "exceptions",
                 "extractor_model", "judge_verdict", "judge"):
         assert key in candidate
-    assert set(candidate["judge"]) == {"run_id", "model", "prompt_version", "verdict", "scores", "rationale"}
+    assert set(candidate["judge"]) == {
+        "run_id", "model", "prompt_version", "verdict", "scores", "rationale",
+        "completed_at", "prompt_sha256",
+    }
 
 
 def test_units_keeps_the_dump_order_and_groups_by_source_node(client):

@@ -683,6 +683,11 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 "verdict": run.get("verdict"),
                 "scores": run.get("scores"),
                 "rationale": run.get("rationale"),
+                # D-G39: the lineage hop names the judge run's time and, where
+                # the dump records it (since B74), its prompt hash; null
+                # otherwise, never invented.
+                "completed_at": run.get("completed_at"),
+                "prompt_sha256": run.get("prompt_sha256"),
             }
             by_unit.setdefault(str(norm.get("source_node_id")), []).append(candidate)
         units_out = []

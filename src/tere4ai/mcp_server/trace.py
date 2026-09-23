@@ -11,7 +11,7 @@ is structural over the judged alignments build artifact; no model is called,
 so the envelope judge_verdict is not_applicable_deterministic while each
 assertion carries its own build-time verdict.
 
-@implements: DEC-08
+@implements: DEC-08, DEC-17
 @grounded_by: REF-17, REF-16
 """
 
@@ -74,6 +74,10 @@ def _render_assertion(
             "id": (mapping_run or {}).get("id", assertion.get("mapping_run_id")),
             "generator_model": (mapping_run or {}).get("generator_model"),
             "prompt_version": (mapping_run or {}).get("prompt_version"),
+            # D-G39: the lineage hop names the judge run's time and, where
+            # the dump records it (since B74), its prompt hash; null
+            # otherwise, never invented.
+            "completed_at": (mapping_run or {}).get("completed_at"),
         },
         "judge_run": {
             "id": (judge_run or {}).get("id", assertion.get("judge_run_id")),
@@ -82,6 +86,8 @@ def _render_assertion(
             "verdict": (judge_run or {}).get("verdict"),
             "rationale": (judge_run or {}).get("rationale"),
             "corrected_relation_type": (judge_run or {}).get("corrected_relation_type"),
+            "completed_at": (judge_run or {}).get("completed_at"),
+            "prompt_sha256": (judge_run or {}).get("prompt_sha256"),
         },
     }
 
