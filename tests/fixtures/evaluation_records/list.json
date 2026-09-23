@@ -1,0 +1,153 @@
+{
+ "groups": [
+  {
+   "build_key": "build-b+chain-x",
+   "build_kind": "publication",
+   "records": [
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 2,
+      "units_without_usage": 0
+     },
+     "ended_at": "2026-09-24T10:05:00+00:00",
+     "kind": "run",
+     "models": {
+      "generator_model": "g",
+      "judge_model": "j"
+     },
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6a000000002",
+     "started_at": "2026-09-24T10:00:00+00:00",
+     "status": "completed",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 2,
+      "units_without_usage": 0
+     },
+     "ended_at": "2026-09-23T10:05:00+00:00",
+     "kind": "run",
+     "models": {
+      "generator_model": "g",
+      "judge_model": "j"
+     },
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6a000000001",
+     "started_at": "2026-09-23T10:00:00+00:00",
+     "status": "completed",
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "compute_judge_error_rates",
+     "counts": {
+      "abstained": 0,
+      "gold_accept": 1,
+      "gold_reject": 1,
+      "scored": 2
+     },
+     "ended_at": "2026-09-23T09:10:02+00:00",
+     "kind": "analysis",
+     "models": null,
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e1c000000001",
+     "started_at": "2026-09-23T09:10:00+00:00",
+     "status": null,
+     "step": "E1",
+     "unreadable": false
+    },
+    {
+     "build_key": "build-b+chain-x",
+     "build_kind": "publication",
+     "command": "sample_judge_decisions",
+     "counts": {
+      "population": 4,
+      "sampled": 2
+     },
+     "ended_at": "2026-09-23T09:01:00+00:00",
+     "kind": "sample",
+     "models": null,
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e1a000000001",
+     "started_at": "2026-09-23T09:00:00+00:00",
+     "status": "completed",
+     "step": "E1",
+     "unreadable": false
+    }
+   ]
+  },
+  {
+   "build_key": "build-c",
+   "build_kind": "base",
+   "records": [
+    {
+     "build_key": "build-c",
+     "build_kind": "base",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 2,
+      "units_without_usage": 0
+     },
+     "ended_at": "2026-09-25T10:05:00+00:00",
+     "kind": "run",
+     "models": {
+      "generator_model": "g",
+      "judge_model": "j"
+     },
+     "origin": "recorded",
+     "reason": null,
+     "record_id": "e6a000000003",
+     "started_at": "2026-09-25T10:00:00+00:00",
+     "status": "completed",
+     "step": "E6",
+     "unreadable": false
+    }
+   ]
+  },
+  {
+   "build_key": "unknown",
+   "build_kind": "unknown",
+   "records": [
+    {
+     "build_key": "unknown",
+     "build_kind": "unknown",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 57
+     },
+     "ended_at": null,
+     "kind": "run",
+     "models": {
+      "generator_model": "gpt-5.2",
+      "judge_model": "claude-opus-4-8"
+     },
+     "origin": "legacy",
+     "reason": null,
+     "record_id": "legacy-000000000001",
+     "started_at": null,
+     "status": null,
+     "step": "E6",
+     "unreadable": false
+    }
+   ]
+  }
+ ],
+ "observed_at": "2026-09-23T00:00:00+00:00",
+ "order": "grouped by build identity, each group's records newest started_at first, records without a date last",
+ "schema_version": "evaluations_list.v1",
+ "served_build_id": "build-b+chain-x"
+}

@@ -1,0 +1,117 @@
+{
+ "argv": [
+  "--run-a",
+  "e6a000000001",
+  "--run-b",
+  "run_b"
+ ],
+ "build": {
+  "base_build_id": "build-b",
+  "publication": {
+   "build_id": "build-b+chain-x",
+   "manifest_file": "publications/chain-x.json",
+   "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "publication_reason": null
+ },
+ "command": "variance_report",
+ "config": {
+  "metrics_version": "metrics.v2"
+ },
+ "counts": {
+  "common_items": 2,
+  "label_flips": 0
+ },
+ "ended_at": "2026-09-23T11:02:00+00:00",
+ "inputs": [
+  {
+   "file": "ablation_checkpoint.jsonl",
+   "role": "run_a_checkpoint",
+   "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  {
+   "file": "ablation_checkpoint.jsonl",
+   "role": "run_b_checkpoint",
+   "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+  }
+ ],
+ "item_selection_sha256": null,
+ "kind": "comparison",
+ "models": null,
+ "notes": [
+  "run_b is named by no record"
+ ],
+ "observed_at": "2026-09-23T00:00:00+00:00",
+ "origin": "recorded",
+ "outcome": {
+  "completed_items": [
+   "gold:cls-01",
+   "gold:cls-02"
+  ],
+  "error": null,
+  "intended_items": [
+   "gold:cls-01",
+   "gold:cls-02"
+  ],
+  "status": "completed"
+ },
+ "outputs": [
+  {
+   "copy": "e6c000000001/study.md",
+   "copy_reason": null,
+   "copy_state": "present",
+   "file": "variance_study.md",
+   "role": "study",
+   "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+  }
+ ],
+ "prompt_sha256": null,
+ "prompt_versions": null,
+ "provenance": {
+  "argv": "recorded",
+  "build": "recorded",
+  "command": "recorded",
+  "config": "recorded",
+  "counts": "recorded",
+  "ended_at": "recorded",
+  "inputs": "recorded",
+  "item_selection_sha256": "unavailable",
+  "kind": "recorded",
+  "models": "unavailable",
+  "notes": "recorded",
+  "outcome": "recorded",
+  "outputs": "recorded",
+  "prompt_sha256": "unavailable",
+  "prompt_versions": "unavailable",
+  "relations": "recorded",
+  "sampling": "unavailable",
+  "started_at": "recorded",
+  "step": "recorded",
+  "usage": "unavailable"
+ },
+ "reasons": {
+  "item_selection_sha256": "not applicable: a comparison selects no benchmark items itself",
+  "models": "not applicable: a comparison calls no model",
+  "prompt_sha256": "not applicable: a comparison calls no model",
+  "prompt_versions": "not applicable: a comparison calls no model",
+  "sampling": "not applicable: a comparison calls no model",
+  "usage": "not applicable: a comparison calls no model"
+ },
+ "record_id": "e6c000000001",
+ "relations": {
+  "compares": [
+   "e6a000000001",
+   null
+  ],
+  "labelling_record_ids": [],
+  "repeat_of": null,
+  "resumes_record_id": null,
+  "sample_id": null
+ },
+ "sampling": null,
+ "schema_version": "evaluation_record.v1",
+ "started_at": "2026-09-23T11:00:00+00:00",
+ "step": "E6",
+ "synthesised": false,
+ "usage": null
+}

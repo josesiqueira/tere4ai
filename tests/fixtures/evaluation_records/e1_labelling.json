@@ -1,0 +1,103 @@
+{
+ "argv": [
+  "--label",
+  "jr-1",
+  "accept",
+  "--by",
+  "Jose"
+ ],
+ "build": {
+  "base_build_id": "build-b",
+  "publication": {
+   "build_id": "build-b+chain-x",
+   "manifest_file": "publications/chain-x.json",
+   "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "publication_reason": null
+ },
+ "command": "label_judge_decision",
+ "config": {
+  "by": "Jose",
+  "labels": {
+   "jr-1": "accept",
+   "jr-2": "reject"
+  }
+ },
+ "counts": {
+  "items": 2,
+  "labelled_now": 2,
+  "labelled_total": 2
+ },
+ "ended_at": "2026-09-23T09:05:05+00:00",
+ "inputs": [
+  {
+   "file": "judge_label_sheet.json",
+   "role": "sheet_before",
+   "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+  }
+ ],
+ "item_selection_sha256": null,
+ "kind": "labelling",
+ "models": null,
+ "notes": [],
+ "observed_at": "2026-09-23T00:00:00+00:00",
+ "origin": "recorded",
+ "outcome": null,
+ "outputs": [
+  {
+   "copy": "e1b000000001/sheet_after.json",
+   "copy_reason": null,
+   "copy_state": "present",
+   "file": "judge_label_sheet.json",
+   "role": "sheet_after",
+   "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0"
+  }
+ ],
+ "prompt_sha256": null,
+ "prompt_versions": null,
+ "provenance": {
+  "argv": "recorded",
+  "build": "recorded",
+  "command": "recorded",
+  "config": "recorded",
+  "counts": "recorded",
+  "ended_at": "recorded",
+  "inputs": "recorded",
+  "item_selection_sha256": "unavailable",
+  "kind": "recorded",
+  "models": "unavailable",
+  "notes": "recorded",
+  "outcome": "unavailable",
+  "outputs": "recorded",
+  "prompt_sha256": "unavailable",
+  "prompt_versions": "unavailable",
+  "relations": "recorded",
+  "sampling": "unavailable",
+  "started_at": "recorded",
+  "step": "recorded",
+  "usage": "unavailable"
+ },
+ "reasons": {
+  "item_selection_sha256": "not applicable: a labelling act selects no benchmark items",
+  "models": "not applicable: label_judge_decision calls no model",
+  "outcome": "not applicable: a labelling act has no intended or completed items, see counts",
+  "prompt_sha256": "not applicable: label_judge_decision calls no model",
+  "prompt_versions": "not applicable: label_judge_decision calls no model",
+  "sampling": "not applicable: label_judge_decision calls no model",
+  "usage": "not applicable: label_judge_decision calls no model"
+ },
+ "record_id": "e1b000000001",
+ "relations": {
+  "compares": [],
+  "labelling_record_ids": [],
+  "repeat_of": null,
+  "resumes_record_id": null,
+  "sample_id": "sample-a1b2c3d4e5f6"
+ },
+ "sampling": null,
+ "schema_version": "evaluation_record.v1",
+ "started_at": "2026-09-23T09:05:00+00:00",
+ "step": "E1",
+ "synthesised": false,
+ "usage": null
+}

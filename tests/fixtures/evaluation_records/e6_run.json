@@ -1,0 +1,153 @@
+{
+ "argv": [
+  "--summary",
+  "ablation_summary.json"
+ ],
+ "build": {
+  "base_build_id": "build-b",
+  "publication": {
+   "build_id": "build-b+chain-x",
+   "manifest_file": "publications/chain-x.json",
+   "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "publication_reason": null
+ },
+ "command": "run_ablations",
+ "config": {
+  "code_version": "0000000000ab",
+  "metrics_version": "metrics.v2",
+  "mode": "live",
+  "strategies": [
+   "plain_llm"
+  ]
+ },
+ "counts": {
+  "items_total": 2,
+  "units_without_usage": 0
+ },
+ "ended_at": "2026-09-23T10:05:00+00:00",
+ "inputs": [
+  {
+   "file": "layer1_dump.json",
+   "role": "layer1_dump",
+   "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+   "file": "norms.json",
+   "role": "norms",
+   "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  {
+   "file": "benchmark.json",
+   "role": "benchmark",
+   "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  {
+   "file": "gold_seed.json",
+   "role": "gold_seed",
+   "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  {
+   "file": "features.json",
+   "role": "features",
+   "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  }
+ ],
+ "item_selection_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+ "kind": "run",
+ "models": {
+  "generator_model": "g",
+  "judge_model": "j"
+ },
+ "notes": [],
+ "observed_at": "2026-09-23T00:00:00+00:00",
+ "origin": "recorded",
+ "outcome": {
+  "completed_items": [
+   "gold:cls-01",
+   "gold:cls-02"
+  ],
+  "error": null,
+  "intended_items": [
+   "gold:cls-01",
+   "gold:cls-02"
+  ],
+  "status": "completed"
+ },
+ "outputs": [
+  {
+   "copy": "e6a000000001/summary.json",
+   "copy_reason": null,
+   "copy_state": "present",
+   "file": "ablation_summary.json",
+   "role": "summary",
+   "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  {
+   "copy": "e6a000000001/checkpoint.jsonl",
+   "copy_reason": null,
+   "copy_state": "present",
+   "file": "ablation_checkpoint.jsonl",
+   "role": "checkpoint",
+   "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+  }
+ ],
+ "prompt_sha256": null,
+ "prompt_versions": {
+  "generator": "v1",
+  "judge": "v1"
+ },
+ "provenance": {
+  "argv": "recorded",
+  "build": "recorded",
+  "command": "recorded",
+  "config": "recorded",
+  "counts": "recorded",
+  "ended_at": "recorded",
+  "inputs": "recorded",
+  "item_selection_sha256": "recorded",
+  "kind": "recorded",
+  "models": "recorded",
+  "notes": "recorded",
+  "outcome": "recorded",
+  "outputs": "recorded",
+  "prompt_sha256": "unavailable",
+  "prompt_versions": "recorded",
+  "relations": "recorded",
+  "sampling": "recorded",
+  "started_at": "recorded",
+  "step": "recorded",
+  "usage": "recorded"
+ },
+ "reasons": {
+  "prompt_sha256": "not recorded: the ablation runner reads no prompt hash"
+ },
+ "record_id": "e6a000000001",
+ "relations": {
+  "compares": [],
+  "labelling_record_ids": [],
+  "repeat_of": null,
+  "resumes_record_id": null,
+  "sample_id": null
+ },
+ "sampling": {
+  "generator": "temperature=0",
+  "judge": "provider default"
+ },
+ "schema_version": "evaluation_record.v1",
+ "started_at": "2026-09-23T10:00:00+00:00",
+ "step": "E6",
+ "synthesised": false,
+ "usage": {
+  "generator": {
+   "calls": 2,
+   "input_tokens": 10,
+   "output_tokens": 4
+  },
+  "judge": {
+   "calls": 1,
+   "input_tokens": 5,
+   "output_tokens": 2
+  }
+ }
+}

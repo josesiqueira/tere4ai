@@ -1,0 +1,95 @@
+{
+ "argv": [],
+ "build": {
+  "base_build_id": null,
+  "publication": null,
+  "publication_reason": "not recorded: the summary and its checkpoint carry no build id"
+ },
+ "command": "run_ablations",
+ "config": {
+  "strategies": [
+   "plain_llm",
+   "vector_rag",
+   "graph_no_judge",
+   "graph_build_judge",
+   "graph_full"
+  ]
+ },
+ "counts": {
+  "items_total": 57
+ },
+ "ended_at": null,
+ "inputs": [],
+ "item_selection_sha256": null,
+ "kind": "run",
+ "models": {
+  "generator_model": "gpt-5.2",
+  "judge_model": "claude-opus-4-8"
+ },
+ "notes": [],
+ "observed_at": "2026-09-23T00:00:00+00:00",
+ "origin": "legacy",
+ "outcome": null,
+ "outputs": [
+  {
+   "copy": null,
+   "copy_reason": "legacy: the file on disk is the record",
+   "copy_state": "not_kept",
+   "file": "ablation_run1_summary.json",
+   "role": "summary",
+   "sha256": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
+  }
+ ],
+ "prompt_sha256": null,
+ "prompt_versions": null,
+ "provenance": {
+  "argv": "unavailable",
+  "build": "unavailable",
+  "command": "derived",
+  "config": "derived",
+  "counts": "derived",
+  "ended_at": "unavailable",
+  "inputs": "unavailable",
+  "item_selection_sha256": "unavailable",
+  "kind": "derived",
+  "models": "derived",
+  "notes": "recorded",
+  "outcome": "unavailable",
+  "outputs": "derived",
+  "prompt_sha256": "unavailable",
+  "prompt_versions": "unavailable",
+  "relations": "unavailable",
+  "sampling": "unavailable",
+  "started_at": "unavailable",
+  "step": "derived",
+  "usage": "unavailable"
+ },
+ "reasons": {
+  "argv": "not recorded: the legacy runner logged no argv",
+  "build": "not recorded: the summary and its checkpoint carry no build id",
+  "ended_at": "not recorded: no analysis file states a date for this summary",
+  "inputs": "not recorded: no manifest lists the input files for this summary",
+  "item_selection_sha256": "not recorded: legacy summary carries no item selection digest",
+  "outcome": "not recorded: no per-item completion record survives for this summary",
+  "prompt_sha256": "not recorded: legacy summary carries no prompt hash",
+  "prompt_versions": "not recorded: legacy summary carries no prompt version",
+  "relations": "not recorded: no relation is recoverable from the summary file alone",
+  "sampling": "not recorded: legacy summary carries no sampling config",
+  "started_at": "not recorded: no analysis file states a date for this summary",
+  "usage": "not recorded: legacy summary carries no usage log"
+ },
+ "record_id": "legacy-000000000001",
+ "relations": {
+  "compares": [],
+  "labelling_record_ids": [],
+  "repeat_of": null,
+  "resumes_record_id": null,
+  "sample_id": null
+ },
+ "sampling": null,
+ "schema_version": "evaluation_record.v1",
+ "started_at": null,
+ "step": "E6",
+ "synthesised": true,
+ "usage": null
+}

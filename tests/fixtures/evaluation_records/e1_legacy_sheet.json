@@ -1,0 +1,87 @@
+{
+ "argv": [],
+ "build": {
+  "base_build_id": "build-3b753e5e9297",
+  "publication": null,
+  "publication_reason": "not recorded: the sheet predates the publication chain"
+ },
+ "command": "sample_judge_decisions",
+ "config": {},
+ "counts": {
+  "items": 50,
+  "labelled": 0
+ },
+ "ended_at": null,
+ "inputs": [],
+ "item_selection_sha256": null,
+ "kind": "sample",
+ "models": {
+  "judge_model": "claude-opus-4-8"
+ },
+ "notes": [],
+ "observed_at": "2026-09-23T00:00:00+00:00",
+ "origin": "legacy",
+ "outcome": null,
+ "outputs": [
+  {
+   "copy": null,
+   "copy_reason": "legacy: the file on disk is the record",
+   "copy_state": "not_kept",
+   "file": "legacy_judge_label_sheet.json",
+   "role": "sheet_json",
+   "sha256": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0"
+  }
+ ],
+ "prompt_sha256": null,
+ "prompt_versions": null,
+ "provenance": {
+  "argv": "unavailable",
+  "build": "derived",
+  "command": "derived",
+  "config": "unavailable",
+  "counts": "derived",
+  "ended_at": "unavailable",
+  "inputs": "unavailable",
+  "item_selection_sha256": "unavailable",
+  "kind": "derived",
+  "models": "derived",
+  "notes": "recorded",
+  "outcome": "unavailable",
+  "outputs": "derived",
+  "prompt_sha256": "unavailable",
+  "prompt_versions": "unavailable",
+  "relations": "derived",
+  "sampling": "unavailable",
+  "started_at": "unavailable",
+  "step": "derived",
+  "usage": "unavailable"
+ },
+ "reasons": {
+  "argv": "not recorded: the legacy sheet predates argv logging",
+  "config": "not recorded: no configuration survives for this sheet",
+  "ended_at": "not recorded: the legacy sheet predates timestamped runs",
+  "inputs": "not recorded: no manifest lists the input files for this sheet",
+  "item_selection_sha256": "not recorded: the legacy sheet predates selection digests",
+  "outcome": "not recorded: no per-item draw record survives for this sheet",
+  "prompt_sha256": "not recorded: the legacy sheet predates prompt hashing",
+  "prompt_versions": "not recorded: the legacy sheet predates prompt versioning",
+  "relations.sample_id": "not recorded: the sheet predates sample ids",
+  "sampling": "not recorded: the legacy sheet predates sampling configuration logging",
+  "started_at": "not recorded: the legacy sheet predates timestamped runs",
+  "usage": "not recorded: the legacy sheet predates usage logging"
+ },
+ "record_id": "legacy-000000000002",
+ "relations": {
+  "compares": [],
+  "labelling_record_ids": [],
+  "repeat_of": null,
+  "resumes_record_id": null,
+  "sample_id": null
+ },
+ "sampling": null,
+ "schema_version": "evaluation_record.v1",
+ "started_at": null,
+ "step": "E1",
+ "synthesised": true,
+ "usage": null
+}

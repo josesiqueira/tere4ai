@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai/schema/evaluation_record.v1",
+  "title": "TERE4AI v2 evaluation record",
+  "description": "Machine-readable contract for evaluation records (docs/architecture.md DEC-17): one immutable record per measurement run of the Evaluate steps E1 (judge error rates) and E6 (benchmark, ablations, variance), plus the presented shape served over the API. Every presented field carries a provenance of recorded, derived or unavailable; nothing is guessed.",
+  "$defs": {
+    "file_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {"type": "string"},
+        "file": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "required": ["role", "file", "sha256"]
+    },
+    "output_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {"type": "string"},
+        "file": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "copy": {"type": ["string", "null"]}
+      },
+      "required": ["role", "file", "sha256", "copy"]
+    },
+    "presented_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {"type": "string"},
+        "file": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "copy": {"type": ["string", "null"]},
+        "copy_state": {"enum": ["present", "missing", "drifted", "not_kept"]},
+        "copy_reason": {"type": ["string", "null"]}
+      },
+      "required": ["role", "file", "sha256", "copy", "copy_state", "copy_reason"]
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {"enum": ["running", "completed", "partial", "failed"]},
+        "intended_items": {"type": "array", "items": {"type": "string"}},
+        "completed_items": {"type": "array", "items": {"type": "string"}},
+        "error": {"type": ["string", "null"]}
+      },
+      "required": ["status", "intended_items", "completed_items", "error"]
+    },
+    "publication_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "manifest_file": {"type": "string"},
+        "sha256": {"type": "string"},
+        "build_id": {"type": "string"}
+      },
+      "required": ["manifest_file", "sha256", "build_id"]
+    },
+    "build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base_build_id": {"type": ["string", "null"]},
+        "publication": {"anyOf": [{"$ref": "#/$defs/publication_ref"}, {"type": "null"}]},
+        "publication_reason": {"type": ["string", "null"]}
+      },
+      "required": ["base_build_id", "publication", "publication_reason"]
+    },
+    "relations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repeat_of": {"type": ["string", "null"]},
+        "resumes_record_id": {"type": ["string", "null"]},
+        "compares": {"type": "array", "items": {"type": ["string", "null"]}},
+        "sample_id": {"type": ["string", "null"]},
+        "labelling_record_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["repeat_of", "resumes_record_id", "compares", "sample_id", "labelling_record_ids"]
+    },
+    "provenanceValue": {
+      "enum": ["recorded", "derived", "unavailable"]
+    },
+    "stored_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "evaluation_record.v1"},
+        "record_id": {"type": "string", "pattern": "^(?:[0-9a-f]{12}|legacy-[0-9a-f]{12})$"},
+        "kind": {"enum": ["run", "comparison", "sample", "labelling", "analysis"]},
+        "step": {"enum": ["E1", "E6"]},
+        "origin": {"enum": ["recorded", "legacy"]},
+        "command": {"type": "string"},
+        "argv": {"type": "array", "items": {"type": "string"}},
+        "started_at": {"type": ["string", "null"]},
+        "ended_at": {"type": ["string", "null"]},
+        "outcome": {"anyOf": [{"$ref": "#/$defs/outcome"}, {"type": "null"}]},
+        "build": {"$ref": "#/$defs/build_identity"},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/file_ref"}},
+        "item_selection_sha256": {"type": ["string", "null"]},
+        "models": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {"type": "string"},
+                  {"type": "null"},
+                  {"type": "object", "additionalProperties": {"type": "string"}}
+                ]
+              }
+            },
+            {"type": "null"}
+          ]
+        },
+        "prompt_versions": {"type": ["object", "null"], "additionalProperties": true},
+        "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
+        "sampling": {"type": ["object", "null"], "additionalProperties": true},
+        "usage": {"type": ["object", "null"], "additionalProperties": true},
+        "config": {"type": "object", "additionalProperties": true},
+        "counts": {"type": "object", "additionalProperties": {"type": ["integer", "null"]}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/output_ref"}},
+        "relations": {"$ref": "#/$defs/relations"},
+        "notes": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": [
+        "schema_version", "record_id", "kind", "step", "origin", "command", "argv", "started_at",
+        "ended_at", "outcome", "build", "inputs", "item_selection_sha256", "models",
+        "prompt_versions", "prompt_sha256", "sampling", "usage", "config", "counts", "outputs",
+        "relations", "notes"
+      ]
+    },
+    "presented_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "evaluation_record.v1"},
+        "record_id": {"type": "string", "pattern": "^(?:[0-9a-f]{12}|legacy-[0-9a-f]{12})$"},
+        "kind": {"enum": ["run", "comparison", "sample", "labelling", "analysis"]},
+        "step": {"enum": ["E1", "E6"]},
+        "origin": {"enum": ["recorded", "legacy"]},
+        "command": {"type": "string"},
+        "argv": {"type": "array", "items": {"type": "string"}},
+        "started_at": {"type": ["string", "null"]},
+        "ended_at": {"type": ["string", "null"]},
+        "outcome": {"anyOf": [{"$ref": "#/$defs/outcome"}, {"type": "null"}]},
+        "build": {"$ref": "#/$defs/build_identity"},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/file_ref"}},
+        "item_selection_sha256": {"type": ["string", "null"]},
+        "models": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {"type": "string"},
+                  {"type": "null"},
+                  {"type": "object", "additionalProperties": {"type": "string"}}
+                ]
+              }
+            },
+            {"type": "null"}
+          ]
+        },
+        "prompt_versions": {"type": ["object", "null"], "additionalProperties": true},
+        "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
+        "sampling": {"type": ["object", "null"], "additionalProperties": true},
+        "usage": {"type": ["object", "null"], "additionalProperties": true},
+        "config": {"type": "object", "additionalProperties": true},
+        "counts": {"type": "object", "additionalProperties": {"type": ["integer", "null"]}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/presented_output"}},
+        "relations": {"$ref": "#/$defs/relations"},
+        "notes": {"type": "array", "items": {"type": "string"}},
+        "observed_at": {"type": "string"},
+        "synthesised": {"type": "boolean"},
+        "provenance": {"type": "object", "additionalProperties": {"$ref": "#/$defs/provenanceValue"}},
+        "reasons": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "required": [
+        "schema_version", "record_id", "kind", "step", "origin", "command", "argv", "started_at",
+        "ended_at", "outcome", "build", "inputs", "item_selection_sha256", "models",
+        "prompt_versions", "prompt_sha256", "sampling", "usage", "config", "counts", "outputs",
+        "relations", "notes", "observed_at", "synthesised", "provenance", "reasons"
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "record_id": {"type": "string"},
+        "kind": {"type": ["string", "null"], "enum": ["run", "comparison", "sample", "labelling", "analysis", null]},
+        "step": {"type": ["string", "null"], "enum": ["E1", "E6", null]},
+        "origin": {"type": ["string", "null"], "enum": ["recorded", "legacy", null]},
+        "command": {"type": ["string", "null"]},
+        "started_at": {"type": ["string", "null"]},
+        "ended_at": {"type": ["string", "null"]},
+        "status": {"anyOf": [{"enum": ["running", "completed", "partial", "failed"]}, {"type": "null"}]},
+        "build_key": {"type": "string"},
+        "build_kind": {"enum": ["publication", "base", "unknown"]},
+        "models": {"type": ["object", "null"]},
+        "counts": {"type": "object"},
+        "unreadable": {"type": "boolean"},
+        "reason": {"type": ["string", "null"]}
+      },
+      "required": [
+        "record_id", "kind", "step", "origin", "command", "started_at", "ended_at", "status",
+        "build_key", "build_kind", "models", "counts", "unreadable", "reason"
+      ]
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "build_key": {"type": "string"},
+        "build_kind": {"enum": ["publication", "base", "unknown"]},
+        "records": {"type": "array", "items": {"$ref": "#/$defs/summary"}}
+      },
+      "required": ["build_key", "build_kind", "records"]
+    },
+    "evaluations_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": "evaluations_list.v1"},
+        "observed_at": {"type": "string"},
+        "served_build_id": {"type": ["string", "null"]},
+        "order": {"type": "string"},
+        "groups": {"type": "array", "items": {"$ref": "#/$defs/group"}}
+      },
+      "required": ["schema_version", "observed_at", "served_build_id", "order", "groups"]
+    }
+  },
+  "$ref": "#/$defs/presented_record"
+}
