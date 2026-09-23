@@ -470,6 +470,17 @@ def _load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _sample_build(sheet: dict[str, Any]) -> dict[str, Any]:
+    """The build block the sheet's sample was drawn against, or a fallback
+    for a sheet that predates sample ids.
+    """
+    return (sheet.get("sample") or {}).get("build") or {
+        "base_build_id": sheet.get("builds", {}).get("norms_core"),
+        "publication": None,
+        "publication_reason": "the sheet predates sample ids",
+    }
+
+
 def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     """The E1 label act: record human_label, human_rationale, labelled_by
     and labelled_at per item, then write one labelling evaluation record.
@@ -483,8 +494,16 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     if args.label:
         wanted[args.label[0]] = (args.label[1], args.rationale)
     if args.label_file:
+        if not args.label_file.is_file():
+            print(f"label file not found: {args.label_file}")
+            return 2
         with args.label_file.open(encoding="utf-8", newline="") as fh:
-            for row in csv.DictReader(fh):
+            reader = csv.DictReader(fh)
+            fieldnames = reader.fieldnames or []
+            if "decision_id" not in fieldnames or "human_label" not in fieldnames:
+                print(f"label file must have the columns decision_id and human_label; found: {fieldnames}")
+                return 2
+            for row in reader:
                 wanted[row["decision_id"]] = (row["human_label"], row.get("human_rationale") or "")
     unknown = [i for i in wanted if i not in by_id]
     bad = [i for i, (label, _) in wanted.items() if label not in JUDGE_GOLD_LABELS]
@@ -506,11 +525,7 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
             kind="labelling", step="E1", command="sample_judge_decisions",
             argv=list(argv) if argv is not None else sys.argv[1:],
             inputs=[file_ref("sheet_before", args.sheet)],
-            build=(sheet.get("sample") or {}).get("build") or {
-                "base_build_id": sheet.get("builds", {}).get("norms_core"),
-                "publication": None,
-                "publication_reason": "the sheet predates sample ids",
-            },
+            build=_sample_build(sheet),
             config={"by": args.by, "labels": {i: label for i, (label, _) in wanted.items()}, "forced": already},
             relations={"sample_id": sample_id}, intended_items=list(wanted),
         )
@@ -520,16 +535,24 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
             "human_label": label, "human_rationale": rationale or None,
             "labelled_by": args.by, "labelled_at": now,
         })
-    _write_atomic(args.sheet, json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
-    _write_atomic(args.sheet_md, render_sheet_md(sheet) + "\n")
     labelled_total = sum(1 for it in sheet["items"] if it.get("human_label") is not None)
-    if store is not None and record_id is not None:
-        store.finish(
-            record_id, status="completed", completed_items=list(wanted),
-            outputs=[store.keep_output(record_id, "sheet_after", args.sheet)],
-            counts={"labelled_now": len(wanted), "labelled_total": labelled_total, "items": len(sheet["items"])},
-            notes=notes,
-        )
+    try:
+        _write_atomic(args.sheet, json.dumps(sheet, ensure_ascii=False, indent=1) + "\n")
+        _write_atomic(args.sheet_md, render_sheet_md(sheet) + "\n")
+        if store is not None and record_id is not None:
+            store.finish(
+                record_id, status="completed", completed_items=list(wanted),
+                outputs=[store.keep_output(record_id, "sheet_after", args.sheet)],
+                counts={"labelled_now": len(wanted), "labelled_total": labelled_total, "items": len(sheet["items"])},
+                notes=notes,
+            )
+    except BaseException as exc:
+        if store is not None and record_id is not None:
+            try:
+                store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+            except EvaluationRecordError:
+                pass
+        raise
     print(f"labelled {len(wanted)} item(s) by {args.by}; {labelled_total} of {len(sheet['items'])} labelled")
     return 0
 
@@ -616,26 +639,30 @@ def main(argv: list[str] | None = None) -> int:
                 kind="analysis", step="E1", command="sample_judge_decisions",
                 argv=list(argv) if argv is not None else sys.argv[1:],
                 inputs=[file_ref("sheet_labelled", args.sheet)],
-                build=(sheet.get("sample") or {}).get("build") or {
-                    "base_build_id": sheet.get("builds", {}).get("norms_core"),
-                    "publication": None,
-                    "publication_reason": "the sheet predates sample ids",
-                },
+                build=_sample_build(sheet),
                 config={"metrics_version": METRICS_VERSION},
                 relations={"sample_id": sample_id, "labelling_record_ids": labelling_ids},
                 intended_items=ids,
             )
             rates_path = args.sheet.with_name("error_rates.json")
-            _write_atomic(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
-            store.finish(
-                record_id, status="completed", completed_items=ids,
-                outputs=[store.keep_output(record_id, "error_rates", rates_path)],
-                counts={
-                    "scored": pooled["counts"]["scored"], "abstained": pooled["counts"]["abstained"],
-                    "gold_accept": pooled["counts"]["gold_accept"], "gold_reject": pooled["counts"]["gold_reject"],
-                },
-                notes=[rates["note"]],
-            )
+            notes = [rates["note"]]
+            try:
+                _write_atomic(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
+                store.finish(
+                    record_id, status="completed", completed_items=ids,
+                    outputs=[store.keep_output(record_id, "error_rates", rates_path)],
+                    counts={
+                        "scored": pooled["counts"]["scored"], "abstained": pooled["counts"]["abstained"],
+                        "gold_accept": pooled["counts"]["gold_accept"], "gold_reject": pooled["counts"]["gold_reject"],
+                    },
+                    notes=notes,
+                )
+            except BaseException as exc:
+                try:
+                    store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+                except EvaluationRecordError:
+                    pass
+                raise
         _print_rates("pooled", pooled)
         for kind, r in rates["by_kind"].items():
             _print_rates(kind, r)

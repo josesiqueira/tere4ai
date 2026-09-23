@@ -545,3 +545,75 @@ def test_compute_reports_null_on_an_empty_denominator_and_never_zero(tmp_path, c
         "the minimum per stratum draws abstentions"
     )
     assert rec["outcome"]["intended_items"] == ids and rec["outcome"]["completed_items"] == ids
+
+
+# Fix round 1: failure-guarded writers for the label and compute acts, and a
+# validated --label-file ------------------------------------------------
+
+
+def test_label_act_fails_the_record_when_the_sheet_write_raises(tmp_path, monkeypatch):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    first = sheet["items"][0]["decision_id"]
+    real_replace = sampling.os.replace
+
+    def _boom(src, dst, *args, **kwargs):
+        # Only the sheet write fails: the store's own atomic writes (begin,
+        # then finish in the except branch) must still land.
+        if Path(dst) == tmp_path / "sheet.json":
+            raise OSError("disk full")
+        return real_replace(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(sampling.os, "replace", _boom)
+    with pytest.raises(OSError, match="disk full"):
+        sampling.main(_draw_argv(tmp_path, "--label", first, "accept", "--by", "Jose"))
+    store = EvaluationRecordStore(tmp_path, create=False)
+    labelling = [r for r in store.list_records() if r["kind"] == "labelling"]
+    assert len(labelling) == 1
+    assert labelling[0]["outcome"]["status"] == "failed"
+    assert "disk full" in labelling[0]["outcome"]["error"]
+
+
+def test_compute_fails_the_record_when_the_error_rates_write_raises(tmp_path, monkeypatch):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    ids = [it["decision_id"] for it in sheet["items"]]
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text("decision_id,human_label,human_rationale\n" + "".join(f"{i},accept,\n" for i in ids))
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose")) == 0
+    real_replace = sampling.os.replace
+    rates_path = tmp_path / "error_rates.json"
+
+    def _boom(src, dst, *args, **kwargs):
+        # Only the error_rates write fails: the store's own atomic writes
+        # (begin, then finish in the except branch) must still land.
+        if Path(dst) == rates_path:
+            raise OSError("disk full")
+        return real_replace(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(sampling.os, "replace", _boom)
+    with pytest.raises(OSError, match="disk full"):
+        sampling.main(_draw_argv(tmp_path, "--compute"))
+    store = EvaluationRecordStore(tmp_path, create=False)
+    analysis = [r for r in store.list_records() if r["kind"] == "analysis"]
+    assert len(analysis) == 1
+    assert analysis[0]["outcome"]["status"] == "failed"
+    assert "disk full" in analysis[0]["outcome"]["error"]
+
+
+def test_label_file_refuses_a_missing_file_or_missing_columns(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    missing = tmp_path / "nope.csv"
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(missing), "--by", "Jose")) == 2
+    assert "label file not found" in capsys.readouterr().out
+    bad_csv = tmp_path / "bad.csv"
+    bad_csv.write_text("id,label\n1,accept\n")
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(bad_csv), "--by", "Jose")) == 2
+    assert "must have the columns decision_id and human_label" in capsys.readouterr().out
+    store = EvaluationRecordStore(tmp_path, create=False)
+    assert not [r for r in store.list_records() if r["kind"] == "labelling"]
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    assert all(it["human_label"] is None for it in sheet["items"])
