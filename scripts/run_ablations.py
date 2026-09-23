@@ -160,10 +160,11 @@ def main(argv: list[str] | None = None) -> int:
         if done:
             inputs.append(file_ref("checkpoint_resumed", checkpoint_path))
         publication, publication_reason = observe_publication(args.dump_dir)
+        base_build_id = (dump.get("build") or {}).get("build_id")
         record_id = store.begin(
             kind="run", step="E6", command="run_ablations", argv=list(argv) if argv is not None else sys.argv[1:],
             inputs=inputs,
-            build={"base_build_id": str(dump.get("build", {}).get("build_id")) if dump.get("build") else None,
+            build={"base_build_id": str(base_build_id) if base_build_id is not None else None,
                    "publication": publication, "publication_reason": publication_reason},
             models=config, prompt_versions=None, config={
                 "strategies": list(strategies.STRATEGY_NAMES), "batch_size": BATCH_SIZE,

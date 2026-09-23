@@ -1,6 +1,7 @@
 """Repeat-run variance report over two ablation runs (#60).
 
-@implements: DEC-11 (partial: repeat-run variance study), DEC-17
+@implements: DEC-11 (partial: repeat-run variance study)
+@implements: DEC-17
 @grounded_by: REF-15, REF-16
 
 Compares two runs of the same ladder over the same items and the same

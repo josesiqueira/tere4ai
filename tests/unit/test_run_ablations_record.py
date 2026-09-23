@@ -253,3 +253,10 @@ def test_a_run_with_graph_full_records_the_runtime_judge_prompt_hash(runner, mon
     assert runner.main(_argv(tmp_path)) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["prompt_sha256"] == {"runtime_grounding": prompt_sha256(load_prompt("runtime_grounding", "v1"))}
+
+
+def test_a_dump_whose_build_names_no_id_records_none_never_the_string(runner, tmp_path):
+    (tmp_path / "layer1.json").write_text(json.dumps({"build": {"note": "no id"}, "nodes": [], "edges": []}))
+    assert runner.main(_argv(tmp_path)) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["build"]["base_build_id"] is None

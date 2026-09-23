@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from tere4ai.eval.evaluation_record import (
+    RECORD_FILE_STEM,
     SCHEMA_VERSION,
     EvaluationRecordError,
     EvaluationRecordStore,
@@ -305,7 +306,9 @@ def _recorded_sheet(store: EvaluationRecordStore | None, path: Path) -> bool:
         return False
     try:
         record_id = (_read_json(path).get("sample") or {}).get("record_id")
-        return bool(record_id) and store.read(str(record_id)) is not None
+        if not isinstance(record_id, str) or not RECORD_FILE_STEM.match(record_id):
+            return False  # an id outside the syntax is never looked up: not recorded
+        return store.read(record_id) is not None
     except (OSError, ValueError, EvaluationRecordError):
         return False
 

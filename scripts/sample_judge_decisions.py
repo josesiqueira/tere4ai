@@ -722,7 +722,8 @@ def main(argv: list[str] | None = None) -> int:
         publication, publication_reason = observe_publication(args.dump_dir)
     else:  # a record binds to a publication only when it read the publication's files (F4)
         publication, publication_reason = None, "explicit input files given; the run did not read the served publication"
-    build = {"base_build_id": str(norms_payload.get("build", {}).get("build_id")) if norms_payload.get("build") else None,
+    base_build_id = (norms_payload.get("build") or {}).get("build_id")
+    build = {"base_build_id": str(base_build_id) if base_build_id is not None else None,
              "publication": publication, "publication_reason": publication_reason}
     sample = {"sample_id": "sample-" + uuid.uuid4().hex[:12], "record_id": None,
               "drawn_at": datetime.now(UTC).isoformat(), "build": build}

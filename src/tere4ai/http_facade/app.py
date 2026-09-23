@@ -1,6 +1,7 @@
 """Thin HTTP facade for the M3 demo web UI.
 
-@implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log), DEC-17
+@implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log)
+@implements: DEC-17
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches

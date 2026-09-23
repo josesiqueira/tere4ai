@@ -269,8 +269,8 @@ Every measurement run writes one record under
 `data/graph_dumps/evaluation_records/<record id>.json` with an immutable
 copy of its outputs under `evaluation_records/<record id>/` (DEC-17).
 The writers: `scripts/run_ablations.py` and `python -m tere4ai.eval.harness`
-(E6 runs; `--no-record` to skip, `--dump-dir` to relocate, `--repeat-of
-<record id>` to name the run this one repeats), `scripts/variance_report.py`
+(E6 runs; `--no-record` to skip, `--dump-dir` to relocate; the runner
+only: `--repeat-of <record id>` to name the run this one repeats), `scripts/variance_report.py`
 (an E6 comparison naming the two runs it compared, by digest), and
 `scripts/sample_judge_decisions.py` (E1 as three acts: the draw, which
 refuses to overwrite any existing sheet without `--force` and binds the

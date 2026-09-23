@@ -1,4 +1,7 @@
-"""The evaluation record store (D-G33, DEC-17): begin, finish, copies, locks, lookups, read-only."""
+"""The evaluation record store (D-G33, DEC-17): begin, finish, copies, locks, lookups, read-only.
+
+DEC-17 fix wave: the resume lookup by checkpoint file, a missing build id read
+as None (never "None"), and the copy's own digest."""
 
 from __future__ import annotations
 
@@ -160,6 +163,37 @@ def test_observe_publication_and_served_paths_follow_the_pointer_or_the_legacy_n
     assert pub["sha256"] == er.sha256_of_file(tmp_path / "publications" / "chain-abc.json")
     assert er.served_input_paths(tmp_path) == {"layer1_dump": tmp_path / "layer1.json",
                                                "norms": tmp_path / "norms_core.reference.json"}
+
+
+def test_a_manifest_naming_no_build_id_is_no_publication_never_the_string_none(tmp_path):
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({"files": {"layer1_dump": "layer1.json"}}))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
+    pub, reason = er.observe_publication(tmp_path)
+    assert pub is None and reason == "the publication manifest for chain chain-abc names no build id"
+
+
+def test_keep_output_digests_the_copy_not_a_source_rewritten_after_the_copy(tmp_path, monkeypatch):
+    from datetime import UTC, datetime
+
+    from tere4ai.eval.present_evaluation import present_evaluation
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None})
+    out = tmp_path / "ablation_summary.json"
+    out.write_text('{"copied": true}')
+    real_replace = er.os.replace
+
+    def replace_then_rewrite(src, dst):
+        real_replace(src, dst)
+        out.write_text('{"rewritten": "after the copy"}')
+    monkeypatch.setattr(er.os, "replace", replace_then_rewrite)
+    ref = store.keep_output(rid, "summary", out)
+    monkeypatch.setattr(er.os, "replace", real_replace)
+    assert ref["sha256"] == er.sha256_of_file(store.dir / ref["copy"])
+    store.finish(rid, status="completed", outputs=[ref])
+    presented = present_evaluation(store.read(rid), store, datetime(2026, 9, 23, tzinfo=UTC))
+    assert presented["outputs"][0]["copy_state"] == "present"
 
 
 def test_code_version_is_a_short_sha_or_none(tmp_path):

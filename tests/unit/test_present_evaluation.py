@@ -262,6 +262,22 @@ def test_a_sheet_whose_bytes_are_not_the_pinned_ones_is_not_the_legacy_sample(tm
     assert pe.JULY_SHEET_DIGEST == sha256_of_file(ROOT / "eval" / "gold" / "judge_label_sheet.json")
 
 
+def test_a_sheet_record_id_outside_the_id_syntax_reads_as_not_recorded(tmp_path):
+    root = _legacy_root(tmp_path)
+    store = EvaluationRecordStore(tmp_path / "dumps")
+    rid = store.begin(kind="sample", step="E1", command="sample_judge_decisions", argv=[], inputs=[],
+                      build=_build())
+    # a valid record file outside the store directory, reachable by "../"
+    (tmp_path / "dumps" / "outside.json").write_bytes((store.dir / f"{rid}.json").read_bytes())
+    sheet_path = root / "eval" / "gold" / "judge_label_sheet.json"
+    sheet = json.loads(sheet_path.read_text())
+    sheet["sample"] = {"sample_id": "sample-000000000000", "record_id": "../outside"}
+    sheet_path.write_text(json.dumps(sheet))
+    kinds = [r["kind"] for r in pe.synthesise_legacy_evaluations(root, store, dated_digests=_dated(root))
+             if not r.get("unreadable")]
+    assert kinds.count("sample") == 1, "an id outside the syntax is never read from the store"
+
+
 def test_an_unreadable_study_is_named_by_its_bytes(tmp_path):
     root = _legacy_root(tmp_path)
     study = root / "docs" / "variance_study.md"

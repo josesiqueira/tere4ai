@@ -101,9 +101,12 @@ def observe_publication(dump_dir: Path | str) -> tuple[dict[str, Any] | None, st
     manifest = active_manifest(dump_dir)
     if manifest is None:
         return None, f"no readable publication manifest for chain {chain_id}"
+    if manifest.get("build_id") is None:
+        # a missing build id is no publication identity, never the string "None"
+        return None, f"the publication manifest for chain {chain_id} names no build id"
     path = manifest_path(dump_dir, chain_id)
     return {"manifest_file": str(path.relative_to(dump_dir)), "sha256": sha256_of_file(path),
-            "build_id": str(manifest.get("build_id"))}, None
+            "build_id": str(manifest["build_id"])}, None
 
 
 def served_input_paths(dump_dir: Path | str) -> dict[str, Path]:
@@ -269,7 +272,8 @@ class EvaluationRecordStore:
             finally:
                 if os.path.exists(tmp):
                     os.unlink(tmp)
-        ref = file_ref(role, src)
+        # the copy's own bytes: a source rewritten after the copy cannot make it read as drifted
+        ref = {"role": role, "file": src.name, "sha256": sha256_of_file(target)}
         ref["copy"] = str(target.relative_to(self.dir))
         return ref
 
