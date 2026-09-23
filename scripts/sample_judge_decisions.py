@@ -57,9 +57,6 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
 )
 from tere4ai.eval.metrics import JUDGE_GOLD_LABELS, judge_error_rates  # noqa: E402
 
-NORMS_PATH = ROOT / "data" / "graph_dumps" / "norms_core.json"
-ALIGNMENTS_PATH = ROOT / "data" / "graph_dumps" / "alignments_core.json"
-LAYER1_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 SHEET_JSON = ROOT / "eval" / "gold" / "judge_label_sheet.json"
 SHEET_MD = ROOT / "eval" / "gold" / "judge_label_sheet.md"
 
@@ -473,9 +470,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     served = served_input_paths(args.dump_dir)
-    norms_path = args.norms or served.get("norms", args.dump_dir / "norms_core.json")
-    alignments_path = args.alignments or served.get("alignments", args.dump_dir / "alignments_core.json")
-    layer1_path = args.layer1 or served.get("layer1_dump", args.dump_dir / "layer1.json")
+    resolved: dict[str, Path] = {}
+    for role, explicit, flag in (
+        ("norms", args.norms, "norms"),
+        ("alignments", args.alignments, "alignments"),
+        ("layer1_dump", args.layer1, "layer1"),
+    ):
+        if explicit is not None:
+            resolved[role] = explicit
+        elif role in served:
+            resolved[role] = served[role]
+        else:
+            print(f"refusing to draw: the active publication names no {role} file; pass --{flag} explicitly")
+            return 2
+    norms_path, alignments_path, layer1_path = resolved["norms"], resolved["alignments"], resolved["layer1_dump"]
 
     if args.sheet.exists() and not args.force:
         existing = _load(args.sheet)

@@ -394,11 +394,35 @@ def test_draw_binds_the_sample_to_the_observed_publication_or_the_base_id(tmp_pa
     assert rec["config"]["strata"] == sheet["sampling"]["strata"] and rec["config"]["population"] == sheet["sampling"]["population"]
     # a publication, once activated, is what the sample binds to
     (tmp_path / "publications").mkdir()
-    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({"build_id": "build-b+chain-abc", "files": {}}))
+    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({
+        "build_id": "build-b+chain-abc",
+        "files": {"layer1_dump": "layer1.json", "norms": "norms_core.json", "alignments": "alignments_core.json"},
+    }))
     (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
     assert sampling.main(_draw_argv(tmp_path, "--force")) == 0
     sheet2 = json.loads((tmp_path / "sheet.json").read_text())
     assert sheet2["sample"]["build"]["publication"]["build_id"] == "build-b+chain-abc"
+
+
+def test_draw_refuses_when_the_active_publication_names_no_norms_file(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "chain-xyz.json").write_text(json.dumps({
+        "build_id": "build-xyz",
+        "files": {"layer1_dump": "layer1.json"},
+    }))
+    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-xyz"}))
+    rc = sampling.main(_draw_argv(tmp_path))
+    assert rc == 2
+    assert "names no norms file" in capsys.readouterr().out
+    assert not (tmp_path / "sheet.json").exists()
+    assert not (tmp_path / "evaluation_records").exists()
+    rc = sampling.main(_draw_argv(
+        tmp_path, "--norms", str(tmp_path / "norms_core.json"),
+        "--alignments", str(tmp_path / "alignments_core.json"),
+    ))
+    assert rc == 0
+    assert (tmp_path / "sheet.json").exists()
 
 
 def test_draw_with_no_record_writes_a_sheet_without_a_record_id(tmp_path):
