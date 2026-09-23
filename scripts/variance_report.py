@@ -226,9 +226,13 @@ def main(argv: list[str] | None = None) -> int:
         comparisons = {name: compare_strategy(per_a[name], per_b[name], gold) for name in sorted(set(per_a) & set(per_b))}
         text = render_markdown(args.run_a, args.run_b, comparisons)
         fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=".md", dir=str(args.out.parent))
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(text)
-        os.replace(tmp, args.out)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            os.replace(tmp, args.out)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
     except BaseException as exc:
         if store is not None and record_id is not None:
             try:

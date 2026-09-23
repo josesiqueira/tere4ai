@@ -6,6 +6,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -98,3 +100,31 @@ def test_main_records_a_comparison_naming_the_runs_it_can_resolve(tmp_path):
     (study,) = rec["outputs"]
     assert study["role"] == "study" and (store.dir / study["copy"]).read_bytes() == out.read_bytes()
     assert rec["models"] is None
+
+
+def test_main_removes_the_temp_file_when_the_markdown_write_fails(tmp_path, monkeypatch):
+    a, b = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    r = {"i1": {"risk_category": "high", "citations": [], "answer_text": "x"}}
+    _checkpoint(a, r)
+    _checkpoint(b, r)
+    bench = tmp_path / "bench.json"
+    bench.write_text(json.dumps({"scenarios": [], "qa": []}))
+    store = EvaluationRecordStore(tmp_path)
+    out = tmp_path / "study.md"
+
+    real_replace = vr.os.replace
+
+    def boom(src, dst):
+        if Path(dst) == out:
+            raise RuntimeError("disk full")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(vr.os, "replace", boom)
+    with pytest.raises(RuntimeError, match="disk full"):
+        vr.main(["--run-a", str(a), "--run-b", str(b), "--benchmark", str(bench), "--out", str(out),
+                "--dump-dir", str(tmp_path)])
+
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith("tmp") and p.suffix == ".md"]
+    rec = [x for x in store.list_records() if x["kind"] == "comparison"][0]
+    assert rec["outcome"]["status"] == "failed"
+    assert "disk full" in rec["outcome"]["error"]
