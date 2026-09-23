@@ -79,6 +79,7 @@
   "kind": "recorded",
   "models": "unavailable",
   "notes": "recorded",
+  "origin": "recorded",
   "outcome": "recorded",
   "outputs": "recorded",
   "prompt_sha256": "unavailable",

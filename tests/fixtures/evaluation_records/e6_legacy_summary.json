@@ -54,6 +54,7 @@
   "kind": "derived",
   "models": "derived",
   "notes": "recorded",
+  "origin": "derived",
   "outcome": "unavailable",
   "outputs": "derived",
   "prompt_sha256": "unavailable",
