@@ -199,25 +199,6 @@ class EvaluationRecordStore:
         rows = [r for r in self.list_records() if not r.get("unreadable") and r.get("ended_at")]
         return sorted(rows, key=lambda r: (r["ended_at"], r["record_id"]), reverse=True)
 
-    def find_by_output_file(self, name: str) -> str | None:
-        for r in self._finished_newest_first():
-            if any(o["file"] == name for o in r["outputs"]):
-                return r["record_id"]
-        return None
-
-    def find_by_checkpoint_file(self, name: str) -> str | None:
-        """The record a resume of the checkpoint file `name` continues.
-
-        The newest readable record (by started_at, any status: running and
-        failed included) whose config names the checkpoint file at begin,
-        else the newest finished record with an output of that file name,
-        else None."""
-        rows = [r for r in self.list_records()
-                if not r.get("unreadable") and (r.get("config") or {}).get("checkpoint_file") == name]
-        if rows:
-            return max(rows, key=lambda r: (r["started_at"], r["record_id"]))["record_id"]
-        return self.find_by_output_file(name)
-
     def find_by_output_digest(self, sha256: str) -> str | None:
         for r in self._finished_newest_first():
             if any(o["sha256"] == sha256 for o in r["outputs"]):

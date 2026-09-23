@@ -6,8 +6,10 @@
 Runs the five-condition ablation ladder over the gold seed plus the frozen
 REF-15 benchmark sample, in checkpointed (strategy, item-batch) units, so a
 crash never loses more than one batch (the lesson of the lost extraction run).
-Resume by re-running: completed units are skipped. After the sweep, computes
-the Section 12 metrics per strategy and writes eval/results/ablation_summary.json.
+Resume by re-running: completed units are skipped; the sidecar
+<checkpoint>.record names the record a resume continues (DEC-17). After the
+sweep, computes the Section 12 metrics per strategy and writes
+eval/results/ablation_summary.json.
 
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
@@ -18,7 +20,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +30,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.eval import harness, metrics, strategies  # noqa: E402
 from tere4ai.eval.evaluation_record import (  # noqa: E402
+    RECORD_FILE_STEM,
     EvaluationRecordError,
     EvaluationRecordStore,
     code_version,
@@ -54,6 +59,63 @@ def _july_refusal(path: Path) -> str | None:
         return (f"refusing to write {path}: its bytes are the July 2026 measurement; "
                 "pass --summary or --checkpoint with another path")
     return None
+
+
+def sidecar_path(checkpoint_path: Path) -> Path:
+    """The checkpoint's persisted identity (G2): same directory, name plus `.record`."""
+    return checkpoint_path.with_name(checkpoint_path.name + ".record")
+
+
+def write_sidecar(checkpoint_path: Path, record_id: str) -> None:
+    """Name the record that owns the checkpoint, atomically (temp file plus os.replace)."""
+    path = sidecar_path(checkpoint_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps({"record_id": record_id, "checkpoint_file": checkpoint_path.name}) + "\n"
+    fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=".record", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def resolve_resume(checkpoint_path: Path, dump_dir: Path) -> tuple[str | None, str | None]:
+    """The record a resume of checkpoint_path continues, as (record id, None);
+    (None, None) when no sidecar names one; (None, refusal) when the sidecar
+    names a record the store cannot confirm. The sidecar is never trusted
+    without the store lookup, and the lookup is read-only (G2)."""
+    sidecar = sidecar_path(checkpoint_path)
+    if not sidecar.exists():
+        return None, None
+    fresh = "pass --checkpoint with a fresh path"
+    try:
+        data = json.loads(sidecar.read_text(encoding="utf-8"))
+        rid = data["record_id"]
+        named = data["checkpoint_file"]
+        if not isinstance(rid, str) or not RECORD_FILE_STEM.match(rid):
+            raise ValueError(f"record_id {rid!r} is not a record id")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        reason = exception_reason(exc)
+        return None, (f"refusing to resume {checkpoint_path}: its sidecar {sidecar.name} is not readable "
+                      f"({reason}); remove it to resume the checkpoint as unrecorded, or {fresh}")
+    if named != checkpoint_path.name:
+        return None, (f"refusing to resume {checkpoint_path}: its sidecar {sidecar.name} names the checkpoint "
+                      f"file {named}; {fresh}")
+    store = EvaluationRecordStore(dump_dir, create=False)
+    head = f"refusing to resume {checkpoint_path}: its sidecar names evaluation record {rid}"
+    if not (store.dir / f"{rid}.json").is_file():
+        return None, f"{head}, which this store does not hold; {fresh}"
+    try:
+        record = store.read(rid)
+    except EvaluationRecordError as exc:
+        return None, f"{head}, which this store cannot read ({exc}); {fresh}"
+    recorded = (record.get("config") or {}).get("checkpoint_file")
+    if recorded != checkpoint_path.name:
+        which = f"the checkpoint file {recorded}" if recorded else "no checkpoint file"
+        return None, f"{head}, which names {which}; {fresh}"
+    return rid, None
 
 
 def load_items(benchmark_path=None, features_path=None) -> list[dict]:
@@ -130,8 +192,12 @@ def main(argv: list[str] | None = None) -> int:
     notes: list[str] = []
     resumes = None
     if done:
-        # a read-only lookup, so a --no-record run is refused the same way
-        resumes = EvaluationRecordStore(args.dump_dir, create=False).find_by_checkpoint_file(checkpoint_path.name)
+        # the sidecar names the record that owns the checkpoint (G2); a
+        # read-only lookup, so a --no-record run is refused the same way
+        resumes, refusal = resolve_resume(checkpoint_path, args.dump_dir)
+        if refusal is not None:
+            print(refusal)
+            return 2
         if resumes is None:
             if not args.resume_unrecorded:
                 print(f"refusing to resume {checkpoint_path}: no evaluation record names it; pass "
@@ -175,6 +241,9 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     try:
+        if store is not None and record_id is not None:
+            # the newest record owns the checkpoint from now on (G2)
+            write_sidecar(checkpoint_path, record_id)
         cfg = load_model_config()
         generator = OpenAIGenerator(cfg)
         judge = AnthropicJudge(cfg)

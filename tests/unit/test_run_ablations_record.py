@@ -260,3 +260,92 @@ def test_a_dump_whose_build_names_no_id_records_none_never_the_string(runner, tm
     assert runner.main(_argv(tmp_path)) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["build"]["base_build_id"] is None
+
+
+def _sidecar(path: Path) -> Path:
+    return path.with_name(path.name + ".record")
+
+
+def test_a_recording_run_writes_the_checkpoint_sidecar_and_a_no_record_run_writes_none(runner, tmp_path):
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    assert runner.main(_argv(tmp_path)) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert json.loads(_sidecar(ckpt).read_text()) == {"record_id": rec["record_id"],
+                                                       "checkpoint_file": "ablation_checkpoint.jsonl"}
+    assert not list(ckpt.parent.glob("tmp*")), "the sidecar lands atomically, no temp file left"
+    fresh = tmp_path / "results" / "unrecorded.jsonl"
+    assert runner.main(_argv(tmp_path, "--no-record", "--checkpoint", str(fresh))) == 0
+    assert fresh.is_file() and not _sidecar(fresh).exists()
+
+
+def test_a_resume_with_a_matching_sidecar_names_its_record_and_takes_the_sidecar_over(runner, tmp_path):
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    assert runner.main(_argv(tmp_path)) == 0
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (first,) = store.list_records()
+    assert runner.main(_argv(tmp_path)) == 0
+    second = [r for r in store.list_records() if r["record_id"] != first["record_id"]][0]
+    assert second["relations"]["resumes_record_id"] == first["record_id"]
+    assert json.loads(_sidecar(ckpt).read_text())["record_id"] == second["record_id"], "the newest record owns it"
+
+
+@pytest.mark.parametrize("case", ["missing", "unreadable", "other_file"])
+def test_a_sidecar_the_store_cannot_confirm_refuses_the_resume_and_records_nothing(runner, tmp_path, capsys,
+                                                                                    case):
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    assert runner.main(_argv(tmp_path)) == 0
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (first,) = store.list_records()
+    rid = first["record_id"]
+    if case == "missing":
+        rid = "000000000000"
+        _sidecar(ckpt).write_text(json.dumps({"record_id": rid, "checkpoint_file": ckpt.name}))
+        why = "which this store does not hold"
+    elif case == "unreadable":
+        (store.dir / f"{rid}.json").write_text("{not json")
+        why = "which this store cannot read"
+    else:
+        record_path = store.dir / f"{rid}.json"
+        data = json.loads(record_path.read_text())
+        data["config"]["checkpoint_file"] = "another.jsonl"
+        record_path.write_text(json.dumps(data))
+        why = "which names the checkpoint file another.jsonl"
+    capsys.readouterr()
+    for extra in ((), ("--resume-unrecorded",), ("--no-record",)):
+        assert runner.main(_argv(tmp_path, *extra)) == 2
+        out = capsys.readouterr().out
+        assert f"refusing to resume {ckpt}: its sidecar names evaluation record {rid}, {why}" in out
+    assert len(store.list_records()) == 1, "no record written"
+
+
+def test_a_recorded_checkpoint_whose_sidecar_is_gone_is_resumed_only_with_the_flag(runner, tmp_path, capsys):
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    assert runner.main(_argv(tmp_path)) == 0
+    _sidecar(ckpt).unlink()
+    capsys.readouterr()
+    assert runner.main(_argv(tmp_path)) == 2
+    assert f"refusing to resume {ckpt}: no evaluation record names it" in capsys.readouterr().out
+    assert runner.main(_argv(tmp_path, "--resume-unrecorded")) == 0
+    newest = max(EvaluationRecordStore(tmp_path, create=False).list_records(), key=lambda r: r["started_at"])
+    assert newest["relations"]["resumes_record_id"] is None
+    assert newest["notes"] == ["resumed from a checkpoint no record names"]
+
+
+def test_two_checkpoints_with_one_basename_in_two_directories_never_resolve_to_each_other(runner, tmp_path):
+    a = tmp_path / "results" / "a" / "ablation_checkpoint.jsonl"
+    b = tmp_path / "results" / "b" / "ablation_checkpoint.jsonl"
+    a.parent.mkdir(parents=True)
+    b.parent.mkdir(parents=True)
+    store = EvaluationRecordStore(tmp_path, create=False)
+    assert runner.main(_argv(tmp_path, "--checkpoint", str(a))) == 0
+    (rec_a,) = store.list_records()
+    assert runner.main(_argv(tmp_path, "--checkpoint", str(b))) == 0
+    (rec_b,) = [r for r in store.list_records() if r["record_id"] != rec_a["record_id"]]
+    seen = {rec_a["record_id"], rec_b["record_id"]}
+    assert runner.main(_argv(tmp_path, "--checkpoint", str(a))) == 0
+    (resumed_a,) = [r for r in store.list_records() if r["record_id"] not in seen]
+    assert resumed_a["relations"]["resumes_record_id"] == rec_a["record_id"], "never the newer b record"
+    seen.add(resumed_a["record_id"])
+    assert runner.main(_argv(tmp_path, "--checkpoint", str(b))) == 0
+    (resumed_b,) = [r for r in store.list_records() if r["record_id"] not in seen]
+    assert resumed_b["relations"]["resumes_record_id"] == rec_b["record_id"]

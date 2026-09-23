@@ -1,7 +1,8 @@
 """The evaluation record store (D-G33, DEC-17): begin, finish, copies, locks, lookups, read-only.
 
-DEC-17 fix wave: the resume lookup by checkpoint file, a missing build id read
-as None (never "None"), and the copy's own digest."""
+DEC-17 fix wave: a missing build id read as None (never "None") and the
+copy's own digest. The Codex fix wave: a publication binds only over its own
+bytes (G1); the resume lookup moved to the runner's checkpoint sidecar (G2)."""
 
 from __future__ import annotations
 
@@ -112,7 +113,7 @@ def test_list_marks_unreadable_and_invalid_records_without_dropping_the_list(tmp
     assert rows["0000000c0000"]["unreadable"] and "required" in rows["0000000c0000"]["reason"]
 
 
-def test_lookups_by_output_file_digest_and_input_digest(tmp_path):
+def test_lookups_by_output_digest_and_input_digest(tmp_path):
     store = EvaluationRecordStore(tmp_path)
     src = tmp_path / "layer1.json"
     src.write_text("x")
@@ -125,29 +126,10 @@ def test_lookups_by_output_file_digest_and_input_digest(tmp_path):
     store.finish(rid1, status="completed", outputs=[ref1])
     rid2 = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[],
                        build={"base_build_id": None, "publication": None, "publication_reason": None})
-    assert store.find_by_output_file("ablation_checkpoint.jsonl") == rid1, "a running record never answers"
-    assert store.find_by_output_digest(ref1["sha256"]) == rid1
+    assert store.find_by_output_digest(ref1["sha256"]) == rid1, "a running record never answers"
     assert store.find_by_input_digest(inp["sha256"]) == rid1
-    assert store.find_by_output_file("nope") is None
+    assert store.find_by_output_digest("0" * 64) is None
     store.finish(rid2, status="failed", error="boom")
-
-
-def test_find_by_checkpoint_file_names_the_newest_begin_of_any_status_then_falls_back_to_outputs(tmp_path):
-    store = EvaluationRecordStore(tmp_path)
-    build = {"base_build_id": None, "publication": None, "publication_reason": "x"}
-    done = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[], build=build)
-    ckpt = tmp_path / "old.jsonl"
-    ckpt.write_text("{}\n")
-    store.finish(done, status="completed", outputs=[store.keep_output(done, "checkpoint", ckpt)])
-    assert store.find_by_checkpoint_file("old.jsonl") == done, "the old rule: a finished record's output"
-    failed = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[], build=build,
-                         checkpoint_file="c.jsonl")
-    store.finish(failed, status="failed", error="boom")
-    running = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[], build=build,
-                          checkpoint_file="c.jsonl")
-    assert store.read(running)["config"] == {"checkpoint_file": "c.jsonl"}
-    assert store.find_by_checkpoint_file("c.jsonl") == running
-    assert store.find_by_checkpoint_file("other.jsonl") is None
 
 
 def _publish(dump_dir, files, base="build-b"):
