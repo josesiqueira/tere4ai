@@ -186,6 +186,29 @@
       },
       "required": ["campaign_id", "freeze_id", "campaign_type", "stage", "decisions_sha256", "layer"]
     },
+    "freeze_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "campaign_id": {"type": ["string", "null"]},
+        "freeze_id": {"type": ["string", "null"]},
+        "campaign_type": {"type": ["string", "null"]},
+        "stage": {"type": ["string", "null"]},
+        "layer": {"type": ["integer", "null"], "enum": [2, 3, null]},
+        "step": {"type": ["string", "null"]},
+        "manifest_sha256": {"type": ["string", "null"]}
+      },
+      "required": ["campaign_id", "freeze_id", "campaign_type", "stage", "layer", "step", "manifest_sha256"]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inherited_from": {"type": "object", "additionalProperties": {"type": ["string", "null"]}},
+        "consumed_freezes": {"type": "array", "items": {"$ref": "#/$defs/freeze_ref"}}
+      },
+      "required": ["inherited_from", "consumed_freezes"]
+    },
     "publication": {
       "type": "object",
       "additionalProperties": false,
@@ -276,9 +299,10 @@
         },
         "served": {"type": "boolean"},
         "unreadable": {"type": "boolean"},
-        "reason": {"type": ["string", "null"]}
+        "reason": {"type": ["string", "null"]},
+        "lineage": {"anyOf": [{"$ref": "#/$defs/lineage"}, {"type": "null"}]}
       },
-      "required": ["record_id", "aliases", "base_build_id", "created_at", "synthesised", "steps", "publication", "served", "unreadable", "reason"]
+      "required": ["record_id", "aliases", "base_build_id", "created_at", "synthesised", "steps", "publication", "served", "unreadable", "reason", "lineage"]
     },
     "builds_list": {
       "type": "object",

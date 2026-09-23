@@ -7,6 +7,10 @@
    ],
    "base_build_id": "build-b",
    "created_at": "2026-09-19T00:00:00+00:00",
+   "lineage": {
+    "consumed_freezes": [],
+    "inherited_from": {}
+   },
    "publication": null,
    "reason": null,
    "record_id": "a00000000001",
@@ -35,6 +39,13 @@
    ],
    "base_build_id": "build-b",
    "created_at": "2026-09-19T00:00:00+00:00",
+   "lineage": {
+    "consumed_freezes": [],
+    "inherited_from": {
+     "L0.1": "a00000000001",
+     "L1.1": "a00000000001"
+    }
+   },
    "publication": null,
    "reason": null,
    "record_id": "a00000000002",
@@ -63,6 +74,10 @@
    ],
    "base_build_id": "build-b",
    "created_at": null,
+   "lineage": {
+    "consumed_freezes": [],
+    "inherited_from": {}
+   },
    "publication": {
     "chain_id": "dd7cac4a1198",
     "label": null,
@@ -95,6 +110,10 @@
    ],
    "base_build_id": "build-b",
    "created_at": null,
+   "lineage": {
+    "consumed_freezes": [],
+    "inherited_from": {}
+   },
    "publication": null,
    "reason": null,
    "record_id": "legacy-core.b74",
@@ -123,6 +142,10 @@
    ],
    "base_build_id": "build-b",
    "created_at": "2026-09-19T00:00:00+00:00",
+   "lineage": {
+    "consumed_freezes": [],
+    "inherited_from": {}
+   },
    "publication": {
     "chain_id": "ce368dbdc119",
     "label": "llm-gated",
@@ -155,6 +178,25 @@
    ],
    "base_build_id": "build-b",
    "created_at": "2026-09-19T00:00:00+00:00",
+   "lineage": {
+    "consumed_freezes": [
+     {
+      "campaign_id": null,
+      "campaign_type": null,
+      "freeze_id": null,
+      "layer": null,
+      "manifest_sha256": "8041a9b7fef49e79bfc149adc60198aa88a8dc427b3de51dea0cb13d1b30f349",
+      "stage": null,
+      "step": "L2.4"
+     }
+    ],
+    "inherited_from": {
+     "L0.1": "a00000000003",
+     "L1.1": "a00000000003",
+     "L2.1": "a00000000003",
+     "L2.2": "a00000000003"
+    }
+   },
    "publication": null,
    "reason": null,
    "record_id": "a00000000004",

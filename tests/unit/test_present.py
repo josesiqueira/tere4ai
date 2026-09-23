@@ -1,4 +1,4 @@
-"""The presenter and the legacy synthesis: provenance per field, steps, nothing invented (D-G25)."""
+"""The presenter and the legacy synthesis: provenance per field, steps, nothing invented (D-G25, DEC-17)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import (
+    lineage_of,
     present_record,
     step_states,
     summary_of,
@@ -218,3 +219,31 @@ def test_a_malformed_legacy_payload_yields_no_execution_and_a_reason(tmp_path):
     assert p["steps"]["L2.1"] == p["steps"]["L3.1"] == "not_recorded"
     assert p["reasons"]["L2.2"] == "artefact malformed: norms_core.json"
     assert p["reasons"]["L3.3"] == "artefact malformed: alignments_core.json"
+
+
+def test_lineage_of_names_inherited_records_and_consumed_freezes():
+    presented = {
+        "record_id": "r2", "aliases": [], "base_build_id": "b", "created_at": "t", "synthesised": False,
+        "steps": {"L0.1": "inherited", "L1.1": "inherited", "L2.1": "inherited", "L2.2": "inherited", "L2.3": "done",
+                  "L2.4": "done", "L3.1": "done", "L3.2": "done", "L3.3": "done", "L3.4": "none", "L3.5": "none",
+                  "P.1": "done", "P.2": "done"},
+        "reasons": {"L0.1": "done in record r1", "L1.1": "done in record r1", "L2.1": "done in record r1",
+                    "L2.2": "unexpected wording"},
+        "executions": [{"command": "materialize_reference", "status": "done", "covers_steps": ["L2.4"],
+                        "inputs": [{"role": "freeze_manifest", "file": "m.json", "sha256": "7" * 64}]}],
+        "publication": {"chain_id": "c", "label": None, "published_at": "t",
+                        "manifests": [{"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation",
+                                       "stage": "production", "decisions_sha256": "8" * 64, "layer": 2}]},
+        "served": False,
+    }
+    lineage = lineage_of(presented)
+    assert lineage["inherited_from"] == {"L0.1": "r1", "L1.1": "r1", "L2.1": "r1", "L2.2": None}
+    assert lineage["consumed_freezes"] == [{"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation",
+                                            "stage": "production", "layer": 2, "step": "L2.4", "manifest_sha256": None}]
+    presented["publication"] = None
+    assert lineage_of(presented)["consumed_freezes"] == [{"campaign_id": None, "freeze_id": None, "campaign_type": None,
+                                                          "stage": None, "layer": None, "step": "L2.4",
+                                                          "manifest_sha256": "7" * 64}]
+    row = summary_of(presented)
+    assert row["lineage"]["inherited_from"]["L0.1"] == "r1"
+    assert summary_of({"record_id": "x", "unreadable": True, "reason": "r"})["lineage"] is None

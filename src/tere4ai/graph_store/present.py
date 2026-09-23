@@ -1,6 +1,6 @@
 """Presenter: a build record as the API serves it, and the legacy synthesis.
 
-@implements: DEC-16
+@implements: DEC-16, DEC-17
 @grounded_by: REF-27, ADD-20
 
 Spec G 3.1 and D-G25: every presented field carries a provenance,
@@ -395,13 +395,46 @@ def unreadable(record_id: str, reason: str, aliases: list[str] | None = None) ->
     return {"record_id": record_id, "aliases": list(aliases or []), "unreadable": True, "reason": reason}
 
 
+_INHERITED_RE = re.compile(r"done in record (\S+)")
+_FREEZE_STEP = {2: "L2.4", 3: "L3.5"}  # manifest refs carry the layer as an integer (schema line 185)
+
+
+def lineage_of(presented: dict[str, Any]) -> dict[str, Any]:
+    """The relationships the dashboard's record page joins on (D-G44): the
+    record each inherited step came from, and the freezes this build consumed,
+    from the publication's manifests when published, else from the digests
+    of the materialise executions' manifest inputs."""
+    inherited: dict[str, str | None] = {}
+    reasons = presented.get("reasons") or {}
+    for step, state in (presented.get("steps") or {}).items():
+        if state == "inherited":
+            m = _INHERITED_RE.fullmatch(str(reasons.get(step, "")))
+            inherited[step] = m.group(1) if m else None
+    consumed: list[dict[str, Any]] = []
+    publication = presented.get("publication")
+    if publication and publication.get("manifests"):
+        for m in publication["manifests"]:
+            consumed.append({"campaign_id": m.get("campaign_id"), "freeze_id": m.get("freeze_id"),
+                             "campaign_type": m.get("campaign_type"), "stage": m.get("stage"), "layer": m.get("layer"),
+                             "step": _FREEZE_STEP.get(m.get("layer")), "manifest_sha256": None})
+    else:
+        for ex in presented.get("executions") or []:
+            if ex.get("command") != "materialize_reference" or ex.get("status") != "done":
+                continue
+            manifest = next((i for i in ex.get("inputs", []) if i.get("role") == "freeze_manifest"), None)
+            step = next((s for s in ex.get("covers_steps", []) if s in ("L2.4", "L3.5")), None)
+            consumed.append({"campaign_id": None, "freeze_id": None, "campaign_type": None, "stage": None,
+                             "layer": None, "step": step, "manifest_sha256": (manifest or {}).get("sha256")})
+    return {"inherited_from": inherited, "consumed_freezes": consumed}
+
+
 def summary_of(presented: dict[str, Any]) -> dict[str, Any]:
     """One row of the builds list (schema summary). An unreadable record
     (store.list_records marks it) keeps its id and reason and nothing else."""
     if presented.get("unreadable"):
         return {"record_id": presented["record_id"], "aliases": [], "base_build_id": None, "created_at": None,
                 "synthesised": False, "steps": None, "publication": None, "served": False, "unreadable": True,
-                "reason": presented.get("reason")}
+                "reason": presented.get("reason"), "lineage": None}
     pub = presented.get("publication")
     return {
         "record_id": presented["record_id"],
@@ -415,6 +448,7 @@ def summary_of(presented: dict[str, Any]) -> dict[str, Any]:
         "served": bool(presented.get("served")),
         "unreadable": False,
         "reason": None,
+        "lineage": lineage_of(presented),
     }
 
 
