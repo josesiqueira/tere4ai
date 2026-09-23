@@ -430,11 +430,18 @@ def run_eval(
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as fh:
                     fh.write(json.dumps(artifact, ensure_ascii=False, indent=1) + "\n")
-                ref = record_store.keep_output(record_id, "artifact", tmp, name=out_path.name)
-                os.replace(tmp, out_path)
-            finally:
+            except BaseException:
+                # only a failed temp write drops the temp file
                 if os.path.exists(tmp):
                     os.unlink(tmp)
+                raise
+            try:
+                ref = record_store.keep_output(record_id, "artifact", tmp, name=out_path.name)
+            finally:
+                # never lose paid bytes (G3b): the run's results land at the
+                # compatibility path whether or not the record's copy succeeded;
+                # a failed copy re-raises and the record ends failed (F3)
+                os.replace(tmp, out_path)
         else:
             atomic_write_json(out_path, artifact)
         artifact["artifact_path"] = str(out_path)

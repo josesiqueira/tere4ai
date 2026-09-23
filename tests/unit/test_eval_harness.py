@@ -726,7 +726,10 @@ def test_a_failing_keep_output_after_the_artifact_write_fails_the_record(tmp_pat
     with pytest.raises(OSError, match="copy refused"):
         run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
                  results_dir=tmp_path / "r", record_store=store)
-    assert not list((tmp_path / "r").glob("*.json")), "no compatibility file and no temp file left (G3)"
+    (kept,) = list((tmp_path / "r").iterdir())
+    assert kept.name.startswith("eval_"), "the compatibility file, no temp file left (G3b)"
+    artifact = json.loads(kept.read_text())
+    assert artifact["item_ids"] == [GOLD_3[0]["id"]] and "plain_llm" in artifact["results"], "this run's bytes"
     (rec,) = store.list_records()
     assert rec["outcome"]["status"] == "failed" and "copy refused" in rec["outcome"]["error"]
 
