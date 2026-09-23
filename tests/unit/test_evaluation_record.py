@@ -243,3 +243,17 @@ def test_keep_output_records_the_given_name_and_keeps_the_copy_under_its_role(tm
     assert ref["file"] == "eval_build-b_plain_llm.json" and ref["copy"] == f"{rid}/artifact.json"
     assert ref["sha256"] == er.sha256_of_file(tmp)
     store.finish(rid, status="failed", error="x")
+
+
+def test_a_record_file_that_is_not_utf8_lists_as_an_unreadable_row(tmp_path):
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None})
+    (store.dir / "abcdef012345.json").write_bytes(b"\xff\xfe")
+    rows = {r["record_id"]: r for r in store.list_records()}
+    assert set(rows) == {rid, "abcdef012345"} and not rows[rid].get("unreadable")
+    assert rows["abcdef012345"]["unreadable"] is True
+    assert rows["abcdef012345"]["reason"].startswith("abcdef012345.json: not readable JSON: ")
+    assert str(tmp_path) not in rows["abcdef012345"]["reason"]
+    with pytest.raises(EvaluationRecordError, match="not readable JSON"):
+        store.read("abcdef012345")

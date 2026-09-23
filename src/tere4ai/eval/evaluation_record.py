@@ -163,7 +163,7 @@ class EvaluationRecordStore:
     def _read_raw(self, path: Path) -> dict[str, Any]:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:  # ValueError: bad JSON and bytes that are not UTF-8 (G5)
             raise EvaluationRecordError(reduce_paths(f"{path.name}: not readable JSON: {exc}")) from exc
         errors = sorted(_stored_validator().iter_errors(data), key=lambda e: list(e.path))
         if errors:

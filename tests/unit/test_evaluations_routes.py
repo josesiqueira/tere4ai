@@ -151,3 +151,19 @@ def test_an_unreadable_record_under_a_deep_path_names_the_file_only(tmp_path):
     reason = rows["00000000000c"]["reason"]
     assert "00000000000c.json" in reason and str(tmp_path) not in reason and "/" not in reason
     assert detail.status_code == 404 and str(tmp_path) not in detail.json()["error"]
+
+
+def test_a_record_file_that_is_not_utf8_is_an_unreadable_row_never_a_500(tmp_path):
+    _legacy_dumps(tmp_path)
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[],
+                      build={"base_build_id": "build-b", "publication": None, "publication_reason": "x"})
+    (store.dir / "abcdef012345.json").write_bytes(b"\xff\xfe")
+    with TestClient(facade.create_app(tmp_path, eval_root=tmp_path / "empty")) as client:
+        r = client.get("/api/evaluations")
+        assert r.status_code == 200
+        rows = {row["record_id"]: row for g in r.json()["groups"] for row in g["records"]}
+        assert rows["abcdef012345"]["unreadable"] and "not readable JSON" in rows["abcdef012345"]["reason"]
+        assert rows[rid]["status"] == "running"
+        detail = client.get("/api/evaluations/abcdef012345")
+        assert detail.status_code == 404 and "not readable JSON" in detail.json()["error"]
