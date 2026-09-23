@@ -804,17 +804,22 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         store = EvaluationRecordStore(request.app.state.dump_dir, create=False)
         now = datetime.now(UTC)
         if (store.dir / f"{ref}.json").is_file():
-            try:
-                record = store.read(ref)
-            except Exception as exc:  # noqa: BLE001 - an unreadable record is reported, never a 500
-                return JSONResponse(status_code=404, content={"error": f"evaluation record {ref} is unreadable: {exception_reason(exc)}"})
-            return JSONResponse(content=_sanitize_non_finite(present_evaluation(record, store, now)))
+            return _evaluation_or_404(ref, lambda: store.read(ref), store, now)
         for record in synthesise_legacy_evaluations(request.app.state.eval_root, store):
             if record["record_id"] == ref:
                 if record.get("unreadable"):
                     return JSONResponse(status_code=404, content={"error": f"evaluation record {ref} is unreadable: {reduce_paths(record['reason'])}"})
-                return JSONResponse(content=_sanitize_non_finite(present_evaluation(record, store, now)))
+                return _evaluation_or_404(ref, lambda record=record: record, store, now)
         return JSONResponse(status_code=404, content={"error": f"no evaluation record {ref}"})
+
+    def _evaluation_or_404(ref, read, store, now) -> JSONResponse:
+        # read and present inside one boundary (G6): presenting hashes the
+        # output copies, so an unreadable copy is a 404, never a 500
+        try:
+            presented = present_evaluation(read(), store, now)
+        except Exception as exc:  # noqa: BLE001 - an unreadable record is reported, never a 500
+            return JSONResponse(status_code=404, content={"error": f"evaluation record {ref} is unreadable: {exception_reason(exc)}"})
+        return JSONResponse(content=_sanitize_non_finite(presented))
 
     @app.post("/api/explain")
     def explain(request: Request, body: ExplainRequest) -> JSONResponse:

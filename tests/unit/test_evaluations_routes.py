@@ -167,3 +167,29 @@ def test_a_record_file_that_is_not_utf8_is_an_unreadable_row_never_a_500(tmp_pat
         assert rows[rid]["status"] == "running"
         detail = client.get("/api/evaluations/abcdef012345")
         assert detail.status_code == 404 and "not readable JSON" in detail.json()["error"]
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads any file")
+def test_a_record_whose_output_copy_is_unreadable_is_a_404_on_detail_and_an_unreadable_row_on_list(tmp_path):
+    _legacy_dumps(tmp_path)
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[],
+                      build={"base_build_id": "build-b", "publication": None, "publication_reason": "x"})
+    out = tmp_path / "ablation_summary.json"
+    out.write_text("{}")
+    ref = store.keep_output(rid, "summary", out)
+    store.finish(rid, status="completed", outputs=[ref])
+    copy = store.dir / ref["copy"]
+    copy.chmod(0)
+    try:
+        with TestClient(facade.create_app(tmp_path, eval_root=tmp_path / "empty")) as client:
+            detail = client.get(f"/api/evaluations/{rid}")
+            listed = client.get("/api/evaluations")
+    finally:
+        copy.chmod(0o644)
+    assert detail.status_code == 404
+    error = detail.json()["error"]
+    assert error.startswith(f"evaluation record {rid} is unreadable: ") and str(tmp_path) not in error
+    assert listed.status_code == 200
+    rows = {r["record_id"]: r for g in listed.json()["groups"] for r in g["records"]}
+    assert rows[rid]["unreadable"] and str(tmp_path) not in rows[rid]["reason"]
