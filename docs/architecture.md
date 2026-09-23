@@ -588,6 +588,39 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   test_publish_layer23.py, test_publication.py, test_present.py,
   test_builds_routes.py.
 
+- DEC-17: every measurement run of the Evaluate steps E1 (judge error
+  rates) and E6 (benchmark, ablations, variance) writes one immutable
+  evaluation record, and the July 2026 measurements are presented as
+  legacy records that state only what their files state (added
+  2026-09-23; spec G D-G33, D-G34, D-G39, D-G44 in the private research
+  repository). Engineering MUST (reproducibility, traceability, no silent
+  degradation, Section 13); corroborated by ADD-20 (PROV activities link
+  used entities to generated entities) and REF-27.
+  Defense: a measurement the record cannot tie to the exact files it
+  measured cannot be a thesis figure. Each record names the step and the
+  kind of act, the command line with key material scrubbed, start and
+  end, origin (recorded, legacy) and outcome (completed, partial, failed)
+  as two fields, the digests of every file read plus the publication
+  observed at start, the models with prompt versions and hashes, the
+  sampling and usage, the strategy, metrics and code versions, the
+  outputs by digest with an immutable copy of their bytes (the harness
+  and the ablation runner overwrite deterministic filenames), and the
+  relations to other records (a repeat, a resume, a comparison, the
+  sample id of the E1 acts). E1 is three recorded acts: the draw under an
+  immutable sample id, refusing to overwrite any existing sheet without
+  --force; the label act, recording actor and time per item; the
+  analysis over the exact labelled bytes, with rates per judge kind and
+  pooled, null on an empty denominator, worded "sample estimate". Two
+  free read-only routes serve the records grouped by build identity; an
+  unreadable file is its own row and an outage is an outage, never an
+  empty list. The builds list carries the lineage relationships the
+  dashboard joins on, and the units and trace routes carry the judge
+  run's completed time and prompt hash where the dump records them.
+  Consequence: eval records live under data/graph_dumps/evaluation_records/
+  (git-ignored like the build records); the compatibility files keep
+  being written where they are; metrics.judge_error_rates returns None
+  on an empty denominator (METRICS_VERSION metrics.v2).
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)
