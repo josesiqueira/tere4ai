@@ -221,8 +221,12 @@ def main(argv: list[str] | None = None) -> int:
             file_ref("norms", paths["norms"]),
             file_ref("benchmark", args.benchmark or harness.BENCHMARK_SAMPLE_PATH),
             file_ref("gold_seed", harness.GOLD_SEED_PATH),
-            file_ref("features", features_path),
         ]
+        # the cache is optional to load_items: recorded only when it was read (G7)
+        if features_path.is_file():
+            inputs.append(file_ref("features", features_path))
+        else:
+            notes.append("no elicited-features cache was read")
         if done:
             inputs.append(file_ref("checkpoint_resumed", checkpoint_path))
         publication, publication_reason = observe_publication(args.dump_dir)

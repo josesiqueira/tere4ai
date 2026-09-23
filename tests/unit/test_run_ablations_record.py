@@ -349,3 +349,20 @@ def test_two_checkpoints_with_one_basename_in_two_directories_never_resolve_to_e
     assert runner.main(_argv(tmp_path, "--checkpoint", str(b))) == 0
     (resumed_b,) = [r for r in store.list_records() if r["record_id"] not in seen]
     assert resumed_b["relations"]["resumes_record_id"] == rec_b["record_id"]
+
+
+def test_the_features_cache_is_recorded_only_when_the_run_read_one(runner, tmp_path):
+    assert runner.main(_argv(tmp_path, "--features", str(tmp_path / "no_such_features.json"))) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert "features" not in {i["role"] for i in rec["inputs"]}
+    assert "no elicited-features cache was read" in rec["notes"]
+    assert rec["outcome"]["status"] == "completed"
+    default = tmp_path / "second"
+    default.mkdir()
+    _dumps(default)
+    assert runner.main(["--dump-dir", str(default), "--checkpoint", str(default / "c.jsonl"),
+                        "--summary", str(default / "s.json")]) == 0
+    (rec2,) = EvaluationRecordStore(default, create=False).list_records()
+    features = [i for i in rec2["inputs"] if i["role"] == "features"]
+    assert len(features) == 1 and features[0]["file"] == "benchmark_features.json"
+    assert "no elicited-features cache was read" not in rec2["notes"]
