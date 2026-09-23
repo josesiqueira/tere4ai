@@ -22,6 +22,7 @@ import pytest
 
 from tere4ai.eval import present_evaluation as pe
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
+from tere4ai.graph_store.build_chain import build_chain
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -379,6 +380,18 @@ def test_draw_refuses_any_existing_sheet_without_force(tmp_path, capsys):
     assert json.loads((tmp_path / "sheet.json").read_text())["sample"]["sample_id"] != first["sample"]["sample_id"]
 
 
+def _publish(dump_dir, files, base="build-b"):
+    """A real publication over the files as they are (G1): the manifest names their digests."""
+    chain = build_chain(dump_dir / files["layer1_dump"], dump_dir / files["norms"],
+                        alignments_path=dump_dir / files["alignments"] if files.get("alignments") else None)
+    chain_id = chain["chain_id"]
+    (dump_dir / "publications").mkdir(exist_ok=True)
+    (dump_dir / "publications" / f"{chain_id}.json").write_text(json.dumps(
+        {"build_id": f"{base}+chain-{chain_id}", "chain_id": chain_id, "files": files, "inputs": chain["inputs"]}))
+    (dump_dir / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": chain_id}))
+    return chain_id
+
+
 def test_draw_binds_the_sample_to_the_observed_publication_or_the_base_id(tmp_path):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path)) == 0
@@ -396,15 +409,11 @@ def test_draw_binds_the_sample_to_the_observed_publication_or_the_base_id(tmp_pa
     assert rec["counts"]["sampled"] == len(sheet["items"]) and rec["counts"]["unjoinable"] == 0
     assert rec["config"]["strata"] == sheet["sampling"]["strata"] and rec["config"]["population"] == sheet["sampling"]["population"]
     # a publication, once activated, is what the sample binds to
-    (tmp_path / "publications").mkdir()
-    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({
-        "build_id": "build-b+chain-abc",
-        "files": {"layer1_dump": "layer1.json", "norms": "norms_core.json", "alignments": "alignments_core.json"},
-    }))
-    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
+    chain_id = _publish(tmp_path, {"layer1_dump": "layer1.json", "norms": "norms_core.json",
+                                   "alignments": "alignments_core.json"})
     assert sampling.main(_draw_argv(tmp_path, "--force")) == 0
     sheet2 = json.loads((tmp_path / "sheet.json").read_text())
-    assert sheet2["sample"]["build"]["publication"]["build_id"] == "build-b+chain-abc"
+    assert sheet2["sample"]["build"]["publication"]["build_id"] == f"build-b+chain-{chain_id}"
 
 
 def test_draw_refuses_when_the_active_publication_names_no_norms_file(tmp_path, capsys):

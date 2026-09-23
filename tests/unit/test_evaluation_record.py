@@ -13,6 +13,7 @@ from jsonschema import Draft202012Validator
 
 from tere4ai.eval import evaluation_record as er
 from tere4ai.eval.evaluation_record import EvaluationRecordError, EvaluationRecordStore
+from tere4ai.graph_store.build_chain import build_chain
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "schema" / "json_schemas" / "evaluation_record.schema.json").read_text())
@@ -149,20 +150,44 @@ def test_find_by_checkpoint_file_names_the_newest_begin_of_any_status_then_falls
     assert store.find_by_checkpoint_file("other.jsonl") is None
 
 
+def _publish(dump_dir, files, base="build-b"):
+    """A real publication over the files as they are now: the manifest names
+    their digests, the pointer names the recomputed chain (G1)."""
+    for role, name in files.items():
+        if not (dump_dir / name).exists():
+            (dump_dir / name).write_text(json.dumps({"build": {"build_id": base}, "role": role}))
+    chain = build_chain(dump_dir / files["layer1_dump"], dump_dir / files["norms"],
+                        alignments_path=dump_dir / files["alignments"] if files.get("alignments") else None)
+    chain_id = chain["chain_id"]
+    (dump_dir / "publications").mkdir(exist_ok=True)
+    (dump_dir / "publications" / f"{chain_id}.json").write_text(json.dumps(
+        {"build_id": f"{base}+chain-{chain_id}", "chain_id": chain_id, "files": files, "inputs": chain["inputs"]}))
+    (dump_dir / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": chain_id}))
+    return chain_id
+
+
 def test_observe_publication_and_served_paths_follow_the_pointer_or_the_legacy_names(tmp_path):
     pub, reason = er.observe_publication(tmp_path)
     assert pub is None and reason.startswith("no ACTIVE_MANIFEST.json")
     assert er.served_input_paths(tmp_path) == {"layer1_dump": tmp_path / "layer1.json", "norms": tmp_path / "norms_core.json",
                                                "alignments": tmp_path / "alignments_core.json"}
-    (tmp_path / "publications").mkdir()
-    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps(
-        {"build_id": "build-b+chain-abc", "files": {"layer1_dump": "layer1.json", "norms": "norms_core.reference.json"}}))
-    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
+    chain_id = _publish(tmp_path, {"layer1_dump": "layer1.json", "norms": "norms_core.reference.json"})
     pub, reason = er.observe_publication(tmp_path)
-    assert reason is None and pub["build_id"] == "build-b+chain-abc" and pub["manifest_file"].endswith("chain-abc.json")
-    assert pub["sha256"] == er.sha256_of_file(tmp_path / "publications" / "chain-abc.json")
+    assert reason is None and pub["build_id"] == f"build-b+chain-{chain_id}"
+    assert pub["manifest_file"].endswith(f"{chain_id}.json")
+    assert pub["sha256"] == er.sha256_of_file(tmp_path / "publications" / f"{chain_id}.json")
     assert er.served_input_paths(tmp_path) == {"layer1_dump": tmp_path / "layer1.json",
                                                "norms": tmp_path / "norms_core.reference.json"}
+
+
+def test_a_served_file_rewritten_after_publication_binds_to_no_publication(tmp_path):
+    chain_id = _publish(tmp_path, {"layer1_dump": "layer1.json", "norms": "norms_core.json"})
+    assert er.observe_publication(tmp_path)[0] is not None
+    (tmp_path / "norms_core.json").write_text('{"build": {"build_id": "build-b"}, "rewritten": true}')
+    pub, reason = er.observe_publication(tmp_path)
+    assert pub is None
+    assert reason.startswith(f"the served files are not the published bytes of chain {chain_id}: ")
+    assert "norms_core.json" in reason and str(tmp_path) not in reason
 
 
 def test_a_manifest_naming_no_build_id_is_no_publication_never_the_string_none(tmp_path):

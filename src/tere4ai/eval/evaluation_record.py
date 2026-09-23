@@ -29,7 +29,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from tere4ai.graph_store.build_chain import sha256_of_file
+from tere4ai.graph_store.build_chain import sha256_of_file, verify_dumps_against_chain
 from tere4ai.graph_store.build_record import atomic_write_json, scrub_argv
 from tere4ai.graph_store.present import _PATH_RE
 from tere4ai.graph_store.publication import active_manifest, manifest_path
@@ -89,7 +89,11 @@ def code_version(root: Path | str) -> str | None:
 
 
 def observe_publication(dump_dir: Path | str) -> tuple[dict[str, Any] | None, str | None]:
-    """The activated publication as (ref, None), or (None, reason). Read once, never cached."""
+    """The activated publication as (ref, None), or (None, reason). Read once, never cached.
+
+    A publication binds only when verify_dumps_against_chain accepts the
+    served files against it (G1): a dump rewritten after publication is no
+    longer that publication's bytes."""
     dump_dir = Path(dump_dir)
     pointer = dump_dir / "ACTIVE_MANIFEST.json"
     if not pointer.is_file():
@@ -104,6 +108,14 @@ def observe_publication(dump_dir: Path | str) -> tuple[dict[str, Any] | None, st
     if manifest.get("build_id") is None:
         # a missing build id is no publication identity, never the string "None"
         return None, f"the publication manifest for chain {chain_id} names no build id"
+    # bind only when the served bytes are the published bytes (G1): the app's
+    # own gate, every manifest input's digest and the recomputed chain
+    try:
+        ok, detail = verify_dumps_against_chain(dump_dir, chain_id=chain_id)
+    except OSError as exc:
+        ok, detail = False, f"a served file could not be read: {exc}"
+    if not ok:
+        return None, reduce_paths(f"the served files are not the published bytes of chain {chain_id}: {detail}")
     path = manifest_path(dump_dir, chain_id)
     return {"manifest_file": str(path.relative_to(dump_dir)), "sha256": sha256_of_file(path),
             "build_id": str(manifest["build_id"])}, None

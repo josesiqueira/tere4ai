@@ -30,6 +30,7 @@ from tere4ai.eval.harness import (
 )
 from tere4ai.eval.strategies import STRATEGY_NAMES, TfidfIndex, build_strategy
 from tere4ai.extract_norms.model_clients import FakeClient
+from tere4ai.graph_store.build_chain import build_chain
 from tere4ai.judge.config import ModelConfig
 from tere4ai.mcp_server.classify import classify_ai_system
 
@@ -745,12 +746,21 @@ def test_a_keyboard_interrupt_inside_the_strategy_loop_fails_the_record(tmp_path
     assert rec["ended_at"] is not None
 
 
+def _publish(dump_dir, files, base="build-b"):
+    """A real publication over the files as they are (G1): the manifest names their digests."""
+    chain = build_chain(dump_dir / files["layer1_dump"], dump_dir / files["norms"],
+                        alignments_path=dump_dir / files["alignments"] if files.get("alignments") else None)
+    chain_id = chain["chain_id"]
+    (dump_dir / "publications").mkdir(exist_ok=True)
+    (dump_dir / "publications" / f"{chain_id}.json").write_text(json.dumps(
+        {"build_id": f"{base}+chain-{chain_id}", "chain_id": chain_id, "files": files, "inputs": chain["inputs"]}))
+    (dump_dir / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": chain_id}))
+    return chain_id
+
+
 def test_a_preloaded_dump_or_prebuilt_strategies_bind_to_no_publication(tmp_path):
     _write_legacy_dumps(tmp_path)
-    (tmp_path / "publications").mkdir()
-    (tmp_path / "publications" / "chain-abc.json").write_text(json.dumps({
-        "build_id": "build-b+chain-abc", "files": {"layer1_dump": "layer1.json", "norms": "norms_core.json"}}))
-    (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-abc"}))
+    chain_id = _publish(tmp_path, {"layer1_dump": "layer1.json", "norms": "norms_core.json"})
     store = EvaluationRecordStore(tmp_path)
     kw = {"generator_factory": make_generator, "results_dir": tmp_path / "r", "record_store": store,
           "dump_dir": tmp_path}
@@ -762,7 +772,7 @@ def test_a_preloaded_dump_or_prebuilt_strategies_bind_to_no_publication(tmp_path
         assert rec["build"]["publication"] is None
         assert rec["build"]["publication_reason"] == "the harness did not read the served files"
     served = store.read(run_eval(list(GOLD_3)[:1], ["plain_llm"], **{**kw, "results_dir": tmp_path / "r3"})["record_id"])
-    assert served["build"]["publication"]["build_id"] == "build-b+chain-abc"
+    assert served["build"]["publication"]["build_id"] == f"build-b+chain-{chain_id}"
 
 
 def test_a_writer_stores_its_failure_with_the_file_name_only(tmp_path, monkeypatch):
