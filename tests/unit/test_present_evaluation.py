@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from jsonschema import Draft202012Validator
 
 from tere4ai.eval import present_evaluation as pe
@@ -114,9 +116,19 @@ def _legacy_root(tmp_path, with_dates=True):
     return tmp_path
 
 
+SUMMARIES = ("ablation_run1_summary.json", "ablation_summary.json", "ablation_full_summary.json",
+             "ablation_variance_summary.json")
+
+
+def _dated(root):
+    """The synthetic summaries' own digests: the bytes the synthetic analysis phrases date."""
+    results = root / "eval" / "results"
+    return {name: sha256_of_file(results / name) for name in SUMMARIES if (results / name).is_file()}
+
+
 def test_legacy_synthesis_states_only_what_the_files_state(tmp_path):
     root = _legacy_root(tmp_path)
-    records = pe.synthesise_legacy_evaluations(root)
+    records = pe.synthesise_legacy_evaluations(root, dated_digests=_dated(root))
     by_file = {r["outputs"][0]["file"]: r for r in records if not r.get("unreadable") and r["kind"] == "run"}
     assert set(by_file) == {"ablation_run1_summary.json", "ablation_summary.json", "ablation_full_summary.json",
                             "ablation_variance_summary.json"}
@@ -195,3 +207,74 @@ def test_legacy_synthesis_over_the_real_checkout_names_the_july_files():
                                                    runs["ablation_variance_summary.json"]["record_id"]]
     (sheet,) = [r for r in records if not r.get("unreadable") and r["kind"] == "sample"]
     assert sheet["counts"] == {"items": 50, "labelled": 0}
+
+
+def test_legacy_run_containers_holding_only_nulls_read_unavailable(tmp_path):
+    root = _legacy_root(tmp_path)
+    results = root / "eval" / "results"
+    (results / "ablation_run1_summary.json").write_text(json.dumps({"config": {"judge_model": "claude-opus-4-8"},
+                                                                     "items_total": 3}))
+    records = pe.synthesise_legacy_evaluations(root, dated_digests=_dated(root))
+    runs = {r["outputs"][0]["file"]: r for r in records if not r.get("unreadable") and r["kind"] == "run"}
+    store = EvaluationRecordStore(tmp_path / "dumps")
+    p = pe.present_evaluation(runs["ablation_summary.json"], store, NOW)
+    assert p["provenance"]["relations"] == "unavailable"
+    assert p["reasons"]["relations"] == "not recorded: the summary names no other run"
+    bare = pe.present_evaluation(runs["ablation_run1_summary.json"], store, NOW)
+    assert bare["config"] == {} and bare["provenance"]["config"] == "unavailable"
+    assert bare["reasons"]["config"] == "not recorded: the summary names no strategy"
+    assert bare["models"] == {"generator_model": None, "judge_model": "claude-opus-4-8"}
+    assert bare["provenance"]["models"] == "derived"
+    assert bare["reasons"]["models"] == "derived: the summary names no generator model"
+
+
+def test_a_stated_phrase_never_dates_bytes_that_are_not_the_july_bytes(tmp_path):
+    root = _legacy_root(tmp_path)
+    dated = _dated(root)
+    summary = root / "eval" / "results" / "ablation_summary.json"
+    summary.write_text(json.dumps({"rewritten": "by a recorded run", "items_total": 57}))
+    records = pe.synthesise_legacy_evaluations(root, dated_digests=dated)
+    runs = {r["outputs"][0]["file"]: r for r in records if not r.get("unreadable") and r["kind"] == "run"}
+    run2 = runs["ablation_summary.json"]
+    assert run2["started_at"] is None
+    p = pe.present_evaluation(run2, EvaluationRecordStore(tmp_path / "dumps"), NOW)
+    assert p["provenance"]["started_at"] == "unavailable"
+    assert p["reasons"]["started_at"] == "not recorded: the file's bytes are not the July bytes this phrase dates"
+    assert runs["ablation_full_summary.json"]["started_at"] == "2026-07-10", "unchanged bytes keep their date"
+    default = {r["outputs"][0]["file"]: r for r in pe.synthesise_legacy_evaluations(root)
+               if not r.get("unreadable") and r["kind"] == "run"}
+    assert all(r["started_at"] is None for r in default.values()), "the pinned July digests date only July bytes"
+
+
+def test_an_unreadable_study_is_named_by_its_bytes(tmp_path):
+    root = _legacy_root(tmp_path)
+    study = root / "docs" / "variance_study.md"
+    study.write_bytes(b"\xff\xfe not utf-8")
+    (bad,) = [r for r in pe.synthesise_legacy_evaluations(root) if r.get("unreadable")]
+    assert bad["record_id"] == "legacy-" + sha256_of_file(study)[:12]
+    assert "UnicodeDecodeError" in bad["reason"]
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads any directory")
+def test_an_unlistable_store_propagates_rather_than_hiding_recorded_outputs(tmp_path):
+    root = _legacy_root(tmp_path)
+    store = EvaluationRecordStore(tmp_path / "dumps")
+    store.dir.chmod(0)
+    try:
+        with pytest.raises(OSError):
+            pe.synthesise_legacy_evaluations(root, store)
+    finally:
+        store.dir.chmod(0o755)
+
+
+def test_offline_and_comparison_records_say_not_applicable_for_model_facts(tmp_path):
+    store = EvaluationRecordStore(tmp_path)
+    off = store.begin(kind="run", step="E6", command="eval_harness", argv=[], inputs=[], build=_build(),
+                      config={"mode": "offline"})
+    p = pe.present_evaluation(store.read(off), store, NOW)
+    for key in ("prompt_versions", "prompt_sha256", "sampling", "usage"):
+        assert p["provenance"][key] == "unavailable" and p["reasons"][key] == "not applicable: no live model was called"
+    cmp_id = store.begin(kind="comparison", step="E6", command="variance_report", argv=[], inputs=[], build=_build())
+    c = pe.present_evaluation(store.read(cmp_id), store, NOW)
+    for key in ("models", "prompt_versions", "prompt_sha256", "sampling", "usage", "item_selection_sha256"):
+        assert c["reasons"][key] == "not applicable: a comparison calls no model"

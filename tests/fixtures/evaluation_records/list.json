@@ -326,7 +326,7 @@
    ]
   }
  ],
- "observed_at": "2026-09-23T00:00:00+00:00",
+ "observed_at": "2026-09-26T00:00:00+00:00",
  "order": "groups by the newest started_at in the group, newest first; inside a group newest started_at first; records without a date last, by record id; the group with no build identity last",
  "schema_version": "evaluations_list.v1",
  "served_build_id": "build-b+chain-x"

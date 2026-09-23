@@ -27,7 +27,7 @@
   "judge_model": "claude-opus-4-8"
  },
  "notes": [],
- "observed_at": "2026-09-23T00:00:00+00:00",
+ "observed_at": "2026-09-26T00:00:00+00:00",
  "origin": "legacy",
  "outcome": null,
  "outputs": [
@@ -60,7 +60,7 @@
   "prompt_sha256": "unavailable",
   "prompt_versions": "unavailable",
   "record_id": "derived",
-  "relations": "derived",
+  "relations": "unavailable",
   "sampling": "unavailable",
   "schema_version": "derived",
   "started_at": "unavailable",
@@ -77,6 +77,7 @@
   "outcome": "not recorded: the summary states no outcome",
   "prompt_sha256": "not recorded: the ablation runner reads no prompt hash",
   "prompt_versions": "not recorded: the file states none",
+  "relations": "not recorded: the summary names no other run",
   "sampling": "not recorded: the file states none",
   "started_at": "not recorded: no analysis file states a date for this summary",
   "usage": "not recorded: the file states none"

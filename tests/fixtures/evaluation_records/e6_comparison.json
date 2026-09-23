@@ -46,7 +46,7 @@
  "notes": [
   "run_b is named by no record"
  ],
- "observed_at": "2026-09-23T00:00:00+00:00",
+ "observed_at": "2026-09-26T00:00:00+00:00",
  "origin": "recorded",
  "outcome": {
   "completed_items": [
@@ -98,12 +98,12 @@
   "usage": "unavailable"
  },
  "reasons": {
-  "item_selection_sha256": "not recorded",
+  "item_selection_sha256": "not applicable: a comparison calls no model",
   "models": "not applicable: a comparison calls no model",
-  "prompt_sha256": "not recorded",
-  "prompt_versions": "not recorded",
-  "sampling": "not recorded",
-  "usage": "not recorded"
+  "prompt_sha256": "not applicable: a comparison calls no model",
+  "prompt_versions": "not applicable: a comparison calls no model",
+  "sampling": "not applicable: a comparison calls no model",
+  "usage": "not applicable: a comparison calls no model"
  },
  "record_id": "e6c000000001",
  "relations": {

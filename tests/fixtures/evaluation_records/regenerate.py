@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from tere4ai.eval import evaluation_record
-from tere4ai.eval.evaluation_record import EvaluationRecordStore
+from tere4ai.eval.evaluation_record import EvaluationRecordStore, sha256_of_file
 from tere4ai.eval.present_evaluation import (
     ORDER_SENTENCE,
     group_summaries,
@@ -32,7 +32,8 @@ from tere4ai.eval.present_evaluation import (
 )
 
 FIXTURE_DIR = Path(__file__).resolve().parent
-NOW = datetime(2026, 9, 23, tzinfo=UTC)
+# after the last clock tick (2026-09-25T13:00): no record is observed before it started
+NOW = datetime(2026, 9, 26, tzinfo=UTC)
 FIXED_IDS = ["e6a000000001", "e6a000000002", "e6a000000003", "e6c000000001", "e6d000000001", "e6e000000001",
              "e6f000000001", "e6b000000001", "e6b000000002", "e1a000000001", "e1b000000001", "e1c000000001"]
 CLOCK = [f"2026-09-{20 + i // 4:02d}T{10 + i % 4:02d}:00:00+00:00" for i in range(len(FIXED_IDS) * 2)]
@@ -199,7 +200,10 @@ def main(out_dir: Path | None = None) -> list[Path]:
                  copymiss: "e6_copy_missing", sample: "e1_sample", label: "e1_labelling", analysis: "e1_analysis"}
         presented = {rid: present_evaluation(store.read(rid), store, NOW) for rid in names}
         legacy_root = _legacy_root(tmp / "legacy")
-        legacy = synthesise_legacy_evaluations(legacy_root, store)
+        summary = legacy_root / "eval" / "results" / "ablation_run1_summary.json"
+        # the synthetic summary's own digest; no analysis file dates run 1, so it stays undated
+        legacy = synthesise_legacy_evaluations(legacy_root, store,
+                                               dated_digests={summary.name: sha256_of_file(summary)})
         legacy_presented = [present_evaluation(r, store, NOW) for r in legacy]
         for rid, name in names.items():
             path = out_dir / f"{name}.json"

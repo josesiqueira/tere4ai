@@ -30,15 +30,22 @@ ORDER_SENTENCE = ("groups by the newest started_at in the group, newest first; i
                   "identity last")
 NOT_RECORDED = "not recorded"
 NOT_RECORDED_LEGACY = "not recorded: the file states none"
-# (summary, checkpoint, analysis file, the exact phrase the analysis states, the date recorded, a note)
+# (summary, checkpoint, analysis file, the exact phrase the analysis states, the date recorded, a note,
+#  the sha256 of the July summary: the July bytes this phrase dates)
 LEGACY_E6 = (
-    ("ablation_run1_summary.json", "ablation_run1_checkpoint.jsonl", "RUN2_ANALYSIS.md", None, None, ""),
-    ("ablation_summary.json", "ablation_checkpoint.jsonl", "RUN2_ANALYSIS.md", "Date: 2026-07-09", "2026-07-09", ""),
+    ("ablation_run1_summary.json", "ablation_run1_checkpoint.jsonl", "RUN2_ANALYSIS.md", None, None, "",
+     "2b32643e4d92f528fddbac4bc3fe128fb17728b70263d25667b80105fcf728e1"),
+    ("ablation_summary.json", "ablation_checkpoint.jsonl", "RUN2_ANALYSIS.md", "Date: 2026-07-09", "2026-07-09", "",
+     "5ce6a643017b9dd99f1eacc849e85358fc7faea2cc928e482a7782f933ce4b33"),
     ("ablation_full_summary.json", "ablation_full_checkpoint.jsonl", "FULL_RUN_ANALYSIS.md", "Date: 2026-07-10/11",
-     "2026-07-10", "; the first day recorded as the start"),
+     "2026-07-10", "; the first day recorded as the start",
+     "b3bf6ef838fc6cef921448ba59a37037d63afe59202cc50104b1c7cba982f754"),
     ("ablation_variance_summary.json", "ablation_variance_checkpoint.jsonl", "FULL_RUN_ANALYSIS.md", "on 2026-07-11",
-     "2026-07-11", ""),
+     "2026-07-11", "", "38a7682b396a286d3a010e45b56e7ee5f25100c60302307f186c31ed9e53b16f"),
 )
+JULY_DIGESTS = {row[0]: row[6] for row in LEGACY_E6}
+NOT_JULY_BYTES = "not recorded: the file's bytes are not the July bytes this phrase dates"
+NO_DATE = "not recorded: no analysis file states a date for this summary"
 LEGACY_STUDY = "variance_study.md"
 LEGACY_SHEET = "judge_label_sheet.json"
 _STUDY_HEADER_RE = re.compile(r"from (\S+\.jsonl) \(run A\) and (\S+\.jsonl) \(run B\)")
@@ -85,8 +92,11 @@ def present_evaluation(record: dict[str, Any], store: EvaluationRecordStore, now
         null_reasons.setdefault("ended_at", "running: no end recorded")
     if (rec.get("config") or {}).get("mode") == "offline":
         null_reasons.setdefault("models", "offline: no live model was called")
+        for key in ("prompt_versions", "prompt_sha256", "sampling", "usage"):
+            null_reasons.setdefault(key, "not applicable: no live model was called")
     if rec.get("kind") == "comparison":
-        null_reasons.setdefault("models", "not applicable: a comparison calls no model")
+        for key in ("models", "prompt_versions", "prompt_sha256", "sampling", "usage", "item_selection_sha256"):
+            null_reasons.setdefault(key, "not applicable: a comparison calls no model")
     if rec.get("command") == "run_ablations":
         null_reasons.setdefault("prompt_sha256", "not recorded: the ablation runner reads no prompt hash")
     provenance, reasons = provenance_of(
@@ -174,7 +184,7 @@ def _states(results: Path, analysis: str, phrase: str | None) -> bool:
 
 
 def _legacy_run(results: Path, summary: str, checkpoint: str, analysis: str, phrase: str | None, date: str | None,
-                note: str) -> dict[str, Any]:
+                note: str, dated_digest: str | None) -> dict[str, Any]:
     path = results / summary
     data = _read_json(path)
     rec = _empty_legacy(_legacy_id(path), "run", "E6", "run_ablations")
@@ -182,17 +192,29 @@ def _legacy_run(results: Path, summary: str, checkpoint: str, analysis: str, phr
     if (results / checkpoint).is_file():
         rec["outputs"].append({"role": "checkpoint", "file": checkpoint, "sha256": sha256_of_file(results / checkpoint),
                                "copy": None})
-    if _states(results, analysis, phrase):
+    if not _states(results, analysis, phrase):
+        rec["_reasons"]["started_at"] = NO_DATE
+    elif rec["outputs"][0]["sha256"] != dated_digest:
+        # a recorded run rewrote the compatibility file: the phrase dates other bytes
+        rec["_reasons"]["started_at"] = NOT_JULY_BYTES
+    else:
         rec["started_at"] = date
         rec["_reasons"]["started_at"] = f"date stated by eval/results/{analysis} ({phrase}){note}"
-    else:
-        rec["_reasons"]["started_at"] = "not recorded: no analysis file states a date for this summary"
     rec["_reasons"]["build"] = "not recorded: the summary and its checkpoint carry no build id"
     rec["_reasons"]["outcome"] = "not recorded: the summary states no outcome"
+    rec["_reasons"]["relations"] = "not recorded: the summary names no other run"
     config = data.get("config") or {}
     if config.get("generator_model") or config.get("judge_model"):
         rec["models"] = {"generator_model": config.get("generator_model"), "judge_model": config.get("judge_model")}
-    rec["config"] = {"strategies": sorted((data.get("strategies") or {}).keys())}
+        missing = [label for key, label in (("generator_model", "generator model"), ("judge_model", "judge model"))
+                   if not config.get(key)]
+        if missing:
+            rec["_reasons"]["models"] = f"derived: the summary names no {missing[0]}"
+    strategies = sorted((data.get("strategies") or {}).keys())
+    if strategies:
+        rec["config"] = {"strategies": strategies}
+    else:
+        rec["_reasons"]["config"] = "not recorded: the summary names no strategy"
     if isinstance(data.get("items_total"), int):
         rec["counts"]["items_total"] = data["items_total"]
     usage = (data.get("usage_provider_reported") or {}).get("by_role")
@@ -247,13 +269,17 @@ def _legacy_sheet(path: Path) -> dict[str, Any]:
 
 
 def _recorded_output(store: EvaluationRecordStore | None, path: Path) -> bool:
-    """True when a recorded run wrote these bytes: the compatibility file is not legacy (R13)."""
+    """True when a recorded run wrote these bytes: the compatibility file is not legacy (R13).
+
+    An unreadable file falls through to its own unreadable row; a store that
+    cannot be listed propagates (the route answers 503), never hides a record."""
     if store is None:
         return False
     try:
-        return store.find_by_output_digest(sha256_of_file(path)) is not None
-    except (OSError, EvaluationRecordError):
+        digest = sha256_of_file(path)
+    except OSError:
         return False
+    return store.find_by_output_digest(digest) is not None
 
 
 def _recorded_sheet(store: EvaluationRecordStore | None, path: Path) -> bool:
@@ -266,19 +292,23 @@ def _recorded_sheet(store: EvaluationRecordStore | None, path: Path) -> bool:
         return False
 
 
-def synthesise_legacy_evaluations(root: Path | str, store: EvaluationRecordStore | None = None) -> list[dict[str, Any]]:
+def synthesise_legacy_evaluations(root: Path | str, store: EvaluationRecordStore | None = None,
+                                  dated_digests: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """Legacy records for the July 2026 files that exist under root and that no
-    recorded run wrote; read-only."""
+    recorded run wrote; read-only. A stated date applies only to the bytes
+    dated_digests names for the file (default: the July digests)."""
+    dated_digests = JULY_DIGESTS if dated_digests is None else dated_digests
     root = Path(root)
     results = root / "eval" / "results"
     records: list[dict[str, Any]] = []
     runs_by_checkpoint: dict[str, str] = {}
-    for summary, checkpoint, analysis, phrase, date, note in LEGACY_E6:
+    for summary, checkpoint, analysis, phrase, date, note, _ in LEGACY_E6:
         path = results / summary
         if not path.is_file() or _recorded_output(store, path):
             continue
         try:
-            rec = _legacy_run(results, summary, checkpoint, analysis, phrase, date, note)
+            rec = _legacy_run(results, summary, checkpoint, analysis, phrase, date, note,
+                              dated_digests.get(summary))
         except Exception as exc:  # noqa: BLE001 - reported as the file's row, never raised out of the list
             try:
                 record_id = _legacy_id(path)
@@ -293,7 +323,11 @@ def synthesise_legacy_evaluations(root: Path | str, store: EvaluationRecordStore
         try:
             records.append(_legacy_comparison(root, runs_by_checkpoint))
         except Exception as exc:  # noqa: BLE001
-            records.append(unreadable_row(_legacy_id_of_name(LEGACY_STUDY), exception_reason(exc)))
+            try:
+                record_id = _legacy_id(study)
+            except OSError:
+                record_id = _legacy_id_of_name(LEGACY_STUDY)
+            records.append(unreadable_row(record_id, exception_reason(exc)))
     sheet = root / "eval" / "gold" / LEGACY_SHEET
     if sheet.is_file() and not _recorded_sheet(store, sheet):
         try:
