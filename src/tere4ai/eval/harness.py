@@ -468,8 +468,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--results-dir", type=Path, default=None)
     parser.add_argument("--dump-dir", type=Path, default=REPO_ROOT / "data" / "graph_dumps",
-                        help="where evaluation_records/ live; layer1.json and norms_core.json "
-                             "are always read from the checked-out data/graph_dumps")
+                        help="where layer1.json, norms_core.json and evaluation_records/ live "
+                             "(default: the checkout's data/graph_dumps)")
     parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
     args = parser.parse_args(argv)
 
@@ -502,6 +502,7 @@ def main(argv: list[str] | None = None) -> int:
         argv=list(argv) if argv is not None else sys.argv[1:],
         input_paths={"gold_seed": args.gold,
                      **({"benchmark": BENCHMARK_SAMPLE_PATH} if args.benchmark_sample else {})},
+        dump_dir=args.dump_dir,
     )
     print(
         f"wrote {artifact['artifact_path']} "

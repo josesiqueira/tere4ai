@@ -664,7 +664,7 @@ def test_run_eval_item_error_yields_a_partial_record(tmp_path):
     assert rec["outcome"]["status"] == "partial" and rec["outcome"]["completed_items"] == [items[0]["id"]]
 
 
-def test_run_eval_without_a_store_records_nothing_and_writes_atomically(tmp_path, monkeypatch):
+def test_run_eval_without_a_store_records_nothing_and_writes_atomically(tmp_path):
     items = list(GOLD_3)[:1]
     out = run_eval(items, {"plain_llm": lambda item: {"answer_text": "a", "citations": [], "risk_category": "high"}},
                    results_dir=tmp_path / "r")
@@ -673,13 +673,26 @@ def test_run_eval_without_a_store_records_nothing_and_writes_atomically(tmp_path
     assert Path(out["artifact_path"]).read_text().endswith("\n")
 
 
-def test_main_records_by_default_and_not_with_no_record(tmp_path, monkeypatch, capsys):
+def _write_legacy_dumps(dump_dir: Path) -> None:
+    """Minimal legacy layer1/norms dumps under dump_dir, the shape
+    tests/unit/test_run_ablations_record.py's _dumps helper writes."""
+    (dump_dir / "layer1.json").write_text(
+        json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}), encoding="utf-8"
+    )
+    (dump_dir / "norms_core.json").write_text(
+        json.dumps({"build": {"build_id": "build-b"}, "norms": [], "judge_runs": [], "stats": {}}), encoding="utf-8"
+    )
+
+
+def test_main_records_by_default_and_not_with_no_record(tmp_path):
     from tere4ai.eval import harness as h
+    _write_legacy_dumps(tmp_path)
     args = ["--strategies", "plain_llm", "--results-dir", str(tmp_path / "r"), "--dump-dir", str(tmp_path)]
     assert h.main(args) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["command"] == "eval_harness" and rec["argv"][:2] == ["--strategies", "plain_llm"]
     assert [i["role"] for i in rec["inputs"]] == ["layer1_dump", "norms", "gold_seed"], "the names branch read the dumps"
     assert rec["inputs"][0]["file"] == "layer1.json" and rec["sampling"] is None, "the offline stub reports no sampling"
+    assert rec["build"]["base_build_id"] == "build-b", "the dumps were read from tmp_path, not the checkout"
     assert h.main(args + ["--no-record"]) == 0
     assert len(EvaluationRecordStore(tmp_path, create=False).list_records()) == 1
