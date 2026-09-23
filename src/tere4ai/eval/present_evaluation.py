@@ -26,6 +26,7 @@ from tere4ai.eval.evaluation_record import (
     SCHEMA_VERSION,
     EvaluationRecordError,
     EvaluationRecordStore,
+    reduce_paths,
 )
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.present import exception_reason, provenance_of
@@ -102,6 +103,9 @@ def present_evaluation(record: dict[str, Any], store: EvaluationRecordStore, now
     rec["outputs"] = outputs
     null_reasons = dict(stored_reasons)
     outcome = rec.get("outcome")
+    if outcome and outcome.get("error"):
+        # a record written before the writers reduced paths never serves one (F8)
+        outcome = rec["outcome"] = {**outcome, "error": reduce_paths(outcome["error"])}
     if outcome and outcome.get("status") == "running":
         null_reasons.setdefault("ended_at", "running: no end recorded")
     if (rec.get("config") or {}).get("mode") == "offline":

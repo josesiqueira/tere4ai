@@ -37,6 +37,7 @@ from tere4ai.eval.metrics import METRICS_VERSION  # noqa: E402
 from tere4ai.eval.present_evaluation import JULY_CHECKPOINT_DIGESTS, JULY_DIGESTS  # noqa: E402
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator  # noqa: E402
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
+from tere4ai.graph_store.present import exception_reason  # noqa: E402
 from tere4ai.judge.config import load_model_config  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
@@ -382,7 +383,7 @@ def main(argv: list[str] | None = None) -> int:
     except BaseException as exc:
         if store is not None and record_id is not None:
             try:
-                store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
             except EvaluationRecordError:
                 pass  # the record already ended inside the try; the original error is what matters
         raise

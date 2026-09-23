@@ -71,7 +71,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field, model_validator
 
 from tere4ai.eval.evaluation_record import RECORD_FILE_STEM as _EVAL_REF_RE
-from tere4ai.eval.evaluation_record import EvaluationRecordStore
+from tere4ai.eval.evaluation_record import EvaluationRecordStore, reduce_paths
 from tere4ai.eval.present_evaluation import (
     ORDER_SENTENCE,
     group_summaries,
@@ -785,7 +785,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         rows: list[dict[str, Any]] = []
         for record in [*stored, *synthesise_legacy_evaluations(request.app.state.eval_root, store)]:
             if record.get("unreadable"):
-                rows.append(unreadable_row(record["record_id"], record["reason"]))
+                rows.append(unreadable_row(record["record_id"], reduce_paths(record["reason"])))
                 continue
             try:
                 rows.append(evaluation_summary_of(present_evaluation(record, store, now)))
@@ -811,7 +811,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         for record in synthesise_legacy_evaluations(request.app.state.eval_root, store):
             if record["record_id"] == ref:
                 if record.get("unreadable"):
-                    return JSONResponse(status_code=404, content={"error": f"evaluation record {ref} is unreadable: {record['reason']}"})
+                    return JSONResponse(status_code=404, content={"error": f"evaluation record {ref} is unreadable: {reduce_paths(record['reason'])}"})
                 return JSONResponse(content=_sanitize_non_finite(present_evaluation(record, store, now)))
         return JSONResponse(status_code=404, content={"error": f"no evaluation record {ref}"})
 

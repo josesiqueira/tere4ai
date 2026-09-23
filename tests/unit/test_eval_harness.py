@@ -763,3 +763,17 @@ def test_a_preloaded_dump_or_prebuilt_strategies_bind_to_no_publication(tmp_path
         assert rec["build"]["publication_reason"] == "the harness did not read the served files"
     served = store.read(run_eval(list(GOLD_3)[:1], ["plain_llm"], **{**kw, "results_dir": tmp_path / "r3"})["record_id"])
     assert served["build"]["publication"]["build_id"] == "build-b+chain-abc"
+
+
+def test_a_writer_stores_its_failure_with_the_file_name_only(tmp_path, monkeypatch):
+    store = EvaluationRecordStore(tmp_path)
+    deep = tmp_path / "very" / "deep" / "artifact.json"
+
+    def boom(self, record_id, role, path):
+        raise FileNotFoundError(2, "No such file or directory", str(deep))
+    monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
+    with pytest.raises(FileNotFoundError):
+        run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
+                 results_dir=tmp_path / "r", record_store=store)
+    (rec,) = store.list_records()
+    assert rec["outcome"]["error"] == "FileNotFoundError: [Errno 2] No such file or directory: 'artifact.json'"

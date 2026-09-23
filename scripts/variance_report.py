@@ -48,6 +48,7 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     code_version,
     file_ref,
 )
+from tere4ai.graph_store.present import exception_reason  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location(
     "ablation_deepdive", ROOT / "scripts" / "ablation_deepdive.py"
@@ -241,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     except BaseException as exc:
         if store is not None and record_id is not None:
             try:
-                store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
             except EvaluationRecordError:
                 pass
         raise

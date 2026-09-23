@@ -51,6 +51,7 @@ from tere4ai.eval.metrics import METRICS_VERSION
 from tere4ai.eval.strategies import STRATEGY_NAMES, build_strategy
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.graph_store.build_record import atomic_write_json
+from tere4ai.graph_store.present import exception_reason
 from tere4ai.judge.config import ModelConfig, load_model_config
 
 
@@ -426,7 +427,7 @@ def run_eval(
     except BaseException as exc:
         if record_store is not None and record_id is not None:
             try:
-                record_store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+                record_store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
             except EvaluationRecordError:
                 pass
         raise

@@ -31,6 +31,7 @@ from jsonschema import Draft202012Validator
 
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import atomic_write_json, scrub_argv
+from tere4ai.graph_store.present import _PATH_RE
 from tere4ai.graph_store.publication import active_manifest, manifest_path
 
 RECORDS_DIRNAME = "evaluation_records"
@@ -58,6 +59,13 @@ def _new_id() -> str:
 def _stored_validator() -> Draft202012Validator:
     schema = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
     return Draft202012Validator({"$ref": "#/$defs/stored_record", "$defs": schema["$defs"]})
+
+
+def reduce_paths(text: str) -> str:
+    """Every path in text reduced to its file name (the rule of
+    graph_store.present.exception_reason): a record or a route names what
+    could not be read, never where."""
+    return _PATH_RE.sub(r"\1", text)
 
 
 def file_ref(role: str, path: Path | str) -> dict[str, Any]:
@@ -141,12 +149,12 @@ class EvaluationRecordStore:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise EvaluationRecordError(f"{path.name}: not readable JSON: {exc}") from exc
+            raise EvaluationRecordError(reduce_paths(f"{path.name}: not readable JSON: {exc}")) from exc
         errors = sorted(_stored_validator().iter_errors(data), key=lambda e: list(e.path))
         if errors:
             first = errors[0]
             where = "/".join(str(p) for p in first.path) or "the record"
-            raise EvaluationRecordError(f"{path.name}: {first.message} at {where}")
+            raise EvaluationRecordError(reduce_paths(f"{path.name}: {first.message} at {where}"))
         return data
 
     def read(self, record_id: str) -> dict[str, Any]:

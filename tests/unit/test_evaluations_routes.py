@@ -1,11 +1,15 @@
-"""GET /api/evaluations and /api/evaluations/{ref}: the evaluation records through the facade (D-G33, DEC-17)."""
+"""GET /api/evaluations and /api/evaluations/{ref}: the evaluation records through the facade (D-G33, DEC-17).
+
+DEC-17 fix wave: no absolute path leaks through a stored error or an unreadable row."""
 
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator
 
@@ -114,3 +118,36 @@ def test_no_records_directory_yields_the_legacy_rows_only(tmp_path):
         listed = client.get("/api/evaluations").json()
         assert [r["origin"] for g in listed["groups"] for r in g["records"]] == ["legacy"]
         assert not (tmp_path / "evaluation_records").exists(), "a read never creates the directory"
+
+
+def test_a_stored_error_carrying_an_absolute_path_is_presented_with_the_file_name_only(tmp_path):
+    _legacy_dumps(tmp_path)
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[],
+                      build={"base_build_id": "build-b", "publication": None, "publication_reason": "x"})
+    deep = tmp_path / "very" / "deep" / "ablation_summary.json"
+    store.finish(rid, status="failed", error=f"FileNotFoundError: [Errno 2] No such file or directory: '{deep}'")
+    with TestClient(facade.create_app(tmp_path, eval_root=_eval_root(tmp_path))) as client:
+        detail = client.get(f"/api/evaluations/{rid}").json()
+    assert detail["outcome"]["error"] == ("FileNotFoundError: [Errno 2] No such file or directory: "
+                                          "'ablation_summary.json'")
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads any file")
+def test_an_unreadable_record_under_a_deep_path_names_the_file_only(tmp_path):
+    deep = tmp_path / "a" / "b" / "c"
+    deep.mkdir(parents=True)
+    _legacy_dumps(deep)
+    store = EvaluationRecordStore(deep)
+    bad = store.dir / "00000000000c.json"
+    bad.write_text("{}", encoding="utf-8")
+    bad.chmod(0)
+    try:
+        with TestClient(facade.create_app(deep, eval_root=_eval_root(tmp_path))) as client:
+            rows = {r["record_id"]: r for g in client.get("/api/evaluations").json()["groups"] for r in g["records"]}
+            detail = client.get("/api/evaluations/00000000000c")
+    finally:
+        bad.chmod(0o644)
+    reason = rows["00000000000c"]["reason"]
+    assert "00000000000c.json" in reason and str(tmp_path) not in reason and "/" not in reason
+    assert detail.status_code == 404 and str(tmp_path) not in detail.json()["error"]

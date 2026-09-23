@@ -76,6 +76,7 @@ from tere4ai.eval.metrics import (  # noqa: E402
     judge_error_rates_by_kind,
 )
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
+from tere4ai.graph_store.present import exception_reason  # noqa: E402
 
 SHEET_JSON = ROOT / "eval" / "gold" / "judge_label_sheet.json"
 SHEET_MD = ROOT / "eval" / "gold" / "judge_label_sheet.md"
@@ -558,7 +559,7 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     except BaseException as exc:
         if store is not None and record_id is not None:
             try:
-                store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
             except EvaluationRecordError:
                 pass
         raise
@@ -679,7 +680,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             except BaseException as exc:
                 try:
-                    store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}", notes=notes)
+                    store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
                 except EvaluationRecordError:
                     pass
                 raise
@@ -751,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
     except BaseException as exc:
         if store is not None and record_id is not None:
             try:
-                store.finish(record_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+                store.finish(record_id, status="failed", error=exception_reason(exc))
             except EvaluationRecordError:
                 pass
         raise
