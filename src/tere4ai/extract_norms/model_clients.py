@@ -40,15 +40,24 @@ def _new_usage() -> dict[str, int]:
 # call, and reports what was actually sent in the vocabulary the dashboard
 # judge records ("0", "provider default (rejected by the model)", "mixed",
 # "no replies"), so a build's provenance states the sampling regime rather
-# than assuming it.
+# than assuming it. B84 (spec F D-F22) extends the same learn-once rule to
+# the requested effort level, reported below in the matching vocabulary.
 SAMPLING_ZERO = "0"
 SAMPLING_DEFAULT = "provider default (rejected by the model)"
 SAMPLING_MIXED = "mixed"
 SAMPLING_NONE = "no replies"
 
+# B84 (spec F D-F22): the effort is part of the instrument. Every client
+# sends the configured level and learns a rejection ONCE, like temperature;
+# the outcome uses the same four shapes so a manifest reads one vocabulary.
+EFFORT_NOT_APPLICABLE = "not applicable (rejected by the model)"
+EFFORT_MIXED = "mixed"
+EFFORT_NONE = "no replies"
+EFFORT_NOT_CONFIGURED = "not configured"
+
 
 class _SamplingRecord:
-    """Mixin: which sampling parameter each reply was produced under."""
+    """Mixin: which sampling parameter and which effort each reply was produced under."""
 
     # Class-level defaults so an instance built without __init__ (the offline
     # tests construct clients with __new__ and a stub transport) starts in
@@ -57,6 +66,10 @@ class _SamplingRecord:
     _json_mode_rejected: bool = False
     _replies_at_zero: int = 0
     _replies_at_default: int = 0
+    _effort_requested: str | None = None
+    _effort_rejected: bool = False
+    _replies_with_effort: int = 0
+    _replies_without_effort: int = 0
 
     def _init_sampling(self) -> None:
         self._temperature_rejected = False
@@ -80,6 +93,34 @@ class _SamplingRecord:
             return SAMPLING_DEFAULT
         return SAMPLING_NONE
 
+    def _init_effort(self, requested: str | None) -> None:
+        self._effort_requested = requested
+        self._effort_rejected = False
+        self._replies_with_effort = 0
+        self._replies_without_effort = 0
+
+    def _record_effort(self, with_effort: bool) -> None:
+        if with_effort:
+            self._replies_with_effort += 1
+        else:
+            self._replies_without_effort += 1
+
+    @property
+    def effort_requested(self) -> str | None:
+        return self._effort_requested
+
+    @property
+    def effort(self) -> str:
+        if self._effort_requested is None:
+            return EFFORT_NOT_CONFIGURED
+        if self._replies_with_effort and self._replies_without_effort:
+            return EFFORT_MIXED
+        if self._replies_with_effort:
+            return self._effort_requested
+        if self._replies_without_effort:
+            return EFFORT_NOT_APPLICABLE
+        return EFFORT_NONE
+
 
 class OpenAIGenerator(_SamplingRecord):
     """Generator client (OpenAI family, cfg.generator_model).
@@ -98,6 +139,7 @@ class OpenAIGenerator(_SamplingRecord):
         self.model = cfg.generator_model
         self.usage = _new_usage()
         self._init_sampling()
+        self._init_effort(cfg.generator_effort)
         self._client = OpenAI(api_key=cfg.generator_api_key)
 
     def _request_kwargs(self, messages: list[dict[str, str]]) -> dict:
@@ -106,6 +148,8 @@ class OpenAIGenerator(_SamplingRecord):
             kwargs["temperature"] = 0
         if not self._json_mode_rejected:
             kwargs["response_format"] = {"type": "json_object"}
+        if self._effort_requested is not None and not self._effort_rejected:
+            kwargs["reasoning_effort"] = self._effort_requested
         return kwargs
 
     def complete(self, system: str, user: str) -> str:
@@ -114,7 +158,7 @@ class OpenAIGenerator(_SamplingRecord):
             {"role": "user", "content": user},
         ]
         response = None
-        for _attempt in range(3):
+        for _attempt in range(4):
             kwargs = self._request_kwargs(messages)
             try:
                 response = self._client.chat.completions.create(**kwargs)
@@ -128,11 +172,15 @@ class OpenAIGenerator(_SamplingRecord):
                 if "response_format" in kwargs and "response_format" in message:
                     self._json_mode_rejected = True
                     learned = True
+                if "reasoning_effort" in kwargs and "reasoning_effort" in message:
+                    self._effort_rejected = True
+                    learned = True
                 if not learned:
                     raise
-        if response is None:  # pragma: no cover - two rejections at most
+        if response is None:  # pragma: no cover - three rejections at most
             raise RuntimeError("model request could not be formed")
         self._record_reply(with_temperature="temperature" in kwargs)
+        self._record_effort(with_effort="reasoning_effort" in kwargs)
         self.usage["calls"] += 1
         reported = getattr(response, "usage", None)
         if reported is not None:
@@ -159,29 +207,45 @@ class AnthropicJudge(_SamplingRecord):
         self.model = cfg.judge_model
         self.usage = _new_usage()
         self._init_sampling()
+        self._init_effort(cfg.judge_effort)
         self._max_tokens = max_tokens
         self._client = anthropic.Anthropic(api_key=cfg.judge_api_key)
 
-    def complete(self, system: str, user: str) -> str:
-        kwargs = dict(
+    def _request_kwargs(self, system: str, user: str) -> dict:
+        kwargs: dict = dict(
             model=self.model,
             max_tokens=self._max_tokens,
             system=system,
             messages=[{"role": "user", "content": user}],
         )
-        with_temperature = not self._temperature_rejected
-        if with_temperature:
+        if not self._temperature_rejected:
+            kwargs["temperature"] = 0
+        if self._effort_requested is not None and not self._effort_rejected:
+            kwargs["output_config"] = {"effort": self._effort_requested}
+        return kwargs
+
+    def complete(self, system: str, user: str) -> str:
+        response = None
+        for _attempt in range(3):
+            kwargs = self._request_kwargs(system, user)
             try:
-                response = self._client.messages.create(temperature=0, **kwargs)
-            except Exception as exc:  # noqa: BLE001
-                if "temperature" not in str(exc):
-                    raise
-                self._temperature_rejected = True
-                with_temperature = False
                 response = self._client.messages.create(**kwargs)
-        else:
-            response = self._client.messages.create(**kwargs)
-        self._record_reply(with_temperature=with_temperature)
+                break
+            except Exception as exc:  # noqa: BLE001
+                message = str(exc)
+                learned = False
+                if "temperature" in kwargs and "temperature" in message:
+                    self._temperature_rejected = True
+                    learned = True
+                if "output_config" in kwargs and "effort" in message:
+                    self._effort_rejected = True
+                    learned = True
+                if not learned:
+                    raise
+        if response is None:  # pragma: no cover - two rejections at most
+            raise RuntimeError("model request could not be formed")
+        self._record_reply(with_temperature="temperature" in kwargs)
+        self._record_effort(with_effort="output_config" in kwargs)
         self.usage["calls"] += 1
         reported = getattr(response, "usage", None)
         if reported is not None:

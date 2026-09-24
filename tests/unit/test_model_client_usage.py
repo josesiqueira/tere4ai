@@ -8,7 +8,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from tere4ai.extract_norms.model_clients import (
+    EFFORT_MIXED,
+    EFFORT_NONE,
+    EFFORT_NOT_APPLICABLE,
+    EFFORT_NOT_CONFIGURED,
     AnthropicJudge,
     OpenAIGenerator,
     _new_usage,
@@ -243,3 +249,128 @@ def test_judge_reads_only_text_blocks_past_a_thinking_block():
     )
     judge = _judge_over(_Rejecting({}, response))
     assert judge.complete("s", "u") == '{"verdict": "accepted"}'
+
+
+# B84 (spec F D-F22): every client sends the configured effort and learns a
+# rejection once, like temperature; the outcome is reported in the same
+# vocabulary so a manifest states the effort regime, never assumes it.
+
+
+def test_generator_sends_the_configured_effort_and_reports_it():
+    transport = _Rejecting({}, _openai_response('{"ok": true}', 1, 1))
+    gen = _generator_over(transport)
+    gen._init_effort("xhigh")
+    assert gen.effort == EFFORT_NONE
+    gen.complete("s", "u")
+    assert transport.calls[0]["reasoning_effort"] == "xhigh"
+    assert gen.effort == "xhigh" and gen.effort_requested == "xhigh"
+
+
+def test_generator_learns_a_rejected_effort_once_and_keeps_temperature():
+    transport = _Rejecting(
+        {"reasoning_effort": "Unsupported parameter: 'reasoning_effort' is not supported with this model."},
+        _openai_response('{"ok": true}', 1, 1),
+    )
+    gen = _generator_over(transport)
+    gen._init_effort("xhigh")
+    gen.complete("s", "u")
+    gen.complete("s", "u")
+    assert len(transport.calls) == 3
+    assert "reasoning_effort" in transport.calls[0]
+    assert "reasoning_effort" not in transport.calls[1] and "reasoning_effort" not in transport.calls[2]
+    assert transport.calls[2]["temperature"] == 0
+    assert gen.effort == EFFORT_NOT_APPLICABLE
+
+
+def test_generator_rejecting_both_temperature_and_effort_learns_both_in_three_requests():
+    transport = _Rejecting(
+        {"temperature": "temperature does not support 0 with this model",
+         "reasoning_effort": "Unsupported parameter: 'reasoning_effort'"},
+        _openai_response('{"ok": true}', 1, 1),
+    )
+    gen = _generator_over(transport)
+    gen._init_effort("xhigh")
+    assert gen.complete("s", "u") == '{"ok": true}'
+    assert len(transport.calls) == 3
+    assert "temperature" not in transport.calls[2] and "reasoning_effort" not in transport.calls[2]
+    assert gen.sampling.startswith("provider default") and gen.effort == EFFORT_NOT_APPLICABLE
+
+
+def test_generator_does_not_learn_a_parameter_it_did_not_send():
+    # The message names temperature, but only the effort was in the request
+    # (temperature already learned): nothing to learn, the error propagates.
+    transport = _Rejecting({"reasoning_effort": "temperature is invalid"}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport)
+    gen._init_effort("xhigh")
+    gen._temperature_rejected = True
+    with pytest.raises(RuntimeError):
+        gen.complete("s", "u")
+    assert len(transport.calls) == 1
+
+
+def test_generator_without_effort_config_sends_none_and_says_so():
+    transport = _Rejecting({}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport)
+    gen.complete("s", "u")
+    assert "reasoning_effort" not in transport.calls[0]
+    assert gen.effort == EFFORT_NOT_CONFIGURED
+
+
+def test_judge_sends_the_effort_in_output_config_and_reports_it():
+    transport = _Rejecting({}, _anthropic_response("v", 1, 1))
+    judge = _judge_over(transport)
+    judge._init_effort("xhigh")
+    judge.complete("s", "u")
+    assert transport.calls[0]["output_config"] == {"effort": "xhigh"}
+    assert transport.calls[0]["temperature"] == 0
+    assert judge.effort == "xhigh"
+
+
+def test_judge_learns_a_rejected_effort_once():
+    transport = _Rejecting({"output_config": "output_config.effort: this model does not support effort"},
+                           _anthropic_response("v", 1, 1))
+    judge = _judge_over(transport)
+    judge._init_effort("xhigh")
+    judge.complete("s", "u")
+    judge.complete("s", "u")
+    assert len(transport.calls) == 3
+    assert "output_config" not in transport.calls[1] and "output_config" not in transport.calls[2]
+    assert judge.effort == EFFORT_NOT_APPLICABLE
+
+
+def test_judge_rejecting_both_learns_both_in_three_requests():
+    transport = _Rejecting(
+        {"temperature": "temperature: extra inputs are not permitted",
+         "output_config": "effort is not supported"},
+        _anthropic_response("v", 1, 1),
+    )
+    judge = _judge_over(transport)
+    judge._init_effort("xhigh")
+    assert judge.complete("s", "u") == "v"
+    assert len(transport.calls) == 3
+    assert "temperature" not in transport.calls[2] and "output_config" not in transport.calls[2]
+    assert judge.sampling.startswith("provider default") and judge.effort == EFFORT_NOT_APPLICABLE
+
+
+def test_effort_mixed_when_replies_differ():
+    transport = _Rejecting({}, _anthropic_response("v", 1, 1))
+    judge = _judge_over(transport)
+    judge._init_effort("xhigh")
+    judge.complete("s", "u")
+    judge._effort_rejected = True  # a provider that changes mid-lifetime, recorded, never assumed away
+    judge.complete("s", "u")
+    assert judge.effort == EFFORT_MIXED
+
+
+def test_generator_rejecting_all_three_parameters_learns_all_three_in_four_requests():
+    transport = _Rejecting(
+        {"temperature": "temperature does not support 0 with this model",
+         "response_format": "response_format is not supported",
+         "reasoning_effort": "Unsupported parameter: 'reasoning_effort'"},
+        _openai_response('{"ok": true}', 1, 1),
+    )
+    gen = _generator_over(transport)
+    gen._init_effort("xhigh")
+    assert gen.complete("s", "u") == '{"ok": true}'
+    assert len(transport.calls) == 4
+    assert not ({"temperature", "response_format", "reasoning_effort"} & set(transport.calls[3]))
