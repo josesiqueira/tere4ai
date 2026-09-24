@@ -374,3 +374,87 @@ def test_generator_rejecting_all_three_parameters_learns_all_three_in_four_reque
     assert gen.complete("s", "u") == '{"ok": true}'
     assert len(transport.calls) == 4
     assert not ({"temperature", "response_format", "reasoning_effort"} & set(transport.calls[3]))
+
+
+# B84 fix wave G5: pin Review Focus 1 and 2 (a rejection that names no
+# carried parameter propagates; "model" is always in kwargs and is never
+# learnable) on the judge's loop too, and the generator's fourth attempt.
+
+
+def test_judge_propagates_when_the_rejection_names_no_carried_parameter():
+    """Review Focus 1, judge side: effort is already learned rejected, so
+    output_config is not sent; the rejection message names 'effort', not
+    the temperature that was actually carried, so nothing is learnable and
+    the error propagates on the first call."""
+    transport = _Rejecting(
+        {"temperature": "effort is not supported"}, _anthropic_response("v", 1, 1)
+    )
+    judge = _judge_over(transport)
+    judge._init_effort("xhigh")
+    judge._effort_rejected = True
+    with pytest.raises(RuntimeError):
+        judge.complete("s", "u")
+    assert len(transport.calls) == 1
+
+
+def test_judge_propagates_on_the_third_call_when_a_third_parameter_is_rejected():
+    """Review Focus 2, judge side: 'model' is always present in kwargs (it
+    names the request, never a learnable sampling or effort parameter), so
+    once temperature and effort are both learned rejected, a rejection
+    naming 'model' on the loop's last attempt propagates rather than
+    retrying forever."""
+    transport = _Rejecting(
+        {"temperature": "temperature: extra inputs are not permitted",
+         "output_config": "effort is not supported",
+         "model": "rate limited"},
+        _anthropic_response("v", 1, 1),
+    )
+    judge = _judge_over(transport)
+    judge._init_effort("xhigh")
+    with pytest.raises(RuntimeError) as exc_info:
+        judge.complete("s", "u")
+    assert "rate limited" in str(exc_info.value)
+    assert len(transport.calls) == 3
+
+
+def test_generator_learns_the_sdks_real_value_level_effort_rejection():
+    """B84 fix wave G6: pin the SDK's real rejection shape (verified against
+    the OpenAI SDK reference 2026-09-24), a value-level 400 naming the param
+    inside a nested error object, not a bare 'not supported' sentence. The
+    'reasoning_effort' param name substring must still be found and learned."""
+    transport = _Rejecting(
+        {
+            "reasoning_effort": (
+                "Error code: 400 - {'error': {'message': \"Invalid value: "
+                "'xhigh'. Supported values are: 'low', 'medium', and "
+                "'high'.\", 'type': 'invalid_request_error', 'param': "
+                "'reasoning_effort', 'code': 'invalid_value'}}"
+            )
+        },
+        _openai_response('{"ok": true}', 1, 1),
+    )
+    gen = _generator_over(transport)
+    gen._init_effort("xhigh")
+    gen.complete("s", "u")
+    assert len(transport.calls) == 2
+    assert "reasoning_effort" not in transport.calls[-1]
+    assert gen.effort == EFFORT_NOT_APPLICABLE
+
+
+def test_generator_propagates_on_the_fourth_call_when_a_fourth_parameter_is_rejected():
+    """Review Focus 2, generator side: the same 'model is always present'
+    shape, one attempt longer because the generator has three learnable
+    parameters (temperature, response_format, reasoning_effort)."""
+    transport = _Rejecting(
+        {"temperature": "temperature does not support 0 with this model",
+         "response_format": "response_format is not supported",
+         "reasoning_effort": "Unsupported parameter: 'reasoning_effort'",
+         "model": "rate limited"},
+        _openai_response('{"ok": true}', 1, 1),
+    )
+    gen = _generator_over(transport)
+    gen._init_effort("xhigh")
+    with pytest.raises(RuntimeError) as exc_info:
+        gen.complete("s", "u")
+    assert "rate limited" in str(exc_info.value)
+    assert len(transport.calls) == 4

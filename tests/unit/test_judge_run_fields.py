@@ -20,12 +20,15 @@ def _strip_volatile(payload):
     return payload
 
 
-def _dumps(tmp_path, with_hash):
+def _dumps(tmp_path, with_hash, with_effort=False):
     run = {"id": "jr-1", "type": "JudgeRun", "layer": 2, "judge_kind": "extraction", "judge_model": "j",
            "prompt_version": "v1", "verdict": "accepted", "scores": {}, "rationale": "ok",
            "started_at": "2026-09-01T00:00:00+00:00", "completed_at": "2026-09-01T00:00:01+00:00", "build_id": "build-b"}
     if with_hash:
         run["prompt_sha256"] = "5" * 64
+    if with_effort:
+        # B84 (spec F D-F22): the JudgeRun carries its effort outcome.
+        run["judge_effort"] = "xhigh"
     norm = {"norm_id": "n1", "source_node_id": "eu-ai-act:article-9:paragraph-1", "deontic_type": "obligation",
             "modal": "shall", "actor_explicit": "provider", "actor_inferred": None, "actor_inference_source_node_id": None,
             "action": "do", "object": "x", "conditions": [], "exceptions": [], "lifecycle_phase_ids": [],
@@ -83,3 +86,27 @@ def test_units_and_trace_carry_the_prompt_hash_when_the_dump_records_it(tmp_path
     with TestClient(facade.create_app(tmp_path)) as client:
         candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
         assert candidate["judge"]["prompt_sha256"] == "5" * 64
+
+
+def test_units_and_trace_carry_a_null_judge_effort_when_absent(tmp_path):
+    """B84 (spec F D-F22): a pre-B84 run carries no judge_effort; null, never
+    invented, on both the trace_alignment chain and the /api/units candidate."""
+    dump, alignments = _dumps(tmp_path, with_hash=False, with_effort=False)
+    rendered = trace_tool.trace_alignment("n1", alignments, dump)
+    chain = rendered["answer"]["assertions"][0]
+    assert chain["judge_run"]["judge_effort"] is None
+    with TestClient(facade.create_app(tmp_path)) as client:
+        candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
+        assert candidate["judge"]["effort"] is None
+
+
+def test_units_and_trace_carry_the_judge_effort_when_the_dump_records_it(tmp_path):
+    """B84 (spec F D-F22): the JudgeRun's effort outcome surfaces on both
+    read surfaces once the dump records it."""
+    dump, alignments = _dumps(tmp_path, with_hash=False, with_effort=True)
+    rendered = trace_tool.trace_alignment("n1", alignments, dump)
+    chain = rendered["answer"]["assertions"][0]
+    assert chain["judge_run"]["judge_effort"] == "xhigh"
+    with TestClient(facade.create_app(tmp_path)) as client:
+        candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
+        assert candidate["judge"]["effort"] == "xhigh"

@@ -5,6 +5,28 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
+- `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config
+  values from the closed vocabulary `EFFORT_LEVELS` (`low, medium, high,
+  xhigh, max`, `src/tere4ai/judge/config.py`), carried on `ModelConfig` as
+  `generator_effort` and `judge_effort`. No silent fallback: a missing or
+  unrecognised value fails fast, the same discipline as the model ids.
+- The generator sends `reasoning_effort` and the judge sends
+  `output_config: {"effort": ...}`; each client learns a rejection once for
+  its lifetime, the same discipline B74 already applied to temperature, and
+  reports the outcome in one vocabulary: the level itself when every reply
+  carried it, `not applicable (rejected by the model)` when every reply was
+  sent without it after a rejection, `mixed`, `no replies`, or `not
+  configured` for a client built without a config.
+- The extraction and alignment manifests, the build record executions, every
+  JudgeRun record and graph node, the tool envelopes (`trace_alignment`,
+  `/api/units`, `/api/trace`), and the facade health answer all carry the
+  requested and applied effort alongside the model id, never separately.
+- `deploy/rahti/deployment-facade.yaml` and `docker-compose.yml` carry
+  `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` beside the model id
+  entries (default `xhigh`); `eval/README.md` lists both among the
+  variables a live run needs.
+
 ### Evaluation records, the E1 acts, GET /api/evaluations, list lineage, judge run fields (2026-09-23, B77 plan 3a)
 - DEC-17: one immutable evaluation record per measurement run of E1 and
   E6 (`src/tere4ai/eval/evaluation_record.py`), written by the ablation
@@ -50,7 +72,8 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   temperature once and caps output at 16000 tokens, all of which Opus 5.5
   accepts. Recorded: Opus 5.5 cannot disable thinking and its provider
   default effort is medium where Opus 5's was high; the client sets no
-  effort, so the provider default runs (spec F D-F16, D-F17). The B74
+  effort, so the provider default runs (spec F D-F16, D-F17) (superseded by
+  B84, 2026-09-24: the clients send the configured effort). The B74
   extraction of 2026-09-16 (judged by claude-opus-5) stays on disk as
   history; the graph is rebuilt from Layer 0 with the current models
   (thesis HISTORY 2026-09-23).

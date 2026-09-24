@@ -82,6 +82,9 @@ def _render_assertion(
         "judge_run": {
             "id": (judge_run or {}).get("id", assertion.get("judge_run_id")),
             "judge_model": (judge_run or {}).get("judge_model"),
+            # B84 (spec F D-F22): the judge effort outcome, null for a
+            # pre-B84 dump, never invented.
+            "judge_effort": (judge_run or {}).get("judge_effort"),
             "prompt_version": (judge_run or {}).get("prompt_version"),
             "verdict": (judge_run or {}).get("verdict"),
             "rationale": (judge_run or {}).get("rationale"),

@@ -111,6 +111,7 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     assert ex["command"] == "extract_norms" and ex["covers_steps"] == ["L2.1", "L2.2"] and ex["status"] == "done"
     assert ex["expected_total"] == 2 and ex["work_unit"] == "groups" and ex["checkpoint_file"] == "norms_test.checkpoint.jsonl"
     assert ex["completed_keys"] == ["eu-ai-act:article-9", "eu-ai-act:article-10"] and ex["inherited_keys"] == []
+    # B84: the record carries the efforts (models requested, sampling applied), so the assertions are exact dicts now
     assert ex["models"] == {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"}
     assert ex["sampling"] == {"generator": "provider default (rejected by the model)", "judge": "provider default (rejected by the model)",
                               "generator_effort": "xhigh", "judge_effort": "xhigh"}

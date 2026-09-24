@@ -689,6 +689,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             candidate["judge"] = {
                 "run_id": norm.get("judge_run_id"),
                 "model": run.get("judge_model"),
+                # B84 (spec F D-F22): the judge effort outcome, null for a
+                # pre-B84 dump, never invented.
+                "effort": run.get("judge_effort"),
                 "prompt_version": run.get("prompt_version"),
                 "verdict": run.get("verdict"),
                 "scores": run.get("scores"),

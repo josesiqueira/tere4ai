@@ -514,12 +514,19 @@ def _parse_execution(payload: dict[str, Any], name: str, digest: str) -> dict[st
 
 def _sampling_with_effort(build: dict[str, Any], prefix: str) -> dict[str, Any] | None:
     """The recorded sampling dict plus the applied efforts when the dump carries
-    them (B84); a pre-B84 dump gives the sampling dict alone, nothing invented."""
+    them (B84); a pre-B84 dump (no effort dict) gives the sampling dict alone,
+    nothing invented. An effort dict with no sibling sampling dict (a build
+    that recorded effort but not sampling) still surfaces the effort, never
+    silently dropped because sampling is absent."""
     sampling = build.get(f"{prefix}_sampling")
     effort = build.get(f"{prefix}_effort")
-    if not isinstance(sampling, dict) or not isinstance(effort, dict):
+    if not isinstance(effort, dict):
         return sampling
-    return {**sampling, "generator_effort": effort.get("generator"), "judge_effort": effort.get("judge")}
+    return {
+        **(sampling if isinstance(sampling, dict) else {}),
+        "generator_effort": effort.get("generator"),
+        "judge_effort": effort.get("judge"),
+    }
 
 
 def _extract_execution(payload: dict[str, Any], name: str, digest: str) -> dict[str, Any]:

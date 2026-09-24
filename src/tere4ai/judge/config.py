@@ -78,7 +78,14 @@ def require_independent_clients(generator: object, judge: object) -> None:
 
 
 def load_dotenv_once() -> None:
-    """Load the repo's .env once into os.environ without overriding exported variables; the paid path and the facade's health answer share it."""
+    """Load the repo's .env into os.environ, never overriding an exported variable.
+
+    Despite the name, this runs on every call, not once: there is no memo
+    flag. Because it never overrides an already-exported variable, repeated
+    calls are idempotent, so the health handler may call it on every poll
+    and the paid path may call it on every run. Do not memoise; a cached
+    "already loaded" flag would miss a .env edited between calls.
+    """
     try:
         from dotenv import load_dotenv
     except ImportError:

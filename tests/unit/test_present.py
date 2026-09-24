@@ -150,6 +150,27 @@ def test_derived_execution_carries_effort_beside_sampling(tmp_path):
                               "generator_effort": "xhigh", "judge_effort": "not applicable (rejected by the model)"}
 
 
+def test_derived_execution_builds_sampling_from_effort_alone_when_sampling_is_absent(tmp_path):
+    """B84 fix wave G8: extraction_effort present with no extraction_sampling
+    (present.py:515-523 _sampling_with_effort) must still surface the effort,
+    never silently drop it because the sibling sampling dict is missing."""
+    (tmp_path / "layer1.json").write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    (tmp_path / "norms_core.json").write_text(json.dumps({
+        "build": {"build_id": "build-b",
+                  "extraction_models": {"generator_model": "g", "judge_model": "j"},
+                  "extraction_effort": {"generator": "xhigh", "judge": "not applicable (rejected by the model)"},
+                  "prompt_version": "v1"},
+        "norms": [], "judge_runs": [],
+        "stats": {"source_units": 0, "candidates": 0, "verdicts": {}, "nodes_failed": [], "invalid_norms": []}}))
+    records = synthesise_legacy_records(tmp_path)
+    core = next(r for r in records if r["aliases"][0] == "core")
+    ex = next(e for e in core["executions"] if e["command"] == "extract_norms")
+    assert ex["sampling"] == {
+        "generator_effort": "xhigh",
+        "judge_effort": "not applicable (rejected by the model)",
+    }
+
+
 def test_unreadable_artefact_yields_not_recorded_with_a_reason(tmp_path):
     (tmp_path / "layer1.json").write_text("{broken")
     (tmp_path / "norms_core.json").write_text(json.dumps({"build": {"build_id": "b"}, "norms": [], "judge_runs": [], "stats": {}}))

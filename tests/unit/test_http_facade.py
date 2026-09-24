@@ -990,8 +990,11 @@ def test_units_serves_every_core_unit_with_all_candidates(client):
         assert key in candidate
     assert set(candidate["judge"]) == {
         "run_id", "model", "prompt_version", "verdict", "scores", "rationale",
-        "completed_at", "prompt_sha256",
+        "completed_at", "prompt_sha256", "effort",
     }
+    # B84: the fixture is a pre-B84 dump, so no run carries judge_effort;
+    # None, never invented (spec F D-F22).
+    assert candidate["judge"]["effort"] is None
 
 
 def test_units_keeps_the_dump_order_and_groups_by_source_node(client):

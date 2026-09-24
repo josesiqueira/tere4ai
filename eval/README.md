@@ -113,7 +113,8 @@ A live run requires ALL of:
 1. the explicit `--live` flag (or `run_eval(..., live=True)`),
 2. the environment gate `TERE4AI_LIVE_TESTS=1`,
 3. a fully configured `.env` (TERE4AI_GENERATOR_MODEL, TERE4AI_JUDGE_MODEL,
-   OPENAI_API_KEY, ANTHROPIC_API_KEY), and
+   TERE4AI_GENERATOR_EFFORT, TERE4AI_JUDGE_EFFORT, OPENAI_API_KEY,
+   ANTHROPIC_API_KEY), and
 4. the loaded config matching `eval/config_evaluated.yaml` exactly on
    generator and judge model (DEC-07 config guard; the run raises
    EvalConfigMismatch otherwise and writes nothing).
