@@ -308,6 +308,7 @@ class GraphStrategy:
         models = {"generator": self._generator.model}
         if self._runtime_judge is not None:
             models["judge"] = self._runtime_judge.model
+            models["judge_effort"] = getattr(self._runtime_judge, "effort", "not configured")
             models["judge_prompt_version"] = self._judge_prompt_version
         return models
 

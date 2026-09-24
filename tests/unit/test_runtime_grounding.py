@@ -85,6 +85,7 @@ def test_accepted_verdict_and_judge_run_shape(tmp_path):
     assert run["judge_kind"] == "runtime_grounding"
     assert run["id"].startswith("judgerun:runtime_grounding:")
     assert run["judge_model"] == "fake-judge"
+    assert run["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
     assert run["prompt_version"] == "v1"
     assert run["verdict"] == "accepted"
     assert run["rationale"]

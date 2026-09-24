@@ -163,6 +163,7 @@ def test_judge_run_shape_and_extraction_kind(tmp_path):
     assert run["type"] == "JudgeRun"
     assert run["judge_kind"] == "extraction"
     assert run["judge_model"] == "fake-judge"
+    assert run["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
     assert run["prompt_version"] == "v1"
     assert run["verdict"] == "accepted"
     assert run["rationale"]
@@ -175,6 +176,18 @@ def test_judge_run_shape_and_extraction_kind(tmp_path):
         "judge_confidence",
     }
     assert result["norms"][0]["judge_run_id"] == run["id"]
+
+
+def test_judge_run_records_the_judge_effort_when_the_client_reports_one(tmp_path):
+    generator = FakeClient({PARA_ID: GENERATOR_ANSWER}, model="fake-generator")
+    judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
+    judge.effort = "xhigh"
+    log_path = tmp_path / "extraction_log.jsonl"
+    result = extract_norms(
+        FAKE_DUMP, [PARA_ID], generator, judge, prompt_version="v1", log_path=log_path
+    )
+    run = result["judge_runs"][0]
+    assert run["judge_effort"] == "xhigh"
 
 
 def test_judge_rejection_never_reaches_accepted(tmp_path):

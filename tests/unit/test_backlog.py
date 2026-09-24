@@ -122,6 +122,7 @@ def test_happy_path_status_and_items(tmp_path):
     assert "truncated" not in answer
     assert answer["judge_rationale"] == "Items stay within the cited norms."
     assert answer["judge_model"] == "fake-judge"
+    assert answer["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
     cited = {norm_id for it in answer["items"] for norm_id in it["norm_ids"]}
     assert cited <= {NORM_A["norm_id"], NORM_B["norm_id"], NORM_C["norm_id"]}
     assert set(envelope["source_nodes"]) == {

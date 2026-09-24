@@ -192,6 +192,7 @@ def test_judge_run_shape_and_mapping_kind(tmp_path):
     ALIGNMENTS_VALIDATOR.validate(run)
     assert run["judge_kind"] == "mapping"
     assert run["judge_model"] == "fake-judge"
+    assert run["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
     assert run["verdict"] == "accepted"
     assert run["build_id"] == "build-test"
     assert result["assertions"][0]["judge_run_id"] == run["id"]
@@ -239,6 +240,7 @@ def test_mechanical_quote_check_bad_quote_never_reaches_judge(tmp_path):
     ALIGNMENTS_VALIDATOR.validate(run)
     assert run["judge_model"] == MECHANICAL_JUDGE_MODEL
     assert run["judge_model"] == "mechanical:quote_check"
+    assert run["judge_effort"] == "not applicable (mechanical gate)"
     assert run["judge_kind"] == "mapping"
     assert run["verdict"] == "rejected"
     assert run["review_status"] == "rejected"

@@ -152,6 +152,7 @@ def ground_check(
         "layer": 3,
         "judge_kind": JUDGE_KIND,
         "judge_model": judge.model,
+        "judge_effort": getattr(judge, "effort", "not configured"),
         "prompt_version": prompt_version,
         "prompt_sha256": judge_prompt_sha256,
         "verdict": verdict,

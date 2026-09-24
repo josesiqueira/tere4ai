@@ -117,6 +117,29 @@ def test_health_reports_graph_and_norms_builds(client):
     assert body["norms_build"].startswith("build-")
 
 
+def test_health_names_the_runtime_judge_from_the_environment(client, monkeypatch):
+    monkeypatch.setattr(facade, "load_dotenv_once", lambda: None)
+    monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-test-pinned")
+    monkeypatch.setenv("TERE4AI_JUDGE_EFFORT", "xhigh")
+    body = client.get("/api/health").json()
+    assert body["runtime_judge"] == {"model": "claude-test-pinned", "effort": "xhigh"}
+
+
+def test_health_reports_null_for_an_unset_runtime_judge_field(client, monkeypatch):
+    monkeypatch.setattr(facade, "load_dotenv_once", lambda: None)
+    monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-test-pinned")
+    monkeypatch.delenv("TERE4AI_JUDGE_EFFORT", raising=False)
+    body = client.get("/api/health").json()
+    assert body["runtime_judge"] == {"model": "claude-test-pinned", "effort": None}
+
+
+def test_health_loads_dotenv_before_reading_the_runtime_judge(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(facade, "load_dotenv_once", lambda: calls.append(1))
+    client.get("/api/health")
+    assert calls == [1]
+
+
 def test_classify_triage_scenario_is_high_risk_with_annex_iii_citation(client):
     response = client.post("/api/classify", json={"features": TRIAGE_FEATURES})
     assert response.status_code == 200

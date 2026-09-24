@@ -77,7 +77,8 @@ def require_independent_clients(generator: object, judge: object) -> None:
         )
 
 
-def _load_dotenv_once() -> None:
+def load_dotenv_once() -> None:
+    """Load the repo's .env once into os.environ without overriding exported variables; the paid path and the facade's health answer share it."""
     try:
         from dotenv import load_dotenv
     except ImportError:
@@ -114,7 +115,7 @@ def load_model_config(env: dict[str, str] | None = None) -> ModelConfig:
     before any model call.
     """
     if env is None:
-        _load_dotenv_once()
+        load_dotenv_once()
         env = dict(os.environ)
 
     required = {

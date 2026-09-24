@@ -104,6 +104,7 @@ def _judge_run_node(run: dict[str, Any]) -> dict[str, Any]:
     for k in (
         "judge_kind",
         "judge_model",
+        "judge_effort",
         "prompt_version",
         "verdict",
         "rationale",

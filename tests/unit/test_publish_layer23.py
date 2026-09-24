@@ -34,11 +34,11 @@ class _Report:
         return not self.failures
 
 
-def _files(tmp_path, *, reference=None, align_input=True):
+def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None):
     tmp_path.mkdir(parents=True, exist_ok=True)
     layer1 = tmp_path / "layer1.json"
     layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
-    norms_payload = {"build": {"build_id": "build-b"}, "norms": [], "judge_runs": []}
+    norms_payload = {"build": {"build_id": "build-b"}, "norms": [], "judge_runs": judge_runs or []}
     if reference:
         norms_payload["build"]["reference"] = reference
     norms = tmp_path / ("norms_core.reference.json" if reference else "norms_core.json")
@@ -56,9 +56,11 @@ def _files(tmp_path, *, reference=None, align_input=True):
     return layer1, norms, alignments, store, rid
 
 
-def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=False, seen=None):
+def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=False, seen=None,
+           real_norms_to_graph=False, capture=None):
     monkeypatch.setattr(cli, "validate_build", lambda dump, norms=None, alignments=None: _Report([] if gates_ok else ["G3 norm without source span: x"], {"layer1_nodes": 0}))
-    monkeypatch.setattr(cli, "norms_to_graph", lambda payload, build_id: {"nodes": [], "edges": []})
+    if not real_norms_to_graph:
+        monkeypatch.setattr(cli, "norms_to_graph", lambda payload, build_id: {"nodes": [], "edges": []})
     monkeypatch.setattr(cli, "alignments_to_graph", lambda payload, hleg, build_id: {"nodes": [], "edges": []})
     monkeypatch.setattr(cli, "build_hleg_nodes", lambda: [])
     monkeypatch.setattr(cli, "build_hleg_subtopics", lambda build_id: {"nodes": [], "edges": [], "skipped": []})
@@ -67,6 +69,8 @@ def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=Fal
         def load_dump(self, dump, driver):
             if seen is not None:
                 seen.append(("load", sorted(p.name for p in Path(dump["build"]["_dir"]).glob("build_chain_*.json")) if "_dir" in dump["build"] else None))
+            if capture is not None:
+                capture.append(dump)
             if load_raises:
                 raise RuntimeError("bolt connection refused")
             return {"node:X": 1, "edge:Y": 2}
@@ -113,6 +117,32 @@ def test_chain_record_and_pointer_only_after_postload_gates_pass(tmp_path, monke
     assert manifest["schema_version"] == "publication.v1" and manifest["files"]["norms"] == "norms_core.json"
     assert read_target_state(tmp_path)["state"] == "available"
     assert store.read(rid)["publication"]["chain_id"] == chain["chain_id"] and store.is_frozen(rid)
+
+
+def test_published_judge_run_node_carries_the_judge_effort(tmp_path, monkeypatch):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path, judge_runs=[{
+        "id": "judgerun:x:1",
+        "type": "JudgeRun",
+        "layer": 3,
+        "judge_kind": "extraction",
+        "judge_model": "claude-test",
+        "judge_effort": "high",
+        "prompt_version": "v1",
+        "verdict": "accepted",
+        "rationale": "grounded",
+        "started_at": "t",
+        "completed_at": "t",
+        "build_id": "build-b",
+        "scores": {"evidence_strength": 0.9},
+    }])
+    captured = []
+    _fakes(monkeypatch, cli, real_norms_to_graph=True, capture=captured)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)])
+    assert rc == 0
+    dump = captured[0]
+    judge_run_node = next(n for n in dump["nodes"] if n["type"] == "JudgeRun")
+    assert judge_run_node["judge_effort"] == "high"
 
 
 def test_publication_artifacts_do_not_exist_while_loading(tmp_path, monkeypatch):

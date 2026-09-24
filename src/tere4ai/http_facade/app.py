@@ -91,7 +91,7 @@ from tere4ai.graph_store.present import (
     unreadable,
 )
 from tere4ai.graph_store.publication import load_active, read_target_state
-from tere4ai.judge.config import ModelConfigError, load_model_config
+from tere4ai.judge.config import ModelConfigError, load_dotenv_once, load_model_config
 from tere4ai.mcp_server import backlog as backlog_tool
 from tere4ai.mcp_server import classify as classify_tool
 from tere4ai.mcp_server import elicit as elicit_tool
@@ -534,6 +534,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
 
     @app.get("/api/health")
     def health(request: Request) -> JSONResponse:
+        load_dotenv_once()
         error = request.app.state.load_error
         if error is not None:
             return JSONResponse(status_code=503, content={"ok": False, "error": error})
@@ -545,6 +546,14 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 "ok": True,
                 "graph_version": _graph_version(request),
                 "norms_build": norms_build,
+                # B84 (spec F D-F22): the runtime judge's model id and effort as
+                # this process reads them, from the environment after the same
+                # .env load the paid path makes; the dashboard's judge runner
+                # records them beside its own TERE4AI_JUDGE_EFFORT.
+                "runtime_judge": {
+                    "model": os.environ.get("TERE4AI_JUDGE_MODEL") or None,
+                    "effort": os.environ.get("TERE4AI_JUDGE_EFFORT") or None,
+                },
             }
         )
 
