@@ -15,6 +15,8 @@ FULL_ENV = {
     "TERE4AI_JUDGE_MODEL": "claude-test-pinned",
     "OPENAI_API_KEY": "sk-fake",
     "ANTHROPIC_API_KEY": "sk-ant-fake",
+    "TERE4AI_GENERATOR_EFFORT": "xhigh",
+    "TERE4AI_JUDGE_EFFORT": "xhigh",
 }
 
 
@@ -92,4 +94,39 @@ def test_public_dict_never_leaks_keys():
     cfg = load_model_config(dict(FULL_ENV))
     public = cfg.as_public_dict()
     assert "sk-fake" not in str(public) and "sk-ant-fake" not in str(public)
-    assert set(public) == {"generator_model", "judge_model"}
+    # Efforts are public config (spec F D-F22), not keys, so they belong here too.
+    assert set(public) == {"generator_model", "judge_model", "generator_effort", "judge_effort"}
+
+
+def test_effort_levels_are_the_closed_vocabulary():
+    from tere4ai.judge.config import EFFORT_LEVELS
+    assert EFFORT_LEVELS == ("low", "medium", "high", "xhigh", "max")
+
+
+def test_efforts_load_and_are_public():
+    cfg = load_model_config(dict(FULL_ENV))
+    assert cfg.generator_effort == "xhigh" and cfg.judge_effort == "xhigh"
+    assert cfg.as_public_dict() == {
+        "generator_model": "gpt-test-pinned", "judge_model": "claude-test-pinned",
+        "generator_effort": "xhigh", "judge_effort": "xhigh",
+    }
+
+
+def test_missing_effort_is_listed_with_the_other_missing_variables():
+    env = dict(FULL_ENV)
+    env.pop("TERE4AI_JUDGE_EFFORT")
+    env["TERE4AI_GENERATOR_EFFORT"] = ""
+    env.pop("OPENAI_API_KEY")
+    with pytest.raises(ModelConfigError) as exc:
+        load_model_config(env)
+    msg = str(exc.value)
+    assert "TERE4AI_JUDGE_EFFORT" in msg and "TERE4AI_GENERATOR_EFFORT" in msg and "OPENAI_API_KEY" in msg
+
+
+def test_effort_outside_the_vocabulary_is_refused_by_name():
+    env = dict(FULL_ENV)
+    env["TERE4AI_JUDGE_EFFORT"] = "extra-high"
+    with pytest.raises(ModelConfigError) as exc:
+        load_model_config(env)
+    msg = str(exc.value)
+    assert "TERE4AI_JUDGE_EFFORT" in msg and "extra-high" in msg and "low, medium, high, xhigh, max" in msg

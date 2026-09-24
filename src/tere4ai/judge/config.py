@@ -31,6 +31,13 @@ class ModelConfigError(RuntimeError):
 # gap (the generator grading its own output) regardless of naming.
 _OPENAI_FAMILY_PREFIXES = ("gpt", "o1", "o3", "o4", "chatgpt", "openai", "davinci")
 
+# Effort is part of the instrument (spec F D-F22, 2026-09-24): a model
+# name alone does not say what ran, since Opus 5.5's provider default is
+# medium and a run at another level is another instrument. The vocabulary
+# is closed so every table names an instrument the same way; the same
+# five words are the dashboard's EFFORT_LEVELS.
+EFFORT_LEVELS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
+
 
 def assert_independent_judge(generator_model: str, judge_model: str) -> None:
     """Reject a judge that is not independent of the generator (DEC-07).
@@ -86,12 +93,16 @@ class ModelConfig:
     judge_model: str
     generator_api_key: str
     judge_api_key: str
+    generator_effort: str
+    judge_effort: str
 
     def as_public_dict(self) -> dict[str, str]:
-        """Loggable form: model ids only, never keys."""
+        """Loggable form: model ids and efforts only, never keys."""
         return {
             "generator_model": self.generator_model,
             "judge_model": self.judge_model,
+            "generator_effort": self.generator_effort,
+            "judge_effort": self.judge_effort,
         }
 
 
@@ -111,6 +122,8 @@ def load_model_config(env: dict[str, str] | None = None) -> ModelConfig:
         "TERE4AI_JUDGE_MODEL": "judge model id (independent non-OpenAI family, DEC-07)",
         "OPENAI_API_KEY": "generator API key",
         "ANTHROPIC_API_KEY": "judge API key",
+        "TERE4AI_GENERATOR_EFFORT": "generator effort (one of low, medium, high, xhigh, max; spec F D-F22)",
+        "TERE4AI_JUDGE_EFFORT": "judge effort (one of low, medium, high, xhigh, max; spec F D-F22)",
     }
     missing = [name for name in required if not env.get(name)]
     if missing:
@@ -124,9 +137,19 @@ def load_model_config(env: dict[str, str] | None = None) -> ModelConfig:
     generator_model = env["TERE4AI_GENERATOR_MODEL"]
     assert_independent_judge(generator_model, judge_model)
 
+    for name in ("TERE4AI_GENERATOR_EFFORT", "TERE4AI_JUDGE_EFFORT"):
+        if env[name] not in EFFORT_LEVELS:
+            raise ModelConfigError(
+                f"{name}={env[name]!r} is not an effort level; use one of "
+                f"{', '.join(EFFORT_LEVELS)}. The effort is part of the instrument "
+                "(spec F D-F22) and is never defaulted."
+            )
+
     return ModelConfig(
         generator_model=generator_model,
         judge_model=judge_model,
         generator_api_key=env["OPENAI_API_KEY"],
         judge_api_key=env["ANTHROPIC_API_KEY"],
+        generator_effort=env["TERE4AI_GENERATOR_EFFORT"],
+        judge_effort=env["TERE4AI_JUDGE_EFFORT"],
     )

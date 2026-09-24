@@ -328,6 +328,8 @@ def _fake_cfg(generator="gpt-5.2", judge="claude-opus-4-8") -> ModelConfig:
         judge_model=judge,
         generator_api_key="sk-fake",
         judge_api_key="sk-ant-fake",
+        generator_effort="xhigh",
+        judge_effort="xhigh",
     )
 
 
@@ -353,6 +355,8 @@ def test_run_eval_live_refuses_on_config_mismatch(monkeypatch, tmp_path):
     monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-not-the-record")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake")
+    monkeypatch.setenv("TERE4AI_GENERATOR_EFFORT", "xhigh")
+    monkeypatch.setenv("TERE4AI_JUDGE_EFFORT", "xhigh")
     with pytest.raises(EvalConfigMismatch, match="config of record"):
         run_eval(
             GOLD_3, {}, live=True, dump=MINI_DUMP, results_dir=tmp_path / "results"
