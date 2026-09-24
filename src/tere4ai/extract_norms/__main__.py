@@ -70,6 +70,11 @@ def _sampling_of(client: object) -> str:
     return str(getattr(client, "sampling", "unknown"))
 
 
+def _effort_of(client: object) -> str:
+    """The effort the client applied (B84, spec F D-F22); "unknown" for a stub without the record."""
+    return str(getattr(client, "effort", "unknown"))
+
+
 def _usage_of(client: object) -> dict:
     """Provider-reported token counts over this run; empty for a stub."""
     return dict(getattr(client, "usage", None) or {})
@@ -239,6 +244,7 @@ def main(argv: list[str] | None = None) -> int:
                 **dump.get("build", {}),
                 "extraction_models": cfg.as_public_dict(),
                 "extraction_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+                "extraction_effort": {"generator": _effort_of(generator), "judge": _effort_of(judge)},
                 "extraction_usage": usage(),
                 "extracted_at": _now_iso(),
                 "prompt_version": args.prompt_version,
@@ -255,7 +261,10 @@ def main(argv: list[str] | None = None) -> int:
                      "sha256": sha256_of_file(out_path)}],
             counts={"source_units": stats["source_units"], "candidates": stats["candidates"],
                     "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"])},
-            usage=usage(), sampling=payload["build"]["extraction_sampling"], completed_keys=completed,
+            usage=usage(),
+            sampling={**payload["build"]["extraction_sampling"],
+                      "generator_effort": _effort_of(generator), "judge_effort": _effort_of(judge)},
+            completed_keys=completed,
             work_failures={"nodes_failed": len(stats["nodes_failed"]), "norms_failed": 0},
         )
     except Exception as exc:  # noqa: BLE001 - recorded with what is known, then re-raised

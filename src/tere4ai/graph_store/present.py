@@ -512,11 +512,21 @@ def _parse_execution(payload: dict[str, Any], name: str, digest: str) -> dict[st
                               outputs=[{"role": "layer1_dump", "file": name, "sha256": digest}])
 
 
+def _sampling_with_effort(build: dict[str, Any], prefix: str) -> dict[str, Any] | None:
+    """The recorded sampling dict plus the applied efforts when the dump carries
+    them (B84); a pre-B84 dump gives the sampling dict alone, nothing invented."""
+    sampling = build.get(f"{prefix}_sampling")
+    effort = build.get(f"{prefix}_effort")
+    if not isinstance(sampling, dict) or not isinstance(effort, dict):
+        return sampling
+    return {**sampling, "generator_effort": effort.get("generator"), "judge_effort": effort.get("judge")}
+
+
 def _extract_execution(payload: dict[str, Any], name: str, digest: str) -> dict[str, Any]:
     build, stats = _build_block(payload), _stats(payload)
     return _derived_execution(
         "extract_norms", ["L2.1", "L2.2"],
-        models=build.get("extraction_models"), sampling=build.get("extraction_sampling"),
+        models=build.get("extraction_models"), sampling=_sampling_with_effort(build, "extraction"),
         usage=build.get("extraction_usage"),
         prompt_sha256={"generator": None, "judge": _first_judge_prompt(payload)},
         config={"prompt_version": build["prompt_version"]} if build.get("prompt_version") else {},
@@ -535,7 +545,7 @@ def _align_execution(payload: dict[str, Any], name: str, digest: str) -> dict[st
     version = build.get("alignment_prompt_version")
     return _derived_execution(
         "align_hleg", ["L3.1", "L3.2", "L3.3"],
-        models=build.get("alignment_models"), sampling=build.get("alignment_sampling"),
+        models=build.get("alignment_models"), sampling=_sampling_with_effort(build, "alignment"),
         usage=build.get("alignment_usage"),
         prompt_sha256={"generator": None, "judge": _first_judge_prompt(payload)},
         config={"prompt_version": version} if version else {},

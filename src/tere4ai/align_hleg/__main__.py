@@ -56,6 +56,11 @@ def _sampling_of(client: object) -> str:
     return str(getattr(client, "sampling", "unknown"))
 
 
+def _effort_of(client: object) -> str:
+    """The effort the client applied (B84, spec F D-F22); "unknown" for a stub without the record."""
+    return str(getattr(client, "effort", "unknown"))
+
+
 def _usage_of(client: object) -> dict:
     """Provider-reported token counts over this run; empty for a stub."""
     return dict(getattr(client, "usage", None) or {})
@@ -238,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
                 "norms_reference": norms_reference,
                 "alignment_models": cfg.as_public_dict(),
                 "alignment_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+                "alignment_effort": {"generator": _effort_of(generator), "judge": _effort_of(judge)},
                 "alignment_usage": usage(),
                 "alignment_input_sha256": norms_digest,
                 "aligned_at": datetime.now(UTC).isoformat(),
@@ -260,7 +266,10 @@ def main(argv: list[str] | None = None) -> int:
                     "candidates": stats.get("candidates"), "verdicts": stats.get("verdicts"),
                     "mechanical_rejects_count": (len(stats["mechanical_rejects"])
                                                  if isinstance(stats.get("mechanical_rejects"), list) else None)},
-            usage=usage(), sampling=out_payload["build"]["alignment_sampling"], completed_keys=completed,
+            usage=usage(),
+            sampling={**out_payload["build"]["alignment_sampling"],
+                      "generator_effort": _effort_of(generator), "judge_effort": _effort_of(judge)},
+            completed_keys=completed,
             work_failures={"nodes_failed": 0, "norms_failed": len(stats.get("norms_failed", []))},
         )
     except Exception as exc:  # noqa: BLE001 - recorded with what is known, then re-raised

@@ -130,6 +130,26 @@ def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_pat
     assert present_record(core, tmp_path, NOW, "000000000000", None)["served"] is False
 
 
+def test_derived_execution_carries_effort_beside_sampling(tmp_path):
+    (tmp_path / "layer1.json").write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    (tmp_path / "norms_core.json").write_text(json.dumps({
+        "build": {"build_id": "build-b",
+                  "extraction_models": {"generator_model": "g", "judge_model": "j",
+                                        "generator_effort": "xhigh", "judge_effort": "xhigh"},
+                  "extraction_sampling": {"generator": "0", "judge": "0"},
+                  "extraction_effort": {"generator": "xhigh", "judge": "not applicable (rejected by the model)"},
+                  "prompt_version": "v1"},
+        "norms": [], "judge_runs": [],
+        "stats": {"source_units": 0, "candidates": 0, "verdicts": {}, "nodes_failed": [], "invalid_norms": []}}))
+    records = synthesise_legacy_records(tmp_path)
+    core = next(r for r in records if r["aliases"][0] == "core")
+    ex = next(e for e in core["executions"] if e["command"] == "extract_norms")
+    assert ex["models"] == {"generator_model": "g", "judge_model": "j",
+                            "generator_effort": "xhigh", "judge_effort": "xhigh"}
+    assert ex["sampling"] == {"generator": "0", "judge": "0",
+                              "generator_effort": "xhigh", "judge_effort": "not applicable (rejected by the model)"}
+
+
 def test_unreadable_artefact_yields_not_recorded_with_a_reason(tmp_path):
     (tmp_path / "layer1.json").write_text("{broken")
     (tmp_path / "norms_core.json").write_text(json.dumps({"build": {"build_id": "b"}, "norms": [], "judge_runs": [], "stats": {}}))

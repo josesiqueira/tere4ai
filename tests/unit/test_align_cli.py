@@ -27,10 +27,11 @@ def _fakes(monkeypatch, cli, batches):
 
     class FakeCfg:
         def as_public_dict(self):
-            return {"generator_model": "g", "judge_model": "j"}
+            return {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"}
 
     class FakeClient:
         sampling = "0"
+        effort = "xhigh"
         usage = {"calls": 1, "input_tokens": 1, "output_tokens": 1}
 
     monkeypatch.setattr(cli, "align_norms", fake_align)
@@ -55,7 +56,7 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
     prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
-                                 models={"generator_model": "g", "judge_model": "j"},
+                                 models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
                                  prompt_sha256={"generator": cli.prompt_sha256("align_hleg-v1"),
                                                 "judge": cli.prompt_sha256("judge_alignment-v1")})
     ckpt = out.with_suffix(".checkpoint.jsonl")
@@ -87,6 +88,9 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
     assert ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0} and ex["prompt_sha256"]["judge"]
     assert ex["counts"]["norms_total"] == 3 and ex["counts"]["candidates"] is None, "a count the stats lack is null"
     assert ex["counts"]["norms_skipped_not_accepted"] is None and ex["counts"]["zero_alignment_norms"] is None
+    assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_effort": "xhigh", "judge_effort": "xhigh"}
+    out_payload = json.loads(out.read_text())
+    assert out_payload["build"]["alignment_effort"] == {"generator": "xhigh", "judge": "xhigh"}
 
 
 def test_align_over_a_materialised_file_joins_that_files_record(tmp_path, monkeypatch):
@@ -187,7 +191,7 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
     prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
-                                 models={"generator_model": "g-old", "judge_model": "j"},
+                                 models={"generator_model": "g-old", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
                                  prompt_sha256={"generator": cli.prompt_sha256("align_hleg-v1"),
                                                 "judge": cli.prompt_sha256("judge_alignment-v1")})
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}", "result": {
