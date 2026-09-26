@@ -61,6 +61,16 @@ def _stored_validator() -> Draft202012Validator:
     return Draft202012Validator({"$ref": "#/$defs/stored_record", "$defs": schema["$defs"]})
 
 
+def _refusal_of(data: Any, name: str) -> str | None:
+    """The first schema error of a stored record as one path-free sentence, or None."""
+    errors = sorted(_stored_validator().iter_errors(data), key=lambda e: list(e.path))
+    if not errors:
+        return None
+    first = errors[0]
+    where = "/".join(str(p) for p in first.path) or "the record"
+    return reduce_paths(f"{name}: {first.message} at {where}")
+
+
 def reduce_paths(text: str) -> str:
     """Every path in text reduced to its file name (the rule of
     graph_store.present.exception_reason): a record or a route names what
@@ -177,11 +187,9 @@ class EvaluationRecordStore:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:  # ValueError: bad JSON and bytes that are not UTF-8 (G5)
             raise EvaluationRecordError(reduce_paths(f"{path.name}: not readable JSON: {exc}")) from exc
-        errors = sorted(_stored_validator().iter_errors(data), key=lambda e: list(e.path))
-        if errors:
-            first = errors[0]
-            where = "/".join(str(p) for p in first.path) or "the record"
-            raise EvaluationRecordError(reduce_paths(f"{path.name}: {first.message} at {where}"))
+        refusal = _refusal_of(data, path.name)
+        if refusal:
+            raise EvaluationRecordError(refusal)
         return data
 
     def read(self, record_id: str) -> dict[str, Any]:
@@ -248,6 +256,9 @@ class EvaluationRecordStore:
             "counts": dict(counts or {}),
             "outputs": [], "relations": {**_empty_relations(), **(relations or {})}, "notes": [],
         }
+        refusal = _refusal_of(record, record_id)
+        if refusal:
+            raise EvaluationRecordError(f"refusing to begin: {refusal}")
         with self._locked(record_id):
             atomic_write_json(self._path(record_id), record)
         return record_id
@@ -320,4 +331,7 @@ class EvaluationRecordStore:
             if relations:
                 record["relations"].update(relations)
             record["notes"] = list(notes)
+            refusal = _refusal_of(record, record_id)
+            if refusal:
+                raise EvaluationRecordError(f"refusing to finish: {refusal}")
             atomic_write_json(self._path(record_id), record)

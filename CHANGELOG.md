@@ -65,6 +65,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   ends in `-dirty` when `src/`, `prompts/`, `schema/`, `scripts/` or
   `pyproject.toml` hold uncommitted changes or untracked files; run outputs
   never make it dirty (B81 item 5).
+- `EvaluationRecordStore.begin` and `finish` validate the record against
+  `evaluation_record.schema.json` before writing it: a malformed field is
+  refused before a paid run starts, or at its end with the record left
+  running so the failure path can still end it (B81 item 7).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

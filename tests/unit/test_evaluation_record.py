@@ -285,3 +285,26 @@ def test_a_record_file_that_is_not_utf8_lists_as_an_unreadable_row(tmp_path):
     assert str(tmp_path) not in rows["abcdef012345"]["reason"]
     with pytest.raises(EvaluationRecordError, match="not readable JSON"):
         store.read("abcdef012345")
+
+
+BUILD = {"base_build_id": None, "publication": None, "publication_reason": "x"}
+
+
+def test_begin_refuses_a_record_the_schema_refuses_and_writes_nothing(tmp_path):
+    """B81 item 7: found before the paid run, not on the first read after it."""
+    store = EvaluationRecordStore(tmp_path)
+    with pytest.raises(EvaluationRecordError, match="units_resumed"):
+        store.begin(kind="run", step="E6", command="x", argv=[], inputs=[], build=BUILD,
+                    counts={"units_resumed": "3"})
+    assert store.list_records() == []
+
+
+def test_finish_refuses_a_malformed_field_and_leaves_the_record_running(tmp_path):
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[], build=BUILD)
+    with pytest.raises(EvaluationRecordError, match="items_total"):
+        store.finish(rid, status="completed", counts={"items_total": "two"})
+    rec = store.read(rid)
+    assert rec["ended_at"] is None and rec["outcome"]["status"] == "running"
+    store.finish(rid, status="failed", error="the finish was refused")
+    assert store.read(rid)["outcome"]["status"] == "failed"
