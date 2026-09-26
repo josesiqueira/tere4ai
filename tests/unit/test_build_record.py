@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from tere4ai.graph_store.build_record import (
     SCHEMA_VERSION,
     BuildRecordStore,
     FrozenRecordError,
+    Heartbeat,
     RecordError,
     gate_entries,
     liveness,
@@ -253,3 +255,25 @@ def test_list_records_skips_files_that_are_not_records(tmp_path):
     (records / "tmp0123456789.json").write_text("{partial", encoding="utf-8")
     (records / "notes.json").write_text("{}", encoding="utf-8")
     assert [r["record_id"] for r in store.list_records()] == [rid], "a temp file mid-write is never a record"
+
+
+def test_the_heartbeat_thread_beats_while_the_work_runs_and_stops_after(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("t", "b", None)
+    run = _start(store, rid)
+    first = store.read(rid)["executions"][0]["heartbeat_at"]
+    with Heartbeat(store, rid, run, interval=0.05) as beat:
+        time.sleep(0.3)
+    during = store.read(rid)["executions"][0]["heartbeat_at"]
+    assert during > first and beat.error is None
+    time.sleep(0.2)
+    assert store.read(rid)["executions"][0]["heartbeat_at"] == during, "no beat after the block"
+
+
+def test_a_failing_beat_stops_the_thread_and_never_raises_into_the_run(tmp_path, capsys):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("t", "b", None)
+    with Heartbeat(store, rid, "no-such-run", interval=0.05) as beat:
+        time.sleep(0.2)
+    assert beat.error and "no-such-run" in beat.error
+    assert "heartbeat stopped" in capsys.readouterr().err

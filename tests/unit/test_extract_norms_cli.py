@@ -222,3 +222,31 @@ def test_extract_never_overwrites_an_artefact_a_published_build_names(tmp_path, 
     before = out.read_bytes()
     assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path)]) == 1
     assert "descendant" in capsys.readouterr().err and calls == [] and out.read_bytes() == before
+
+
+def test_a_long_group_keeps_the_execution_live(tmp_path, monkeypatch):
+    """B79 item 4: a group longer than the expiry must not read liveness unknown."""
+    import time
+
+    import tere4ai.extract_norms.__main__ as cli
+    from tere4ai.graph_store import build_record
+
+    monkeypatch.setattr(build_record, "HEARTBEAT_INTERVAL_SECONDS", 0.05)
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    inner = cli.extract_norms
+    beats: list[str] = []
+
+    def slow(dump, node_ids, generator, judge, prompt_version="v1"):
+        store = BuildRecordStore(tmp_path)
+        rid = store.resolve("test")
+        beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
+        time.sleep(0.3)
+        beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
+        return inner(dump, node_ids, generator, judge, prompt_version)
+
+    monkeypatch.setattr(cli, "extract_norms", slow)
+    assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)]) == 0
+    assert beats[1] > beats[0], "the heartbeat advanced inside one group"

@@ -31,6 +31,7 @@ from tere4ai.extract_norms.pipeline import (
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import (
     BuildRecordStore,
+    Heartbeat,
     existing_artefact_digest,
     published_artefact_owner,
     relative_to_dump_dir,
@@ -205,8 +206,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         # one pipeline call per top-level node id, checkpointed immediately, so a
-        # crash can never lose more than the group in flight
-        with checkpoint_path.open("a", encoding="utf-8") as ckpt:
+        # crash can never lose more than the group in flight; the heartbeat
+        # beats on a clock while the paid calls run (B79 item 4)
+        with Heartbeat(store, record_id, run_id), checkpoint_path.open("a", encoding="utf-8") as ckpt:
             for group_id in node_ids:
                 if group_id in plan.entries_by_key:
                     continue

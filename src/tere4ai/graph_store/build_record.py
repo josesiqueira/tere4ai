@@ -19,7 +19,9 @@ import fcntl
 import json
 import os
 import re
+import sys
 import tempfile
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -37,6 +39,11 @@ STEP_IDS = ("L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.
 _REDACT_MARKERS = ("key", "token", "secret")
 RECORD_FILE_STEM = re.compile(r"^(?:[0-9a-f]{12}|legacy-.+)$")
 _SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "build_record.schema.json"
+
+# B79 item 4: a paid run beats on a clock, not per unit of work, since one
+# group or batch at a high effort can outlast the expiry; a fifth of it
+# leaves room for a slow disk or a held lock.
+HEARTBEAT_INTERVAL_SECONDS = 60
 
 
 class RecordError(RuntimeError):
@@ -313,6 +320,39 @@ class BuildRecordStore:
             aliases = self._aliases()
             aliases[alias] = record_id
             atomic_write_json(self.dir / ALIASES_FILENAME, aliases)
+
+
+class Heartbeat:
+    """Beat an execution's heartbeat_at every interval seconds on a daemon
+    thread while the block runs (spec G D-G20: liveness is the process being
+    alive, not a unit finishing). A beat that fails stops the thread with one
+    line on stderr and never raises into the run; the reader then sees
+    liveness unknown, which is the truth."""
+
+    def __init__(self, store: BuildRecordStore, record_id: str, run_id: str,
+                 interval: float | None = None) -> None:
+        self.store, self.record_id, self.run_id = store, record_id, run_id
+        self.interval = HEARTBEAT_INTERVAL_SECONDS if interval is None else interval
+        self.error: str | None = None
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, name=f"heartbeat-{run_id}", daemon=True)
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.interval):
+            try:
+                self.store.heartbeat(self.record_id, self.run_id)
+            except (RecordError, OSError) as exc:
+                self.error = str(exc)
+                print(f"heartbeat stopped: {exc}", file=sys.stderr)
+                return
+
+    def __enter__(self) -> Heartbeat:
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self._stop.set()
+        self._thread.join()
 
 
 def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,

@@ -30,6 +30,14 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   degraded answer after the generator request carries them too, a refusal
   before any request does not.
 
+### Pre-B74 run safety (2026-09-26, B79, B81, B78)
+- `extract_norms` and `align_hleg` beat the execution's heartbeat every 60 s
+  on a background thread while the model calls run
+  (`graph_store.build_record.Heartbeat`), so a group or batch longer than
+  the 300 s expiry no longer reads "liveness unknown" on the Build page
+  (B79 item 4). A failing beat stops the thread with one stderr line and
+  never stops the run.
+
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config
   values from the closed vocabulary `EFFORT_LEVELS` (`low, medium, high,

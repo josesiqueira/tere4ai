@@ -198,3 +198,31 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
         "assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume", "--batch-size", "2"])
     assert rc == 2 and "different models: generator_model" in capsys.readouterr().err and batches == []
+
+
+def test_a_long_batch_keeps_the_execution_live(tmp_path, monkeypatch):
+    """B79 item 4: a batch longer than the expiry must not read liveness unknown."""
+    import time
+
+    import tere4ai.align_hleg.__main__ as cli
+    from tere4ai.graph_store import build_record
+
+    monkeypatch.setattr(build_record, "HEARTBEAT_INTERVAL_SECONDS", 0.05)
+    norms_path, layer1, _ = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    inner = cli.align_norms
+    beats: list[str] = []
+
+    def slow(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+        store = BuildRecordStore(tmp_path)
+        rid = store.resolve("test")
+        beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
+        time.sleep(0.3)
+        beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+
+    monkeypatch.setattr(cli, "align_norms", slow)
+    assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
+    assert beats[1] > beats[0], "the heartbeat advanced inside one batch"

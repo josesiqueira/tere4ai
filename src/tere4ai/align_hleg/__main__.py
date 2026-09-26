@@ -27,6 +27,7 @@ from tere4ai.extract_norms.pipeline import DEFAULT_DUMP_PATH, REPO_ROOT, load_pr
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import (
     BuildRecordStore,
+    Heartbeat,
     existing_artefact_digest,
     published_artefact_owner,
     relative_to_dump_dir,
@@ -202,7 +203,9 @@ def main(argv: list[str] | None = None) -> int:
         return {"generator": _usage_of(generator), "judge": _usage_of(judge)}
 
     try:
-        with checkpoint_path.open("a", encoding="utf-8") as ckpt:
+        # the heartbeat beats on a clock while the paid calls run, so a batch
+        # longer than the expiry still reads live (B79 item 4)
+        with Heartbeat(store, record_id, run_id), checkpoint_path.open("a", encoding="utf-8") as ckpt:
             for batch_key, chunk in batches:
                 if batch_key in plan.entries_by_key:
                     continue
