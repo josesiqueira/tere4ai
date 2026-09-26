@@ -23,8 +23,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   the sheet, so a copy or finish that fails (or an interrupt before the
   finish) leaves the sheet as the act found it and the next act chains on
   the last completed one. A replace that fails after the finish says so on
-  stderr with the `cp` that puts the record's copy in place. The refusals
-  of the label act and of `--compute` over sheet bytes no recorded act
+  stderr with the `cp` that puts the record's copy in place; when only the
+  reading copy failed, the line names it, with the `cp` of the draw's
+  Markdown copy or, after a label act, that the next label act rewrites
+  it. The refusals of the label act and of `--compute` over sheet bytes no recorded act
   wrote name that `cp` for the last recorded act. A failed act used to
   leave bytes no completed act wrote, and every later act was refused with
   no way out short of a `--force` re-draw. A new sheet's instructions name

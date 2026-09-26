@@ -277,6 +277,18 @@ def _not_in_place(store: EvaluationRecordStore, record_id: str, ref: dict[str, A
           + _cp_command(store.dir / ref["copy"], sheet_path), file=sys.stderr)
 
 
+def _reading_copy_not_in_place(record_id: str, sheet_path: Path, md_path: Path, exc: BaseException,
+                               md_copy: Path | None) -> None:
+    """Say on stderr that the sheet took a completed record's bytes but its
+    reading copy did not (B81 item 34): the cp for the draw's recorded
+    Markdown copy, or, for a label act (which keeps no Markdown copy), that
+    the next label act rewrites the reading copy."""
+    way_on = ("put the record's Markdown copy in place: " + _cp_command(md_copy, md_path) if md_copy is not None
+              else "the next label act rewrites the reading copy")
+    print(f"evaluation record {record_id} completed and {sheet_path} took its bytes, but the reading copy "
+          f"{md_path} did not take its bytes ({exception_reason(exc)}); {way_on}", file=sys.stderr)
+
+
 @contextmanager
 def _sheet_lock(sheet_path: Path):
     """One exclusive lock per sheet, held by every act that reads or writes it
@@ -684,6 +696,7 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     # lock no other act sees the moment between the finish and the replace.
     staged: list[Path] = []
     ref: dict[str, Any] | None = None
+    completed = sheet_replaced = False
     try:
         staged.append(_stage(args.sheet, json.dumps(sheet, ensure_ascii=False, indent=1) + "\n"))
         staged.append(_stage(args.sheet_md, render_sheet_md(sheet) + "\n"))
@@ -694,15 +707,22 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
                 counts={"labelled_now": len(wanted), "labelled_total": labelled_total, "items": len(sheet["items"])},
                 notes=notes,
             )
+            completed = True
         os.replace(staged[0], args.sheet)
+        sheet_replaced = True
         os.replace(staged[1], args.sheet_md)
     except BaseException as exc:
-        if store is not None and record_id is not None:
+        if completed and store is not None and record_id is not None and ref is not None:
+            # the record stays completed: only a replace failed, so say which file and the way on
+            if sheet_replaced:
+                _reading_copy_not_in_place(record_id, args.sheet, args.sheet_md, exc, None)
+            else:
+                _not_in_place(store, record_id, ref, args.sheet, exc)
+        elif store is not None and record_id is not None:
             try:
                 store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
-            except EvaluationRecordError:  # already completed: only the replace failed
-                if ref is not None:
-                    _not_in_place(store, record_id, ref, args.sheet, exc)
+            except EvaluationRecordError:
+                pass
         raise
     finally:
         for tmp in staged:
@@ -858,6 +878,7 @@ def _draw_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     # fails leaves the labelled sheet as it was
     staged: list[Path] = []
     refs: list[dict[str, Any]] = []
+    completed = sheet_replaced = False
     try:
         staged.append(_stage(args.sheet, json.dumps(sheet, ensure_ascii=False, indent=1) + "\n"))
         staged.append(_stage(args.sheet_md, render_sheet_md(sheet) + "\n"))
@@ -868,15 +889,22 @@ def _draw_act(args: argparse.Namespace, argv: list[str] | None) -> int:
             store.finish(record_id, status="completed", completed_items=ids, outputs=refs,
                          counts={"population": sheet["sampling"]["population"], "sampled": sheet["sampling"]["total"],
                                  "unjoinable": len(sheet["sampling"]["unjoinable_judge_runs_excluded"])})
+            completed = True
         os.replace(staged[0], args.sheet)
+        sheet_replaced = True
         os.replace(staged[1], args.sheet_md)
     except BaseException as exc:
-        if store is not None and record_id is not None:
+        if completed and store is not None and record_id is not None:
+            # the record stays completed: only a replace failed, so say which file and the way on
+            if sheet_replaced:
+                _reading_copy_not_in_place(record_id, args.sheet, args.sheet_md, exc, store.dir / refs[1]["copy"])
+            else:
+                _not_in_place(store, record_id, refs[0], args.sheet, exc)
+        elif store is not None and record_id is not None:
             try:
                 store.finish(record_id, status="failed", error=exception_reason(exc))
-            except EvaluationRecordError:  # already completed: only the replace failed
-                if refs:
-                    _not_in_place(store, record_id, refs[0], args.sheet, exc)
+            except EvaluationRecordError:
+                pass
         raise
     finally:
         for tmp in staged:

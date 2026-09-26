@@ -490,8 +490,7 @@ def test_the_label_act_refuses_a_sheet_without_a_sample_block(tmp_path, capsys):
     assert EvaluationRecordStore(tmp_path, create=False).list_records() == records_before
 
 
-def test_draw_cleans_up_the_temp_file_and_fails_the_record_when_the_sheet_write_raises(tmp_path, monkeypatch,
-                                                                                        capsys):
+def test_draw_completes_the_record_and_names_the_copy_when_the_sheet_replace_raises(tmp_path, monkeypatch, capsys):
     _write_payloads(tmp_path)
     real_replace = sampling.os.replace
 
@@ -519,7 +518,7 @@ def test_draw_cleans_up_the_temp_file_and_fails_the_record_when_the_sheet_write_
     assert f"put the record's copy in place: cp {copy} {tmp_path / 'sheet.json'}" in capsys.readouterr().err
 
 
-def test_draw_fails_the_record_when_keep_output_raises_after_the_sheet_write(tmp_path, monkeypatch):
+def test_draw_fails_the_record_and_writes_no_sheet_when_keep_output_raises(tmp_path, monkeypatch):
     _write_payloads(tmp_path)
 
     def boom(self, record_id, role, path, **kwargs):  # B81 item 34: the draw now passes name=
@@ -627,7 +626,7 @@ def test_compute_reports_null_on_an_empty_denominator_and_never_zero(tmp_path, c
 # validated --label-file ------------------------------------------------
 
 
-def test_label_act_fails_the_record_when_the_sheet_write_raises(tmp_path, monkeypatch):
+def test_label_act_completes_the_record_and_keeps_the_sheet_when_the_sheet_replace_raises(tmp_path, monkeypatch):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path)) == 0
     sheet = json.loads((tmp_path / "sheet.json").read_text())
@@ -1039,3 +1038,52 @@ def test_the_sheet_tells_the_labeller_to_label_through_the_label_act(tmp_path):
     assert "--label-file <csv>" in md and "fill in judge_label_sheet.json" not in md
     assert "never edit judge_label_sheet.json by hand" in md
     assert "- human_label (accept | reject): record it with --label or --label-file" in md
+
+
+def _reading_copy_replace_fails(monkeypatch, md_path):
+    real_replace = sampling.os.replace
+
+    def fail(src, dst, *args, **kwargs):
+        if Path(dst) == md_path:
+            raise OSError("disk full")
+        return real_replace(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(sampling.os, "replace", fail)
+
+
+def test_a_draw_whose_reading_copy_replace_fails_names_the_markdown_copy(tmp_path, monkeypatch, capsys):
+    """B81 item 34 fix round 1: the sheet took its bytes, only the reading
+    copy did not, so the line names the reading copy and its recorded copy."""
+    _write_payloads(tmp_path)
+    _reading_copy_replace_fails(monkeypatch, tmp_path / "sheet.md")
+    with pytest.raises(OSError, match="disk full"):
+        sampling.main(_draw_argv(tmp_path))
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (rec,) = store.list_records()
+    assert rec["outcome"]["status"] == "completed"
+    md_copy = store.dir / [o for o in rec["outputs"] if o["role"] == "sheet_md"][0]["copy"]
+    json_copy = store.dir / [o for o in rec["outputs"] if o["role"] == "sheet_json"][0]["copy"]
+    assert (tmp_path / "sheet.json").read_bytes() == json_copy.read_bytes(), "the sheet took its bytes"
+    assert not (tmp_path / "sheet.md").exists() and list(tmp_path.glob("tmp*")) == []
+    err = capsys.readouterr().err
+    assert f"put the record's Markdown copy in place: cp {md_copy} {tmp_path / 'sheet.md'}" in err
+    assert "did not take its bytes" in err and f"{tmp_path / 'sheet.json'} did not take" not in err
+
+
+def test_a_label_act_whose_reading_copy_replace_fails_says_the_next_act_rewrites_it(tmp_path, monkeypatch, capsys):
+    """B81 item 34 fix round 1: the label act keeps no Markdown copy, so the
+    line says the next label act rewrites the reading copy; the chain holds."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    md_before = (tmp_path / "sheet.md").read_bytes()
+    _reading_copy_replace_fails(monkeypatch, tmp_path / "sheet.md")
+    with pytest.raises(OSError, match="disk full"):
+        sampling.main(_draw_argv(tmp_path, "--label", ids[0], "accept", "--by", "Jose"))
+    err = capsys.readouterr().err
+    assert f"the reading copy {tmp_path / 'sheet.md'} did not take its bytes" in err
+    assert "the next label act rewrites the reading copy" in err and "cp " not in err
+    assert (tmp_path / "sheet.md").read_bytes() == md_before
+    monkeypatch.undo()
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[1], "accept", "--by", "Jose")) == 0
+    assert "- human_label: accept" in (tmp_path / "sheet.md").read_text()
