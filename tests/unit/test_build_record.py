@@ -399,3 +399,23 @@ def test_signals_as_interrupt_raises_keyboard_interrupt_and_restores_the_handler
     finally:
         for sig, handler in before.items():
             signal.signal(sig, handler)
+
+
+def test_a_signal_ignored_by_nohup_stays_ignored():
+    """Re-review: a run started with nohup has SIGHUP at SIG_IGN; the context must
+    not turn a closed terminal into an interrupt. SIGTERM at SIG_DFL is still replaced."""
+    import signal
+
+    before = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGHUP)}
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    try:
+        with build_record.signals_as_interrupt():
+            assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
+            assert callable(signal.getsignal(signal.SIGTERM))
+            assert signal.getsignal(signal.SIGTERM) not in (signal.SIG_DFL, signal.SIG_IGN)
+        assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
+        assert signal.getsignal(signal.SIGTERM) is signal.SIG_DFL
+    finally:
+        for sig, handler in before.items():
+            signal.signal(sig, handler)

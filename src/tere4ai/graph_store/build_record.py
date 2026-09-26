@@ -393,14 +393,20 @@ def signals_as_interrupt():
     command through its interrupt path, which records the execution failed
     with its usage and effort, instead of killing it with the execution left
     running and its usage null. The previous handlers come back after the
-    block. Outside the main thread no handler can be installed; that is said
-    on stderr and the block runs without them."""
+    block. A signal whose handler is SIG_IGN (a run started with nohup has
+    SIGHUP ignored) or was not installed from Python stays untouched, so the
+    run survives a closed terminal as its operator asked. Outside the main
+    thread no handler can be installed; that is said on stderr and the block
+    runs without them."""
     def interrupt(signum, frame):
         raise KeyboardInterrupt(f"signal {signal.Signals(signum).name}")
 
     previous: dict[int, Any] = {}
     try:
         for sig in (signal.SIGTERM, signal.SIGHUP):
+            current = signal.getsignal(sig)
+            if current is signal.SIG_IGN or current is None:
+                continue
             previous[sig] = signal.signal(sig, interrupt)
     except ValueError as exc:
         print(f"SIGTERM and SIGHUP stay unhandled: {exc}", file=sys.stderr)

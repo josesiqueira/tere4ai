@@ -136,6 +136,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   running execution through the per-unit heartbeat (`heartbeat(...,
   usage=...)`, additive), so a SIGKILL loses at most the unit in flight
   (final review A2).
+- `signals_as_interrupt` leaves a signal whose handler is `SIG_IGN`
+  untouched, so a run started with `nohup` (SIGHUP ignored) still survives
+  a closed terminal; a SIGTERM or SIGHUP at its default handler is still
+  turned into `KeyboardInterrupt` (re-review of final review A2).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config
