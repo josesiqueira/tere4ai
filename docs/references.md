@@ -495,6 +495,65 @@ governance artifacts; bears on the provenance and evidence story. Note: the
 triage suspected this citation was fabricated; direct verification 2026-09-02
 found it real.
 
+**[ADD-46]** PEER. *Experimentation in Software Engineering*, Wohlin,
+Runeson, Höst, Ohlsson, Regnell, Wesslén, Springer, 2012, ISBN
+978-3-642-29043-5, DOI 10.1007/978-3-642-29044-2 (book; 3145 citations on
+Crossref, 2026-09-26). VERIFIED. CORE. Grounds: the research-method words for
+a judge run: "pilot study" and "main run" as a pair (pp. 177 and 195), "trial
+run" as a pilot of a whole experiment with people (p. 116), and a study
+protocol kept under version control (p. 60).
+
+**[ADD-47]** STD. ACM SIGSOFT Empirical Standards, Registered Reports
+supplement, Ralph et al., github.com/acmsigsoft/EmpiricalStandards,
+docs/supplements/RegisteredReports.md, commit 554118c (2026-09-17). Community
+standard of ACM SIGSOFT, not a formal standards body. VERIFIED. CORE.
+Grounds: "study plan" for the record fixed before a study runs, "execute the
+plan" for the run, and a pilot study as a source of preliminary data.
+
+**[ADD-48]** STD. ACM SIGSOFT Empirical Standards, Experiments (with Human
+Participants), Ralph et al., github.com/acmsigsoft/EmpiricalStandards,
+docs/standards/Experiments.md, commit 554118c (2026-09-17). Community
+standard of ACM SIGSOFT, not a formal standards body. VERIFIED. SUPPORTING.
+Grounds: "pilot studies" for small preliminary studies (footnote 5).
+
+**[ADD-49]** PEER. "Reporting Experiments in Software Engineering",
+Jedlitschka, Ciolkowski, Pfahl, in Shull, Singer, Sjøberg (eds.), *Guide to
+Advanced Empirical Software Engineering*, Springer, 2008, pp. 201-228, DOI
+10.1007/978-1-84800-044-5_8 (book chapter; 206 citations on Crossref,
+2026-09-26). Quote only the published chapter: the authors' preliminary
+version has different wording. VERIFIED. CORE. Grounds: "the plan or
+protocol that is used to perform the experiment" (p. 214) and reporting the
+run against the plan (Section 3.8, p. 220).
+
+**[ADD-50]** PEER. "Personal Opinion Surveys", Kitchenham, Pfleeger, in
+Shull, Singer, Sjøberg (eds.), *Guide to Advanced Empirical Software
+Engineering*, Springer, 2008, pp. 63-92, DOI 10.1007/978-1-84800-044-5_3
+(book chapter; 339 citations on Crossref, 2026-09-26). VERIFIED. CORE.
+Grounds: a pilot uses the same procedures on a smaller sample to find
+problems with how the study will run (p. 78), and is paired with "the main
+survey" (p. 89).
+
+**[ADD-51]** PEER. "Guidelines for conducting and reporting case study
+research in software engineering", Runeson, Höst, Empirical Software
+Engineering 14(2):131-164, 2009, DOI 10.1007/s10664-008-9102-8 (open
+access; 2896 citations on Crossref, 2026-09-26). VERIFIED. SUPPORTING.
+Grounds: a study protocol kept under version control (p. 141), the original
+of the sentence ADD-46 reuses.
+
+**[ADD-52]** PRE. "Guidelines for Empirical Studies in Software Engineering
+involving Large Language Models", Baltes, Angermeir, Arora, et al. (22
+authors), arXiv:2508.15503, held as version 5 (2026-05-10); the arXiv record
+says accepted in Empirical Software Engineering [VERIFY: journal DOI once
+published; none found 2026-09-26]. VERIFIED. SUPPORTING. Grounds: a pilot
+study to estimate the variability of repeated LLM runs before the study
+proper (v5 p. 37).
+
+**[ADD-53]** PEER. "Trust or Escalate: LLM Judges with Provable Guarantees
+for Human Agreement", Jung, Brahman, Choi, ICLR 2025 (official proceedings
+PDF). VERIFIED. SUPPORTING. Grounds: in LLM-as-a-judge work a "calibration
+set" is a small set of human preferences on which a judge's threshold is
+chosen (pp. 1 to 3), so "calibration" is not used as the name of a paid run.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
