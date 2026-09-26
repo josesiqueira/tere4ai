@@ -249,7 +249,11 @@ def test_an_unrecorded_checkpoint_is_resumed_only_with_the_flag(runner, tmp_path
     assert runner.main([*argv, "--resume-unrecorded"]) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["relations"]["resumes_record_id"] is None
-    assert rec["notes"] == ["resumed from a checkpoint no record names"]
+    # Changed by B98 seat B P3-5: a strategy whose every unit was resumed
+    # now carries a note naming where its models are recorded.
+    assert rec["notes"] == ["resumed from a checkpoint no record names",
+                            "plain_llm: every unit resumed, none run by this invocation; the models that produced "
+                            "its results are named in no record (the checkpoint no record names)"]
     assert rec["config"]["checkpoint_file"] == "orphan.jsonl"
 
 
@@ -273,7 +277,11 @@ def test_a_resume_after_a_failed_run_names_the_failed_record(runner, monkeypatch
     assert runner.main(_argv(tmp_path)) == 0
     resumed = [r for r in store.list_records() if r["record_id"] != failed["record_id"]][0]
     assert resumed["relations"]["resumes_record_id"] == failed["record_id"]
-    assert resumed["notes"] == [] and resumed["counts"]["units_resumed"] == 1
+    # Changed by B98 seat B P3-5: a strategy whose every unit was resumed
+    # now carries a note naming where its models are recorded.
+    assert resumed["notes"] == ["plain_llm: every unit resumed, none run by this invocation; the models that "
+                                f"produced its results are named in record {failed['record_id']}"]
+    assert resumed["counts"]["units_resumed"] == 1
 
 
 def _publish_only_layer1(tmp_path):
@@ -373,7 +381,11 @@ def test_a_recorded_checkpoint_whose_sidecar_is_gone_is_resumed_only_with_the_fl
     assert runner.main(_argv(tmp_path, "--resume-unrecorded")) == 0
     newest = max(EvaluationRecordStore(tmp_path, create=False).list_records(), key=lambda r: r["started_at"])
     assert newest["relations"]["resumes_record_id"] is None
-    assert newest["notes"] == ["resumed from a checkpoint no record names"]
+    # Changed by B98 seat B P3-5: a strategy whose every unit was resumed
+    # now carries a note naming where its models are recorded.
+    assert newest["notes"] == ["resumed from a checkpoint no record names",
+                               "plain_llm: every unit resumed, none run by this invocation; the models that "
+                               "produced its results are named in no record (the checkpoint no record names)"]
 
 
 def test_two_checkpoints_with_one_basename_in_two_directories_never_resolve_to_each_other(runner, tmp_path):
@@ -525,3 +537,20 @@ def test_the_record_names_the_judge_effort_after_the_replies(runner, monkeypatch
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["outcome"]["status"] == ("completed" if interrupt_on is None else "failed")
     assert rec["prompt_versions"]["plain_llm"]["judge_effort"] == "high"
+
+
+def test_a_fully_resumed_strategy_is_noted_with_the_record_that_ran_it(runner, monkeypatch, tmp_path):
+    """B98 seat B P3-5: a strategy whose every unit was resumed makes no
+    reply in this invocation, so its judge reads "no replies" beside
+    metrics another invocation produced; the record says so and names the
+    record the resume continues."""
+    monkeypatch.setattr(runner.strategies, "build_strategy", lambda name, **kw: _EffortStrategy(kw["judge"]))
+    assert runner.main(_argv(tmp_path)) == 0
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (first,) = store.list_records()
+    assert not [n for n in first["notes"] if "every unit resumed" in n]
+    assert runner.main(_argv(tmp_path)) == 0
+    second = next(r for r in store.list_records() if r["record_id"] != first["record_id"])
+    assert second["prompt_versions"]["plain_llm"]["judge_effort"] == "no replies"
+    assert (f"plain_llm: every unit resumed, none run by this invocation; the models that produced its "
+            f"results are named in record {first['record_id']}") in second["notes"]

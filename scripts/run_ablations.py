@@ -81,6 +81,15 @@ def _completed_items(unit_results: list[dict], items: list[dict],
     return completed, errored
 
 
+def _resumed_only_notes(built: dict, ran: set[str], resumes: str | None) -> list[str]:
+    """A note per strategy this invocation built but ran no unit of (B98 seat
+    B P3-5): its models here read "no replies" beside metrics another
+    invocation produced, so the note names the record the resume continues."""
+    where = f"record {resumes}" if resumes is not None else "no record (the checkpoint no record names)"
+    return [f"{name}: every unit resumed, none run by this invocation; the models that produced its "
+            f"results are named in {where}" for name in built if name not in ran]
+
+
 def _own_usage(generator, judge) -> dict | None:
     """This invocation's own spend (spec G D-G20: usage of this attempt): the
     clients live for one invocation, so their records are exactly it."""
@@ -295,6 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     # the strategies as built, so both finishes read their models after the
     # replies (the judge's effort is "no replies" before its first answer)
     built: dict[str, Any] = {}
+    ran: set[str] = set()  # the strategies with at least one unit run by this invocation
     try:
         if store is not None and record_id is not None:
             # the newest record owns the checkpoint from now on (G2)
@@ -318,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
                     unit = f"{strategy_name}:batch{bi}"
                     if unit in done:
                         continue
+                    ran.add(strategy_name)
                     usage_before = {
                         "generator": dict(generator.usage),
                         "judge": dict(judge.usage),
@@ -521,7 +532,7 @@ def main(argv: list[str] | None = None) -> int:
                 sampling={"generator": generator.sampling, "judge": judge.sampling},
                 counts={"items_total": len(items), "units_without_usage": units_without_usage,
                         "items_with_errors": len(errored), "units_run": units_run},
-                notes=notes,
+                notes=notes + _resumed_only_notes(built, ran, resumes),
             )
             print(f"evaluation record {record_id} written under {store.dir}")
 
@@ -531,7 +542,8 @@ def main(argv: list[str] | None = None) -> int:
             completed, _ = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
             models_now = harness.strategy_models(built, list(built)) or None
             try:
-                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes,
+                store.finish(record_id, status="failed", error=exception_reason(exc),
+                             notes=notes + _resumed_only_notes(built, ran, resumes),
                              completed_items=completed, usage=_own_usage(generator, judge),
                              counts={"units_run": units_run}, prompt_versions=models_now,
                              prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
