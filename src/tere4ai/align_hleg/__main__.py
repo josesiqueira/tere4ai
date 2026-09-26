@@ -30,6 +30,7 @@ from tere4ai.graph_store.build_record import (
     Heartbeat,
     RecordError,
     existing_artefact_digest,
+    live_run_refusal,
     published_artefact_owner,
     relative_to_dump_dir,
     select_record,
@@ -162,6 +163,10 @@ def main(argv: list[str] | None = None) -> int:
     config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size}
     ref = args.record or store.find_by_output_digest(norms_digest) or slug
     record_id, message = select_record(store, ref, payload.get("build", {}).get("build_id"), layer1_digest)
+    refusal = live_run_refusal(store, record_id, "align_hleg")
+    if refusal:
+        print(f"refusing to start: {refusal}", file=sys.stderr)
+        return 2
     if message and existing:
         print(f"refusing to overwrite {out_path.name}: {message}, and the file belongs to the record it continues; "
               "pass --out with a new slug", file=sys.stderr)

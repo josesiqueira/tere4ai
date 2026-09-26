@@ -100,6 +100,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - `code_version` prints one stderr line when git fails or times out inside
   a checkout, where it returned `null` silently before; outside a checkout
   it stays silent (final review F3).
+- `extract_norms` and `align_hleg` refuse to start (exit code 2), before
+  any model call, while another execution of the same command on the same
+  record is live, naming it and the rule that a killed run stops blocking
+  300 s after its last heartbeat; before, a `--resume` next to a live first
+  run was accepted and both paid for every remaining unit (final review
+  A1).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

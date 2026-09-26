@@ -73,6 +73,9 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
                                  prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v1"),
                                                 "judge": cli.prompt_sha256("judge_norms-v1")})
+    # Changed by final review A1: a resume is refused while the run it resumes
+    # is live, so the prior attempt ends failed here as an interrupted run does.
+    store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
     ckpt = out.with_suffix(".checkpoint.jsonl")
     ckpt.write_text(json.dumps({"run_id": prev, "group": "eu-ai-act:article-9", "result": {
         "norms": [{"norm_id": "norm:eu-ai-act:article-9:n1"}], "judge_runs": [],
@@ -303,3 +306,21 @@ def test_a_run_whose_record_is_published_under_it_stops_and_says_so(tmp_path, mo
         cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)])
     assert "the failure could not be recorded" in capsys.readouterr().err
     assert out.with_suffix(".checkpoint.jsonl").is_file()
+
+
+def test_a_resume_is_refused_while_the_first_run_of_the_record_is_live(tmp_path, monkeypatch, capsys):
+    """Final review A1: two live runs of one record would both pay for every remaining group."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("test", "build-b", None)
+    first = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+                                  config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
+    rc = cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out), "--resume"])
+    err = capsys.readouterr().err
+    assert rc == 2 and first in err and "300 s after its last heartbeat" in err and calls == []
+    assert [e["run_id"] for e in store.read(rid)["executions"]] == [first], "no second execution started"

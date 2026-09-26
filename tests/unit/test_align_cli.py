@@ -59,6 +59,9 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
                                  prompt_sha256={"generator": cli.prompt_sha256("align_hleg-v1"),
                                                 "judge": cli.prompt_sha256("judge_alignment-v1")})
+    # Changed by final review A1: a resume is refused while the run it resumes
+    # is live, so the prior attempt ends failed here as an interrupted run does.
+    store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
     ckpt = out.with_suffix(".checkpoint.jsonl")
     ckpt.write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}", "result": {
         "assertions": [{"id": "align:pre1"}, {"id": "align:pre2"}], "mapping_runs": [], "judge_runs": [],
@@ -194,6 +197,9 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
                                  models={"generator_model": "g-old", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
                                  prompt_sha256={"generator": cli.prompt_sha256("align_hleg-v1"),
                                                 "judge": cli.prompt_sha256("judge_alignment-v1")})
+    # Changed by final review A1: a resume is refused while the run it resumes
+    # is live, so the prior attempt ends failed here as an interrupted run does.
+    store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}", "result": {
         "assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume", "--batch-size", "2"])
@@ -255,3 +261,21 @@ def test_a_long_batch_keeps_the_execution_live(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "align_norms", slow)
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
     assert beats[1] > beats[0], "the heartbeat advanced inside one batch"
+
+
+def test_a_resume_is_refused_while_the_first_align_run_is_live(tmp_path, monkeypatch, capsys):
+    """Final review A1: two live runs of one record would both pay for every remaining batch."""
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("test", "b", None)
+    first = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+                                  inputs=[], config={}, expected_total=2, work_unit="batches", checkpoint_file=None)
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume"])
+    err = capsys.readouterr().err
+    assert rc == 2 and first in err and "300 s after its last heartbeat" in err and batches == []
+    assert [e["run_id"] for e in store.read(rid)["executions"]] == [first], "no second execution started"

@@ -412,6 +412,19 @@ class Heartbeat:
         self._thread.join()
 
 
+def live_run_refusal(store: BuildRecordStore, record_id: str, command: str) -> str | None:
+    """Why a new run of command on the record is refused, or None (final review
+    A1): while another execution of the same command is live, a second run
+    (a --resume included) would pay again for every unit the first one still
+    has to do. Named as publish names its refusal, with the expiry rule."""
+    live = [ex for ex in store.live_executions(record_id) if ex["command"] == command]
+    if not live:
+        return None
+    named = ", ".join(f"{ex['run_id']} ({ex['command']}, heartbeat {ex['heartbeat_at']})" for ex in live)
+    return (f"record {record_id} has a live running execution: {named}; wait for it to end or stop it "
+            f"(a killed run stops blocking {HEARTBEAT_EXPIRY_SECONDS} s after its last heartbeat)")
+
+
 def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
                   layer1_digest: str | None) -> tuple[str, str | None]:
     """Reuse an open record built on the same Layer 1; otherwise continue as a
