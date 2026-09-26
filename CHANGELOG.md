@@ -69,6 +69,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   `evaluation_record.schema.json` before writing it: a malformed field is
   refused before a paid run starts, or at its end with the record left
   running so the failure path can still end it (B81 item 7).
+- `python -m tere4ai.eval.harness --repeat-of <record id>` records the run
+  it repeats, refusing (exit code 2) an id the store does not hold; both
+  writers refuse `--repeat-of` with `--no-record` (B81 items 19 and 10).
+- The per-item `error` strings in the harness's results artifact and the
+  runner's checkpoint name files, never paths (B81 item 24).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

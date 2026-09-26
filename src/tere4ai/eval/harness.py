@@ -308,6 +308,7 @@ def run_eval(
     argv: list[str] | None = None,
     input_paths: dict[str, Path] | None = None,
     dump_dir: Path | None = None,
+    repeat_of: str | None = None,
 ) -> dict[str, Any]:
     """Run every strategy over every item; write and return the results dict.
 
@@ -327,6 +328,9 @@ def run_eval(
     models, usage and sampling the harness built, and the outcome
     (completed or partial by per-item errors). record_store=None (the
     default) records nothing and behaves exactly as before.
+
+    repeat_of: the record id of the run this one repeats, recorded as
+    relations.repeat_of.
     """
     config_public: dict[str, str]
     if live:
@@ -391,6 +395,7 @@ def run_eval(
             models=models, config={**config_public, "strategies": strategy_names,
                                    "metrics_version": METRICS_VERSION, "code_version": code_version(REPO_ROOT)},
             item_selection=[item["id"] for item in items], intended_items=[item["id"] for item in items],
+            relations={"repeat_of": repeat_of},
         )
 
     # the failure path covers everything from begin to finish (F3): a raise
@@ -415,7 +420,7 @@ def run_eval(
                         "answer_text": "",
                         "citations": [],
                         "risk_category": None,
-                        "error": f"{type(exc).__name__}: {exc}",
+                        "error": exception_reason(exc),
                     }
                 outcome["latency_s"] = round(time.perf_counter() - started, 6)
                 per_item[item["id"]] = outcome
@@ -541,14 +546,24 @@ def main(argv: list[str] | None = None) -> int:
                         help="where layer1.json, norms_core.json and evaluation_records/ live "
                              "(default: the checkout's data/graph_dumps)")
     parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
+    parser.add_argument("--repeat-of", default=None, help="record id of the run this run repeats")
     args = parser.parse_args(argv)
+
+    if args.repeat_of is not None and args.no_record:
+        print("--repeat-of: a --no-record run records no relation; drop one of the two flags")
+        return 2
+    record_store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
+    if record_store is not None and args.repeat_of is not None:
+        try:
+            record_store.read(args.repeat_of)
+        except EvaluationRecordError as exc:
+            print(f"--repeat-of: {exc}")
+            return 2
 
     names = [n.strip() for n in args.strategies.split(",") if n.strip()]
     items = load_gold_items(args.gold)
     if args.benchmark_sample:
         items += load_benchmark_items()
-
-    record_store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
 
     if args.live:
         cfg = guard_live_config()  # refuse before any client is constructed
@@ -573,6 +588,7 @@ def main(argv: list[str] | None = None) -> int:
         input_paths={"gold_seed": args.gold,
                      **({"benchmark": BENCHMARK_SAMPLE_PATH} if args.benchmark_sample else {})},
         dump_dir=args.dump_dir,
+        repeat_of=args.repeat_of,
     )
     print(
         f"wrote {artifact['artifact_path']} "

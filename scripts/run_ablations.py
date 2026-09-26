@@ -182,6 +182,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resume-unrecorded", action="store_true",
                         help="resume a checkpoint no evaluation record names (the note is recorded)")
     args = parser.parse_args(argv)
+    if args.repeat_of is not None and args.no_record:
+        print("--repeat-of: a --no-record run records no relation; drop one of the two flags")
+        return 2
     checkpoint_path, summary_path = args.checkpoint, args.summary
     # the July files are protected whether or not the run records (F1)
     for target in (checkpoint_path, summary_path):
@@ -306,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
                             per_item[item["id"]] = fn(item)
                         except Exception as exc:  # record, never abort the sweep
                             per_item[item["id"]] = {
-                                "error": f"{type(exc).__name__}: {exc}",
+                                "error": exception_reason(exc),
                                 "answer_text": "",
                                 "citations": [],
                             }

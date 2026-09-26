@@ -704,6 +704,34 @@ def test_main_records_by_default_and_not_with_no_record(tmp_path):
     assert len(EvaluationRecordStore(tmp_path, create=False).list_records()) == 1
 
 
+def test_the_harness_names_the_run_it_repeats_and_refuses_an_unknown_one(tmp_path, capsys):
+    """B81 item 19."""
+    from tere4ai.eval import harness as h
+    _write_legacy_dumps(tmp_path)
+    args = ["--strategies", "plain_llm", "--results-dir", str(tmp_path / "r"), "--dump-dir", str(tmp_path)]
+    assert h.main(args) == 0
+    (first,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert h.main(args + ["--repeat-of", first["record_id"]]) == 0
+    second = next(r for r in EvaluationRecordStore(tmp_path, create=False).list_records()
+                  if r["record_id"] != first["record_id"])
+    assert second["relations"]["repeat_of"] == first["record_id"]
+    assert h.main(args + ["--repeat-of", "0123456789ab"]) == 2
+    assert "--repeat-of" in capsys.readouterr().out
+    assert h.main(args + ["--repeat-of", first["record_id"], "--no-record"]) == 2
+    assert len(EvaluationRecordStore(tmp_path, create=False).list_records()) == 2
+
+
+def test_a_per_item_error_names_the_file_never_the_path(tmp_path):
+    """B81 item 24: the results artifact is an output file others read."""
+    items = list(GOLD_3)[:1]
+
+    def broken(item):
+        raise FileNotFoundError("[Errno 2] No such file or directory: '/home/someone/private/cache/features.json'")
+    out = run_eval(items, {"plain_llm": broken}, results_dir=tmp_path / "r")
+    error = out["results"]["plain_llm"]["items"][items[0]["id"]]["error"]
+    assert "/home" not in error and error.endswith("'features.json'")
+
+
 def test_a_manifest_lacking_a_role_raises_the_asset_error_before_begin(tmp_path):
     from tere4ai.eval import harness as h
     _write_legacy_dumps(tmp_path)

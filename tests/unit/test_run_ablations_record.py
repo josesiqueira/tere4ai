@@ -67,6 +67,8 @@ def runner(monkeypatch, tmp_path):
         def strategy(item):
             if calls.get("interrupt_on") == item["id"]:
                 raise KeyboardInterrupt
+            if calls.get("raise_on") == item["id"]:
+                raise OSError("cannot read /home/someone/private/x.json")
             if calls.get("error_on") == item["id"]:
                 return {"answer_text": "", "citations": [], "risk_category": None, "error": "bad item"}
             kw["generator"].complete()
@@ -153,6 +155,19 @@ def test_repeat_of_must_resolve_and_no_record_writes_nothing(runner, tmp_path, c
                              str(tmp_path / "results" / "ckpt2.jsonl"))) == 0
     repeat = max(EvaluationRecordStore(tmp_path, create=False).list_records(), key=lambda r: r["started_at"])
     assert repeat["relations"]["repeat_of"] == rec["record_id"]
+
+
+def test_a_checkpointed_item_error_names_the_file_never_the_path(runner, tmp_path):
+    runner._TEST_CALLS["raise_on"] = "gold:cls-02"
+    assert runner.main(_argv(tmp_path)) == 0
+    line = json.loads((tmp_path / "results" / "ablation_checkpoint.jsonl").read_text().splitlines()[0])
+    assert line["results"]["gold:cls-02"]["error"] == "OSError: cannot read x.json"
+
+
+def test_repeat_of_with_no_record_is_refused(runner, tmp_path, capsys):
+    """B81 item 10, first half: the relation would be recorded nowhere."""
+    assert runner.main(_argv(tmp_path, "--no-record", "--repeat-of", "0123456789ab")) == 2
+    assert "--repeat-of" in capsys.readouterr().out
 
 
 def test_a_refused_live_gate_records_nothing(runner, monkeypatch, tmp_path):
