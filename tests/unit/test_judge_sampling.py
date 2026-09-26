@@ -653,7 +653,7 @@ def test_label_act_completes_the_record_and_keeps_the_sheet_when_the_sheet_repla
     assert json.loads((tmp_path / "sheet.json").read_text())["items"][0]["human_label"] is None
 
 
-def test_compute_fails_the_record_when_the_error_rates_write_raises(tmp_path, monkeypatch):
+def test_compute_fails_the_record_when_the_error_rates_write_raises(tmp_path, monkeypatch, capsys):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path)) == 0
     sheet = json.loads((tmp_path / "sheet.json").read_text())
@@ -677,8 +677,69 @@ def test_compute_fails_the_record_when_the_error_rates_write_raises(tmp_path, mo
     store = EvaluationRecordStore(tmp_path, create=False)
     analysis = [r for r in store.list_records() if r["kind"] == "analysis"]
     assert len(analysis) == 1
-    assert analysis[0]["outcome"]["status"] == "failed"
-    assert "disk full" in analysis[0]["outcome"]["error"]
+    # Changed by B98 seat B P3-2: --compute now stages the rates, keeps the
+    # record's copy from the staged file and finishes before the replace, as
+    # the draw and the label act do; a replace that fails after the finish
+    # leaves the record completed and names the cp that puts its copy in place.
+    assert analysis[0]["outcome"]["status"] == "completed"
+    copy = store.dir / analysis[0]["outputs"][0]["copy"]
+    err = capsys.readouterr().err
+    assert f"{rates_path} did not take its bytes (OSError: disk full)" in err and f"cp {copy} {rates_path}" in err
+    assert not rates_path.exists() and not list(tmp_path.glob("tmp*.json")), "the staged file is removed"
+
+
+def test_compute_fails_the_record_when_its_copy_fails_and_writes_no_rates_file(tmp_path, monkeypatch):
+    """B98 seat B P3-2: a copy or finish that fails leaves error_rates.json as
+    the act found it (here absent) and the record failed."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text("decision_id,human_label,human_rationale\n" + "".join(f"{i},accept,\n" for i in ids))
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose")) == 0
+    real_keep = EvaluationRecordStore.keep_output
+
+    def failing_keep(self, record_id, role, path, **kwargs):
+        if role == "error_rates":
+            raise OSError("disk full")
+        return real_keep(self, record_id, role, path, **kwargs)
+
+    monkeypatch.setattr(EvaluationRecordStore, "keep_output", failing_keep)
+    with pytest.raises(OSError, match="disk full"):
+        sampling.main(_draw_argv(tmp_path, "--compute"))
+    analysis = [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "analysis"]
+    assert [a["outcome"]["status"] for a in analysis] == ["failed"] and "disk full" in analysis[0]["outcome"]["error"]
+    assert not (tmp_path / "error_rates.json").exists() and not list(tmp_path.glob("tmp*.json"))
+
+
+def test_compute_keeps_its_own_rates_when_another_run_rewrites_the_shared_rates_file(tmp_path, monkeypatch):
+    """B98 seat B P3-2: two sheets in one directory share error_rates.json
+    but not a lock; the record's copy comes from this run's staged file, so
+    another run rewriting error_rates.json between the write and the copy
+    cannot put its rates under this sheet's record."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text("decision_id,human_label,human_rationale\n" + "".join(f"{i},accept,\n" for i in ids))
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose")) == 0
+    rates_path = tmp_path / "error_rates.json"
+    real_keep = EvaluationRecordStore.keep_output
+
+    def other_run_writes_first(self, record_id, role, path, **kwargs):
+        if role == "error_rates":
+            rates_path.write_text('{"other": "sheet"}\n')
+        return real_keep(self, record_id, role, path, **kwargs)
+
+    monkeypatch.setattr(EvaluationRecordStore, "keep_output", other_run_writes_first)
+    assert sampling.main(_draw_argv(tmp_path, "--compute")) == 0
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (analysis,) = [r for r in store.list_records() if r["kind"] == "analysis"]
+    (out,) = analysis["outputs"]
+    kept = json.loads((store.dir / out["copy"]).read_text())
+    assert "other" not in kept and "pooled" in kept, "the record keeps this sheet's rates"
+    assert out["file"] == "error_rates.json"
+    assert json.loads(rates_path.read_text()) == kept, "this run's rates take the file's place after the finish"
 
 
 def test_label_file_refuses_a_missing_file_or_missing_columns(tmp_path, capsys):

@@ -239,17 +239,6 @@ def _source_excerpt(
     return {"node_id": node_id, "text": _excerpt(node.get("text"))}
 
 
-def _write_atomic(path: Path, text: str) -> None:
-    fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=path.suffix, dir=str(path.parent))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(text)
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
-
-
 def _stage(path: Path, text: str) -> Path:
     """An act's new bytes in a temp file beside path (B81 item 34); they take
     path's place only after the act's record completed. The caller replaces
@@ -799,23 +788,39 @@ def _compute_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         )
         rates_path = args.sheet.with_name("error_rates.json")
         notes = [rates["note"], *compute_notes]
+        # Staged, copied into the record, finished, then replaced, as the draw
+        # and the label act do (B98 seat B P3-2): error_rates.json is shared by
+        # every sheet in the directory but the lock is per sheet, so the
+        # record's copy comes from this run's own temp file.
+        staged: Path | None = None
+        ref: dict[str, Any] | None = None
+        completed = False
         try:
-            _write_atomic(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
+            staged = _stage(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
+            ref = store.keep_output(record_id, "error_rates", staged, name=rates_path.name)
             store.finish(
-                record_id, status="completed", completed_items=ids,
-                outputs=[store.keep_output(record_id, "error_rates", rates_path)],
+                record_id, status="completed", completed_items=ids, outputs=[ref],
                 counts={
                     "scored": pooled["counts"]["scored"], "abstained": pooled["counts"]["abstained"],
                     "gold_accept": pooled["counts"]["gold_accept"], "gold_reject": pooled["counts"]["gold_reject"],
                 },
                 notes=notes,
             )
+            completed = True
+            os.replace(staged, rates_path)
         except BaseException as exc:
-            try:
-                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
-            except EvaluationRecordError:
-                pass
+            if completed and ref is not None:
+                # the record stays completed: only the replace failed, so say which file and the way on
+                _not_in_place(store, record_id, ref, rates_path, exc)
+            else:
+                try:
+                    store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
+                except EvaluationRecordError:
+                    pass
             raise
+        finally:
+            if staged is not None:
+                staged.unlink(missing_ok=True)
     _print_rates("pooled", pooled)
     for kind, r in rates["by_kind"].items():
         _print_rates(kind, r)
