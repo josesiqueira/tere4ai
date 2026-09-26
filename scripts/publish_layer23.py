@@ -44,7 +44,9 @@ from tere4ai.graph_store.build_chain import (  # noqa: E402
     sha256_of_file,
 )
 from tere4ai.graph_store.build_record import (  # noqa: E402
+    HEARTBEAT_EXPIRY_SECONDS,
     BuildRecordStore,
+    Heartbeat,
     atomic_write_json,
     gate_entries,
 )
@@ -140,7 +142,8 @@ def main(argv: list[str] | None = None) -> int:
     if live:
         named = ", ".join(f"{ex['run_id']} ({ex['command']})" for ex in live)
         print(f"NOT published: record {record_id} has a live running execution: {named}; "
-              "wait for it to end or stop it (a killed run stops blocking 300 s after its last heartbeat)",
+              f"wait for it to end or stop it (a killed run stops blocking {HEARTBEAT_EXPIRY_SECONDS} s after its "
+              "last heartbeat)",
               file=sys.stderr)
         return 1
     inputs = [{"role": "layer1_dump", "file": args.dump.name, "sha256": sha256_of_file(args.dump)},
@@ -173,181 +176,186 @@ def main(argv: list[str] | None = None) -> int:
         finish("failed", gates=recorded_gates or [], error=message)
         return 1
 
-    try:
-        # (1) Evidence before any gate (D-G27).
-        for name, payload in (("norms", norms_payload), ("alignments", alignments_payload)):
-            if payload is not None and already_materialised(payload) and not payload.get("build", {}).get("reference"):
-                return fail(f"NOT published: {name} carry decisions but no reference block; "
-                            "materialise from the pristine dump")
-        gating = gating_of(norms_payload, alignments_payload)
-        # (2) The alignments were computed over this exact norms file.
-        if alignments_payload is not None:
-            recorded = alignments_payload.get("build", {}).get("alignment_input_sha256")
-            if recorded is None and gating["layer2"] == "human":
-                return fail("NOT published: alignments carry no input digest; "
-                            "re-run the alignment command over the reference norms")
-            if recorded is not None and recorded != norms_digest:
-                return fail("NOT published: alignments were computed over a different norms file than --norms")
-        # (3) Every reference block bound to exactly one freeze manifest.
-        # Each file's own reference block: the alignments' only when it is
-        # of kind alignments (an older file may carry a copied norms marker).
-        references = [ref for ref, kind in ((_reference(norms_payload), "norms"), (_reference(alignments_payload), "alignments"))
-                      if ref is not None and ref.get("kind") == kind]
-        for m in args.manifest:
-            if m.resolve().parent != dump_dir.resolve():
-                return fail(f"NOT published: copy the freeze manifest {m.name} into {dump_dir} first; "
-                            "publication names its inputs by file under that directory")
+    # The publish execution beats while it runs (B79 item 15): gates plus the
+    # load can outlast the heartbeat expiry, and a second publish of the same
+    # record must still see this one live. The same store object beats, so
+    # its beats stay allowed after it writes the publication.
+    with Heartbeat(store, record_id, run_id):
         try:
-            manifests = [verify_freeze_manifest(json.loads(m.read_text(encoding="utf-8")), None,
-                                                expected_pinned_build_id=None) for m in args.manifest]
-            bound = bind_manifests(references, manifests)
-        except (MaterializeError, PublicationError, OSError, json.JSONDecodeError) as exc:
-            return fail(f"NOT published: {exc}")
+            # (1) Evidence before any gate (D-G27).
+            for name, payload in (("norms", norms_payload), ("alignments", alignments_payload)):
+                if payload is not None and already_materialised(payload) and not payload.get("build", {}).get("reference"):
+                    return fail(f"NOT published: {name} carry decisions but no reference block; "
+                                "materialise from the pristine dump")
+            gating = gating_of(norms_payload, alignments_payload)
+            # (2) The alignments were computed over this exact norms file.
+            if alignments_payload is not None:
+                recorded = alignments_payload.get("build", {}).get("alignment_input_sha256")
+                if recorded is None and gating["layer2"] == "human":
+                    return fail("NOT published: alignments carry no input digest; "
+                                "re-run the alignment command over the reference norms")
+                if recorded is not None and recorded != norms_digest:
+                    return fail("NOT published: alignments were computed over a different norms file than --norms")
+            # (3) Every reference block bound to exactly one freeze manifest.
+            # Each file's own reference block: the alignments' only when it is
+            # of kind alignments (an older file may carry a copied norms marker).
+            references = [ref for ref, kind in ((_reference(norms_payload), "norms"), (_reference(alignments_payload), "alignments"))
+                          if ref is not None and ref.get("kind") == kind]
+            for m in args.manifest:
+                if m.resolve().parent != dump_dir.resolve():
+                    return fail(f"NOT published: copy the freeze manifest {m.name} into {dump_dir} first; "
+                                "publication names its inputs by file under that directory")
+            try:
+                manifests = [verify_freeze_manifest(json.loads(m.read_text(encoding="utf-8")), None,
+                                                    expected_pinned_build_id=None) for m in args.manifest]
+                bound = bind_manifests(references, manifests)
+            except (MaterializeError, PublicationError, OSError, json.JSONDecodeError) as exc:
+                return fail(f"NOT published: {exc}")
 
-        # (4) The critical gates, one recorded outcome per gate.
-        norms = norms_payload.get("norms", [])
-        assertions = alignments_payload.get("assertions", []) if alignments_payload else None
-        report = validate_build(layer1, norms=norms, alignments=assertions)
-        gates = gate_entries(report.failures, GATES, report.stats)
-        print(f"gates: {'PASS' if report.passed else 'FAIL'} | stats {report.stats}")
-        if not report.passed:
-            for failure in report.failures[:20]:
-                print(f"  GATE FAIL {failure}", file=sys.stderr)
-            return fail("NOT published: critical validation failed", gates)
-        accepted = sum(1 for n in norms if n.get("judge_verdict") == "accepted")
-        print(f"norms: {len(norms)} total, {accepted} judge-accepted")
-        if assertions is not None:
-            acc_a = sum(1 for a in assertions if a.get("judge_verdict") == "accepted")
-            print(f"assertions: {len(assertions)} total, {acc_a} judge-accepted")
-        # (5) Gates only: step P.1, nothing published.
-        if args.gates_only:
-            finish("done", gates=gates)
-            return 0
+            # (4) The critical gates, one recorded outcome per gate.
+            norms = norms_payload.get("norms", [])
+            assertions = alignments_payload.get("assertions", []) if alignments_payload else None
+            report = validate_build(layer1, norms=norms, alignments=assertions)
+            gates = gate_entries(report.failures, GATES, report.stats)
+            print(f"gates: {'PASS' if report.passed else 'FAIL'} | stats {report.stats}")
+            if not report.passed:
+                for failure in report.failures[:20]:
+                    print(f"  GATE FAIL {failure}", file=sys.stderr)
+                return fail("NOT published: critical validation failed", gates)
+            accepted = sum(1 for n in norms if n.get("judge_verdict") == "accepted")
+            print(f"norms: {len(norms)} total, {accepted} judge-accepted")
+            if assertions is not None:
+                acc_a = sum(1 for a in assertions if a.get("judge_verdict") == "accepted")
+                print(f"assertions: {len(assertions)} total, {acc_a} judge-accepted")
+            # (5) Gates only: step P.1, nothing published.
+            if args.gates_only:
+                finish("done", gates=gates)
+                return 0
 
-        # (6) Load, then the post-load gates; the target state says what Neo4j holds.
-        from neo4j import GraphDatabase
+            # (6) Load, then the post-load gates; the target state says what Neo4j holds.
+            from neo4j import GraphDatabase
 
-        # Reproducibility chain (Section 13): the build_id stamped on every
-        # published node and edge embeds a digest of the exact input files,
-        # freeze manifests included.
-        chain = build_chain(args.dump, args.norms, alignments_path=args.alignments,
-                            manifest_paths=args.manifest or None)
-        chain_path = dump_dir / f"build_chain_{chain['chain_id']}.json"
-        if chain_path.exists() or manifest_path(dump_dir, chain["chain_id"]).exists():
-            # The chain id is a function of the input digests: identical
-            # inputs were published already, and published history is never
-            # rewritten (D-G20).
-            return fail(f"already published as chain {chain['chain_id']}; "
-                        f"activate it with scripts/activate_build.py {chain['chain_id']}", gates)
-        base_build_id = norms_payload.get("build", {}).get("build_id", "layer2-adhoc")
-        build_id = chained_build_id(base_build_id, chain)
-        graph = norms_to_graph(norms_payload, build_id=build_id)
-        if alignments_payload is not None:
-            g3 = alignments_to_graph(alignments_payload, build_hleg_nodes(), build_id=build_id)
-            graph["nodes"].extend(g3["nodes"])
-            graph["edges"].extend(g3["edges"])
-            # Deterministic HLEG subtopic targets (DEC-05 partial); skipped
-            # heading candidates are printed, never silently dropped.
-            subtopics = build_hleg_subtopics(build_id=build_id)
-            graph["nodes"].extend(subtopics["nodes"])
-            graph["edges"].extend(subtopics["edges"])
-            print(f"hleg subtopics: {len(subtopics['nodes'])} nodes, {len(subtopics['skipped'])} skipped heading candidates")
-            for item in subtopics["skipped"]:
-                print(f"  subtopic candidate skipped ({item['reason']}): {item['heading_candidate']!r}")
-        build = norms_payload.get("build", {})
-        pseudo_dump = {"build": {"build_id": build_id, "built_at": build.get("built_at", ""),
-                                 "tere4ai_version": build.get("tere4ai_version", ""),
-                                 "snapshots": build.get("snapshots", []), "input_checksums": chain["inputs"]},
-                       "nodes": graph["nodes"], "edges": graph["edges"]}
+            # Reproducibility chain (Section 13): the build_id stamped on every
+            # published node and edge embeds a digest of the exact input files,
+            # freeze manifests included.
+            chain = build_chain(args.dump, args.norms, alignments_path=args.alignments,
+                                manifest_paths=args.manifest or None)
+            chain_path = dump_dir / f"build_chain_{chain['chain_id']}.json"
+            if chain_path.exists() or manifest_path(dump_dir, chain["chain_id"]).exists():
+                # The chain id is a function of the input digests: identical
+                # inputs were published already, and published history is never
+                # rewritten (D-G20).
+                return fail(f"already published as chain {chain['chain_id']}; "
+                            f"activate it with scripts/activate_build.py {chain['chain_id']}", gates)
+            base_build_id = norms_payload.get("build", {}).get("build_id", "layer2-adhoc")
+            build_id = chained_build_id(base_build_id, chain)
+            graph = norms_to_graph(norms_payload, build_id=build_id)
+            if alignments_payload is not None:
+                g3 = alignments_to_graph(alignments_payload, build_hleg_nodes(), build_id=build_id)
+                graph["nodes"].extend(g3["nodes"])
+                graph["edges"].extend(g3["edges"])
+                # Deterministic HLEG subtopic targets (DEC-05 partial); skipped
+                # heading candidates are printed, never silently dropped.
+                subtopics = build_hleg_subtopics(build_id=build_id)
+                graph["nodes"].extend(subtopics["nodes"])
+                graph["edges"].extend(subtopics["edges"])
+                print(f"hleg subtopics: {len(subtopics['nodes'])} nodes, {len(subtopics['skipped'])} skipped heading candidates")
+                for item in subtopics["skipped"]:
+                    print(f"  subtopic candidate skipped ({item['reason']}): {item['heading_candidate']!r}")
+            build = norms_payload.get("build", {})
+            pseudo_dump = {"build": {"build_id": build_id, "built_at": build.get("built_at", ""),
+                                     "tere4ai_version": build.get("tere4ai_version", ""),
+                                     "snapshots": build.get("snapshots", []), "input_checksums": chain["inputs"]},
+                           "nodes": graph["nodes"], "edges": graph["edges"]}
 
-        set_target_state(dump_dir, state="loading", build_id=build_id, uri=uri, reason=None)
-        loading = True
-        driver = GraphDatabase.driver(os.environ.get("NEO4J_URI", "bolt://localhost:7688"),
-                                      auth=(os.environ.get("NEO4J_USER", "neo4j"),
-                                            os.environ.get("NEO4J_PASSWORD", "change_me")))
-        counts = GraphStore().load_dump(pseudo_dump, driver)
-        nodes = sum(v for k, v in counts.items() if k.startswith("node:"))
-        edges = sum(v for k, v in counts.items() if k.startswith("edge:"))
-        print(f"published to {uri}: {nodes} nodes, {edges} edges")
-        for k in sorted(counts):
-            print(f"  {k}: {counts[k]}")
-        postload = validate_postload(driver, build_id=build_id, expected_norms=len(norms),
-                                     expected_assertions=len(assertions) if assertions is not None else None)
-        postload_gates = gate_entries(postload.failures, POSTLOAD_GATES, postload.stats)
-        print(f"post-load gates: {'PASS' if postload.passed else 'FAIL'} | {postload.stats}")
-        if not postload.passed:
-            for failure in postload.failures:
-                print(f"  POST-LOAD FAIL {failure}", file=sys.stderr)
-            reason = "; ".join(postload.failures)
-            set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+            set_target_state(dump_dir, state="loading", build_id=build_id, uri=uri, reason=None)
+            loading = True
+            driver = GraphDatabase.driver(os.environ.get("NEO4J_URI", "bolt://localhost:7688"),
+                                          auth=(os.environ.get("NEO4J_USER", "neo4j"),
+                                                os.environ.get("NEO4J_PASSWORD", "change_me")))
+            counts = GraphStore().load_dump(pseudo_dump, driver)
+            nodes = sum(v for k, v in counts.items() if k.startswith("node:"))
+            edges = sum(v for k, v in counts.items() if k.startswith("edge:"))
+            print(f"published to {uri}: {nodes} nodes, {edges} edges")
+            for k in sorted(counts):
+                print(f"  {k}: {counts[k]}")
+            postload = validate_postload(driver, build_id=build_id, expected_norms=len(norms),
+                                         expected_assertions=len(assertions) if assertions is not None else None)
+            postload_gates = gate_entries(postload.failures, POSTLOAD_GATES, postload.stats)
+            print(f"post-load gates: {'PASS' if postload.passed else 'FAIL'} | {postload.stats}")
+            if not postload.passed:
+                for failure in postload.failures:
+                    print(f"  POST-LOAD FAIL {failure}", file=sys.stderr)
+                reason = "; ".join(postload.failures)
+                set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+                loading = False
+                return fail("published data FAILED post-load validation: " + reason, gates + postload_gates)
+
+            # (7) Only now does the build exist as a published one (D-G21).
+            core_nodes = _core_nodes(dump_dir)
+            if core_nodes is None and gating == {"layer2": "human", "layer3": "human"}:
+                print(f"label withheld: {LABEL_NEEDS_CORE_NODES} ({dump_dir})")
+            publication = {
+                "chain_id": chain["chain_id"], "build_id": build_id, "published_at": datetime.now(UTC).isoformat(),
+                "gating": gating, "label": whole_build_label(gating, bound, core_nodes), "gates": gates,
+                "postload_gates": postload_gates, "manifests": _manifest_refs(bound),
+            }
+            chain_record = {**publication, **chain, "record_id": record_id}
+            # Everything is validated before the target is declared available and
+            # before the first write, so a schema failure leaves no publication
+            # artefact behind and Neo4j marked unavailable, never available.
+            try:
+                check_schema("publication", publication)
+                manifest = publication_manifest(publication, record_id=record_id, inputs=chain["inputs"],
+                                                files={"layer1_dump": args.dump.name, "norms": args.norms.name,
+                                                       "alignments": args.alignments.name if args.alignments else None})
+            except PublicationError as exc:
+                reason = f"the publication does not validate: {exc}"
+                set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+                loading = False
+                return fail(f"NOT published: {reason}", gates + postload_gates)
+            # an execution that started during the gates or the load blocks the
+            # publication before Neo4j is declared available (B79 item 15)
+            late = [ex for ex in store.live_executions(record_id) if ex["run_id"] != run_id]
+            if late:
+                named = ", ".join(f"{ex['run_id']} ({ex['command']})" for ex in late)
+                reason = f"an execution of record {record_id} became live after the first check: {named}"
+                set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+                loading = False
+                return fail(f"NOT published: {reason}", gates + postload_gates)
+            set_target_state(dump_dir, state="available", build_id=build_id, uri=uri, reason=None)
+            # Write order: the chain record, the record's publication block, the
+            # publication manifest (activation consumes it, so it goes last and a
+            # partial publication can never be activated), then the pointer.
+            atomic_write_json(chain_path, chain_record)
+            written.append(chain_path.name)
+            # set_publication checks a third time under the record lock; loading
+            # stays true until it returns, so a refusal there marks Neo4j
+            # unavailable in the except below (B79 item 15, review fix C2).
+            store.set_publication(record_id, publication, run_id=run_id)
             loading = False
-            return fail("published data FAILED post-load validation: " + reason, gates + postload_gates)
-
-        # (7) Only now does the build exist as a published one (D-G21).
-        core_nodes = _core_nodes(dump_dir)
-        if core_nodes is None and gating == {"layer2": "human", "layer3": "human"}:
-            print(f"label withheld: {LABEL_NEEDS_CORE_NODES} ({dump_dir})")
-        publication = {
-            "chain_id": chain["chain_id"], "build_id": build_id, "published_at": datetime.now(UTC).isoformat(),
-            "gating": gating, "label": whole_build_label(gating, bound, core_nodes), "gates": gates,
-            "postload_gates": postload_gates, "manifests": _manifest_refs(bound),
-        }
-        chain_record = {**publication, **chain, "record_id": record_id}
-        # Everything is validated before the target is declared available and
-        # before the first write, so a schema failure leaves no publication
-        # artefact behind and Neo4j marked unavailable, never available.
-        try:
-            check_schema("publication", publication)
-            manifest = publication_manifest(publication, record_id=record_id, inputs=chain["inputs"],
-                                            files={"layer1_dump": args.dump.name, "norms": args.norms.name,
-                                                   "alignments": args.alignments.name if args.alignments else None})
-        except PublicationError as exc:
-            reason = f"the publication does not validate: {exc}"
-            set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
-            loading = False
-            return fail(f"NOT published: {reason}", gates + postload_gates)
-        # an execution that started during the gates or the load blocks the
-        # publication before Neo4j is declared available (B79 item 15)
-        late = [ex for ex in store.live_executions(record_id) if ex["run_id"] != run_id]
-        if late:
-            named = ", ".join(f"{ex['run_id']} ({ex['command']})" for ex in late)
-            reason = f"an execution of record {record_id} started during the load: {named}"
-            set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
-            loading = False
-            return fail(f"NOT published: {reason}", gates + postload_gates)
-        set_target_state(dump_dir, state="available", build_id=build_id, uri=uri, reason=None)
-        # Write order: the chain record, the record's publication block, the
-        # publication manifest (activation consumes it, so it goes last and a
-        # partial publication can never be activated), then the pointer.
-        atomic_write_json(chain_path, chain_record)
-        written.append(chain_path.name)
-        # set_publication checks a third time under the record lock; loading
-        # stays true until it returns, so a refusal there marks Neo4j
-        # unavailable in the except below (B79 item 15, review fix C2).
-        store.set_publication(record_id, publication, run_id=run_id)
-        loading = False
-        written.append(f"record {record_id} publication block")
-        mpath = manifest_path(dump_dir, chain["chain_id"])
-        mpath.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_json(mpath, manifest)
-        written.append(f"{PUBLICATIONS_DIRNAME}/{mpath.name}")
-        write_current_pointer(dump_dir, chain["chain_id"])
-        written.append(CURRENT_POINTER_FILENAME)
-        finish("done", gates=gates + postload_gates,
-               outputs=[{"role": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
-               counts={"nodes": nodes, "edges": edges})
-    except BaseException as exc:  # an interrupt too: the target never stays loading, the execution never running
-        error = f"{type(exc).__name__}: {exc}"
-        if written:
-            error += f"; already written, clean up by hand: {', '.join(written)}"
-        if loading:
-            set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=error)
-        if not finished:
-            finish("failed", gates=gates, error=error)
-        raise
-    finally:
-        if driver is not None:
-            driver.close()
+            written.append(f"record {record_id} publication block")
+            mpath = manifest_path(dump_dir, chain["chain_id"])
+            mpath.parent.mkdir(parents=True, exist_ok=True)
+            atomic_write_json(mpath, manifest)
+            written.append(f"{PUBLICATIONS_DIRNAME}/{mpath.name}")
+            write_current_pointer(dump_dir, chain["chain_id"])
+            written.append(CURRENT_POINTER_FILENAME)
+            finish("done", gates=gates + postload_gates,
+                   outputs=[{"role": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
+                   counts={"nodes": nodes, "edges": edges})
+        except BaseException as exc:  # an interrupt too: the target never stays loading, the execution never running
+            error = f"{type(exc).__name__}: {exc}"
+            if written:
+                error += f"; already written, clean up by hand: {', '.join(written)}"
+            if loading:
+                set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=error)
+            if not finished:
+                finish("failed", gates=gates, error=error)
+            raise
+        finally:
+            if driver is not None:
+                driver.close()
     print(f"build chain: {build_id} ({len(chain['inputs'])} inputs) -> {chain_path.name}; label {publication['label']}")
     print(f"activate with: scripts/activate_build.py {chain['chain_id']}")
     return 0

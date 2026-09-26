@@ -52,7 +52,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   before it declares Neo4j available, and `set_publication` checks a third
   time under the lock (`LiveExecutionError`), with Neo4j marked unavailable
   whenever the publication is refused after the load; a running execution
-  whose heartbeat expired (a killed process) does not block (B79 item 15).
+  whose heartbeat expired (a killed process) does not block, and the
+  publish execution beats its own heartbeat every 60 s while it runs, so a
+  publish longer than the expiry still blocks a second one (B79 item 15).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

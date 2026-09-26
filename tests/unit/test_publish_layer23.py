@@ -409,7 +409,8 @@ def test_publish_refuses_before_any_gate_while_an_execution_of_the_record_is_liv
     _fakes(monkeypatch, cli, seen=seen)
     rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
                    "--dump-dir", str(tmp_path)])
-    assert rc == 1 and live in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert rc == 1 and live in err and "stops blocking 300 s after its last heartbeat" in err
     assert seen == [] and not list(tmp_path.glob("build_chain_*.json"))
     assert store.read(rid)["publication"] is None
     assert [e["command"] for e in store.read(rid)["executions"]] == ["extract_norms", "align_hleg"], "no publish execution"
@@ -432,4 +433,48 @@ def test_an_execution_started_during_the_load_leaves_neo4j_unavailable_and_nothi
     rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
                    "--dump-dir", str(tmp_path)])
     assert rc == 1 and read_target_state(tmp_path)["state"] == "unavailable"
+    assert "became live after the first check" in read_target_state(tmp_path)["reason"]
     assert store.read(rid)["publication"] is None and not list(tmp_path.glob("build_chain_*.json"))
+
+
+def test_a_publish_that_outlasts_the_heartbeat_expiry_stays_live(tmp_path, monkeypatch, capsys):
+    """B79 item 15 (task review): the publish execution beats while it runs, so a
+    second publish of the same record still sees it live after the 300 s expiry
+    and its own beats stay allowed after the publication. A pinned clock stands
+    in for the elapsed time; the only wait is for one beat of a 0.01 s interval."""
+    import threading
+    from datetime import UTC, datetime, timedelta
+
+    from tere4ai.graph_store import build_record
+
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    clock = {"now": datetime(2026, 9, 26, 12, 0, tzinfo=UTC)}
+    monkeypatch.setattr(build_record, "_now", lambda: clock["now"].isoformat())
+    monkeypatch.setattr(build_record, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    beat = threading.Event()
+    real_heartbeat = BuildRecordStore.heartbeat
+
+    def heartbeat(self, record_id, run_id):
+        real_heartbeat(self, record_id, run_id)
+        beat.set()
+
+    monkeypatch.setattr(BuildRecordStore, "heartbeat", heartbeat)
+    seen_live: list = []
+    loader = cli.GraphStore
+
+    class OutlastsTheExpiry(loader):
+        def load_dump(self, dump, driver):
+            clock["now"] += timedelta(seconds=build_record.HEARTBEAT_EXPIRY_SECONDS + 100)
+            beat.clear()
+            beat.wait(timeout=2)
+            seen_live.extend(ex["command"] for ex in BuildRecordStore(tmp_path).live_executions(rid))
+            return super().load_dump(dump, driver)
+
+    monkeypatch.setattr(cli, "GraphStore", OutlastsTheExpiry)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                   "--dump-dir", str(tmp_path)])
+    assert rc == 0 and seen_live == ["publish_layer23"]
+    assert "heartbeat stopped" not in capsys.readouterr().err
+    assert store.read(rid)["executions"][-1]["status"] == "done"
