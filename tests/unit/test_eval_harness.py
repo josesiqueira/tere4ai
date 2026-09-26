@@ -10,6 +10,7 @@ lacking a role, and finish the record failed on any exception.
 """
 
 import json
+import types
 from pathlib import Path
 
 import pytest
@@ -905,3 +906,62 @@ def test_an_interrupted_harness_run_keeps_the_completed_items_and_the_spend(tmp_
     assert rec["usage"]["generator"] == {"calls": 1, "input_tokens": 0, "output_tokens": 0, "requests_sent": 2,
                                          "replies_with_usage": 0}
     assert rec["usage"]["judge"] is None
+
+
+# Codex review of 73b8baa..782f26a: the models are read after the replies ------
+
+
+class _EffortJudge(FakeClient):
+    """A judge that, like the real clients, knows its effort only once it has
+    answered; its nth call can be made to raise an interrupt."""
+
+    def __init__(self, interrupt_on_call=None):
+        super().__init__(
+            {"Generated runtime answer under review": json.dumps(
+                {"verdict": "accepted", "scores": {}, "rationale": "scripted verdict"})},
+            model="fake-judge")
+        self._interrupt_on_call = interrupt_on_call
+
+    @property
+    def effort(self):
+        return "high" if self.calls else "no replies"
+
+    def complete(self, system, user):
+        if self._interrupt_on_call is not None and len(self.calls) + 1 == self._interrupt_on_call:
+            raise KeyboardInterrupt
+        return super().complete(system, user)
+
+
+def _graph_full(tmp_path, judge):
+    return {"graph_full": build_strategy("graph_full", make_generator(), MINI_DUMP, MINI_NORMS, judge=judge,
+                                         judge_log_path=tmp_path / "judge_log.jsonl")}
+
+
+def _live_without_network(monkeypatch):
+    """The live path's two guards replaced; the strategies are prebuilt over fakes, so nothing is called."""
+    import tere4ai.eval.harness as h
+    monkeypatch.setattr(h, "_require_live_gate", lambda: None)
+    monkeypatch.setattr(h, "guard_live_config",
+                        lambda config_path=None: types.SimpleNamespace(as_public_dict=lambda: {"mode": "live"}))
+
+
+def test_the_artifact_records_the_judge_effort_the_replies_were_produced_under(tmp_path):
+    judge = _EffortJudge()
+    artifact = run_eval(GOLD_3, _graph_full(tmp_path, judge), dump=MINI_DUMP, results_dir=tmp_path / "r")
+    assert judge.calls, "the judge answered at least once"
+    assert artifact["results"]["graph_full"]["models"]["judge_effort"] == "high"
+    on_disk = json.loads(Path(artifact["artifact_path"]).read_text())
+    assert on_disk["results"]["graph_full"]["models"]["judge_effort"] == "high"
+
+
+def test_a_live_record_names_the_judge_effort_after_the_replies_completed_or_failed(tmp_path, monkeypatch):
+    _live_without_network(monkeypatch)
+    store = EvaluationRecordStore(tmp_path)
+    out = run_eval(GOLD_3, _graph_full(tmp_path, _EffortJudge()), live=True, dump=MINI_DUMP,
+                   results_dir=tmp_path / "r", record_store=store)
+    assert store.read(out["record_id"])["models"]["graph_full"]["judge_effort"] == "high"
+    with pytest.raises(KeyboardInterrupt):
+        run_eval(GOLD_3, _graph_full(tmp_path, _EffortJudge(interrupt_on_call=2)), live=True, dump=MINI_DUMP,
+                 results_dir=tmp_path / "r2", record_store=store)
+    (failed,) = [r for r in store.list_records() if r["outcome"]["status"] == "failed"]
+    assert failed["models"]["graph_full"]["judge_effort"] == "high", "a failed run records what it saw"

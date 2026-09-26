@@ -489,3 +489,39 @@ def test_the_summary_sums_requests_refused_and_drops_only_it_when_a_unit_lacks_i
                         str(tmp_path / "results" / "b91_summary.json"), "--resume-unrecorded"]) == 0
     by_role = json.loads((tmp_path / "results" / "b91_summary.json").read_text())["usage_provider_reported"]["by_role"]
     assert "requests_refused" not in by_role["generator"] and by_role["generator"]["requests_sent"] == 2
+
+
+# Review I3 (Codex review of 73b8baa..782f26a, the sibling writer): the models
+# are read after the replies, on the completed and on the failed path
+
+
+class _EffortStrategy:
+    """graph_full's shape: its models read the judge's effort, known only once the judge has answered."""
+
+    def __init__(self, judge, interrupt_on=None):
+        self.judge, self.interrupt_on = judge, interrupt_on
+
+    @property
+    def models(self):
+        return {"judge": "j", "judge_effort": "high" if self.judge.usage["calls"] else "no replies",
+                "judge_prompt_version": "v1"}
+
+    def __call__(self, item):
+        if item["id"] == self.interrupt_on:
+            raise KeyboardInterrupt
+        self.judge.complete()
+        return {"answer_text": "x", "citations": [], "risk_category": "high"}
+
+
+@pytest.mark.parametrize("interrupt_on", [None, "gold:cls-02"])
+def test_the_record_names_the_judge_effort_after_the_replies(runner, monkeypatch, tmp_path, interrupt_on):
+    monkeypatch.setattr(runner.strategies, "build_strategy",
+                        lambda name, **kw: _EffortStrategy(kw["judge"], interrupt_on))
+    if interrupt_on is None:
+        assert runner.main(_argv(tmp_path)) == 0
+    else:
+        with pytest.raises(KeyboardInterrupt):
+            runner.main(_argv(tmp_path))
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == ("completed" if interrupt_on is None else "failed")
+    assert rec["prompt_versions"]["plain_llm"]["judge_effort"] == "high"

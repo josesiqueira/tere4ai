@@ -49,6 +49,13 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   its retries answers degraded (`requires_human_review`, `refused`, the
   spend of the requests it sent, `judge_verdict` `not_run`) where
   `/api/backlog` answered 502 and the spend was lost (B97 item 5).
+- The eval harness and `scripts/run_ablations.py` read each strategy's
+  models after its items ran: the harness once after every strategy, for
+  the artifact and a live record's finish; the runner at each finish, the
+  failed one now recording `prompt_versions` and `prompt_sha256` too. The
+  models used to be read before the first reply, so graph_full's judge
+  effort read "no replies" after the judge had answered (Codex review of
+  73b8baa..782f26a).
 
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,

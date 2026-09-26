@@ -283,6 +283,15 @@ def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -
     return hashes or None
 
 
+def strategy_models(strategies: dict[str, Any], strategy_names: list[str]) -> dict[str, dict[str, Any]]:
+    """Each strategy's models as its clients report them now. The effort and
+    sampling outcomes are known only after a reply, so the writers read them
+    again after the items ran (a failed run included) rather than keeping the
+    start value "no replies" (docs/architecture.md DEC-17: the record names
+    the models with prompt versions and hashes, the sampling and usage)."""
+    return {name: dict(getattr(strategies[name], "models", {})) for name in strategy_names}
+
+
 def _own_usage(generator: Any, judge: Any) -> dict[str, Any] | None:
     """The clients' own usage for this run, or None when the strategies were
     prebuilt (no client was built here)."""
@@ -382,7 +391,7 @@ def run_eval(
             inputs.append(file_ref("benchmark", input_paths["benchmark"]))
         models = None
         if live:
-            models = {name: dict(getattr(strategies[name], "models", {})) for name in strategy_names}
+            models = strategy_models(strategies, strategy_names)
         # bind to a publication only when both served roles were read here (F4)
         if {"layer1_dump", "norms"} <= set(read_paths):
             publication, publication_reason = observe_publication(dump_dir or LAYER1_DUMP_PATH.parent)
@@ -424,6 +433,15 @@ def run_eval(
                     }
                 outcome["latency_s"] = round(time.perf_counter() - started, 6)
                 per_item[item["id"]] = outcome
+
+        # read again, once, after every strategy ran: a client knows its effort
+        # and sampling outcome only once it has answered ("no replies" before),
+        # and the early registration above would keep that start value; one
+        # read serves the artifact and the record alike (Codex review of
+        # 73b8baa..782f26a, docs/architecture.md DEC-17)
+        models_now = strategy_models(strategies, strategy_names)
+        for name in strategy_names:
+            results[name]["models"] = models_now[name]
 
         artifact = {
             "build_id": build_id,
@@ -478,11 +496,10 @@ def run_eval(
                             "judge": _client_field(judge, "sampling")}
                 if sampling["generator"] is None and sampling["judge"] is None:
                     sampling = None
-            prompt_hashes = runtime_judge_prompt_sha256(
-                {name: dict(getattr(strategies[name], "models", {})) for name in strategy_names})
+            prompt_hashes = runtime_judge_prompt_sha256(models_now)
             record_store.finish(record_id, status="completed" if not errored else "partial", completed_items=completed,
                                 outputs=[ref], usage=usage, sampling=sampling, notes=notes,
-                                prompt_sha256=prompt_hashes,
+                                prompt_sha256=prompt_hashes, models=models_now if live else None,
                                 counts={"items_total": len(items), "items_with_errors": len(errored)})
     except BaseException as exc:
         if record_store is not None and record_id is not None:
@@ -492,7 +509,8 @@ def run_eval(
                            and not results[n]["items"][item["id"]].get("error") for n in strategy_names)]
             try:
                 record_store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes,
-                                    completed_items=done, usage=_own_usage(generator, judge))
+                                    completed_items=done, usage=_own_usage(generator, judge),
+                                    models=strategy_models(strategies, strategy_names) if live else None)
             except EvaluationRecordError:
                 pass
         raise

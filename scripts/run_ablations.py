@@ -24,6 +24,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -291,6 +292,9 @@ def main(argv: list[str] | None = None) -> int:
 
     generator = judge = None
     units_run = 0
+    # the strategies as built, so both finishes read their models after the
+    # replies (the judge's effort is "no replies" before its first answer)
+    built: dict[str, Any] = {}
     try:
         if store is not None and record_id is not None:
             # the newest record owns the checkpoint from now on (G2)
@@ -299,7 +303,6 @@ def main(argv: list[str] | None = None) -> int:
         generator = OpenAIGenerator(cfg)
         judge = AnthropicJudge(cfg)
 
-        strategy_models: dict[str, dict] = {}
         batches = [items[i : i + BATCH_SIZE] for i in range(0, len(items), BATCH_SIZE)]
         with checkpoint_path.open("a", encoding="utf-8") as ckpt:
             for strategy_name in strategies.STRATEGY_NAMES:
@@ -310,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
                     dump=dump,
                     norms_payload=norms_payload,
                 )
-                strategy_models[strategy_name] = dict(getattr(fn, "models", {}))
+                built[strategy_name] = fn
                 for bi, batch in enumerate(batches):
                     unit = f"{strategy_name}:batch{bi}"
                     if unit in done:
@@ -509,11 +512,12 @@ def main(argv: list[str] | None = None) -> int:
             completed, errored = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
             outputs = [store.keep_output(record_id, "summary", summary_path),
                        store.keep_output(record_id, "checkpoint", checkpoint_path)]
+            models_now = harness.strategy_models(built, list(built))
             store.finish(
                 record_id, status="completed" if len(completed) == len(items) else "partial",
                 completed_items=completed, outputs=outputs, usage=_own_usage(generator, judge),
-                prompt_versions=strategy_models,
-                prompt_sha256=harness.runtime_judge_prompt_sha256(strategy_models),
+                prompt_versions=models_now,
+                prompt_sha256=harness.runtime_judge_prompt_sha256(models_now),
                 sampling={"generator": generator.sampling, "judge": judge.sampling},
                 counts={"items_total": len(items), "units_without_usage": units_without_usage,
                         "items_with_errors": len(errored), "units_run": units_run},
@@ -525,10 +529,12 @@ def main(argv: list[str] | None = None) -> int:
     except BaseException as exc:
         if store is not None and record_id is not None:
             completed, _ = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
+            models_now = harness.strategy_models(built, list(built)) or None
             try:
                 store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes,
                              completed_items=completed, usage=_own_usage(generator, judge),
-                             counts={"units_run": units_run})
+                             counts={"units_run": units_run}, prompt_versions=models_now,
+                             prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
             except EvaluationRecordError:
                 pass  # the record already ended inside the try; the original error is what matters
         raise
