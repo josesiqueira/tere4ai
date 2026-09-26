@@ -80,6 +80,10 @@ NEO4J_URI=bolt://localhost:7688 NEO4J_USER=neo4j NEO4J_PASSWORD=... \
 
 All three must pass before the restored database is treated as published.
 
+The `--gates-only` run on the published record records nothing: no
+execution is added, no descendant record is made and the alias stays on
+the published record.
+
 ## Raw volume tarball (last resort)
 
 Filesystem-level copy; only valid when the container is stopped:

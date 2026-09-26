@@ -37,6 +37,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   build record. A typo'd manifest used to skip the early double-publish
   check, so a published record continued as a descendant and its alias
   moved before the evidence step refused (B97 item 3).
+- `publish_layer23 --gates-only` on a published record runs the evidence
+  step and the gates and records nothing: no execution on the frozen
+  record, no descendant, the alias stays. The restore runbook's check used
+  to create a descendant record holding only that check and move the
+  build's alias to it (B97 item 2).
 
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,

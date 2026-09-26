@@ -586,3 +586,28 @@ def test_a_missing_or_misplaced_manifest_is_refused_before_the_record_is_touched
     assert f"copy the freeze manifest {outside.name} into {tmp_path} first" in capsys.readouterr().err
     assert sorted(r["record_id"] for r in store.list_records()) == records_before, "no descendant record"
     assert store.resolve("core") == rid and store.read(rid) == record_before
+
+
+def test_gates_only_on_a_published_record_checks_the_gates_and_records_nothing(tmp_path, monkeypatch, capsys):
+    """B97 item 2: docs/RUNBOOK_backup_restore.md runs --gates-only on the
+    published record after a restore; it used to create a descendant record
+    and move the alias to it."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    args = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+    assert cli.main(args) == 0
+    chain_id = store.read(rid)["publication"]["chain_id"]
+    records_before = sorted(r["record_id"] for r in store.list_records())
+    record_before = store.read(rid)
+    capsys.readouterr()
+    assert cli.main([*args, "--gates-only"]) == 0
+    captured = capsys.readouterr()
+    assert (f"record {rid} is published as {chain_id}; checking the gates only: nothing is recorded, "
+            "no descendant is made and the alias stays") in captured.out
+    assert "gates: PASS" in captured.out
+    _fakes(monkeypatch, cli, gates_ok=False)
+    assert cli.main([*args, "--gates-only"]) == 1, "a failing gate still fails the check"
+    assert "NOT published: critical validation failed" in capsys.readouterr().err
+    assert sorted(r["record_id"] for r in store.list_records()) == records_before, "no descendant record"
+    assert store.resolve("core") == rid and store.read(rid) == record_before, "the published record is untouched"

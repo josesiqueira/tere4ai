@@ -30,6 +30,7 @@ import argparse
 import json
 import os
 import sys
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -161,14 +162,25 @@ def _main(argv: list[str] | None = None) -> int:
             print(f"already published as chain {early_chain['chain_id']}; "
                   f"activate it with scripts/activate_build.py {early_chain['chain_id']}", file=sys.stderr)
             return 1
+    unrecorded = False
     if store.is_frozen(record_id):
-        # A published record is frozen (D-G20): a second publication of the
-        # same inputs continues as a descendant, never overwrites history.
         parent = store.read(record_id)
-        record_id = store.create_record(parent["aliases"][0], parent["base_build_id"], parent["layer1_digest"],
-                                        parent_record_id=parent["record_id"])
-        print(f"record {parent['record_id']} is published as {parent['publication']['chain_id']}; "
-              f"continuing as descendant {record_id}")
+        if args.gates_only:
+            # A gates-only check of a published record (B97 item 2; the
+            # restore runbook runs one) writes nothing into the build, so it
+            # records nothing: the frozen record takes no execution (D-G20)
+            # and a descendant holding only a P.1 check would take the alias
+            # from the published record.
+            unrecorded = True
+            print(f"record {record_id} is published as {parent['publication']['chain_id']}; checking the gates "
+                  "only: nothing is recorded, no descendant is made and the alias stays")
+        else:
+            # A published record is frozen (D-G20): a second publication of the
+            # same inputs continues as a descendant, never overwrites history.
+            record_id = store.create_record(parent["aliases"][0], parent["base_build_id"], parent["layer1_digest"],
+                                            parent_record_id=parent["record_id"])
+            print(f"record {parent['record_id']} is published as {parent['publication']['chain_id']}; "
+                  f"continuing as descendant {record_id}")
     # A record is published only when no other execution of it is live
     # (B79 item 15): refused here, before any gate or load, so Neo4j never
     # holds a build whose record another run is still writing.
@@ -187,9 +199,9 @@ def _main(argv: list[str] | None = None) -> int:
     for m in args.manifest:
         inputs.append({"role": "freeze_manifest", "file": m.name, "sha256": sha256_of_file(m)})
     steps = ["P.1"] if args.gates_only else ["P.1", "P.2"]
-    run_id = store.start_execution(record_id, command="publish_layer23", covers_steps=steps, argv=raw_argv,
-                                   inputs=inputs, config={"gates_only": args.gates_only}, expected_total=None,
-                                   work_unit=None, checkpoint_file=None)
+    run_id = None if unrecorded else store.start_execution(
+        record_id, command="publish_layer23", covers_steps=steps, argv=raw_argv, inputs=inputs,
+        config={"gates_only": args.gates_only}, expected_total=None, work_unit=None, checkpoint_file=None)
 
     finished = False
     gates: list[dict] = []
@@ -202,7 +214,8 @@ def _main(argv: list[str] | None = None) -> int:
 
     def finish(status: str, *, error: str | None = None, **fields) -> None:
         nonlocal finished
-        store.finish_execution(record_id, run_id, status=status, error=error, **fields)
+        if run_id is not None:  # an unrecorded gates-only check has no execution (B97 item 2)
+            store.finish_execution(record_id, run_id, status=status, error=error, **fields)
         finished = True
 
     def fail(message: str, recorded_gates: list[dict] | None = None) -> int:
@@ -214,7 +227,7 @@ def _main(argv: list[str] | None = None) -> int:
     # load can outlast the heartbeat expiry, and a second publish of the same
     # record must still see this one live. The same store object beats, so
     # its beats stay allowed after it writes the publication.
-    with Heartbeat(store, record_id, run_id):
+    with Heartbeat(store, record_id, run_id) if run_id is not None else nullcontext():
         try:
             # (1) Evidence before any gate (D-G27).
             for name, payload in (("norms", norms_payload), ("alignments", alignments_payload)):
