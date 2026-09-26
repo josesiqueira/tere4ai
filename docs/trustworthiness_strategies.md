@@ -265,11 +265,15 @@ merit, this document says so explicitly instead of inventing a citation.
 - Grounding: engineering MUST (Section 13); ADD-03 supports the framing
   (warranted trust requires visible failure).
 - Implementation: tools.py:110-118 (dump_unavailable_envelope, confidence 0.0);
-  evidence.py:75-82 (judge_verdict not_run, and judge_error for a judge
-  that sent a request and raised, are distinct from a real verdict);
-  facade 503 paths.
-- Tests: tests/unit/test_http_facade.py:260, :280; demonstrated live in the
-  2026-07-17 audit with an empty dump dir.
+  evidence.py:75-83 (the constants: judge_verdict not_run, and judge_error
+  for a judge that sent a request and raised, are distinct from a real
+  verdict); backlog.py:358-370 (the one emitter of judge_error: the
+  backlog's grounding judge raised after it sent a request); facade 503
+  paths.
+- Tests: tests/unit/test_http_facade.py:260, :280; tests/unit/test_backlog.py
+  (test_a_judge_failure_is_labelled_judge_error_not_not_run,
+  test_a_judge_step_that_raises_before_any_request_reads_not_run);
+  demonstrated live in the 2026-07-17 audit with an empty dump dir.
 - See it: move the dumps away and call /api/health.
 
 ## E. Security posture
