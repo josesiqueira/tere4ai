@@ -26,12 +26,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   stderr with the `cp` that puts the record's copy in place; when only the
   reading copy failed, the line names it, with the `cp` of the draw's
   Markdown copy or, after a label act, that the next label act rewrites
-  it. The refusals of the label act and of `--compute` over sheet bytes no recorded act
-  wrote name that `cp` for the last recorded act. A failed act used to
-  leave bytes no completed act wrote, and every later act was refused with
-  no way out short of a `--force` re-draw. A new sheet's instructions name
-  the label act instead of asking for labels typed into the JSON
-  (B81 item 34).
+  it. The refusals of the label act and of `--compute` over sheet bytes
+  no recorded act wrote name that `cp` for the last recorded act. A
+  failed act used to leave bytes no completed act wrote, and every later
+  act was refused with no way out short of a `--force` re-draw. A new
+  sheet's instructions name the label act instead of asking for labels
+  typed into the JSON (B81 item 34).
 - `publish_layer23` refuses (exit code 1, nothing recorded) a `--manifest`
   that does not exist or lies outside the dump dir before it resolves the
   build record. A typo'd manifest used to skip the early double-publish
@@ -45,10 +45,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - `generate_control_backlog`: a grounding judge that sent a request and
   raised now answers with `judge_verdict` `judge_error` (it read `not_run`
   although the judge ran; a judge step that raises before any request
-  stays `not_run`); a generator that raises after
-  its retries answers degraded (`requires_human_review`, `refused`, the
-  spend of the requests it sent, `judge_verdict` `not_run`) where
-  `/api/backlog` answered 502 and the spend was lost (B97 item 5).
+  stays `not_run`); a generator that raises after its retries answers
+  degraded (`requires_human_review`, `refused`, the spend of the requests
+  it sent, `judge_verdict` `not_run`) where `/api/backlog` answered 502
+  and the spend was lost (B97 item 5).
 - The eval harness and `scripts/run_ablations.py` read each strategy's
   models after its items ran: the harness once after every strategy, for
   the artifact and a live record's finish; the runner at each finish, the
@@ -56,6 +56,18 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   models used to be read before the first reply, so graph_full's judge
   effort read "no replies" after the judge had answered (Codex review of
   73b8baa..782f26a).
+- Final review fix wave (B98): a publish of a published record runs the
+  evidence steps before it makes a descendant, so a manifest in the dump
+  dir that does not verify is refused with nothing recorded and the alias
+  left in place, and a retry after a later refusal continues in the open
+  descendant instead of adding another. The sampler resolves `--sheet`
+  and `--sheet-md` once, so a symbolic link keeps naming the sheet it
+  pointed at; `--compute` stages `error_rates.json` and keeps the record's
+  copy from its own temp file, then replaces, as the other two acts do. A
+  degraded backlog answer names `judge_model` and `judge_effort` beside
+  its usage. A resumed ablation record notes each strategy that ran no
+  unit and names the record it resumes. The degraded-mode strategy cites
+  the `judge_error` emitter (`backlog.py`) and its tests.
 
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,
