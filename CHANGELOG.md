@@ -29,6 +29,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   without a usage record) beside `judge_model` and `judge_effort`; a
   degraded answer after the generator request carries them too, a refusal
   before any request does not.
+- A parameter rejection is learned only from a 400 or an error without a
+  status that is not a connection error; a retryable error (408, 409, 429,
+  5xx, connection) whose message names `temperature`, `response_format`,
+  `reasoning_effort` or the effort is retried and the parameter stays for
+  the run, where before it was dropped for the run (final review A5).
 
 ### Pre-B74 run safety (2026-09-26, B79, B81, B78)
 - `extract_norms` and `align_hleg` beat the execution's heartbeat every 60 s

@@ -729,3 +729,41 @@ def test_judge_retries_a_connection_error_then_succeeds():
     judge._wait = lambda seconds: None
     assert judge.complete("s", "u") == "v"
     assert judge.usage["requests_sent"] == 2 and judge.usage["calls"] == 1
+
+
+# Final review A5: a learned rejection is a 400 (or an error with no status,
+# as the SDK raises for a keyword it no longer accepts); a retryable error
+# whose message happens to name a parameter is retried, and the parameter
+# stays for the run.
+
+
+def test_generator_retries_a_429_naming_temperature_and_keeps_the_parameter():
+    waits = []
+    transport = _Flaky([_ProviderError("rate limit on requests with temperature", status_code=429),
+                        _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = waits.append
+    assert gen.complete("s", "u") == "a"
+    assert waits == [1] and all("temperature" in call for call in transport.calls)
+    assert gen.usage["requests_sent"] == 2 and gen.sampling == "0"
+
+
+def test_judge_retries_a_529_naming_effort_and_keeps_the_parameter():
+    waits = []
+    transport = _Flaky([_ProviderError("overloaded: effort queue full", status_code=529),
+                        _anthropic_response("v", 1, 1)])
+    judge = _judge_over(transport)
+    judge._init_effort("xhigh")
+    judge._wait = waits.append
+    assert judge.complete("s", "u") == "v"
+    assert waits == [1] and all("output_config" in call for call in transport.calls)
+    assert judge.effort == "xhigh"
+
+
+def test_a_400_naming_a_parameter_is_still_learned():
+    transport = _Flaky([_ProviderError("temperature does not support 0 with this model", status_code=400),
+                        _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = lambda seconds: (_ for _ in ()).throw(AssertionError("a learned rejection is not retried"))
+    assert gen.complete("s", "u") == "a"
+    assert "temperature" not in transport.calls[1] and gen.usage["requests_sent"] == 1

@@ -176,6 +176,16 @@ class _SamplingRecord:
             return True
         return any(cls.__name__ == "APIConnectionError" for cls in type(exc).__mro__)
 
+    @classmethod
+    def _may_be_learned(cls, exc: BaseException) -> bool:
+        """Final review A5: only a 400, or an error without a status (the SDK
+        refusing a keyword it no longer accepts), can be a parameter
+        rejection. A retryable error whose message happens to name a
+        parameter is retried, never learned, so the parameter is not dropped
+        for the run."""
+        status = getattr(exc, "status_code", None)
+        return (status is None or status == 400) and not cls._is_retryable(exc)
+
     def _retry_delay(self, exc: BaseException, retries_used: int) -> float:
         """The provider's retry-after header when present, capped at 60 s;
         otherwise 1 s after the first failure, 4 s after the second."""
@@ -195,7 +205,8 @@ class _SamplingRecord:
         transient failure (see _is_retryable) at most twice, waiting
         _retry_delay between attempts. Every physical attempt that reaches
         the SDK counts one requests_sent, except a learned parameter
-        rejection: is_learned_rejection is checked first, and when it
+        rejection: is_learned_rejection is checked first (for a 400 or an
+        error without a status only, see _may_be_learned), and when it
         reports True this raises _LearnedRejection uncounted instead of
         retrying, so the caller can rebuild kwargs without the parameter
         and try again. A KeyboardInterrupt is counted once, then raised at
@@ -205,7 +216,7 @@ class _SamplingRecord:
             try:
                 response = do_request()
             except Exception as exc:  # noqa: BLE001
-                if is_learned_rejection(exc):
+                if self._may_be_learned(exc) and is_learned_rejection(exc):
                     raise _LearnedRejection() from None
                 self._count_sent()  # it may have been billed; count every physical attempt
                 if self._is_retryable(exc) and retries_used < 2:
