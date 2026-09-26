@@ -7,6 +7,7 @@ bytes (G1); the resume lookup moved to the runner's checkpoint sidecar (G2)."""
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -205,7 +206,34 @@ def test_keep_output_digests_the_copy_not_a_source_rewritten_after_the_copy(tmp_
 
 def test_code_version_is_a_short_sha_or_none(tmp_path):
     assert er.code_version(tmp_path) is None
-    assert len(er.code_version(ROOT) or "") == 12
+    # B81 item 5: the checkout may be dirty while a task is in progress
+    assert re.fullmatch(r"[0-9a-f]{12}(-dirty)?", er.code_version(ROOT) or "")
+
+
+def test_code_version_marks_uncommitted_code_and_ignores_run_outputs(tmp_path):
+    """B81 item 5: a run from uncommitted code says so; a run's own outputs do not."""
+    import subprocess
+
+    def git(*args):
+        subprocess.run(["git", "-c", "user.email=t@example.org", "-c", "user.name=t", *args], cwd=tmp_path,
+                       check=True, capture_output=True)
+
+    git("init", "-q")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "m.py").write_text("x = 1\n")
+    (tmp_path / "eval").mkdir()
+    (tmp_path / "eval" / "summary.json").write_text("{}\n")
+    git("add", ".")
+    git("commit", "-q", "-m", "init")
+    clean = er.code_version(tmp_path)
+    assert clean and len(clean) == 12
+    (tmp_path / "eval" / "summary.json").write_text('{"run": 2}\n')
+    assert er.code_version(tmp_path) == clean, "a tracked run output is not code"
+    (tmp_path / "src" / "m.py").write_text("x = 2\n")
+    assert er.code_version(tmp_path) == f"{clean}-dirty"
+    git("checkout", "--", "src/m.py")
+    (tmp_path / "src" / "new.py").write_text("y = 1\n")
+    assert er.code_version(tmp_path) == f"{clean}-dirty", "an untracked module is code too"
 
 
 def test_two_processes_cannot_interleave_a_finish(tmp_path):

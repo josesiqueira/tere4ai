@@ -61,6 +61,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   longer repeats its predecessor's, so summing records is the real total
   (the summary file still sums every checkpointed unit). The runner's
   record counts `units_run` (B81 item 4).
+- `code_version` (the `config.code_version` of every evaluation record)
+  ends in `-dirty` when `src/`, `prompts/`, `schema/`, `scripts/` or
+  `pyproject.toml` hold uncommitted changes or untracked files; run outputs
+  never make it dirty (B81 item 5).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

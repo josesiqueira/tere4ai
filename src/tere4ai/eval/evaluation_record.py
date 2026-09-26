@@ -77,15 +77,27 @@ def digest_of_ids(ids: list[str]) -> str:
     return hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest()
 
 
+# The paths whose uncommitted state changes what a run computes (B81 item 5).
+# Run outputs (eval/results/, data/) are not code: a second run over the
+# same code must not read as dirty because the first one wrote its summary.
+CODE_PATHS = ("src", "prompts", "schema", "scripts", "pyproject.toml")
+
+
 def code_version(root: Path | str) -> str | None:
-    """The checkout's commit, twelve hex characters, or None outside a git checkout."""
+    """The checkout's commit, twelve hex characters, with "-dirty" appended when
+    the code paths hold uncommitted changes or untracked files (the suffix
+    git describe --dirty uses); None outside a git checkout."""
     try:
         out = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=str(root), capture_output=True,
                              text=True, check=True, timeout=10)
+        status = subprocess.run(["git", "status", "--porcelain", "--", *CODE_PATHS], cwd=str(root),
+                                capture_output=True, text=True, check=True, timeout=10)
     except (OSError, subprocess.SubprocessError):
         return None
     sha = out.stdout.strip()
-    return sha if re.fullmatch(r"[0-9a-f]{12}", sha) else None
+    if not re.fullmatch(r"[0-9a-f]{12}", sha):
+        return None
+    return f"{sha}-dirty" if status.stdout.strip() else sha
 
 
 def observe_publication(dump_dir: Path | str) -> tuple[dict[str, Any] | None, str | None]:
