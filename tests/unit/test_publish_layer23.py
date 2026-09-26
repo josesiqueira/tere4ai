@@ -376,8 +376,9 @@ def test_republishing_identical_inputs_is_refused_and_history_kept(tmp_path, mon
     message = f"already published as chain {chain_id}; activate it with scripts/activate_build.py {chain_id}"
     assert message in capsys.readouterr().err and not [s for s in seen if s[0] == "load"], "refused before the load"
     assert (chain_path.read_bytes(), (tmp_path / "publications" / f"{chain_id}.json").read_bytes()) == before
-    child = next(r for r in store.list_records() if r.get("parent_record_id") == rid)
-    assert child["executions"][-1]["status"] == "failed" and child["executions"][-1]["error"] == message
+    # Changed by final review A6: the refusal now comes before a descendant is
+    # made, so no child record (and no failed execution on one) exists.
+    assert not [r for r in store.list_records() if r.get("parent_record_id") == rid]
     assert read_target_state(tmp_path)["state"] == "available", "the target state of the first publication stands"
 
 
@@ -478,3 +479,49 @@ def test_a_publish_that_outlasts_the_heartbeat_expiry_stays_live(tmp_path, monke
     assert rc == 0 and seen_live == ["publish_layer23"]
     assert "heartbeat stopped" not in capsys.readouterr().err
     assert store.read(rid)["executions"][-1]["status"] == "done"
+
+
+def test_a_refused_set_publication_removes_this_runs_chain_file_so_a_retry_publishes(tmp_path, monkeypatch, capsys):
+    """Final review F2: the chain file is written before set_publication; when the
+    locked check refuses, the file goes, so the next publish is not told the
+    inputs were already published."""
+    from tere4ai.graph_store.build_record import LiveExecutionError
+
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    args = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+
+    def refuse(self, record_id, publication, *, run_id=None):
+        raise LiveExecutionError(f"record {record_id} has a live running execution: x (align_hleg, heartbeat t)")
+
+    monkeypatch.setattr(BuildRecordStore, "set_publication", refuse)
+    with pytest.raises(LiveExecutionError):
+        cli.main(args)
+    assert not list(tmp_path.glob("build_chain_*.json")), "this run's chain file is removed"
+    ex = store.read(rid)["executions"][-1]
+    assert ex["status"] == "failed" and "clean up by hand" not in ex["error"]
+    assert read_target_state(tmp_path)["state"] == "unavailable"
+    monkeypatch.undo()
+    _fakes(monkeypatch, cli)
+    capsys.readouterr()
+    assert cli.main(args) == 0, capsys.readouterr().err
+    assert store.read(rid)["publication"] is not None
+
+
+def test_publishing_twice_is_refused_before_a_descendant_is_made_or_the_alias_moves(tmp_path, monkeypatch, capsys):
+    """Final review A6: the chain is computed and checked before a published
+    record continues as a descendant, so a mistaken second publish leaves the
+    records and the alias index as they were."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    args = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+    assert cli.main(args) == 0
+    chain_id = json.loads(next(tmp_path.glob("build_chain_*.json")).read_text())["chain_id"]
+    records_before = sorted(r["record_id"] for r in store.list_records())
+    capsys.readouterr()
+    assert cli.main(args) == 1
+    assert f"already published as chain {chain_id}" in capsys.readouterr().err
+    assert sorted(r["record_id"] for r in store.list_records()) == records_before, "no descendant record"
+    assert store.resolve("core") == rid, "the alias still names the published record"

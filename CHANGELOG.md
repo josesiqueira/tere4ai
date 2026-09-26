@@ -88,6 +88,15 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   before the write, so a beat of the publish's own heartbeat landing just
   after the write no longer reads the record as frozen against it and no
   longer prints a false "heartbeat stopped" line (final review F1).
+- When `set_publication` refuses (or anything else raises before it
+  returns), `publish_layer23` removes the chain file it had just written,
+  so the next publish of the same inputs runs instead of reading "already
+  published as chain X; activate it" for a chain that was never published
+  (final review F2).
+- `publish_layer23` computes the chain id and refuses inputs already
+  published before a published record continues as a descendant, so a
+  mistaken second publish no longer creates a descendant record or moves
+  the alias to it; the refusal records no execution (final review A6).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

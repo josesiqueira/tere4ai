@@ -127,6 +127,18 @@ def main(argv: list[str] | None = None) -> int:
     if record_id is None:
         print("NOT published: no build record produced this norms file; pass --record", file=sys.stderr)
         return 1
+    if not args.gates_only and all(m.is_file() for m in args.manifest):
+        # The chain id is a function of the input digests (Section 13): identical
+        # inputs published already are refused here, before a published record
+        # continues as a descendant and the alias moves to it (final review A6).
+        # A missing manifest is left to the evidence step, which names it.
+        early_chain = build_chain(args.dump, args.norms, alignments_path=args.alignments,
+                                  manifest_paths=args.manifest or None)
+        if ((dump_dir / f"build_chain_{early_chain['chain_id']}.json").exists()
+                or manifest_path(dump_dir, early_chain["chain_id"]).exists()):
+            print(f"already published as chain {early_chain['chain_id']}; "
+                  f"activate it with scripts/activate_build.py {early_chain['chain_id']}", file=sys.stderr)
+            return 1
     if store.is_frozen(record_id):
         # A published record is frozen (D-G20): a second publication of the
         # same inputs continues as a descendant, never overwrites history.
@@ -165,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     loading = False
     driver = None
     written: list[str] = []
+    chain_unpublished: Path | None = None
 
     def finish(status: str, *, error: str | None = None, **fields) -> None:
         nonlocal finished
@@ -329,10 +342,12 @@ def main(argv: list[str] | None = None) -> int:
             # partial publication can never be activated), then the pointer.
             atomic_write_json(chain_path, chain_record)
             written.append(chain_path.name)
+            chain_unpublished = chain_path
             # set_publication checks a third time under the record lock; loading
             # stays true until it returns, so a refusal there marks Neo4j
             # unavailable in the except below (B79 item 15, review fix C2).
             store.set_publication(record_id, publication, run_id=run_id)
+            chain_unpublished = None
             loading = False
             written.append(f"record {record_id} publication block")
             mpath = manifest_path(dump_dir, chain["chain_id"])
@@ -345,6 +360,12 @@ def main(argv: list[str] | None = None) -> int:
                    outputs=[{"role": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
                    counts={"nodes": nodes, "edges": edges})
         except BaseException as exc:  # an interrupt too: the target never stays loading, the execution never running
+            if chain_unpublished is not None:
+                # set_publication did not return (final review F2): this run's
+                # chain file would make the next publish read "already
+                # published", so it goes; the record holds no publication.
+                chain_unpublished.unlink(missing_ok=True)
+                written.remove(chain_unpublished.name)
             error = f"{type(exc).__name__}: {exc}"
             if written:
                 error += f"; already written, clean up by hand: {', '.join(written)}"
