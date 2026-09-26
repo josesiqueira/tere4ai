@@ -236,8 +236,11 @@ def test_human_layer_needs_its_bound_manifest_and_label_needs_production_scope(t
     rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--manifest", str(tmp_path / "freeze-f9.json"), "--dump-dir", str(tmp_path)])
     assert rc == 1 and "f9" in capsys.readouterr().err, "an unrelated manifest is refused"
     assert store.read(rid)["publication"]["chain_id"] == chain["chain_id"], "the first publication is untouched"
-    descendants = [r for r in store.list_records() if r.get("parent_record_id") == rid]
-    assert len(descendants) == 1 and descendants[0]["executions"][-1]["status"] == "failed", "the refused attempt ran on a descendant"
+    # Changed by B98 seat B P2-1: the evidence steps now run before a
+    # published record continues as a descendant, so the refused attempt
+    # makes no descendant and the alias stays on the published record.
+    assert not [r for r in store.list_records() if r.get("parent_record_id") == rid], "no descendant record"
+    assert store.resolve("core.reference") == rid
 
 
 def test_decisions_flag_is_retired_and_unknown_norms_file_needs_record(tmp_path, monkeypatch, capsys):
@@ -611,3 +614,53 @@ def test_gates_only_on_a_published_record_checks_the_gates_and_records_nothing(t
     assert "NOT published: critical validation failed" in capsys.readouterr().err
     assert sorted(r["record_id"] for r in store.list_records()) == records_before, "no descendant record"
     assert store.resolve("core") == rid and store.read(rid) == record_before, "the published record is untouched"
+
+
+def test_a_manifest_that_does_not_verify_is_refused_before_a_descendant_is_made(tmp_path, monkeypatch, capsys):
+    """B98 seat B P2-1: a manifest in the dump dir that does not verify used
+    to be refused only after a published record continued as a descendant
+    and the alias moved to it; each retry added one more descendant. The
+    evidence steps only read files, so they now run before the record is
+    touched."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    args = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+    assert cli.main(args) == 0
+    records_before = sorted(r["record_id"] for r in store.list_records())
+    record_before = store.read(rid)
+    bad = tmp_path / "freeze-bad.json"
+    bad.write_text("{}")
+    capsys.readouterr()
+    for _ in range(2):
+        assert cli.main([*args, "--manifest", str(bad)]) == 1
+        captured = capsys.readouterr()
+        assert "NOT published: freeze manifest campaign_type None" in captured.err
+        assert "descendant" not in captured.out
+    assert sorted(r["record_id"] for r in store.list_records()) == records_before, "no descendant record"
+    assert store.resolve("core") == rid and store.read(rid) == record_before, "the published record keeps the alias"
+
+
+def test_a_refused_publish_of_a_published_record_reuses_its_open_descendant(tmp_path, monkeypatch, capsys):
+    """B98 seat B P2-1: a publish refused after the descendant is made (here
+    by a critical gate) leaves one open descendant; the retry continues in
+    it instead of making another."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    base = ["--dump", str(layer1), "--norms", str(norms), "--dump-dir", str(tmp_path)]
+    assert cli.main(base) == 0
+    _fakes(monkeypatch, cli, gates_ok=False)
+    with_alignments = [*base, "--alignments", str(alignments)]
+    capsys.readouterr()
+    assert cli.main(with_alignments) == 1
+    first = [r for r in store.list_records() if r.get("parent_record_id") == rid]
+    assert len(first) == 1
+    child = first[0]["record_id"]
+    assert f"continuing as descendant {child}" in capsys.readouterr().out
+    assert cli.main(with_alignments) == 1
+    assert f"continuing in open record {child}" in capsys.readouterr().out
+    descendants = [r for r in store.list_records() if r.get("parent_record_id") == rid]
+    assert [r["record_id"] for r in descendants] == [child], "the retry made no second descendant"
+    assert [ex["status"] for ex in store.read(child)["executions"]] == ["failed", "failed"]
+    assert store.resolve("core") == child

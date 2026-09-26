@@ -50,6 +50,7 @@ from tere4ai.graph_store.build_record import (  # noqa: E402
     Heartbeat,
     atomic_write_json,
     gate_entries,
+    select_record,
     signals_as_interrupt,
 )
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
@@ -96,6 +97,40 @@ def _core_nodes(dump_dir: Path) -> list[str] | None:
     if not core_path.is_file():
         return None
     return [n.strip() for n in core_path.read_text(encoding="utf-8").split(",") if n.strip()]
+
+
+def _evidence(norms_payload: dict, alignments_payload: dict | None, norms_digest: str,
+              manifest_paths: list[Path]) -> tuple[str | None, dict, list[dict]]:
+    """The evidence steps (1) to (3) (D-G27): the refusal message or None, the
+    gating and the bound manifests. Reads files only and writes nothing, so it
+    can run before a published record continues as a descendant (B98 seat B
+    P2-1)."""
+    # (1) Evidence before any gate (D-G27).
+    for name, payload in (("norms", norms_payload), ("alignments", alignments_payload)):
+        if payload is not None and already_materialised(payload) and not payload.get("build", {}).get("reference"):
+            return (f"NOT published: {name} carry decisions but no reference block; "
+                    "materialise from the pristine dump"), {}, []
+    gating = gating_of(norms_payload, alignments_payload)
+    # (2) The alignments were computed over this exact norms file.
+    if alignments_payload is not None:
+        recorded = alignments_payload.get("build", {}).get("alignment_input_sha256")
+        if recorded is None and gating["layer2"] == "human":
+            return ("NOT published: alignments carry no input digest; "
+                    "re-run the alignment command over the reference norms"), gating, []
+        if recorded is not None and recorded != norms_digest:
+            return "NOT published: alignments were computed over a different norms file than --norms", gating, []
+    # (3) Every reference block bound to exactly one freeze manifest.
+    # Each file's own reference block: the alignments' only when it is
+    # of kind alignments (an older file may carry a copied norms marker).
+    references = [ref for ref, kind in ((_reference(norms_payload), "norms"), (_reference(alignments_payload), "alignments"))
+                  if ref is not None and ref.get("kind") == kind]
+    try:
+        manifests = [verify_freeze_manifest(json.loads(m.read_text(encoding="utf-8")), None,
+                                            expected_pinned_build_id=None) for m in manifest_paths]
+        bound = bind_manifests(references, manifests)
+    except (MaterializeError, PublicationError, OSError, json.JSONDecodeError) as exc:
+        return f"NOT published: {exc}", gating, []
+    return None, gating, bound
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -163,6 +198,7 @@ def _main(argv: list[str] | None = None) -> int:
                   f"activate it with scripts/activate_build.py {early_chain['chain_id']}", file=sys.stderr)
             return 1
     unrecorded = False
+    evidence: tuple[str | None, dict, list[dict]] | None = None
     if store.is_frozen(record_id):
         parent = store.read(record_id)
         if args.gates_only:
@@ -175,12 +211,22 @@ def _main(argv: list[str] | None = None) -> int:
             print(f"record {record_id} is published as {parent['publication']['chain_id']}; checking the gates "
                   "only: nothing is recorded, no descendant is made and the alias stays")
         else:
+            # The evidence steps read files only: a refusal there comes before
+            # a descendant is made, so the published record keeps the alias
+            # and nothing is recorded (B98 seat B P2-1).
+            evidence = _evidence(norms_payload, alignments_payload, norms_digest, args.manifest)
+            if evidence[0] is not None:
+                print(f"{evidence[0]} (record {record_id} is published as {parent['publication']['chain_id']}; "
+                      "nothing is recorded, no descendant is made and the alias stays)", file=sys.stderr)
+                return 1
             # A published record is frozen (D-G20): a second publication of the
             # same inputs continues as a descendant, never overwrites history.
-            record_id = store.create_record(parent["aliases"][0], parent["base_build_id"], parent["layer1_digest"],
-                                            parent_record_id=parent["record_id"])
-            print(f"record {parent['record_id']} is published as {parent['publication']['chain_id']}; "
-                  f"continuing as descendant {record_id}")
+            # An open descendant of an earlier refused attempt is reused, so a
+            # retry leaves no orphan record (B98 seat B P2-1).
+            alias = parent["aliases"][0]
+            record_id, message = select_record(store, alias, parent["base_build_id"], parent["layer1_digest"])
+            print(message or f"record {parent['record_id']} is published as {parent['publication']['chain_id']}; "
+                             f"continuing in open record {record_id}, which the alias {alias} names")
     # A record is published only when no other execution of it is live
     # (B79 item 15): refused here, before any gate or load, so Neo4j never
     # holds a build whose record another run is still writing.
@@ -229,31 +275,12 @@ def _main(argv: list[str] | None = None) -> int:
     # its beats stay allowed after it writes the publication.
     with Heartbeat(store, record_id, run_id) if run_id is not None else nullcontext():
         try:
-            # (1) Evidence before any gate (D-G27).
-            for name, payload in (("norms", norms_payload), ("alignments", alignments_payload)):
-                if payload is not None and already_materialised(payload) and not payload.get("build", {}).get("reference"):
-                    return fail(f"NOT published: {name} carry decisions but no reference block; "
-                                "materialise from the pristine dump")
-            gating = gating_of(norms_payload, alignments_payload)
-            # (2) The alignments were computed over this exact norms file.
-            if alignments_payload is not None:
-                recorded = alignments_payload.get("build", {}).get("alignment_input_sha256")
-                if recorded is None and gating["layer2"] == "human":
-                    return fail("NOT published: alignments carry no input digest; "
-                                "re-run the alignment command over the reference norms")
-                if recorded is not None and recorded != norms_digest:
-                    return fail("NOT published: alignments were computed over a different norms file than --norms")
-            # (3) Every reference block bound to exactly one freeze manifest.
-            # Each file's own reference block: the alignments' only when it is
-            # of kind alignments (an older file may carry a copied norms marker).
-            references = [ref for ref, kind in ((_reference(norms_payload), "norms"), (_reference(alignments_payload), "alignments"))
-                          if ref is not None and ref.get("kind") == kind]
-            try:
-                manifests = [verify_freeze_manifest(json.loads(m.read_text(encoding="utf-8")), None,
-                                                    expected_pinned_build_id=None) for m in args.manifest]
-                bound = bind_manifests(references, manifests)
-            except (MaterializeError, PublicationError, OSError, json.JSONDecodeError) as exc:
-                return fail(f"NOT published: {exc}")
+            # (1) to (3) Evidence before any gate (D-G27); taken before the
+            # descendant was made when the record is published.
+            refusal, gating, bound = evidence or _evidence(norms_payload, alignments_payload, norms_digest,
+                                                           args.manifest)
+            if refusal is not None:
+                return fail(refusal)
 
             # (4) The critical gates, one recorded outcome per gate.
             norms = norms_payload.get("norms", [])
