@@ -296,12 +296,13 @@ def _sheet_lock(sheet_path: Path):
     first read of the sheet to their record's finish under it, so two label
     acts never read the same bytes and the second never overwrites the
     first's labels. The lock is a file beside the sheet (<sheet>.lock), not
-    the sheet itself, because every write replaces the sheet's inode; it is
-    named from the resolved path, so a symbolic link to the sheet takes the
-    same lock. A second act waits, saying so once on stderr, then re-checks
-    the chain on the bytes the first act wrote. The caller makes sure the
-    sheet's directory exists. flock excludes processes on a local file
-    system, which is where the sheets live (eval/gold/)."""
+    the sheet itself, because every write replaces the sheet's inode. main
+    resolves --sheet and --sheet-md once (B98 seat B P3-1), so a symbolic
+    link to the sheet takes the same lock and every replace writes the file
+    the link names, never the link. A second act waits, saying so once on
+    stderr, then re-checks the chain on the bytes the first act wrote. The
+    caller makes sure the sheet's directory exists. flock excludes processes
+    on a local file system, which is where the sheets live (eval/gold/)."""
     resolved = sheet_path.resolve()
     lock_path = resolved.with_name(resolved.name + ".lock")
     with open(lock_path, "w") as lock:
@@ -948,6 +949,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--by", default=None, help="who is labelling (required by --label/--label-file)")
     parser.add_argument("--rationale", default="", help="rationale for --label")
     args = parser.parse_args(argv)
+    # Resolved once (B98 seat B P3-1): a symbolic link and the sheet it names
+    # take one lock, and os.replace writes the sheet, not the link.
+    args.sheet, args.sheet_md = args.sheet.resolve(), args.sheet_md.resolve()
 
     if (args.label or args.label_file or args.compute) and not args.sheet.is_file():
         # checked before the lock, so a mistyped --sheet creates no directory and no lock file

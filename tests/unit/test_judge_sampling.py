@@ -900,6 +900,29 @@ def test_two_concurrent_label_acts_keep_both_labels(tmp_path, monkeypatch, capsy
     assert acts[1]["inputs"][0]["sha256"] == acts[0]["outputs"][0]["sha256"], "the second read what the first wrote"
 
 
+def test_a_label_act_through_a_symbolic_link_writes_the_sheet_it_names(tmp_path, capsys):
+    """B98 seat B P3-1: --sheet and --sheet-md are resolved once, so a link
+    and its target take one lock and the replace writes the target, not the
+    link; before, the first act replaced the link with a regular file and
+    the two paths held two sheets from then on."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    link, link_md = tmp_path / "link.json", tmp_path / "link.md"
+    link.symlink_to("sheet.json")
+    link_md.symlink_to("sheet.md")
+    through_link = ["--dump-dir", str(tmp_path), "--sheet", str(link), "--sheet-md", str(link_md)]
+    md_before = (tmp_path / "sheet.md").read_text()
+    assert sampling.main([*through_link, "--label", ids[0], "accept", "--by", "Jose"]) == 0
+    assert link.is_symlink() and link_md.is_symlink(), "the links still point at the sheet"
+    labels = {it["decision_id"]: it["human_label"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]}
+    assert labels[ids[0]] == "accept", "the label landed in the sheet the link names"
+    assert (tmp_path / "sheet.md").read_text() != md_before, "the reading copy the link names was rewritten"
+    capsys.readouterr()
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[1], "reject", "--by", "Ana")) == 0, capsys.readouterr().out
+    assert sorted(p.name for p in tmp_path.glob("*.lock")) == ["sheet.json.lock"]
+
+
 def test_a_label_act_or_compute_on_a_missing_sheet_creates_no_directory_and_no_lock(tmp_path, capsys):
     missing = tmp_path / "no_such_dir" / "sheet.json"
     for extra in (("--label", "d1", "accept", "--by", "Jose"), ("--compute",)):

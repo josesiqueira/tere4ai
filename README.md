@@ -298,8 +298,10 @@ Without `--checkpoint` and `--summary` the runner writes both under
 The sampler's three acts on one sheet run one at a time: each holds the
 lock file `<sheet>.lock` from its first read of the sheet to its record's
 finish, and a second act waits (one line on stderr), then reads what the
-first wrote. A label act or `--compute` on a missing sheet is refused
-(exit code 2) before the lock is taken.
+first wrote. A `--sheet` or `--sheet-md` that is a symbolic link is
+followed: the lock and every write go to the file it names. A label act
+or `--compute` on a missing sheet is refused (exit code 2) before the
+lock is taken.
 The draw and the label act finish their record before the new bytes
 replace the sheet: a copy or finish that fails leaves the sheet and its
 reading copy as the act found them. A refusal over sheet bytes no
