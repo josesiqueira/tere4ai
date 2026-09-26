@@ -188,6 +188,34 @@ def test_extract_failure_records_usage_and_keeps_checkpoint(tmp_path, monkeypatc
     assert out.with_suffix(".checkpoint.jsonl").is_file(), "the checkpoint stays for resume"
 
 
+def test_ctrl_c_ends_the_execution_failed_with_the_spend_so_far(tmp_path, monkeypatch):
+    """B79 item 22: a KeyboardInterrupt is not an Exception; the record must still end."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    inner = cli.extract_norms
+
+    def interrupted(dump, node_ids, generator, judge, prompt_version="v1"):
+        if node_ids[0] == "eu-ai-act:article-10":
+            raise KeyboardInterrupt
+        return inner(dump, node_ids, generator, judge, prompt_version)
+
+    monkeypatch.setattr(cli, "extract_norms", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)])
+    ex = BuildRecordStore(tmp_path).read(BuildRecordStore(tmp_path).resolve("test"))["executions"][0]
+    assert ex["status"] == "failed" and ex["error"] == "KeyboardInterrupt: " and ex["ended_at"]
+    assert ex["completed_keys"] == ["eu-ai-act:article-9"] and ex["usage"]["generator"]["calls"] == 2
+    # review fix F2: the failed attempt records what the clients applied, not the start value
+    assert ex["sampling"] == {"generator": "provider default (rejected by the model)",
+                              "judge": "provider default (rejected by the model)",
+                              "generator_effort": "xhigh", "judge_effort": "xhigh"}
+    assert out.with_suffix(".checkpoint.jsonl").is_file(), "the checkpoint stays for resume"
+
+
 PUBLISHED = {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
              "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [], "postload_gates": [],
              "manifests": []}

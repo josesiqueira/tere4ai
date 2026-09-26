@@ -200,6 +200,35 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
     assert rc == 2 and "different models: generator_model" in capsys.readouterr().err and batches == []
 
 
+def test_ctrl_c_ends_the_align_execution_failed_with_the_spend_so_far(tmp_path, monkeypatch):
+    """B79 item 22: a KeyboardInterrupt is not an Exception; the record must still end."""
+    import pytest
+
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, norms = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    inner = cli.align_norms
+
+    def interrupted(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+        if chunk[0]["norm_id"].endswith(":n2"):
+            raise KeyboardInterrupt
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+
+    monkeypatch.setattr(cli, "align_norms", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"])
+    store = BuildRecordStore(tmp_path)
+    ex = store.read(store.resolve("test"))["executions"][0]
+    assert ex["status"] == "failed" and ex["error"] == "KeyboardInterrupt: " and ex["ended_at"]
+    assert ex["completed_keys"] == [f"batch:0:{norms[0]['norm_id']}"] and ex["usage"]["generator"]["calls"] == 1
+    # review fix F2: the failed attempt records what the clients applied, not the start value
+    assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_effort": "xhigh", "judge_effort": "xhigh"}
+    assert out.with_suffix(".checkpoint.jsonl").is_file(), "the checkpoint stays for resume"
+
+
 def test_a_long_batch_keeps_the_execution_live(tmp_path, monkeypatch):
     """B79 item 4: a batch longer than the expiry must not read liveness unknown."""
     import time

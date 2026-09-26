@@ -37,6 +37,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   the 300 s expiry no longer reads "liveness unknown" on the Build page
   (B79 item 4). A failing beat stops the thread with one stderr line and
   never stops the run.
+- A Ctrl-C (or any `BaseException`) during `extract_norms` or `align_hleg`
+  ends the execution `failed` with the usage and completed keys so far and
+  keeps the checkpoint; before, the execution stayed `running` and the
+  spend was lost (B79 item 22). A failed execution also records the
+  sampling and effort outcomes so far, where it kept the start value "no
+  replies" before.
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

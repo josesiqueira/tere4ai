@@ -269,8 +269,11 @@ def main(argv: list[str] | None = None) -> int:
             completed_keys=completed,
             work_failures={"nodes_failed": len(stats["nodes_failed"]), "norms_failed": 0},
         )
-    except Exception as exc:  # noqa: BLE001 - recorded with what is known, then re-raised
+    except BaseException as exc:  # an interrupt too (B79 item 22): the execution never stays running
         store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
+                               sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge),
+                                         "generator_effort": _effort_of(generator),
+                                         "judge_effort": _effort_of(judge)},
                                error=f"{type(exc).__name__}: {exc}")
         raise
     checkpoint_path.unlink(missing_ok=True)
