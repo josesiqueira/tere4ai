@@ -283,6 +283,16 @@ def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -
     return hashes or None
 
 
+def _own_usage(generator: Any, judge: Any) -> dict[str, Any] | None:
+    """The clients' own usage for this run, or None when the strategies were
+    prebuilt (no client was built here)."""
+    if generator is None:
+        return None
+    usage = {"generator": getattr(generator, "usage", None),
+             "judge": getattr(judge, "usage", None) if judge is not None else None}
+    return None if usage["generator"] is None and usage["judge"] is None else usage
+
+
 def run_eval(
     items: list[dict[str, Any]],
     strategies: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] | list[str],
@@ -385,11 +395,17 @@ def run_eval(
 
     # the failure path covers everything from begin to finish (F3): a raise
     # or a KeyboardInterrupt in the loop finishes the record failed
+    results: dict[str, dict[str, Any]] = {}
     try:
-        results: dict[str, dict[str, Any]] = {}
         for name in strategy_names:
             strategy = strategies[name]
             per_item: dict[str, Any] = {}
+            # registered before the item loop, so a failure mid-strategy still
+            # sees the items that finished (B81 item 4)
+            results[name] = {
+                "models": dict(getattr(strategy, "models", {})),
+                "items": per_item,
+            }
             for item in items:
                 started = time.perf_counter()
                 try:
@@ -403,10 +419,6 @@ def run_eval(
                     }
                 outcome["latency_s"] = round(time.perf_counter() - started, 6)
                 per_item[item["id"]] = outcome
-            results[name] = {
-                "models": dict(getattr(strategy, "models", {})),
-                "items": per_item,
-            }
 
         artifact = {
             "build_id": build_id,
@@ -452,15 +464,13 @@ def run_eval(
             intended = [item["id"] for item in items]
             completed = [i for i in intended if i not in set(errored)]
 
-            def _client_field(client: Any, field: str) -> Any:
-                return getattr(client, field, None) if client is not None else None
-            usage = sampling = None
+            usage = _own_usage(generator, judge)
+            sampling = None
             if generator is not None:
-                usage = {"generator": _client_field(generator, "usage"), "judge": _client_field(judge, "usage")}
+                def _client_field(client: Any, field: str) -> Any:
+                    return getattr(client, field, None) if client is not None else None
                 sampling = {"generator": _client_field(generator, "sampling"),
                             "judge": _client_field(judge, "sampling")}
-                if usage["generator"] is None and usage["judge"] is None:
-                    usage = None
                 if sampling["generator"] is None and sampling["judge"] is None:
                     sampling = None
             prompt_hashes = runtime_judge_prompt_sha256(
@@ -471,8 +481,13 @@ def run_eval(
                                 counts={"items_total": len(items), "items_with_errors": len(errored)})
     except BaseException as exc:
         if record_store is not None and record_id is not None:
+            # completed: every strategy holds a result for the item without an error
+            done = [item["id"] for item in items
+                    if all(n in results and item["id"] in results[n]["items"]
+                           and not results[n]["items"][item["id"]].get("error") for n in strategy_names)]
             try:
-                record_store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
+                record_store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes,
+                                    completed_items=done, usage=_own_usage(generator, judge))
             except EvaluationRecordError:
                 pass
         raise

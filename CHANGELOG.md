@@ -55,6 +55,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   whose heartbeat expired (a killed process) does not block, and the
   publish execution beats its own heartbeat every 60 s while it runs, so a
   publish longer than the expiry still blocks a second one (B79 item 15).
+- An evaluation record of `run_ablations` or the harness keeps, when the run
+  fails or is interrupted, the items completed so far and the usage spent
+  so far. A record's `usage` is its own invocation's spend; a resume no
+  longer repeats its predecessor's, so summing records is the real total
+  (the summary file still sums every checkpointed unit). The runner's
+  record counts `units_run` (B81 item 4).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

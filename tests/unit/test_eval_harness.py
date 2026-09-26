@@ -839,3 +839,41 @@ def test_a_concurrent_writer_replacing_the_shared_path_never_lands_in_this_recor
     kept = json.loads((store.dir / ref["copy"]).read_bytes())
     assert kept["item_ids"] == out["item_ids"] and kept["results"] == out["results"], "this run's bytes"
     assert Path(out["artifact_path"]).read_bytes() == (store.dir / ref["copy"]).read_bytes()
+
+
+def test_an_interrupted_harness_run_keeps_the_completed_items_and_the_spend(tmp_path, monkeypatch):
+    """B81 item 4, harness side."""
+    from tere4ai.eval import harness as h
+
+    items = list(GOLD_3)[:2]
+
+    class Counting:
+        model = "fake-generator"
+
+        def __init__(self):
+            self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "requests_sent": 0,
+                          "replies_with_usage": 0}
+
+        def complete(self, system, user):
+            self.usage["requests_sent"] += 1
+            if self.usage["calls"] == 1:
+                raise KeyboardInterrupt
+            self.usage["calls"] += 1
+            return "{}"
+
+    def fake_build(name, generator, dump, norms_payload, judge=None, judge_log_path=None):
+        def strategy(item):
+            generator.complete("s", item["id"])
+            return {"answer_text": "a", "citations": [], "risk_category": "high"}
+        return strategy
+
+    monkeypatch.setattr(h, "build_strategy", fake_build)
+    store = EvaluationRecordStore(tmp_path)
+    with pytest.raises(KeyboardInterrupt):
+        run_eval(items, ["plain_llm"], generator_factory=Counting, dump=MINI_DUMP, norms_payload=MINI_NORMS,
+                 results_dir=tmp_path / "r", record_store=store)
+    (rec,) = store.list_records()
+    assert rec["outcome"]["status"] == "failed" and rec["outcome"]["completed_items"] == [items[0]["id"]]
+    assert rec["usage"]["generator"] == {"calls": 1, "input_tokens": 0, "output_tokens": 0, "requests_sent": 2,
+                                         "replies_with_usage": 0}
+    assert rec["usage"]["judge"] is None

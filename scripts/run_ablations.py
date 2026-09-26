@@ -61,6 +61,29 @@ def _july_refusal(path: Path) -> str | None:
     return None
 
 
+def _completed_items(unit_results: list[dict], items: list[dict],
+                     strategy_names: list[str]) -> tuple[list[str], list[str]]:
+    """(completed, errored) item ids over the checkpointed units: an item is
+    completed when every strategy holds a result for it without an error."""
+    merged: dict[str, dict] = {}
+    for entry in unit_results:
+        merged.setdefault(entry["strategy"], {}).update(entry["results"])
+    errored = sorted({item_id for results in merged.values() for item_id, r in results.items()
+                      if isinstance(r, dict) and r.get("error")})
+    completed = [i["id"] for i in items if i["id"] not in set(errored)
+                 and all(i["id"] in merged.get(name, {}) for name in strategy_names)]
+    return completed, errored
+
+
+def _own_usage(generator, judge) -> dict | None:
+    """This invocation's own spend (spec G D-G20: usage of this attempt): the
+    clients live for one invocation, so their records are exactly it."""
+    if generator is None and judge is None:
+        return None
+    return {"generator": dict(generator.usage) if generator is not None else None,
+            "judge": dict(judge.usage) if judge is not None else None}
+
+
 def sidecar_path(checkpoint_path: Path) -> Path:
     """The checkpoint's persisted identity (G2): same directory, name plus `.record`."""
     return checkpoint_path.with_name(checkpoint_path.name + ".record")
@@ -247,6 +270,8 @@ def main(argv: list[str] | None = None) -> int:
             counts={"units_resumed": len(done)}, checkpoint_file=checkpoint_path.name,
         )
 
+    generator = judge = None
+    units_run = 0
     try:
         if store is not None and record_id is not None:
             # the newest record owns the checkpoint from now on (G2)
@@ -302,6 +327,7 @@ def main(argv: list[str] | None = None) -> int:
                     }
                     ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                     ckpt.flush()
+                    units_run += 1
                     unit_results.append(entry)
                     errors = sum(1 for r in per_item.values() if "error" in r)
                     print(f"  {unit}: {len(per_item)} items, {errors} errors", flush=True)
@@ -350,7 +376,9 @@ def main(argv: list[str] | None = None) -> int:
                 "note": (
                     "token counts as reported by the providers per API response, "
                     "summed over checkpoint units; units checkpointed by runner "
-                    "versions without usage tracking contribute nothing here"
+                    "versions without usage tracking contribute nothing here; "
+                    "the evaluation record's usage is this invocation's own spend; "
+                    "this total covers every checkpointed unit"
                 ),
             },
             "strategies": {},
@@ -450,20 +478,17 @@ def main(argv: list[str] | None = None) -> int:
         tmp.replace(summary_path)
 
         if store is not None and record_id is not None:
-            errored = sorted({item_id for entry in unit_results for item_id, r in entry["results"].items()
-                              if isinstance(r, dict) and r.get("error")})
-            intended = [i["id"] for i in items]
-            completed = [i for i in intended if i not in set(errored)
-                         and all(i in merged.get(name, {}) for name in strategies.STRATEGY_NAMES)]
+            completed, errored = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
             outputs = [store.keep_output(record_id, "summary", summary_path),
                        store.keep_output(record_id, "checkpoint", checkpoint_path)]
             store.finish(
-                record_id, status="completed" if len(completed) == len(intended) else "partial",
-                completed_items=completed, outputs=outputs, usage=usage_total, prompt_versions=strategy_models,
+                record_id, status="completed" if len(completed) == len(items) else "partial",
+                completed_items=completed, outputs=outputs, usage=_own_usage(generator, judge),
+                prompt_versions=strategy_models,
                 prompt_sha256=harness.runtime_judge_prompt_sha256(strategy_models),
                 sampling={"generator": generator.sampling, "judge": judge.sampling},
                 counts={"items_total": len(items), "units_without_usage": units_without_usage,
-                        "items_with_errors": len(errored)},
+                        "items_with_errors": len(errored), "units_run": units_run},
                 notes=notes,
             )
             print(f"evaluation record {record_id} written under {store.dir}")
@@ -471,8 +496,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {summary_path}")
     except BaseException as exc:
         if store is not None and record_id is not None:
+            completed, _ = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
             try:
-                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
+                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes,
+                             completed_items=completed, usage=_own_usage(generator, judge),
+                             counts={"units_run": units_run})
             except EvaluationRecordError:
                 pass  # the record already ended inside the try; the original error is what matters
         raise

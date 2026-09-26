@@ -65,6 +65,8 @@ def runner(monkeypatch, tmp_path):
             raise RuntimeError("provider refused")  # at build time: a per-item raise is caught by the runner (R5)
 
         def strategy(item):
+            if calls.get("interrupt_on") == item["id"]:
+                raise KeyboardInterrupt
             if calls.get("error_on") == item["id"]:
                 return {"answer_text": "", "citations": [], "risk_category": None, "error": "bad item"}
             kw["generator"].complete()
@@ -409,3 +411,25 @@ def test_a_unit_without_any_usage_drops_the_counts_too(runner, monkeypatch, tmp_
                         str(tmp_path / "results" / "mixed_summary.json"), "--resume-unrecorded"]) == 0
     usage = json.loads((tmp_path / "results" / "mixed_summary.json").read_text())["usage_provider_reported"]
     assert usage["units_without_usage"] == 1 and "requests_sent" not in usage["by_role"]["generator"]
+
+
+def test_a_resumed_record_counts_only_its_own_spend(runner, tmp_path):
+    """B81 item 4: summing the records of a run and its resume must equal the real spend."""
+    assert runner.main(_argv(tmp_path)) == 0
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (first,) = store.list_records()
+    assert runner.main(_argv(tmp_path)) == 0
+    second = next(r for r in store.list_records() if r["record_id"] != first["record_id"])
+    assert first["usage"]["generator"]["calls"] == 2
+    assert second["usage"]["generator"]["calls"] == 0 and second["counts"]["units_run"] == 0
+
+
+def test_an_interrupted_sweep_keeps_the_completed_items_and_the_spend(runner, monkeypatch, tmp_path):
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    runner._TEST_CALLS["interrupt_on"] = "gold:cls-02"
+    with pytest.raises(KeyboardInterrupt):
+        runner.main(_argv(tmp_path))
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == "failed" and rec["outcome"]["error"] == "KeyboardInterrupt: "
+    assert rec["outcome"]["completed_items"] == ["gold:cls-01"]
+    assert rec["usage"]["generator"]["calls"] == 1 and rec["counts"]["units_run"] == 1
