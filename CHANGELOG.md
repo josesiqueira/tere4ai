@@ -80,6 +80,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   invocation runs instead of refusing and can never resume or rewrite
   another run's files; a `--no-record` run must name both paths (B81 item
   20).
+- A replace decision that leaves out `conditions`, `exceptions` or
+  `lifecycle_phase_ids` now yields empty lists instead of keeping the
+  model's text on a norm stamped `HUMAN_AUTHORED`; every slot of a human
+  norm comes from the human's payload (B78 item 12).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

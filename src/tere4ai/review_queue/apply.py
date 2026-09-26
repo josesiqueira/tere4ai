@@ -44,10 +44,11 @@ _SLOT_FIELDS = (
     "source_node_id", "source_span_id", "deontic_type", "modal", "actor_explicit", "actor_inferred",
     "actor_inference_source_node_id", "action", "object", "conditions", "exceptions", "lifecycle_phase_ids",
 )
-# The actor triple is the human's alone: a field the payload omits becomes
-# None rather than inheriting the model's inferred actor onto a norm the
-# human is credited with authoring (B77 plan 1 final review).
-_ACTOR_FIELDS = ("actor_explicit", "actor_inferred", "actor_inference_source_node_id")
+# Every slot of a human norm is the human's alone (B77 plan 1 final review
+# for the actor triple, B78 item 12 for the rest): a slot the payload omits
+# becomes empty rather than inheriting the model's text onto a norm the human
+# is credited with authoring.
+_LIST_SLOTS = ("conditions", "exceptions", "lifecycle_phase_ids")
 
 
 @lru_cache(maxsize=1)
@@ -88,13 +89,8 @@ def _human_review(entry: dict[str, Any], decision: str) -> dict[str, Any]:
 def _stamp_human_norm(item: dict[str, Any], entry: dict[str, Any]) -> None:
     payload = entry["payload"]
     for field in _SLOT_FIELDS:
-        if field in payload:
-            item[field] = copy.deepcopy(payload[field])
-    for field in _ACTOR_FIELDS:
-        item[field] = copy.deepcopy(payload.get(field))
-    item.setdefault("conditions", [])
-    item.setdefault("exceptions", [])
-    item.setdefault("lifecycle_phase_ids", [])
+        default: Any = [] if field in _LIST_SLOTS else None
+        item[field] = copy.deepcopy(payload.get(field, default))
     # The clause ids belong to the text the human just wrote: they are
     # re-materialised from conditions and exceptions by canonicalize_norms at
     # publish, never inherited from the model's clause nodes.

@@ -806,6 +806,22 @@ def test_replace_clears_stale_clause_ids():
     assert norm["condition_ids"] == [] and norm["exception_ids"] == []
 
 
+def test_a_replace_that_leaves_out_the_clauses_keeps_none_of_the_model_text():
+    """B78 item 12: under HUMAN_AUTHORED every slot is the human's; nothing the model wrote survives."""
+    decisions = {}
+    payload = {**HUMAN_NORM, "source_node_id": "x", "source_span_id": "s"}
+    for slot in ("conditions", "exceptions", "lifecycle_phase_ids"):
+        payload.pop(slot)
+    record_decision(decisions, "norm:x:n1", "replace", "the clauses are not in the text", "annotator a",
+                    payload=payload)
+    model_norm = _inferred_actor_norm()
+    # the helper's norm has model clauses but no phases; give it model phases too
+    model_norm["norms"][0]["lifecycle_phase_ids"] = ["cross_phase"]
+    norm = apply_decisions(model_norm, decisions)["norms"][0]
+    assert norm["conditions"] == [] and norm["exceptions"] == [] and norm["lifecycle_phase_ids"] == []
+    assert norm["human_review"]["provenance"] == "HUMAN_AUTHORED"
+
+
 def test_publish_helper_drops_the_edge_to_a_removed_condition():
     decisions = {}
     payload = {
