@@ -265,7 +265,8 @@ merit, this document says so explicitly instead of inventing a citation.
 - Grounding: engineering MUST (Section 13); ADD-03 supports the framing
   (warranted trust requires visible failure).
 - Implementation: tools.py:110-118 (dump_unavailable_envelope, confidence 0.0);
-  evidence.py:113-131 (judge_verdict not_run is distinct from a real verdict);
+  evidence.py:75-82 (judge_verdict not_run, and judge_error for a judge
+  that sent a request and raised, are distinct from a real verdict);
   facade 503 paths.
 - Tests: tests/unit/test_http_facade.py:260, :280; demonstrated live in the
   2026-07-17 audit with an empty dump dir.

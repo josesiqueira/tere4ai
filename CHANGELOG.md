@@ -42,6 +42,13 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   record, no descendant, the alias stays. The restore runbook's check used
   to create a descendant record holding only that check and move the
   build's alias to it (B97 item 2).
+- `generate_control_backlog`: a grounding judge that sent a request and
+  raised now answers with `judge_verdict` `judge_error` (it read `not_run`
+  although the judge ran; a judge step that raises before any request
+  stays `not_run`); a generator that raises after
+  its retries answers degraded (`requires_human_review`, `refused`, the
+  spend of the requests it sent, `judge_verdict` `not_run`) where
+  `/api/backlog` answered 502 and the spend was lost (B97 item 5).
 
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,

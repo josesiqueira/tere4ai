@@ -29,7 +29,10 @@ by having a plan. Every safeguard is behavioral:
 - The answer names the generator's model id and effort and both roles'
   usage for this call (spec F D-F26 (g)), degraded answers after the first
   request included, so the cost of a generation is recorded wherever the
-  envelope is stored.
+  envelope is stored. A generator or judge request that raises after its
+  retries answers degraded with the spend (a judge that sent a request as
+  judge_verdict judge_error), never an error that loses the cost (B97
+  item 5).
 """
 
 from __future__ import annotations
@@ -50,7 +53,7 @@ from tere4ai.extract_norms.pipeline import (
 from tere4ai.graph_store.present import exception_reason
 from tere4ai.judge.config import require_independent_clients
 from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
-from tere4ai.mcp_server.evidence import JUDGE_NOT_RUN
+from tere4ai.mcp_server.evidence import JUDGE_ERROR, JUDGE_NOT_RUN
 from tere4ai.mcp_server.tools import make_envelope
 
 TOOL_NAME = "generate_control_backlog"
@@ -97,17 +100,19 @@ def _generator_user_message(norms: list[dict[str, Any]], system_context: str) ->
 
 
 def _degraded_envelope(
-    reason: str, graph_version: str, spend: dict[str, Any] | None = None
+    reason: str, graph_version: str, spend: dict[str, Any] | None = None,
+    judge_verdict: str = JUDGE_NOT_RUN,
 ) -> dict[str, Any]:
     """requires_human_review envelope for paths where no judged backlog exists.
-    spend: the generator's id and effort and both roles' usage, once a request was sent."""
+    spend: the generator's id and effort and both roles' usage, once a request was sent.
+    judge_verdict: JUDGE_NOT_RUN unless the judge sent a request and raised (JUDGE_ERROR)."""
     return make_envelope(
         answer={"tool": TOOL_NAME, "refused": True, "message": reason, **(spend or {})},
         status="requires_human_review",
         graph_version=graph_version,
         confidence=0.0,
         missing_facts=[reason],
-        judge_verdict=JUDGE_NOT_RUN,
+        judge_verdict=judge_verdict,
     )
 
 
@@ -285,7 +290,15 @@ def generate_control_backlog(
 
     gen_prompt = load_prompt("generate_backlog", prompt_version)
     gen_user = _generator_user_message(norms, system_context)
-    parsed, error = _call_json_with_retry(generator, gen_prompt, gen_user)
+    # A generator that raises after its retries (B97 item 5) yields a degraded
+    # answer carrying the spend of the requests it sent, never an error that
+    # would lose them; an interrupt still propagates.
+    request_failed: str | None = None
+    try:
+        parsed, error = _call_json_with_retry(generator, gen_prompt, gen_user)
+    except Exception as exc:  # noqa: BLE001
+        request_failed = exception_reason(exc)
+        parsed, error = None, f"generator request failed: {request_failed}"
     _log_event(
         log_path,
         {
@@ -301,6 +314,10 @@ def generate_control_backlog(
             "error": error,
         },
     )
+    if request_failed is not None:
+        return _degraded_envelope(
+            f"generator request failed, no backlog produced: {request_failed}", graph_version, spend()
+        )
     if parsed is None or not isinstance(parsed.get("items"), list):
         reason = error or "generator JSON lacks an 'items' list"
         return _degraded_envelope(
@@ -335,11 +352,17 @@ def generate_control_backlog(
             context=TOOL_NAME,
         )
     except Exception as exc:  # noqa: BLE001
+        # judge_error only when the judge sent a request (B97 item 5): a prompt
+        # that cannot be read raises before any request, and then the judge did
+        # not run. A client without a usage record cannot tell; it counts as sent.
+        judge_spend = usage_since(judge, judge_before)
+        sent = judge_spend is None or judge_spend.get("requests_sent", 0) > 0
         return _degraded_envelope(
             "runtime grounding judge failed after the generator answered, no judged backlog: "
             f"{exception_reason(exc)}",
             graph_version,
             spend(),
+            judge_verdict=JUDGE_ERROR if sent else JUDGE_NOT_RUN,
         )
     verdict = check["verdict"]
     accepted = verdict == "accepted"

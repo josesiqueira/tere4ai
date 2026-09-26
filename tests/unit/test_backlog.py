@@ -481,3 +481,77 @@ def test_a_judge_failure_after_the_generator_answered_returns_a_degraded_answer_
     assert "runtime grounding judge failed" in answer["message"] and "RuntimeError" in answer["message"]
     assert answer["usage"]["generator"]["calls"] == 1 and answer["usage"]["judge"]["requests_sent"] == 1
     assert answer["generator_model"] == "fake-generator"
+
+
+# B97 item 5: the judge that ran and failed is named so; a generator that
+# raises after its retries still answers degraded with the requests it sent
+
+
+def test_a_judge_failure_is_labelled_judge_error_not_not_run(tmp_path):
+    class FailingJudge(CountingClient):
+        def complete(self, system, user):
+            self.usage["requests_sent"] += 1
+            raise RuntimeError("judge provider unreachable")
+
+    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    envelope = generate_control_backlog(
+        [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator,
+        FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge"),
+        prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )
+    assert envelope["judge_verdict"] == "judge_error"
+
+
+def test_a_generator_that_raises_after_its_retries_answers_degraded_with_its_spend(tmp_path):
+    class FailingGenerator(CountingClient):
+        def complete(self, system, user):
+            self.usage["requests_sent"] += 3  # the first attempt and the client's two retries
+            self.usage["requests_refused"] += 3
+            raise RuntimeError("503 upstream overloaded")
+
+    generator = FailingGenerator({KEY: "{}"}, model="fake-generator")
+    judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
+    log_path = tmp_path / "runtime_log.jsonl"
+    envelope = generate_control_backlog(
+        [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
+        prompt_version="v1", graph_version="build-test", log_path=log_path,
+    )
+    answer = envelope["answer"]
+    assert answer["refused"] is True and envelope["status"] == "requires_human_review"
+    assert envelope["judge_verdict"] == "not_run" and judge.calls == []
+    assert answer["message"] == ("generator request failed, no backlog produced: "
+                                 "RuntimeError: 503 upstream overloaded")
+    assert answer["usage"]["generator"]["requests_sent"] == 3 and answer["usage"]["generator"]["calls"] == 0
+    assert answer["generator_model"] == "fake-generator"
+    (event,) = [json.loads(line) for line in log_path.read_text().splitlines()]
+    assert event["direction"] == "generator" and event["parse_ok"] is False
+    assert event["error"] == "generator request failed: RuntimeError: 503 upstream overloaded"
+
+
+def test_an_interrupt_during_the_generator_request_still_propagates(tmp_path):
+    class InterruptedGenerator(CountingClient):
+        def complete(self, system, user):
+            raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        generate_control_backlog(
+            [NORM_A], "ctx", InterruptedGenerator({KEY: "{}"}, model="fake-generator"),
+            CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge"), log_path=tmp_path / "l.jsonl",
+        )
+
+
+def test_a_judge_step_that_raises_before_any_request_reads_not_run(tmp_path, monkeypatch):
+    """Review M1: judge_error only when the judge sent a request."""
+    import tere4ai.judge.runtime_grounding as rg
+
+    real_load = rg.load_prompt
+
+    def missing_prompt(kind, version):
+        if kind == "runtime_grounding":
+            raise FileNotFoundError("prompts/runtime_grounding_v1.md")
+        return real_load(kind, version)
+
+    monkeypatch.setattr(rg, "load_prompt", missing_prompt)
+    envelope, _, judge = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    assert judge.calls == [] and envelope["answer"]["usage"]["judge"]["requests_sent"] == 0
+    assert envelope["judge_verdict"] == "not_run" and envelope["answer"]["refused"] is True
