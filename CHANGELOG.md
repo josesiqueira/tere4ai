@@ -97,6 +97,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   published before a published record continues as a descendant, so a
   mistaken second publish no longer creates a descendant record or moves
   the alias to it; the refusal records no execution (final review A6).
+- `code_version` prints one stderr line when git fails or times out inside
+  a checkout, where it returned `null` silently before; outside a checkout
+  it stays silent (final review F3).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

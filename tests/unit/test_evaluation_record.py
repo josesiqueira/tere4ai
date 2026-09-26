@@ -236,6 +236,23 @@ def test_code_version_marks_uncommitted_code_and_ignores_run_outputs(tmp_path):
     assert er.code_version(tmp_path) == f"{clean}-dirty", "an untracked module is code too"
 
 
+def test_code_version_says_so_on_stderr_when_git_fails_inside_a_checkout(tmp_path, monkeypatch, capsys):
+    """Final review F3: a git that fails or times out inside a checkout is not
+    silence; outside a checkout None stays silent."""
+    import subprocess
+
+    assert er.code_version(tmp_path) is None and capsys.readouterr().err == ""
+    (tmp_path / ".git").mkdir()
+
+    def timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=10)
+
+    monkeypatch.setattr(er.subprocess, "run", timeout)
+    assert er.code_version(tmp_path) is None
+    err = capsys.readouterr().err
+    assert len(err.strip().splitlines()) == 1 and "code_version" in err and "TimeoutExpired" in err
+
+
 def test_two_processes_cannot_interleave_a_finish(tmp_path):
     import multiprocessing as mp
 

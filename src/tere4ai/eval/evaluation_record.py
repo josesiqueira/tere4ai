@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import uuid
 from contextlib import contextmanager
@@ -96,13 +97,19 @@ CODE_PATHS = ("src", "prompts", "schema", "scripts", "pyproject.toml")
 def code_version(root: Path | str) -> str | None:
     """The checkout's commit, twelve hex characters, with "-dirty" appended when
     the code paths hold uncommitted changes or untracked files (the suffix
-    git describe --dirty uses); None outside a git checkout."""
+    git describe --dirty uses); None outside a git checkout. None inside a
+    checkout (a .git entry at root or above) when git fails or times out, with
+    one stderr line saying so (final review F3): no silent fallback."""
     try:
         out = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=str(root), capture_output=True,
                              text=True, check=True, timeout=10)
         status = subprocess.run(["git", "status", "--porcelain", "--", *CODE_PATHS], cwd=str(root),
                                 capture_output=True, text=True, check=True, timeout=10)
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError) as exc:
+        resolved = Path(root).resolve()
+        if any((d / ".git").exists() for d in (resolved, *resolved.parents)):
+            print(f"code_version: git failed inside the checkout ({type(exc).__name__}); "
+                  "the record's code_version stays null", file=sys.stderr)
         return None
     sha = out.stdout.strip()
     if not re.fullmatch(r"[0-9a-f]{12}", sha):
