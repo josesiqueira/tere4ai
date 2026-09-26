@@ -44,6 +44,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   it for a role when any unit lacks it. The build record mock data is
   unchanged, and the dashboard's display rule is not changed here (final
   review A3).
+- A grounding judge that raises after the generator answered no longer
+  turns `generate_control_backlog` into an error (a 502 on `/api/backlog`)
+  that loses the generator's spend: the answer is degraded
+  (`requires_human_review`), names the failure, and carries the generator
+  model, effort and both roles' usage (final review A4).
 
 ### Pre-B74 run safety (2026-09-26, B79, B81, B78)
 - `extract_norms` and `align_hleg` beat the execution's heartbeat every 60 s

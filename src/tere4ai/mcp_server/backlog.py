@@ -47,6 +47,7 @@ from tere4ai.extract_norms.pipeline import (
     load_prompt,
     prompt_sha256,
 )
+from tere4ai.graph_store.present import exception_reason
 from tere4ai.judge.config import require_independent_clients
 from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
 from tere4ai.mcp_server.evidence import JUDGE_NOT_RUN
@@ -320,15 +321,26 @@ def generate_control_backlog(
 
     # Runtime grounding judge gates the rendered backlog (Section 7); the
     # untrusted system context travels as delimited data, never instructions.
-    check = ground_check(
-        json.dumps({"tool": TOOL_NAME, "items": items}, ensure_ascii=False, indent=1),
-        norms,
-        system_context if system_context.strip() else None,
-        judge,
-        prompt_version=prompt_version,
-        log_path=log_path,
-        context=TOOL_NAME,
-    )
+    # A judge that raises after the generator answered (final review A4)
+    # yields a degraded answer carrying the spend, never an error that would
+    # lose the generator's cost; an interrupt still propagates.
+    try:
+        check = ground_check(
+            json.dumps({"tool": TOOL_NAME, "items": items}, ensure_ascii=False, indent=1),
+            norms,
+            system_context if system_context.strip() else None,
+            judge,
+            prompt_version=prompt_version,
+            log_path=log_path,
+            context=TOOL_NAME,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return _degraded_envelope(
+            "runtime grounding judge failed after the generator answered, no judged backlog: "
+            f"{exception_reason(exc)}",
+            graph_version,
+            spend(),
+        )
     verdict = check["verdict"]
     accepted = verdict == "accepted"
     status = "applicable_missing_evidence" if accepted else "requires_human_review"

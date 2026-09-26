@@ -459,3 +459,25 @@ def test_the_refusal_before_any_request_carries_no_spend(tmp_path):
     judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
     envelope = generate_control_backlog([rejected], "ctx", generator, judge, log_path=tmp_path / "l.jsonl")
     assert "usage" not in envelope["answer"] and "generator_model" not in envelope["answer"]
+
+
+def test_a_judge_failure_after_the_generator_answered_returns_a_degraded_answer_with_the_spend(tmp_path):
+    """Final review A4: a raising grounding judge after a paid generation answers
+    degraded with the spend, never a 502 that loses the generator's cost."""
+
+    class FailingJudge(CountingClient):
+        def complete(self, system, user):
+            self.usage["requests_sent"] += 1
+            raise RuntimeError("judge provider unreachable")
+
+    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    judge = FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge")
+    envelope = generate_control_backlog(
+        [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
+        prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )
+    answer = envelope["answer"]
+    assert answer["refused"] is True and envelope["status"] == "requires_human_review"
+    assert "runtime grounding judge failed" in answer["message"] and "RuntimeError" in answer["message"]
+    assert answer["usage"]["generator"]["calls"] == 1 and answer["usage"]["judge"]["requests_sent"] == 1
+    assert answer["generator_model"] == "fake-generator"
