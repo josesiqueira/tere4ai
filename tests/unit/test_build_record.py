@@ -10,12 +10,14 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.graph_store import build_record
 from tere4ai.graph_store.build_record import (
     HEARTBEAT_EXPIRY_SECONDS,
     SCHEMA_VERSION,
     BuildRecordStore,
     FrozenRecordError,
     Heartbeat,
+    LiveExecutionError,
     RecordError,
     gate_entries,
     liveness,
@@ -277,3 +279,61 @@ def test_a_failing_beat_stops_the_thread_and_never_raises_into_the_run(tmp_path,
         time.sleep(0.2)
     assert beat.error and "no-such-run" in beat.error
     assert "heartbeat stopped" in capsys.readouterr().err
+
+
+PUB = {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+       "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [],
+       "postload_gates": [], "manifests": []}
+
+
+def test_publication_is_refused_while_another_execution_is_live(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", "b", None)
+    running = _start(store, rid)
+    with pytest.raises(LiveExecutionError, match=running):
+        store.set_publication(rid, PUB)
+    assert store.read(rid)["publication"] is None
+
+
+def test_the_publishing_execution_itself_never_blocks_its_publication(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", "b", None)
+    publish = _start(store, rid, command="publish_layer23", covers_steps=["P.1", "P.2"], expected_total=None,
+                     work_unit=None, checkpoint_file=None)
+    store.set_publication(rid, PUB, run_id=publish)
+    store.finish_execution(rid, publish, status="done")
+    assert store.read(rid)["executions"][0]["status"] == "done"
+
+
+def test_a_second_live_publish_blocks_and_may_not_write_after_the_first_published(tmp_path):
+    """Review fix C1: the exemption is the publishing run, not every execution covering P.2."""
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", "b", None)
+    kw = dict(command="publish_layer23", covers_steps=["P.1", "P.2"], expected_total=None, work_unit=None,
+              checkpoint_file=None)
+    first, second = _start(store, rid, **kw), _start(store, rid, **kw)
+    assert {ex["run_id"] for ex in store.live_executions(rid)} == {first, second}
+    with pytest.raises(LiveExecutionError, match=second):
+        store.set_publication(rid, PUB, run_id=first)
+    store.finish_execution(rid, second, status="failed", error="stopped")
+    store.set_publication(rid, PUB, run_id=first)
+    with pytest.raises(FrozenRecordError, match=first):
+        BuildRecordStore(tmp_path).finish_execution(rid, first, status="done")  # another store object
+    store.finish_execution(rid, first, status="done")
+
+
+def test_publication_proceeds_over_a_running_execution_whose_heartbeat_expired(tmp_path, monkeypatch):
+    """A killed process leaves running forever; after the expiry it no longer blocks,
+    and a late write from it is refused (Review Focus 4)."""
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", "b", None)
+    monkeypatch.setattr(build_record, "_now", lambda: "2026-01-01T00:00:00+00:00")
+    stale = _start(store, rid)
+    monkeypatch.undo()
+    store.set_publication(rid, PUB)
+    with pytest.raises(FrozenRecordError, match=stale):
+        store.heartbeat(rid, stale)
+    with pytest.raises(FrozenRecordError, match=stale):
+        store.finish_execution(rid, stale, status="done", usage={"generator": {"calls": 9}})
+    ex = store.read(rid)["executions"][0]
+    assert ex["status"] == "running" and ex["usage"] is None, "nothing written to the frozen record"

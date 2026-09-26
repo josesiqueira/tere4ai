@@ -397,3 +397,39 @@ def test_an_interrupt_during_the_load_leaves_the_target_unavailable_and_the_exec
     assert target["state"] == "unavailable" and "KeyboardInterrupt" in target["reason"] and driver.closed
     ex = store.read(rid)["executions"][-1]
     assert ex["status"] == "failed" and "KeyboardInterrupt" in ex["error"]
+
+
+def test_publish_refuses_before_any_gate_while_an_execution_of_the_record_is_live(tmp_path, monkeypatch, capsys):
+    """B79 item 15: the refusal comes before the load, never after Neo4j holds the build."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    live = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+                                 inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    seen: list = []
+    _fakes(monkeypatch, cli, seen=seen)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                   "--dump-dir", str(tmp_path)])
+    assert rc == 1 and live in capsys.readouterr().err
+    assert seen == [] and not list(tmp_path.glob("build_chain_*.json"))
+    assert store.read(rid)["publication"] is None
+    assert [e["command"] for e in store.read(rid)["executions"]] == ["extract_norms", "align_hleg"], "no publish execution"
+
+
+def test_an_execution_started_during_the_load_leaves_neo4j_unavailable_and_nothing_published(tmp_path, monkeypatch):
+    """Review fix C2: a refusal after the load never leaves the target available for an unpublished build."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    loader = cli.GraphStore
+
+    class StartsAnotherRun(loader):
+        def load_dump(self, dump, driver):
+            store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+                                  inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+            return super().load_dump(dump, driver)
+
+    monkeypatch.setattr(cli, "GraphStore", StartsAnotherRun)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                   "--dump-dir", str(tmp_path)])
+    assert rc == 1 and read_target_state(tmp_path)["state"] == "unavailable"
+    assert store.read(rid)["publication"] is None and not list(tmp_path.glob("build_chain_*.json"))

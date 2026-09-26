@@ -32,6 +32,7 @@ from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import (
     BuildRecordStore,
     Heartbeat,
+    RecordError,
     existing_artefact_digest,
     published_artefact_owner,
     relative_to_dump_dir,
@@ -270,11 +271,16 @@ def main(argv: list[str] | None = None) -> int:
             work_failures={"nodes_failed": len(stats["nodes_failed"]), "norms_failed": 0},
         )
     except BaseException as exc:  # an interrupt too (B79 item 22): the execution never stays running
-        store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
-                               sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge),
-                                         "generator_effort": _effort_of(generator),
-                                         "judge_effort": _effort_of(judge)},
-                               error=f"{type(exc).__name__}: {exc}")
+        # a record published under this run refuses the write too (B79 item
+        # 15); the original error is the one raised
+        try:
+            store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
+                                   sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge),
+                                             "generator_effort": _effort_of(generator),
+                                             "judge_effort": _effort_of(judge)},
+                                   error=f"{type(exc).__name__}: {exc}")
+        except RecordError as record_exc:
+            print(f"the failure could not be recorded: {record_exc}", file=sys.stderr)
         raise
     checkpoint_path.unlink(missing_ok=True)
 

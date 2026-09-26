@@ -133,6 +133,16 @@ def main(argv: list[str] | None = None) -> int:
                                         parent_record_id=parent["record_id"])
         print(f"record {parent['record_id']} is published as {parent['publication']['chain_id']}; "
               f"continuing as descendant {record_id}")
+    # A record is published only when no other execution of it is live
+    # (B79 item 15): refused here, before any gate or load, so Neo4j never
+    # holds a build whose record another run is still writing.
+    live = store.live_executions(record_id)
+    if live:
+        named = ", ".join(f"{ex['run_id']} ({ex['command']})" for ex in live)
+        print(f"NOT published: record {record_id} has a live running execution: {named}; "
+              "wait for it to end or stop it (a killed run stops blocking 300 s after its last heartbeat)",
+              file=sys.stderr)
+        return 1
     inputs = [{"role": "layer1_dump", "file": args.dump.name, "sha256": sha256_of_file(args.dump)},
               {"role": "norms", "file": args.norms.name, "sha256": norms_digest}]
     if args.alignments:
@@ -296,14 +306,26 @@ def main(argv: list[str] | None = None) -> int:
             set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
             loading = False
             return fail(f"NOT published: {reason}", gates + postload_gates)
+        # an execution that started during the gates or the load blocks the
+        # publication before Neo4j is declared available (B79 item 15)
+        late = [ex for ex in store.live_executions(record_id) if ex["run_id"] != run_id]
+        if late:
+            named = ", ".join(f"{ex['run_id']} ({ex['command']})" for ex in late)
+            reason = f"an execution of record {record_id} started during the load: {named}"
+            set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+            loading = False
+            return fail(f"NOT published: {reason}", gates + postload_gates)
         set_target_state(dump_dir, state="available", build_id=build_id, uri=uri, reason=None)
-        loading = False
         # Write order: the chain record, the record's publication block, the
         # publication manifest (activation consumes it, so it goes last and a
         # partial publication can never be activated), then the pointer.
         atomic_write_json(chain_path, chain_record)
         written.append(chain_path.name)
-        store.set_publication(record_id, publication)
+        # set_publication checks a third time under the record lock; loading
+        # stays true until it returns, so a refusal there marks Neo4j
+        # unavailable in the except below (B79 item 15, review fix C2).
+        store.set_publication(record_id, publication, run_id=run_id)
+        loading = False
         written.append(f"record {record_id} publication block")
         mpath = manifest_path(dump_dir, chain["chain_id"])
         mpath.parent.mkdir(parents=True, exist_ok=True)

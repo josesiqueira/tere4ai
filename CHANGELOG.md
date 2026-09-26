@@ -43,6 +43,16 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   spend was lost (B79 item 22). A failed execution also records the
   sampling and effort outcomes so far, where it kept the start value "no
   replies" before.
+- A published build record is frozen for every execution but the run that
+  published it (the run id `set_publication` received): a heartbeat or an
+  end from any other execution, a second publish included, is refused
+  (`FrozenRecordError`), so a run still going when its record was
+  published can no longer rewrite it. `publish_layer23` refuses, before any
+  gate or load, a record with a live running execution, checks again just
+  before it declares Neo4j available, and `set_publication` checks a third
+  time under the lock (`LiveExecutionError`), with Neo4j marked unavailable
+  whenever the publication is refused after the load; a running execution
+  whose heartbeat expired (a killed process) does not block (B79 item 15).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

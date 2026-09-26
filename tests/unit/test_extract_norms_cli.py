@@ -278,3 +278,28 @@ def test_a_long_group_keeps_the_execution_live(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "extract_norms", slow)
     assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)]) == 0
     assert beats[1] > beats[0], "the heartbeat advanced inside one group"
+
+
+def test_a_run_whose_record_is_published_under_it_stops_and_says_so(tmp_path, monkeypatch, capsys):
+    import tere4ai.extract_norms.__main__ as cli
+    from tere4ai.graph_store.build_record import FrozenRecordError
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    inner = cli.extract_norms
+
+    def published_meanwhile(dump, node_ids, generator, judge, prompt_version="v1"):
+        store = BuildRecordStore(tmp_path)
+        rid = store.resolve("test")
+        record = json.loads((store.dir / f"{rid}.json").read_text())
+        record["publication"] = PUBLISHED  # written by hand: the live check would refuse a real publish
+        (store.dir / f"{rid}.json").write_text(json.dumps(record))
+        return inner(dump, node_ids, generator, judge, prompt_version)
+
+    monkeypatch.setattr(cli, "extract_norms", published_meanwhile)
+    with pytest.raises(FrozenRecordError):
+        cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)])
+    assert "the failure could not be recorded" in capsys.readouterr().err
+    assert out.with_suffix(".checkpoint.jsonl").is_file()

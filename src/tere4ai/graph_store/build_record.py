@@ -54,6 +54,10 @@ class FrozenRecordError(RecordError):
     pass
 
 
+class LiveExecutionError(RecordError):
+    """A publication was asked for while another execution of the record is live."""
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -101,6 +105,18 @@ def liveness(execution: dict[str, Any], now: datetime) -> str:
     return "live" if age <= HEARTBEAT_EXPIRY_SECONDS else "unknown"
 
 
+def _late_write_refusal(record: dict[str, Any], ex: dict[str, Any], publisher: str | None) -> str | None:
+    """Why a write to this execution is refused, or None. A published record is
+    frozen (spec G D-G20, D-G21, B79 item 15); only the publishing run (the run
+    id this store object passed to set_publication) may still end."""
+    publication = record["publication"]
+    if publication is None or ex["run_id"] == publisher:
+        return None
+    return (f"record {record['record_id']} was published as chain {publication['chain_id']} while execution "
+            f"{ex['run_id']} ({ex['command']}) was running; nothing more is written to it, and this run's "
+            "output file and checkpoint stay on disk")
+
+
 def atomic_write_json(path: Path, payload: Any) -> None:
     """Write payload to path atomically: a unique temp file in the same
     directory, then os.replace. A reader never observes a partial write."""
@@ -129,6 +145,10 @@ class BuildRecordStore:
     def __init__(self, dump_dir: Path | str, *, create: bool = True) -> None:
         self.dir = Path(dump_dir) / RECORDS_DIRNAME
         self.create = create
+        # record id to the run id this store object published it with (B79
+        # item 15): the schema allows no new key on an execution, and only
+        # the publishing process holds this object.
+        self._published_by: dict[str, str] = {}
         if create:
             self.dir.mkdir(parents=True, exist_ok=True)
 
@@ -223,6 +243,16 @@ class BuildRecordStore:
     def is_frozen(self, record_id: str) -> bool:
         return self.read(record_id)["publication"] is not None
 
+    def _live_others(self, record: dict[str, Any], excluding: str | None = None) -> list[dict[str, Any]]:
+        now = datetime.fromisoformat(_now())
+        return [ex for ex in record["executions"]
+                if ex["run_id"] != excluding and liveness(ex, now) == "live"]
+
+    def live_executions(self, record_id: str) -> list[dict[str, Any]]:
+        """Executions of the record whose heartbeat is fresh (a publish command
+        asks before it starts its own execution, so nothing is excluded)."""
+        return self._live_others(self.read(record_id))
+
     # ---- writes
     def create_record(self, alias: str, base_build_id: str | None, layer1_digest: str | None,
                       parent_record_id: str | None = None) -> str:
@@ -277,7 +307,14 @@ class BuildRecordStore:
         return run_id
 
     def heartbeat(self, record_id: str, run_id: str) -> None:
-        self._update(record_id, lambda r: self._execution(r, run_id).__setitem__("heartbeat_at", _now()))
+        def mutate(record):
+            ex = self._execution(record, run_id)
+            refusal = _late_write_refusal(record, ex, self._published_by.get(record_id))
+            if refusal:
+                raise FrozenRecordError(refusal)
+            ex["heartbeat_at"] = _now()
+
+        self._update(record_id, mutate)
 
     def finish_execution(self, record_id: str, run_id: str, *, status: str, outputs=None, counts=None, usage=None,
                          models=None, prompt_sha256=None, sampling=None, gates=None, completed_keys=None,
@@ -287,6 +324,9 @@ class BuildRecordStore:
 
         def mutate(record):
             ex = self._execution(record, run_id)
+            refusal = _late_write_refusal(record, ex, self._published_by.get(record_id))
+            if refusal:
+                raise FrozenRecordError(refusal)
             ex["status"] = status
             ex["ended_at"] = _now()
             for key, value in (("outputs", outputs), ("counts", counts), ("usage", usage), ("models", models),
@@ -298,13 +338,25 @@ class BuildRecordStore:
 
         self._update(record_id, mutate)
 
-    def set_publication(self, record_id: str, publication: dict[str, Any]) -> None:
+    def set_publication(self, record_id: str, publication: dict[str, Any], *, run_id: str | None = None) -> None:
+        """Freeze the record (D-G20). Refused under the record lock while an
+        execution other than run_id is live (B79 item 15); after the write this
+        store object remembers run_id as the publisher, the one execution
+        still allowed to end. With no run_id nothing is excluded and no
+        execution may write after the publication."""
         def mutate(record):
             if record["publication"] is not None:
                 raise FrozenRecordError(f"record {record_id} already published as {record['publication']['chain_id']}")
+            live = self._live_others(record, excluding=run_id)
+            if live:
+                named = ", ".join(f"{ex['run_id']} ({ex['command']}, heartbeat {ex['heartbeat_at']})" for ex in live)
+                raise LiveExecutionError(f"record {record_id} has a live running execution: {named}; "
+                                         "wait for it to end or stop it before publishing")
             record["publication"] = publication
 
         self._update(record_id, mutate)
+        if run_id is not None:
+            self._published_by[record_id] = run_id
 
     def set_base_build_id(self, record_id: str, base: str) -> None:
         self._update(record_id, lambda r: r.__setitem__("base_build_id", base))

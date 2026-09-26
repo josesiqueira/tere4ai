@@ -246,7 +246,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
         work_unit=None, checkpoint_file=None,
     )
     chain_file = _write(root / f"build_chain_{chain['chain_id']}.json", {**publication, **chain, "record_id": parent})
-    store.set_publication(parent, publication)
+    store.set_publication(parent, publication, run_id=run)
     store.finish_execution(
         parent, run, status="done", gates=gates + POSTLOAD_GATES, counts={"nodes": 2, "edges": 1},
         outputs=[{"role": "build_chain", "file": chain_file.name, "sha256": sha256_of_file(chain_file)}],
