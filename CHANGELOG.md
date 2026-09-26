@@ -11,6 +11,13 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   `--label-file` row or by two rows; distinct ids from both flags combine
   in one act. The later label used to replace the earlier one silently
   (B81 item 11).
+- The sampler's draw, label act and `--compute` each hold the lock file
+  `<sheet>.lock` (named from the resolved path) from their first read of
+  the sheet to their record's finish; a second act waits, says so on
+  stderr, then reads the first act's bytes. Two concurrent label acts used
+  to read the same sheet, and the later write dropped the other's labels
+  while both records said completed. A label act or `--compute` on a
+  missing sheet is refused before the lock (B81 item 2).
 
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,

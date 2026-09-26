@@ -16,6 +16,7 @@ import hashlib
 import importlib.util
 import json
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -834,3 +835,64 @@ def test_an_id_named_twice_in_one_act_is_refused_and_nothing_is_written(tmp_path
     assert (labels[ids[0]], labels[ids[1]], labels[ids[2]]) == ("reject", "accept", "accept")
     (rec,) = [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "labelling"]
     assert rec["config"]["labels"] == {ids[2]: "accept", ids[0]: "reject", ids[1]: "accept"}
+
+
+# B81 item 2: one act at a time per sheet, so two label acts never lose a label
+
+
+@pytest.mark.parametrize("same_id", [False, True])
+def test_two_concurrent_label_acts_keep_both_labels(tmp_path, monkeypatch, capsys, same_id):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    inside, release = threading.Event(), threading.Event()
+    real_begin = EvaluationRecordStore.begin
+
+    def paused_begin(self, **kwargs):
+        # the first act stops inside its read-modify-write, after reading the sheet
+        record_id = real_begin(self, **kwargs)
+        if kwargs["kind"] == "labelling" and kwargs["config"]["labels"] == {ids[0]: "accept"}:
+            inside.set()
+            release.wait(10)
+        return record_id
+
+    monkeypatch.setattr(EvaluationRecordStore, "begin", paused_begin)
+    codes: dict[str, int] = {}
+    first = threading.Thread(target=lambda: codes.__setitem__(
+        "first", sampling.main(_draw_argv(tmp_path, "--label", ids[0], "accept", "--by", "Jose"))))
+    target = ids[0] if same_id else ids[1]
+    second = threading.Thread(target=lambda: codes.__setitem__(
+        "second", sampling.main(_draw_argv(tmp_path, "--label", target, "reject", "--by", "Ana"))))
+    first.start()
+    assert inside.wait(10)
+    second.start()
+    try:
+        second.join(0.5)
+        assert second.is_alive(), "the second act waits while the first holds the sheet"
+    finally:
+        release.set()
+    first.join(10)
+    second.join(10)
+    labels = {it["decision_id"]: it["human_label"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]}
+    acts = sorted((r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "labelling"),
+                  key=lambda r: r["ended_at"])
+    captured = capsys.readouterr()
+    assert "waiting for it to end" in captured.err
+    if same_id:
+        # the second act reads the first act's label and refuses to replace it without --force
+        assert codes == {"first": 0, "second": 1} and "refusing to relabel" in captured.out
+        assert labels[ids[0]] == "accept" and [a["outcome"]["status"] for a in acts] == ["completed"]
+        return
+    assert codes == {"first": 0, "second": 0}
+    assert (labels[ids[0]], labels[ids[1]]) == ("accept", "reject"), "neither act lost the other's label"
+    assert [a["outcome"]["status"] for a in acts] == ["completed", "completed"]
+    assert acts[1]["inputs"][0]["sha256"] == acts[0]["outputs"][0]["sha256"], "the second read what the first wrote"
+
+
+def test_a_label_act_or_compute_on_a_missing_sheet_creates_no_directory_and_no_lock(tmp_path, capsys):
+    missing = tmp_path / "no_such_dir" / "sheet.json"
+    for extra in (("--label", "d1", "accept", "--by", "Jose"), ("--compute",)):
+        assert sampling.main(["--dump-dir", str(tmp_path), "--sheet", str(missing),
+                              "--sheet-md", str(tmp_path / "no_such_dir" / "sheet.md"), *extra]) == 2
+        assert f"no sheet at {missing}: draw one first, or pass --sheet" in capsys.readouterr().out
+    assert not (tmp_path / "no_such_dir").exists()

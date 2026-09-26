@@ -30,7 +30,10 @@ both or by two rows, is refused (B81 item 11).
 Relabelling an item that already carries a label is refused unless --force
 is passed. A sheet without a sample block (the July sheet) is refused: draw
 a recorded sample first. Every invocation writes one labelling evaluation
-record.
+record. The three acts on one sheet run one at a time: each holds the lock
+file <sheet>.lock from its first read of the sheet to its record's finish,
+and a second act waits; a label act or --compute on a missing sheet is
+refused (exit code 2) before the lock (B81 item 2).
 
 --compute reads the filled sheet and prints the FA/FR rates via
 tere4ai.eval.metrics.judge_error_rates_by_kind, pooled and per judge kind
@@ -50,6 +53,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import fcntl
 import hashlib
 import json
 import math
@@ -58,6 +62,7 @@ import sys
 import tempfile
 import uuid
 from collections import Counter
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -238,6 +243,33 @@ def _write_atomic(path: Path, text: str) -> None:
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
+
+
+@contextmanager
+def _sheet_lock(sheet_path: Path):
+    """One exclusive lock per sheet, held by every act that reads or writes it
+    (B81 item 2): the draw, the label act and --compute each run from their
+    first read of the sheet to their record's finish under it, so two label
+    acts never read the same bytes and the second never overwrites the
+    first's labels. The lock is a file beside the sheet (<sheet>.lock), not
+    the sheet itself, because every write replaces the sheet's inode; it is
+    named from the resolved path, so a symbolic link to the sheet takes the
+    same lock. A second act waits, saying so once on stderr, then re-checks
+    the chain on the bytes the first act wrote. The caller makes sure the
+    sheet's directory exists. flock excludes processes on a local file
+    system, which is where the sheets live (eval/gold/)."""
+    resolved = sheet_path.resolve()
+    lock_path = resolved.with_name(resolved.name + ".lock")
+    with open(lock_path, "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(f"another act holds {lock_path}; waiting for it to end", file=sys.stderr)
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def build_sheet(
@@ -636,111 +668,80 @@ def _print_rates(label: str, r: dict[str, Any]) -> None:
         print(f"[{label}] false rejects: " + ", ".join(r["false_reject_ids"]))
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument(
-        "--compute", action="store_true",
-        help="read the filled sheet and print FA/FR instead of sampling",
+def _compute_act(args: argparse.Namespace, argv: list[str] | None) -> int:
+    """The E1 compute act: FA/FR over the labelled bytes, one analysis record."""
+    sheet = _load(args.sheet)
+    try:
+        rates = compute_error_rates(sheet)
+    except ValueError as exc:
+        print(str(exc))
+        return 2
+    sample_id = (sheet.get("sample") or {}).get("sample_id")
+    # completed label acts only, oldest first; the newest must have written these bytes (F7)
+    labelling = sorted(
+        (
+            r for r in EvaluationRecordStore(args.dump_dir, create=False).list_records()
+            if not r.get("unreadable") and r["kind"] == "labelling"
+            and r["outcome"]["status"] == "completed" and sample_id
+            and r["relations"]["sample_id"] == sample_id
+        ),
+        key=lambda r: (r["ended_at"], r["record_id"]),
     )
-    parser.add_argument("--sheet", type=Path, default=SHEET_JSON)
-    parser.add_argument("--sheet-md", type=Path, default=SHEET_MD)
-    parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps")
-    parser.add_argument("--norms", type=Path, default=None)
-    parser.add_argument("--alignments", type=Path, default=None)
-    parser.add_argument("--layer1", type=Path, default=None)
-    parser.add_argument(
-        "--force", action="store_true",
-        help="overwrite an existing sheet even if it already carries human labels",
-    )
-    parser.add_argument(
-        "--no-record", action="store_true",
-        help="draw without writing an evaluation record",
-    )
-    parser.add_argument(
-        "--label", nargs=2, metavar=("DECISION_ID", "LABEL"), default=None,
-        help="label one decision id accept or reject",
-    )
-    parser.add_argument(
-        "--label-file", type=Path, default=None,
-        help="a csv with columns decision_id,human_label,human_rationale",
-    )
-    parser.add_argument("--by", default=None, help="who is labelling (required by --label/--label-file)")
-    parser.add_argument("--rationale", default="", help="rationale for --label")
-    args = parser.parse_args(argv)
-
-    if args.label or args.label_file:
-        return _label_act(args, argv)
-
-    if args.compute:
-        sheet = _load(args.sheet)
-        try:
-            rates = compute_error_rates(sheet)
-        except ValueError as exc:
-            print(str(exc))
+    labelling_ids = [r["record_id"] for r in labelling]
+    compute_notes: list[str] = []
+    if labelling:
+        newest = labelling[-1]
+        written = [o["sha256"] for o in newest["outputs"] if o["role"] == "sheet_after"]
+        if sha256_of_file(args.sheet) not in written:
+            print("refusing to compute: the sheet's bytes are not the bytes the last label act wrote "
+                  f"({newest['record_id']}); label through --label or --label-file")
             return 2
-        sample_id = (sheet.get("sample") or {}).get("sample_id")
-        # completed label acts only, oldest first; the newest must have written these bytes (F7)
-        labelling = sorted(
-            (
-                r for r in EvaluationRecordStore(args.dump_dir, create=False).list_records()
-                if not r.get("unreadable") and r["kind"] == "labelling"
-                and r["outcome"]["status"] == "completed" and sample_id
-                and r["relations"]["sample_id"] == sample_id
-            ),
-            key=lambda r: (r["ended_at"], r["record_id"]),
+    else:
+        compute_notes.append("no labelling record on this store names the sheet's bytes")
+    store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
+    ids = [it["decision_id"] for it in sheet["items"]]
+    pooled = rates["pooled"]
+    record_id = None
+    if store is not None:
+        record_id = store.begin(
+            kind="analysis", step="E1", command="sample_judge_decisions",
+            argv=list(argv) if argv is not None else sys.argv[1:],
+            inputs=[file_ref("sheet_labelled", args.sheet)],
+            build=_sample_build(sheet),
+            config={"metrics_version": METRICS_VERSION},
+            relations={"sample_id": sample_id, "labelling_record_ids": labelling_ids},
+            intended_items=ids,
         )
-        labelling_ids = [r["record_id"] for r in labelling]
-        compute_notes: list[str] = []
-        if labelling:
-            newest = labelling[-1]
-            written = [o["sha256"] for o in newest["outputs"] if o["role"] == "sheet_after"]
-            if sha256_of_file(args.sheet) not in written:
-                print("refusing to compute: the sheet's bytes are not the bytes the last label act wrote "
-                      f"({newest['record_id']}); label through --label or --label-file")
-                return 2
-        else:
-            compute_notes.append("no labelling record on this store names the sheet's bytes")
-        store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
-        ids = [it["decision_id"] for it in sheet["items"]]
-        pooled = rates["pooled"]
-        record_id = None
-        if store is not None:
-            record_id = store.begin(
-                kind="analysis", step="E1", command="sample_judge_decisions",
-                argv=list(argv) if argv is not None else sys.argv[1:],
-                inputs=[file_ref("sheet_labelled", args.sheet)],
-                build=_sample_build(sheet),
-                config={"metrics_version": METRICS_VERSION},
-                relations={"sample_id": sample_id, "labelling_record_ids": labelling_ids},
-                intended_items=ids,
+        rates_path = args.sheet.with_name("error_rates.json")
+        notes = [rates["note"], *compute_notes]
+        try:
+            _write_atomic(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
+            store.finish(
+                record_id, status="completed", completed_items=ids,
+                outputs=[store.keep_output(record_id, "error_rates", rates_path)],
+                counts={
+                    "scored": pooled["counts"]["scored"], "abstained": pooled["counts"]["abstained"],
+                    "gold_accept": pooled["counts"]["gold_accept"], "gold_reject": pooled["counts"]["gold_reject"],
+                },
+                notes=notes,
             )
-            rates_path = args.sheet.with_name("error_rates.json")
-            notes = [rates["note"], *compute_notes]
+        except BaseException as exc:
             try:
-                _write_atomic(rates_path, json.dumps(rates, ensure_ascii=False, indent=1) + "\n")
-                store.finish(
-                    record_id, status="completed", completed_items=ids,
-                    outputs=[store.keep_output(record_id, "error_rates", rates_path)],
-                    counts={
-                        "scored": pooled["counts"]["scored"], "abstained": pooled["counts"]["abstained"],
-                        "gold_accept": pooled["counts"]["gold_accept"], "gold_reject": pooled["counts"]["gold_reject"],
-                    },
-                    notes=notes,
-                )
-            except BaseException as exc:
-                try:
-                    store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
-                except EvaluationRecordError:
-                    pass
-                raise
-        _print_rates("pooled", pooled)
-        for kind, r in rates["by_kind"].items():
-            _print_rates(kind, r)
-        print(rates["note"])
-        if record_id is not None:
-            print(f"evaluation record {record_id} written under {store.dir}")
-        return 0
+                store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
+            except EvaluationRecordError:
+                pass
+            raise
+    _print_rates("pooled", pooled)
+    for kind, r in rates["by_kind"].items():
+        _print_rates(kind, r)
+    print(rates["note"])
+    if record_id is not None:
+        print(f"evaluation record {record_id} written under {store.dir}")
+    return 0
 
+
+def _draw_act(args: argparse.Namespace, argv: list[str] | None) -> int:
+    """The E1 draw act: a fresh sample under a new sample id, one sample record."""
     served = served_input_paths(args.dump_dir)
     resolved: dict[str, Path] = {}
     for role, explicit, flag in (
@@ -812,6 +813,52 @@ def main(argv: list[str] | None = None) -> int:
     print(f"wrote {args.sheet} and {args.sheet_md}")
     print(f"sampled {sheet['sampling']['total']} of {sheet['sampling']['population']}: {strata}")
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--compute", action="store_true",
+        help="read the filled sheet and print FA/FR instead of sampling",
+    )
+    parser.add_argument("--sheet", type=Path, default=SHEET_JSON)
+    parser.add_argument("--sheet-md", type=Path, default=SHEET_MD)
+    parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps")
+    parser.add_argument("--norms", type=Path, default=None)
+    parser.add_argument("--alignments", type=Path, default=None)
+    parser.add_argument("--layer1", type=Path, default=None)
+    parser.add_argument(
+        "--force", action="store_true",
+        help="overwrite an existing sheet even if it already carries human labels",
+    )
+    parser.add_argument(
+        "--no-record", action="store_true",
+        help="draw without writing an evaluation record",
+    )
+    parser.add_argument(
+        "--label", nargs=2, metavar=("DECISION_ID", "LABEL"), default=None,
+        help="label one decision id accept or reject",
+    )
+    parser.add_argument(
+        "--label-file", type=Path, default=None,
+        help="a csv with columns decision_id,human_label,human_rationale",
+    )
+    parser.add_argument("--by", default=None, help="who is labelling (required by --label/--label-file)")
+    parser.add_argument("--rationale", default="", help="rationale for --label")
+    args = parser.parse_args(argv)
+
+    if (args.label or args.label_file or args.compute) and not args.sheet.is_file():
+        # checked before the lock, so a mistyped --sheet creates no directory and no lock file
+        print(f"no sheet at {args.sheet}: draw one first, or pass --sheet")
+        return 2
+    args.sheet.parent.mkdir(parents=True, exist_ok=True)  # only a draw can get here without the sheet
+    # every act runs under the sheet's lock (B81 item 2)
+    with _sheet_lock(args.sheet):
+        if args.label or args.label_file:
+            return _label_act(args, argv)
+        if args.compute:
+            return _compute_act(args, argv)
+        return _draw_act(args, argv)
 
 
 if __name__ == "__main__":

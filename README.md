@@ -295,6 +295,11 @@ are a pinned July 2026 summary or checkpoint, `--no-record` or not.
 Without `--checkpoint` and `--summary` the runner writes both under
 `eval/results/runs/<record id>/`, a fresh directory per run; a resume passes
 `--checkpoint` explicitly, and a `--no-record` run must pass both.
+The sampler's three acts on one sheet run one at a time: each holds the
+lock file `<sheet>.lock` from its first read of the sheet to its record's
+finish, and a second act waits (one line on stderr), then reads what the
+first wrote. A label act or `--compute` on a missing sheet is refused
+(exit code 2) before the lock is taken.
 A draw over an active publication whose manifest lacks a role
 refuses with a sentence and exit code 2 unless `--norms`, `--alignments`
 or `--layer1` is given. The routes `GET /api/evaluations` (grouped by

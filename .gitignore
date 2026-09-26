@@ -62,6 +62,8 @@ data/graph_dumps/evaluation_records/
 # fresh clone resumes a committed checkpoint only with --resume-unrecorded
 eval/results/*.record
 *.jsonl.record
+# the sampler's lock file beside each label sheet (B81 item 2): local state
+*.json.lock
 data/graph_dumps/*.checkpoint.jsonl
 data/graph_dumps/*.writing.json
 data/graph_dumps/*.building.json
