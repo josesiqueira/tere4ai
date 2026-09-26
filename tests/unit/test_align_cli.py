@@ -279,3 +279,49 @@ def test_a_resume_is_refused_while_the_first_align_run_is_live(tmp_path, monkeyp
     err = capsys.readouterr().err
     assert rc == 2 and first in err and "300 s after its last heartbeat" in err and batches == []
     assert [e["run_id"] for e in store.read(rid)["executions"]] == [first], "no second execution started"
+
+
+def test_a_sighup_ends_the_align_execution_failed_and_each_batch_writes_the_usage_so_far(tmp_path, monkeypatch):
+    """Final review A2: a SIGHUP takes the interrupt path (a); each finished batch
+    leaves the usage so far on the running execution (b)."""
+    import os
+    import signal
+    import time
+
+    import pytest
+
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, norms = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    inner = cli.align_norms
+    seen: list[dict] = []
+
+    def hung_up(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+        if chunk[0]["norm_id"].endswith(":n2"):
+            store = BuildRecordStore(tmp_path)
+            seen.append(store.read(store.resolve("test"))["executions"][0])
+            os.kill(os.getpid(), signal.SIGHUP)
+            time.sleep(1)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+
+    monkeypatch.setattr(cli, "align_norms", hung_up)
+    got: list[int] = []
+
+    def guard(signum, frame):
+        got.append(signum)
+
+    before = {sig: signal.signal(sig, guard) for sig in (signal.SIGTERM, signal.SIGHUP)}
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"])
+        assert signal.getsignal(signal.SIGHUP) is guard and signal.getsignal(signal.SIGTERM) is guard
+    finally:
+        for sig, handler in before.items():
+            signal.signal(sig, handler)
+    assert got == []
+    assert seen[0]["status"] == "running" and seen[0]["usage"]["generator"]["calls"] == 1
+    ex = BuildRecordStore(tmp_path).read(BuildRecordStore(tmp_path).resolve("test"))["executions"][0]
+    assert ex["status"] == "failed" and "SIGHUP" in ex["error"] and ex["usage"]["judge"]["calls"] == 1

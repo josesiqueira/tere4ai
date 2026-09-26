@@ -106,6 +106,16 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   300 s after its last heartbeat; before, a `--resume` next to a live first
   run was accepted and both paid for every remaining unit (final review
   A1).
+- A SIGTERM or SIGHUP (a closed terminal, a dropped ssh session) during
+  `extract_norms`, `align_hleg` or `publish_layer23` raises
+  `KeyboardInterrupt` (`graph_store.build_record.signals_as_interrupt`,
+  the previous handlers restored when the command returns), so the
+  execution ends `failed` with the usage and effort so far and the error
+  names the signal; before, it stayed `running` with `usage` null for
+  good. Each finished group or batch also writes the usage so far onto the
+  running execution through the per-unit heartbeat (`heartbeat(...,
+  usage=...)`, additive), so a SIGKILL loses at most the unit in flight
+  (final review A2).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

@@ -525,3 +525,40 @@ def test_publishing_twice_is_refused_before_a_descendant_is_made_or_the_alias_mo
     assert f"already published as chain {chain_id}" in capsys.readouterr().err
     assert sorted(r["record_id"] for r in store.list_records()) == records_before, "no descendant record"
     assert store.resolve("core") == rid, "the alias still names the published record"
+
+
+def test_a_sigterm_during_the_load_ends_the_publish_failed_and_neo4j_unavailable(tmp_path, monkeypatch):
+    """Final review A2 (a): a closed terminal takes the interrupt path, never leaves the target loading."""
+    import os
+    import signal
+    import time
+
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+
+    class TerminatedStore:
+        def load_dump(self, dump, driver):
+            os.kill(os.getpid(), signal.SIGTERM)
+            time.sleep(1)
+            return {"node:X": 1}
+
+    monkeypatch.setattr(cli, "GraphStore", TerminatedStore)
+    got: list[int] = []
+
+    def guard(signum, frame):
+        got.append(signum)
+
+    before = {sig: signal.signal(sig, guard) for sig in (signal.SIGTERM, signal.SIGHUP)}
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                      "--dump-dir", str(tmp_path)])
+        assert signal.getsignal(signal.SIGTERM) is guard
+    finally:
+        for sig, handler in before.items():
+            signal.signal(sig, handler)
+    assert got == []
+    assert read_target_state(tmp_path)["state"] == "unavailable"
+    ex = store.read(rid)["executions"][-1]
+    assert ex["status"] == "failed" and "SIGTERM" in ex["error"]

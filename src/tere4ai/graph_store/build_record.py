@@ -19,6 +19,7 @@ import fcntl
 import json
 import os
 import re
+import signal
 import sys
 import tempfile
 import threading
@@ -306,13 +307,19 @@ class BuildRecordStore:
         self._update(record_id, mutate)
         return run_id
 
-    def heartbeat(self, record_id: str, run_id: str) -> None:
+    def heartbeat(self, record_id: str, run_id: str, *, usage: dict[str, Any] | None = None) -> None:
+        """Beat the execution's heartbeat. With usage, also write the usage per
+        role so far onto the running execution (final review A2 (b)): a hard
+        kill (SIGKILL) then loses at most the unit in flight's spend. A beat
+        without usage keeps the last one written."""
         def mutate(record):
             ex = self._execution(record, run_id)
             refusal = _late_write_refusal(record, ex, self._published_by.get(record_id))
             if refusal:
                 raise FrozenRecordError(refusal)
             ex["heartbeat_at"] = _now()
+            if usage is not None:
+                ex["usage"] = usage
 
         self._update(record_id, mutate)
 
@@ -377,6 +384,31 @@ class BuildRecordStore:
             aliases = self._aliases()
             aliases[alias] = record_id
             atomic_write_json(self.dir / ALIASES_FILENAME, aliases)
+
+
+@contextmanager
+def signals_as_interrupt():
+    """Turn SIGTERM and SIGHUP into KeyboardInterrupt for the block (final
+    review A2 (a)): a closed terminal or a dropped ssh session then ends a
+    command through its interrupt path, which records the execution failed
+    with its usage and effort, instead of killing it with the execution left
+    running and its usage null. The previous handlers come back after the
+    block. Outside the main thread no handler can be installed; that is said
+    on stderr and the block runs without them."""
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt(f"signal {signal.Signals(signum).name}")
+
+    previous: dict[int, Any] = {}
+    try:
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            previous[sig] = signal.signal(sig, interrupt)
+    except ValueError as exc:
+        print(f"SIGTERM and SIGHUP stay unhandled: {exc}", file=sys.stderr)
+    try:
+        yield
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
 
 
 class Heartbeat:

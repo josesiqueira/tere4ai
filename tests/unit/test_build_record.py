@@ -360,3 +360,42 @@ def test_a_beat_right_after_the_publication_write_is_allowed_for_the_publisher(t
     store.set_publication(rid, PUB, run_id=publish)
     monkeypatch.undo()
     store.finish_execution(rid, publish, status="done")
+
+
+def test_a_heartbeat_may_carry_the_usage_so_far_on_a_running_execution(tmp_path):
+    """Final review A2 (b): a hard kill loses at most the unit in flight's usage."""
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", "b", None)
+    run = _start(store, rid)
+    store.heartbeat(rid, run)
+    assert store.read(rid)["executions"][0]["usage"] is None, "a plain beat writes no usage"
+    spent = {"generator": {"calls": 1, "input_tokens": 10, "output_tokens": 5}, "judge": {}}
+    store.heartbeat(rid, run, usage=spent)
+    ex = store.read(rid)["executions"][0]
+    assert ex["status"] == "running" and ex["usage"] == spent
+    store.heartbeat(rid, run)
+    assert store.read(rid)["executions"][0]["usage"] == spent, "a plain beat keeps the last usage"
+
+
+def test_signals_as_interrupt_raises_keyboard_interrupt_and_restores_the_handlers():
+    """Final review A2 (a): a SIGTERM or SIGHUP ends a command through its interrupt path."""
+    import os
+    import signal
+
+    got: list[int] = []
+
+    def guard(signum, frame):
+        got.append(signum)
+
+    before = {sig: signal.signal(sig, guard) for sig in (signal.SIGTERM, signal.SIGHUP)}
+    try:
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            with pytest.raises(KeyboardInterrupt, match=signal.Signals(sig).name):
+                with build_record.signals_as_interrupt():
+                    os.kill(os.getpid(), sig)
+                    time.sleep(1)
+            assert signal.getsignal(sig) is guard, "the previous handler is back"
+        assert got == []
+    finally:
+        for sig, handler in before.items():
+            signal.signal(sig, handler)

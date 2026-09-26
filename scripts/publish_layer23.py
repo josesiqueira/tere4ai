@@ -49,6 +49,7 @@ from tere4ai.graph_store.build_record import (  # noqa: E402
     Heartbeat,
     atomic_write_json,
     gate_entries,
+    signals_as_interrupt,
 )
 from tere4ai.graph_store.layer23 import alignments_to_graph, norms_to_graph  # noqa: E402
 from tere4ai.graph_store.publication import (  # noqa: E402
@@ -97,6 +98,13 @@ def _core_nodes(dump_dir: Path) -> list[str] | None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the command with SIGTERM and SIGHUP raising KeyboardInterrupt, so a
+    closed terminal ends the execution failed with its usage (final review A2 (a))."""
+    with signals_as_interrupt():
+        return _main(argv)
+
+
+def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--norms", type=Path, required=True)
     parser.add_argument("--alignments", type=Path, default=None)

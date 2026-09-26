@@ -324,3 +324,79 @@ def test_a_resume_is_refused_while_the_first_run_of_the_record_is_live(tmp_path,
     err = capsys.readouterr().err
     assert rc == 2 and first in err and "300 s after its last heartbeat" in err and calls == []
     assert [e["run_id"] for e in store.read(rid)["executions"]] == [first], "no second execution started"
+
+
+def _guard_signals():
+    """A test-side handler for SIGTERM and SIGHUP, so a missing handler in the
+    command never kills the test process; returns (got, restore)."""
+    import signal
+
+    got: list[int] = []
+
+    def guard(signum, frame):
+        got.append(signum)
+
+    before = {sig: signal.signal(sig, guard) for sig in (signal.SIGTERM, signal.SIGHUP)}
+
+    def restore():
+        for sig, handler in before.items():
+            signal.signal(sig, handler)
+
+    return got, guard, restore
+
+
+def test_a_sigterm_ends_the_extract_execution_failed_with_the_spend_so_far(tmp_path, monkeypatch):
+    """Final review A2 (a): a closed terminal or ssh drop (SIGHUP, SIGTERM) takes the interrupt path."""
+    import os
+    import signal
+    import time
+
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    inner = cli.extract_norms
+
+    def terminated(dump, node_ids, generator, judge, prompt_version="v1"):
+        if node_ids[0] == "eu-ai-act:article-10":
+            os.kill(os.getpid(), signal.SIGTERM)
+            time.sleep(1)
+        return inner(dump, node_ids, generator, judge, prompt_version)
+
+    monkeypatch.setattr(cli, "extract_norms", terminated)
+    got, guard, restore = _guard_signals()
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)])
+        assert signal.getsignal(signal.SIGTERM) is guard and signal.getsignal(signal.SIGHUP) is guard
+    finally:
+        restore()
+    assert got == []
+    ex = BuildRecordStore(tmp_path).read(BuildRecordStore(tmp_path).resolve("test"))["executions"][0]
+    assert ex["status"] == "failed" and "SIGTERM" in ex["error"] and ex["usage"]["generator"]["calls"] == 2
+    assert ex["sampling"]["generator_effort"] == "xhigh"
+
+
+def test_each_finished_group_writes_the_usage_so_far_into_the_running_execution(tmp_path, monkeypatch):
+    """Final review A2 (b): after a SIGKILL the record still holds the spend up to the last finished group."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    inner = cli.extract_norms
+    seen: list[dict] = []
+
+    def look(dump, node_ids, generator, judge, prompt_version="v1"):
+        if node_ids[0] == "eu-ai-act:article-10":
+            store = BuildRecordStore(tmp_path)
+            seen.append(store.read(store.resolve("test"))["executions"][0])
+        return inner(dump, node_ids, generator, judge, prompt_version)
+
+    monkeypatch.setattr(cli, "extract_norms", look)
+    assert cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)]) == 0
+    assert seen[0]["status"] == "running" and seen[0]["usage"]["generator"]["calls"] == 2
+    assert seen[0]["usage"]["judge"]["requests_sent"] == 3

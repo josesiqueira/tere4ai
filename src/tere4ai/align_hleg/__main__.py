@@ -34,6 +34,7 @@ from tere4ai.graph_store.build_record import (
     published_artefact_owner,
     relative_to_dump_dir,
     select_record,
+    signals_as_interrupt,
 )
 from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume
 from tere4ai.judge.config import load_model_config
@@ -70,6 +71,13 @@ def _usage_of(client: object) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the command with SIGTERM and SIGHUP raising KeyboardInterrupt, so a
+    closed terminal ends the execution failed with its usage (final review A2 (a))."""
+    with signals_as_interrupt():
+        return _main(argv)
+
+
+def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m tere4ai.align_hleg",
         description="Judged alignment of accepted norms to the seven HLEG requirements (M2).",
@@ -221,7 +229,9 @@ def main(argv: list[str] | None = None) -> int:
                 ckpt.flush()
                 partials.append(partial)
                 completed.append(batch_key)
-                store.heartbeat(record_id, run_id)
+                # the usage so far rides on the per-unit beat: a SIGKILL loses at
+                # most the unit in flight (final review A2 (b))
+                store.heartbeat(record_id, run_id, usage=usage())
                 print(f"  {batch_key}: {len(partial['assertions'])} assertions, "
                       f"verdicts {partial['stats'].get('verdicts', {})}", flush=True)
 
