@@ -99,6 +99,20 @@ def _core_nodes(dump_dir: Path) -> list[str] | None:
     return [n.strip() for n in core_path.read_text(encoding="utf-8").split(",") if n.strip()]
 
 
+def _continues_the_same_norms(candidate: dict, published_record_id: str, norms_digest: str) -> bool:
+    """Whether the open record select_record's first branch reused (final
+    re-review B98, New Breakage 1: it checks only that the aliased record is
+    open and on the same Layer 1) is a safe continuation of this publish: it
+    descends from the record being published, and none of its recorded norms
+    outputs differs from the norms file now being published. A record that
+    fails either check may hold a newer extraction under the same slug, so
+    the republish must make its own descendant instead of landing in it."""
+    if candidate["parent_record_id"] != published_record_id:
+        return False
+    return all(out.get("sha256") == norms_digest for ex in candidate["executions"]
+              for out in ex.get("outputs", []) if out.get("role") == "norms")
+
+
 def _evidence(norms_payload: dict, alignments_payload: dict | None, norms_digest: str,
               manifest_paths: list[Path]) -> tuple[str | None, dict, list[dict]]:
     """The evidence steps (1) to (3) (D-G27): the refusal message or None, the
@@ -225,6 +239,16 @@ def _main(argv: list[str] | None = None) -> int:
             # retry leaves no orphan record (B98 seat B P2-1).
             alias = parent["aliases"][0]
             record_id, message = select_record(store, alias, parent["base_build_id"], parent["layer1_digest"])
+            if message is None and not _continues_the_same_norms(store.read(record_id), parent["record_id"],
+                                                                  norms_digest):
+                # select_record's first branch reused whatever open record the
+                # alias names; a republish must not land in one that holds a
+                # different norms extraction under the same slug (final
+                # re-review B98, New Breakage 1). Make a new descendant.
+                record_id = store.create_record(alias, parent["base_build_id"], parent["layer1_digest"],
+                                                parent_record_id=parent["record_id"])
+                message = (f"record {parent['record_id']} is published as {parent['publication']['chain_id']}; "
+                          f"continuing as descendant {record_id}")
             print(message or f"record {parent['record_id']} is published as {parent['publication']['chain_id']}; "
                              f"continuing in open record {record_id}, which the alias {alias} names")
     # A record is published only when no other execution of it is live

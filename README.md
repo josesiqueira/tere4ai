@@ -302,15 +302,15 @@ first wrote. A `--sheet` or `--sheet-md` that is a symbolic link is
 followed: the lock and every write go to the file it names. A label act
 or `--compute` on a missing sheet is refused (exit code 2) before the
 lock is taken.
-The draw and the label act finish their record before the new bytes
-replace the sheet: a copy or finish that fails leaves the sheet and its
-reading copy as the act found them. `--compute` does the same for
-`error_rates.json`, so its record keeps its own rates even when another
-sheet in the directory computes at the same time. A refusal over sheet bytes no
-recorded act wrote names the `cp` command that puts the last act's
-recorded copy in place; labels typed into the sheet by hand are not kept
-by it (put them in a `--label-file` CSV), and the reading copy is
-rewritten by the next label act.
+The draw and the label act finish their record before the new bytes replace
+the sheet: a copy or finish that fails leaves the sheet and its reading copy
+as the act found them. `--compute` does the same for `error_rates.json`, so
+its record keeps its own rates even when another sheet in the directory
+computes at the same time. A refusal over sheet bytes no recorded act wrote
+names the `cp` command that puts the last act's recorded copy in place;
+labels typed into the sheet by hand are not kept by it (put them in a
+`--label-file` CSV), and the reading copy is rewritten by the next label
+act.
 A draw over an active publication whose manifest lacks a role
 refuses with a sentence and exit code 2 unless `--norms`, `--alignments`
 or `--layer1` is given. The routes `GET /api/evaluations` (grouped by

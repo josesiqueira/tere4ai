@@ -653,7 +653,7 @@ def test_label_act_completes_the_record_and_keeps_the_sheet_when_the_sheet_repla
     assert json.loads((tmp_path / "sheet.json").read_text())["items"][0]["human_label"] is None
 
 
-def test_compute_fails_the_record_when_the_error_rates_write_raises(tmp_path, monkeypatch, capsys):
+def test_compute_completes_the_record_and_names_the_cp_when_the_error_rates_replace_fails(tmp_path, monkeypatch, capsys):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path)) == 0
     sheet = json.loads((tmp_path / "sheet.json").read_text())

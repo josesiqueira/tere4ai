@@ -664,3 +664,42 @@ def test_a_refused_publish_of_a_published_record_reuses_its_open_descendant(tmp_
     assert [r["record_id"] for r in descendants] == [child], "the retry made no second descendant"
     assert [ex["status"] for ex in store.read(child)["executions"]] == ["failed", "failed"]
     assert store.resolve("core") == child
+
+
+def test_a_republish_does_not_land_in_a_descendant_holding_a_different_norms_extraction(tmp_path, monkeypatch, capsys):
+    """B98 final re-review, New Breakage 1: select_record's first branch reused
+    whatever open record the alias named, checking only that it was open and
+    on the same Layer 1, not that it descended from the record being
+    published or held no other norms extraction. Publish P with N1; an
+    extract_norms run in descendant D records N2; a republish of N1 must not
+    publish into D, which the alias core still names."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    base = ["--dump", str(layer1), "--norms", str(norms), "--dump-dir", str(tmp_path)]
+    assert cli.main(base) == 0
+    parent = store.read(rid)
+    other_norms = tmp_path / "norms_other.json"
+    other_norms.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [{"different": True}]}))
+    descendant = store.create_record("core", parent["base_build_id"], parent["layer1_digest"], parent_record_id=rid)
+    run = store.start_execution(descendant, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[],
+                                inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    store.finish_execution(descendant, run, status="done",
+                           outputs=[{"role": "norms", "file": other_norms.name, "sha256": sha256_of_file(other_norms)}])
+    assert store.resolve("core") == descendant, "extract_norms moved the alias to the descendant"
+    capsys.readouterr()
+    with_alignments = [*base, "--alignments", str(alignments)]
+    assert cli.main(with_alignments) == 0
+    out = capsys.readouterr().out
+    assert f"continuing in open record {descendant}" not in out, "N1 must not publish into D"
+    assert [ex["command"] for ex in store.read(descendant)["executions"]] == ["extract_norms"], (
+        "D keeps only its own extraction, no publish execution"
+    )
+    assert store.read(descendant)["publication"] is None, "D stays unpublished"
+    new_descendants = [r for r in store.list_records()
+                       if r.get("parent_record_id") == rid and r["record_id"] != descendant]
+    assert len(new_descendants) == 1, "the republish makes its own descendant"
+    child = new_descendants[0]["record_id"]
+    assert f"continuing as descendant {child}" in out
+    assert store.read(child)["publication"] is not None
+    assert store.resolve("core") == child, "the alias now names the republish's own descendant"

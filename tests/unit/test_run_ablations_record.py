@@ -554,3 +554,14 @@ def test_a_fully_resumed_strategy_is_noted_with_the_record_that_ran_it(runner, m
     assert second["prompt_versions"]["plain_llm"]["judge_effort"] == "no replies"
     assert (f"plain_llm: every unit resumed, none run by this invocation; the models that produced its "
             f"results are named in record {first['record_id']}") in second["notes"]
+
+
+def test_a_fresh_run_over_an_empty_item_list_notes_nothing_resumed(runner, monkeypatch, tmp_path):
+    """B98 final re-review, New Breakage 3: with no items, batches is empty
+    and no strategy ever enters `ran`, but a fresh run (no checkpoint) never
+    resumed anything either; the note used to name every built strategy as
+    fully resumed although nothing was."""
+    monkeypatch.setattr(runner, "load_items", lambda b, f: [])
+    assert runner.main(_argv(tmp_path)) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["notes"] == []
