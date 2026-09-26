@@ -531,3 +531,201 @@ def test_usage_since_is_the_difference_and_none_without_a_record():
     assert usage_since(gen, before) == {"calls": 1, "input_tokens": 50, "output_tokens": 5,
                                         "requests_sent": 1, "replies_with_usage": 1}
     assert usage_snapshot(object()) is None and usage_since(object(), None) is None
+
+
+# Task 1a (B91, spec F D-F26 (e) and (g), ruling R3): the SDKs' hidden
+# retries are off (max_retries=0 on both constructors), so the clients
+# retry a transient failure themselves, counting every physical attempt as
+# a request sent. Retryable (review fix F1): a numeric status_code of 408,
+# 409, 429 or 5xx, or the SDK's connection/timeout error matched by class
+# name (APIConnectionError, whose APITimeoutError subclass matches the same
+# way), so the mixin never imports an SDK. The learned-rejection check
+# above runs first and is never counted or retried; anything else not
+# retryable raises after one attempt.
+
+
+class _ProviderError(Exception):
+    """Test double for the SDKs' APIStatusError: carries status_code and a
+    response with headers, without importing either SDK."""
+
+    def __init__(self, message: str, status_code: int | None = None,
+                 headers: dict | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.response = SimpleNamespace(headers=headers or {})
+
+
+class APIConnectionError(Exception):
+    """Test double named like the SDKs' connection error; the retry check
+    matches by class name only (review fix F1), never by importing an SDK."""
+
+
+class _Flaky:
+    """Stub transport: replays a scripted sequence of exceptions and
+    responses, one per physical attempt (a retry included)."""
+
+    def __init__(self, outcomes: list):
+        self._outcomes = list(outcomes)
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        outcome = self._outcomes.pop(0)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+
+def test_generator_retries_a_429_then_succeeds():
+    waits = []
+    transport = _Flaky([_ProviderError("rate limited", status_code=429),
+                        _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = waits.append
+    assert gen.complete("s", "u") == "a"
+    assert gen.usage["requests_sent"] == 2 and gen.usage["calls"] == 1
+    assert waits == [1]
+
+
+def test_generator_raises_after_three_consecutive_503s():
+    waits = []
+    transport = _Flaky([_ProviderError("upstream overloaded", status_code=503)] * 3)
+    gen = _generator_over(transport)
+    gen._wait = waits.append
+    with pytest.raises(_ProviderError):
+        gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 3 and gen.usage["calls"] == 0
+    assert waits == [1, 4]
+
+
+def test_generator_does_not_retry_a_401():
+    def refuse_to_wait(seconds):
+        raise AssertionError("a 401 must not be retried")
+    transport = _Flaky([_ProviderError("unauthorized", status_code=401)])
+    gen = _generator_over(transport)
+    gen._wait = refuse_to_wait
+    with pytest.raises(_ProviderError):
+        gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 1
+
+
+def test_generator_waits_the_retry_after_header():
+    waits = []
+    transport = _Flaky([
+        _ProviderError("rate limited", status_code=429, headers={"retry-after": "2"}),
+        _openai_response("a", 1, 1),
+    ])
+    gen = _generator_over(transport)
+    gen._wait = waits.append
+    gen.complete("s", "u")
+    assert waits == [2]
+
+
+def test_generator_caps_the_retry_after_wait_at_sixty_seconds():
+    waits = []
+    transport = _Flaky([
+        _ProviderError("rate limited", status_code=429, headers={"retry-after": "600"}),
+        _openai_response("a", 1, 1),
+    ])
+    gen = _generator_over(transport)
+    gen._wait = waits.append
+    gen.complete("s", "u")
+    assert waits == [60]
+
+
+def test_generator_retries_a_connection_error_then_succeeds():
+    transport = _Flaky([APIConnectionError("connection reset"),
+                        _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = lambda seconds: None
+    assert gen.complete("s", "u") == "a"
+    assert gen.usage["requests_sent"] == 2 and gen.usage["calls"] == 1
+
+
+def test_both_constructors_pass_max_retries_zero(monkeypatch):
+    import anthropic
+    import openai
+
+    from tere4ai.judge.config import ModelConfig
+
+    captured_openai: dict = {}
+    captured_anthropic: dict = {}
+
+    class _StubOpenAI:
+        def __init__(self, **kwargs):
+            captured_openai.update(kwargs)
+
+    class _StubAnthropic:
+        def __init__(self, **kwargs):
+            captured_anthropic.update(kwargs)
+
+    monkeypatch.setattr(openai, "OpenAI", _StubOpenAI)
+    monkeypatch.setattr(anthropic, "Anthropic", _StubAnthropic)
+    cfg = ModelConfig(
+        generator_model="gpt-x", judge_model="claude-x",
+        generator_api_key="k1", judge_api_key="k2",
+        generator_effort="high", judge_effort="high",
+    )
+    OpenAIGenerator(cfg)
+    AnthropicJudge(cfg)
+    assert captured_openai["max_retries"] == 0
+    assert captured_anthropic["max_retries"] == 0
+
+
+# Same shapes for the judge; the transport is messages.create and usage
+# reports input_tokens/output_tokens, but the retry classification and
+# counting are the same mixin logic.
+
+
+def test_judge_retries_a_429_then_succeeds():
+    waits = []
+    transport = _Flaky([_ProviderError("rate limited", status_code=429),
+                        _anthropic_response("v", 2, 1)])
+    judge = _judge_over(transport)
+    judge._wait = waits.append
+    assert judge.complete("s", "u") == "v"
+    assert judge.usage["requests_sent"] == 2 and judge.usage["calls"] == 1
+    assert waits == [1]
+
+
+def test_judge_raises_after_three_consecutive_529s():
+    waits = []
+    transport = _Flaky([_ProviderError("overloaded", status_code=529)] * 3)
+    judge = _judge_over(transport)
+    judge._wait = waits.append
+    with pytest.raises(_ProviderError):
+        judge.complete("s", "u")
+    assert judge.usage["requests_sent"] == 3 and judge.usage["calls"] == 0
+    assert waits == [1, 4]
+
+
+def test_judge_does_not_retry_a_401():
+    def refuse_to_wait(seconds):
+        raise AssertionError("a 401 must not be retried")
+    transport = _Flaky([_ProviderError("unauthorized", status_code=401)])
+    judge = _judge_over(transport)
+    judge._wait = refuse_to_wait
+    with pytest.raises(_ProviderError):
+        judge.complete("s", "u")
+    assert judge.usage["requests_sent"] == 1
+
+
+def test_judge_waits_the_retry_after_header():
+    waits = []
+    transport = _Flaky([
+        _ProviderError("rate limited", status_code=429, headers={"retry-after": "2"}),
+        _anthropic_response("v", 2, 1),
+    ])
+    judge = _judge_over(transport)
+    judge._wait = waits.append
+    judge.complete("s", "u")
+    assert waits == [2]
+
+
+def test_judge_retries_a_connection_error_then_succeeds():
+    transport = _Flaky([APIConnectionError("connection reset"),
+                        _anthropic_response("v", 2, 1)])
+    judge = _judge_over(transport)
+    judge._wait = lambda seconds: None
+    assert judge.complete("s", "u") == "v"
+    assert judge.usage["requests_sent"] == 2 and judge.usage["calls"] == 1

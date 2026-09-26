@@ -18,6 +18,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   them as `role_usage` (optional, so older records still validate). The
   ablation summary sums them and drops them for a role when any unit lacks
   them, and for every role when a unit carries no usage block at all.
+- Both SDK clients are built with `max_retries=0`, so every request the
+  providers see is counted; the clients retry a 408, 409, 429, 5xx or a
+  connection error themselves, at most twice, waiting `retry-after` (at
+  most 60 s) or 1 s then 4 s, each attempt a request sent (spec F D-F26
+  (e) and (g), ruling R3).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config

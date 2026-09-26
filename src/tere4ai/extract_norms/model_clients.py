@@ -13,6 +13,7 @@ never logged or echoed.
 
 from __future__ import annotations
 
+import time
 from typing import Protocol
 
 from tere4ai.judge.config import ModelConfig
@@ -79,6 +80,14 @@ EFFORT_NONE = "no replies"
 EFFORT_NOT_CONFIGURED = "not configured"
 
 
+class _LearnedRejection(Exception):
+    """Internal control-flow signal only: an attempt failed with a parameter
+    rejection the caller learns from. It never leaves _SamplingRecord._send;
+    the caller catches it to rebuild fresh kwargs and try again. It is never
+    counted as a request sent and never goes through the retry classification
+    (B91, spec F D-F26 (e) and (g), ruling R3)."""
+
+
 class _SamplingRecord:
     """Mixin: which sampling parameter and which effort each reply was produced under."""
 
@@ -93,6 +102,11 @@ class _SamplingRecord:
     _effort_rejected: bool = False
     _replies_with_effort: int = 0
     _replies_without_effort: int = 0
+
+    # Task 1a (B91, spec F D-F26 (e), ruling R3): the wait between retries,
+    # a class attribute so a client built with __new__ (the offline tests)
+    # still has one, and a test can replace it to never actually sleep.
+    _wait = staticmethod(time.sleep)
 
     def _init_sampling(self) -> None:
         self._temperature_rejected = False
@@ -147,6 +161,64 @@ class _SamplingRecord:
         if isinstance(input_tokens, int) and isinstance(output_tokens, int):
             self.usage["replies_with_usage"] = self.usage.get("replies_with_usage", 0) + 1
 
+    # Task 1a (B91, spec F D-F26 (e) and (g), ruling R3): the SDKs' own
+    # hidden retries are off (max_retries=0 on both constructors), so a
+    # transient failure is retried here instead, with every physical
+    # attempt counted. Review fix F1 classification: retryable when the
+    # exception carries a numeric status_code of 408, 409, 429 or a 5xx
+    # (529 included), or when it is a connection or timeout error, matched
+    # by class name (APIConnectionError; both SDKs' APITimeoutError
+    # subclasses it) so this mixin imports no SDK.
+    @staticmethod
+    def _is_retryable(exc: BaseException) -> bool:
+        status = getattr(exc, "status_code", None)
+        if isinstance(status, int) and (status in (408, 409, 429) or status >= 500):
+            return True
+        return any(cls.__name__ == "APIConnectionError" for cls in type(exc).__mro__)
+
+    def _retry_delay(self, exc: BaseException, retries_used: int) -> float:
+        """The provider's retry-after header when present, capped at 60 s;
+        otherwise 1 s after the first failure, 4 s after the second."""
+        response = getattr(exc, "response", None)
+        headers = getattr(response, "headers", None) if response is not None else None
+        getter = getattr(headers, "get", None) if headers is not None else None
+        retry_after = getter("retry-after") if callable(getter) else None
+        if retry_after is not None:
+            try:
+                return min(float(retry_after), 60.0)
+            except (TypeError, ValueError):
+                pass
+        return 1.0 if retries_used == 0 else 4.0
+
+    def _send(self, do_request, is_learned_rejection):
+        """Send one logical request through do_request(), retrying a
+        transient failure (see _is_retryable) at most twice, waiting
+        _retry_delay between attempts. Every physical attempt that reaches
+        the SDK counts one requests_sent, except a learned parameter
+        rejection: is_learned_rejection is checked first, and when it
+        reports True this raises _LearnedRejection uncounted instead of
+        retrying, so the caller can rebuild kwargs without the parameter
+        and try again. A KeyboardInterrupt is counted once, then raised at
+        once: never retried, never treated as learned."""
+        retries_used = 0
+        while True:
+            try:
+                response = do_request()
+            except Exception as exc:  # noqa: BLE001
+                if is_learned_rejection(exc):
+                    raise _LearnedRejection() from None
+                self._count_sent()  # it may have been billed; count every physical attempt
+                if self._is_retryable(exc) and retries_used < 2:
+                    self._wait(self._retry_delay(exc, retries_used))
+                    retries_used += 1
+                    continue
+                raise
+            except BaseException:
+                self._count_sent()  # an interrupt mid-request: the request may have been billed
+                raise
+            self._count_sent()
+            return response
+
     @property
     def effort_requested(self) -> str | None:
         return self._effort_requested
@@ -171,7 +243,9 @@ class OpenAIGenerator(_SamplingRecord):
     model itself rejects it, and stays dropped for the client's lifetime.
     .usage accumulates provider-reported token counts plus requests_sent
     and replies_with_usage (spec F D-F26 (g)); a response without a
-    complete usage block adds to calls and requests_sent only.
+    complete usage block adds to calls and requests_sent only. The SDK's
+    own retries are off (max_retries=0); complete() retries a transient
+    failure itself, counting every attempt (Task 1a, ruling R3).
     """
 
     def __init__(self, cfg: ModelConfig):
@@ -181,7 +255,7 @@ class OpenAIGenerator(_SamplingRecord):
         self.usage = _new_usage()
         self._init_sampling()
         self._init_effort(cfg.generator_effort)
-        self._client = OpenAI(api_key=cfg.generator_api_key)
+        self._client = OpenAI(api_key=cfg.generator_api_key, max_retries=0)
 
     def _request_kwargs(self, messages: list[dict[str, str]]) -> dict:
         kwargs: dict = {"model": self.model, "messages": messages}
@@ -201,9 +275,8 @@ class OpenAIGenerator(_SamplingRecord):
         response = None
         for _attempt in range(4):
             kwargs = self._request_kwargs(messages)
-            try:
-                response = self._client.chat.completions.create(**kwargs)
-            except Exception as exc:  # noqa: BLE001
+
+            def is_learned(exc: Exception, kwargs: dict = kwargs) -> bool:
                 message = str(exc)
                 learned = False
                 if "temperature" in kwargs and "temperature" in message:
@@ -215,14 +288,15 @@ class OpenAIGenerator(_SamplingRecord):
                 if "reasoning_effort" in kwargs and "reasoning_effort" in message:
                     self._effort_rejected = True
                     learned = True
-                if not learned:
-                    self._count_sent()  # it may have been billed; it reported nothing
-                    raise
+                return learned
+
+            try:
+                response = self._send(
+                    lambda kwargs=kwargs: self._client.chat.completions.create(**kwargs),
+                    is_learned,
+                )
+            except _LearnedRejection:
                 continue
-            except BaseException:
-                self._count_sent()  # an interrupt mid-request: the request may have been billed
-                raise
-            self._count_sent()
             break
         if response is None:  # pragma: no cover - three rejections at most
             raise RuntimeError("model request could not be formed")
@@ -244,7 +318,9 @@ class AnthropicJudge(_SamplingRecord):
     provider-reported token counts plus requests_sent and
     replies_with_usage (spec F D-F26 (g)); a response without a complete
     usage block adds to calls and requests_sent only (thinking tokens are
-    inside output_tokens).
+    inside output_tokens). The SDK's own retries are off (max_retries=0);
+    complete() retries a transient failure itself, counting every attempt
+    (Task 1a, ruling R3).
     """
 
     def __init__(self, cfg: ModelConfig, max_tokens: int = 16000):
@@ -255,7 +331,7 @@ class AnthropicJudge(_SamplingRecord):
         self._init_sampling()
         self._init_effort(cfg.judge_effort)
         self._max_tokens = max_tokens
-        self._client = anthropic.Anthropic(api_key=cfg.judge_api_key)
+        self._client = anthropic.Anthropic(api_key=cfg.judge_api_key, max_retries=0)
 
     def _request_kwargs(self, system: str, user: str) -> dict:
         kwargs: dict = dict(
@@ -274,9 +350,8 @@ class AnthropicJudge(_SamplingRecord):
         response = None
         for _attempt in range(3):
             kwargs = self._request_kwargs(system, user)
-            try:
-                response = self._client.messages.create(**kwargs)
-            except Exception as exc:  # noqa: BLE001
+
+            def is_learned(exc: Exception, kwargs: dict = kwargs) -> bool:
                 message = str(exc)
                 learned = False
                 if "temperature" in kwargs and "temperature" in message:
@@ -285,14 +360,15 @@ class AnthropicJudge(_SamplingRecord):
                 if "output_config" in kwargs and "effort" in message:
                     self._effort_rejected = True
                     learned = True
-                if not learned:
-                    self._count_sent()  # it may have been billed; it reported nothing
-                    raise
+                return learned
+
+            try:
+                response = self._send(
+                    lambda kwargs=kwargs: self._client.messages.create(**kwargs),
+                    is_learned,
+                )
+            except _LearnedRejection:
                 continue
-            except BaseException:
-                self._count_sent()  # an interrupt mid-request: the request may have been billed
-                raise
-            self._count_sent()
             break
         if response is None:  # pragma: no cover - two rejections at most
             raise RuntimeError("model request could not be formed")
