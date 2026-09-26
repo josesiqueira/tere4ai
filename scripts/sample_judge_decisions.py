@@ -25,6 +25,8 @@ The label act (--label <decision id> <accept|reject> [--rationale TEXT], or
 --label-file <csv> with columns decision_id,human_label,human_rationale)
 both require --by <name>: each labelled item records human_label,
 human_rationale, labelled_by, and labelled_at (who and when, per item).
+Both flags may be given in one act for distinct ids; an id named twice, by
+both or by two rows, is refused (B81 item 11).
 Relabelling an item that already carries a label is refused unless --force
 is passed. A sheet without a sample block (the July sheet) is refused: draw
 a recorded sample first. Every invocation writes one labelling evaluation
@@ -55,6 +57,7 @@ import os
 import sys
 import tempfile
 import uuid
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -537,8 +540,12 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         return 2
     by_id = {it["decision_id"]: it for it in sheet.get("items", [])}
     wanted: dict[str, tuple[str, str]] = {}
+    # every id as named, in order: an id named twice would let the later
+    # label silently replace the earlier one (B81 item 11), so it is refused
+    named: list[str] = []
     if args.label:
         wanted[args.label[0]] = (args.label[1], args.rationale)
+        named.append(args.label[0])
     if args.label_file:
         if not args.label_file.is_file():
             print(f"label file not found: {args.label_file}")
@@ -551,6 +558,12 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
                 return 2
             for row in reader:
                 wanted[row["decision_id"]] = (row["human_label"], row.get("human_rationale") or "")
+                named.append(row["decision_id"])
+    twice = sorted(i for i, n in Counter(named).items() if n > 1)
+    if twice:
+        print(f"refusing to label: decision ids named more than once in this act (by --label and a --label-file "
+              f"row, or by two rows): {twice}; name each id once")
+        return 2
     unknown = [i for i in wanted if i not in by_id]
     bad = [i for i, (label, _) in wanted.items() if label not in JUDGE_GOLD_LABELS]
     if unknown or bad:

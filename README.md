@@ -277,7 +277,9 @@ The writers: `scripts/run_ablations.py` and `python -m tere4ai.eval.harness`
 refuses to overwrite any existing sheet without `--force` and binds the
 sample to the activated publication or to the base build id; `--label
 <decision id> <accept|reject> --by <name>` or `--label-file <csv> --by
-<name>`, which record actor and time per item and refuse (exit code 2) a
+<name>` (both in one act for distinct ids; an id named twice, by both or
+by two rows, is refused with exit code 2), which record actor and time
+per item and refuse (exit code 2) a
 sheet whose bytes are not the bytes the last recorded draw or label act of
 its sample wrote, so a `--no-record` label act breaks the chain for the
 next one; `--compute`, which refuses a

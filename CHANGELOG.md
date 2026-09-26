@@ -5,6 +5,13 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Before the humans (2026-09-26, B81, B97)
+- The label act refuses (exit code 2, before any record or write) a
+  decision id named more than once in one act, by `--label` and a
+  `--label-file` row or by two rows; distinct ids from both flags combine
+  in one act. The later label used to replace the earlier one silently
+  (B81 item 11).
+
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,
   `input_tokens` and `output_tokens`, the requests they sent

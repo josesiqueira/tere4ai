@@ -800,3 +800,37 @@ def test_an_unrecorded_label_act_breaks_the_chain_for_the_next_recorded_one(tmp_
     capsys.readouterr()
     assert sampling.main(_draw_argv(tmp_path, "--label", ids[1], "accept", "--by", "Jose")) == 2
     assert "its bytes are not the bytes the last recorded act wrote" in capsys.readouterr().out
+
+
+# B81 item 11: an id named twice in one act is refused, never silently overridden
+
+
+def test_an_id_named_twice_in_one_act_is_refused_and_nothing_is_written(tmp_path, capsys):
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = [it["decision_id"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]]
+    before = (tmp_path / "sheet.json").read_bytes(), (tmp_path / "sheet.md").read_bytes()
+    records_before = EvaluationRecordStore(tmp_path, create=False).list_records()
+    both = tmp_path / "both.csv"
+    both.write_text(f"decision_id,human_label,human_rationale\n{ids[0]},reject,no\n{ids[1]},accept,ok\n")
+    capsys.readouterr()
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[0], "accept", "--label-file", str(both),
+                                    "--by", "Jose")) == 2
+    assert f"decision ids named more than once in this act (by --label and a --label-file row, or by two rows): " \
+           f"{[ids[0]]}" in capsys.readouterr().out
+    rows = tmp_path / "rows.csv"
+    # an exact duplicate row is refused too: two concatenated files, one of them stale
+    rows.write_text(f"decision_id,human_label,human_rationale\n{ids[1]},accept,ok\n{ids[1]},accept,ok\n")
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(rows), "--by", "Jose")) == 2
+    assert f"{[ids[1]]}" in capsys.readouterr().out
+    assert ((tmp_path / "sheet.json").read_bytes(), (tmp_path / "sheet.md").read_bytes()) == before
+    assert EvaluationRecordStore(tmp_path, create=False).list_records() == records_before
+    # distinct ids combine in one act, one record
+    distinct = tmp_path / "distinct.csv"
+    distinct.write_text(f"decision_id,human_label,human_rationale\n{ids[0]},reject,no\n{ids[1]},accept,ok\n")
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[2], "accept", "--label-file", str(distinct),
+                                    "--by", "Jose")) == 0
+    labels = {it["decision_id"]: it["human_label"] for it in json.loads((tmp_path / "sheet.json").read_text())["items"]}
+    assert (labels[ids[0]], labels[ids[1]], labels[ids[2]]) == ("reject", "accept", "accept")
+    (rec,) = [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "labelling"]
+    assert rec["config"]["labels"] == {ids[2]: "accept", ids[0]: "reject", ids[1]: "accept"}
