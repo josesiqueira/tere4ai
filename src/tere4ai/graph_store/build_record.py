@@ -340,7 +340,7 @@ class BuildRecordStore:
 
     def set_publication(self, record_id: str, publication: dict[str, Any], *, run_id: str | None = None) -> None:
         """Freeze the record (D-G20). Refused under the record lock while an
-        execution other than run_id is live (B79 item 15); after the write this
+        execution other than run_id is live (B79 item 15); under the same lock this
         store object remembers run_id as the publisher, the one execution
         still allowed to end. With no run_id nothing is excluded and no
         execution may write after the publication."""
@@ -353,10 +353,15 @@ class BuildRecordStore:
                 raise LiveExecutionError(f"record {record_id} has a live running execution: {named}; "
                                          "wait for it to end or stop it before publishing")
             record["publication"] = publication
+            # Remembered under the lock, before the write (final review F1): a
+            # beat of the publishing run landing right after the lock is
+            # released must already see its run as the publisher. A failed
+            # write leaves the record unpublished, so the entry then allows
+            # nothing a live record would refuse.
+            if run_id is not None:
+                self._published_by[record_id] = run_id
 
         self._update(record_id, mutate)
-        if run_id is not None:
-            self._published_by[record_id] = run_id
 
     def set_base_build_id(self, record_id: str, base: str) -> None:
         self._update(record_id, lambda r: r.__setitem__("base_build_id", base))

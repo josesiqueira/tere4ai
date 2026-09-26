@@ -337,3 +337,26 @@ def test_publication_proceeds_over_a_running_execution_whose_heartbeat_expired(t
         store.finish_execution(rid, stale, status="done", usage={"generator": {"calls": 9}})
     ex = store.read(rid)["executions"][0]
     assert ex["status"] == "running" and ex["usage"] is None, "nothing written to the frozen record"
+
+
+def test_a_beat_right_after_the_publication_write_is_allowed_for_the_publisher(tmp_path, monkeypatch):
+    """Final review F1: the publisher is remembered under the record lock, so a
+    heartbeat that lands between the lock release and set_publication's
+    return never reads the record as frozen against its own run."""
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", "b", None)
+    publish = _start(store, rid, command="publish_layer23", covers_steps=["P.1", "P.2"], expected_total=None,
+                     work_unit=None, checkpoint_file=None)
+    original = store._update
+    beats: list[str] = []
+
+    def update_then_beat(record_id, mutate):
+        original(record_id, mutate)
+        if not beats and store.read(record_id)["publication"] is not None:
+            beats.append(publish)
+            store.heartbeat(record_id, publish)  # the heartbeat thread, in the window
+
+    monkeypatch.setattr(store, "_update", update_then_beat)
+    store.set_publication(rid, PUB, run_id=publish)
+    monkeypatch.undo()
+    store.finish_execution(rid, publish, status="done")

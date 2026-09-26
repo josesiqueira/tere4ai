@@ -84,6 +84,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   `lifecycle_phase_ids` now yields empty lists instead of keeping the
   model's text on a norm stamped `HUMAN_AUTHORED`; every slot of a human
   norm comes from the human's payload (B78 item 12).
+- `set_publication` records the publishing run under the record lock,
+  before the write, so a beat of the publish's own heartbeat landing just
+  after the write no longer reads the record as frozen against it and no
+  longer prints a false "heartbeat stopped" line (final review F1).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config
