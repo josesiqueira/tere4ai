@@ -34,3 +34,23 @@ def test_tools_list_serves_every_scoped_tool_exactly_once():
         "the served tool set must match the scope table in keys.py "
         "(every tool has exactly one scope, docs/PHASE2_DESIGN.md Section 3)"
     )
+
+
+def test_instructions_name_every_served_tool_and_every_paid_one():
+    # The instructions string is what every client receives at initialize.
+    # It named 9 of the 11 tools and left evaluate_project_evidence_batch
+    # out of the paid ones (found 2026-09-26 by the single-source docs
+    # research); a check on tools/list alone passed while this text was
+    # stale, so the text is checked against the served tools here.
+    instructions = server.mcp.instructions or ""
+    tools = asyncio.run(server.mcp.list_tools())
+    missing = [t.name for t in tools if t.name not in instructions]
+    assert missing == [], f"instructions do not name {missing}"
+    paid = sorted(
+        t.name for t in tools if t.annotations and t.annotations.open_world_hint
+    )
+    paid_sentence = instructions.split("Read-only;", 1)[1].split(
+        "perform paid", 1
+    )[0]
+    unnamed = [name for name in paid if name not in paid_sentence]
+    assert unnamed == [], f"the paid sentence does not name {unnamed}"

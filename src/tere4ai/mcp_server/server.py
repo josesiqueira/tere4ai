@@ -72,9 +72,11 @@ mcp = FastMCP(
         "(coverage_report, source_trace) plus explanation and trace tools "
         "(explain_requirement, trace_alignment, resolve_span) plus M3 "
         "runtime tools (classify_ai_system, get_applicable_requirements, "
-        "evaluate_project_evidence, generate_control_backlog). Read-only; "
-        "evaluate_project_evidence and generate_control_backlog perform paid "
-        "model calls. " + tools.NON_LEGAL_ADVICE_NOTICE
+        "trace_implementation, evaluate_project_evidence, "
+        "evaluate_project_evidence_batch, generate_control_backlog). "
+        "Read-only; evaluate_project_evidence, evaluate_project_evidence_batch "
+        "and generate_control_backlog perform paid model calls. "
+        + tools.NON_LEGAL_ADVICE_NOTICE
     ),
 )
 
