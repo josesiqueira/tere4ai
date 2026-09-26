@@ -289,7 +289,11 @@ estimate). `--dump-dir` is where `layer1.json`, `norms_core.json` and
 alike. The runner refuses (exit code 2) to resume a checkpoint that no
 record names unless `--resume-unrecorded` is given, the note then recorded.
 The runner refuses (exit code 2) to append to or rewrite a file whose bytes
-are a pinned July 2026 summary or checkpoint, `--no-record` or not. A draw over an active publication whose manifest lacks a role
+are a pinned July 2026 summary or checkpoint, `--no-record` or not.
+Without `--checkpoint` and `--summary` the runner writes both under
+`eval/results/runs/<record id>/`, a fresh directory per run; a resume passes
+`--checkpoint` explicitly, and a `--no-record` run must pass both.
+A draw over an active publication whose manifest lacks a role
 refuses with a sentence and exit code 2 unless `--norms`, `--alignments`
 or `--layer1` is given. The routes `GET /api/evaluations` (grouped by
 build identity, newest first, records without a date last, the group with

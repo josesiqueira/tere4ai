@@ -183,21 +183,42 @@ def _july(name: str) -> bytes:
     return (ROOT / "eval" / "results" / name).read_bytes()
 
 
-def test_a_default_path_resume_over_the_july_checkpoint_bytes_refuses_and_records_nothing(runner, monkeypatch,
-                                                                                         tmp_path, capsys):
+# B81 item 20: the defaults no longer name the July files; an explicit July
+# path is still refused
+def test_a_default_run_writes_a_fresh_directory_and_never_touches_the_july_files(runner, tmp_path):
     results = tmp_path / "results"
     results.mkdir()
-    ckpt, summary = results / "ablation_checkpoint.jsonl", results / "ablation_summary.json"
+    july = results / "ablation_checkpoint.jsonl"
+    july.write_bytes(_july("ablation_checkpoint.jsonl"))
+    assert runner.main(["--dump-dir", str(tmp_path)]) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    run_dir = results / "runs" / rec["record_id"]
+    assert (run_dir / "ablation_checkpoint.jsonl").is_file() and (run_dir / "ablation_summary.json").is_file()
+    assert (run_dir / "ablation_checkpoint.jsonl.record").is_file(), "the sidecar sits beside its checkpoint"
+    assert rec["config"]["checkpoint_file"] == "ablation_checkpoint.jsonl"
+    assert july.read_bytes() == _july("ablation_checkpoint.jsonl")
+    # a second default run is fresh: it resumes nothing
+    assert runner.main(["--dump-dir", str(tmp_path)]) == 0
+    second = next(r for r in EvaluationRecordStore(tmp_path, create=False).list_records()
+                  if r["record_id"] != rec["record_id"])
+    assert second["relations"]["resumes_record_id"] is None and second["counts"]["units_resumed"] == 0
+
+
+def test_an_explicit_july_checkpoint_path_is_still_refused(runner, tmp_path, capsys):
+    results = tmp_path / "results"
+    results.mkdir()
+    ckpt = results / "ablation_checkpoint.jsonl"
     ckpt.write_bytes(_july("ablation_checkpoint.jsonl"))
-    monkeypatch.setattr(runner, "CHECKPOINT", ckpt)
-    monkeypatch.setattr(runner, "SUMMARY", summary)
-    for extra in ((), ("--resume-unrecorded",), ("--no-record",)):
-        assert runner.main(["--dump-dir", str(tmp_path), *extra]) == 2
-        assert (f"refusing to write {ckpt}: its bytes are the July 2026 measurement; pass --summary or "
-                "--checkpoint with another path") in capsys.readouterr().out
-    assert ckpt.read_bytes() == _july("ablation_checkpoint.jsonl") and not summary.exists()
-    assert not (tmp_path / "evaluation_records").exists() or EvaluationRecordStore(
-        tmp_path, create=False).list_records() == []
+    for extra in ((), ("--resume-unrecorded",)):
+        assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(ckpt), *extra]) == 2
+        assert f"refusing to write {ckpt}: its bytes are the July 2026 measurement" in capsys.readouterr().out
+    assert ckpt.read_bytes() == _july("ablation_checkpoint.jsonl")
+
+
+def test_a_no_record_run_must_name_both_paths(runner, tmp_path, capsys):
+    assert runner.main(["--dump-dir", str(tmp_path), "--no-record"]) == 2
+    assert "pass --checkpoint and --summary" in capsys.readouterr().out
+    assert not (tmp_path / "results" / "runs").exists()
 
 
 def test_a_summary_target_holding_the_july_bytes_refuses(runner, tmp_path, capsys):

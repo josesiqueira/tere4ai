@@ -8,8 +8,8 @@ REF-15 benchmark sample, in checkpointed (strategy, item-batch) units, so a
 crash never loses more than one batch (the lesson of the lost extraction run).
 Resume by re-running: completed units are skipped; the sidecar
 <checkpoint>.record names the record a resume continues (DEC-17). After the
-sweep, computes the Section 12 metrics per strategy and writes
-eval/results/ablation_summary.json.
+sweep, computes the Section 12 metrics per strategy and writes the summary
+to --summary, by default eval/results/runs/<record id>/ablation_summary.json.
 
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
@@ -46,8 +46,13 @@ from tere4ai.graph_store.present import exception_reason  # noqa: E402
 from tere4ai.judge.config import load_model_config  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
-CHECKPOINT = RESULTS_DIR / "ablation_checkpoint.jsonl"
-SUMMARY = RESULTS_DIR / "ablation_summary.json"
+# B81 item 20: an omitted path lands in a fresh directory named after the
+# run's record, so a default run never resumes, never appends to and never
+# rewrites another run's files (the July measurement included); a resume
+# names its checkpoint explicitly.
+RUNS_DIRNAME = "runs"
+CHECKPOINT_NAME = "ablation_checkpoint.jsonl"
+SUMMARY_NAME = "ablation_summary.json"
 BATCH_SIZE = 10
 # the pinned July summaries and checkpoints: never appended to, never rewritten
 JULY_PROTECTED = frozenset(JULY_DIGESTS.values()) | frozenset(JULY_CHECKPOINT_DIGESTS.values())
@@ -173,8 +178,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="benchmark payload (default: the frozen sample)")
     parser.add_argument("--features", type=Path, default=None,
                         help="elicited-features cache (default: run-2 file)")
-    parser.add_argument("--checkpoint", type=Path, default=CHECKPOINT)
-    parser.add_argument("--summary", type=Path, default=SUMMARY)
+    parser.add_argument("--checkpoint", type=Path, default=None,
+                        help="checkpoint to write or resume (default: a fresh "
+                             "eval/results/runs/<record id>/ablation_checkpoint.jsonl)")
+    parser.add_argument("--summary", type=Path, default=None,
+                        help="summary to write (default: eval/results/runs/<record id>/ablation_summary.json)")
     parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps",
                         help="where layer1.json, norms_core.json and evaluation_records/ live")
     parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
@@ -185,9 +193,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.repeat_of is not None and args.no_record:
         print("--repeat-of: a --no-record run records no relation; drop one of the two flags")
         return 2
+    if args.no_record and (args.checkpoint is None or args.summary is None):
+        print("refusing to run: a --no-record run has no record id to name its directory; "
+              "pass --checkpoint and --summary")
+        return 2
     checkpoint_path, summary_path = args.checkpoint, args.summary
     # the July files are protected whether or not the run records (F1)
-    for target in (checkpoint_path, summary_path):
+    for target in (p for p in (checkpoint_path, summary_path) if p is not None):
         refusal = _july_refusal(target)
         if refusal is not None:
             print(refusal)
@@ -211,7 +223,7 @@ def main(argv: list[str] | None = None) -> int:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     done: set[str] = set()
     unit_results: list[dict] = []
-    if checkpoint_path.exists():
+    if checkpoint_path is not None and checkpoint_path.exists():
         for line in checkpoint_path.read_text(encoding="utf-8").splitlines():
             entry = json.loads(line)
             done.add(entry["unit"])
@@ -270,8 +282,12 @@ def main(argv: list[str] | None = None) -> int:
                 "metrics_version": METRICS_VERSION, "code_version": code_version(ROOT), "mode": "live"},
             item_selection=[i["id"] for i in items], intended_items=[i["id"] for i in items],
             relations={"repeat_of": args.repeat_of, "resumes_record_id": resumes},
-            counts={"units_resumed": len(done)}, checkpoint_file=checkpoint_path.name,
+            counts={"units_resumed": len(done)},
+            checkpoint_file=(checkpoint_path.name if checkpoint_path is not None else CHECKPOINT_NAME),
         )
+        run_dir = RESULTS_DIR / RUNS_DIRNAME / record_id
+        checkpoint_path = checkpoint_path or run_dir / CHECKPOINT_NAME
+        summary_path = summary_path or run_dir / SUMMARY_NAME
 
     generator = judge = None
     units_run = 0
@@ -476,6 +492,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             summary["strategies"][strategy_name] = s
 
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
         tmp = summary_path.with_suffix(".writing.json")
         tmp.write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
         tmp.replace(summary_path)

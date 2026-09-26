@@ -74,6 +74,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   writers refuse `--repeat-of` with `--no-record` (B81 items 19 and 10).
 - The per-item `error` strings in the harness's results artifact and the
   runner's checkpoint name files, never paths (B81 item 24).
+- `scripts/run_ablations.py` no longer defaults to the July files: an
+  omitted `--checkpoint` or `--summary` lands in
+  `eval/results/runs/<record id>/`, a fresh directory per run, so a default
+  invocation runs instead of refusing and can never resume or rewrite
+  another run's files; a `--no-record` run must name both paths (B81 item
+  20).
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config
