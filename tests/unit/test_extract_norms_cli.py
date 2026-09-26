@@ -39,7 +39,8 @@ def _fakes(monkeypatch, cli, calls, results=None):
     class FakeClient:
         sampling = "provider default (rejected by the model)"
         effort = "xhigh"
-        usage = {"calls": 2, "input_tokens": 10, "output_tokens": 5}
+        usage = {"calls": 2, "input_tokens": 10, "output_tokens": 5, "requests_sent": 3,
+                 "replies_with_usage": 2}
 
     monkeypatch.setattr(cli, "extract_norms", fake_extract)
     monkeypatch.setattr(cli, "load_model_config", lambda: FakeCfg())
@@ -116,7 +117,10 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     assert ex["sampling"] == {"generator": "provider default (rejected by the model)", "judge": "provider default (rejected by the model)",
                               "generator_effort": "xhigh", "judge_effort": "xhigh"}
     assert ex["usage"]["judge"]["calls"] == 2
+    # B91: the two counts reach the record and the manifest through the same clients
+    assert ex["usage"]["generator"]["requests_sent"] == 3 and ex["usage"]["generator"]["replies_with_usage"] == 2
     payload = json.loads(out.read_text())
+    assert payload["build"]["extraction_usage"]["judge"]["requests_sent"] == 3
     assert payload["build"]["extraction_effort"] == {"generator": "xhigh", "judge": "xhigh"}
     assert payload["build"]["extraction_models"]["judge_effort"] == "xhigh"
     assert ex["counts"]["candidates"] == 2 and ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0}

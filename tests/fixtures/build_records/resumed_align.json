@@ -119,12 +119,16 @@
     "generator": {
      "calls": 3,
      "input_tokens": 1200,
-     "output_tokens": 340
+     "output_tokens": 340,
+     "replies_with_usage": 3,
+     "requests_sent": 4
     },
     "judge": {
      "calls": 3,
      "input_tokens": 900,
-     "output_tokens": 210
+     "output_tokens": 210,
+     "replies_with_usage": 3,
+     "requests_sent": 3
     }
    },
    "work_failures": null,
@@ -253,12 +257,16 @@
     "generator": {
      "calls": 2,
      "input_tokens": 800,
-     "output_tokens": 230
+     "output_tokens": 230,
+     "replies_with_usage": 2,
+     "requests_sent": 2
     },
     "judge": {
      "calls": 2,
      "input_tokens": 600,
-     "output_tokens": 140
+     "output_tokens": 140,
+     "replies_with_usage": 2,
+     "requests_sent": 2
     }
    },
    "work_failures": {

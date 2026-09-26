@@ -76,3 +76,27 @@ def test_fixtures_are_byte_stable_against_the_presenter():
     produced = regenerate()
     for name, text in produced.items():
         assert (FIXTURES / name).read_text(encoding="utf-8") == text, f"{name} drifted: run python -m tests.fixtures.build_records.regenerate and commit"
+
+
+def test_the_usage_of_a_role_documents_the_two_completeness_counts():
+    """B91 (spec F D-F26 (g)): requests sent and replies with usage, optional so older records validate."""
+    schema = _schema()
+    role = schema["$defs"]["role_usage"]
+    assert set(role["properties"]) == {"calls", "input_tokens", "output_tokens", "requests_sent",
+                                       "replies_with_usage"}
+    assert role.get("required", []) == []
+    for definition in ("execution", "presented_execution"):
+        assert schema["$defs"][definition]["properties"]["usage"] == {"$ref": "#/$defs/usage_by_role"}
+    by_role = validator_for("usage_by_role")
+    assert not list(by_role.iter_errors(None))
+    assert not list(by_role.iter_errors({"generator": {"calls": 1}, "judge": {}}))
+    assert list(by_role.iter_errors({"generator": {"requests_sent": -1}}))
+    assert list(by_role.iter_errors({"generator": 3}))
+
+
+def test_the_resumed_align_mock_data_carries_an_incomplete_failed_attempt():
+    resumed = json.loads((FIXTURES / "resumed_align.json").read_text())
+    failed, done = (e for e in resumed["executions"] if e["command"] == "align_hleg")
+    assert failed["usage"]["generator"]["requests_sent"] == 4
+    assert failed["usage"]["generator"]["replies_with_usage"] == 3
+    assert done["usage"]["judge"]["requests_sent"] == done["usage"]["judge"]["replies_with_usage"] == 2

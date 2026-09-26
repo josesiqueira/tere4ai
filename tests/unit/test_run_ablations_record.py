@@ -28,12 +28,16 @@ def _load():
 class _Client:
     """A model client double: usage and sampling like the real ones, canned replies."""
 
+    # B91: the double counts like the real clients
     def __init__(self, reply, sampling="stub"):
         self.reply, self.sampling = reply, sampling
-        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0}
+        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "requests_sent": 0,
+                      "replies_with_usage": 0}
 
     def complete(self, *args, **kwargs):
+        self.usage["requests_sent"] += 1
         self.usage["calls"] += 1
+        self.usage["replies_with_usage"] += 1
         self.usage["input_tokens"] += 3
         self.usage["output_tokens"] += 1
         return self.reply
@@ -368,3 +372,40 @@ def test_the_features_cache_is_recorded_only_when_the_run_read_one(runner, tmp_p
     features = [i for i in rec2["inputs"] if i["role"] == "features"]
     assert len(features) == 1 and features[0]["file"] == "benchmark_features.json"
     assert "no elicited-features cache was read" not in rec2["notes"]
+
+
+def test_the_summary_sums_the_two_counts_and_drops_them_when_a_unit_lacks_them(runner, tmp_path):
+    assert runner.main(_argv(tmp_path)) == 0
+    summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
+    by_role = summary["usage_provider_reported"]["by_role"]
+    assert by_role["generator"]["requests_sent"] == 2 and by_role["generator"]["replies_with_usage"] == 2
+    # a checkpoint unit written before B91 carries no counts: the aggregate cannot know them
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
+    for entry in lines:
+        for role in entry["usage"].values():
+            role.pop("requests_sent", None)
+            role.pop("replies_with_usage", None)
+    old = tmp_path / "results" / "old_checkpoint.jsonl"
+    old.write_text("".join(json.dumps(e) + "\n" for e in lines))
+    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(old), "--summary",
+                        str(tmp_path / "results" / "old_summary.json"), "--resume-unrecorded"]) == 0
+    old_by_role = json.loads((tmp_path / "results" / "old_summary.json").read_text())[
+        "usage_provider_reported"]["by_role"]
+    assert "requests_sent" not in old_by_role["generator"] and old_by_role["generator"]["calls"] == 2
+
+
+def test_a_unit_without_any_usage_drops_the_counts_too(runner, monkeypatch, tmp_path):
+    """Review fix C4: a unit checkpointed before usage tracking leaves the whole
+    aggregate incomplete, so no role may keep counts that read complete (R5)."""
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    assert runner.main(_argv(tmp_path)) == 0
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
+    del lines[0]["usage"]
+    mixed = tmp_path / "results" / "mixed_checkpoint.jsonl"
+    mixed.write_text("".join(json.dumps(e) + "\n" for e in lines))
+    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(mixed), "--summary",
+                        str(tmp_path / "results" / "mixed_summary.json"), "--resume-unrecorded"]) == 0
+    usage = json.loads((tmp_path / "results" / "mixed_summary.json").read_text())["usage_provider_reported"]
+    assert usage["units_without_usage"] == 1 and "requests_sent" not in usage["by_role"]["generator"]

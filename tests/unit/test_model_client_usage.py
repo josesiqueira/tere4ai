@@ -52,13 +52,18 @@ def test_generator_accumulates_provider_counts():
     )
     assert gen.complete("s", "u") == "a"
     assert gen.complete("s", "u") == "b"
-    assert gen.usage == {"calls": 2, "input_tokens": 150, "output_tokens": 25}
+    # B91: the usage record also counts requests sent and replies with usage
+    assert gen.usage == {"calls": 2, "input_tokens": 150, "output_tokens": 25,
+                         "requests_sent": 2, "replies_with_usage": 2}
 
 
 def test_generator_without_usage_block_counts_only_the_call():
     gen = _generator_with([_openai_response("a")])
     gen.complete("s", "u")
-    assert gen.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0}
+    # B91: the usage record also counts requests sent and replies with usage
+    # (no usage block: sent and answered, but not reported)
+    assert gen.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
+                         "requests_sent": 1, "replies_with_usage": 0}
 
 
 def _anthropic_response(text: str, input_tokens=None, output_tokens=None):
@@ -88,13 +93,18 @@ def test_judge_accumulates_provider_counts():
     )
     assert judge.complete("s", "u") == "v"
     assert judge.complete("s", "u") == "w"
-    assert judge.usage == {"calls": 2, "input_tokens": 210, "output_tokens": 41}
+    # B91: the usage record also counts requests sent and replies with usage
+    assert judge.usage == {"calls": 2, "input_tokens": 210, "output_tokens": 41,
+                           "requests_sent": 2, "replies_with_usage": 2}
 
 
 def test_judge_without_usage_block_counts_only_the_call():
     judge = _judge_with([_anthropic_response("v")])
     judge.complete("s", "u")
-    assert judge.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0}
+    # B91: the usage record also counts requests sent and replies with usage
+    # (no usage block: sent and answered, but not reported)
+    assert judge.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
+                           "requests_sent": 1, "replies_with_usage": 0}
 
 
 # B74: current-generation models reject sampling parameters. A rejection is
@@ -458,3 +468,66 @@ def test_generator_propagates_on_the_fourth_call_when_a_fourth_parameter_is_reje
         gen.complete("s", "u")
     assert "rate limited" in str(exc_info.value)
     assert len(transport.calls) == 4
+
+
+# B91 (spec F D-F26 (g)): a total must tell complete from incomplete, so the
+# clients count the requests they sent and the replies that reported usage.
+
+
+def test_generator_counts_a_request_that_raises_after_send():
+    transport = _Rejecting({"model": "503 upstream overloaded"}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport)
+    with pytest.raises(RuntimeError, match="overloaded"):
+        gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 1 and gen.usage["replies_with_usage"] == 0
+    assert gen.usage["calls"] == 0
+
+
+def test_judge_counts_a_request_that_raises_after_send():
+    transport = _Rejecting({"model": "529 overloaded"}, _anthropic_response("v", 2, 1))
+    judge = _judge_over(transport)
+    with pytest.raises(RuntimeError, match="overloaded"):
+        judge.complete("s", "u")
+    assert judge.usage["requests_sent"] == 1 and judge.usage["replies_with_usage"] == 0
+
+
+def test_a_learned_rejection_is_not_a_request_sent():
+    # the SDK or the model refused a parameter before any generation: nothing billed
+    transport = _Rejecting({"temperature": "temperature is not supported"}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport)
+    gen.complete("s", "u")
+    assert len(transport.calls) == 2
+    assert gen.usage["requests_sent"] == 1 and gen.usage["replies_with_usage"] == 1
+
+
+def test_generator_counts_an_interrupted_request_as_sent():
+    class _Interrupting:
+        def create(self, **kwargs):
+            raise KeyboardInterrupt
+    gen = _generator_over(_Interrupting())
+    with pytest.raises(KeyboardInterrupt):
+        gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 1 and gen.usage["calls"] == 0
+
+
+def test_a_usage_block_without_both_token_figures_is_not_a_reported_reply():
+    response = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content="a"))],
+        usage=SimpleNamespace(prompt_tokens=12, completion_tokens=None),
+    )
+    gen = _generator_with([response])
+    gen.complete("s", "u")
+    assert gen.usage["replies_with_usage"] == 0 and gen.usage["input_tokens"] == 12
+    assert gen.usage["requests_sent"] == 1
+
+
+def test_usage_since_is_the_difference_and_none_without_a_record():
+    from tere4ai.extract_norms.model_clients import usage_since, usage_snapshot
+
+    gen = _generator_with([_openai_response("a", 100, 20), _openai_response("b", 50, 5)])
+    gen.complete("s", "u")
+    before = usage_snapshot(gen)
+    gen.complete("s", "u")
+    assert usage_since(gen, before) == {"calls": 1, "input_tokens": 50, "output_tokens": 5,
+                                        "requests_sent": 1, "replies_with_usage": 1}
+    assert usage_snapshot(object()) is None and usage_since(object(), None) is None

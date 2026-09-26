@@ -33,6 +33,24 @@
       },
       "required": ["nodes_failed", "norms_failed"]
     },
+    "role_usage": {
+      "description": "One model role's usage over one execution (spec F D-F26 (g)): provider-reported token sums, replies received (calls), requests sent and replies that reported usage. requests_sent greater than replies_with_usage means some request may have been billed without a figure. Records made before 2026-09-26 carry only the first three.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "calls": {"type": "integer", "minimum": 0},
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "requests_sent": {"type": "integer", "minimum": 0},
+        "replies_with_usage": {"type": "integer", "minimum": 0}
+      }
+    },
+    "usage_by_role": {
+      "anyOf": [
+        {"type": "null"},
+        {"type": "object", "additionalProperties": {"$ref": "#/$defs/role_usage"}}
+      ]
+    },
     "gating": {
       "type": "object",
       "additionalProperties": false,
@@ -99,7 +117,7 @@
         "models": {"type": ["object", "null"], "additionalProperties": true},
         "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
         "sampling": {"type": ["object", "null"], "additionalProperties": true},
-        "usage": {"type": ["object", "null"], "additionalProperties": true},
+        "usage": {"$ref": "#/$defs/usage_by_role"},
         "checkpoint_file": {"type": ["string", "null"]},
         "work_unit": {"enum": ["groups", "batches", null]},
         "expected_total": {"type": ["integer", "null"]},
@@ -149,7 +167,7 @@
         "models": {"type": ["object", "null"], "additionalProperties": true},
         "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
         "sampling": {"type": ["object", "null"], "additionalProperties": true},
-        "usage": {"type": ["object", "null"], "additionalProperties": true},
+        "usage": {"$ref": "#/$defs/usage_by_role"},
         "checkpoint_file": {"type": ["string", "null"]},
         "work_unit": {"enum": ["groups", "batches", null]},
         "expected_total": {"type": ["integer", "null"]},

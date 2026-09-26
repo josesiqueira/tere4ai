@@ -28,8 +28,31 @@ class ModelClient(Protocol):
         ...
 
 
+# B91 (spec F D-F26 (g)): beside the provider-reported token sums, every
+# client counts the requests it sent and the replies that reported usage,
+# so a total can say whether it is complete: sent > with usage means some
+# request may have been billed without a figure. A parameter rejection the
+# client learns from (temperature, JSON mode, effort) is not counted: it was
+# refused before any generation.
+USAGE_KEYS = ("calls", "input_tokens", "output_tokens", "requests_sent", "replies_with_usage")
+
+
 def _new_usage() -> dict[str, int]:
-    return {"calls": 0, "input_tokens": 0, "output_tokens": 0}
+    return {key: 0 for key in USAGE_KEYS}
+
+
+def usage_snapshot(client: object) -> dict[str, int] | None:
+    """A copy of the client's usage record, or None for a client without one (a stub)."""
+    usage = getattr(client, "usage", None)
+    return dict(usage) if isinstance(usage, dict) else None
+
+
+def usage_since(client: object, before: dict[str, int] | None) -> dict[str, int] | None:
+    """The client's usage since the snapshot `before`; None when either side is missing."""
+    now = usage_snapshot(client)
+    if now is None or before is None:
+        return None
+    return {key: now.get(key, 0) - before.get(key, 0) for key in now}
 
 
 # B74 (2026-09-16): current-generation models on both providers reject
@@ -105,6 +128,25 @@ class _SamplingRecord:
         else:
             self._replies_without_effort += 1
 
+    def _count_sent(self) -> None:
+        self.usage["requests_sent"] = self.usage.get("requests_sent", 0) + 1
+
+    def _count_reply(self, reported: object, input_field: str, output_field: str) -> None:
+        """One reply received: add the provider's token figures; count the reply as
+        reporting usage only when both figures are integers (a partial block is
+        not a complete report)."""
+        self.usage["calls"] += 1
+        if reported is None:
+            return
+        input_tokens = getattr(reported, input_field, None)
+        output_tokens = getattr(reported, output_field, None)
+        if isinstance(input_tokens, int):
+            self.usage["input_tokens"] += input_tokens
+        if isinstance(output_tokens, int):
+            self.usage["output_tokens"] += output_tokens
+        if isinstance(input_tokens, int) and isinstance(output_tokens, int):
+            self.usage["replies_with_usage"] = self.usage.get("replies_with_usage", 0) + 1
+
     @property
     def effort_requested(self) -> str | None:
         return self._effort_requested
@@ -127,10 +169,9 @@ class OpenAIGenerator(_SamplingRecord):
 
     Asks for temperature 0 and JSON mode; each is dropped only after the
     model itself rejects it, and stays dropped for the client's lifetime.
-    .usage accumulates provider-reported token counts across the client's
-    lifetime (Section 13 observability); callers snapshot it to attribute
-    spend to a unit of work. Counts are the provider's own numbers, never
-    estimated here; a response without a usage block adds only to calls.
+    .usage accumulates provider-reported token counts plus requests_sent
+    and replies_with_usage (spec F D-F26 (g)); a response without a
+    complete usage block adds to calls and requests_sent only.
     """
 
     def __init__(self, cfg: ModelConfig):
@@ -162,7 +203,6 @@ class OpenAIGenerator(_SamplingRecord):
             kwargs = self._request_kwargs(messages)
             try:
                 response = self._client.chat.completions.create(**kwargs)
-                break
             except Exception as exc:  # noqa: BLE001
                 message = str(exc)
                 learned = False
@@ -176,16 +216,19 @@ class OpenAIGenerator(_SamplingRecord):
                     self._effort_rejected = True
                     learned = True
                 if not learned:
+                    self._count_sent()  # it may have been billed; it reported nothing
                     raise
+                continue
+            except BaseException:
+                self._count_sent()  # an interrupt mid-request: the request may have been billed
+                raise
+            self._count_sent()
+            break
         if response is None:  # pragma: no cover - three rejections at most
             raise RuntimeError("model request could not be formed")
         self._record_reply(with_temperature="temperature" in kwargs)
         self._record_effort(with_effort="reasoning_effort" in kwargs)
-        self.usage["calls"] += 1
-        reported = getattr(response, "usage", None)
-        if reported is not None:
-            self.usage["input_tokens"] += getattr(reported, "prompt_tokens", 0) or 0
-            self.usage["output_tokens"] += getattr(reported, "completion_tokens", 0) or 0
+        self._count_reply(getattr(response, "usage", None), "prompt_tokens", "completion_tokens")
         return response.choices[0].message.content or ""
 
 
@@ -197,8 +240,11 @@ class AnthropicJudge(_SamplingRecord):
     because current Claude models think before answering and the thinking
     counts against max_tokens: the former 2048 would have truncated the
     judge's JSON mid-rationale. Only text blocks are returned; thinking
-    blocks (empty by default) are skipped. .usage: same provider-reported
-    accounting as OpenAIGenerator (thinking tokens are inside output_tokens).
+    blocks (empty by default) are skipped. .usage accumulates
+    provider-reported token counts plus requests_sent and
+    replies_with_usage (spec F D-F26 (g)); a response without a complete
+    usage block adds to calls and requests_sent only (thinking tokens are
+    inside output_tokens).
     """
 
     def __init__(self, cfg: ModelConfig, max_tokens: int = 16000):
@@ -230,7 +276,6 @@ class AnthropicJudge(_SamplingRecord):
             kwargs = self._request_kwargs(system, user)
             try:
                 response = self._client.messages.create(**kwargs)
-                break
             except Exception as exc:  # noqa: BLE001
                 message = str(exc)
                 learned = False
@@ -241,16 +286,19 @@ class AnthropicJudge(_SamplingRecord):
                     self._effort_rejected = True
                     learned = True
                 if not learned:
+                    self._count_sent()  # it may have been billed; it reported nothing
                     raise
+                continue
+            except BaseException:
+                self._count_sent()  # an interrupt mid-request: the request may have been billed
+                raise
+            self._count_sent()
+            break
         if response is None:  # pragma: no cover - two rejections at most
             raise RuntimeError("model request could not be formed")
         self._record_reply(with_temperature="temperature" in kwargs)
         self._record_effort(with_effort="output_config" in kwargs)
-        self.usage["calls"] += 1
-        reported = getattr(response, "usage", None)
-        if reported is not None:
-            self.usage["input_tokens"] += getattr(reported, "input_tokens", 0) or 0
-            self.usage["output_tokens"] += getattr(reported, "output_tokens", 0) or 0
+        self._count_reply(getattr(response, "usage", None), "input_tokens", "output_tokens")
         return "".join(
             block.text for block in response.content if getattr(block, "type", "") == "text"
         )

@@ -316,16 +316,27 @@ def main(argv: list[str] | None = None) -> int:
         # count is surfaced instead of silently under-reporting spend
         usage_total: dict[str, dict[str, int]] = {}
         units_without_usage = 0
+        # B91: a unit written before the two completeness counts existed leaves
+        # its role's aggregate without them (completeness not recorded), never
+        # a partial count that would read as complete
+        roles_missing_counts: set[str] = set()
         for entry in unit_results:
             if "usage" not in entry:
                 units_without_usage += 1
                 continue
             for role, counts in entry["usage"].items():
-                bucket = usage_total.setdefault(
-                    role, {"calls": 0, "input_tokens": 0, "output_tokens": 0}
-                )
+                bucket = usage_total.setdefault(role, {})
                 for k, v in counts.items():
-                    bucket[k] += v
+                    bucket[k] = bucket.get(k, 0) + v
+                if not {"requests_sent", "replies_with_usage"} <= set(counts):
+                    roles_missing_counts.add(role)
+        # a unit with no usage block at all (units_without_usage) makes every
+        # role's total incomplete: the counts go for every role (review fix C4)
+        if units_without_usage:
+            roles_missing_counts.update(usage_total)
+        for role in roles_missing_counts:
+            usage_total[role].pop("requests_sent", None)
+            usage_total[role].pop("replies_with_usage", None)
 
         # metrics per strategy against gold labels where present
         gold_items = [i for i in items if i.get("gold") or i.get("gold_citations")]

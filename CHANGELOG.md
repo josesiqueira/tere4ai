@@ -5,6 +5,20 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
+- The generator and judge clients count, per role and beside `calls`,
+  `input_tokens` and `output_tokens`, the requests they sent
+  (`requests_sent`, including a request that raised after the SDK was
+  called, an interrupt included) and the replies whose usage block carried
+  both token figures (`replies_with_usage`). A parameter rejection the
+  client learns from is not a request sent. A total whose `requests_sent`
+  exceeds its `replies_with_usage` is incomplete.
+- The extraction and alignment build records and manifests carry the two
+  counts through the same clients; `build_record.schema.json` documents
+  them as `role_usage` (optional, so older records still validate). The
+  ablation summary sums them and drops them for a role when any unit lacks
+  them, and for every role when a unit carries no usage block at all.
+
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config
   values from the closed vocabulary `EFFORT_LEVELS` (`low, medium, high,
