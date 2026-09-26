@@ -124,6 +124,20 @@ def _main(argv: list[str] | None = None) -> int:
         return 2
 
     dump_dir = Path(args.dump_dir or args.norms.parent)
+    # Every --manifest must be a file in the dump dir, checked before any
+    # record is resolved (B97 item 3): a typo'd or misplaced manifest used to
+    # skip the early double-publish check below, so a published record
+    # continued as a descendant and the alias moved before the evidence step
+    # refused. Nothing is recorded: no build was touched.
+    missing = [str(m) for m in args.manifest if not m.is_file()]
+    if missing:
+        print(f"NOT published: freeze manifest not found: {', '.join(missing)}", file=sys.stderr)
+        return 1
+    for m in args.manifest:
+        if m.resolve().parent != dump_dir.resolve():
+            print(f"NOT published: copy the freeze manifest {m.name} into {dump_dir} first; "
+                  "publication names its inputs by file under that directory", file=sys.stderr)
+            return 1
     layer1 = json.loads(args.dump.read_text(encoding="utf-8"))
     norms_payload = json.loads(args.norms.read_text(encoding="utf-8"))
     alignments_payload = json.loads(args.alignments.read_text(encoding="utf-8")) if args.alignments else None
@@ -135,11 +149,11 @@ def _main(argv: list[str] | None = None) -> int:
     if record_id is None:
         print("NOT published: no build record produced this norms file; pass --record", file=sys.stderr)
         return 1
-    if not args.gates_only and all(m.is_file() for m in args.manifest):
+    if not args.gates_only:
         # The chain id is a function of the input digests (Section 13): identical
         # inputs published already are refused here, before a published record
         # continues as a descendant and the alias moves to it (final review A6).
-        # A missing manifest is left to the evidence step, which names it.
+        # Every manifest exists here (checked above, B97 item 3).
         early_chain = build_chain(args.dump, args.norms, alignments_path=args.alignments,
                                   manifest_paths=args.manifest or None)
         if ((dump_dir / f"build_chain_{early_chain['chain_id']}.json").exists()
@@ -171,8 +185,7 @@ def _main(argv: list[str] | None = None) -> int:
     if args.alignments:
         inputs.append({"role": "alignments", "file": args.alignments.name, "sha256": sha256_of_file(args.alignments)})
     for m in args.manifest:
-        if m.is_file():
-            inputs.append({"role": "freeze_manifest", "file": m.name, "sha256": sha256_of_file(m)})
+        inputs.append({"role": "freeze_manifest", "file": m.name, "sha256": sha256_of_file(m)})
     steps = ["P.1"] if args.gates_only else ["P.1", "P.2"]
     run_id = store.start_execution(record_id, command="publish_layer23", covers_steps=steps, argv=raw_argv,
                                    inputs=inputs, config={"gates_only": args.gates_only}, expected_total=None,
@@ -222,10 +235,6 @@ def _main(argv: list[str] | None = None) -> int:
             # of kind alignments (an older file may carry a copied norms marker).
             references = [ref for ref, kind in ((_reference(norms_payload), "norms"), (_reference(alignments_payload), "alignments"))
                           if ref is not None and ref.get("kind") == kind]
-            for m in args.manifest:
-                if m.resolve().parent != dump_dir.resolve():
-                    return fail(f"NOT published: copy the freeze manifest {m.name} into {dump_dir} first; "
-                                "publication names its inputs by file under that directory")
             try:
                 manifests = [verify_freeze_manifest(json.loads(m.read_text(encoding="utf-8")), None,
                                                     expected_pinned_build_id=None) for m in args.manifest]

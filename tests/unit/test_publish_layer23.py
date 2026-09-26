@@ -562,3 +562,27 @@ def test_a_sigterm_during_the_load_ends_the_publish_failed_and_neo4j_unavailable
     assert read_target_state(tmp_path)["state"] == "unavailable"
     ex = store.read(rid)["executions"][-1]
     assert ex["status"] == "failed" and "SIGTERM" in ex["error"]
+
+
+def test_a_missing_or_misplaced_manifest_is_refused_before_the_record_is_touched(tmp_path, monkeypatch, capsys):
+    """B97 item 3: a typo'd --manifest used to skip the early double-publish
+    check, so a published record continued as a descendant and the alias
+    moved before the evidence step refused."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    args = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+    assert cli.main(args) == 0
+    records_before = sorted(r["record_id"] for r in store.list_records())
+    record_before = store.read(rid)
+    typo = tmp_path / "freze-f1.json"
+    (tmp_path / "elsewhere").mkdir()
+    outside = tmp_path / "elsewhere" / "freeze-f1.json"
+    outside.write_text("{}")
+    capsys.readouterr()
+    assert cli.main([*args, "--manifest", str(typo)]) == 1
+    assert f"NOT published: freeze manifest not found: {typo}" in capsys.readouterr().err
+    assert cli.main([*args, "--manifest", str(outside)]) == 1
+    assert f"copy the freeze manifest {outside.name} into {tmp_path} first" in capsys.readouterr().err
+    assert sorted(r["record_id"] for r in store.list_records()) == records_before, "no descendant record"
+    assert store.resolve("core") == rid and store.read(rid) == record_before

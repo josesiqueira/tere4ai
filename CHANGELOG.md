@@ -32,6 +32,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   no way out short of a `--force` re-draw. A new sheet's instructions name
   the label act instead of asking for labels typed into the JSON
   (B81 item 34).
+- `publish_layer23` refuses (exit code 1, nothing recorded) a `--manifest`
+  that does not exist or lies outside the dump dir before it resolves the
+  build record. A typo'd manifest used to skip the early double-publish
+  check, so a published record continued as a descendant and its alias
+  moved before the evidence step refused (B97 item 3).
 
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,
