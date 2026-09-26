@@ -26,6 +26,10 @@ by having a plan. Every safeguard is behavioral:
   There is no max_norms parameter and no truncation path; a call the
   generator or judge cannot serve fails loudly (a degraded envelope or an
   error), never with a shorter input.
+- The answer names the generator's model id and effort and both roles'
+  usage for this call (spec F D-F26 (g)), degraded answers after the first
+  request included, so the cost of a generation is recorded wherever the
+  envelope is stored.
 """
 
 from __future__ import annotations
@@ -34,7 +38,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tere4ai.extract_norms.model_clients import ModelClient
+from tere4ai.extract_norms.model_clients import ModelClient, usage_since, usage_snapshot
 from tere4ai.extract_norms.pipeline import (
     _call_json_with_retry,
     _input_hash,
@@ -91,10 +95,13 @@ def _generator_user_message(norms: list[dict[str, Any]], system_context: str) ->
     )
 
 
-def _degraded_envelope(reason: str, graph_version: str) -> dict[str, Any]:
-    """requires_human_review envelope for paths where no judged backlog exists."""
+def _degraded_envelope(
+    reason: str, graph_version: str, spend: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """requires_human_review envelope for paths where no judged backlog exists.
+    spend: the generator's id and effort and both roles' usage, once a request was sent."""
     return make_envelope(
-        answer={"tool": TOOL_NAME, "refused": True, "message": reason},
+        answer={"tool": TOOL_NAME, "refused": True, "message": reason, **(spend or {})},
         status="requires_human_review",
         graph_version=graph_version,
         confidence=0.0,
@@ -254,6 +261,18 @@ def generate_control_backlog(
             graph_version,
         )
 
+    # B91 (spec F D-F26 (g)): the cost of this generation, per role, as the
+    # clients counted it over this call only (a client may be reused)
+    generator_before, judge_before = usage_snapshot(generator), usage_snapshot(judge)
+
+    def spend() -> dict[str, Any]:
+        return {
+            "generator_model": generator.model,
+            "generator_effort": getattr(generator, "effort", "not configured"),
+            "usage": {"generator": usage_since(generator, generator_before),
+                      "judge": usage_since(judge, judge_before)},
+        }
+
     notes: list[str] = []
     known_ids = {norm.get("norm_id") for norm in norms}
     deontic_by_id = {
@@ -284,7 +303,7 @@ def generate_control_backlog(
     if parsed is None or not isinstance(parsed.get("items"), list):
         reason = error or "generator JSON lacks an 'items' list"
         return _degraded_envelope(
-            f"generator output unusable, no backlog produced: {reason}", graph_version
+            f"generator output unusable, no backlog produced: {reason}", graph_version, spend()
         )
 
     items, dropped_items = _clean_items(
@@ -296,6 +315,7 @@ def generate_control_backlog(
             "no backlog items survived the mechanical citation check "
             f"({dropped_items} dropped); nothing trustworthy to return",
             graph_version,
+            spend(),
         )
 
     # Runtime grounding judge gates the rendered backlog (Section 7); the
@@ -343,6 +363,7 @@ def generate_control_backlog(
         "judge_model": judge.model,
         "judge_effort": getattr(judge, "effort", "not configured"),
         "judge_run_id": check["judge_run"]["id"],
+        **spend(),
     }
     return make_envelope(
         answer=answer,

@@ -23,6 +23,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   connection error themselves, at most twice, waiting `retry-after` (at
   most 60 s) or 1 s then 4 s, each attempt a request sent (spec F D-F26
   (e) and (g), ruling R3).
+- `generate_control_backlog` (MCP and `/api/backlog`) answers with
+  `generator_model`, `generator_effort` and `usage` (`generator` and
+  `judge`, each the five counts for this call only, `null` for a client
+  without a usage record) beside `judge_model` and `judge_effort`; a
+  degraded answer after the generator request carries them too, a refusal
+  before any request does not.
 
 ### Effort as part of the instrument (2026-09-24, B84, spec F D-F22)
 - `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are required config
