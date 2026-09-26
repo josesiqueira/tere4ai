@@ -34,6 +34,16 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   5xx, connection) whose message names `temperature`, `response_format`,
   `reasoning_effort` or the effort is retried and the parameter stays for
   the run, where before it was dropped for the run (final review A5).
+- A sixth per-role count, `requests_refused`, counts the failed attempts
+  the provider answered with an HTTP error status (a retried 429 or 5xx
+  included), as opposed to a connection error, a timeout or an interrupt,
+  which may have been billed; `requests_sent` keeps counting every attempt.
+  It reaches the build records, the manifests, the evaluation records and
+  the backlog answer through the same clients; `build_record.schema.json`
+  documents it in `role_usage` (optional), and the ablation summary drops
+  it for a role when any unit lacks it. The build record mock data is
+  unchanged, and the dashboard's display rule is not changed here (final
+  review A3).
 
 ### Pre-B74 run safety (2026-09-26, B79, B81, B78)
 - `extract_norms` and `align_hleg` beat the execution's heartbeat every 60 s

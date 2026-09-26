@@ -28,11 +28,12 @@ def _load():
 class _Client:
     """A model client double: usage and sampling like the real ones, canned replies."""
 
-    # B91: the double counts like the real clients
+    # B91: the double counts like the real clients (final review A3: the
+    # sixth count, requests_refused, too)
     def __init__(self, reply, sampling="stub"):
         self.reply, self.sampling = reply, sampling
         self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "requests_sent": 0,
-                      "replies_with_usage": 0}
+                      "replies_with_usage": 0, "requests_refused": 0}
 
     def complete(self, *args, **kwargs):
         self.usage["requests_sent"] += 1
@@ -469,3 +470,22 @@ def test_an_interrupted_sweep_keeps_the_completed_items_and_the_spend(runner, mo
     assert rec["outcome"]["status"] == "failed" and rec["outcome"]["error"] == "KeyboardInterrupt: "
     assert rec["outcome"]["completed_items"] == ["gold:cls-01"]
     assert rec["usage"]["generator"]["calls"] == 1 and rec["counts"]["units_run"] == 1
+
+
+def test_the_summary_sums_requests_refused_and_drops_only_it_when_a_unit_lacks_it(runner, monkeypatch, tmp_path):
+    """Final review A3: a unit checkpointed before requests_refused existed leaves
+    that count unknown for its role; the two B91 counts it does carry stay."""
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    assert runner.main(_argv(tmp_path)) == 0
+    summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
+    assert summary["usage_provider_reported"]["by_role"]["generator"]["requests_refused"] == 0
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
+    for role in lines[0]["usage"].values():
+        role.pop("requests_refused", None)
+    older = tmp_path / "results" / "b91_checkpoint.jsonl"
+    older.write_text("".join(json.dumps(e) + "\n" for e in lines))
+    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
+                        str(tmp_path / "results" / "b91_summary.json"), "--resume-unrecorded"]) == 0
+    by_role = json.loads((tmp_path / "results" / "b91_summary.json").read_text())["usage_provider_reported"]["by_role"]
+    assert "requests_refused" not in by_role["generator"] and by_role["generator"]["requests_sent"] == 2

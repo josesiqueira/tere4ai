@@ -34,8 +34,14 @@ class ModelClient(Protocol):
 # so a total can say whether it is complete: sent > with usage means some
 # request may have been billed without a figure. A parameter rejection the
 # client learns from (temperature, JSON mode, effort) is not counted: it was
-# refused before any generation.
-USAGE_KEYS = ("calls", "input_tokens", "output_tokens", "requests_sent", "replies_with_usage")
+# refused before any generation. Final review A3: a sixth count,
+# requests_refused, counts the failed attempts the provider answered with an
+# HTTP error status (a 429 or a 5xx included), so a paid run can tell a
+# refused request from one that failed without a reply (connection error,
+# timeout, interrupt) and may have been billed. requests_sent still counts
+# every attempt.
+USAGE_KEYS = ("calls", "input_tokens", "output_tokens", "requests_sent", "replies_with_usage",
+              "requests_refused")
 
 
 def _new_usage() -> dict[str, int]:
@@ -145,6 +151,13 @@ class _SamplingRecord:
     def _count_sent(self) -> None:
         self.usage["requests_sent"] = self.usage.get("requests_sent", 0) + 1
 
+    def _count_refused(self, exc: BaseException) -> None:
+        """A failed attempt the provider answered with an HTTP error status
+        (any numeric status_code) is refused (final review A3); a connection
+        error, a timeout or an interrupt carries no status and is not."""
+        if isinstance(getattr(exc, "status_code", None), int):
+            self.usage["requests_refused"] = self.usage.get("requests_refused", 0) + 1
+
     def _count_reply(self, reported: object, input_field: str, output_field: str) -> None:
         """One reply received: add the provider's token figures; count the reply as
         reporting usage only when both figures are integers (a partial block is
@@ -219,6 +232,7 @@ class _SamplingRecord:
                 if self._may_be_learned(exc) and is_learned_rejection(exc):
                     raise _LearnedRejection() from None
                 self._count_sent()  # it may have been billed; count every physical attempt
+                self._count_refused(exc)
                 if self._is_retryable(exc) and retries_used < 2:
                     self._wait(self._retry_delay(exc, retries_used))
                     retries_used += 1

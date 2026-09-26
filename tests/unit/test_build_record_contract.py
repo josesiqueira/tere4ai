@@ -82,8 +82,10 @@ def test_the_usage_of_a_role_documents_the_two_completeness_counts():
     """B91 (spec F D-F26 (g)): requests sent and replies with usage, optional so older records validate."""
     schema = _schema()
     role = schema["$defs"]["role_usage"]
+    # final review A3 adds a sixth optional count, requests_refused
     assert set(role["properties"]) == {"calls", "input_tokens", "output_tokens", "requests_sent",
-                                       "replies_with_usage"}
+                                       "replies_with_usage", "requests_refused"}
+    assert list(validator_for("usage_by_role").iter_errors({"generator": {"requests_refused": -1}}))
     assert role.get("required", []) == []
     for definition in ("execution", "presented_execution"):
         assert schema["$defs"][definition]["properties"]["usage"] == {"$ref": "#/$defs/usage_by_role"}

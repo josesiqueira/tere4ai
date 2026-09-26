@@ -365,6 +365,9 @@ def main(argv: list[str] | None = None) -> int:
         # its role's aggregate without them (completeness not recorded), never
         # a partial count that would read as complete
         roles_missing_counts: set[str] = set()
+        # final review A3: likewise a unit written before requests_refused
+        # existed leaves only that count unknown for its role
+        roles_missing_refused: set[str] = set()
         for entry in unit_results:
             if "usage" not in entry:
                 units_without_usage += 1
@@ -375,13 +378,18 @@ def main(argv: list[str] | None = None) -> int:
                     bucket[k] = bucket.get(k, 0) + v
                 if not {"requests_sent", "replies_with_usage"} <= set(counts):
                     roles_missing_counts.add(role)
+                if "requests_refused" not in counts:
+                    roles_missing_refused.add(role)
         # a unit with no usage block at all (units_without_usage) makes every
         # role's total incomplete: the counts go for every role (review fix C4)
         if units_without_usage:
             roles_missing_counts.update(usage_total)
+            roles_missing_refused.update(usage_total)
         for role in roles_missing_counts:
             usage_total[role].pop("requests_sent", None)
             usage_total[role].pop("replies_with_usage", None)
+        for role in roles_missing_refused | roles_missing_counts:
+            usage_total[role].pop("requests_refused", None)
 
         # metrics per strategy against gold labels where present
         gold_items = [i for i in items if i.get("gold") or i.get("gold_citations")]

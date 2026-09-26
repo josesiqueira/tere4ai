@@ -419,11 +419,12 @@ def test_backlog_answer_names_the_generator_and_both_roles_usage(tmp_path):
     answer = envelope["answer"]
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "xhigh"
     assert answer["judge_model"] == "fake-judge" and answer["judge_effort"] == "xhigh"
+    # final review A3 adds the sixth count, requests_refused (none here)
     assert answer["usage"] == {
         "generator": {"calls": 1, "input_tokens": 100, "output_tokens": 20, "requests_sent": 1,
-                      "replies_with_usage": 1},
+                      "replies_with_usage": 1, "requests_refused": 0},
         "judge": {"calls": 1, "input_tokens": 40, "output_tokens": 8, "requests_sent": 1,
-                  "replies_with_usage": 1},
+                  "replies_with_usage": 1, "requests_refused": 0},
     }
 
 

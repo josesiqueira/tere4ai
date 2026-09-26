@@ -53,8 +53,9 @@ def test_generator_accumulates_provider_counts():
     assert gen.complete("s", "u") == "a"
     assert gen.complete("s", "u") == "b"
     # B91: the usage record also counts requests sent and replies with usage
+    # final review A3 adds the sixth count, requests_refused (none here)
     assert gen.usage == {"calls": 2, "input_tokens": 150, "output_tokens": 25,
-                         "requests_sent": 2, "replies_with_usage": 2}
+                         "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0}
 
 
 def test_generator_without_usage_block_counts_only_the_call():
@@ -62,8 +63,9 @@ def test_generator_without_usage_block_counts_only_the_call():
     gen.complete("s", "u")
     # B91: the usage record also counts requests sent and replies with usage
     # (no usage block: sent and answered, but not reported)
+    # final review A3 adds the sixth count, requests_refused (none here)
     assert gen.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
-                         "requests_sent": 1, "replies_with_usage": 0}
+                         "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0}
 
 
 def _anthropic_response(text: str, input_tokens=None, output_tokens=None):
@@ -94,8 +96,9 @@ def test_judge_accumulates_provider_counts():
     assert judge.complete("s", "u") == "v"
     assert judge.complete("s", "u") == "w"
     # B91: the usage record also counts requests sent and replies with usage
+    # final review A3 adds the sixth count, requests_refused (none here)
     assert judge.usage == {"calls": 2, "input_tokens": 210, "output_tokens": 41,
-                           "requests_sent": 2, "replies_with_usage": 2}
+                           "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0}
 
 
 def test_judge_without_usage_block_counts_only_the_call():
@@ -103,8 +106,9 @@ def test_judge_without_usage_block_counts_only_the_call():
     judge.complete("s", "u")
     # B91: the usage record also counts requests sent and replies with usage
     # (no usage block: sent and answered, but not reported)
+    # final review A3 adds the sixth count, requests_refused (none here)
     assert judge.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
-                           "requests_sent": 1, "replies_with_usage": 0}
+                           "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0}
 
 
 # B74: current-generation models reject sampling parameters. A rejection is
@@ -528,8 +532,9 @@ def test_usage_since_is_the_difference_and_none_without_a_record():
     gen.complete("s", "u")
     before = usage_snapshot(gen)
     gen.complete("s", "u")
+    # final review A3 adds the sixth count, requests_refused (none here)
     assert usage_since(gen, before) == {"calls": 1, "input_tokens": 50, "output_tokens": 5,
-                                        "requests_sent": 1, "replies_with_usage": 1}
+                                        "requests_sent": 1, "replies_with_usage": 1, "requests_refused": 0}
     assert usage_snapshot(object()) is None and usage_since(object(), None) is None
 
 
@@ -767,3 +772,49 @@ def test_a_400_naming_a_parameter_is_still_learned():
     gen._wait = lambda seconds: (_ for _ in ()).throw(AssertionError("a learned rejection is not retried"))
     assert gen.complete("s", "u") == "a"
     assert "temperature" not in transport.calls[1] and gen.usage["requests_sent"] == 1
+
+
+# Final review A3: a sixth count separates a request the provider answered
+# with an HTTP error status (refused, not billed as a generation) from one
+# that failed without a reply (connection error, timeout, interrupt: it may
+# have been billed). requests_sent keeps counting every attempt.
+
+
+def test_a_retried_429_counts_one_refused_request():
+    transport = _Flaky([_ProviderError("rate limited", status_code=429), _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = lambda seconds: None
+    gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 2 and gen.usage["requests_refused"] == 1
+    assert gen.usage["replies_with_usage"] == 1
+
+
+def test_a_non_retryable_status_is_refused_too():
+    transport = _Flaky([_ProviderError("unauthorized", status_code=401)])
+    judge = _judge_over(transport)
+    with pytest.raises(_ProviderError):
+        judge.complete("s", "u")
+    assert judge.usage["requests_sent"] == 1 and judge.usage["requests_refused"] == 1
+
+
+def test_a_connection_error_or_an_interrupt_is_not_refused():
+    transport = _Flaky([APIConnectionError("connection reset"), _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = lambda seconds: None
+    gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 2 and gen.usage["requests_refused"] == 0
+
+    class _Interrupting:
+        def create(self, **kwargs):
+            raise KeyboardInterrupt
+    gen = _generator_over(_Interrupting())
+    with pytest.raises(KeyboardInterrupt):
+        gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 0
+
+
+def test_a_learned_rejection_is_not_refused():
+    transport = _Rejecting({"temperature": "temperature is not supported"}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport)
+    gen.complete("s", "u")
+    assert gen.usage["requests_refused"] == 0
