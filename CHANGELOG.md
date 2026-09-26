@@ -18,6 +18,18 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   to read the same sheet, and the later write dropped the other's labels
   while both records said completed. A label act or `--compute` on a
   missing sheet is refused before the lock (B81 item 2).
+- The draw and the label act write their new bytes to a temp file, keep
+  the record's copy from it and finish the record before the bytes replace
+  the sheet, so a copy or finish that fails (or an interrupt before the
+  finish) leaves the sheet as the act found it and the next act chains on
+  the last completed one. A replace that fails after the finish says so on
+  stderr with the `cp` that puts the record's copy in place. The refusals
+  of the label act and of `--compute` over sheet bytes no recorded act
+  wrote name that `cp` for the last recorded act. A failed act used to
+  leave bytes no completed act wrote, and every later act was refused with
+  no way out short of a `--force` re-draw. A new sheet's instructions name
+  the label act instead of asking for labels typed into the JSON
+  (B81 item 34).
 
 ### The cost of the graded material (2026-09-26, B91, spec F D-F26 (g))
 - The generator and judge clients count, per role and beside `calls`,

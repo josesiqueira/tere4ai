@@ -300,6 +300,13 @@ lock file `<sheet>.lock` from its first read of the sheet to its record's
 finish, and a second act waits (one line on stderr), then reads what the
 first wrote. A label act or `--compute` on a missing sheet is refused
 (exit code 2) before the lock is taken.
+The draw and the label act finish their record before the new bytes
+replace the sheet: a copy or finish that fails leaves the sheet and its
+reading copy as the act found them. A refusal over sheet bytes no
+recorded act wrote names the `cp` command that puts the last act's
+recorded copy in place; labels typed into the sheet by hand are not kept
+by it (put them in a `--label-file` CSV), and the reading copy is
+rewritten by the next label act.
 A draw over an active publication whose manifest lacks a role
 refuses with a sentence and exit code 2 unless `--norms`, `--alignments`
 or `--layer1` is given. The routes `GET /api/evaluations` (grouped by
