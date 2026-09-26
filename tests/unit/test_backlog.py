@@ -502,6 +502,35 @@ def test_a_judge_failure_is_labelled_judge_error_not_not_run(tmp_path):
     assert envelope["judge_verdict"] == "judge_error"
 
 
+def test_a_judge_error_answer_names_the_judge_model_and_effort_so_its_tokens_can_be_priced(tmp_path):
+    """B98 seat B P3-3: a judge whose first reply did not parse and whose
+    second attempt raised has spent tokens; the degraded answer names the
+    judge's model and effort beside its usage, as it names the generator's."""
+
+    class HalfFailingJudge(CountingClient):
+        def complete(self, system, user):
+            if self.usage["requests_sent"] == 0:
+                self.usage["requests_sent"] += 1
+                self.usage["calls"] += 1
+                self.usage["replies_with_usage"] += 1
+                self.usage["input_tokens"] += 100
+                self.usage["output_tokens"] += 20
+                return "not json"
+            self.usage["requests_sent"] += 1
+            raise RuntimeError("judge provider unreachable")
+
+    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    judge = HalfFailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge", effort="high")
+    envelope = generate_control_backlog(
+        [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
+        prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )
+    answer = envelope["answer"]
+    assert envelope["judge_verdict"] == "judge_error" and answer["usage"]["judge"]["input_tokens"] == 100
+    assert answer["judge_model"] == "fake-judge" and answer["judge_effort"] == "high"
+    assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "xhigh"
+
+
 def test_a_generator_that_raises_after_its_retries_answers_degraded_with_its_spend(tmp_path):
     class FailingGenerator(CountingClient):
         def complete(self, system, user):

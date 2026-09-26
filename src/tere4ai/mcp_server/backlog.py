@@ -104,7 +104,7 @@ def _degraded_envelope(
     judge_verdict: str = JUDGE_NOT_RUN,
 ) -> dict[str, Any]:
     """requires_human_review envelope for paths where no judged backlog exists.
-    spend: the generator's id and effort and both roles' usage, once a request was sent.
+    spend: both roles' ids, efforts and usage, once a request was sent.
     judge_verdict: JUDGE_NOT_RUN unless the judge sent a request and raised (JUDGE_ERROR)."""
     return make_envelope(
         answer={"tool": TOOL_NAME, "refused": True, "message": reason, **(spend or {})},
@@ -271,10 +271,14 @@ def generate_control_backlog(
     # clients counted it over this call only (a client may be reused)
     generator_before, judge_before = usage_snapshot(generator), usage_snapshot(judge)
 
+    # Both roles are named (B98 seat B P3-3): a judge_error answer can carry
+    # judge tokens, and a token line is priced from the model that spent it.
     def spend() -> dict[str, Any]:
         return {
             "generator_model": generator.model,
             "generator_effort": getattr(generator, "effort", "not configured"),
+            "judge_model": judge.model,
+            "judge_effort": getattr(judge, "effort", "not configured"),
             "usage": {"generator": usage_since(generator, generator_before),
                       "judge": usage_since(judge, judge_before)},
         }
