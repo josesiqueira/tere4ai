@@ -312,3 +312,40 @@ def test_activate_prints_the_number_beside_the_full_id(tmp_path, monkeypatch, ca
     assert activate.main([chain_id, "--dump-dir", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert out.startswith("activated Build 1 (build-b+chain-") and out.rstrip().endswith("; restart the facade to serve it")
+
+
+def test_one_chain_carrying_two_numbers_is_named(tmp_path):
+    # final review B-P3-1: a chain record and its own manifest that disagree
+    # give one chain two numbers, which the R8 test must fail on
+    (tmp_path / "build_chain_aaaaaaaaaaaa.json").write_text(json.dumps({"chain_id": "a" * 12, "build_number": 2}))
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / "aaaaaaaaaaaa.json").write_text(json.dumps({"chain_id": "a" * 12, "build_number": 1}))
+    assert duplicate_build_numbers(tmp_path) == ["chain aaaaaaaaaaaa carries Builds 1, 2"]
+
+
+def test_a_malformed_counter_is_called_absent_or_unreadable(tmp_path):
+    # final review B-P3-2: the file is on disk, so "absent" alone misleads
+    store = BuildRecordStore(tmp_path)
+    (store.dir / "numbering.json").write_text(json.dumps({"last_number": "7"}))
+    (tmp_path / "build_chain_bbbbbbbbbbbb.json").write_text("{bad")
+    with pytest.raises(NumberingError, match=r"numbering\.json is absent or unreadable and these files"):
+        store.next_build_number()
+
+
+def test_an_unreadable_build_record_with_no_counter_is_refused_by_name(tmp_path):
+    # final review A-M6: the branch the B74 re-run relies on when a record
+    # file is damaged and the counter is lost with it
+    store = BuildRecordStore(tmp_path)
+    (store.dir / "abcdefabcdef.json").write_text("{bad")
+    with pytest.raises(NumberingError, match=r"build_records/abcdefabcdef\.json"):
+        store.next_build_number()
+    (store.dir / "numbering.json").write_text(json.dumps({"last_number": 3}))
+    assert store.next_build_number() == 4
+
+
+def test_the_counter_never_goes_down(tmp_path):
+    # final review A-M8: a lower number written after a higher one keeps the higher
+    store = BuildRecordStore(tmp_path)
+    assert store.record_build_number(5) is None
+    assert store.record_build_number(3) is None
+    assert json.loads((store.dir / "numbering.json").read_text()) == {"last_number": 5}

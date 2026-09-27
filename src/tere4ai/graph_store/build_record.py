@@ -108,15 +108,22 @@ def numbered_files(dump_dir: Path | str) -> tuple[dict[str, int], list[str]]:
 
 def duplicate_build_numbers(dump_dir: Path | str) -> list[str]:
     """One line per build number that two chain records or two manifests
-    carry for different chains (spec G D-G50, review M7): a chain record and
-    its own manifest carry the same number by design."""
+    carry for different chains (spec G D-G50, review M7), and one line per
+    chain whose chain record and manifest carry different numbers (final
+    review B-P3-1): a chain record and its own manifest carry the same number
+    by design."""
     numbers, _ = numbered_files(dump_dir)
     by_number: dict[int, set[str]] = {}
+    by_chain: dict[str, set[int]] = {}
     for rel, number in numbers.items():
         chain = Path(rel).stem.removeprefix("build_chain_")
         by_number.setdefault(number, set()).add(chain)
-    return [f"Build {n} is carried by chains {', '.join(sorted(chains))}"
-            for n, chains in sorted(by_number.items()) if len(chains) > 1]
+        by_chain.setdefault(chain, set()).add(number)
+    lines = [f"Build {n} is carried by chains {', '.join(sorted(chains))}"
+             for n, chains in sorted(by_number.items()) if len(chains) > 1]
+    lines += [f"chain {chain} carries Builds {', '.join(str(n) for n in sorted(held))}"
+              for chain, held in sorted(by_chain.items()) if len(held) > 1]
+    return lines
 
 
 def _now() -> str:
@@ -323,7 +330,8 @@ class BuildRecordStore:
         bad_records = [f"{RECORDS_DIRNAME}/{r['record_id']}.json" for r in records if r.get("unreadable")]
         files, bad_files = numbered_files(self.dir.parent)
         if counter is None and (bad_records or bad_files):
-            raise NumberingError("the build number counter is absent and these files cannot be read, so the next "
+            raise NumberingError(f"the build number counter {RECORDS_DIRNAME}/{NUMBERING_FILENAME} is absent or unreadable "
+                                 "and these files cannot be read, so the next "
                                  f"number is unknown: {', '.join(bad_records + bad_files)}; {NUMBERING_UNBLOCK}")
         held = [counter or 0, *files.values()]
         held += [n for r in records if not r.get("unreadable") and (n := _number_in(r)) is not None]
@@ -335,15 +343,24 @@ class BuildRecordStore:
         publish command holds it from before the publication is built until
         its last write, so two publications never get one number and the
         number order is the recorded order of publication."""
-        with self._locked("numbering"):
+        with self.numbering_lock():
             yield self.next_build_number()
+
+    @contextmanager
+    def numbering_lock(self):
+        """The numbering lock alone (spec G D-G50): every writer of a chain
+        record, a publication manifest or a build number holds it, so a check
+        made under it is exact."""
+        with self._locked("numbering"):
+            yield
 
     def record_build_number(self, number: int) -> str | None:
         """Write the counter as soon as the record is frozen; never raises (the
         maximum over the records, manifests and chain records repairs a lost
-        write). Returns the failure as one line, or None."""
+        write) and never lowers it (final review A-M8). Returns the failure as
+        one line, or None."""
         try:
-            atomic_write_json(self.dir / NUMBERING_FILENAME, {"last_number": number})
+            atomic_write_json(self.dir / NUMBERING_FILENAME, {"last_number": max(self._counter() or 0, number)})
         except OSError as exc:
             return f"the build number counter was not written ({exc}); the next publication reads the number from the records"
         return None
