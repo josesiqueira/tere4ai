@@ -30,7 +30,7 @@ import argparse
 import json
 import os
 import sys
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -48,6 +48,7 @@ from tere4ai.graph_store.build_record import (  # noqa: E402
     HEARTBEAT_EXPIRY_SECONDS,
     BuildRecordStore,
     Heartbeat,
+    NumberingError,
     atomic_write_json,
     gate_entries,
     select_record,
@@ -211,6 +212,24 @@ def _main(argv: list[str] | None = None) -> int:
             print(f"already published as chain {early_chain['chain_id']}; "
                   f"activate it with scripts/activate_build.py {early_chain['chain_id']}", file=sys.stderr)
             return 1
+        # A record that holds this chain's publication makes it published even
+        # when its chain record or manifest was lost or removed (spec G D-G50,
+        # review I2): a second publication would give one chain two numbers.
+        publisher = store.publisher_of(early_chain["chain_id"])
+        if publisher is not None:
+            number = publisher["publication"].get("build_number")
+            print(f"already published as chain {early_chain['chain_id']} by record {publisher['record_id']}"
+                  f"{f' (Build {number})' if number is not None else ''}; its chain record or publication manifest "
+                  "is missing: write it from the record, never publish the same inputs again", file=sys.stderr)
+            return 1
+        # A build number must be issuable before any record is touched (spec G
+        # D-G50, review I1): the check reads files only, like the evidence
+        # steps, so a refusal leaves the alias and every record as they are.
+        try:
+            store.next_build_number()
+        except NumberingError as exc:
+            print(f"NOT published: {exc}", file=sys.stderr)
+            return 1
     unrecorded = False
     evidence: tuple[str | None, dict, list[dict]] | None = None
     if store.is_frozen(record_id):
@@ -281,6 +300,12 @@ def _main(argv: list[str] | None = None) -> int:
     driver = None
     written: list[str] = []
     chain_unpublished: Path | None = None
+    # The numbering lock (spec G D-G50) is entered at step (7) and released
+    # in the finally below, after the last write.
+    numbering = ExitStack()
+    build_number: int | None = None
+    counter_note: str | None = None
+    frozen = False
 
     def finish(status: str, *, error: str | None = None, **fields) -> None:
         nonlocal finished
@@ -389,10 +414,20 @@ def _main(argv: list[str] | None = None) -> int:
             core_nodes = _core_nodes(dump_dir)
             if core_nodes is None and gating == {"layer2": "human", "layer3": "human"}:
                 print(f"label withheld: {LABEL_NEEDS_CORE_NODES} ({dump_dir})")
+            # The build number (spec G D-G50): reserved under the numbering
+            # lock, held until the last write, and the publication is dated
+            # under the same lock, so number order is publication order.
+            try:
+                build_number = numbering.enter_context(store.reserve_build_number())
+            except NumberingError as exc:
+                reason = str(exc)
+                set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+                loading = False
+                return fail(f"NOT published: {reason}", gates + postload_gates)
             publication = {
                 "chain_id": chain["chain_id"], "build_id": build_id, "published_at": datetime.now(UTC).isoformat(),
                 "gating": gating, "label": whole_build_label(gating, bound, core_nodes), "gates": gates,
-                "postload_gates": postload_gates, "manifests": _manifest_refs(bound),
+                "postload_gates": postload_gates, "manifests": _manifest_refs(bound), "build_number": build_number,
             }
             chain_record = {**publication, **chain, "record_id": record_id}
             # Everything is validated before the target is declared available and
@@ -430,7 +465,11 @@ def _main(argv: list[str] | None = None) -> int:
             store.set_publication(record_id, publication, run_id=run_id)
             chain_unpublished = None
             loading = False
+            frozen = True
             written.append(f"record {record_id} publication block")
+            # The counter follows the frozen record at once (spec G D-G50,
+            # review M2), so it is never behind a number a record holds.
+            counter_note = store.record_build_number(build_number)
             mpath = manifest_path(dump_dir, chain["chain_id"])
             mpath.parent.mkdir(parents=True, exist_ok=True)
             atomic_write_json(mpath, manifest)
@@ -448,7 +487,14 @@ def _main(argv: list[str] | None = None) -> int:
                 chain_unpublished.unlink(missing_ok=True)
                 written.remove(chain_unpublished.name)
             error = f"{type(exc).__name__}: {exc}"
-            if written:
+            if frozen:
+                # The record is published and frozen with its number (spec G
+                # D-G50, review I2): removing the chain record would let the
+                # same inputs take a second number, so it is never offered.
+                error += (f"; record {record_id} is published as Build {build_number}, chain {chain['chain_id']}; "
+                          f"already written: {', '.join(written)}; write the missing publication manifest and "
+                          "pointer from the chain record, never remove the chain record")
+            elif written:
                 error += f"; already written, clean up by hand: {', '.join(written)}"
             if loading:
                 set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=error)
@@ -456,8 +502,12 @@ def _main(argv: list[str] | None = None) -> int:
                 finish("failed", gates=gates, error=error)
             raise
         finally:
+            numbering.close()
             if driver is not None:
                 driver.close()
+    if counter_note:
+        print(counter_note, file=sys.stderr)
+    print(f"published Build {build_number}: {build_id}, record {record_id}, published_at {publication['published_at']}")
     print(f"build chain: {build_id} ({len(chain['inputs'])} inputs) -> {chain_path.name}; label {publication['label']}")
     print(f"activate with: scripts/activate_build.py {chain['chain_id']}")
     return 0

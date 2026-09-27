@@ -21,6 +21,17 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   never stored; the list row's publication carries `build_id` and
   `build_number`. The schema change is additive and the version strings stay
   v1; the mock data files were regenerated.
+- `scripts/publish_layer23.py` refuses, before any record is touched, a chain
+  a record already published (even with its chain record or manifest gone)
+  and a numbering it cannot issue; it reserves the build number after the
+  post-load gates, dates the publication under the same lock, validates the
+  publication and its manifest with it and writes it into the chain record,
+  the frozen record and `publications/<chain>.json`, with the counter right
+  after the record; a publication refused before the record is frozen uses no
+  number; a failure after it says the build is published and never offers to
+  remove the chain record. It prints `published Build N: <build id>, record
+  <record id>, published_at <time>`; `scripts/activate_build.py` prints the
+  number beside the full build id.
 
 ### Before the humans (2026-09-26, B81, B97)
 - The label act refuses (exit code 2, before any record or write) a

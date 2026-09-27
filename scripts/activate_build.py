@@ -31,7 +31,12 @@ def main(argv: list[str] | None = None) -> int:
     except ActivationError as exc:
         print(f"not activated: {exc}", file=sys.stderr)
         return 1
-    print(f"activated {active_manifest(args.dump_dir)['build_id']}; restart the facade to serve it")
+    manifest = active_manifest(args.dump_dir)
+    number = manifest.get("build_number")
+    # Spec G D-G50: the number beside the full build id, never in its place.
+    named = (f"Build {number} ({manifest['build_id']})" if number is not None
+             else f"{manifest['build_id']} (no build number: published before B94)")
+    print(f"activated {named}; restart the facade to serve it")
     return 0
 
 

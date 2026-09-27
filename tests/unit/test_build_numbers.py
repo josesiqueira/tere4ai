@@ -5,14 +5,17 @@ from __future__ import annotations
 
 import json
 import multiprocessing
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from tests.unit.test_publish_layer23 import _fakes, _files, _publish
 
-from tere4ai.graph_store.build_chain import build_chain
+from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
 from tere4ai.graph_store.build_record import (
     BuildRecordStore,
+    LiveExecutionError,
     NumberingError,
     duplicate_build_numbers,
     numbered_files,
@@ -165,3 +168,147 @@ def test_a_legacy_row_takes_the_number_of_the_chain_it_matches(tmp_path):
     presented = present_record(synthesise_legacy_records(tmp_path)[0], tmp_path, datetime.now(UTC), None, None)
     assert presented["publication"]["build_number"] is None
     assert presented["reasons"]["publication.build_number"] == "published before build numbers (B94)"
+
+
+def _publish_once(tmp_path, monkeypatch, variant: str):
+    """One LLM-gated publication: the norms file differs per variant, so
+    each call is a new chain and a new record in the same dump dir."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    payload = json.loads(norms.read_text())
+    payload["variant"] = variant
+    norms.write_text(json.dumps(payload))
+    run = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+                                config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    store.finish_execution(rid, run, status="done",
+                           outputs=[{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}])
+    align = json.loads(alignments.read_text())
+    align["build"]["alignment_input_sha256"] = sha256_of_file(norms)
+    alignments.write_text(json.dumps(align))
+    _fakes(monkeypatch, cli)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                   "--dump-dir", str(tmp_path)])
+    return rc, store, rid
+
+
+def test_publications_are_numbered_one_two_in_order_and_everywhere(tmp_path, monkeypatch, capsys):
+    rc1, store, rid1 = _publish_once(tmp_path, monkeypatch, "one")
+    rc2, _, rid2 = _publish_once(tmp_path, monkeypatch, "two")
+    assert (rc1, rc2) == (0, 0)
+    first, second = store.read(rid1)["publication"], store.read(rid2)["publication"]
+    assert (first["build_number"], second["build_number"]) == (1, 2)
+    assert first["published_at"] < second["published_at"]
+    chain = json.loads((tmp_path / f"build_chain_{second['chain_id']}.json").read_text())
+    manifest = json.loads((tmp_path / "publications" / f"{second['chain_id']}.json").read_text())
+    assert chain["build_number"] == manifest["build_number"] == 2
+    assert json.loads((tmp_path / "build_records" / "numbering.json").read_text()) == {"last_number": 2}
+    row = summary_of(present_record(store.read(rid2), tmp_path, datetime.now(UTC), None, store))
+    assert (row["publication"]["build_number"], row["manifest_present"]) == (2, True)
+    assert f"published Build 2: {second['build_id']}, record {rid2}" in capsys.readouterr().out
+
+
+def test_a_refused_publication_uses_no_number(tmp_path, monkeypatch):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli, postload_ok=False)
+    assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                     "--dump-dir", str(tmp_path)]) == 1
+    assert store.next_build_number() == 1
+    _fakes(monkeypatch, cli)
+    assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                     "--dump-dir", str(tmp_path)]) == 0
+    assert store.read(rid)["publication"]["build_number"] == 1
+
+
+def test_a_refusal_after_the_reservation_uses_no_number(tmp_path, monkeypatch):
+    # review I4: set_publication refused after the chain record is written
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    argv = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+    real = BuildRecordStore.set_publication
+
+    def refuse(self, record_id, publication, *, run_id=None):
+        raise LiveExecutionError("an execution became live")
+
+    monkeypatch.setattr(BuildRecordStore, "set_publication", refuse)
+    with pytest.raises(LiveExecutionError):
+        cli.main(argv)
+    assert not list(tmp_path.glob("build_chain_*.json"))
+    assert store.next_build_number() == 1
+    monkeypatch.setattr(BuildRecordStore, "set_publication", real)
+    assert cli.main(argv) == 0
+    assert store.read(rid)["publication"]["build_number"] == 1
+
+
+def test_a_numbering_refusal_leaves_the_published_record_and_its_alias(tmp_path, monkeypatch, capsys):
+    # review I1: refused before select_record, so no descendant and no alias move
+    rc, store, rid = _publish_once(tmp_path, monkeypatch, "one")
+    assert rc == 0 and store.resolve("core") == rid
+    (store.dir / "numbering.json").unlink()
+    (tmp_path / "publications" / "ffffffffffff.json").write_text("{bad")
+    cli = _publish()
+    layer1, norms, alignments = tmp_path / "layer1.json", tmp_path / "norms_core.json", tmp_path / "alignments_core.json"
+    align = json.loads(alignments.read_text())
+    align["assertions"] = [{"changed": True}]
+    alignments.write_text(json.dumps(align))
+    _fakes(monkeypatch, cli)
+    records_before = sorted(r["record_id"] for r in store.list_records())
+    assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                     "--dump-dir", str(tmp_path)]) == 1
+    assert "publications/ffffffffffff.json" in capsys.readouterr().err
+    assert store.resolve("core") == rid
+    assert sorted(r["record_id"] for r in store.list_records()) == records_before
+
+
+def test_a_failed_manifest_write_keeps_the_number_and_never_offers_removing_the_chain(tmp_path, monkeypatch):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    argv = ["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]
+    real = cli.atomic_write_json
+
+    def failing(path, payload):
+        if Path(path).parent.name == "publications":
+            raise OSError("disk full")
+        real(path, payload)
+
+    monkeypatch.setattr(cli, "atomic_write_json", failing)
+    with pytest.raises(OSError):
+        cli.main(argv)
+    record = store.read(rid)
+    assert record["publication"]["build_number"] == 1
+    error = record["executions"][-1]["error"]
+    assert "is published as Build 1" in error and "never remove the chain record" in error and "clean up by hand" not in error
+    assert json.loads((store.dir / "numbering.json").read_text()) == {"last_number": 1}
+    assert not list((tmp_path / "publications").glob("*.json"))
+    row = summary_of(present_record(record, tmp_path, datetime.now(UTC), None, store))
+    assert (row["publication"]["build_number"], row["manifest_present"]) == (1, False)
+    # review I2: the chain record removed anyway, the same inputs are refused
+    monkeypatch.setattr(cli, "atomic_write_json", real)
+    next(tmp_path.glob("build_chain_*.json")).unlink()
+    assert cli.main(argv) == 1
+    assert [r["publication"]["build_number"] for r in store.list_records() if r.get("publication")] == [1]
+
+
+def test_lost_build_records_never_lower_the_next_number_and_legacy_rows_keep_theirs(tmp_path, monkeypatch):
+    _publish_once(tmp_path, monkeypatch, "one")
+    _publish_once(tmp_path, monkeypatch, "two")
+    shutil.rmtree(tmp_path / "build_records")
+    assert BuildRecordStore(tmp_path).next_build_number() == 3
+    legacy = synthesise_legacy_records(tmp_path)
+    numbers = [r["publication"]["build_number"] for r in legacy if r.get("publication")]
+    assert numbers == [2]  # the chain whose inputs are the artefacts present now
+
+
+def test_activate_prints_the_number_beside_the_full_id(tmp_path, monkeypatch, capsys):
+    import importlib.util
+    _publish_once(tmp_path, monkeypatch, "one")
+    chain_id = json.loads(next(tmp_path.glob("build_chain_*.json")).read_text())["chain_id"]
+    spec = importlib.util.spec_from_file_location("activate_b94", ROOT / "scripts" / "activate_build.py")
+    activate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(activate)
+    capsys.readouterr()
+    assert activate.main([chain_id, "--dump-dir", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("activated Build 1 (build-b+chain-") and out.rstrip().endswith("; restart the facade to serve it")
