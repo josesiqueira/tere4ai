@@ -35,7 +35,10 @@ It prints `published Build N: <build id>, ...` and the build_chain file it
 wrote.
 
 A published chain is not rebuilt this way. Publishing inputs already
-published is refused before the load ("already published as chain ..."),
+published is refused before the load, naming the next step: "already
+published as chain C; activate it with ..." when its publication manifest is
+present, "chain C is published (record R, Build N) but its publication
+manifest is missing: write it with ..." when only the manifest is lost,
 since a chain gets one build number, and publish has no mode yet that
 reloads a published chain into Neo4j without recording a publication (filed
 as B97 item 10, after the B74 re-run). A lost Neo4j of a published chain is

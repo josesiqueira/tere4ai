@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import multiprocessing
 import shutil
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from tere4ai.graph_store.build_record import (
     numbered_files,
 )
 from tere4ai.graph_store.present import present_record, summary_of, synthesise_legacy_records
+from tere4ai.graph_store.publication import read_target_state
 
 ROOT = Path(__file__).resolve().parents[2]
 PUB = {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
@@ -293,6 +295,11 @@ def test_a_failed_manifest_write_keeps_the_number_and_never_offers_removing_the_
     err = capsys.readouterr().err
     assert f"(Build 1) by record {rid}" in err and "activate it with" not in err
     assert "both its chain record and its publication manifest are missing" in err
+    # re-review ruling 3: the message names steps the operator can run
+    chain_id = record["publication"]["chain_id"]
+    assert (f"restore both from git (they are tracked), then run scripts/write_publication_manifest.py {chain_id} "
+            f"--dump-dir {tmp_path} --pointer if the manifest is still missing") in err
+    assert "write them from the record" not in err
     assert [r["publication"]["build_number"] for r in store.list_records() if r.get("publication")] == [1]
 
 
@@ -391,6 +398,33 @@ def test_one_chain_published_from_two_records_at_once_gets_one_number(tmp_path, 
     assert json.loads((store.dir / "numbering.json").read_text()) == {"last_number": 1}
     assert store.next_build_number() == 2 and duplicate_build_numbers(tmp_path) == []
     assert store.read(rid_y)["executions"][-1]["status"] == "failed"
+    # re-review ruling 1: B loaded the same build id A published and its
+    # post-load gates passed, so the target stays available for that build
+    target = read_target_state(tmp_path)
+    assert (target["state"], target["build_id"], target["reason"]) == (
+        "available", store.read(rid_x)["publication"]["build_id"], None)
+
+
+def test_a_chain_record_no_record_published_under_the_lock_marks_the_target_unavailable(tmp_path, monkeypatch, capsys):
+    # re-review ruling 1, the other case: a chain record appears during the
+    # load and no build record publishes it, so Neo4j holds no published build
+    from tests.unit.test_publish_layer23 import _Report
+
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    chain_id = build_chain(layer1, norms, alignments_path=alignments)["chain_id"]
+
+    def postload(driver, build_id, expected_norms, expected_assertions=None):
+        (tmp_path / f"build_chain_{chain_id}.json").write_text(json.dumps({"chain_id": chain_id}))
+        return _Report([], {"db_norms": 0})
+
+    monkeypatch.setattr(cli, "validate_postload", postload)
+    assert cli.main(_argv(tmp_path, layer1, norms, alignments)) == 1
+    target = read_target_state(tmp_path)
+    assert target["state"] == "unavailable"
+    assert f"already published as chain {chain_id} while this run loaded it" in target["reason"]
+    assert store.read(rid)["publication"] is None
 
 
 def _failing_write(monkeypatch, cli, target: str):
@@ -456,7 +490,7 @@ def test_the_retry_after_a_missing_manifest_names_the_repair_not_activation(tmp_
     assert cli.main(argv) == 1
     err = capsys.readouterr().err
     assert (f"chain {chain_id} is published (record {rid}, Build 1) but its publication manifest is missing: "
-            f"write it with scripts/write_publication_manifest.py {chain_id} --dump-dir {tmp_path}") in err
+            f"write it with scripts/write_publication_manifest.py {chain_id} --dump-dir {tmp_path} --pointer") in err
     assert "activate it with" not in err
     # a chain record that no build record published (a pre-B94 artefact)
     (tmp_path / "build_chain_aaaaaaaaaaaa.json").write_text(json.dumps({"chain_id": "a" * 12}))
@@ -487,6 +521,60 @@ def test_an_interrupt_right_after_the_freeze_keeps_the_chain_record(tmp_path, mo
     error = store.read(rid)["executions"][-1]["error"]
     assert "is published as Build 1" in error and "clean up by hand" not in error
     assert json.loads((store.dir / "numbering.json").read_text()) == {"last_number": 1}
+    # re-review N1: the build is published, so the target stays available
+    target = read_target_state(tmp_path)
+    assert (target["state"], target["build_id"]) == ("available", store.read(rid)["publication"]["build_id"])
+
+
+def _lines_after_the_freeze(cli) -> list[int]:
+    """The statement lines of publish from the one after set_publication to
+    the first write after the record is frozen (the manifest path)."""
+    lines = Path(cli.__file__).read_text().splitlines()
+    start = next(i for i, line in enumerate(lines) if "store.set_publication(record_id, publication" in line)
+    end = next(i for i in range(start, len(lines)) if lines[i].strip().startswith("mpath = "))
+    return [i + 1 for i in range(start + 1, end + 1) if lines[i].strip() and not lines[i].strip().startswith("#")]
+
+
+@pytest.mark.parametrize("offset", range(6))
+def test_an_interrupt_on_any_line_after_the_freeze_never_offers_cleanup(tmp_path, monkeypatch, capsys, offset):
+    # re-review N1: an interrupt on each line between set_publication and the
+    # manifest write (frozen = True included) finds the record published: the
+    # chain record stays, the counter is written, the target stays available,
+    # and the message never says "clean up by hand"
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    _fakes(monkeypatch, cli)
+    lines = _lines_after_the_freeze(cli)
+    assert len(lines) == 6, lines
+    line = lines[offset]
+    code_file = str(Path(cli.__file__))
+
+    def tracer(frame, event, arg):
+        if frame.f_code.co_name != "_main" or frame.f_code.co_filename != code_file:
+            return None
+
+        def local(frame, event, arg):
+            if event == "line" and frame.f_lineno == line:
+                sys.settrace(None)
+                raise KeyboardInterrupt
+            return local
+        return local
+
+    sys.settrace(tracer)
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            cli.main(_argv(tmp_path, layer1, norms, alignments))
+    finally:
+        sys.settrace(None)
+    record = store.read(rid)
+    assert record["publication"]["build_number"] == 1
+    assert (tmp_path / f"build_chain_{record['publication']['chain_id']}.json").is_file()
+    error = record["executions"][-1]["error"]
+    assert "is published as Build 1" in error and "clean up by hand" not in error
+    assert error.count(f"record {rid} publication block") == 1
+    assert json.loads((store.dir / "numbering.json").read_text()) == {"last_number": 1}
+    target = read_target_state(tmp_path)
+    assert (target["state"], target["build_id"]) == ("available", record["publication"]["build_id"])
 
 
 def test_a_lost_counter_note_reaches_the_failure_message(tmp_path, monkeypatch, capsys):

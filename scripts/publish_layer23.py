@@ -125,7 +125,7 @@ def _already_published(dump_dir: Path, chain_id: str, publisher: dict | None) ->
     case names the step that helps (spec G D-G50, B94a final review B-P2-2):
     activation needs the manifest, the manifest repair needs the chain record
     and the frozen record, and a chain is never published a second time."""
-    repair = f"scripts/write_publication_manifest.py {chain_id} --dump-dir {dump_dir}"
+    repair = f"scripts/write_publication_manifest.py {chain_id} --dump-dir {dump_dir} --pointer"
     chain_name = f"build_chain_{chain_id}.json"
     if manifest_path(dump_dir, chain_id).exists():
         return f"already published as chain {chain_id}; activate it with scripts/activate_build.py {chain_id}"
@@ -140,7 +140,8 @@ def _already_published(dump_dir: Path, chain_id: str, publisher: dict | None) ->
     if publisher is not None:
         # review I2: a record holds the publication with both files gone
         return (f"already published as chain {chain_id}{_by(publisher)}; both its chain record and its "
-                "publication manifest are missing: write them from the record, never publish the same inputs again")
+                f"publication manifest are missing: restore both from git (they are tracked), then run {repair} "
+                "if the manifest is still missing; never publish the same inputs again")
     return None
 
 
@@ -456,7 +457,14 @@ def _main(argv: list[str] | None = None) -> int:
             if holder is not None or chain_path.exists() or manifest_path(dump_dir, chain["chain_id"]).exists():
                 reason = (f"already published as chain {chain['chain_id']}{_by(holder) if holder else ''} while this "
                           f"run loaded it; this run publishes nothing")
-                set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+                # The build this run loaded and gated is the one the holder
+                # published when the build ids agree (the build id is a
+                # function of the inputs and the load only merges), so Neo4j
+                # holds a published build (B94a re-review, ruling 1).
+                if holder is not None and holder["publication"].get("build_id") == build_id:
+                    set_target_state(dump_dir, state="available", build_id=build_id, uri=uri, reason=None)
+                else:
+                    set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
                 loading = False
                 return fail(reason, gates + postload_gates)
             publication = {
@@ -465,6 +473,7 @@ def _main(argv: list[str] | None = None) -> int:
                 "postload_gates": postload_gates, "manifests": _manifest_refs(bound), "build_number": build_number,
             }
             chain_record = {**publication, **chain, "record_id": record_id}
+            frozen_block = f"record {record_id} publication block"
             # Everything is validated before the target is declared available and
             # before the first write, so a schema failure leaves no publication
             # artefact behind and Neo4j marked unavailable, never available.
@@ -498,13 +507,15 @@ def _main(argv: list[str] | None = None) -> int:
             # stays true until it returns, so a refusal there marks Neo4j
             # unavailable in the except below (B79 item 15, review fix C2).
             store.set_publication(record_id, publication, run_id=run_id)
-            chain_unpublished = None
-            loading = False
+            # chain_unpublished is cleared last (B94a re-review N1): up to
+            # then the except below reads the record and does the same steps.
             frozen = True
-            written.append(f"record {record_id} publication block")
+            loading = False
+            written.append(frozen_block)
             # The counter follows the frozen record at once (spec G D-G50,
             # review M2), so it is never behind a number a record holds.
             counter_note = store.record_build_number(build_number)
+            chain_unpublished = None
             mpath = manifest_path(dump_dir, chain["chain_id"])
             mpath.parent.mkdir(parents=True, exist_ok=True)
             atomic_write_json(mpath, manifest)
@@ -532,7 +543,9 @@ def _main(argv: list[str] | None = None) -> int:
                     written.remove(chain_unpublished.name)
                 elif published:
                     frozen = True
-                    written.append(f"record {record_id} publication block")
+                    loading = False
+                    if frozen_block not in written:
+                        written.append(frozen_block)
                     counter_note = store.record_build_number(build_number)
                 else:
                     error += (f"; record {record_id} could not be read to tell whether it is published, so "
