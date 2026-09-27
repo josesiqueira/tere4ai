@@ -332,6 +332,7 @@
   }
  ],
  "layer1_digest": "f0b7419653b58e9606ff48c892e7226a8e460b071fa4bfb7720873e0a9bdbe8c",
+ "manifest_present": false,
  "observed_at": "2026-09-19T00:00:00+00:00",
  "parent_record_id": null,
  "parse_record_id": null,
@@ -342,6 +343,7 @@
   "depends_on_state": "derived",
   "executions": "derived",
   "layer1_digest": "derived",
+  "manifest_present": "derived",
   "observed_at": "derived",
   "parent_record_id": "unavailable",
   "parse_record_id": "unavailable",

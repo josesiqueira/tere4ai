@@ -5,16 +5,19 @@ from __future__ import annotations
 
 import json
 import multiprocessing
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from tere4ai.graph_store.build_chain import build_chain
 from tere4ai.graph_store.build_record import (
     BuildRecordStore,
     NumberingError,
     duplicate_build_numbers,
     numbered_files,
 )
+from tere4ai.graph_store.present import present_record, summary_of, synthesise_legacy_records
 
 ROOT = Path(__file__).resolve().parents[2]
 PUB = {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
@@ -119,3 +122,46 @@ def test_the_committed_dump_directory_carries_no_number_twice():
     _, unreadable = numbered_files(dump_dir)
     assert not unreadable, unreadable
     assert duplicate_build_numbers(dump_dir) == []
+
+
+def test_a_record_published_before_numbers_presents_null_with_its_reason(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("old", "b", None)
+    store.set_publication(rid, PUB)
+    presented = present_record(store.read(rid), tmp_path, datetime.now(UTC), None, store)
+    assert presented["publication"]["build_number"] is None
+    assert presented["reasons"]["publication.build_number"] == "published before build numbers (B94)"
+    assert (presented["manifest_present"], presented["provenance"]["manifest_present"]) == (False, "derived")
+    row = summary_of(presented)
+    assert row["publication"]["build_number"] is None and row["publication"]["build_id"] == PUB["build_id"]
+    assert row["manifest_present"] is False
+    assert "build_number" not in store.read(rid)["publication"]  # the stored file is never rewritten
+
+
+def test_a_numbered_record_presents_its_number_on_the_list_row(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("new", "b", None)
+    store.set_publication(rid, {**PUB, "build_number": 4})
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / f"{'c' * 12}.json").write_text("{}")
+    presented = present_record(store.read(rid), tmp_path, datetime.now(UTC), "c" * 12, store)
+    assert "publication.build_number" not in presented["reasons"]
+    row = summary_of(presented)
+    assert row["publication"] == {"chain_id": "c" * 12, "build_id": PUB["build_id"], "build_number": 4,
+                                  "label": "llm-gated", "published_at": "t"}
+    assert (row["served"], row["manifest_present"]) == (True, True)
+
+
+def test_a_legacy_row_takes_the_number_of_the_chain_it_matches(tmp_path):
+    layer1 = tmp_path / "layer1.json"
+    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    norms = tmp_path / "norms_core.json"
+    norms.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [], "judge_runs": []}))
+    chain = build_chain(layer1, norms)
+    (tmp_path / f"build_chain_{chain['chain_id']}.json").write_text(json.dumps({**chain, "build_number": 6}))
+    legacy = synthesise_legacy_records(tmp_path)
+    assert [r["publication"]["build_number"] for r in legacy] == [6]
+    (tmp_path / f"build_chain_{chain['chain_id']}.json").write_text(json.dumps(chain))
+    presented = present_record(synthesise_legacy_records(tmp_path)[0], tmp_path, datetime.now(UTC), None, None)
+    assert presented["publication"]["build_number"] is None
+    assert presented["reasons"]["publication.build_number"] == "published before build numbers (B94)"

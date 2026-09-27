@@ -11,6 +11,7 @@
     "consumed_freezes": [],
     "inherited_from": {}
    },
+   "manifest_present": false,
    "publication": null,
    "reason": null,
    "record_id": "a00000000001",
@@ -46,6 +47,7 @@
      "L1.1": "a00000000001"
     }
    },
+   "manifest_present": false,
    "publication": null,
    "reason": null,
    "record_id": "a00000000002",
@@ -78,7 +80,10 @@
     "consumed_freezes": [],
     "inherited_from": {}
    },
+   "manifest_present": false,
    "publication": {
+    "build_id": "build-b+chain-dd7cac4a1198",
+    "build_number": null,
     "chain_id": "dd7cac4a1198",
     "label": null,
     "published_at": null
@@ -114,6 +119,7 @@
     "consumed_freezes": [],
     "inherited_from": {}
    },
+   "manifest_present": false,
    "publication": null,
    "reason": null,
    "record_id": "legacy-core.b74",
@@ -146,7 +152,10 @@
     "consumed_freezes": [],
     "inherited_from": {}
    },
+   "manifest_present": true,
    "publication": {
+    "build_id": "build-b+chain-ce368dbdc119",
+    "build_number": 1,
     "chain_id": "ce368dbdc119",
     "label": "llm-gated",
     "published_at": "2026-09-19T00:00:00+00:00"
@@ -197,6 +206,7 @@
      "L2.2": "a00000000003"
     }
    },
+   "manifest_present": false,
    "publication": null,
    "reason": null,
    "record_id": "a00000000004",

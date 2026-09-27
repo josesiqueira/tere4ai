@@ -279,6 +279,7 @@
         "steps": {"$ref": "#/$defs/step_map"},
         "depends_on_state": {"$ref": "#/$defs/dependsOnStateMap"},
         "served": {"type": "boolean"},
+        "manifest_present": {"type": "boolean"},
         "observed_at": {"type": "string"},
         "synthesised": {"type": "boolean"},
         "parse_record_id": {"type": ["string", "null"]},
@@ -288,7 +289,7 @@
       "required": [
         "schema_version", "record_id", "aliases", "parent_record_id", "base_build_id",
         "created_at", "layer1_digest", "executions", "publication",
-        "steps", "depends_on_state", "served", "observed_at", "synthesised",
+        "steps", "depends_on_state", "served", "manifest_present", "observed_at", "synthesised",
         "parse_record_id", "provenance", "reasons"
       ]
     },
@@ -309,20 +310,23 @@
               "additionalProperties": false,
               "properties": {
                 "chain_id": {"type": "string"},
+                "build_id": {"type": ["string", "null"]},
+                "build_number": {"type": ["integer", "null"], "minimum": 1},
                 "label": {"enum": ["llm-gated", "human-adjudicated", null]},
                 "published_at": {"type": ["string", "null"]}
               },
-              "required": ["chain_id", "label", "published_at"]
+              "required": ["chain_id", "build_id", "build_number", "label", "published_at"]
             },
             {"type": "null"}
           ]
         },
         "served": {"type": "boolean"},
+        "manifest_present": {"type": "boolean"},
         "unreadable": {"type": "boolean"},
         "reason": {"type": ["string", "null"]},
         "lineage": {"anyOf": [{"$ref": "#/$defs/lineage"}, {"type": "null"}]}
       },
-      "required": ["record_id", "aliases", "base_build_id", "created_at", "synthesised", "steps", "publication", "served", "unreadable", "reason", "lineage"]
+      "required": ["record_id", "aliases", "base_build_id", "created_at", "synthesised", "steps", "publication", "served", "manifest_present", "unreadable", "reason", "lineage"]
     },
     "builds_list": {
       "type": "object",

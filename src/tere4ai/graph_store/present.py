@@ -37,6 +37,7 @@ from tere4ai.graph_store.build_record import (
     relative_to_dump_dir,
 )
 from tere4ai.graph_store.checkpoints import progress, read_checkpoint
+from tere4ai.graph_store.publication import manifest_path
 
 DEPENDS_ON = {"L1.1": "L0.1", "L2.1": "L1.1", "L2.2": "L2.1", "L2.3": "L2.2", "L2.4": "L2.3", "L3.1": "L2.2",
               "L3.2": "L3.1", "L3.3": "L3.2", "L3.4": "L3.3", "L3.5": "L3.4", "P.1": "L3.3", "P.2": "P.1"}
@@ -49,7 +50,7 @@ PARSE_STEPS = ("L0.1", "L1.1")
 NOT_RECORDED = "not recorded by the command"
 NOT_RECORDED_LEGACY = "not recorded before DEC-16"
 EXECUTION_DERIVED = {"liveness", "progress"}
-RECORD_DERIVED = {"steps", "depends_on_state", "parse_record_id", "served", "observed_at", "synthesised"}
+RECORD_DERIVED = {"steps", "depends_on_state", "parse_record_id", "served", "manifest_present", "observed_at", "synthesised"}
 _LEGACY_EXCLUDED = (".reference", ".adjudicated", ".checkpoint", ".writing", ".building")
 
 # Digest per (path, size, mtime) so presenting a list does not re-hash
@@ -84,6 +85,10 @@ def _artefact_problem(execution: dict[str, Any], dump_dir: Path) -> str | None:
             return f"artefact {out['file']} missing"
     return None
 
+
+# Spec G D-G50: a publication without a number, stored before B94 or
+# synthesised from a chain record written before it.
+NO_NUMBER_BEFORE_B94 = "published before build numbers (B94)"
 
 LEGACY_P1_REASON = ("a legacy chain record was written only after G1 to G6 passed; "
                     "per-gate outcomes were not recorded before DEC-16")
@@ -362,11 +367,20 @@ def present_record(record: dict[str, Any], dump_dir: Path, now: datetime, served
     step_reasons: dict[str, str] = {}
     steps, depends_on_state, parse_record_id = step_states(record, store, dump_dir, step_reasons)
     publication = presented.get("publication")
+    # Spec G D-G50: every presented publication carries build_number; one
+    # published before build numbers existed carries null with the reason.
+    if isinstance(publication, dict) and publication.get("build_number") is None:
+        publication["build_number"] = None
+        own_reasons.setdefault("publication.build_number", NO_NUMBER_BEFORE_B94)
     presented.update({
         "steps": steps,
         "depends_on_state": depends_on_state,
         "parse_record_id": parse_record_id,
         "served": bool(publication) and served_chain_id is not None and publication.get("chain_id") == served_chain_id,
+        # Spec G 3.1, D-G50: whether the manifest activation reads exists, so a
+        # numbered build without one reads "published, cannot be activated:
+        # manifest missing". Derived at observed_at, never stored.
+        "manifest_present": bool(publication) and manifest_path(dump_dir, publication["chain_id"]).is_file(),
         "observed_at": now.isoformat(),
         "synthesised": synthesised,
     })
@@ -438,7 +452,8 @@ def summary_of(presented: dict[str, Any]) -> dict[str, Any]:
     (store.list_records marks it) keeps its id and reason and nothing else."""
     if presented.get("unreadable"):
         return {"record_id": presented["record_id"], "aliases": [], "base_build_id": None, "created_at": None,
-                "synthesised": False, "steps": None, "publication": None, "served": False, "unreadable": True,
+                "synthesised": False, "steps": None, "publication": None, "served": False,
+                "manifest_present": False, "unreadable": True,
                 "reason": presented.get("reason"), "lineage": None}
     pub = presented.get("publication")
     return {
@@ -448,9 +463,11 @@ def summary_of(presented: dict[str, Any]) -> dict[str, Any]:
         "created_at": presented.get("created_at"),
         "synthesised": bool(presented.get("synthesised")),
         "steps": presented.get("steps"),
-        "publication": ({"chain_id": pub["chain_id"], "label": pub.get("label"), "published_at": pub.get("published_at")}
-                        if pub else None),
+        "publication": ({"chain_id": pub["chain_id"], "build_id": pub.get("build_id"),
+                         "build_number": pub.get("build_number"), "label": pub.get("label"),
+                         "published_at": pub.get("published_at")} if pub else None),
         "served": bool(presented.get("served")),
+        "manifest_present": bool(presented.get("manifest_present")),
         "unreadable": False,
         "reason": None,
         "lineage": lineage_of(presented),
@@ -603,8 +620,12 @@ def _legacy_publication(chain: dict[str, Any], base_build_id: str | None, has_al
     roles = {i["role"] for i in chain["inputs"]}
     gating = chain.get("gating") or {"layer2": "human" if "decisions" in roles else "llm",
                                      "layer3": "llm" if has_alignments else "absent"}
+    number = chain.get("build_number")
     return {"chain_id": chain["chain_id"], "build_id": build_id, "published_at": chain.get("published_at"),
-            "gating": gating, "label": chain.get("label"), "gates": None, "postload_gates": None, "manifests": []}
+            "gating": gating, "label": chain.get("label"), "gates": None, "postload_gates": None, "manifests": [],
+            # Spec G D-G50: a build whose record was lost keeps the number its
+            # tracked chain record carries; never a new one.
+            "build_number": number if isinstance(number, int) and not isinstance(number, bool) else None}
 
 
 def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Path, layer1_digest: str | None,

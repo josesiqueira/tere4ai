@@ -29,7 +29,7 @@ from tere4ai.graph_store import build_record
 from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import present_record, summary_of, synthesise_legacy_records
-from tere4ai.graph_store.publication import read_target_state
+from tere4ai.graph_store.publication import manifest_path, publication_manifest, read_target_state
 
 FIXTURE_DIR = Path(__file__).resolve().parent
 FIXED_IDS = ["a00000000001", "run1parse000", "a00000000002", "run2prev0000", "run2align000",
@@ -238,7 +238,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     gates = [{**g, "detail": ""} for g in PARSE_GATES]
     publication = {"chain_id": chain["chain_id"], "build_id": build_id, "published_at": FIXED_NOW,
                    "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": gates,
-                   "postload_gates": POSTLOAD_GATES, "manifests": []}
+                   "postload_gates": POSTLOAD_GATES, "manifests": [], "build_number": 1}
     run = store.start_execution(
         parent, command="publish_layer23", covers_steps=["P.1", "P.2"],
         argv=["--norms", "norms_core.json", "--alignments", "alignments_core.json"],
@@ -246,6 +246,12 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
         work_unit=None, checkpoint_file=None,
     )
     chain_file = _write(root / f"build_chain_{chain['chain_id']}.json", {**publication, **chain, "record_id": parent})
+    # the publication manifest a publish writes after the record (spec G D-G50:
+    # the list row says whether it is present)
+    (root / "publications").mkdir()
+    _write(manifest_path(root, chain["chain_id"]), publication_manifest(
+        publication, record_id=parent, inputs=chain["inputs"],
+        files={"layer1_dump": layer1.name, "norms": norms.name, "alignments": alignments.name}))
     store.set_publication(parent, publication, run_id=run)
     store.finish_execution(
         parent, run, status="done", gates=gates + POSTLOAD_GATES, counts={"nodes": 2, "edges": 1},

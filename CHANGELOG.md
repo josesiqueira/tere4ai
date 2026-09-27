@@ -14,6 +14,13 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   them cannot be read. `set_publication` refuses a number another record
   holds. A test fails when two committed chain records or manifests of
   `data/graph_dumps/` carry one number.
+- Every presented publication carries `build_number` (null, with the reason
+  "published before build numbers (B94)", for one published before; a legacy
+  row takes the number of the chain record it matches); the presented record
+  and the builds list row carry `manifest_present` beside `served`, derived,
+  never stored; the list row's publication carries `build_id` and
+  `build_number`. The schema change is additive and the version strings stay
+  v1; the mock data files were regenerated.
 
 ### Before the humans (2026-09-26, B81, B97)
 - The label act refuses (exit code 2, before any record or write) a
