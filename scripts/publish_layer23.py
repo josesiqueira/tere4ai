@@ -114,6 +114,36 @@ def _continues_the_same_norms(candidate: dict, published_record_id: str, norms_d
               for out in ex.get("outputs", []) if out.get("role") == "norms")
 
 
+def _by(publisher: dict) -> str:
+    """' (Build N) by record R', or ' by record R' for a publication made before build numbers."""
+    number = publisher["publication"].get("build_number")
+    return f"{f' (Build {number})' if number is not None else ''} by record {publisher['record_id']}"
+
+
+def _already_published(dump_dir: Path, chain_id: str, publisher: dict | None) -> str | None:
+    """The refusal for inputs already published as chain_id, or None. Each
+    case names the step that helps (spec G D-G50, B94a final review B-P2-2):
+    activation needs the manifest, the manifest repair needs the chain record
+    and the frozen record, and a chain is never published a second time."""
+    repair = f"scripts/write_publication_manifest.py {chain_id} --dump-dir {dump_dir}"
+    chain_name = f"build_chain_{chain_id}.json"
+    if manifest_path(dump_dir, chain_id).exists():
+        return f"already published as chain {chain_id}; activate it with scripts/activate_build.py {chain_id}"
+    if (dump_dir / chain_name).exists() and publisher is not None:
+        number = publisher["publication"].get("build_number")
+        return (f"chain {chain_id} is published (record {publisher['record_id']}"
+                f"{f', Build {number}' if number is not None else ''}) but its publication manifest is missing: "
+                f"write it with {repair}; never publish the same inputs again")
+    if (dump_dir / chain_name).exists():
+        return (f"already published as chain {chain_id}: {chain_name} exists, but no publication manifest and no "
+                "build record holds its publication, so it cannot be activated; nothing is published")
+    if publisher is not None:
+        # review I2: a record holds the publication with both files gone
+        return (f"already published as chain {chain_id}{_by(publisher)}; both its chain record and its "
+                "publication manifest are missing: write them from the record, never publish the same inputs again")
+    return None
+
+
 def _evidence(norms_payload: dict, alignments_payload: dict | None, norms_digest: str,
               manifest_paths: list[Path]) -> tuple[str | None, dict, list[dict]]:
     """The evidence steps (1) to (3) (D-G27): the refusal message or None, the
@@ -207,20 +237,12 @@ def _main(argv: list[str] | None = None) -> int:
         # Every manifest exists here (checked above, B97 item 3).
         early_chain = build_chain(args.dump, args.norms, alignments_path=args.alignments,
                                   manifest_paths=args.manifest or None)
-        if ((dump_dir / f"build_chain_{early_chain['chain_id']}.json").exists()
-                or manifest_path(dump_dir, early_chain["chain_id"]).exists()):
-            print(f"already published as chain {early_chain['chain_id']}; "
-                  f"activate it with scripts/activate_build.py {early_chain['chain_id']}", file=sys.stderr)
-            return 1
         # A record that holds this chain's publication makes it published even
         # when its chain record or manifest was lost or removed (spec G D-G50,
         # review I2): a second publication would give one chain two numbers.
-        publisher = store.publisher_of(early_chain["chain_id"])
-        if publisher is not None:
-            number = publisher["publication"].get("build_number")
-            print(f"already published as chain {early_chain['chain_id']} by record {publisher['record_id']}"
-                  f"{f' (Build {number})' if number is not None else ''}; its chain record or publication manifest "
-                  "is missing: write it from the record, never publish the same inputs again", file=sys.stderr)
+        refusal = _already_published(dump_dir, early_chain["chain_id"], store.publisher_of(early_chain["chain_id"]))
+        if refusal is not None:
+            print(refusal, file=sys.stderr)
             return 1
         # A build number must be issuable before any record is touched (spec G
         # D-G50, review I1): the check reads files only, like the evidence
@@ -360,12 +382,12 @@ def _main(argv: list[str] | None = None) -> int:
             chain = build_chain(args.dump, args.norms, alignments_path=args.alignments,
                                 manifest_paths=args.manifest or None)
             chain_path = dump_dir / f"build_chain_{chain['chain_id']}.json"
-            if chain_path.exists() or manifest_path(dump_dir, chain["chain_id"]).exists():
-                # The chain id is a function of the input digests: identical
-                # inputs were published already, and published history is never
-                # rewritten (D-G20).
-                return fail(f"already published as chain {chain['chain_id']}; "
-                            f"activate it with scripts/activate_build.py {chain['chain_id']}", gates)
+            # The chain id is a function of the input digests: identical inputs
+            # were published already, and published history is never rewritten
+            # (D-G20).
+            refusal = _already_published(dump_dir, chain["chain_id"], store.publisher_of(chain["chain_id"]))
+            if refusal is not None:
+                return fail(refusal, gates)
             base_build_id = norms_payload.get("build", {}).get("build_id", "layer2-adhoc")
             build_id = chained_build_id(base_build_id, chain)
             graph = norms_to_graph(norms_payload, build_id=build_id)
@@ -424,6 +446,19 @@ def _main(argv: list[str] | None = None) -> int:
                 set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
                 loading = False
                 return fail(f"NOT published: {reason}", gates + postload_gates)
+            # The "already published" checks again, now under the numbering
+            # lock that every writer of a chain record, a manifest and a number
+            # holds (spec G D-G50, B94a final review B-P2-1): another record
+            # may have published the same inputs while this run loaded and
+            # gated them, and a chain gets one number. Nothing is written yet,
+            # so no number is used.
+            holder = store.publisher_of(chain["chain_id"])
+            if holder is not None or chain_path.exists() or manifest_path(dump_dir, chain["chain_id"]).exists():
+                reason = (f"already published as chain {chain['chain_id']}{_by(holder) if holder else ''} while this "
+                          f"run loaded it; this run publishes nothing")
+                set_target_state(dump_dir, state="unavailable", build_id=build_id, uri=uri, reason=reason)
+                loading = False
+                return fail(reason, gates + postload_gates)
             publication = {
                 "chain_id": chain["chain_id"], "build_id": build_id, "published_at": datetime.now(UTC).isoformat(),
                 "gating": gating, "label": whole_build_label(gating, bound, core_nodes), "gates": gates,
@@ -480,20 +515,46 @@ def _main(argv: list[str] | None = None) -> int:
                    outputs=[{"role": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
                    counts={"nodes": nodes, "edges": edges})
         except BaseException as exc:  # an interrupt too: the target never stays loading, the execution never running
-            if chain_unpublished is not None:
-                # set_publication did not return (final review F2): this run's
-                # chain file would make the next publish read "already
-                # published", so it goes; the record holds no publication.
-                chain_unpublished.unlink(missing_ok=True)
-                written.remove(chain_unpublished.name)
             error = f"{type(exc).__name__}: {exc}"
+            if chain_unpublished is not None:
+                # The interrupt may land after set_publication returned and
+                # before chain_unpublished was cleared (B94a final review
+                # A-M1): the record, read here, says whether it is frozen.
+                try:
+                    published: bool | None = store.read(record_id)["publication"] is not None
+                except Exception:  # an unreadable record: the chain record is kept
+                    published = None
+                if published is False:
+                    # set_publication did not freeze the record (final review
+                    # F2): this run's chain file would make the next publish
+                    # read "already published", so it goes.
+                    chain_unpublished.unlink(missing_ok=True)
+                    written.remove(chain_unpublished.name)
+                elif published:
+                    frozen = True
+                    written.append(f"record {record_id} publication block")
+                    counter_note = store.record_build_number(build_number)
+                else:
+                    error += (f"; record {record_id} could not be read to tell whether it is published, so "
+                              f"{chain_unpublished.name} is kept: remove it only after the record shows no publication")
             if frozen:
                 # The record is published and frozen with its number (spec G
                 # D-G50, review I2): removing the chain record would let the
                 # same inputs take a second number, so it is never offered.
+                # The message goes to the terminal too (final review B-P2-2)
+                # and names what is not written and the command that writes it.
+                missing = [name for name in (f"{PUBLICATIONS_DIRNAME}/{chain['chain_id']}.json",
+                                             CURRENT_POINTER_FILENAME) if name not in written]
                 error += (f"; record {record_id} is published as Build {build_number}, chain {chain['chain_id']}; "
-                          f"already written: {', '.join(written)}; write the missing publication manifest and "
-                          "pointer from the chain record, never remove the chain record")
+                          f"already written: {', '.join(written)}")
+                if missing:
+                    error += (f"; not written: {', '.join(missing)}; write {'them' if len(missing) > 1 else 'it'} "
+                              f"with scripts/write_publication_manifest.py {chain['chain_id']} --dump-dir {dump_dir} "
+                              "--pointer")
+                error += "; never remove the chain record"
+                if counter_note:
+                    error += f"; {counter_note}"
+                print(error, file=sys.stderr)
             elif written:
                 error += f"; already written, clean up by hand: {', '.join(written)}"
             if loading:
