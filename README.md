@@ -190,6 +190,19 @@ startup, so a restart is the only way the facade changes builds. A file that
 drifts from the activated publication refuses service. Without a pointer
 both serve the three fixed dump files as before.
 
+Each publication gets a build number, 1, 2, 3 in the order the publications
+of one dump directory were recorded (spec G D-G50 in the research
+repository): publish prints `published Build N: <build id>, ...` and
+activate prints `activated Build N (<build id>)`. The number is written into
+`build_chain_<id>.json`, the frozen build record and `publications/<id>.json`;
+commit the first and the last with the build, because `build_records/` is
+git-ignored and the committed files keep a number from being issued twice.
+If publish fails after the record is frozen, write the missing publication
+manifest and pointer from the chain record; never remove the chain record,
+since the same inputs would then be refused, not renumbered. Until the B74
+re-run nothing is published into `data/graph_dumps/`: a rehearsal publishes
+into a temporary `--dump-dir`, since a number is never reused.
+
 ```bash
 
 # demo web UI (thin, read-only; docs/DESIGN.md)

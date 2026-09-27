@@ -29,6 +29,12 @@ The publish step runs the Section 13 gates before loading and the post-load
 gates P1..P5 after (#49); a restore that fails either is not a restore.
 Verify the chain id printed matches the tracked build_chain record.
 
+A restore never issues a new build number: the tracked build_chain and
+publications files keep theirs, and publishing inputs already published is
+refused ("already published as chain ..."). If build_records/ was lost, the
+next publication still numbers above every number those files carry. Never
+remove a build_chain file to "retry" a publication.
+
 ## Volume backup (offline dump, Community edition)
 
 Neo4j Community requires the database stopped for a consistent dump:

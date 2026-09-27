@@ -572,8 +572,22 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   build_chain_<id>.json (published_at, per-gate outcomes, gating per layer,
   the whole-build label llm-gated or human-adjudicated, or none for an
   intermediate or partial build) and publications/<id>.json; several
-  manifests enter the chain id order-independently. BUILD_CHAIN_CURRENT.txt
-  records the latest publication and selects nothing; scripts/activate_build.py
+  manifests enter the chain id order-independently.
+  Publication also gives the build its build number (added 2026-09-26,
+  spec G D-G50 in the private research repository): under a numbering lock
+  taken after the post-load gates, 1 above every number held by the build
+  records, the counter build_records/numbering.json, the publication
+  manifests and the chain records of the dump directory, refused when the
+  counter is absent and one of them cannot be read; the publication is dated
+  under the same lock, and the number is written into the chain record, the
+  frozen record and the manifest, never reused and never changed. A chain a
+  record already published is refused again even when its chain record or
+  manifest is gone. Numbers are per dump directory; the chain records and
+  manifests that carry them are tracked, so a lost build_records/ never
+  lowers the next number. The builds list row carries the number, the build
+  id and manifest_present (derived, beside served).
+  BUILD_CHAIN_CURRENT.txt records the latest publication and selects
+  nothing; scripts/activate_build.py
   verifies the publication's files and writes the activation pointer; the
   facade (at startup) and the MCP server (once per tool call) load through
   one loader and serve the pointer's build, a drifted file refusing
@@ -586,7 +600,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   tests/fixtures/build_records/. Tests: tests/unit/test_build_record*.py,
   test_checkpoints.py, test_parse_cli_record.py, test_materialize.py,
   test_publish_layer23.py, test_publication.py, test_present.py,
-  test_builds_routes.py.
+  test_builds_routes.py, test_build_numbers.py.
 
 - DEC-17: every measurement run of the Evaluate steps E1 (judge error
   rates) and E6 (benchmark, ablations, variance) writes one immutable

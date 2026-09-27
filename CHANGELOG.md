@@ -32,6 +32,8 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   remove the chain record. It prints `published Build N: <build id>, record
   <record id>, published_at <time>`; `scripts/activate_build.py` prints the
   number beside the full build id.
+- DEC-16, README and the restore runbook describe the build number; nothing
+  is published into `data/graph_dumps/` before the B74 re-run.
 
 ### Before the humans (2026-09-26, B81, B97)
 - The label act refuses (exit code 2, before any record or write) a
