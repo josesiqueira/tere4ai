@@ -34,6 +34,21 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   number beside the full build id.
 - DEC-16, README and the restore runbook describe the build number; nothing
   is published into `data/graph_dumps/` before the B74 re-run.
+- Final review fixes: publish checks the chain record, the manifest and
+  the publishing record again under the numbering lock after the
+  reservation, so a chain published from another record during the load is
+  refused and one chain never carries two numbers; a failure after the
+  record is frozen is printed on the terminal with what is not written and
+  the new `scripts/write_publication_manifest.py <chain_id> [--pointer]`,
+  which writes a missing manifest and pointer from the chain record and the
+  frozen record, never with a new number and never touching Neo4j; a retry
+  tells a missing manifest apart from a published one; an interrupt right
+  after the freeze keeps the chain record. The store names a chain whose
+  chain record and manifest carry different numbers, calls a malformed
+  counter "absent or unreadable" and never lowers the counter. The restore
+  runbook's rebuild from source is for a chain not yet published; a
+  published chain's lost Neo4j comes from its volume dump until publish can
+  reload one (B97 item 10).
 
 ### Before the humans (2026-09-26, B81, B97)
 - The label act refuses (exit code 2, before any record or write) a

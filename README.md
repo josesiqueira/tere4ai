@@ -197,9 +197,12 @@ activate prints `activated Build N (<build id>)`. The number is written into
 `build_chain_<id>.json`, the frozen build record and `publications/<id>.json`;
 commit the first and the last with the build, because `build_records/` is
 git-ignored and the committed files keep a number from being issued twice.
-If publish fails after the record is frozen, write the missing publication
-manifest and pointer from the chain record; never remove the chain record,
-since the same inputs would then be refused, not renumbered. Until the B74
+If publish fails after the record is frozen (the terminal says `is published
+as Build N`), `.venv/bin/python scripts/write_publication_manifest.py
+<chain_id> --pointer` writes the missing publication manifest and pointer
+from the chain record and the frozen record, with the same number; never
+remove the chain record, since the same inputs would then be refused, not
+renumbered. Until the B74
 re-run nothing is published into `data/graph_dumps/`: a rehearsal publishes
 into a temporary `--dump-dir`, since a number is never reused.
 

@@ -573,7 +573,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   the whole-build label llm-gated or human-adjudicated, or none for an
   intermediate or partial build) and publications/<id>.json; several
   manifests enter the chain id order-independently.
-  Publication also gives the build its build number (added 2026-09-26,
+  Publication also gives the build its build number (added 2026-09-27,
   spec G D-G50 in the private research repository): under a numbering lock
   taken after the post-load gates, 1 above every number held by the build
   records, the counter build_records/numbering.json, the publication
@@ -600,7 +600,8 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   tests/fixtures/build_records/. Tests: tests/unit/test_build_record*.py,
   test_checkpoints.py, test_parse_cli_record.py, test_materialize.py,
   test_publish_layer23.py, test_publication.py, test_present.py,
-  test_builds_routes.py, test_build_numbers.py.
+  test_builds_routes.py, test_build_numbers.py,
+  test_write_publication_manifest.py.
 
 - DEC-17: every measurement run of the Evaluate steps E1 (judge error
   rates) and E6 (benchmark, ablations, variance) writes one immutable

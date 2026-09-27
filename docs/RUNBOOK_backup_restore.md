@@ -11,10 +11,14 @@ The graph in Neo4j is fully rebuildable from tracked, checksummed inputs
 backup is therefore the repository itself: data/snapshots (frozen sources),
 data/graph_dumps (layer1.json, norms_core.json, alignments_core.json, the
 build_chain record), and data/review_queue/decisions.json. Volume backups
-below are a convenience (faster than re-publishing, and they preserve any ad
-hoc additions), never the source of truth.
+below are never the source of truth; they are faster than re-publishing,
+preserve any ad hoc additions, and, until publish can reload a published
+chain, they are the only way to restore Neo4j for one (see below).
 
-## Rebuild from source (the canonical restore)
+## Rebuild from source (a chain not yet published)
+
+The block below publishes inputs that no build record has published yet,
+for example the first publication of the B74 re-run:
 
 ```bash
 docker compose up -d neo4j
@@ -26,14 +30,34 @@ docker compose up -d neo4j
 ```
 
 The publish step runs the Section 13 gates before loading and the post-load
-gates P1..P5 after (#49); a restore that fails either is not a restore.
-Verify the chain id printed matches the tracked build_chain record.
+gates P1..P5 after (#49); a publication that fails either is not published.
+It prints `published Build N: <build id>, ...` and the build_chain file it
+wrote.
 
-A restore never issues a new build number: the tracked build_chain and
-publications files keep theirs, and publishing inputs already published is
-refused ("already published as chain ..."). If build_records/ was lost, the
-next publication still numbers above every number those files carry. Never
-remove a build_chain file to "retry" a publication.
+A published chain is not rebuilt this way. Publishing inputs already
+published is refused before the load ("already published as chain ..."),
+since a chain gets one build number, and publish has no mode yet that
+reloads a published chain into Neo4j without recording a publication (filed
+as B97 item 10, after the B74 re-run). A lost Neo4j of a published chain is
+restored from its volume dump ("Volume restore" below), so take a volume
+backup after each publication. If build_records/ was lost, the next
+publication still numbers above every number the tracked build_chain and
+publications files carry. Never remove a build_chain file to "retry" a
+publication.
+
+If publish fails after it froze the record (the terminal says "is published
+as Build N"), write the missing publication manifest and pointer from the
+chain record and the frozen record, then activate as usual:
+
+```bash
+.venv/bin/python scripts/write_publication_manifest.py <chain_id> --pointer
+.venv/bin/python scripts/activate_build.py <chain_id>
+```
+
+The command keeps the build number, never rewrites a build_chain file, a
+build record or a present manifest, and never touches Neo4j. It refuses
+when no frozen record published the chain, and `--pointer` is refused when
+a later build number is published.
 
 ## Volume backup (offline dump, Community edition)
 
