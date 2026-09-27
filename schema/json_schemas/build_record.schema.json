@@ -239,7 +239,8 @@
         "label": {"enum": ["llm-gated", "human-adjudicated", null]},
         "gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
         "postload_gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
-        "manifests": {"type": "array", "items": {"$ref": "#/$defs/manifest_ref"}}
+        "manifests": {"type": "array", "items": {"$ref": "#/$defs/manifest_ref"}},
+        "build_number": {"type": ["integer", "null"], "minimum": 1}
       },
       "required": ["chain_id", "build_id", "published_at", "gating", "label", "gates", "postload_gates", "manifests"]
     },
@@ -422,6 +423,7 @@
         "gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
         "postload_gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
         "manifests": {"type": "array", "items": {"$ref": "#/$defs/manifest_ref"}},
+        "build_number": {"type": ["integer", "null"], "minimum": 1},
         "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
         "files": {
           "type": "object",

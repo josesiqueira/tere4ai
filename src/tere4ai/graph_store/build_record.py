@@ -34,6 +34,14 @@ from jsonschema import Draft202012Validator
 
 RECORDS_DIRNAME = "build_records"
 ALIASES_FILENAME = "aliases.json"
+NUMBERING_FILENAME = "numbering.json"
+# The files that carry a build number beside the records (spec G D-G50); a
+# stem that is not a chain id (a tmp*.json of atomic_write_json, mid-write or
+# left by a killed process) is never one of them.
+NUMBERED_GLOBS = (("build_chain_*.json", re.compile(r"^build_chain_[0-9a-f]{12}$")),
+                  ("publications/*.json", re.compile(r"^[0-9a-f]{12}$")))
+NUMBERING_UNBLOCK = ("repair or move each file aside, or write build_records/numbering.json as "
+                     '{"last_number": N} with N at least the highest number those files held')
 SCHEMA_VERSION = "build_record.v1"
 HEARTBEAT_EXPIRY_SECONDS = 300
 STEP_IDS = ("L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.3", "L3.4", "L3.5", "P.1", "P.2")
@@ -57,6 +65,58 @@ class FrozenRecordError(RecordError):
 
 class LiveExecutionError(RecordError):
     """A publication was asked for while another execution of the record is live."""
+
+
+class NumberingError(RecordError):
+    """A build number cannot be issued safely (spec G D-G50): a file that may
+    hold the highest number cannot be read while the counter is absent, or
+    another record already holds the number."""
+
+
+def _number_in(payload: Any) -> int | None:
+    """The build_number a record, a chain record or a manifest carries, or None."""
+    if not isinstance(payload, dict):
+        return None
+    holder = payload.get("publication") if "publication" in payload else payload
+    number = holder.get("build_number") if isinstance(holder, dict) else None
+    return number if isinstance(number, int) and not isinstance(number, bool) else None
+
+
+def numbered_files(dump_dir: Path | str) -> tuple[dict[str, int], list[str]]:
+    """Every chain record and publication manifest of the dump directory that
+    carries a build number (spec G D-G50), as {relative path: number}, and the
+    relative paths that could not be read. A file whose stem is not a chain id
+    is skipped."""
+    dump_dir = Path(dump_dir)
+    numbers: dict[str, int] = {}
+    unreadable: list[str] = []
+    for pattern, stem in NUMBERED_GLOBS:
+        for path in sorted(dump_dir.glob(pattern)):
+            if not stem.match(path.stem):
+                continue
+            rel = str(path.relative_to(dump_dir))
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                unreadable.append(rel)
+                continue
+            number = _number_in(payload)
+            if number is not None:
+                numbers[rel] = number
+    return numbers, unreadable
+
+
+def duplicate_build_numbers(dump_dir: Path | str) -> list[str]:
+    """One line per build number that two chain records or two manifests
+    carry for different chains (spec G D-G50, review M7): a chain record and
+    its own manifest carry the same number by design."""
+    numbers, _ = numbered_files(dump_dir)
+    by_number: dict[int, set[str]] = {}
+    for rel, number in numbers.items():
+        chain = Path(rel).stem.removeprefix("build_chain_")
+        by_number.setdefault(number, set()).add(chain)
+    return [f"Build {n} is carried by chains {', '.join(sorted(chains))}"
+            for n, chains in sorted(by_number.items()) if len(chains) > 1]
 
 
 def _now() -> str:
@@ -241,6 +301,62 @@ class BuildRecordStore:
                     return record["record_id"]
         return None
 
+    # ---- build numbers (spec G D-G50)
+    def _counter(self) -> int | None:
+        """The high-water mark in numbering.json; None when the file is absent
+        or unreadable (binary garbage included)."""
+        try:
+            data = json.loads((self.dir / NUMBERING_FILENAME).read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return None
+        value = data.get("last_number") if isinstance(data, dict) else None
+        return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+    def next_build_number(self) -> int:
+        """1 above the largest number held by the counter, the build records,
+        the publication manifests and the chain records of the dump directory.
+        Refused (NumberingError, naming the files and how to unblock) when the
+        counter is absent and a record, manifest or chain record cannot be
+        read, since the unread file may hold the highest number."""
+        counter = self._counter()
+        records = self.list_records()
+        bad_records = [f"{RECORDS_DIRNAME}/{r['record_id']}.json" for r in records if r.get("unreadable")]
+        files, bad_files = numbered_files(self.dir.parent)
+        if counter is None and (bad_records or bad_files):
+            raise NumberingError("the build number counter is absent and these files cannot be read, so the next "
+                                 f"number is unknown: {', '.join(bad_records + bad_files)}; {NUMBERING_UNBLOCK}")
+        held = [counter or 0, *files.values()]
+        held += [n for r in records if not r.get("unreadable") and (n := _number_in(r)) is not None]
+        return max(held) + 1
+
+    @contextmanager
+    def reserve_build_number(self):
+        """Hold the numbering lock and yield the next build number. The
+        publish command holds it from before the publication is built until
+        its last write, so two publications never get one number and the
+        number order is the recorded order of publication."""
+        with self._locked("numbering"):
+            yield self.next_build_number()
+
+    def record_build_number(self, number: int) -> str | None:
+        """Write the counter as soon as the record is frozen; never raises (the
+        maximum over the records, manifests and chain records repairs a lost
+        write). Returns the failure as one line, or None."""
+        try:
+            atomic_write_json(self.dir / NUMBERING_FILENAME, {"last_number": number})
+        except OSError as exc:
+            return f"the build number counter was not written ({exc}); the next publication reads the number from the records"
+        return None
+
+    def publisher_of(self, chain_id: str) -> dict[str, Any] | None:
+        """The readable record whose publication carries this chain id, or
+        None (spec G D-G50, review I2): a chain is published once, whatever
+        files around it were lost or removed."""
+        for record in self.list_records():
+            if not record.get("unreadable") and (record.get("publication") or {}).get("chain_id") == chain_id:
+                return record
+        return None
+
     def is_frozen(self, record_id: str) -> bool:
         return self.read(record_id)["publication"] is not None
 
@@ -354,6 +470,12 @@ class BuildRecordStore:
         def mutate(record):
             if record["publication"] is not None:
                 raise FrozenRecordError(f"record {record_id} already published as {record['publication']['chain_id']}")
+            number = publication.get("build_number")
+            if number is not None:
+                holders = [r["record_id"] for r in self.list_records()
+                           if not r.get("unreadable") and r["record_id"] != record_id and _number_in(r) == number]
+                if holders:
+                    raise NumberingError(f"build number {number} is already held by record {', '.join(holders)}")
             live = self._live_others(record, excluding=run_id)
             if live:
                 named = ", ".join(f"{ex['run_id']} ({ex['command']}, heartbeat {ex['heartbeat_at']})" for ex in live)

@@ -5,6 +5,16 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Build numbers (B94)
+- A published build gets a build number (spec G D-G50): the build record
+  store issues 1 above the largest number held by `build_records/numbering.json`,
+  the build records, `publications/*.json` and `build_chain_*.json` (a
+  temporary file is never counted), under a numbering lock, and refuses,
+  naming the files and how to unblock, when the counter is absent and one of
+  them cannot be read. `set_publication` refuses a number another record
+  holds. A test fails when two committed chain records or manifests of
+  `data/graph_dumps/` carry one number.
+
 ### Before the humans (2026-09-26, B81, B97)
 - The label act refuses (exit code 2, before any record or write) a
   decision id named more than once in one act, by `--label` and a
