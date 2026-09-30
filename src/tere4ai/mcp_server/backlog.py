@@ -277,8 +277,10 @@ def generate_control_backlog(
         return {
             "generator_model": generator.model,
             "generator_effort": getattr(generator, "effort", "not configured"),
+            "generator_temperature": getattr(generator, "temperature", "not configured"),
             "judge_model": judge.model,
             "judge_effort": getattr(judge, "effort", "not configured"),
+            "judge_temperature": getattr(judge, "temperature", "not configured"),
             "usage": {"generator": usage_since(generator, generator_before),
                       "judge": usage_since(judge, judge_before)},
         }

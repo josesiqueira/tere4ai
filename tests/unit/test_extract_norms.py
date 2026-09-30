@@ -164,6 +164,7 @@ def test_judge_run_shape_and_extraction_kind(tmp_path):
     assert run["judge_kind"] == "extraction"
     assert run["judge_model"] == "fake-judge"
     assert run["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
+    assert run["judge_temperature"] == "not configured"
     assert run["prompt_version"] == "v1"
     assert run["verdict"] == "accepted"
     assert run["rationale"]
@@ -319,3 +320,14 @@ def test_extraction_log_written_with_no_key_material(tmp_path):
 def test_unknown_node_id_raises(tmp_path):
     with pytest.raises(ValueError, match="unknown node id"):
         expand_source_units(FAKE_DUMP, ["eu-ai-act:article-404"])
+
+
+def test_judge_run_records_the_declared_judge_temperature(tmp_path):
+    """B99 (spec F D-F29): every JudgeRun names the temperature as declared."""
+    generator = FakeClient({PARA_ID: GENERATOR_ANSWER}, model="fake-generator")
+    judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
+    judge.effort, judge.temperature = "xhigh", "N/A"
+    result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, prompt_version="v1",
+                           log_path=tmp_path / "extraction_log.jsonl")
+    run = result["judge_runs"][0]
+    assert (run["judge_effort"], run["judge_temperature"]) == ("xhigh", "N/A")

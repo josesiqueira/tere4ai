@@ -85,6 +85,8 @@ def _render_assertion(
             # B84 (spec F D-F22): the judge effort outcome, null for a
             # pre-B84 dump, never invented.
             "judge_effort": (judge_run or {}).get("judge_effort"),
+            # B99 (spec F D-F29): the declared temperature, null for a dump made before it
+            "judge_temperature": (judge_run or {}).get("judge_temperature"),
             "prompt_version": (judge_run or {}).get("prompt_version"),
             "verdict": (judge_run or {}).get("verdict"),
             "rationale": (judge_run or {}).get("rationale"),

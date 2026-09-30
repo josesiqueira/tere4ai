@@ -168,6 +168,8 @@ def _mechanical_judge_run(
         "judge_kind": "mapping",
         "judge_model": MECHANICAL_JUDGE_MODEL,
         "judge_effort": "not applicable (mechanical gate)",
+        # B84 ruling R12 stands under spec F D-F29: no model, no temperature
+        "judge_temperature": "not applicable (mechanical gate)",
         "prompt_version": prompt_version,
         "prompt_sha256": _mechanical_gate_sha256(),
         "verdict": "rejected",
@@ -404,6 +406,7 @@ def align_norms(
                 "judge_kind": "mapping",
                 "judge_model": judge.model,
                 "judge_effort": getattr(judge, "effort", "not configured"),
+                "judge_temperature": getattr(judge, "temperature", "not configured"),
                 "prompt_version": prompt_version,
                 "prompt_sha256": judge_prompt_sha256,
                 "verdict": verdict,

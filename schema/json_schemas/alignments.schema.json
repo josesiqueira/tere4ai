@@ -98,6 +98,8 @@
         "layer": { "const": 3 },
         "judge_kind": { "enum": ["extraction", "mapping", "runtime_grounding"] },
         "judge_model": { "type": "string", "description": "config value, never hardcoded (Section 7)" },
+        "judge_effort": { "type": "string", "description": "the effort the judge ran under: a declared level or N/A since B99 (spec F D-F29), the applied outcome from B84 until B99; not applicable (mechanical gate) for the quote check" },
+        "judge_temperature": { "type": "string", "description": "the judge's declared temperature, 0 or N/A (spec F D-F29); not applicable (mechanical gate) for the quote check; absent in dumps made before B99" },
         "prompt_version": { "type": "string" },
         "verdict": { "$ref": "#/$defs/judgeVerdict" },
         "scores": { "$ref": "#/$defs/scoreDimensions" },

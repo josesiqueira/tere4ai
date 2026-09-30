@@ -692,6 +692,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 # B84 (spec F D-F22): the judge effort outcome, null for a
                 # pre-B84 dump, never invented.
                 "effort": run.get("judge_effort"),
+                # B99 (spec F D-F29): the declared temperature, null for a dump made before it
+                "temperature": run.get("judge_temperature"),
                 "prompt_version": run.get("prompt_version"),
                 "verdict": run.get("verdict"),
                 "scores": run.get("scores"),

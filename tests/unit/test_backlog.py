@@ -123,6 +123,7 @@ def test_happy_path_status_and_items(tmp_path):
     assert answer["judge_rationale"] == "Items stay within the cited norms."
     assert answer["judge_model"] == "fake-judge"
     assert answer["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
+    assert answer["judge_temperature"] == "not configured"
     cited = {norm_id for it in answer["items"] for norm_id in it["norm_ids"]}
     assert cited <= {NORM_A["norm_id"], NORM_B["norm_id"], NORM_C["norm_id"]}
     assert set(envelope["source_nodes"]) == {
@@ -388,9 +389,10 @@ def test_mechanical_priority_keeps_unconditional_obligations_must(tmp_path):
 class CountingClient(FakeClient):
     """A FakeClient with the real clients' usage record and effort outcome (B91)."""
 
-    def __init__(self, scripted, model, effort="xhigh", tokens=(100, 20)):
+    def __init__(self, scripted, model, effort="xhigh", temperature="0", tokens=(100, 20)):
         super().__init__(scripted, model=model)
         self.effort = effort
+        self.temperature = temperature
         self.usage = _new_usage()
         self._tokens = tokens
 
@@ -419,6 +421,7 @@ def test_backlog_answer_names_the_generator_and_both_roles_usage(tmp_path):
     answer = envelope["answer"]
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "xhigh"
     assert answer["judge_model"] == "fake-judge" and answer["judge_effort"] == "xhigh"
+    assert answer["generator_temperature"] == "0" and answer["judge_temperature"] == "0"
     # final review A3 adds the sixth count, requests_refused (none here)
     assert answer["usage"] == {
         "generator": {"calls": 1, "input_tokens": 100, "output_tokens": 20, "requests_sent": 1,

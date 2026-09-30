@@ -73,6 +73,17 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   declared sampling. A static test pins that only the four terminal
   commands name the terminal policy and only the two scripts name the
   provider refusal.
+- Every JudgeRun carries `judge_temperature`, the judge's declared
+  temperature ("not applicable (mechanical gate)" for the quote check, B84
+  ruling R12), added to the JudgeRun branch of `alignments.schema.json` with
+  `judge_effort` as string properties that are not required; the schema
+  version is unchanged and every existing dump stays valid. The Neo4j
+  JudgeRun node, `/api/units` (`judge.temperature`) and `trace_alignment`
+  (`judge_run.judge_temperature`, null for an older dump) carry it; the
+  backlog answer names `generator_temperature` and `judge_temperature`, the
+  evidence answer `judge_temperature`, the eval strategies'
+  models `judge_temperature` and, on every strategy, the generator's
+  declared `generator_effort` and `generator_temperature`.
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record

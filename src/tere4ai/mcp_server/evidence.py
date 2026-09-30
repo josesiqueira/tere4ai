@@ -262,6 +262,7 @@ def evaluate_project_evidence(
         "judge_rationale": check["rationale"],
         "judge_model": judge.model,
         "judge_effort": getattr(judge, "effort", "not configured"),
+        "judge_temperature": getattr(judge, "temperature", "not configured"),
         "judge_run_id": check["judge_run"]["id"],
     }
     return make_envelope(

@@ -105,6 +105,7 @@ def _judge_run_node(run: dict[str, Any]) -> dict[str, Any]:
         "judge_kind",
         "judge_model",
         "judge_effort",
+        "judge_temperature",
         "prompt_version",
         "verdict",
         "rationale",

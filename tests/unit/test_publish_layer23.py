@@ -128,6 +128,7 @@ def test_published_judge_run_node_carries_the_judge_effort(tmp_path, monkeypatch
         "judge_kind": "extraction",
         "judge_model": "claude-test",
         "judge_effort": "high",
+        "judge_temperature": "N/A",
         "prompt_version": "v1",
         "verdict": "accepted",
         "rationale": "grounded",
@@ -143,6 +144,7 @@ def test_published_judge_run_node_carries_the_judge_effort(tmp_path, monkeypatch
     dump = captured[0]
     judge_run_node = next(n for n in dump["nodes"] if n["type"] == "JudgeRun")
     assert judge_run_node["judge_effort"] == "high"
+    assert judge_run_node["judge_temperature"] == "N/A"
 
 
 def test_publication_artifacts_do_not_exist_while_loading(tmp_path, monkeypatch):

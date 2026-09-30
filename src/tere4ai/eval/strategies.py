@@ -179,6 +179,14 @@ class Strategy(Protocol):
     def models(self) -> dict[str, str]: ...
 
 
+def _generator_models(generator: ModelClient) -> dict[str, str]:
+    """The generator's model id with its declared effort and temperature (spec
+    F D-F29), "not configured" for a client without them (B101 ruling S2)."""
+    return {"generator": generator.model,
+            "generator_effort": getattr(generator, "effort", "not configured"),
+            "generator_temperature": getattr(generator, "temperature", "not configured")}
+
+
 class PlainLLM:
     """Condition 1: generator only, question only, no graph and no context."""
 
@@ -189,7 +197,7 @@ class PlainLLM:
 
     @property
     def models(self) -> dict[str, str]:
-        return {"generator": self._generator.model}
+        return _generator_models(self._generator)
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:
         return _parse_result(self._generator.complete(_GEN_SYSTEM, _item_question(item)))
@@ -210,7 +218,7 @@ class VectorRag:
 
     @property
     def models(self) -> dict[str, str]:
-        return {"generator": self._generator.model}
+        return _generator_models(self._generator)
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:
         question = _item_question(item)
@@ -305,10 +313,11 @@ class GraphStrategy:
 
     @property
     def models(self) -> dict[str, str]:
-        models = {"generator": self._generator.model}
+        models = _generator_models(self._generator)
         if self._runtime_judge is not None:
             models["judge"] = self._runtime_judge.model
             models["judge_effort"] = getattr(self._runtime_judge, "effort", "not configured")
+            models["judge_temperature"] = getattr(self._runtime_judge, "temperature", "not configured")
             models["judge_prompt_version"] = self._judge_prompt_version
         return models
 

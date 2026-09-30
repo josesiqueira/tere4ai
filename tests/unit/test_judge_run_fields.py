@@ -20,7 +20,7 @@ def _strip_volatile(payload):
     return payload
 
 
-def _dumps(tmp_path, with_hash, with_effort=False):
+def _dumps(tmp_path, with_hash, with_effort=False, with_temperature=False):
     run = {"id": "jr-1", "type": "JudgeRun", "layer": 2, "judge_kind": "extraction", "judge_model": "j",
            "prompt_version": "v1", "verdict": "accepted", "scores": {}, "rationale": "ok",
            "started_at": "2026-09-01T00:00:00+00:00", "completed_at": "2026-09-01T00:00:01+00:00", "build_id": "build-b"}
@@ -29,6 +29,9 @@ def _dumps(tmp_path, with_hash, with_effort=False):
     if with_effort:
         # B84 (spec F D-F22): the JudgeRun carries its effort outcome.
         run["judge_effort"] = "xhigh"
+    if with_temperature:
+        # B99 (spec F D-F29): the JudgeRun carries its declared temperature
+        run["judge_temperature"] = "N/A"
     norm = {"norm_id": "n1", "source_node_id": "eu-ai-act:article-9:paragraph-1", "deontic_type": "obligation",
             "modal": "shall", "actor_explicit": "provider", "actor_inferred": None, "actor_inference_source_node_id": None,
             "action": "do", "object": "x", "conditions": [], "exceptions": [], "lifecycle_phase_ids": [],
@@ -110,3 +113,17 @@ def test_units_and_trace_carry_the_judge_effort_when_the_dump_records_it(tmp_pat
     with TestClient(facade.create_app(tmp_path)) as client:
         candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
         assert candidate["judge"]["effort"] == "xhigh"
+
+
+def test_units_and_trace_carry_the_judge_temperature_or_null(tmp_path):
+    """B99 (spec F D-F29): the declared temperature on both read surfaces; null
+    for a dump made before it, never invented."""
+    for with_temperature, expected in ((False, None), (True, "N/A")):
+        root = tmp_path / str(with_temperature)
+        root.mkdir()
+        dump, alignments = _dumps(root, with_hash=False, with_effort=True, with_temperature=with_temperature)
+        chain = trace_tool.trace_alignment("n1", alignments, dump)["answer"]["assertions"][0]
+        assert chain["judge_run"]["judge_temperature"] == expected
+        with TestClient(facade.create_app(root)) as client:
+            candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
+            assert candidate["judge"]["temperature"] == expected

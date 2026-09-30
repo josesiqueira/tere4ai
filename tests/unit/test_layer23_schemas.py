@@ -126,3 +126,16 @@ def test_judge_run_requires_rationale_and_model():
 def test_schemas_are_valid_draft_2020_12():
     Draft202012Validator.check_schema(norms_schema)
     Draft202012Validator.check_schema(align_schema)
+
+
+def test_judge_run_documents_its_declared_effort_and_temperature():
+    """B99 (spec F D-F29): an additive, not required, string property; every
+    dump made before it stays valid."""
+    run = {"id": "judgerun:b1:2", "type": "JudgeRun", "layer": 3, "judge_kind": "mapping",
+           "judge_model": "test-judge-pinned", "judge_effort": "xhigh", "judge_temperature": "N/A",
+           "prompt_version": "v1", "verdict": "accepted", "rationale": "grounded",
+           "started_at": "2026-09-27T00:00:00Z", "build_id": "build-test"}
+    validate(run, align_schema)
+    validate({k: v for k, v in run.items() if k not in ("judge_effort", "judge_temperature")}, align_schema)
+    with pytest.raises(ValidationError):
+        validate({**run, "judge_temperature": 0}, align_schema)

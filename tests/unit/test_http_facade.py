@@ -988,13 +988,16 @@ def test_units_serves_every_core_unit_with_all_candidates(client):
     for key in ("norm_id", "deontic_type", "modal", "action", "object", "conditions", "exceptions",
                 "extractor_model", "judge_verdict", "judge"):
         assert key in candidate
+    # B99 (spec F D-F29): the candidate's judge gains the additive key "temperature".
     assert set(candidate["judge"]) == {
         "run_id", "model", "prompt_version", "verdict", "scores", "rationale",
-        "completed_at", "prompt_sha256", "effort",
+        "completed_at", "prompt_sha256", "effort", "temperature",
     }
     # B84: the fixture is a pre-B84 dump, so no run carries judge_effort;
     # None, never invented (spec F D-F22).
     assert candidate["judge"]["effort"] is None
+    # B99 (spec F D-F29): nor judge_temperature; None, never invented.
+    assert candidate["judge"]["temperature"] is None
 
 
 def test_units_keeps_the_dump_order_and_groups_by_source_node(client):

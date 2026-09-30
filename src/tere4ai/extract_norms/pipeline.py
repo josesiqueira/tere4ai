@@ -376,6 +376,7 @@ def extract_norms(
                 "judge_kind": "extraction",
                 "judge_model": judge.model,
                 "judge_effort": getattr(judge, "effort", "not configured"),
+                "judge_temperature": getattr(judge, "temperature", "not configured"),
                 "prompt_version": prompt_version,
                 "prompt_sha256": judge_prompt_sha256,
                 "verdict": verdict,
