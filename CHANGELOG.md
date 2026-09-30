@@ -32,6 +32,21 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   clients report `temperature`, `effort` and `json_mode` as declared;
   `sampling` stays the name of the declared temperature. The learned words
   of records made before this change are kept as stored.
+- The model clients take a retry policy from their caller
+  (`retry_policy=`, spec F D-F30). `SERVICE_POLICY`, the default, is
+  exactly today's two retries at 1 and 4 s with a Retry-After in seconds
+  capped at 60 s.
+  `TERMINAL_POLICY` retries 408, 409, 429 other than a quota refusal
+  (`insufficient_quota`), any 5xx, a timeout or a lost connection after
+  pauses of 10, 30, 90, 270 and 600 s (a Retry-After, read in seconds, as a
+  date or as retry-after-ms, lengthens a pause up to 600 s), prints one alert
+  line on standard error before each pause (`ALERT <UTC time>
+  <provider>:<model>: <status or error>; attempt <n> of 6 failed; next
+  attempt in <s> s`, the pause in whole seconds rounded up), and after the sixth attempt raises
+  `ProviderUnavailable` ("provider unavailable after 6 attempts: <status or
+  error>"); every other 4xx and an SDK error before sending stop at once as
+  `ProviderRefused` ("provider refused the request: <status or error>").
+  Every attempt counts in `requests_sent`.
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record

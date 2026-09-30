@@ -13,7 +13,12 @@ never logged or echoed.
 
 from __future__ import annotations
 
+import math
+import sys
 import time
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Protocol
 
 from tere4ai.judge.config import (
@@ -95,6 +100,183 @@ def _first_line(exc: BaseException) -> str:
     return text[0][:200] if text else ""
 
 
+@dataclass(frozen=True)
+class RetryPolicy:
+    """How a client meets a failure that may pass (spec F D-F30), chosen by the
+    caller at construction. pauses[n] is the wait before attempt n + 2, so a
+    policy makes len(pauses) + 1 attempts. retry_after_lengthens_only: a
+    provider's Retry-After only lengthens a pause (terminal) instead of
+    replacing it (service); either way it is capped at retry_after_cap.
+    retry_after_reads_dates_and_ms: the header is read in milliseconds, in
+    seconds or as a date (terminal), or in seconds only, as before B99
+    (service). stop_on_refusal: a failure no retry fixes is raised as
+    ProviderRefused (terminal) or as the SDK's own error (service)."""
+
+    name: str
+    pauses: tuple[float, ...]
+    retry_after_cap: float
+    retry_after_lengthens_only: bool
+    retry_after_reads_dates_and_ms: bool
+    quota_429_retryable: bool
+    alert: bool
+    stop_when_exhausted: bool
+    stop_on_refusal: bool
+
+    @property
+    def attempts(self) -> int:
+        return len(self.pauses) + 1
+
+    def pause(self, retries_used: int, retry_after: float | None) -> float:
+        planned = self.pauses[retries_used]
+        if retry_after is None:
+            return planned
+        if self.retry_after_lengthens_only:
+            return min(max(planned, retry_after), self.retry_after_cap)
+        return min(retry_after, self.retry_after_cap)
+
+
+# The facade, the MCP server and the evaluation harness outside
+# run_ablations: today's two retries at 1 and 4 s, Retry-After in place of
+# the pause, read in seconds only, capped at 60 s (pre-B74 plan ruling R3,
+# unchanged by B99: review T-M2); a failure after them
+# raises and the caller answers degraded with its spend (f220480).
+SERVICE_POLICY = RetryPolicy(name="service", pauses=(1.0, 4.0), retry_after_cap=60.0,
+                             retry_after_lengthens_only=False, retry_after_reads_dates_and_ms=False,
+                             quota_429_retryable=True, alert=False, stop_when_exhausted=False,
+                             stop_on_refusal=False)
+# The terminal runs with a checkpoint and a resume (extract_norms, align_hleg,
+# scripts/run_ablations.py, scripts/elicit_benchmark_features.py): five growing pauses, an alert line on standard
+# error before each, a quota refusal never waited out, a refusal no retry
+# fixes raised as ProviderRefused, and a stop the command records and
+# resumes (spec F D-F30).
+TERMINAL_POLICY = RetryPolicy(name="terminal", pauses=(10.0, 30.0, 90.0, 270.0, 600.0), retry_after_cap=600.0,
+                              retry_after_lengthens_only=True, retry_after_reads_dates_and_ms=True,
+                              quota_429_retryable=False, alert=True, stop_when_exhausted=True,
+                              stop_on_refusal=True)
+
+
+class ProviderUnavailable(Exception):
+    """The terminal policy's stop (spec F D-F30): the last attempt failed for a
+    reason that may pass. Not a RuntimeError or ValueError, so no per-item or
+    parse handler absorbs it; the terminal commands record it and print the
+    resume command."""
+
+    def __init__(self, attempts: int, cause: str):
+        super().__init__(f"provider unavailable after {attempts} attempts: {cause}")
+        self.attempts, self.cause = attempts, cause
+
+
+class ProviderRefused(Exception):
+    """The terminal policy's refusal (spec F D-F30, review T-I1): the provider
+    answered with a status no retry fixes (a 4xx other than 408, 409 and a
+    passable 429; a quota 429), or the SDK refused the request before
+    sending. The run stops at once; never an item's error."""
+
+    def __init__(self, cause: str):
+        super().__init__(f"provider refused the request: {cause}")
+        self.cause = cause
+
+
+def _is_connection_error(exc: BaseException) -> bool:
+    """A lost connection or a timeout, matched by class name (APIConnectionError;
+    both SDKs' APITimeoutError subclasses it) so this module imports no SDK."""
+    return any(cls.__name__ == "APIConnectionError" for cls in type(exc).__mro__)
+
+
+def _is_quota_refusal(exc: BaseException) -> bool:
+    """OpenAI answers an exhausted quota with 429 and the error code
+    insufficient_quota, on the exception's code or in its body."""
+    codes = [getattr(exc, "code", None)]
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        codes.append(body.get("code"))
+        nested = body.get("error")
+        if isinstance(nested, dict):
+            codes.append(nested.get("code"))
+    return "insufficient_quota" in codes
+
+
+def _is_retryable(exc: BaseException, policy: RetryPolicy) -> bool:
+    """408, 409, 429 (a quota refusal only where the policy allows it), any 5xx
+    (529 included), a timeout or a lost connection; every other failure is not
+    retried."""
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        if status == 429:
+            return policy.quota_429_retryable or not _is_quota_refusal(exc)
+        return status in (408, 409) or status >= 500
+    return _is_connection_error(exc)
+
+
+def _status_or_error(exc: BaseException) -> str:
+    """The cause in a stop reason, an alert line and a configuration error:
+    "HTTP 529: <first line of the provider's message, cut to 200 characters>"
+    (or "HTTP 529" when the message is empty), or the error's class and first
+    line for a failure without a status; the dashboard's failureText prints
+    the same (coordinator ruling S1 of B101)."""
+    status = getattr(exc, "status_code", None)
+    line = _first_line(exc)
+    if isinstance(status, int):
+        return f"HTTP {status}: {line}" if line else f"HTTP {status}"
+    return f"{type(exc).__name__}: {line}" if line else type(exc).__name__
+
+
+def _retry_after_header_seconds(exc: BaseException) -> float | None:
+    """The service policy's reading, exactly as before B99 (model_clients.py
+    at 9673819, lines 205 to 213): Retry-After as a number of seconds, any
+    other form ignored."""
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None) if response is not None else None
+    getter = getattr(headers, "get", None) if headers is not None else None
+    raw = getter("retry-after") if callable(getter) else None
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def retry_after_seconds(exc: BaseException, now: datetime) -> float | None:
+    """The provider's requested wait: retry-after-ms when present, else
+    Retry-After in seconds or as an HTTP date; None when absent or unreadable."""
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None) if response is not None else None
+    getter = getattr(headers, "get", None) if headers is not None else None
+    if not callable(getter):
+        return None
+    millis = getter("retry-after-ms")
+    if millis is not None:
+        try:
+            value = float(millis) / 1000.0
+        except (TypeError, ValueError):
+            value = math.nan
+        if math.isfinite(value) and value >= 0:
+            return value
+    raw = getter("retry-after")
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = math.nan
+    if math.isfinite(value):
+        return value if value >= 0 else None
+    try:
+        when = parsedate_to_datetime(str(raw))
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when is None:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max(0.0, (when - now).total_seconds())
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 class _SamplingRecord:
     """Mixin: the declared parameters, the usage counts and the retries."""
 
@@ -103,10 +285,11 @@ class _SamplingRecord:
     # no declaration.
     _declared: ModelParameters | None = None
 
-    # Task 1a (B91, spec F D-F26 (e), ruling R3): the wait between retries,
-    # a class attribute so a client built with __new__ (the offline tests)
-    # still has one, and a test can replace it to never actually sleep.
+    # The wait between attempts and the clock of the alert line, class
+    # attributes so a test replaces them and never sleeps (spec F D-F30).
     _wait = staticmethod(time.sleep)
+    _now = staticmethod(_utc_now)
+    _retry_policy: RetryPolicy = SERVICE_POLICY
 
     @property
     def temperature(self) -> str:
@@ -154,42 +337,26 @@ class _SamplingRecord:
         if isinstance(input_tokens, int) and isinstance(output_tokens, int):
             self.usage["replies_with_usage"] = self.usage.get("replies_with_usage", 0) + 1
 
-    # Task 1a (B91, spec F D-F26 (e) and (g), ruling R3): the SDKs' own
-    # hidden retries are off (max_retries=0 on both constructors), so a
-    # transient failure is retried here instead, with every physical
-    # attempt counted. Review fix F1 classification: retryable when the
-    # exception carries a numeric status_code of 408, 409, 429 or a 5xx
-    # (529 included), or when it is a connection or timeout error, matched
-    # by class name (APIConnectionError; both SDKs' APITimeoutError
-    # subclasses it) so this mixin imports no SDK.
-    @staticmethod
-    def _is_retryable(exc: BaseException) -> bool:
-        status = getattr(exc, "status_code", None)
-        if isinstance(status, int) and (status in (408, 409, 429) or status >= 500):
-            return True
-        return any(cls.__name__ == "APIConnectionError" for cls in type(exc).__mro__)
-
-    def _retry_delay(self, exc: BaseException, retries_used: int) -> float:
-        """The provider's retry-after header when present, capped at 60 s;
-        otherwise 1 s after the first failure, 4 s after the second."""
-        response = getattr(exc, "response", None)
-        headers = getattr(response, "headers", None) if response is not None else None
-        getter = getattr(headers, "get", None) if headers is not None else None
-        retry_after = getter("retry-after") if callable(getter) else None
-        if retry_after is not None:
-            try:
-                return min(float(retry_after), 60.0)
-            except (TypeError, ValueError):
-                pass
-        return 1.0 if retries_used == 0 else 4.0
+    def _alert(self, exc: BaseException, failed_attempt: int, attempts: int, pause: float) -> None:
+        """Spec F D-F30: one line on standard error before each pause, in the
+        one shape both repositories print (review X-M1); the pause in whole
+        seconds rounded up, as the dashboard prints it (B101 ruling S1)."""
+        when = self._now().astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        print(f"ALERT {when} {self.provider}:{self.model}: {_status_or_error(exc)}; attempt {failed_attempt} "
+              f"of {attempts} failed; next attempt in {math.ceil(pause)} s", file=sys.stderr, flush=True)
 
     def _send(self, do_request, parameter_named):
-        """Send one request through do_request(), retrying a transient failure
-        (see _is_retryable) at most twice, waiting _retry_delay between
-        attempts. Every attempt the SDK sent counts one requests_sent. A 400
+        """Send one request through do_request() under the client's retry
+        policy. Every attempt the SDK sent counts one requests_sent. A 400
         naming a declared parameter (counted), or a refusal raised before
         sending that names one (not counted), is DeclaredParameterRefused at
-        once (spec F D-F29). A KeyboardInterrupt is counted once, then raised."""
+        once. A failure that may pass is sent again after the policy's pause;
+        when the attempts run out, the terminal policy raises
+        ProviderUnavailable and the service policy raises the last error. A
+        failure no retry fixes is ProviderRefused under the terminal policy
+        and the SDK's own error under the service policy. An interrupt, in a
+        request or in a pause, is raised at once."""
+        policy = self._retry_policy
         retries_used = 0
         while True:
             try:
@@ -197,21 +364,32 @@ class _SamplingRecord:
             except Exception as exc:  # noqa: BLE001
                 status = getattr(exc, "status_code", None)
                 parameter = parameter_named(exc)
-                if parameter is not None and (status == 400 or (status is None and not self._is_retryable(exc))):
+                if parameter is not None and (status == 400 or (status is None and not _is_connection_error(exc))):
                     if status is not None:
                         self._count_sent()  # the provider answered: a request sent (spec F D-F29)
                         self._count_refused(exc)
-                    detail = f"HTTP {status}: {_first_line(exc)}" if status is not None else (
-                        f"{type(exc).__name__}: {_first_line(exc)}")
-                    raise DeclaredParameterRefused(self.provider, self.model, parameter,
-                                                   self._declared_value(parameter), detail) from exc
+                    raise DeclaredParameterRefused(
+                        self.provider, self.model, parameter, self._declared_value(parameter),
+                        _status_or_error(exc),
+                    ) from exc
                 self._count_sent()  # it may have been billed; count every physical attempt
                 self._count_refused(exc)
-                if self._is_retryable(exc) and retries_used < 2:
-                    self._wait(self._retry_delay(exc, retries_used))
-                    retries_used += 1
-                    continue
-                raise
+                if not _is_retryable(exc, policy):
+                    if policy.stop_on_refusal and (status is not None or not _is_connection_error(exc)):
+                        raise ProviderRefused(_status_or_error(exc)) from exc
+                    raise
+                if retries_used == len(policy.pauses):
+                    if policy.stop_when_exhausted:
+                        raise ProviderUnavailable(policy.attempts, _status_or_error(exc)) from exc
+                    raise
+                retry_after = (retry_after_seconds(exc, self._now()) if policy.retry_after_reads_dates_and_ms
+                               else _retry_after_header_seconds(exc))
+                pause = policy.pause(retries_used, retry_after)
+                if policy.alert:
+                    self._alert(exc, retries_used + 1, policy.attempts, pause)
+                self._wait(pause)
+                retries_used += 1
+                continue
             except BaseException:
                 self._count_sent()  # an interrupt mid-request: the request may have been billed
                 raise
@@ -227,18 +405,18 @@ class OpenAIGenerator(_SamplingRecord):
     of one is DeclaredParameterRefused, never learned. .usage accumulates
     provider-reported token counts plus requests_sent, replies_with_usage
     and requests_refused (spec F D-F26 (g)). The SDK's own retries are off
-    (max_retries=0); complete() retries a transient failure itself,
-    counting every attempt.
+    (max_retries=0); the retry policy is the caller's (spec F D-F30).
     """
 
     provider = "openai"
 
-    def __init__(self, cfg: ModelConfig):
+    def __init__(self, cfg: ModelConfig, retry_policy: RetryPolicy = SERVICE_POLICY):
         from openai import OpenAI  # imported lazily so offline tests need no SDK
 
         self.model = cfg.generator_model
         self.usage = _new_usage()
         self._declared = cfg.generator_parameters
+        self._retry_policy = retry_policy
         self._client = OpenAI(api_key=cfg.generator_api_key, max_retries=0)
 
     def _request_kwargs(self, messages: list[dict[str, str]]) -> dict:
@@ -287,18 +465,18 @@ class AnthropicJudge(_SamplingRecord):
     replies_with_usage (spec F D-F26 (g)); a response without a complete
     usage block adds to calls and requests_sent only (thinking tokens are
     inside output_tokens). The SDK's own retries are off (max_retries=0);
-    complete() retries a transient failure itself, counting every attempt
-    (Task 1a, ruling R3).
+    the retry policy is the caller's (spec F D-F30).
     """
 
     provider = "anthropic"
 
-    def __init__(self, cfg: ModelConfig, max_tokens: int = 16000):
+    def __init__(self, cfg: ModelConfig, max_tokens: int = 16000, retry_policy: RetryPolicy = SERVICE_POLICY):
         import anthropic  # imported lazily so offline tests need no SDK
 
         self.model = cfg.judge_model
         self.usage = _new_usage()
         self._declared = cfg.judge_parameters
+        self._retry_policy = retry_policy
         self._max_tokens = max_tokens
         self._client = anthropic.Anthropic(api_key=cfg.judge_api_key, max_retries=0)
 

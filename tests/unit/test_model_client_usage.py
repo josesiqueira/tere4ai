@@ -6,16 +6,22 @@ transport clients, so no network and no keys are involved.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
 from tests.fixtures.model_parameters import declared
 
 from tere4ai.extract_norms.model_clients import (
+    SERVICE_POLICY,
+    TERMINAL_POLICY,
     AnthropicJudge,
     OpenAIGenerator,
+    ProviderRefused,
+    ProviderUnavailable,
     _new_usage,
     declared_sampling,
+    retry_after_seconds,
 )
 from tere4ai.judge.config import ConfigurationError, DeclaredParameterRefused
 
@@ -381,15 +387,22 @@ class _ProviderError(Exception):
     response with headers, without importing either SDK."""
 
     def __init__(self, message: str, status_code: int | None = None,
-                 headers: dict | None = None):
+                 headers: dict | None = None, code: str | None = None, body: object = None):
         super().__init__(message)
         self.status_code = status_code
         self.response = SimpleNamespace(headers=headers or {})
+        # B99 (spec F D-F30): an error code and body, as the SDKs carry them
+        self.code = code
+        self.body = body
 
 
 class APIConnectionError(Exception):
     """Test double named like the SDKs' connection error; the retry check
     matches by class name only (review fix F1), never by importing an SDK."""
+
+
+class APITimeoutError(APIConnectionError):
+    """Test double named like the SDKs' timeout error, a subclass of the connection error there too."""
 
 
 class _Flaky:
@@ -501,6 +514,11 @@ def test_both_constructors_pass_max_retries_zero(monkeypatch):
     AnthropicJudge(cfg)
     assert captured_openai["max_retries"] == 0
     assert captured_anthropic["max_retries"] == 0
+    # B99 (spec F D-F30): the policy is the caller's, the service policy by default
+    assert OpenAIGenerator(cfg)._retry_policy is SERVICE_POLICY
+    assert AnthropicJudge(cfg)._retry_policy is SERVICE_POLICY
+    assert OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)._retry_policy is TERMINAL_POLICY
+    assert AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)._retry_policy is TERMINAL_POLICY
 
 
 # Same shapes for the judge; the transport is messages.create and usage
@@ -629,3 +647,185 @@ def test_a_connection_error_or_an_interrupt_is_not_refused():
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 0
 
+
+
+# B99 (spec F D-F30): the terminal policy of the runs a person resumes from a
+# terminal. Five pauses (10, 30, 90, 270, 600 s), an alert line before each, a
+# Retry-After that only lengthens a pause, capped at 600 s, then a stop. No
+# test sleeps: the wait and the alert clock are replaced on the instance.
+NOON = datetime(2026, 9, 27, 12, 0, 0, tzinfo=UTC)
+
+
+def _terminal(client, waits=None):
+    client._retry_policy = TERMINAL_POLICY
+    client._now = lambda: NOON
+    client._wait = waits.append if waits is not None else _never_wait
+    return client
+
+
+def test_the_terminal_policy_waits_five_growing_pauses_with_an_alert_then_stops(capsys):
+    waits = []
+    transport = _Flaky([_ProviderError("overloaded", status_code=529)] * 6)
+    judge = _terminal(_judge_over(transport), waits)
+    with pytest.raises(ProviderUnavailable) as stop:
+        judge.complete("s", "u")
+    assert str(stop.value) == "provider unavailable after 6 attempts: HTTP 529: overloaded"
+    assert waits == [10, 30, 90, 270, 600] and len(transport.calls) == 6
+    assert judge.usage["requests_sent"] == 6 and judge.usage["requests_refused"] == 6 and judge.usage["calls"] == 0
+    assert capsys.readouterr().err.splitlines() == [
+        f"ALERT 2026-09-27T12:00:00.000Z anthropic:stub-judge: HTTP 529: overloaded; attempt {n} of 6 failed; "
+        f"next attempt in {pause} s"
+        for n, pause in zip(range(1, 6), (10, 30, 90, 270, 600))
+    ]
+    assert not isinstance(stop.value, (RuntimeError, ValueError)), "no parse or per-item handler may absorb it"
+
+
+def test_the_terminal_policy_carries_a_timeout_a_lost_connection_and_a_500(capsys):
+    waits = []
+    transport = _Flaky([APIConnectionError("Connection error."), APITimeoutError("Request timed out."),
+                        _ProviderError("boom", status_code=500), _openai_response("a", 1, 1)])
+    gen = _terminal(_generator_over(transport), waits)
+    assert gen.complete("s", "u") == "a"
+    assert waits == [10, 30, 90]
+    assert gen.usage["requests_sent"] == 4 and gen.usage["requests_refused"] == 1 and gen.usage["calls"] == 1
+    err = capsys.readouterr().err
+    assert "openai:stub-generator: APIConnectionError: Connection error.; attempt 1 of 6 failed" in err
+    assert "APITimeoutError: Request timed out.; attempt 2 of 6 failed; next attempt in 30 s" in err
+
+
+def test_a_stop_after_a_lost_connection_names_the_error():
+    transport = _Flaky([APIConnectionError("Connection error.")] * 6)
+    gen = _terminal(_generator_over(transport), [])
+    with pytest.raises(ProviderUnavailable, match=r"^provider unavailable after 6 attempts: "
+                                                  r"APIConnectionError: Connection error\.$"):
+        gen.complete("s", "u")
+    assert gen.usage["requests_refused"] == 0
+
+
+def test_a_retry_after_only_lengthens_a_terminal_pause_and_never_past_600_s(capsys):
+    waits = []
+    transport = _Flaky([
+        _ProviderError("x", status_code=429, headers={"retry-after": "45"}),
+        _ProviderError("x", status_code=429, headers={"retry-after": "5"}),
+        _ProviderError("x", status_code=503, headers={"retry-after-ms": "120500"}),
+        _ProviderError("x", status_code=503, headers={"retry-after": "9999"}),
+        _openai_response("a", 1, 1),
+    ])
+    gen = _terminal(_generator_over(transport), waits)
+    gen.complete("s", "u")
+    assert waits == [45, 30, 120.5, 600]
+    # B101 ruling S1: the alert prints the pause in whole seconds rounded up, as the dashboard does
+    assert "attempt 3 of 6 failed; next attempt in 121 s" in capsys.readouterr().err
+
+
+def test_retry_after_reads_seconds_a_date_and_milliseconds():
+    def headers(**h):
+        return _ProviderError("x", status_code=503, headers={k.replace("_", "-"): v for k, v in h.items()})
+    assert retry_after_seconds(headers(retry_after="Sun, 27 Sep 2026 12:02:00 GMT"), NOON) == 120.0
+    assert retry_after_seconds(headers(retry_after="Sun, 27 Sep 2026 11:00:00 GMT"), NOON) == 0.0
+    assert retry_after_seconds(headers(retry_after="7"), NOON) == 7.0
+    assert retry_after_seconds(headers(retry_after_ms="1500", retry_after="7"), NOON) == 1.5
+    assert retry_after_seconds(headers(retry_after_ms="nan", retry_after="3"), NOON) == 3.0
+    assert retry_after_seconds(headers(retry_after="soon"), NOON) is None
+    assert retry_after_seconds(headers(retry_after="-4"), NOON) is None
+    assert retry_after_seconds(_ProviderError("x", status_code=503), NOON) is None
+    # a date in the past reads 0, so the planned pause stands
+    assert TERMINAL_POLICY.pause(0, 0.0) == 10
+
+
+@pytest.mark.parametrize("refusal", [
+    _ProviderError("You exceeded your current quota", status_code=429, code="insufficient_quota"),
+    _ProviderError("quota", status_code=429, body={"error": {"code": "insufficient_quota"}}),
+    _ProviderError("quota", status_code=429, body={"code": "insufficient_quota"}),
+])
+def test_a_quota_refusal_stops_the_terminal_policy_at_once(refusal):
+    gen = _terminal(_generator_over(_Flaky([refusal])))
+    with pytest.raises(ProviderRefused, match=r"^provider refused the request: HTTP 429: \S") as refused:
+        gen.complete("s", "u")
+    assert refused.value.__cause__ is refusal
+    assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 1
+
+
+def test_the_service_policy_still_retries_a_quota_429():
+    waits = []
+    transport = _Flaky([_ProviderError("quota", status_code=429, code="insufficient_quota"),
+                        _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = waits.append
+    assert gen.complete("s", "u") == "a" and waits == [1]
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 413, 422])
+def test_every_other_4xx_stops_the_terminal_policy_at_once(status):
+    gen = _terminal(_generator_over(_Flaky([_ProviderError("no", status_code=status)])))
+    # the cause is the status and the provider's first line (B101 ruling S1)
+    with pytest.raises(ProviderRefused, match=rf"^provider refused the request: HTTP {status}: no$"):
+        gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 1
+
+
+def test_an_sdk_error_before_sending_stops_the_terminal_policy_uncounted_by_status():
+    """Ruling P21: an SDK error raised before sending that names nothing
+    declared is a refusal too. It counts in requests_sent as at HEAD
+    (model_clients.py:234; the pre-B74 R1 rule exempts only a refused declared
+    parameter) and carries no status, so it is not in requests_refused."""
+    gen = _terminal(_generator_over(_Flaky([TypeError("unexpected keyword argument 'foo'")])))
+    with pytest.raises(ProviderRefused, match=r"^provider refused the request: TypeError: unexpected keyword argument 'foo'$"):
+        gen.complete("s", "u")
+    assert gen.usage["requests_refused"] == 0
+
+
+def test_the_service_policy_raises_a_refusal_as_the_sdks_own_error():
+    gen = _generator_over(_Flaky([_ProviderError("unauthorized", status_code=401)]))
+    with pytest.raises(_ProviderError):
+        gen.complete("s", "u")
+
+
+def test_the_service_policy_ignores_a_date_and_a_millisecond_header():
+    """Coordinator ruling on review T-M2: the service policy reads Retry-After
+    in seconds only, as before B99; a past date or a millisecond header leaves
+    the 1 s pause."""
+    waits = []
+    transport = _Flaky([_ProviderError("x", status_code=503, headers={
+        "retry-after": "Sun, 27 Sep 2026 11:00:00 GMT", "retry-after-ms": "5"}), _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = waits.append
+    gen.complete("s", "u")
+    assert waits == [1]
+
+
+@pytest.mark.parametrize("status", [408, 409, 501, 520, 529])
+def test_408_409_and_any_5xx_are_retried_by_the_terminal_policy(status):
+    waits = []
+    gen = _terminal(_generator_over(_Flaky([_ProviderError("x", status_code=status), _openai_response("a", 1, 1)])),
+                    waits)
+    gen.complete("s", "u")
+    assert waits == [10]
+
+
+def test_a_429_naming_temperature_is_waited_out_never_a_configuration_error():
+    waits = []
+    transport = _Flaky([_ProviderError("rate limit on requests with temperature", status_code=429),
+                        _openai_response("a", 1, 1)])
+    gen = _terminal(_generator_over(transport), waits)
+    assert gen.complete("s", "u") == "a" and waits == [10]
+    assert all(call["temperature"] == 0 for call in transport.calls)
+
+
+def test_an_interrupt_during_a_pause_ends_at_once():
+    def interrupt(seconds):
+        raise KeyboardInterrupt
+    transport = _Flaky([_ProviderError("overloaded", status_code=529), _anthropic_response("v", 1, 1)])
+    judge = _terminal(_judge_over(transport))
+    judge._wait = interrupt
+    with pytest.raises(KeyboardInterrupt):
+        judge.complete("s", "u")
+    assert len(transport.calls) == 1 and judge.usage["requests_sent"] == 1
+
+
+def test_the_service_policy_is_unchanged():
+    assert SERVICE_POLICY.pauses == (1.0, 4.0) and SERVICE_POLICY.retry_after_cap == 60.0
+    assert not SERVICE_POLICY.alert and not SERVICE_POLICY.stop_when_exhausted
+    assert not SERVICE_POLICY.retry_after_reads_dates_and_ms and not SERVICE_POLICY.stop_on_refusal
+    assert TERMINAL_POLICY.retry_after_reads_dates_and_ms and TERMINAL_POLICY.stop_on_refusal
+    assert TERMINAL_POLICY.pauses == (10.0, 30.0, 90.0, 270.0, 600.0) and TERMINAL_POLICY.attempts == 6
