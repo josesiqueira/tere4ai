@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import sys
 import tempfile
 from pathlib import Path
@@ -41,10 +42,17 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
 )
 from tere4ai.eval.metrics import METRICS_VERSION  # noqa: E402
 from tere4ai.eval.present_evaluation import JULY_CHECKPOINT_DIGESTS, JULY_DIGESTS  # noqa: E402
-from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator  # noqa: E402
+from tere4ai.extract_norms.model_clients import (  # noqa: E402
+    TERMINAL_POLICY,
+    AnthropicJudge,
+    OpenAIGenerator,
+    ProviderRefused,
+    ProviderUnavailable,
+    declared_sampling,
+)
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
-from tere4ai.judge.config import load_model_config  # noqa: E402
+from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
 # B81 item 20: an omitted path lands in a fresh directory named after the
@@ -83,8 +91,9 @@ def _completed_items(unit_results: list[dict], items: list[dict],
 
 def _resumed_only_notes(built: dict, ran: set[str], resumes: str | None, resumed_units: bool) -> list[str]:
     """A note per strategy this invocation built but ran no unit of (B98 seat
-    B P3-5): its models here read "no replies" beside metrics another
-    invocation produced, so the note names the record the resume continues.
+    B P3-5): its models here are this invocation's clients, declared from
+    construction since B99 (spec F D-F29), beside metrics another invocation
+    produced, so the note names the record the resume continues.
     Only on an actual resume (final re-review B98, New Breakage 3): a fresh
     run over an empty item list also runs no unit of any built strategy, but
     it resumed nothing, so it earns no note."""
@@ -107,6 +116,15 @@ def _own_usage(generator, judge) -> dict | None:
 def sidecar_path(checkpoint_path: Path) -> Path:
     """The checkpoint's persisted identity (G2): same directory, name plus `.record`."""
     return checkpoint_path.with_name(checkpoint_path.name + ".record")
+
+
+def _resume_line(argv: list[str], checkpoint_path: Path) -> str:
+    """The command that continues a stopped run (spec F D-F30): the same
+    arguments, naming the checkpoint when the run used the default path."""
+    args = list(argv)
+    if not any(a == "--checkpoint" or a.startswith("--checkpoint=") for a in args):
+        args += ["--checkpoint", str(checkpoint_path)]
+    return f"TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py {shlex.join(args)}"
 
 
 def write_sidecar(checkpoint_path: Path, record_id: str) -> None:
@@ -307,7 +325,8 @@ def main(argv: list[str] | None = None) -> int:
     generator = judge = None
     units_run = 0
     # the strategies as built, so both finishes read their models after the
-    # replies (the judge's effort is "no replies" before its first answer)
+    # items ran; since B99 the clients report their declared values from
+    # construction (spec F D-F29)
     built: dict[str, Any] = {}
     ran: set[str] = set()  # the strategies with at least one unit run by this invocation
     try:
@@ -315,8 +334,9 @@ def main(argv: list[str] | None = None) -> int:
             # the newest record owns the checkpoint from now on (G2)
             write_sidecar(checkpoint_path, record_id)
         cfg = load_model_config()
-        generator = OpenAIGenerator(cfg)
-        judge = AnthropicJudge(cfg)
+        # spec F D-F30: a terminal run with a checkpoint waits out an overload
+        generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
+        judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
 
         batches = [items[i : i + BATCH_SIZE] for i in range(0, len(items), BATCH_SIZE)]
         with checkpoint_path.open("a", encoding="utf-8") as ckpt:
@@ -342,6 +362,12 @@ def main(argv: list[str] | None = None) -> int:
                     for item in batch:
                         try:
                             per_item[item["id"]] = fn(item)
+                        except ProviderRefused as exc:
+                            # spec F D-F30, B101 ruling S5: the reason names the item, which is
+                            # fixed before the resume, never skipped
+                            raise ProviderRefused(f"{exc.cause} (item {item['id']})") from exc
+                        except (ProviderUnavailable, ConfigurationError):
+                            raise  # spec F D-F29, D-F30: a stop of the run, never an item's error
                         except Exception as exc:  # record, never abort the sweep
                             per_item[item["id"]] = {
                                 "error": exception_reason(exc),
@@ -534,7 +560,7 @@ def main(argv: list[str] | None = None) -> int:
                 completed_items=completed, outputs=outputs, usage=_own_usage(generator, judge),
                 prompt_versions=models_now,
                 prompt_sha256=harness.runtime_judge_prompt_sha256(models_now),
-                sampling={"generator": generator.sampling, "judge": judge.sampling},
+                sampling=declared_sampling(generator, judge),
                 counts={"items_total": len(items), "units_without_usage": units_without_usage,
                         "items_with_errors": len(errored), "units_run": units_run},
                 notes=notes + _resumed_only_notes(built, ran, resumes, bool(done)),
@@ -543,17 +569,42 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"wrote {summary_path}")
     except BaseException as exc:
+        # spec F D-F30: a provider stop ends the record partial and the run
+        # resumable from its checkpoint, and a refusal no retry fixes ends it
+        # failed at once (ruling P21); spec F D-F29: a refused declaration ends
+        # it failed; any other failure ends it failed and is raised
+        stopped = isinstance(exc, ProviderUnavailable)
+        provider_refused = isinstance(exc, ProviderRefused)
+        refused = isinstance(exc, ConfigurationError)
         if store is not None and record_id is not None:
             completed, _ = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
             models_now = harness.strategy_models(built, list(built)) or None
             try:
-                store.finish(record_id, status="failed", error=exception_reason(exc),
+                store.finish(record_id, status="partial" if stopped else "failed",
+                             error=str(exc) if stopped or provider_refused or refused else exception_reason(exc),
                              notes=notes + _resumed_only_notes(built, ran, resumes, bool(done)),
                              completed_items=completed, usage=_own_usage(generator, judge),
+                             sampling=declared_sampling(generator, judge) if generator is not None else None,
                              counts={"units_run": units_run}, prompt_versions=models_now,
                              prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
             except EvaluationRecordError:
                 pass  # the record already ended inside the try; the original error is what matters
+        if stopped or provider_refused:
+            print(f"stopped: {exc}", file=sys.stderr)
+            if len(done) + units_run:
+                print(f"the checkpoint {checkpoint_path} is kept ({len(done) + units_run} unit(s) done); "
+                      "continue with:", file=sys.stderr)
+            else:
+                # review T-M6: an empty checkpoint does not reach resolve_resume,
+                # so the next run is a new record that names none
+                print("no unit was checkpointed, so this starts a new record that names none; run again with:",
+                      file=sys.stderr)
+            print(f"  {_resume_line(list(argv) if argv is not None else sys.argv[1:], checkpoint_path)}",
+                  file=sys.stderr)
+            return 3 if stopped else 5
+        if refused:
+            print(f"stopped: {exc}", file=sys.stderr)
+            return 4
         raise
 
     for name, s in summary["strategies"].items():

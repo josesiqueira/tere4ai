@@ -8,12 +8,19 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shlex
 from pathlib import Path
 
 import pytest
 
 from tere4ai.eval import harness
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
+from tere4ai.extract_norms.model_clients import (
+    TERMINAL_POLICY,
+    ProviderRefused,
+    ProviderUnavailable,
+)
+from tere4ai.judge.config import DeclaredParameterRefused
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -61,6 +68,7 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod.strategies, "STRATEGY_NAMES", ["plain_llm"])
     calls = {}
 
+    # B99 (spec F D-F29, D-F30): the runner chooses the terminal policy, and a strategy can raise the stop or a refusal
     def fake_build(name, **kw):
         if calls.get("raise"):
             raise RuntimeError("provider refused")  # at build time: a per-item raise is caught by the runner (R5)
@@ -72,14 +80,24 @@ def runner(monkeypatch, tmp_path):
                 raise OSError("cannot read /home/someone/private/x.json")
             if calls.get("error_on") == item["id"]:
                 return {"answer_text": "", "citations": [], "risk_category": None, "error": "bad item"}
+            if calls.get("unavailable_on") == item["id"]:
+                raise ProviderUnavailable(6, "HTTP 529")
+            if calls.get("provider_refused_on") == item["id"]:
+                raise ProviderRefused("HTTP 429")
+            if calls.get("refused_on") == item["id"]:
+                raise DeclaredParameterRefused("openai", "g", "effort", "xhigh", "HTTP 400: effort unsupported")
             kw["generator"].complete()
             return {"answer_text": "x", "citations": [], "risk_category": "high"}
         strategy.models = {"generator": "g", "judge": "j", "judge_prompt_version": "v1"}
         return strategy
 
     monkeypatch.setattr(mod.strategies, "build_strategy", fake_build)
-    monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg: _Client("x", "temperature=0"), raising=False)
-    monkeypatch.setattr(mod, "AnthropicJudge", lambda cfg: _Client("y", "provider default"), raising=False)
+    policies: list = []
+    monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: policies.append(kw.get("retry_policy"))
+                        or _Client("x", "temperature=0"), raising=False)
+    monkeypatch.setattr(mod, "AnthropicJudge", lambda cfg, **kw: policies.append(kw.get("retry_policy"))
+                        or _Client("y", "provider default"), raising=False)
+    calls["policies"] = policies
     monkeypatch.setattr(mod, "load_model_config", lambda: object(), raising=False)
     monkeypatch.setattr(mod, "RESULTS_DIR", tmp_path / "results")
     mod._TEST_CALLS = calls
@@ -100,7 +118,11 @@ def test_a_completed_run_writes_a_record_with_inputs_outputs_usage_and_copies(ru
     assert {i["role"] for i in rec["inputs"]} == {"layer1_dump", "norms", "benchmark", "gold_seed", "features"}
     assert rec["build"]["base_build_id"] == "build-b" and rec["build"]["publication"] is None
     assert rec["models"] == {"generator_model": "g", "judge_model": "j"}
-    assert rec["sampling"] == {"generator": "temperature=0", "judge": "provider default"}
+    # B99 (spec F D-F29): the evaluation record carries the declared sampling (review T-M7); the double has only sampling
+    assert rec["sampling"] == {"generator": "temperature=0", "judge": "provider default",
+                               "generator_temperature": "unknown", "judge_temperature": "unknown",
+                               "generator_effort": "unknown", "judge_effort": "unknown",
+                               "generator_json_mode": "unknown"}
     assert rec["usage"]["generator"]["calls"] == 2 and rec["config"]["metrics_version"] == "metrics.v2"
     assert rec["prompt_versions"] == {"plain_llm": {"generator": "g", "judge": "j", "judge_prompt_version": "v1"}}
     assert rec["config"]["mode"] == "live" and rec["config"]["strategies"] == ["plain_llm"]
@@ -565,3 +587,72 @@ def test_a_fresh_run_over_an_empty_item_list_notes_nothing_resumed(runner, monke
     assert runner.main(_argv(tmp_path)) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["notes"] == []
+
+
+# B99 (spec F D-F30): the sixth failed attempt stops the run, and a refusal no
+# retry fixes stops it at once; the record ends with the reason, never an item
+# error, and the next command is printed.
+
+
+def test_a_provider_stop_ends_the_record_partial_never_as_an_item_error(runner, tmp_path, capsys):
+    runner._TEST_CALLS["unavailable_on"] = "gold:cls-02"
+    argv = _argv(tmp_path)
+    assert runner.main(argv) == 3
+    assert runner._TEST_CALLS["policies"] == [TERMINAL_POLICY, TERMINAL_POLICY]
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (rec,) = [r for r in store.list_records() if not r.get("unreadable")]
+    assert rec["outcome"]["status"] == "partial"
+    assert rec["outcome"]["error"] == "provider unavailable after 6 attempts: HTTP 529"
+    assert rec["outcome"]["completed_items"] == [] and rec["outputs"] == []
+    assert rec["usage"]["generator"]["calls"] == 1, "the item that answered before the stop keeps its spend"
+    assert rec["sampling"]["generator"] == "temperature=0"
+    assert not (tmp_path / "results" / "ablation_summary.json").exists()
+    assert (tmp_path / "results" / "ablation_checkpoint.jsonl").exists()
+    err = capsys.readouterr().err
+    assert "stopped: provider unavailable after 6 attempts: HTTP 529" in err
+    # review T-M6: no unit was checkpointed, so the next run cannot name this record
+    assert "no unit was checkpointed, so this starts a new record that names none; run again with:" in err
+    assert "  TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py " + shlex.join(argv) in err
+
+
+def test_a_stop_after_a_checkpointed_unit_prints_continue_with(runner, monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    runner._TEST_CALLS["unavailable_on"] = "gold:cls-02"
+    assert runner.main(_argv(tmp_path)) == 3
+    assert "is kept (1 unit(s) done); continue with:" in capsys.readouterr().err
+
+
+def test_a_quota_refusal_stops_the_sweep_never_as_an_item_error(runner, tmp_path, capsys):
+    """Review T-I1, ruling P21: a failure no retry fixes stops the run at once;
+    B101 ruling S5: the reason names the item, which is fixed before the
+    resume, never skipped."""
+    runner._TEST_CALLS["provider_refused_on"] = "gold:cls-01"
+    argv = _argv(tmp_path)
+    assert runner.main(argv) == 5
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (rec,) = [r for r in store.list_records() if not r.get("unreadable")]
+    assert rec["outcome"]["status"] == "failed"
+    assert rec["outcome"]["error"] == "provider refused the request: HTTP 429 (item gold:cls-01)"
+    assert rec["outcome"]["completed_items"] == [] and rec["usage"]["generator"]["calls"] == 0
+    assert not (tmp_path / "results" / "ablation_summary.json").exists()
+    err = capsys.readouterr().err
+    assert "stopped: provider refused the request: HTTP 429 (item gold:cls-01)" in err
+    assert "  TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py " + shlex.join(argv) in err
+
+
+def test_the_resume_line_adds_the_checkpoint_when_the_run_named_none(runner, tmp_path):
+    path = tmp_path / "results" / "runs" / "r1" / "ablation_checkpoint.jsonl"
+    assert runner._resume_line(["--dump-dir", "d"], path) == (
+        f"TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py --dump-dir d --checkpoint {path}")
+    assert runner._resume_line(["--checkpoint=x.jsonl"], path).endswith("run_ablations.py --checkpoint=x.jsonl")
+
+
+def test_a_refused_declaration_ends_the_record_failed_and_exits_4(runner, tmp_path, capsys):
+    runner._TEST_CALLS["refused_on"] = "gold:cls-01"
+    assert runner.main(_argv(tmp_path)) == 4
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (rec,) = [r for r in store.list_records() if not r.get("unreadable")]
+    assert rec["outcome"]["status"] == "failed"
+    assert rec["outcome"]["error"] == ("configuration error: openai:g refused the declared effort xhigh "
+                                       "(HTTP 400: effort unsupported); correct its row in config/model_parameters.json")
+    assert "stopped: configuration error: openai:g refused" in capsys.readouterr().err

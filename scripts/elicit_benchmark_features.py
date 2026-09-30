@@ -3,7 +3,9 @@
 @implements: DEC-13
 @grounded_by: REF-17
 
-Checkpointed per item; resume by re-running. Writes
+Checkpointed per item; resume by re-running. A provider overload is waited
+out under the terminal policy; a stop or a provider refusal keeps the
+checkpoint and prints the command that resumes it (spec F D-F30). Writes
 eval/gold/benchmark_features.json with provenance llm_elicited so ablation
 summaries can separate authored from elicited features.
 """
@@ -12,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -20,8 +23,13 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.elicit_features import elicit_features  # noqa: E402
 from tere4ai.eval import harness  # noqa: E402
-from tere4ai.extract_norms.model_clients import OpenAIGenerator  # noqa: E402
-from tere4ai.judge.config import load_model_config  # noqa: E402
+from tere4ai.extract_norms.model_clients import (  # noqa: E402
+    TERMINAL_POLICY,
+    OpenAIGenerator,
+    ProviderRefused,
+    ProviderUnavailable,
+)
+from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
 
 DEFAULT_OUT = ROOT / "eval" / "gold" / "benchmark_features.json"
 
@@ -38,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
         help="elicitor prompt version, recorded in the output",
     )
     args = parser.parse_args(argv)
+    run_argv = list(sys.argv[1:] if argv is None else argv)
     OUT = args.out
     CKPT = OUT.with_suffix(".checkpoint.jsonl")
 
@@ -56,41 +65,59 @@ def main(argv: list[str] | None = None) -> int:
         print(f"resume: {len(done)} already elicited")
 
     cfg = load_model_config()
-    generator = OpenAIGenerator(cfg)
+    generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)  # spec F D-F30: a terminal run with a checkpoint waits out an overload
 
-    with CKPT.open("a", encoding="utf-8") as ckpt:
-        for item in items:
-            if item["id"] in done:
-                continue
-            description = item.get("system_text") or ""
-            if len(description) < 10:
+    try:
+        with CKPT.open("a", encoding="utf-8") as ckpt:
+            for item in items:
+                if item["id"] in done:
+                    continue
+                description = item.get("system_text") or ""
+                if len(description) < 10:
+                    entry = {
+                        "item_id": item["id"],
+                        "features": None,
+                        "notes": ["no usable system_text; skipped without a model call"],
+                        "provenance": "llm_elicited",
+                        "elicitor_model": cfg.generator_model,
+                    }
+                    ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                    ckpt.flush()
+                    done[item["id"]] = entry
+                    print(f"  {item['id']}: SKIPPED (no text)", flush=True)
+                    continue
+                try:
+                    features, notes = elicit_features(
+                        description, generator, prompt_version=args.prompt_version
+                    )
+                except ProviderRefused as exc:
+                    # spec F D-F30, B101 ruling S5: the reason names the item, which is
+                    # fixed before the rerun, never skipped
+                    raise ProviderRefused(f"{exc.cause} (item {item['id']})") from exc
                 entry = {
                     "item_id": item["id"],
-                    "features": None,
-                    "notes": ["no usable system_text; skipped without a model call"],
+                    "features": features,
+                    "notes": notes,
                     "provenance": "llm_elicited",
                     "elicitor_model": cfg.generator_model,
                 }
                 ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 ckpt.flush()
                 done[item["id"]] = entry
-                print(f"  {item['id']}: SKIPPED (no text)", flush=True)
-                continue
-            features, notes = elicit_features(
-                description, generator, prompt_version=args.prompt_version
-            )
-            entry = {
-                "item_id": item["id"],
-                "features": features,
-                "notes": notes,
-                "provenance": "llm_elicited",
-                "elicitor_model": cfg.generator_model,
-            }
-            ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
-            ckpt.flush()
-            done[item["id"]] = entry
-            status = "ok" if features else "FAILED"
-            print(f"  {item['id']}: {status}", flush=True)
+                status = "ok" if features else "FAILED"
+                print(f"  {item['id']}: {status}", flush=True)
+    except (ProviderUnavailable, ProviderRefused) as exc:
+        # spec F D-F30: the checkpoint stays; re-running the same command resumes
+        print(f"stopped: {exc}", file=sys.stderr)
+        print(f"the checkpoint {CKPT.name} is kept ({sum(i['id'] in done for i in items)} of {len(items)} "
+              "items done); continue with:", file=sys.stderr)
+        print("  " + shlex.join([".venv/bin/python", "scripts/elicit_benchmark_features.py", *run_argv]),
+              file=sys.stderr)
+        return 3 if isinstance(exc, ProviderUnavailable) else 5
+    except ConfigurationError as exc:
+        # spec F D-F29: a declared parameter the provider refused stops the run
+        print(f"stopped: {exc}", file=sys.stderr)
+        return 4
 
     payload = {
         "provenance": "llm_elicited",

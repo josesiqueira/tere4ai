@@ -50,10 +50,10 @@ from tere4ai.eval.evaluation_record import (
 )
 from tere4ai.eval.metrics import METRICS_VERSION
 from tere4ai.eval.strategies import STRATEGY_NAMES, build_strategy
-from tere4ai.extract_norms.model_clients import ModelClient
+from tere4ai.extract_norms.model_clients import ModelClient, declared_sampling
 from tere4ai.graph_store.build_record import atomic_write_json
 from tere4ai.graph_store.present import exception_reason
-from tere4ai.judge.config import ModelConfig, load_model_config
+from tere4ai.judge.config import ConfigurationError, ModelConfig, load_model_config
 
 
 def _repo_root() -> Path:
@@ -284,11 +284,11 @@ def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -
 
 
 def strategy_models(strategies: dict[str, Any], strategy_names: list[str]) -> dict[str, dict[str, Any]]:
-    """Each strategy's models as its clients report them now. The effort and
-    sampling outcomes are known only after a reply, so the writers read them
-    again after the items ran (a failed run included) rather than keeping the
-    start value "no replies" (docs/architecture.md DEC-17: the record names
-    the models with prompt versions and hashes, the sampling and usage)."""
+    """Each strategy's models as its clients report them, read once after the
+    items ran (a failed run included) so the artifact and the record agree
+    (docs/architecture.md DEC-17: the record names the models with prompt
+    versions and hashes, the sampling and usage); since B99 the reported
+    effort and temperature are the declared ones (spec F D-F29)."""
     return {name: dict(getattr(strategies[name], "models", {})) for name in strategy_names}
 
 
@@ -300,6 +300,16 @@ def _own_usage(generator: Any, judge: Any) -> dict[str, Any] | None:
     usage = {"generator": getattr(generator, "usage", None),
              "judge": getattr(judge, "usage", None) if judge is not None else None}
     return None if usage["generator"] is None and usage["judge"] is None else usage
+
+
+def _declared_sampling_or_none(generator: Any, judge: Any) -> dict[str, str] | None:
+    """The declared sampling the record stores, as run_ablations stores it
+    (spec F D-F29); None when no client was built here or an offline stub
+    reports none of the values, as before B99."""
+    if generator is None:
+        return None
+    sampling = declared_sampling(generator, judge)
+    return None if set(sampling.values()) == {"unknown"} else sampling
 
 
 def run_eval(
@@ -424,6 +434,8 @@ def run_eval(
                 started = time.perf_counter()
                 try:
                     outcome = strategy(item)
+                except ConfigurationError:
+                    raise  # spec F D-F29: a refused declared parameter stops the run, never an item's error
                 except Exception as exc:  # noqa: BLE001 (one bad item never kills the run)
                     outcome = {
                         "answer_text": "",
@@ -434,11 +446,10 @@ def run_eval(
                 outcome["latency_s"] = round(time.perf_counter() - started, 6)
                 per_item[item["id"]] = outcome
 
-        # read again, once, after every strategy ran: a client knows its effort
-        # and sampling outcome only once it has answered ("no replies" before),
-        # and the early registration above would keep that start value; one
-        # read serves the artifact and the record alike (Codex review of
-        # 73b8baa..782f26a, docs/architecture.md DEC-17)
+        # read again, once, after every strategy ran, so the artifact and the
+        # record hold the same models (Codex review of 73b8baa..782f26a,
+        # docs/architecture.md DEC-17); since B99 the clients report their
+        # declared values from the start (spec F D-F29)
         models_now = strategy_models(strategies, strategy_names)
         for name in strategy_names:
             results[name]["models"] = models_now[name]
@@ -488,14 +499,7 @@ def run_eval(
             completed = [i for i in intended if i not in set(errored)]
 
             usage = _own_usage(generator, judge)
-            sampling = None
-            if generator is not None:
-                def _client_field(client: Any, field: str) -> Any:
-                    return getattr(client, field, None) if client is not None else None
-                sampling = {"generator": _client_field(generator, "sampling"),
-                            "judge": _client_field(judge, "sampling")}
-                if sampling["generator"] is None and sampling["judge"] is None:
-                    sampling = None
+            sampling = _declared_sampling_or_none(generator, judge)
             prompt_hashes = runtime_judge_prompt_sha256(models_now)
             record_store.finish(record_id, status="completed" if not errored else "partial", completed_items=completed,
                                 outputs=[ref], usage=usage, sampling=sampling, notes=notes,
@@ -510,6 +514,7 @@ def run_eval(
             try:
                 record_store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes,
                                     completed_items=done, usage=_own_usage(generator, judge),
+                                    sampling=_declared_sampling_or_none(generator, judge),
                                     models=strategy_models(strategies, strategy_names) if live else None)
             except EvaluationRecordError:
                 pass

@@ -320,6 +320,21 @@ are a pinned July 2026 summary or checkpoint, `--no-record` or not.
 Without `--checkpoint` and `--summary` the runner writes both under
 `eval/results/runs/<record id>/`, a fresh directory per run; a resume passes
 `--checkpoint` explicitly, and a `--no-record` run must pass both.
+A provider overload is waited out with five pauses and an alert line each
+(spec F D-F30); when the sixth attempt fails the runner ends its record
+partial with "provider unavailable after 6 attempts: <status or error>",
+keeps the checkpoint, prints the command that resumes it and exits 3; the
+unit in flight is run again on the resume, and a stop before any unit was
+checkpointed starts a new record that names none. A failure no retry fixes
+(a 401, a quota 429, any other 4xx, an SDK error before sending) ends the
+record failed with "provider refused the request: <status or error> (item
+<item id>)" and exits 5; the item is fixed before the next run, never
+skipped. A refused declared parameter ends the record failed with the
+configuration error and exits 4 (spec F D-F29); an evaluation harness run
+that meets one ends its record failed after that item and raises it.
+`scripts/elicit_benchmark_features.py` waits out an overload the same way
+and, on a stop (exit 3) or a refusal naming the item (exit 5), keeps its
+checkpoint and prints the command whose rerun resumes it.
 The sampler's three acts on one sheet run one at a time: each holds the
 lock file `<sheet>.lock` from its first read of the sheet to its record's
 finish, and a second act waits (one line on stderr), then reads what the

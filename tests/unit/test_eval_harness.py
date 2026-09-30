@@ -969,3 +969,25 @@ def test_a_live_record_names_the_judge_effort_after_the_replies_completed_or_fai
                  results_dir=tmp_path / "r2", record_store=store)
     (failed,) = [r for r in store.list_records() if r["outcome"]["status"] == "failed"]
     assert failed["models"]["graph_full"]["judge_effort"] == "high", "a failed run records what it saw"
+
+
+def test_a_refused_declared_parameter_ends_the_harness_record_failed_after_one_item(tmp_path):
+    """B99 (spec F D-F29): a declared parameter the provider refuses stops the
+    run; the per-item handler never records it as an item error and the
+    request is never sent again for the next item."""
+    from tere4ai.judge.config import DeclaredParameterRefused
+
+    items = list(GOLD_3)[:2]
+    seen: list[str] = []
+
+    def refused(item):
+        seen.append(item["id"])
+        raise DeclaredParameterRefused("openai", "g", "effort", "xhigh", "HTTP 400: effort unsupported")
+    store = EvaluationRecordStore(tmp_path)
+    with pytest.raises(DeclaredParameterRefused):
+        run_eval(items, {"plain_llm": refused}, results_dir=tmp_path / "r", record_store=store)
+    assert seen == [items[0]["id"]]
+    (rec,) = store.list_records()
+    assert rec["outcome"]["status"] == "failed" and rec["outcome"]["completed_items"] == []
+    assert rec["outcome"]["error"].startswith(
+        "DeclaredParameterRefused: configuration error: openai:g refused the declared effort xhigh (HTTP 400: ")

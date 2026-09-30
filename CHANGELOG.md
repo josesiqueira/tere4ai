@@ -56,6 +56,22 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   (under `generator` and `judge` as before, and under `generator_temperature`
   and `judge_temperature`), both declared efforts and the generator's JSON
   mode, from the start.
+- `scripts/run_ablations.py` builds its clients with the terminal policy. A
+  provider stop, a provider refusal or a refused declaration raised inside a
+  strategy is never recorded as an item error: a stop ends the evaluation
+  record partial with the reason and exits 3; a provider refusal ends it
+  failed and exits 5; both keep the checkpoint and print the next command
+  (a new record when no unit was checkpointed); a refused declaration ends
+  it failed and exits 4. A provider refusal names the item it stopped on.
+  The record's `sampling` carries the declared values.
+  `scripts/elicit_benchmark_features.py` runs under the terminal policy
+  too: a stop exits 3 and a refusal naming the item exits 5, both keeping
+  the checkpoint and printing the command whose rerun resumes it. The
+  evaluation harness re-raises a refused declared parameter, ending its
+  record failed after the first item that meets it, and stores the
+  declared sampling. A static test pins that only the four terminal
+  commands name the terminal policy and only the two scripts name the
+  provider refusal.
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record
