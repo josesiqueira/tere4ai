@@ -31,13 +31,18 @@ def _fakes(monkeypatch, cli, batches):
 
     class FakeClient:
         sampling = "0"
+        temperature = "0"
         effort = "xhigh"
+        json_mode = "sent"
         usage = {"calls": 1, "input_tokens": 1, "output_tokens": 1}
 
     monkeypatch.setattr(cli, "align_norms", fake_align)
     monkeypatch.setattr(cli, "load_model_config", lambda: FakeCfg())
-    monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg: FakeClient())
-    monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg: FakeClient())
+    # B99 (spec F D-F30): the command chooses the terminal policy
+    policies: list = []
+    monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg, **kw: policies.append(kw.get("retry_policy")) or FakeClient())
+    monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg, **kw: policies.append(kw.get("retry_policy")) or FakeClient())
+    monkeypatch.setattr(cli, "_TEST_POLICIES", policies, raising=False)
     monkeypatch.setattr(cli, "build_hleg_nodes", lambda: [])
     monkeypatch.setattr(cli, "load_prompt", lambda kind, version: f"{kind}-{version}")
 
@@ -91,7 +96,9 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
     assert ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0} and ex["prompt_sha256"]["judge"]
     assert ex["counts"]["norms_total"] == 3 and ex["counts"]["candidates"] is None, "a count the stats lack is null"
     assert ex["counts"]["norms_skipped_not_accepted"] is None and ex["counts"]["zero_alignment_norms"] is None
-    assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_effort": "xhigh", "judge_effort": "xhigh"}
+    # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
+    assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_temperature": "0", "judge_temperature": "0",
+                              "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
     out_payload = json.loads(out.read_text())
     assert out_payload["build"]["alignment_effort"] == {"generator": "xhigh", "judge": "xhigh"}
 
@@ -231,7 +238,9 @@ def test_ctrl_c_ends_the_align_execution_failed_with_the_spend_so_far(tmp_path, 
     assert ex["status"] == "failed" and ex["error"] == "KeyboardInterrupt: " and ex["ended_at"]
     assert ex["completed_keys"] == [f"batch:0:{norms[0]['norm_id']}"] and ex["usage"]["generator"]["calls"] == 1
     # review fix F2: the failed attempt records what the clients applied, not the start value
-    assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_effort": "xhigh", "judge_effort": "xhigh"}
+    # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
+    assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_temperature": "0", "judge_temperature": "0",
+                              "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
     assert out.with_suffix(".checkpoint.jsonl").is_file(), "the checkpoint stays for resume"
 
 
@@ -325,3 +334,33 @@ def test_a_sighup_ends_the_align_execution_failed_and_each_batch_writes_the_usag
     assert seen[0]["status"] == "running" and seen[0]["usage"]["generator"]["calls"] == 1
     ex = BuildRecordStore(tmp_path).read(BuildRecordStore(tmp_path).resolve("test"))["executions"][0]
     assert ex["status"] == "failed" and "SIGHUP" in ex["error"] and ex["usage"]["judge"]["calls"] == 1
+
+
+def test_a_provider_stop_ends_the_align_execution_failed_and_prints_the_resume(tmp_path, monkeypatch, capsys):
+    """B99 (spec F D-F30)."""
+    import tere4ai.align_hleg.__main__ as cli
+    from tere4ai.extract_norms.model_clients import TERMINAL_POLICY, ProviderUnavailable
+
+    norms_path, layer1, norms = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    inner = cli.align_norms
+
+    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+        if chunk[0]["norm_id"].endswith(":n2"):
+            raise ProviderUnavailable(6, "APIConnectionError: Connection error.")
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+
+    monkeypatch.setattr(cli, "align_norms", stop_on_the_second_batch)
+    argv = ["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"]
+    assert cli.main(argv) == 3
+    assert cli._TEST_POLICIES == [TERMINAL_POLICY, TERMINAL_POLICY]
+    store = BuildRecordStore(tmp_path)
+    (ex,) = store.read(store.resolve("test"))["executions"]
+    assert ex["status"] == "failed"
+    assert ex["error"] == "provider unavailable after 6 attempts: APIConnectionError: Connection error."
+    assert out.with_suffix(".checkpoint.jsonl").is_file()
+    err = capsys.readouterr().err
+    assert "(1 of 2 batches done); continue with:" in err
+    assert "  .venv/bin/python -m tere4ai.align_hleg --norms " in err and err.rstrip().endswith("--resume")

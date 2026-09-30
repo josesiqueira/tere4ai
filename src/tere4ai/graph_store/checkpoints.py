@@ -14,6 +14,7 @@ anything is appended; damage anywhere else is refused.
 from __future__ import annotations
 
 import json
+import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -200,3 +201,12 @@ def progress(execution: dict[str, Any], checkpoint_path: Path, key_field: str,
         "completed": completed, "expected_total": execution.get("expected_total"),
         "work_unit": execution.get("work_unit"), "inherited": len(inherited), "source": source,
     }
+
+
+def resume_command(program: str, argv: list[str], resume_flag: str = "--resume") -> str:
+    """The command that continues a stopped run: the same arguments, the resume
+    flag added once (spec F D-F30)."""
+    args = list(argv)
+    if resume_flag not in args:
+        args.append(resume_flag)
+    return f"{program} {shlex.join(args)}"

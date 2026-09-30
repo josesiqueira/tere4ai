@@ -19,7 +19,13 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+from tere4ai.extract_norms.model_clients import (
+    TERMINAL_POLICY,
+    AnthropicJudge,
+    OpenAIGenerator,
+    ProviderUnavailable,
+    declared_sampling,
+)
 from tere4ai.extract_norms.pipeline import (
     DEFAULT_DUMP_PATH,
     REPO_ROOT,
@@ -40,8 +46,8 @@ from tere4ai.graph_store.build_record import (
     select_record,
     signals_as_interrupt,
 )
-from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume
-from tere4ai.judge.config import load_model_config
+from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume, resume_command
+from tere4ai.judge.config import ConfigurationError, load_model_config
 
 GENERATOR_PROMPT_KIND = "extract_norms"
 JUDGE_PROMPT_KIND = "judge_norms"
@@ -67,11 +73,6 @@ def _slug(node_ids: list[str]) -> str:
         parts.append(f"plus{len(node_ids) - 2}")
     parts.append(digest)
     return "_".join(parts)
-
-
-def _sampling_of(client: object) -> str:
-    """What the client actually sent (B74); "unknown" for a stub without the record."""
-    return str(getattr(client, "sampling", "unknown"))
 
 
 def _effort_of(client: object) -> str:
@@ -200,16 +201,18 @@ def _main(argv: list[str] | None = None) -> int:
     if plan.inherited_keys:
         print(f"resume: {len(plan.inherited_keys)} group(s) inherited from {plan.inherited_from}")
 
-    generator = OpenAIGenerator(cfg)
-    judge = AnthropicJudge(cfg)
+    # spec F D-F30: a terminal run with a checkpoint waits out an overload
+    generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
+    judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
+    run_argv = list(sys.argv[1:] if argv is None else argv)
     run_id = store.start_execution(
         record_id, command="extract_norms", covers_steps=["L2.1", "L2.2"],
-        argv=list(sys.argv[1:] if argv is None else argv), inputs=inputs, config=config,
+        argv=run_argv, inputs=inputs, config=config,
         expected_total=len(node_ids), work_unit="groups",
         checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),
         resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,
         models=models, prompt_sha256=prompts,
-        sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+        sampling=declared_sampling(generator, judge),
     )
 
     group_results: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
@@ -217,6 +220,15 @@ def _main(argv: list[str] | None = None) -> int:
 
     def usage() -> dict:
         return {"generator": _usage_of(generator), "judge": _usage_of(judge)}
+
+    def end_failed(error: str) -> None:
+        # a record published under this run refuses the write too (B79 item
+        # 15); the original error is the one reported
+        try:
+            store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
+                                   sampling=declared_sampling(generator, judge), error=error)
+        except RecordError as record_exc:
+            print(f"the failure could not be recorded: {record_exc}", file=sys.stderr)
 
     try:
         # one pipeline call per top-level node id, checkpointed immediately, so a
@@ -257,11 +269,13 @@ def _main(argv: list[str] | None = None) -> int:
             merged["stats"]["nodes_failed"].extend(stats.get("nodes_failed", []))
             merged["stats"]["invalid_norms"].extend(stats.get("invalid_norms", []))
 
+        generator_sampling = declared_sampling(generator, judge)
         payload = {
             "build": {
                 **dump.get("build", {}),
                 "extraction_models": cfg.as_public_dict(),
-                "extraction_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+                "extraction_sampling": {"generator": generator_sampling["generator"],
+                                       "judge": generator_sampling["judge"]},
                 "extraction_effort": {"generator": _effort_of(generator), "judge": _effort_of(judge)},
                 "extraction_usage": usage(),
                 "extracted_at": _now_iso(),
@@ -280,22 +294,27 @@ def _main(argv: list[str] | None = None) -> int:
             counts={"source_units": stats["source_units"], "candidates": stats["candidates"],
                     "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"])},
             usage=usage(),
-            sampling={**payload["build"]["extraction_sampling"],
-                      "generator_effort": _effort_of(generator), "judge_effort": _effort_of(judge)},
+            sampling=declared_sampling(generator, judge),
             completed_keys=completed,
             work_failures={"nodes_failed": len(stats["nodes_failed"]), "norms_failed": 0},
         )
+    except ProviderUnavailable as exc:
+        # spec F D-F30: the terminal policy waited out five pauses; the
+        # execution ends failed with the reason, the checkpoint stays, and the
+        # command that continues it is printed
+        end_failed(str(exc))
+        print(f"stopped: {exc}", file=sys.stderr)
+        print(f"the checkpoint {checkpoint_path.name} is kept ({len(plan.inherited_keys) + len(completed)} of "
+              f"{len(node_ids)} groups done); continue with:", file=sys.stderr)
+        print(f"  {resume_command('.venv/bin/python -m tere4ai.extract_norms', run_argv)}", file=sys.stderr)
+        return 3
+    except ConfigurationError as exc:
+        # spec F D-F29: a declared parameter the provider refused stops the run
+        end_failed(str(exc))
+        print(f"stopped: {exc}", file=sys.stderr)
+        return 4
     except BaseException as exc:  # an interrupt too (B79 item 22): the execution never stays running
-        # a record published under this run refuses the write too (B79 item
-        # 15); the original error is the one raised
-        try:
-            store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
-                                   sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge),
-                                             "generator_effort": _effort_of(generator),
-                                             "judge_effort": _effort_of(judge)},
-                                   error=f"{type(exc).__name__}: {exc}")
-        except RecordError as record_exc:
-            print(f"the failure could not be recorded: {record_exc}", file=sys.stderr)
+        end_failed(f"{type(exc).__name__}: {exc}")
         raise
     checkpoint_path.unlink(missing_ok=True)
 

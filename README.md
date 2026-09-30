@@ -269,8 +269,17 @@ with `--resume` to continue it under a new run id that names the one it
 resumes, after the inputs and configuration are checked; add
 `--accept-legacy-checkpoint` for a checkpoint written before build records
 existed. Starting the same output without `--resume` while a checkpoint
-exists is refused. A published record is frozen: further work on the same
-alias continues as a descendant record.
+exists is refused. A provider overload is waited out: before each of five
+pauses (10, 30, 90, 270 and 600 s, longer when the provider asks for it,
+never above 600 s) the command prints one alert line on standard error;
+when the sixth attempt fails it records the execution failed with "provider
+unavailable after 6 attempts: <status or error>", keeps the checkpoint,
+prints the command that resumes it and exits with code 3 (spec F D-F30). A
+declared parameter that the provider refuses stops the run the same way
+with a configuration error and exit code 4: correct the row of
+`config/model_parameters.json` and start again (spec F D-F29). A resume
+under a changed row is refused. A published record is frozen: further work
+on the same alias continues as a descendant record.
 
 Tracked in git because they are publication evidence or inputs:
 `build_chain_*.json`, `publications/`, `BUILD_CHAIN_CURRENT.txt`,

@@ -183,3 +183,11 @@ def test_prepare_resume_names_a_changed_declaration(tmp_path):
         prepare_resume(ck, "batch", KEYS, resume=True, accept_legacy=False, store=store, record_id=rid,
                        expected_config={}, expected_inputs=[], expected_prompt_sha256={},
                        expected_models={**models, "model_parameters_sha256": "2" * 64})
+
+
+def test_resume_command_repeats_the_arguments_and_adds_the_flag_once():
+    from tere4ai.graph_store.checkpoints import resume_command
+
+    assert resume_command(".venv/bin/python -m tere4ai.extract_norms", ["--nodes", "a,b", "--out", "/tmp/x y.json"]) \
+        == ".venv/bin/python -m tere4ai.extract_norms --nodes a,b --out '/tmp/x y.json' --resume"
+    assert resume_command("p", ["--resume"]) == "p --resume"

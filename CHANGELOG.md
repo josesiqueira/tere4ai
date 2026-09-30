@@ -47,6 +47,15 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   error>"); every other 4xx and an SDK error before sending stop at once as
   `ProviderRefused` ("provider refused the request: <status or error>").
   Every attempt counts in `requests_sent`.
+- `python -m tere4ai.extract_norms` and `python -m tere4ai.align_hleg` build
+  their clients with the terminal policy. A provider stop ends the execution
+  failed with "provider unavailable after 6 attempts: <status or error>",
+  keeps the checkpoint, prints the resume command and exits 3; a refused
+  declared parameter ends it failed with the configuration error and exits
+  4. The execution's `sampling` carries the declared temperature per role
+  (under `generator` and `judge` as before, and under `generator_temperature`
+  and `judge_temperature`), both declared efforts and the generator's JSON
+  mode, from the start.
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record

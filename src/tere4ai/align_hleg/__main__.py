@@ -22,7 +22,13 @@ from pathlib import Path
 
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 from tere4ai.align_hleg.pipeline import align_norms
-from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+from tere4ai.extract_norms.model_clients import (
+    TERMINAL_POLICY,
+    AnthropicJudge,
+    OpenAIGenerator,
+    ProviderUnavailable,
+    declared_sampling,
+)
 from tere4ai.extract_norms.pipeline import DEFAULT_DUMP_PATH, REPO_ROOT, load_prompt, prompt_sha256
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import (
@@ -36,8 +42,8 @@ from tere4ai.graph_store.build_record import (
     select_record,
     signals_as_interrupt,
 )
-from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume
-from tere4ai.judge.config import load_model_config
+from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume, resume_command
+from tere4ai.judge.config import ConfigurationError, load_model_config
 
 ALIGN_PROMPT_KIND = "align_hleg"
 JUDGE_PROMPT_KIND = "judge_alignment"
@@ -53,11 +59,6 @@ def _attach_source_text(norms: list[dict], layer1: dict) -> None:
         node = nodes.get(norm.get("source_node_id", ""))
         if node is not None and node.get("text"):
             norm["source_text"] = node["text"]
-
-
-def _sampling_of(client: object) -> str:
-    """What the client actually sent (B74); "unknown" for a stub without the record."""
-    return str(getattr(client, "sampling", "unknown"))
 
 
 def _effort_of(client: object) -> str:
@@ -198,16 +199,18 @@ def _main(argv: list[str] | None = None) -> int:
     if plan.inherited_keys:
         print(f"resume: {len(plan.inherited_keys)} batch(es) inherited from {plan.inherited_from}")
 
-    generator = OpenAIGenerator(cfg)
-    judge = AnthropicJudge(cfg)
+    # spec F D-F30: a terminal run with a checkpoint waits out an overload
+    generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
+    judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
     hleg_nodes = build_hleg_nodes()
+    run_argv = list(sys.argv[1:] if argv is None else argv)
     run_id = store.start_execution(
         record_id, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"],
-        argv=list(sys.argv[1:] if argv is None else argv), inputs=inputs, config=config,
+        argv=run_argv, inputs=inputs, config=config,
         expected_total=len(batches), work_unit="batches", checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),
         resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,
         models=models, prompt_sha256=prompts,
-        sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+        sampling=declared_sampling(generator, judge),
     )
 
     partials: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
@@ -215,6 +218,15 @@ def _main(argv: list[str] | None = None) -> int:
 
     def usage() -> dict:
         return {"generator": _usage_of(generator), "judge": _usage_of(judge)}
+
+    def end_failed(error: str) -> None:
+        # a record published under this run refuses the write too (B79 item
+        # 15); the original error is the one reported
+        try:
+            store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
+                                   sampling=declared_sampling(generator, judge), error=error)
+        except RecordError as record_exc:
+            print(f"the failure could not be recorded: {record_exc}", file=sys.stderr)
 
     try:
         # the heartbeat beats on a clock while the paid calls run, so a batch
@@ -256,12 +268,14 @@ def _main(argv: list[str] | None = None) -> int:
         # copied marker never reads as a Layer 3 decision (gating, binding).
         upstream = dict(payload.get("build", {}))
         norms_reference = upstream.pop("reference", None)
+        generator_sampling = declared_sampling(generator, judge)
         out_payload = {
             "build": {
                 **upstream,
                 "norms_reference": norms_reference,
                 "alignment_models": cfg.as_public_dict(),
-                "alignment_sampling": {"generator": _sampling_of(generator), "judge": _sampling_of(judge)},
+                "alignment_sampling": {"generator": generator_sampling["generator"],
+                                      "judge": generator_sampling["judge"]},
                 "alignment_effort": {"generator": _effort_of(generator), "judge": _effort_of(judge)},
                 "alignment_usage": usage(),
                 "alignment_input_sha256": norms_digest,
@@ -286,22 +300,27 @@ def _main(argv: list[str] | None = None) -> int:
                     "mechanical_rejects_count": (len(stats["mechanical_rejects"])
                                                  if isinstance(stats.get("mechanical_rejects"), list) else None)},
             usage=usage(),
-            sampling={**out_payload["build"]["alignment_sampling"],
-                      "generator_effort": _effort_of(generator), "judge_effort": _effort_of(judge)},
+            sampling=declared_sampling(generator, judge),
             completed_keys=completed,
             work_failures={"nodes_failed": 0, "norms_failed": len(stats.get("norms_failed", []))},
         )
+    except ProviderUnavailable as exc:
+        # spec F D-F30: the terminal policy waited out five pauses; the
+        # execution ends failed with the reason, the checkpoint stays, and the
+        # command that continues it is printed
+        end_failed(str(exc))
+        print(f"stopped: {exc}", file=sys.stderr)
+        print(f"the checkpoint {checkpoint_path.name} is kept ({len(plan.inherited_keys) + len(completed)} of "
+              f"{len(batches)} batches done); continue with:", file=sys.stderr)
+        print(f"  {resume_command('.venv/bin/python -m tere4ai.align_hleg', run_argv)}", file=sys.stderr)
+        return 3
+    except ConfigurationError as exc:
+        # spec F D-F29: a declared parameter the provider refused stops the run
+        end_failed(str(exc))
+        print(f"stopped: {exc}", file=sys.stderr)
+        return 4
     except BaseException as exc:  # an interrupt too (B79 item 22): the execution never stays running
-        # a record published under this run refuses the write too (B79 item
-        # 15); the original error is the one raised
-        try:
-            store.finish_execution(record_id, run_id, status="failed", usage=usage(), completed_keys=completed,
-                                   sampling={"generator": _sampling_of(generator), "judge": _sampling_of(judge),
-                                             "generator_effort": _effort_of(generator),
-                                             "judge_effort": _effort_of(judge)},
-                                   error=f"{type(exc).__name__}: {exc}")
-        except RecordError as record_exc:
-            print(f"the failure could not be recorded: {record_exc}", file=sys.stderr)
+        end_failed(f"{type(exc).__name__}: {exc}")
         raise
     checkpoint_path.unlink(missing_ok=True)
 

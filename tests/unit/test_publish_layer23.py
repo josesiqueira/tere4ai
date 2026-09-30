@@ -317,12 +317,15 @@ def _align_fakes(monkeypatch, cli):
 
     class FakeClient:
         sampling = "0"
+        temperature = "0"
+        json_mode = "sent"
         usage = {"calls": 1, "input_tokens": 1, "output_tokens": 1}
 
     monkeypatch.setattr(cli, "align_norms", fake_align)
     monkeypatch.setattr(cli, "load_model_config", lambda: FakeCfg())
-    monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg: FakeClient())
-    monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg: FakeClient())
+    # B99 (spec F D-F30): the command builds its clients with the terminal policy, a keyword the fakes accept
+    monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg, **kwargs: FakeClient())
+    monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg, **kwargs: FakeClient())
     monkeypatch.setattr(cli, "build_hleg_nodes", lambda: [])
     monkeypatch.setattr(cli, "load_prompt", lambda kind, version: f"{kind}-{version}")
 
