@@ -187,8 +187,10 @@ def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list
                          resumes: str | None, dump_dir: Path) -> str | None:
     """The refusal sentence when a resume would continue under another
     declaration (spec F D-F29, ruling P6), else None: the resumed record's
-    models against the loaded ones, then every checkpointed unit that names
-    its digest (the only witness of a checkpoint no record names)."""
+    models against the loaded ones, then every checkpointed unit's digest
+    (the only witness of a checkpoint no record names): under a declared
+    configuration a unit without one differs too, otherwise only a unit
+    that names one is compared."""
     way_out = ("restore the row in config/model_parameters.json to resume it, or pass --checkpoint with a "
                "fresh path to start again")
     head = f"refusing to resume {checkpoint_path}"
