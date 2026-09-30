@@ -91,7 +91,12 @@ from tere4ai.graph_store.present import (
     unreadable,
 )
 from tere4ai.graph_store.publication import load_active, read_target_state
-from tere4ai.judge.config import ModelConfigError, load_dotenv_once, load_model_config
+from tere4ai.judge.config import (
+    ModelConfigError,
+    load_dotenv_once,
+    load_model_config,
+    runtime_judge_declaration,
+)
 from tere4ai.mcp_server import backlog as backlog_tool
 from tere4ai.mcp_server import classify as classify_tool
 from tere4ai.mcp_server import elicit as elicit_tool
@@ -546,14 +551,14 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 "ok": True,
                 "graph_version": _graph_version(request),
                 "norms_build": norms_build,
-                # B84 (spec F D-F22): the runtime judge's model id and effort as
-                # this process reads them, from the environment after the same
-                # .env load the paid path makes; the dashboard's judge runner
-                # records them beside its own TERE4AI_JUDGE_EFFORT.
-                "runtime_judge": {
-                    "model": os.environ.get("TERE4AI_JUDGE_MODEL") or None,
-                    "effort": os.environ.get("TERE4AI_JUDGE_EFFORT") or None,
-                },
+                # spec F D-F29: the runtime judge's model id from the
+                # environment, after the same .env load the paid path makes,
+                # and its declared effort and temperature from
+                # config/model_parameters.json, read on every poll; null
+                # values with the refusal sentence when the table does not
+                # declare it. The dashboard's judge runner compares them with
+                # its own price table row for the same model id.
+                "runtime_judge": runtime_judge_declaration(os.environ.get("TERE4AI_JUDGE_MODEL") or None),
             }
         )
 

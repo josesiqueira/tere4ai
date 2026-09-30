@@ -15,9 +15,11 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from tests.fixtures.model_parameters import declared, write_table
 
 import tere4ai.http_facade.app as facade
 from tere4ai.extract_norms.model_clients import FakeClient
+from tere4ai.judge import config as config_module
 from tere4ai.judge.config import ModelConfigError
 from tere4ai.mcp_server.tools import (
     BANNED_CLAIM_TERMS,
@@ -117,20 +119,37 @@ def test_health_reports_graph_and_norms_builds(client):
     assert body["norms_build"].startswith("build-")
 
 
-def test_health_names_the_runtime_judge_from_the_environment(client, monkeypatch):
+# B99 (spec F D-F29): the effort and temperature come from the declared table
+def test_health_names_the_runtime_judge_and_its_declared_effort_and_temperature(client, monkeypatch, tmp_path):
     monkeypatch.setattr(facade, "load_dotenv_once", lambda: None)
+    for retired in config_module.RETIRED_EFFORT_VARIABLES:  # a developer shell cannot change the answer
+        monkeypatch.delenv(retired, raising=False)
     monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-test-pinned")
-    monkeypatch.setenv("TERE4AI_JUDGE_EFFORT", "xhigh")
+    monkeypatch.setattr(config_module, "MODEL_PARAMETERS_PATH", write_table(
+        tmp_path / "model_parameters.json", declared("claude-test-pinned", "anthropic", temperature="N/A")))
     body = client.get("/api/health").json()
-    assert body["runtime_judge"] == {"model": "claude-test-pinned", "effort": "xhigh"}
+    assert body["runtime_judge"] == {"model": "claude-test-pinned", "effort": "xhigh", "temperature": "N/A",
+                                     "declaration_error": None}
 
 
-def test_health_reports_null_for_an_unset_runtime_judge_field(client, monkeypatch):
+# B99 (spec F D-F29): the effort and temperature come from the declared table
+def test_health_reports_null_values_and_the_reason_for_an_undeclared_runtime_judge(client, monkeypatch, tmp_path):
     monkeypatch.setattr(facade, "load_dotenv_once", lambda: None)
+    for retired in config_module.RETIRED_EFFORT_VARIABLES:  # a developer shell cannot change the answer
+        monkeypatch.delenv(retired, raising=False)
     monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-test-pinned")
-    monkeypatch.delenv("TERE4AI_JUDGE_EFFORT", raising=False)
-    body = client.get("/api/health").json()
-    assert body["runtime_judge"] == {"model": "claude-test-pinned", "effort": None}
+    monkeypatch.setattr(config_module, "MODEL_PARAMETERS_PATH", write_table(tmp_path / "model_parameters.json"))
+    judge = client.get("/api/health").json()["runtime_judge"]
+    assert judge["model"] == "claude-test-pinned" and judge["effort"] is None and judge["temperature"] is None
+    assert judge["declaration_error"].startswith(
+        "configuration error: config/model_parameters.json declares no row for model 'claude-test-pinned'")
+
+
+def test_health_says_so_when_no_runtime_judge_is_configured(client, monkeypatch):
+    monkeypatch.setattr(facade, "load_dotenv_once", lambda: None)
+    monkeypatch.delenv("TERE4AI_JUDGE_MODEL", raising=False)
+    assert client.get("/api/health").json()["runtime_judge"] == {
+        "model": None, "effort": None, "temperature": None, "declaration_error": "TERE4AI_JUDGE_MODEL is not set"}
 
 
 def test_health_loads_dotenv_before_reading_the_runtime_judge(client, monkeypatch):

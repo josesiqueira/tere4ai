@@ -84,6 +84,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   evidence answer `judge_temperature`, the eval strategies'
   models `judge_temperature` and, on every strategy, the generator's
   declared `generator_effort` and `generator_temperature`.
+- `GET /api/health` reports `runtime_judge` as the model id with its
+  declared `effort` and `temperature` from `config/model_parameters.json`,
+  read on every poll, and `declaration_error` (null, or the refusal
+  sentence with both values null when the table does not declare the
+  model or a retired effort variable is set).
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record
