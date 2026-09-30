@@ -65,4 +65,4 @@ This file governs how the agent works. @docs/DESIGN.md is the visual design syst
 - Human context and preferences: @USER.md
 - Stack, schema, and domain rules: @docs/architecture.md
 - Reference register (papers only, with the source IDs that @grounded_by resolves against): @docs/references.md
-- Design plans, specs, research notes, the task board and the audit journal live in the PRIVATE sibling repository `../thesis/`, not here. This repository is public. Ignore any skill default that writes to `docs/superpowers/` or `docs/design/`.
+- Design plans, specs, research notes, the work board (thesis/board, read with thesis/tools/board/board.py) and the audit journal live in the PRIVATE sibling repository `../thesis/`, not here. This repository is public. Ignore any skill default that writes to `docs/superpowers/` or `docs/design/`.
