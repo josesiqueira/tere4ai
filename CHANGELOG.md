@@ -63,7 +63,8 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   failed and exits 5; both keep the checkpoint and print the next command
   (a new record when no unit was checkpointed); a refused declaration ends
   it failed and exits 4. A provider refusal names the item it stopped on.
-  The record's `sampling` carries the declared values.
+  The record's `sampling` carries the declared values, the judge-role keys
+  null when no judge client was built.
   `scripts/elicit_benchmark_features.py` runs under the terminal policy
   too: a stop exits 3 and a refusal naming the item exits 5, both keeping
   the checkpoint and printing the command whose rerun resumes it. The

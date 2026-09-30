@@ -991,3 +991,45 @@ def test_a_refused_declared_parameter_ends_the_harness_record_failed_after_one_i
     assert rec["outcome"]["status"] == "failed" and rec["outcome"]["completed_items"] == []
     assert rec["outcome"]["error"].startswith(
         "DeclaredParameterRefused: configuration error: openai:g refused the declared effort xhigh (HTTP 400: ")
+
+
+class _DeclaredGenerator:
+    """A generator double reporting declared values, as the real clients do since B99."""
+
+    sampling, temperature, effort, json_mode = "0", "0", "N/A", "sent"
+    model = "stub-generator"
+
+    def complete(self, system, user):
+        return "{}"
+
+
+def test_a_generator_only_live_record_leaves_the_judge_sampling_null(tmp_path, monkeypatch):
+    """B99 (spec F D-F29), Task 5 review: a live run without graph_full builds
+    no judge, so the judge-role sampling keys are null, as before B99, in the
+    completed and the failed finish alike."""
+    import tere4ai.eval.harness as h
+    from tere4ai.judge.config import DeclaredParameterRefused
+
+    _live_without_network(monkeypatch)
+    refuse = {"on": False}
+
+    def fake_build(name, generator, dump, norms_payload, judge=None, judge_log_path=None):
+        def strategy(item):
+            if refuse["on"]:
+                raise DeclaredParameterRefused("openai", "g", "effort", "xhigh", "HTTP 400: effort unsupported")
+            return {"answer_text": "a", "citations": [], "risk_category": "high"}
+        return strategy
+
+    monkeypatch.setattr(h, "build_strategy", fake_build)
+    store = EvaluationRecordStore(tmp_path)
+    kw = {"generator_factory": _DeclaredGenerator, "live": True, "dump": MINI_DUMP, "norms_payload": MINI_NORMS,
+          "record_store": store}
+    out = run_eval(list(GOLD_3)[:1], ["plain_llm"], results_dir=tmp_path / "r", **kw)
+    expected = {"generator": "0", "judge": None, "generator_temperature": "0", "judge_temperature": None,
+                "generator_effort": "N/A", "judge_effort": None, "generator_json_mode": "sent"}
+    assert store.read(out["record_id"])["sampling"] == expected
+    refuse["on"] = True
+    with pytest.raises(DeclaredParameterRefused):
+        run_eval(list(GOLD_3)[:1], ["plain_llm"], results_dir=tmp_path / "r2", **kw)
+    (failed,) = [r for r in store.list_records() if r["outcome"]["status"] == "failed"]
+    assert failed["sampling"] == expected

@@ -262,6 +262,11 @@ def test_declared_sampling_names_every_declared_value_and_unknown_for_a_stub():
                                              "judge_temperature": "0", "generator_effort": "xhigh",
                                              "judge_effort": "xhigh", "generator_json_mode": "sent"}
     assert declared_sampling(object(), object())["generator_effort"] == "unknown"
+    # B99 (spec F D-F29), Task 5 review: no judge client built leaves the
+    # judge-role keys null, as the records stored before B99
+    no_judge = declared_sampling(gen, None)
+    assert no_judge["generator_effort"] == "xhigh"
+    assert (no_judge["judge"], no_judge["judge_temperature"], no_judge["judge_effort"]) == (None, None, None)
 
 
 def test_generator_reraises_any_other_error():

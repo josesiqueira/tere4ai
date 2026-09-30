@@ -656,3 +656,18 @@ def test_a_refused_declaration_ends_the_record_failed_and_exits_4(runner, tmp_pa
     assert rec["outcome"]["error"] == ("configuration error: openai:g refused the declared effort xhigh "
                                        "(HTTP 400: effort unsupported); correct its row in config/model_parameters.json")
     assert "stopped: configuration error: openai:g refused" in capsys.readouterr().err
+
+
+def test_a_judge_that_cannot_be_built_leaves_the_judge_sampling_null(runner, monkeypatch, tmp_path):
+    """B99 (spec F D-F29), Task 5 review: the generator was built, the judge
+    constructor raised; the failed record's judge-role sampling keys are null."""
+    def no_judge(cfg, **kw):
+        raise RuntimeError("judge unavailable")
+    monkeypatch.setattr(runner, "AnthropicJudge", no_judge)
+    with pytest.raises(RuntimeError, match="judge unavailable"):
+        runner.main(_argv(tmp_path))
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == "failed"
+    assert rec["sampling"]["generator"] == "temperature=0"
+    assert (rec["sampling"]["judge"], rec["sampling"]["judge_temperature"], rec["sampling"]["judge_effort"]) == (
+        None, None, None)

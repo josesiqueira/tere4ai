@@ -81,13 +81,15 @@ def usage_since(client: object, before: dict[str, int] | None) -> dict[str, int]
 NOT_DECLARED = "not declared"
 
 
-def declared_sampling(generator: object, judge: object) -> dict[str, str]:
+def declared_sampling(generator: object, judge: object | None) -> dict[str, str | None]:
     """The execution record's sampling (spec F D-F29): each role's declared
     temperature under the keys the records have always used and again under
     <role>_temperature (review X-C1), the declared efforts and the generator's
-    JSON mode; "unknown" for a stub without them."""
-    def field(client: object, name: str) -> str:
-        return str(getattr(client, name, "unknown"))
+    JSON mode; "unknown" for a stub without them. A run that built no judge
+    (the harness without graph_full, a judge constructor that raised) gets
+    null judge-role keys, as its records stored before B99."""
+    def field(client: object, name: str) -> str | None:
+        return None if client is None else str(getattr(client, name, "unknown"))
     return {"generator": field(generator, "sampling"), "judge": field(judge, "sampling"),
             "generator_temperature": field(generator, "temperature"),
             "judge_temperature": field(judge, "temperature"),

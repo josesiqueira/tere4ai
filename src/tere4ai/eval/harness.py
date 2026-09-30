@@ -302,14 +302,15 @@ def _own_usage(generator: Any, judge: Any) -> dict[str, Any] | None:
     return None if usage["generator"] is None and usage["judge"] is None else usage
 
 
-def _declared_sampling_or_none(generator: Any, judge: Any) -> dict[str, str] | None:
+def _declared_sampling_or_none(generator: Any, judge: Any) -> dict[str, str | None] | None:
     """The declared sampling the record stores, as run_ablations stores it
-    (spec F D-F29); None when no client was built here or an offline stub
-    reports none of the values, as before B99."""
+    (spec F D-F29), the judge-role keys null when no judge was built; None
+    when no client was built here or an offline stub reports none of the
+    values, as before B99."""
     if generator is None:
         return None
     sampling = declared_sampling(generator, judge)
-    return None if set(sampling.values()) == {"unknown"} else sampling
+    return None if set(sampling.values()) <= {"unknown", None} else sampling
 
 
 def run_eval(
