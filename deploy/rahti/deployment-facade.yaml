@@ -40,17 +40,13 @@ spec:
                 name: tere4ai2-secrets
           env:
             # Same model defaults as docker-compose.yml; override via Secret
-            # or a ConfigMap in a real deployment. The efforts are part of
-            # the instrument (spec F D-F22): change them together with the
-            # calibration.
+            # or a ConfigMap in a real deployment. Temperature, effort and
+            # JSON mode come from config/model_parameters.json in the image
+            # (spec F D-F29).
             - name: TERE4AI_GENERATOR_MODEL
               value: "gpt-6-astra"
             - name: TERE4AI_JUDGE_MODEL
               value: "claude-opus-5-5"
-            - name: TERE4AI_GENERATOR_EFFORT
-              value: "xhigh"
-            - name: TERE4AI_JUDGE_EFFORT
-              value: "xhigh"
           resources:
             # Unvalidated guesses: the facade loads the graph dumps into
             # memory at startup. Measure before trusting these numbers.

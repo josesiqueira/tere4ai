@@ -164,3 +164,22 @@ def test_progress_of_an_ended_execution_comes_from_its_record(tmp_path):
     assert progress(failed, ck, "batch", KEYS)["completed"] == 2 and progress(failed, ck, "batch", KEYS)["source"] == "record"
     running = {**done, "status": "running", "run_id": "later", "completed_keys": []}
     assert progress(running, ck, "batch", KEYS)["source"] == "checkpoint"
+
+
+def test_prepare_resume_names_a_changed_declaration(tmp_path):
+    """B99 (spec F D-F29): the compared models carry the declaration's digest,
+    so a row edited between a stop and its resume refuses the resume by name."""
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("t", "b", None)
+    models = {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh",
+              "generator_temperature": "N/A", "judge_temperature": "N/A", "generator_json_mode": "sent",
+              "model_parameters_sha256": "1" * 64}
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1"], argv=[], inputs=[], config={},
+                                expected_total=1, work_unit="batches", checkpoint_file="x.checkpoint.jsonl",
+                                models=models, prompt_sha256={})
+    ck = tmp_path / "x.checkpoint.jsonl"
+    ck.write_text(_line("b0", run) + "\n", encoding="utf-8")
+    with pytest.raises(IncompatibleCheckpointError, match="models: model_parameters_sha256"):
+        prepare_resume(ck, "batch", KEYS, resume=True, accept_legacy=False, store=store, record_id=rid,
+                       expected_config={}, expected_inputs=[], expected_prompt_sha256={},
+                       expected_models={**models, "model_parameters_sha256": "2" * 64})

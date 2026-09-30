@@ -91,7 +91,7 @@ def digest_of_ids(ids: list[str]) -> str:
 # The paths whose uncommitted state changes what a run computes (B81 item 5).
 # Run outputs (eval/results/, data/) are not code: a second run over the
 # same code must not read as dirty because the first one wrote its summary.
-CODE_PATHS = ("src", "prompts", "schema", "scripts", "pyproject.toml")
+CODE_PATHS = ("src", "prompts", "schema", "scripts", "config", "pyproject.toml")
 
 
 def code_version(root: Path | str) -> str | None:

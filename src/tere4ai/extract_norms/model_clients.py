@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 from typing import Protocol
 
-from tere4ai.judge.config import ModelConfig
+from tere4ai.judge.config import NOT_APPLICABLE, ModelConfig
 
 
 class ModelClient(Protocol):
@@ -279,7 +279,8 @@ class OpenAIGenerator(_SamplingRecord):
         self.model = cfg.generator_model
         self.usage = _new_usage()
         self._init_sampling()
-        self._init_effort(cfg.generator_effort)
+        # B99 Task 1 (interim until Task 2): the declared effort, "N/A" never sent
+        self._init_effort(None if cfg.generator_effort == NOT_APPLICABLE else cfg.generator_effort)
         self._client = OpenAI(api_key=cfg.generator_api_key, max_retries=0)
 
     def _request_kwargs(self, messages: list[dict[str, str]]) -> dict:
@@ -354,7 +355,8 @@ class AnthropicJudge(_SamplingRecord):
         self.model = cfg.judge_model
         self.usage = _new_usage()
         self._init_sampling()
-        self._init_effort(cfg.judge_effort)
+        # B99 Task 1 (interim until Task 2): the declared effort, "N/A" never sent
+        self._init_effort(None if cfg.judge_effort == NOT_APPLICABLE else cfg.judge_effort)
         self._max_tokens = max_tokens
         self._client = anthropic.Anthropic(api_key=cfg.judge_api_key, max_retries=0)
 

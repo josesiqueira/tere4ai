@@ -14,6 +14,7 @@ import types
 from pathlib import Path
 
 import pytest
+from tests.fixtures.model_parameters import declared, write_table
 
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
 from tere4ai.eval.harness import (
@@ -32,6 +33,7 @@ from tere4ai.eval.harness import (
 from tere4ai.eval.strategies import STRATEGY_NAMES, TfidfIndex, build_strategy
 from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
+from tere4ai.judge import config as config_module
 from tere4ai.judge.config import ModelConfig
 from tere4ai.mcp_server.classify import classify_ai_system
 
@@ -324,14 +326,10 @@ def test_config_of_record_parses_the_real_file():
 
 
 def _fake_cfg(generator="gpt-5.2", judge="claude-opus-4-8") -> ModelConfig:
-    return ModelConfig(
-        generator_model=generator,
-        judge_model=judge,
-        generator_api_key="sk-fake",
-        judge_api_key="sk-ant-fake",
-        generator_effort="xhigh",
-        judge_effort="xhigh",
-    )
+    # B99 (spec F D-F29): the efforts are the declared rows' values now
+    return ModelConfig(generator_model=generator, judge_model=judge, generator_api_key="sk-fake",
+                       judge_api_key="sk-ant-fake", generator_parameters=declared(generator, "openai"),
+                       judge_parameters=declared(judge, "anthropic"))
 
 
 def test_guard_accepts_matching_config_and_rejects_mismatch():
@@ -356,8 +354,14 @@ def test_run_eval_live_refuses_on_config_mismatch(monkeypatch, tmp_path):
     monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-not-the-record")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake")
-    monkeypatch.setenv("TERE4AI_GENERATOR_EFFORT", "xhigh")
-    monkeypatch.setenv("TERE4AI_JUDGE_EFFORT", "xhigh")
+    # B99 (spec F D-F29): a declared row for each model, and no .env read, so a
+    # local .env with the retired lines cannot refuse first
+    monkeypatch.delenv("TERE4AI_GENERATOR_EFFORT", raising=False)
+    monkeypatch.delenv("TERE4AI_JUDGE_EFFORT", raising=False)
+    monkeypatch.setattr(config_module, "load_dotenv_once", lambda: None)
+    monkeypatch.setattr(config_module, "MODEL_PARAMETERS_PATH", write_table(
+        tmp_path / "model_parameters.json", declared("gpt-not-the-record", "openai"),
+        declared("claude-not-the-record", "anthropic")))
     with pytest.raises(EvalConfigMismatch, match="config of record"):
         run_eval(
             GOLD_3, {}, live=True, dump=MINI_DUMP, results_dir=tmp_path / "results"

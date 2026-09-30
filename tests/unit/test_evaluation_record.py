@@ -325,3 +325,21 @@ def test_finish_refuses_a_malformed_field_and_leaves_the_record_running(tmp_path
     assert rec["ended_at"] is None and rec["outcome"]["status"] == "running"
     store.finish(rid, status="failed", error="the finish was refused")
     assert store.read(rid)["outcome"]["status"] == "failed"
+
+
+def test_an_edited_model_parameters_table_reads_dirty(tmp_path):
+    """B99 (spec F D-F29): the declared table changes what a run sends, so it is code."""
+    import subprocess
+
+    def git(*args):
+        subprocess.run(["git", "-c", "user.email=t@example.org", "-c", "user.name=t", *args], cwd=tmp_path,
+                       check=True, capture_output=True)
+
+    git("init", "-q")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "model_parameters.json").write_text("{}\n")
+    git("add", ".")
+    git("commit", "-q", "-m", "init")
+    clean = er.code_version(tmp_path)
+    (tmp_path / "config" / "model_parameters.json").write_text('{"schema_version": 1}\n')
+    assert er.code_version(tmp_path) == f"{clean}-dirty"

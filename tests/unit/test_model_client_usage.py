@@ -9,6 +9,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from tests.fixtures.model_parameters import declared
 
 from tere4ai.extract_norms.model_clients import (
     EFFORT_MIXED,
@@ -666,11 +667,10 @@ def test_both_constructors_pass_max_retries_zero(monkeypatch):
 
     monkeypatch.setattr(openai, "OpenAI", _StubOpenAI)
     monkeypatch.setattr(anthropic, "Anthropic", _StubAnthropic)
-    cfg = ModelConfig(
-        generator_model="gpt-x", judge_model="claude-x",
-        generator_api_key="k1", judge_api_key="k2",
-        generator_effort="high", judge_effort="high",
-    )
+    # B99 (spec F D-F29): the declaration replaces the effort fields
+    cfg = ModelConfig(generator_model="gpt-x", judge_model="claude-x", generator_api_key="k1", judge_api_key="k2",
+                      generator_parameters=declared("gpt-x", "openai", effort="high"),
+                      judge_parameters=declared("claude-x", "anthropic", effort="high"))
     OpenAIGenerator(cfg)
     AnthropicJudge(cfg)
     assert captured_openai["max_retries"] == 0

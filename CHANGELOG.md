@@ -5,6 +5,25 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Declared model parameters and the terminal retry policy (B99, spec F D-F29, D-F30)
+- Each model's temperature, effort and JSON mode are declared in
+  `config/model_parameters.json`, keyed by model id; the table selects
+  nothing (`.env` names the models). A configured model with no row, a row of
+  the other provider, a row without its documentation page and read day, or a
+  malformed row is refused at configuration load with `ConfigurationError`
+  (a `ModelConfigError`), naming every problem at once.
+  `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are no longer read and
+  are refused while set; they left `.env.example`, `docker-compose.yml` and
+  the Rahti deployment, and the image copies `config/`. The execution
+  record's `models` carries the declared values and
+  `model_parameters_sha256`, so a resume under an edited row is refused by
+  name, and a checkpoint written before this change cannot be resumed. The
+  two committed rows (`gpt-6-astra`, `claude-opus-5-5`) were read from the
+  providers' documentation on 2026-09-28 and each names the page it was read
+  from; the values match what the code and the B74 records had shown. An
+  uncommitted edit of the
+  table marks an evaluation record's code version dirty.
+
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record
   store issues 1 above the largest number held by `build_records/numbering.json`,

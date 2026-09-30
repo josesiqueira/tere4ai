@@ -5,6 +5,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY schema ./schema
+COPY config ./config
 COPY prompts ./prompts
 COPY scripts ./scripts
 COPY data/snapshots ./data/snapshots

@@ -1,0 +1,22 @@
+{
+ "schema_version": 1,
+ "about": "Declared request parameters per model id (spec F D-F29). The table selects nothing: .env names the models. temperature is \"0\" or \"N/A\"; effort is one of low, medium, high, xhigh, max, or \"N/A\"; json_mode is \"sent\" or \"N/A\", and \"N/A\" on every anthropic row. A parameter declared N/A is never sent; a declared value is sent on every request, and a refusal of it stops the run as a configuration error. documentation names the provider page the row was read from (https) and the day it was read (YYYY-MM-DD); a row without both is refused.",
+ "models": {
+  "claude-opus-5-5": {
+   "provider": "anthropic",
+   "temperature": "N/A",
+   "effort": "xhigh",
+   "json_mode": "N/A",
+   "documentation": {"url": "https://platform.claude.com/docs/en/models/opus-5-5/migration-guide", "read_on": "2026-09-28"},
+   "note": "Read 2026-09-28 on the provider's documentation. Temperature N/A: \"Setting `temperature`, `top_p`, or `top_k` to any non-default value on Claude Opus 4.7 and later models, including Claude Opus 5.5, returns a 400 error\" (the migration guide above; the Messages API reference, https://platform.claude.com/docs/en/api/messages/create, says the same for models released after Claude Opus 4.6). Effort xhigh: \"All five levels (`low`, `medium`, `high`, `xhigh`, `max`) are supported, and the default is `medium`.\" (the migration guide), and the effort page, https://platform.claude.com/docs/en/build-with-claude/effort, lists Claude Opus 5.5 under xhigh; xhigh is the level spec F Section 4 chose. JSON mode N/A: the provider documents structured outputs for the model, but the judge client sends no JSON mode parameter (ruling P1)."
+  },
+  "gpt-6-astra": {
+   "provider": "openai",
+   "temperature": "N/A",
+   "effort": "xhigh",
+   "json_mode": "sent",
+   "documentation": {"url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra", "read_on": "2026-09-28"},
+   "note": "Read 2026-09-28 on the provider's documentation. Temperature N/A: the GPT-6 guide, https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra, under \"Set `model` to `gpt-6-astra`, `gpt-6-sol`, or `gpt-6-luna`, then check the following:\", says \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\", and the declared effort is xhigh (the model also answered 400 to temperature 0 in B74, norms_core.b74.json). Effort xhigh: the model page above says \"`reasoning.effort` supports `low`, `medium`, `high`, `xhigh`, and `max`.\"; xhigh is the level spec F Section 4 chose. JSON mode sent, marked: the model page names no JSON mode (it lists Structured outputs as supported and Chat Completions as an endpoint); the structured outputs guide, https://developers.openai.com/api/docs/guides/structured-outputs, states it for the API, not per model: \"Both Structured Outputs and JSON mode are supported in the Responses API, Chat Completions API, Assistants API, Fine-tuning API and Batch API.\" The client sends it at tere4ai2 9673819 and no record says it was refused. Asked in B101 whether this row declares JSON mode \"sent\" or \"N/A, not sent\", Jose chose \"sent\" on 2026-09-30."
+  }
+ }
+}
