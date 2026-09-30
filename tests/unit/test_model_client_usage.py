@@ -12,14 +12,12 @@ import pytest
 from tests.fixtures.model_parameters import declared
 
 from tere4ai.extract_norms.model_clients import (
-    EFFORT_MIXED,
-    EFFORT_NONE,
-    EFFORT_NOT_APPLICABLE,
-    EFFORT_NOT_CONFIGURED,
     AnthropicJudge,
     OpenAIGenerator,
     _new_usage,
+    declared_sampling,
 )
+from tere4ai.judge.config import ConfigurationError, DeclaredParameterRefused
 
 
 def _openai_response(content: str, prompt_tokens=None, completion_tokens=None):
@@ -112,12 +110,6 @@ def test_judge_without_usage_block_counts_only_the_call():
                            "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0}
 
 
-# B74: current-generation models reject sampling parameters. A rejection is
-# learned once per client (never one wasted request per call), JSON mode
-# survives a temperature rejection, and the client reports what it actually
-# sent in the same vocabulary the dashboard's judge records.
-
-
 class _Rejecting:
     """Stub transport: raises the given message when a listed kwarg is sent."""
 
@@ -134,68 +126,136 @@ class _Rejecting:
         return self.response
 
 
-def _generator_over(transport: _Rejecting) -> OpenAIGenerator:
+# B99 (spec F D-F29): a stub client carries a declaration, temperature 0, effort xhigh, JSON mode sent on the generator, unless a test declares otherwise
+def _generator_over(transport, **values) -> OpenAIGenerator:
     gen = OpenAIGenerator.__new__(OpenAIGenerator)
     gen.model = "stub-generator"
     gen.usage = _new_usage()
-    gen._init_sampling()
+    gen._declared = declared("stub-generator", "openai", **values)
     gen._client = SimpleNamespace(chat=SimpleNamespace(completions=transport))
     return gen
 
 
-def _judge_over(transport: _Rejecting) -> AnthropicJudge:
+def _judge_over(transport, **values) -> AnthropicJudge:
     judge = AnthropicJudge.__new__(AnthropicJudge)
     judge.model = "stub-judge"
     judge.usage = _new_usage()
     judge._max_tokens = 16
-    judge._init_sampling()
+    judge._declared = declared("stub-judge", "anthropic", **values)
     judge._client = SimpleNamespace(messages=transport)
     return judge
 
 
-def test_generator_sends_temperature_zero_and_json_mode_by_default():
+# B99 (spec F D-F29): each model's temperature, effort and JSON mode are
+# declared and sent as declared; a declared parameter the provider or its SDK
+# refuses is a configuration error that stops the run, never learned.
+
+
+def _never_wait(seconds):
+    raise AssertionError("this failure must not be waited out")
+
+
+def test_the_generator_sends_every_declared_parameter():
     transport = _Rejecting({}, _openai_response('{"ok": true}', 1, 1))
     gen = _generator_over(transport)
     gen.complete("s", "u")
-    assert transport.calls[0]["temperature"] == 0
-    assert transport.calls[0]["response_format"] == {"type": "json_object"}
-    assert gen.sampling == "0"
+    call = transport.calls[0]
+    assert call["temperature"] == 0 and call["response_format"] == {"type": "json_object"}
+    assert call["reasoning_effort"] == "xhigh"
+    assert (gen.temperature, gen.sampling, gen.effort, gen.json_mode) == ("0", "0", "xhigh", "sent")
 
 
-def test_generator_keeps_json_mode_when_only_temperature_is_rejected():
-    transport = _Rejecting(
-        {"temperature": "Unsupported value: 'temperature' does not support 0 with this model."},
-        _openai_response('{"ok": true}', 1, 1),
-    )
+def test_a_parameter_declared_n_a_is_never_sent():
+    transport = _Rejecting({}, _openai_response("x", 1, 1))
+    gen = _generator_over(transport, temperature="N/A", effort="N/A", json_mode="N/A")
+    gen.complete("s", "u")
+    gen.complete("s", "u")
+    assert all(set(call) == {"model", "messages"} for call in transport.calls)
+    assert (gen.temperature, gen.effort, gen.json_mode) == ("N/A", "N/A", "N/A")
+
+
+def test_the_judge_sends_its_declared_temperature_and_effort_and_has_no_json_mode():
+    transport = _Rejecting({}, _anthropic_response("v", 1, 1))
+    judge = _judge_over(transport)
+    judge.complete("s", "u")
+    assert transport.calls[0]["temperature"] == 0 and transport.calls[0]["output_config"] == {"effort": "xhigh"}
+    assert judge.json_mode == "N/A"
+    plain = _Rejecting({}, _anthropic_response("v", 1, 1))
+    _judge_over(plain, temperature="N/A", effort="N/A").complete("s", "u")
+    assert "temperature" not in plain.calls[0] and "output_config" not in plain.calls[0]
+
+
+@pytest.mark.parametrize("message, parameter, value", [
+    ("Unsupported value: 'temperature' does not support 0 with this model.", "temperature", "0"),
+    ("response_format json_object is not supported with this model", "json_mode", "sent"),
+    ("Error code: 400 - {'error': {'message': \"Invalid value: 'xhigh'. Supported values are: 'low', "
+     "'medium', and 'high'.\", 'type': 'invalid_request_error', 'param': 'reasoning_effort', "
+     "'code': 'invalid_value'}}", "effort", "xhigh"),
+])
+def test_a_400_naming_a_declared_parameter_stops_as_a_configuration_error(message, parameter, value):
+    transport = _Flaky([_ProviderError(message, status_code=400)])
     gen = _generator_over(transport)
-    assert gen.complete("s", "u") == '{"ok": true}'
-    assert "temperature" not in transport.calls[-1]
-    assert transport.calls[-1]["response_format"] == {"type": "json_object"}
-    assert gen.sampling == "provider default (rejected by the model)"
+    gen._wait = _never_wait
+    with pytest.raises(DeclaredParameterRefused) as refused:
+        gen.complete("s", "u")
+    assert refused.value.parameter == parameter and refused.value.value == value
+    assert refused.value.provider == "openai"
+    assert str(refused.value).startswith(
+        f"configuration error: openai:stub-generator refused the declared {parameter} {value} (HTTP 400: ")
+    assert str(refused.value).endswith("); correct its row in config/model_parameters.json")
+    assert isinstance(refused.value, ConfigurationError) and len(transport.calls) == 1
+    # a provider's 400 is a request sent, and a refused one (spec F D-F29, final review A3)
+    assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 1
 
 
-def test_generator_learns_the_rejection_once():
-    transport = _Rejecting(
-        {"temperature": "temperature is not supported"}, _openai_response("x", 1, 1)
-    )
-    gen = _generator_over(transport)
-    gen.complete("s", "u")
-    gen.complete("s", "u")
-    gen.complete("s", "u")
-    # one rejected attempt, then one clean call per complete(): 4, not 6
-    assert len(transport.calls) == 4
-    assert all("temperature" not in call for call in transport.calls[1:])
-    assert gen.usage["calls"] == 3
+def test_the_judge_names_a_refused_effort():
+    transport = _Flaky([_ProviderError("output_config.effort: this model does not support effort", status_code=400)])
+    judge = _judge_over(transport)
+    with pytest.raises(DeclaredParameterRefused) as refused:
+        judge.complete("s", "u")
+    assert (refused.value.provider, refused.value.model, refused.value.parameter, refused.value.value) == (
+        "anthropic", "stub-judge", "effort", "xhigh")
 
 
-def test_generator_drops_json_mode_only_when_the_model_rejects_it():
-    transport = _Rejecting(
-        {"response_format": "response_format is not supported"}, _openai_response("x", 1, 1)
-    )
-    gen = _generator_over(transport)
+def test_an_sdk_refusal_before_sending_stops_and_is_not_a_request_sent():
+    transport = _Rejecting({"temperature": "Messages.create() got an unexpected keyword argument 'temperature'"},
+                           _anthropic_response("v", 1, 1))
+    judge = _judge_over(transport)
+    with pytest.raises(DeclaredParameterRefused) as refused:
+        judge.complete("s", "u")
+    assert str(refused.value) == (
+        "configuration error: anthropic:stub-judge refused the declared temperature 0 (RuntimeError: "
+        "Messages.create() got an unexpected keyword argument 'temperature'); correct its row in "
+        "config/model_parameters.json")
+    assert len(transport.calls) == 1
+    assert judge.usage["requests_sent"] == 0 and judge.usage["requests_refused"] == 0
+
+
+def test_a_400_naming_a_parameter_that_was_not_sent_is_an_ordinary_error():
+    transport = _Flaky([_ProviderError("temperature is required for this model", status_code=400)])
+    gen = _generator_over(transport, temperature="N/A")
+    with pytest.raises(_ProviderError):
+        gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 1
+
+
+def test_a_client_without_a_declaration_sends_none_of_the_three_and_says_so():
+    transport = _Rejecting({}, _openai_response("a", 1, 1))
+    gen = OpenAIGenerator.__new__(OpenAIGenerator)
+    gen.model, gen.usage = "stub-generator", _new_usage()
+    gen._client = SimpleNamespace(chat=SimpleNamespace(completions=transport))
     gen.complete("s", "u")
-    assert "response_format" not in transport.calls[-1]
-    assert transport.calls[-1]["temperature"] == 0
+    assert set(transport.calls[0]) == {"model", "messages"}
+    assert (gen.temperature, gen.effort, gen.json_mode) == ("not declared",) * 3
+
+
+def test_declared_sampling_names_every_declared_value_and_unknown_for_a_stub():
+    gen = _generator_over(_Rejecting({}, None), temperature="N/A")
+    judge = _judge_over(_Rejecting({}, None))
+    assert declared_sampling(gen, judge) == {"generator": "N/A", "judge": "0", "generator_temperature": "N/A",
+                                             "judge_temperature": "0", "generator_effort": "xhigh",
+                                             "judge_effort": "xhigh", "generator_json_mode": "sent"}
+    assert declared_sampling(object(), object())["generator_effort"] == "unknown"
 
 
 def test_generator_reraises_any_other_error():
@@ -210,48 +270,11 @@ def test_generator_reraises_any_other_error():
     assert len(transport.calls) == 1
 
 
-def test_generator_sampling_is_mixed_when_a_rejection_arrives_mid_run():
-    transport = _Rejecting({}, _openai_response("x", 1, 1))
-    gen = _generator_over(transport)
-    gen.complete("s", "u")
-    transport.reject = {"temperature": "temperature unsupported"}
-    gen.complete("s", "u")
-    assert gen.sampling == "mixed"
-
-
-def test_sampling_before_any_reply_is_no_replies():
-    gen = _generator_over(_Rejecting({}, _openai_response("x")))
-    assert gen.sampling == "no replies"
-
-
 def test_judge_default_output_cap_leaves_room_for_thinking():
     import inspect
 
     default = inspect.signature(AnthropicJudge.__init__).parameters["max_tokens"].default
     assert default >= 16000
-
-
-def test_judge_learns_a_temperature_rejection_once_and_reports_it():
-    transport = _Rejecting(
-        {"temperature": "Messages.create() got an unexpected keyword argument 'temperature'"},
-        _anthropic_response("v", 2, 1),
-    )
-    judge = _judge_over(transport)
-    assert judge.complete("s", "u") == "v"
-    assert judge.complete("s", "u") == "v"
-    assert len(transport.calls) == 3
-    assert "temperature" not in transport.calls[-1]
-    assert transport.calls[-1]["max_tokens"] == 16
-    assert judge.sampling == "provider default (rejected by the model)"
-    assert judge.usage["calls"] == 2
-
-
-def test_judge_reports_temperature_zero_when_accepted():
-    transport = _Rejecting({}, _anthropic_response("v", 2, 1))
-    judge = _judge_over(transport)
-    judge.complete("s", "u")
-    assert transport.calls[0]["temperature"] == 0
-    assert judge.sampling == "0"
 
 
 def test_judge_reads_only_text_blocks_past_a_thinking_block():
@@ -266,213 +289,24 @@ def test_judge_reads_only_text_blocks_past_a_thinking_block():
     assert judge.complete("s", "u") == '{"verdict": "accepted"}'
 
 
-# B84 (spec F D-F22): every client sends the configured effort and learns a
-# rejection once, like temperature; the outcome is reported in the same
-# vocabulary so a manifest states the effort regime, never assumes it.
-
-
-def test_generator_sends_the_configured_effort_and_reports_it():
-    transport = _Rejecting({}, _openai_response('{"ok": true}', 1, 1))
-    gen = _generator_over(transport)
-    gen._init_effort("xhigh")
-    assert gen.effort == EFFORT_NONE
-    gen.complete("s", "u")
-    assert transport.calls[0]["reasoning_effort"] == "xhigh"
-    assert gen.effort == "xhigh" and gen.effort_requested == "xhigh"
-
-
-def test_generator_learns_a_rejected_effort_once_and_keeps_temperature():
-    transport = _Rejecting(
-        {"reasoning_effort": "Unsupported parameter: 'reasoning_effort' is not supported with this model."},
-        _openai_response('{"ok": true}', 1, 1),
-    )
-    gen = _generator_over(transport)
-    gen._init_effort("xhigh")
-    gen.complete("s", "u")
-    gen.complete("s", "u")
-    assert len(transport.calls) == 3
-    assert "reasoning_effort" in transport.calls[0]
-    assert "reasoning_effort" not in transport.calls[1] and "reasoning_effort" not in transport.calls[2]
-    assert transport.calls[2]["temperature"] == 0
-    assert gen.effort == EFFORT_NOT_APPLICABLE
-
-
-def test_generator_rejecting_both_temperature_and_effort_learns_both_in_three_requests():
-    transport = _Rejecting(
-        {"temperature": "temperature does not support 0 with this model",
-         "reasoning_effort": "Unsupported parameter: 'reasoning_effort'"},
-        _openai_response('{"ok": true}', 1, 1),
-    )
-    gen = _generator_over(transport)
-    gen._init_effort("xhigh")
-    assert gen.complete("s", "u") == '{"ok": true}'
-    assert len(transport.calls) == 3
-    assert "temperature" not in transport.calls[2] and "reasoning_effort" not in transport.calls[2]
-    assert gen.sampling.startswith("provider default") and gen.effort == EFFORT_NOT_APPLICABLE
-
-
-def test_generator_does_not_learn_a_parameter_it_did_not_send():
-    # The message names temperature, but only the effort was in the request
-    # (temperature already learned): nothing to learn, the error propagates.
-    transport = _Rejecting({"reasoning_effort": "temperature is invalid"}, _openai_response("x", 1, 1))
-    gen = _generator_over(transport)
-    gen._init_effort("xhigh")
-    gen._temperature_rejected = True
-    with pytest.raises(RuntimeError):
-        gen.complete("s", "u")
-    assert len(transport.calls) == 1
-
-
-def test_generator_without_effort_config_sends_none_and_says_so():
-    transport = _Rejecting({}, _openai_response("x", 1, 1))
-    gen = _generator_over(transport)
-    gen.complete("s", "u")
-    assert "reasoning_effort" not in transport.calls[0]
-    assert gen.effort == EFFORT_NOT_CONFIGURED
-
-
-def test_judge_sends_the_effort_in_output_config_and_reports_it():
-    transport = _Rejecting({}, _anthropic_response("v", 1, 1))
-    judge = _judge_over(transport)
-    judge._init_effort("xhigh")
-    judge.complete("s", "u")
-    assert transport.calls[0]["output_config"] == {"effort": "xhigh"}
-    assert transport.calls[0]["temperature"] == 0
-    assert judge.effort == "xhigh"
-
-
-def test_judge_learns_a_rejected_effort_once():
-    transport = _Rejecting({"output_config": "output_config.effort: this model does not support effort"},
-                           _anthropic_response("v", 1, 1))
-    judge = _judge_over(transport)
-    judge._init_effort("xhigh")
-    judge.complete("s", "u")
-    judge.complete("s", "u")
-    assert len(transport.calls) == 3
-    assert "output_config" not in transport.calls[1] and "output_config" not in transport.calls[2]
-    assert judge.effort == EFFORT_NOT_APPLICABLE
-
-
-def test_judge_rejecting_both_learns_both_in_three_requests():
-    transport = _Rejecting(
-        {"temperature": "temperature: extra inputs are not permitted",
-         "output_config": "effort is not supported"},
-        _anthropic_response("v", 1, 1),
-    )
-    judge = _judge_over(transport)
-    judge._init_effort("xhigh")
-    assert judge.complete("s", "u") == "v"
-    assert len(transport.calls) == 3
-    assert "temperature" not in transport.calls[2] and "output_config" not in transport.calls[2]
-    assert judge.sampling.startswith("provider default") and judge.effort == EFFORT_NOT_APPLICABLE
-
-
-def test_effort_mixed_when_replies_differ():
-    transport = _Rejecting({}, _anthropic_response("v", 1, 1))
-    judge = _judge_over(transport)
-    judge._init_effort("xhigh")
-    judge.complete("s", "u")
-    judge._effort_rejected = True  # a provider that changes mid-lifetime, recorded, never assumed away
-    judge.complete("s", "u")
-    assert judge.effort == EFFORT_MIXED
-
-
-def test_generator_rejecting_all_three_parameters_learns_all_three_in_four_requests():
-    transport = _Rejecting(
-        {"temperature": "temperature does not support 0 with this model",
-         "response_format": "response_format is not supported",
-         "reasoning_effort": "Unsupported parameter: 'reasoning_effort'"},
-        _openai_response('{"ok": true}', 1, 1),
-    )
-    gen = _generator_over(transport)
-    gen._init_effort("xhigh")
-    assert gen.complete("s", "u") == '{"ok": true}'
-    assert len(transport.calls) == 4
-    assert not ({"temperature", "response_format", "reasoning_effort"} & set(transport.calls[3]))
-
-
-# B84 fix wave G5: pin Review Focus 1 and 2 (a rejection that names no
-# carried parameter propagates; "model" is always in kwargs and is never
-# learnable) on the judge's loop too, and the generator's fourth attempt.
+# B84 fix wave G5: pin Review Focus 1 on the judge (a rejection that names
+# no carried parameter propagates). B99 (spec F D-F29): the Review Focus 2
+# tests pinned the learning loop's last attempt; there is no loop any more.
 
 
 def test_judge_propagates_when_the_rejection_names_no_carried_parameter():
-    """Review Focus 1, judge side: effort is already learned rejected, so
-    output_config is not sent; the rejection message names 'effort', not
-    the temperature that was actually carried, so nothing is learnable and
-    the error propagates on the first call."""
+    """Review Focus 1, judge side: effort is declared N/A, so output_config
+    is not sent; the rejection message names 'effort', not the temperature
+    that was actually carried, so it names no carried parameter and the
+    error propagates on the first call."""
     transport = _Rejecting(
         {"temperature": "effort is not supported"}, _anthropic_response("v", 1, 1)
     )
-    judge = _judge_over(transport)
-    judge._init_effort("xhigh")
-    judge._effort_rejected = True
+    # B99 (spec F D-F29): declared, never learned
+    judge = _judge_over(transport, effort="N/A")
     with pytest.raises(RuntimeError):
         judge.complete("s", "u")
     assert len(transport.calls) == 1
-
-
-def test_judge_propagates_on_the_third_call_when_a_third_parameter_is_rejected():
-    """Review Focus 2, judge side: 'model' is always present in kwargs (it
-    names the request, never a learnable sampling or effort parameter), so
-    once temperature and effort are both learned rejected, a rejection
-    naming 'model' on the loop's last attempt propagates rather than
-    retrying forever."""
-    transport = _Rejecting(
-        {"temperature": "temperature: extra inputs are not permitted",
-         "output_config": "effort is not supported",
-         "model": "rate limited"},
-        _anthropic_response("v", 1, 1),
-    )
-    judge = _judge_over(transport)
-    judge._init_effort("xhigh")
-    with pytest.raises(RuntimeError) as exc_info:
-        judge.complete("s", "u")
-    assert "rate limited" in str(exc_info.value)
-    assert len(transport.calls) == 3
-
-
-def test_generator_learns_the_sdks_real_value_level_effort_rejection():
-    """B84 fix wave G6: pin the SDK's real rejection shape (verified against
-    the OpenAI SDK reference 2026-09-24), a value-level 400 naming the param
-    inside a nested error object, not a bare 'not supported' sentence. The
-    'reasoning_effort' param name substring must still be found and learned."""
-    transport = _Rejecting(
-        {
-            "reasoning_effort": (
-                "Error code: 400 - {'error': {'message': \"Invalid value: "
-                "'xhigh'. Supported values are: 'low', 'medium', and "
-                "'high'.\", 'type': 'invalid_request_error', 'param': "
-                "'reasoning_effort', 'code': 'invalid_value'}}"
-            )
-        },
-        _openai_response('{"ok": true}', 1, 1),
-    )
-    gen = _generator_over(transport)
-    gen._init_effort("xhigh")
-    gen.complete("s", "u")
-    assert len(transport.calls) == 2
-    assert "reasoning_effort" not in transport.calls[-1]
-    assert gen.effort == EFFORT_NOT_APPLICABLE
-
-
-def test_generator_propagates_on_the_fourth_call_when_a_fourth_parameter_is_rejected():
-    """Review Focus 2, generator side: the same 'model is always present'
-    shape, one attempt longer because the generator has three learnable
-    parameters (temperature, response_format, reasoning_effort)."""
-    transport = _Rejecting(
-        {"temperature": "temperature does not support 0 with this model",
-         "response_format": "response_format is not supported",
-         "reasoning_effort": "Unsupported parameter: 'reasoning_effort'",
-         "model": "rate limited"},
-        _openai_response('{"ok": true}', 1, 1),
-    )
-    gen = _generator_over(transport)
-    gen._init_effort("xhigh")
-    with pytest.raises(RuntimeError) as exc_info:
-        gen.complete("s", "u")
-    assert "rate limited" in str(exc_info.value)
-    assert len(transport.calls) == 4
 
 
 # B91 (spec F D-F26 (g)): a total must tell complete from incomplete, so the
@@ -494,15 +328,6 @@ def test_judge_counts_a_request_that_raises_after_send():
     with pytest.raises(RuntimeError, match="overloaded"):
         judge.complete("s", "u")
     assert judge.usage["requests_sent"] == 1 and judge.usage["replies_with_usage"] == 0
-
-
-def test_a_learned_rejection_is_not_a_request_sent():
-    # the SDK or the model refused a parameter before any generation: nothing billed
-    transport = _Rejecting({"temperature": "temperature is not supported"}, _openai_response("x", 1, 1))
-    gen = _generator_over(transport)
-    gen.complete("s", "u")
-    assert len(transport.calls) == 2
-    assert gen.usage["requests_sent"] == 1 and gen.usage["replies_with_usage"] == 1
 
 
 def test_generator_counts_an_interrupted_request_as_sent():
@@ -545,9 +370,10 @@ def test_usage_since_is_the_difference_and_none_without_a_record():
 # a request sent. Retryable (review fix F1): a numeric status_code of 408,
 # 409, 429 or 5xx, or the SDK's connection/timeout error matched by class
 # name (APIConnectionError, whose APITimeoutError subclass matches the same
-# way), so the mixin never imports an SDK. The learned-rejection check
-# above runs first and is never counted or retried; anything else not
-# retryable raises after one attempt.
+# way), so the mixin never imports an SDK. B99 (spec F D-F29): a refused
+# declared parameter is checked first and is never retried (see the
+# configuration error tests above); anything else not retryable raises
+# after one attempt.
 
 
 class _ProviderError(Exception):
@@ -736,10 +562,10 @@ def test_judge_retries_a_connection_error_then_succeeds():
     assert judge.usage["requests_sent"] == 2 and judge.usage["calls"] == 1
 
 
-# Final review A5: a learned rejection is a 400 (or an error with no status,
-# as the SDK raises for a keyword it no longer accepts); a retryable error
-# whose message happens to name a parameter is retried, and the parameter
-# stays for the run.
+# Final review A5: a refused declared parameter is a 400 (or an error with
+# no status, as the SDK raises for a keyword it no longer accepts; B99, spec
+# F D-F29, makes it a configuration error); a retryable error whose message
+# happens to name a parameter is retried, and the parameter stays.
 
 
 def test_generator_retries_a_429_naming_temperature_and_keeps_the_parameter():
@@ -757,21 +583,12 @@ def test_judge_retries_a_529_naming_effort_and_keeps_the_parameter():
     waits = []
     transport = _Flaky([_ProviderError("overloaded: effort queue full", status_code=529),
                         _anthropic_response("v", 1, 1)])
+    # B99 (spec F D-F29): declared, never learned
     judge = _judge_over(transport)
-    judge._init_effort("xhigh")
     judge._wait = waits.append
     assert judge.complete("s", "u") == "v"
     assert waits == [1] and all("output_config" in call for call in transport.calls)
     assert judge.effort == "xhigh"
-
-
-def test_a_400_naming_a_parameter_is_still_learned():
-    transport = _Flaky([_ProviderError("temperature does not support 0 with this model", status_code=400),
-                        _openai_response("a", 1, 1)])
-    gen = _generator_over(transport)
-    gen._wait = lambda seconds: (_ for _ in ()).throw(AssertionError("a learned rejection is not retried"))
-    assert gen.complete("s", "u") == "a"
-    assert "temperature" not in transport.calls[1] and gen.usage["requests_sent"] == 1
 
 
 # Final review A3: a sixth count separates a request the provider answered
@@ -812,9 +629,3 @@ def test_a_connection_error_or_an_interrupt_is_not_refused():
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 0
 
-
-def test_a_learned_rejection_is_not_refused():
-    transport = _Rejecting({"temperature": "temperature is not supported"}, _openai_response("x", 1, 1))
-    gen = _generator_over(transport)
-    gen.complete("s", "u")
-    assert gen.usage["requests_refused"] == 0

@@ -23,6 +23,15 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   from; the values match what the code and the B74 records had shown. An
   uncommitted edit of the
   table marks an evaluation record's code version dirty.
+- The generator and judge clients send each model's declared temperature,
+  effort and JSON mode on every request and never learn: a parameter declared
+  N/A is never sent, and a declared one that the provider refuses with a 400
+  (counted in `requests_sent` and `requests_refused`) or the SDK refuses
+  before sending (not counted) raises `DeclaredParameterRefused`, a
+  configuration error naming the model, the parameter and the table. The
+  clients report `temperature`, `effort` and `json_mode` as declared;
+  `sampling` stays the name of the declared temperature. The learned words
+  of records made before this change are kept as stored.
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record
