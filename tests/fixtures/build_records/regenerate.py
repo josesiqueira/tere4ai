@@ -43,6 +43,13 @@ JUDGE_PROMPT = "5" * 64
 POSTLOAD_GATES = [{"name": f"P{i}", "ok": True, "detail": ""} for i in range(1, 5)] + [
     {"name": "P5", "ok": True, "detail": "db_assertions=0, db_norms=0"}]
 MODELS = {"generator_model": "g", "judge_model": "j"}
+# B99 (spec F D-F29): an execution made after the declared table, for the
+# dashboard to render beside the older shape
+DECLARED_MODELS = {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh",
+                   "judge_effort": "xhigh", "generator_temperature": "N/A", "judge_temperature": "N/A",
+                   "generator_json_mode": "sent", "model_parameters_sha256": "6" * 64}
+DECLARED_SAMPLING = {"generator": "N/A", "judge": "N/A", "generator_temperature": "N/A", "judge_temperature": "N/A",
+                     "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
 PARSE_GATES = [
     {"name": "G1", "ok": True, "detail": "article count matches the frozen snapshot"},
     {"name": "G2", "ok": True, "detail": "recital count matches the frozen snapshot"},
@@ -277,7 +284,8 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
                            outputs=[{**reference_input, "role": "norms_reference"}])
     run = store.start_execution(child, argv=["--norms", "norms_core.reference.json"],
                                 inputs=[reference_input, layer1_input],
-                                checkpoint_file="alignments_core.reference.checkpoint.jsonl", **align_common)
+                                checkpoint_file="alignments_core.reference.checkpoint.jsonl",
+                                **{**align_common, "models": DECLARED_MODELS, "sampling": DECLARED_SAMPLING})
     aligned = _write(root / "alignments_core.reference.json", {
         "build": {"build_id": BASE, "alignment_input_sha256": reference_input["sha256"],
                   "norms_reference": {"kind": "norms", "layer": 2, "freeze_id": "f1"}},

@@ -102,3 +102,28 @@ def test_the_resumed_align_mock_data_carries_an_incomplete_failed_attempt():
     assert failed["usage"]["generator"]["requests_sent"] == 4
     assert failed["usage"]["generator"]["replies_with_usage"] == 3
     assert done["usage"]["judge"]["requests_sent"] == done["usage"]["judge"]["replies_with_usage"] == 2
+
+
+def test_the_contract_carries_a_record_with_declared_parameters_and_older_ones_stay_valid():
+    """B99 (spec F D-F29): the declared keys are documented, and the mock data
+    hold one execution of the new shape beside the older ones."""
+    schema = _schema()
+    defs = schema["$defs"]
+    assert set(defs["execution_sampling"]["properties"]) == {
+        "generator", "judge", "generator_temperature", "judge_temperature", "generator_effort", "judge_effort",
+        "generator_json_mode"}
+    assert "model_parameters_sha256" in defs["execution_models"]["properties"]
+    record = json.loads((FIXTURES / "intermediate_build.json").read_text(encoding="utf-8"))
+    last = [e for e in record["executions"] if e["run_id"] == "run4align000"][0]
+    # review X-C1: the dashboard reads the declared temperature under <role>_temperature
+    assert last["sampling"] == {"generator": "N/A", "judge": "N/A", "generator_temperature": "N/A",
+                                "judge_temperature": "N/A", "generator_effort": "xhigh",
+                                "judge_effort": "xhigh", "generator_json_mode": "sent"}
+    assert last["models"]["model_parameters_sha256"] == "6" * 64
+    bad = {**last, "sampling": {**last["sampling"], "generator_effort": 5}}
+    validator = Draft202012Validator({**schema, "$ref": "#/$defs/presented_execution"})
+    assert list(validator.iter_errors(last)) == [] and list(validator.iter_errors(bad)) != []
+    # review T-M3: present.py _sampling_with_effort gives null for a role a dump's effort dict lacks
+    missing_role = {**last, "sampling": {"generator": "0", "judge": "0", "generator_effort": "xhigh",
+                                         "judge_effort": None}}
+    assert list(validator.iter_errors(missing_role)) == []

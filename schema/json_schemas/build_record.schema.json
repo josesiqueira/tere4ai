@@ -52,6 +52,28 @@
         {"type": "object", "additionalProperties": {"$ref": "#/$defs/role_usage"}}
       ]
     },
+    "execution_models": {
+      "description": "The models an execution ran under. Since B99 (spec F D-F29) each role's effort, temperature and JSON mode are the values declared in config/model_parameters.json, and model_parameters_sha256 is the digest of the two rows in use; a resume under another declaration is refused. Records made before carry only the model ids, or the ids and the configured efforts (B84).",
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "generator_model": {"type": ["string", "null"]}, "judge_model": {"type": ["string", "null"]},
+        "generator_effort": {"type": ["string", "null"]}, "judge_effort": {"type": ["string", "null"]},
+        "generator_temperature": {"type": ["string", "null"]}, "judge_temperature": {"type": ["string", "null"]},
+        "generator_json_mode": {"type": ["string", "null"]}, "model_parameters_sha256": {"type": ["string", "null"]}
+      }
+    },
+    "execution_sampling": {
+      "description": "What the requests carried. Since B99 (spec F D-F29): generator and judge hold each role's declared temperature (0 or N/A), repeated under generator_temperature and judge_temperature, with the declared efforts and the generator's JSON mode (sent or N/A). Records made before keep their words: the temperature outcome (0, provider default (rejected by the model), mixed, no replies) under generator and judge only, and the applied effort outcome, null for a role a legacy dump does not record.",
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "generator": {"type": ["string", "null"]}, "judge": {"type": ["string", "null"]},
+        "generator_temperature": {"type": ["string", "null"]}, "judge_temperature": {"type": ["string", "null"]},
+        "generator_effort": {"type": ["string", "null"]}, "judge_effort": {"type": ["string", "null"]},
+        "generator_json_mode": {"type": ["string", "null"]}
+      }
+    },
     "gating": {
       "type": "object",
       "additionalProperties": false,
@@ -115,9 +137,9 @@
         "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
         "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
         "config": {"type": "object", "additionalProperties": true},
-        "models": {"type": ["object", "null"], "additionalProperties": true},
+        "models": {"$ref": "#/$defs/execution_models"},
         "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
-        "sampling": {"type": ["object", "null"], "additionalProperties": true},
+        "sampling": {"$ref": "#/$defs/execution_sampling"},
         "usage": {"$ref": "#/$defs/usage_by_role"},
         "checkpoint_file": {"type": ["string", "null"]},
         "work_unit": {"enum": ["groups", "batches", null]},
@@ -165,9 +187,9 @@
         "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
         "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
         "config": {"type": "object", "additionalProperties": true},
-        "models": {"type": ["object", "null"], "additionalProperties": true},
+        "models": {"$ref": "#/$defs/execution_models"},
         "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
-        "sampling": {"type": ["object", "null"], "additionalProperties": true},
+        "sampling": {"$ref": "#/$defs/execution_sampling"},
         "usage": {"$ref": "#/$defs/usage_by_role"},
         "checkpoint_file": {"type": ["string", "null"]},
         "work_unit": {"enum": ["groups", "batches", null]},

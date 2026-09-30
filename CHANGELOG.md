@@ -89,6 +89,12 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   read on every poll, and `declaration_error` (null, or the refusal
   sentence with both values null when the table does not declare the
   model or a retired effort variable is set).
+- `build_record.schema.json` documents an execution's declared `models`
+  and `sampling` keys (string or null, none required, version unchanged,
+  every older record valid; the sampling carries the declared temperature
+  under `generator_temperature` and `judge_temperature` too); the regenerated mock data carry one execution of the
+  declared shape (`intermediate_build.json`, `run4align000`). The dashboard
+  recopies the contract as its first commit.
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record

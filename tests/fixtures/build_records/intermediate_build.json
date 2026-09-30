@@ -171,8 +171,14 @@
    ],
    "liveness": "ended",
    "models": {
+    "generator_effort": "xhigh",
+    "generator_json_mode": "sent",
     "generator_model": "g",
-    "judge_model": "j"
+    "generator_temperature": "N/A",
+    "judge_effort": "xhigh",
+    "judge_model": "j",
+    "judge_temperature": "N/A",
+    "model_parameters_sha256": "6666666666666666666666666666666666666666666666666666666666666666"
    },
    "outputs": [
     {
@@ -230,8 +236,13 @@
    "resumes_run_id": null,
    "run_id": "run4align000",
    "sampling": {
-    "generator": "0",
-    "judge": "0"
+    "generator": "N/A",
+    "generator_effort": "xhigh",
+    "generator_json_mode": "sent",
+    "generator_temperature": "N/A",
+    "judge": "N/A",
+    "judge_effort": "xhigh",
+    "judge_temperature": "N/A"
    },
    "started_at": "2026-09-19T00:00:00+00:00",
    "status": "done",
