@@ -152,6 +152,7 @@ def test_a_row_without_its_documentation_page_or_day_is_refused(tmp_path):
     ("https://docs.example.invalid/models", "20260927"),
     ("https://", "2026-09-27"),  # no host
     ("https:///models", "2026-09-27"),
+    ("https://[docs.example", "2026-09-27"),  # urlsplit raises ValueError: refused by name, never a bare error
 ])
 def test_a_week_date_or_a_page_without_a_host_is_refused(tmp_path, url, read_on):
     """B99 final review (ruling P2): the row names a page with a host and the

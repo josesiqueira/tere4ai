@@ -197,8 +197,11 @@ def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list
         differing = sorted(k for k in set(recorded) | set(config) if recorded.get(k) != config.get(k))
         if differing:
             return f"{head}: evaluation record {resumes} used different models: {', '.join(differing)}; {way_out}"
+    # ruling P6: under a declared configuration a unit without the digest
+    # (written before B99) differs too
     ours = config.get("model_parameters_sha256")
-    if any("model_parameters_sha256" in e and e["model_parameters_sha256"] != ours for e in unit_results):
+    if any(("model_parameters_sha256" in e or ours is not None) and e.get("model_parameters_sha256") != ours
+           for e in unit_results):
         return f"{head}: a checkpointed unit was run under different models: model_parameters_sha256; {way_out}"
     return None
 

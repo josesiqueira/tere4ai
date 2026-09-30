@@ -337,7 +337,8 @@ that meets one ends its record failed after that item and raises it. A
 resume under another declaration (an edited row of
 `config/model_parameters.json`) is refused and exits 2, naming
 `model_parameters_sha256`: the runner compares the resumed record's
-`models`, and every checkpointed unit's digest, with the loaded ones.
+`models`, and every checkpointed unit's digest (a unit without one differs
+too), with the loaded ones.
 `scripts/elicit_benchmark_features.py` waits out an overload the same way
 and, on a stop (exit 3) or a refusal naming the item (exit 5), keeps its
 checkpoint and prints the command whose rerun resumes it; a refused

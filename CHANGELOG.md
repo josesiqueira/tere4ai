@@ -98,7 +98,8 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   model_parameters_sha256"): the resumed record's `models` are compared with
   the loaded ones (a record made before `model_parameters_sha256` existed
   differs too), and each checkpointed unit now names the digest, so a
-  `--resume-unrecorded` resume refuses units of another one.
+  `--resume-unrecorded` resume refuses units of another digest or of none
+  (written before it existed, ruling P6).
   `scripts/elicit_benchmark_features.py` writes the declaration (`models`, the
   public model configuration) into each checkpoint entry and into
   `benchmark_features.json`, loads the configuration once, and refuses (exit

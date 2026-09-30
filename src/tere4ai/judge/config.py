@@ -188,7 +188,10 @@ def declaration_for(models: dict[str, dict[str, Any]], model_id: str, provider: 
                     if isinstance(read_on, str) and _ISO_DAY.fullmatch(read_on) else None)
     except ValueError:
         read_day = None
-    page = urlsplit(url) if isinstance(url, str) else None
+    try:
+        page = urlsplit(url) if isinstance(url, str) else None
+    except ValueError:  # an unparsable address ("https://[docs") is no page, refused by name below
+        page = None
     if page is None or page.scheme != "https" or not page.hostname or read_day is None:
         raise ConfigurationError(
             f"configuration error: the row for {model_id!r} in {where} names no documentation page (https) or "

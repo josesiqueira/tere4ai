@@ -737,10 +737,15 @@ def test_an_unrecorded_resume_refuses_entries_of_another_digest(runner, monkeypa
     orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {},
                                   "model_parameters_sha256": "0" * 64}) + "\n")
     argv = _argv(tmp_path, "--checkpoint", str(orphan), "--resume-unrecorded")
+    refusal = (f"refusing to resume {orphan}: a checkpointed unit was run under different models: "
+               "model_parameters_sha256; restore the row in config/model_parameters.json to resume it, or pass "
+               "--checkpoint with a fresh path to start again")
     assert runner.main(argv) == 2
-    assert (f"refusing to resume {orphan}: a checkpointed unit was run under different models: "
-            "model_parameters_sha256; restore the row in config/model_parameters.json to resume it, or pass "
-            "--checkpoint with a fresh path to start again") in capsys.readouterr().out
+    assert refusal in capsys.readouterr().out
+    # ruling P6 (fix wave re-review N2): a unit written before the digest existed is refused too
+    orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {}}) + "\n")
+    assert runner.main(argv) == 2
+    assert refusal in capsys.readouterr().out
     assert EvaluationRecordStore(tmp_path, create=False).list_records() == []
     orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {},
                                   "model_parameters_sha256": digest}) + "\n")
