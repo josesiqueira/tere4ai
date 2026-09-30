@@ -364,3 +364,35 @@ def test_a_provider_stop_ends_the_align_execution_failed_and_prints_the_resume(t
     err = capsys.readouterr().err
     assert "(1 of 2 batches done); continue with:" in err
     assert "  .venv/bin/python -m tere4ai.align_hleg --norms " in err and err.rstrip().endswith("--resume")
+
+
+def test_a_refused_declared_parameter_ends_the_align_execution_failed_and_exits_4(tmp_path, monkeypatch, capsys):
+    """B99 (spec F D-F29) final review: a declared parameter the provider
+    refused stops the run with the configuration error; the checkpoint of
+    the batches done stays and no resume command is printed (the row is
+    corrected first)."""
+    import tere4ai.align_hleg.__main__ as cli
+    from tere4ai.judge.config import DeclaredParameterRefused
+
+    norms_path, layer1, norms = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    _fakes(monkeypatch, cli, [])
+    inner = cli.align_norms
+
+    def refuse_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+        if chunk[0]["norm_id"].endswith(":n2"):
+            raise DeclaredParameterRefused("anthropic", "j", "effort", "xhigh", "HTTP 400: effort unsupported")
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+
+    monkeypatch.setattr(cli, "align_norms", refuse_on_the_second_batch)
+    argv = ["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"]
+    assert cli.main(argv) == 4
+    reason = ("configuration error: anthropic:j refused the declared effort xhigh (HTTP 400: effort unsupported); "
+              "correct its row in config/model_parameters.json")
+    store = BuildRecordStore(tmp_path)
+    (ex,) = store.read(store.resolve("test"))["executions"]
+    assert ex["status"] == "failed" and ex["error"] == reason
+    # the output is only the placeholder the command claims its path with
+    assert out.with_suffix(".checkpoint.jsonl").is_file() and out.read_bytes() == b""
+    err = capsys.readouterr().err
+    assert f"stopped: {reason}" in err and "continue with:" not in err

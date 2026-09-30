@@ -18,10 +18,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 class ModelConfigError(RuntimeError):
@@ -77,6 +79,7 @@ MODEL_PARAMETERS_SCHEMA_VERSION = 1
 # a leftover line would read as a setting that no longer applies.
 RETIRED_EFFORT_VARIABLES: tuple[str, ...] = ("TERE4AI_GENERATOR_EFFORT", "TERE4AI_JUDGE_EFFORT")
 _ROW_KEYS = frozenset({"provider", "temperature", "effort", "json_mode", "documentation"})
+_ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}", re.ASCII)
 
 
 @dataclass(frozen=True)
@@ -178,11 +181,15 @@ def declaration_for(models: dict[str, dict[str, Any]], model_id: str, provider: 
             f"configuration error: {where} declares {model_id!r} with provider {row['provider']}, but the "
             f"{provider} client is configured to use it")
     url, read_on = row["documentation"]["url"], row["documentation"]["read_on"]
+    # the day as YYYY-MM-DD only: date.fromisoformat also reads a week date
+    # ("2026-W39-1") and a basic date, which are not the day as written
     try:
-        read_day = date.fromisoformat(read_on) if isinstance(read_on, str) and len(read_on) == 10 else None
+        read_day = (date.fromisoformat(read_on)
+                    if isinstance(read_on, str) and _ISO_DAY.fullmatch(read_on) else None)
     except ValueError:
         read_day = None
-    if not (isinstance(url, str) and url.startswith("https://")) or read_day is None:
+    page = urlsplit(url) if isinstance(url, str) else None
+    if page is None or page.scheme != "https" or not page.hostname or read_day is None:
         raise ConfigurationError(
             f"configuration error: the row for {model_id!r} in {where} names no documentation page (https) or "
             "no day it was read (YYYY-MM-DD); read the provider's documentation for this model, confirm the row "
@@ -287,6 +294,21 @@ class ModelConfig:
     judge_api_key: str
     generator_parameters: ModelParameters
     judge_parameters: ModelParameters
+
+    def __post_init__(self) -> None:
+        """Each role's row is the row of its own model and provider, so a client
+        never sends one model's id with another model's declaration."""
+        problems = []
+        for role, model_id, row, provider in (
+                ("generator", self.generator_model, self.generator_parameters, "openai"),
+                ("judge", self.judge_model, self.judge_parameters, "anthropic")):
+            if row.model_id != model_id:
+                problems.append(f"the {role} model {model_id!r} is given the declared row of {row.model_id!r}")
+            if row.provider != provider:
+                problems.append(f"the {role} row for {row.model_id!r} names provider {row.provider}, but the "
+                                f"{role} client is {provider}")
+        if problems:
+            raise ConfigurationError("configuration error: " + "; ".join(problems))
 
     @property
     def generator_effort(self) -> str:

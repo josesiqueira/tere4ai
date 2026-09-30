@@ -671,3 +671,77 @@ def test_a_judge_that_cannot_be_built_leaves_the_judge_sampling_null(runner, mon
     assert rec["sampling"]["generator"] == "temperature=0"
     assert (rec["sampling"]["judge"], rec["sampling"]["judge_temperature"], rec["sampling"]["judge_effort"]) == (
         None, None, None)
+
+
+# B99 (spec F D-F29) final review I1: a resume never continues under another
+# declaration; the record's models and the checkpoint entries name the digest.
+
+
+def _declared_config(monkeypatch, runner, tmp_path, effort):
+    """The runner reads a real ModelConfig from a mock table whose generator
+    row declares effort, as the live gate would."""
+    from tests.fixtures.model_parameters import declared, write_table
+
+    from tere4ai.judge.config import load_model_config
+    path = write_table(tmp_path / "model_parameters.json", declared("gpt-mock", "openai", effort=effort),
+                       declared("claude-mock", "anthropic"))
+    env = {"TERE4AI_GENERATOR_MODEL": "gpt-mock", "TERE4AI_JUDGE_MODEL": "claude-mock",
+           "OPENAI_API_KEY": "sk-fake", "ANTHROPIC_API_KEY": "sk-ant-fake"}
+    monkeypatch.setattr(runner.harness, "guard_live_config", lambda: load_model_config(env, parameters_path=path))
+    return load_model_config(env, parameters_path=path).model_parameters_sha256
+
+
+def test_a_resume_under_an_edited_row_is_refused_by_name(runner, monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    digest = _declared_config(monkeypatch, runner, tmp_path, "xhigh")
+    runner._TEST_CALLS["unavailable_on"] = "gold:cls-02"
+    assert runner.main(_argv(tmp_path)) == 3
+    err = capsys.readouterr().err
+    assert "is kept (1 unit(s) done); continue with:" in err
+    checkpoint = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    (entry,) = [json.loads(line) for line in checkpoint.read_text().splitlines()]
+    assert entry["model_parameters_sha256"] == digest
+    (stopped,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    # the operator lowers the effort to get through the overload, then runs the printed command
+    _declared_config(monkeypatch, runner, tmp_path, "high")
+    runner._TEST_CALLS["unavailable_on"] = None
+    printed = err.split("continue with:\n", 1)[1].splitlines()[0]
+    resume_argv = shlex.split(printed)[3:]
+    assert runner.main(resume_argv) == 2
+    out = capsys.readouterr().out
+    assert (f"refusing to resume {checkpoint}: evaluation record {stopped['record_id']} used different models: "
+            "generator_effort, model_parameters_sha256; restore the row in config/model_parameters.json to "
+            "resume it, or pass --checkpoint with a fresh path to start again") in out
+    assert [r["record_id"] for r in EvaluationRecordStore(tmp_path, create=False).list_records()] == [
+        stopped["record_id"]]
+    # restored, the same command resumes it
+    _declared_config(monkeypatch, runner, tmp_path, "xhigh")
+    assert runner.main(resume_argv) == 0
+
+
+def test_a_resumed_record_made_before_the_digest_is_refused(runner, monkeypatch, tmp_path, capsys):
+    assert runner.main(_argv(tmp_path)) == 0  # the double's models carry no digest, as before B99
+    (first,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    _declared_config(monkeypatch, runner, tmp_path, "xhigh")
+    assert runner.main(_argv(tmp_path)) == 2
+    out = capsys.readouterr().out
+    assert f"evaluation record {first['record_id']} used different models: " in out
+    assert "model_parameters_sha256" in out
+
+
+def test_an_unrecorded_resume_refuses_entries_of_another_digest(runner, monkeypatch, tmp_path, capsys):
+    digest = _declared_config(monkeypatch, runner, tmp_path, "xhigh")
+    results = tmp_path / "results"
+    results.mkdir()
+    orphan = results / "orphan.jsonl"
+    orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {},
+                                  "model_parameters_sha256": "0" * 64}) + "\n")
+    argv = _argv(tmp_path, "--checkpoint", str(orphan), "--resume-unrecorded")
+    assert runner.main(argv) == 2
+    assert (f"refusing to resume {orphan}: a checkpointed unit was run under different models: "
+            "model_parameters_sha256; restore the row in config/model_parameters.json to resume it, or pass "
+            "--checkpoint with a fresh path to start again") in capsys.readouterr().out
+    assert EvaluationRecordStore(tmp_path, create=False).list_records() == []
+    orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {},
+                                  "model_parameters_sha256": digest}) + "\n")
+    assert runner.main(argv) == 0

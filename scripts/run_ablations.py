@@ -7,7 +7,8 @@ Runs the five-condition ablation ladder over the gold seed plus the frozen
 REF-15 benchmark sample, in checkpointed (strategy, item-batch) units, so a
 crash never loses more than one batch (the lesson of the lost extraction run).
 Resume by re-running: completed units are skipped; the sidecar
-<checkpoint>.record names the record a resume continues (DEC-17). After the
+<checkpoint>.record names the record a resume continues (DEC-17), and a
+resume under another model declaration is refused (spec F D-F29). After the
 sweep, computes the Section 12 metrics per strategy and writes the summary
 to --summary, by default eval/results/runs/<record id>/ablation_summary.json.
 
@@ -182,6 +183,26 @@ def resolve_resume(checkpoint_path: Path, dump_dir: Path) -> tuple[str | None, s
     return rid, None
 
 
+def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list[dict],
+                         resumes: str | None, dump_dir: Path) -> str | None:
+    """The refusal sentence when a resume would continue under another
+    declaration (spec F D-F29, ruling P6), else None: the resumed record's
+    models against the loaded ones, then every checkpointed unit that names
+    its digest (the only witness of a checkpoint no record names)."""
+    way_out = ("restore the row in config/model_parameters.json to resume it, or pass --checkpoint with a "
+               "fresh path to start again")
+    head = f"refusing to resume {checkpoint_path}"
+    if resumes is not None:
+        recorded = EvaluationRecordStore(dump_dir, create=False).read(resumes).get("models") or {}
+        differing = sorted(k for k in set(recorded) | set(config) if recorded.get(k) != config.get(k))
+        if differing:
+            return f"{head}: evaluation record {resumes} used different models: {', '.join(differing)}; {way_out}"
+    ours = config.get("model_parameters_sha256")
+    if any("model_parameters_sha256" in e and e["model_parameters_sha256"] != ours for e in unit_results):
+        return f"{head}: a checkpointed unit was run under different models: model_parameters_sha256; {way_out}"
+    return None
+
+
 def load_items(benchmark_path=None, features_path=None) -> list[dict]:
     gold = harness.load_gold_items()
     bench = harness.load_benchmark_items(benchmark_path or harness.BENCHMARK_SAMPLE_PATH)
@@ -279,6 +300,13 @@ def main(argv: list[str] | None = None) -> int:
                       "with a fresh path")
                 return 2
             notes.append("resumed from a checkpoint no record names")
+        # spec F D-F29 (final review I1): a resume never continues under
+        # another declaration, in the sentence shape of prepare_resume
+        # (ruling P6); a record made before the digest existed differs too
+        refusal = _declaration_refusal(checkpoint_path, config, unit_results, resumes, args.dump_dir)
+        if refusal is not None:
+            print(refusal)
+            return 2
 
     store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
     record_id = None
@@ -389,6 +417,10 @@ def main(argv: list[str] | None = None) -> int:
                         "results": per_item,
                         "usage": usage,
                     }
+                    # spec F D-F29: the unit names the declaration it ran under,
+                    # so a resume no record names can still refuse another one
+                    if "model_parameters_sha256" in config:
+                        entry["model_parameters_sha256"] = config["model_parameters_sha256"]
                     ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                     ckpt.flush()
                     units_run += 1

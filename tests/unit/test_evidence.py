@@ -108,7 +108,7 @@ def test_satisfied_with_real_quote_maps_to_satisfied_with_evidence(tmp_path):
     assert answer["dropped_quotes"] == 0
     assert answer["judge_rationale"] == "Grounded in the cited norm."
     assert answer["judge_model"] == "fake-judge"
-    assert answer["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
+    assert answer["judge_effort"] == "not configured"  # FakeClient declares no effort; a real client carries its declared one
     assert answer["judge_temperature"] == "not configured"
     assert envelope["source_nodes"] == [NORM["source_node_id"]]
     assert envelope["source_spans"] == [{"span_id": NORM["source_span_id"]}]

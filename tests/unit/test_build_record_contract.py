@@ -112,14 +112,17 @@ def test_the_contract_carries_a_record_with_declared_parameters_and_older_ones_s
     assert set(defs["execution_sampling"]["properties"]) == {
         "generator", "judge", "generator_temperature", "judge_temperature", "generator_effort", "judge_effort",
         "generator_json_mode"}
-    assert "model_parameters_sha256" in defs["execution_models"]["properties"]
+    # B99 final review: the models line holds the eight keys of ModelConfig.as_public_dict()
+    models_keys = {"generator_model", "judge_model", "generator_effort", "judge_effort", "generator_temperature",
+                   "judge_temperature", "generator_json_mode", "model_parameters_sha256"}
+    assert set(defs["execution_models"]["properties"]) == models_keys
     record = json.loads((FIXTURES / "intermediate_build.json").read_text(encoding="utf-8"))
     last = [e for e in record["executions"] if e["run_id"] == "run4align000"][0]
     # review X-C1: the dashboard reads the declared temperature under <role>_temperature
     assert last["sampling"] == {"generator": "N/A", "judge": "N/A", "generator_temperature": "N/A",
                                 "judge_temperature": "N/A", "generator_effort": "xhigh",
                                 "judge_effort": "xhigh", "generator_json_mode": "sent"}
-    assert last["models"]["model_parameters_sha256"] == "6" * 64
+    assert last["models"]["model_parameters_sha256"] == "6" * 64 and set(last["models"]) == models_keys
     bad = {**last, "sampling": {**last["sampling"], "generator_effort": 5}}
     validator = Draft202012Validator({**schema, "$ref": "#/$defs/presented_execution"})
     assert list(validator.iter_errors(last)) == [] and list(validator.iter_errors(bad)) != []

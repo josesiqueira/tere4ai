@@ -15,7 +15,7 @@ from tere4ai.eval.strategies import GraphStrategy
 
 
 class _StubClient:
-    """Minimal ModelClient stub: a model id, optionally a learned effort."""
+    """Minimal ModelClient stub: a model id, optionally a declared effort and temperature."""
 
     def __init__(self, model: str, effort: str | None = None, temperature: str | None = None):
         self.model = model

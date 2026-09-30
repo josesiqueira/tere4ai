@@ -278,8 +278,10 @@ prints the command that resumes it and exits with code 3 (spec F D-F30). A
 declared parameter that the provider refuses stops the run the same way
 with a configuration error and exit code 4: correct the row of
 `config/model_parameters.json` and start again (spec F D-F29). A resume
-under a changed row is refused. A published record is frozen: further work
-on the same alias continues as a descendant record.
+under a changed row is refused, so when the checkpoint holds finished
+units, move it away before starting again under the corrected row. A
+published record is frozen: further work on the same alias continues as a
+descendant record.
 
 Tracked in git because they are publication evidence or inputs:
 `build_chain_*.json`, `publications/`, `BUILD_CHAIN_CURRENT.txt`,
@@ -331,10 +333,17 @@ record failed with "provider refused the request: <status or error> (item
 <item id>)" and exits 5; the item is fixed before the next run, never
 skipped. A refused declared parameter ends the record failed with the
 configuration error and exits 4 (spec F D-F29); an evaluation harness run
-that meets one ends its record failed after that item and raises it.
+that meets one ends its record failed after that item and raises it. A
+resume under another declaration (an edited row of
+`config/model_parameters.json`) is refused and exits 2, naming
+`model_parameters_sha256`: the runner compares the resumed record's
+`models`, and every checkpointed unit's digest, with the loaded ones.
 `scripts/elicit_benchmark_features.py` waits out an overload the same way
 and, on a stop (exit 3) or a refusal naming the item (exit 5), keeps its
-checkpoint and prints the command whose rerun resumes it.
+checkpoint and prints the command whose rerun resumes it; a refused
+declared parameter exits 4. Its checkpoint entries and output name the
+declaration (`models`), and a rerun over entries of another declaration is
+refused (exit 2).
 The sampler's three acts on one sheet run one at a time: each holds the
 lock file `<sheet>.lock` from its first read of the sheet to its record's
 finish, and a second act waits (one line on stderr), then reads what the

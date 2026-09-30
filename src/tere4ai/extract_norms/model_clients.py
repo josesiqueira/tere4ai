@@ -377,7 +377,9 @@ class _SamplingRecord:
                 self._count_sent()  # it may have been billed; count every physical attempt
                 self._count_refused(exc)
                 if not _is_retryable(exc, policy):
-                    if policy.stop_on_refusal and (status is not None or not _is_connection_error(exc)):
+                    # a lost connection is always retryable, so every failure here is a
+                    # provider answer or an SDK error raised before sending (ruling P21)
+                    if policy.stop_on_refusal:
                         raise ProviderRefused(_status_or_error(exc)) from exc
                     raise
                 if retries_used == len(policy.pauses):

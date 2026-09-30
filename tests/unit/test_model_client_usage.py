@@ -19,7 +19,9 @@ from tere4ai.extract_norms.model_clients import (
     OpenAIGenerator,
     ProviderRefused,
     ProviderUnavailable,
+    _first_line,
     _new_usage,
+    _status_or_error,
     declared_sampling,
     retry_after_seconds,
 )
@@ -771,13 +773,39 @@ def test_every_other_4xx_stops_the_terminal_policy_at_once(status):
 
 def test_an_sdk_error_before_sending_stops_the_terminal_policy_uncounted_by_status():
     """Ruling P21: an SDK error raised before sending that names nothing
-    declared is a refusal too. It counts in requests_sent as at HEAD
-    (model_clients.py:234; the pre-B74 R1 rule exempts only a refused declared
-    parameter) and carries no status, so it is not in requests_refused."""
+    declared is a refusal too. It counts in requests_sent as at HEAD (the
+    pre-B74 R1 rule exempts only a refused declared parameter) and carries no
+    status, so it is not in requests_refused."""
     gen = _terminal(_generator_over(_Flaky([TypeError("unexpected keyword argument 'foo'")])))
     with pytest.raises(ProviderRefused, match=r"^provider refused the request: TypeError: unexpected keyword argument 'foo'$"):
         gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 1
     assert gen.usage["requests_refused"] == 0
+
+
+class _Status(Exception):
+    """An error with a status and a message chosen by the test."""
+
+    def __init__(self, message, status_code=None):
+        super().__init__(message)
+        if status_code is not None:
+            self.status_code = status_code
+
+
+def test_the_status_or_error_detail_keeps_the_first_line_cut_to_200_characters():
+    """Rulings S1 (B101) and P10: the detail both repositories print is the
+    status and the first line of the message cut to 200 characters, "HTTP n"
+    alone when the message is empty, and the bare class name when there is
+    neither a status nor a message."""
+    long_line = "x" * 250
+    assert _first_line(_Status(f"{long_line}\nsecond line")) == "x" * 200
+    assert _first_line(_Status("  first\nsecond\n")) == "first"
+    assert _first_line(_Status("")) == ""
+    assert _status_or_error(_Status(f"Overloaded\n{long_line}", 529)) == "HTTP 529: Overloaded"
+    assert _status_or_error(_Status(long_line, 413)) == "HTTP 413: " + "x" * 200
+    assert _status_or_error(_Status("", 422)) == "HTTP 422"
+    assert _status_or_error(_Status("boom\nmore")) == "_Status: boom"
+    assert _status_or_error(_Status("")) == "_Status"
 
 
 def test_the_service_policy_raises_a_refusal_as_the_sdks_own_error():

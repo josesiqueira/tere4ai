@@ -147,6 +147,43 @@ def test_a_row_without_its_documentation_page_or_day_is_refused(tmp_path):
     assert "the row for 'gpt-test-pinned'" in message
 
 
+@pytest.mark.parametrize(("url", "read_on"), [
+    ("https://docs.example.invalid/models", "2026-W39-1"),  # a week date Python reads as 2026-09-21
+    ("https://docs.example.invalid/models", "20260927"),
+    ("https://", "2026-09-27"),  # no host
+    ("https:///models", "2026-09-27"),
+])
+def test_a_week_date_or_a_page_without_a_host_is_refused(tmp_path, url, read_on):
+    """B99 final review (ruling P2): the row names a page with a host and the
+    day it was read as YYYY-MM-DD, nothing else."""
+    rows = table(declared("gpt-test-pinned", "openai"), declared("claude-test-pinned", "anthropic"))
+    rows["models"]["claude-test-pinned"]["documentation"] = {"url": url, "read_on": read_on}
+    path = tmp_path / "baddoc.json"
+    path.write_text(json.dumps(rows), encoding="utf-8")
+    message = _refusal(dict(FULL_ENV), path)
+    assert "the row for 'claude-test-pinned' in baddoc.json names no documentation page (https)" in message
+    assert "'gpt-test-pinned'" not in message
+
+
+def test_a_model_config_whose_rows_name_other_models_or_providers_is_refused():
+    """B99 final review: a client never sends one model's id with another
+    model's declaration, nor a row of the other provider."""
+    def build(generator_row, judge_row):
+        return ModelConfig(generator_model="gpt-a", judge_model="claude-a", generator_api_key="k1",
+                           judge_api_key="k2", generator_parameters=generator_row, judge_parameters=judge_row)
+
+    assert build(declared("gpt-a", "openai"), declared("claude-a", "anthropic")).generator_model == "gpt-a"
+    with pytest.raises(ConfigurationError, match=r"^configuration error: the generator model 'gpt-a' is given "
+                       r"the declared row of 'gpt-b'"):
+        build(declared("gpt-b", "openai"), declared("claude-a", "anthropic"))
+    with pytest.raises(ConfigurationError, match=r"the judge model 'claude-a' is given the declared row of "
+                       r"'claude-b'"):
+        build(declared("gpt-a", "openai"), declared("claude-b", "anthropic"))
+    with pytest.raises(ConfigurationError, match=r"the judge row for 'claude-a' names provider openai, but the "
+                       r"judge client is anthropic"):
+        build(declared("gpt-a", "openai"), declared("claude-a", "openai"))
+
+
 def test_every_malformed_row_is_named_at_once(tmp_path):
     rows = table(declared("gpt-test-pinned", "openai"), declared("claude-test-pinned", "anthropic"))
     rows["models"]["x"] = {"provider": "mistral", "temperature": 0, "effort": "extra-high", "json_mode": "sent",

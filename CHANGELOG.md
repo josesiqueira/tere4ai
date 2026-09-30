@@ -7,22 +7,21 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ### Declared model parameters and the terminal retry policy (B99, spec F D-F29, D-F30)
 - Each model's temperature, effort and JSON mode are declared in
-  `config/model_parameters.json`, keyed by model id; the table selects
-  nothing (`.env` names the models). A configured model with no row, a row of
-  the other provider, a row without its documentation page and read day, or a
-  malformed row is refused at configuration load with `ConfigurationError`
-  (a `ModelConfigError`), naming every problem at once.
+  `config/model_parameters.json`, keyed by model id; the table selects nothing
+  (`.env` names the models). A configured model with no row, a row of the
+  other provider, a row without its documentation page and read day, or a
+  malformed row is refused at configuration load with `ConfigurationError` (a
+  `ModelConfigError`), naming every problem at once.
   `TERE4AI_GENERATOR_EFFORT` and `TERE4AI_JUDGE_EFFORT` are no longer read and
   are refused while set; they left `.env.example`, `docker-compose.yml` and
-  the Rahti deployment, and the image copies `config/`. The execution
-  record's `models` carries the declared values and
-  `model_parameters_sha256`, so a resume under an edited row is refused by
-  name, and a checkpoint written before this change cannot be resumed. The
-  two committed rows (`gpt-6-astra`, `claude-opus-5-5`) were read from the
-  providers' documentation on 2026-09-28 and each names the page it was read
-  from; the values match what the code and the B74 records had shown. An
-  uncommitted edit of the
-  table marks an evaluation record's code version dirty.
+  the Rahti deployment, and the image copies `config/`. The execution record's
+  `models` carries the declared values and `model_parameters_sha256`, so a
+  resume under an edited row is refused by name, and a checkpoint written
+  before this change cannot be resumed. The two committed rows (`gpt-6-astra`,
+  `claude-opus-5-5`) were read from the providers' documentation on 2026-09-28
+  and each names the page it was read from; the values match what the code and
+  the B74 records had shown. An uncommitted edit of the table marks an
+  evaluation record's code version dirty.
 - The generator and judge clients send each model's declared temperature,
   effort and JSON mode on every request and never learn: a parameter declared
   N/A is never sent, and a declared one that the provider refuses with a 400
@@ -32,21 +31,20 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   clients report `temperature`, `effort` and `json_mode` as declared;
   `sampling` stays the name of the declared temperature. The learned words
   of records made before this change are kept as stored.
-- The model clients take a retry policy from their caller
-  (`retry_policy=`, spec F D-F30). `SERVICE_POLICY`, the default, is
-  exactly today's two retries at 1 and 4 s with a Retry-After in seconds
-  capped at 60 s.
-  `TERMINAL_POLICY` retries 408, 409, 429 other than a quota refusal
-  (`insufficient_quota`), any 5xx, a timeout or a lost connection after
-  pauses of 10, 30, 90, 270 and 600 s (a Retry-After, read in seconds, as a
-  date or as retry-after-ms, lengthens a pause up to 600 s), prints one alert
-  line on standard error before each pause (`ALERT <UTC time>
-  <provider>:<model>: <status or error>; attempt <n> of 6 failed; next
-  attempt in <s> s`, the pause in whole seconds rounded up), and after the sixth attempt raises
-  `ProviderUnavailable` ("provider unavailable after 6 attempts: <status or
-  error>"); every other 4xx and an SDK error before sending stop at once as
-  `ProviderRefused` ("provider refused the request: <status or error>").
-  Every attempt counts in `requests_sent`.
+- The model clients take a retry policy from their caller (`retry_policy=`,
+  spec F D-F30). `SERVICE_POLICY`, the default, is exactly today's two retries
+  at 1 and 4 s with a Retry-After in seconds capped at 60 s. `TERMINAL_POLICY`
+  retries 408, 409, 429 other than a quota refusal (`insufficient_quota`), any
+  5xx, a timeout or a lost connection after pauses of 10, 30, 90, 270 and 600
+  s (a Retry-After, read in seconds, as a date or as retry-after-ms, lengthens
+  a pause up to 600 s), prints one alert line on standard error before each
+  pause (`ALERT <UTC time> <provider>:<model>: <status or error>; attempt <n>
+  of 6 failed; next attempt in <s> s`, the pause in whole seconds rounded up),
+  and after the sixth attempt raises `ProviderUnavailable` ("provider
+  unavailable after 6 attempts: <status or error>"); every other 4xx and an
+  SDK error before sending stop at once as `ProviderRefused` ("provider
+  refused the request: <status or error>"). Every attempt counts in
+  `requests_sent`.
 - `python -m tere4ai.extract_norms` and `python -m tere4ai.align_hleg` build
   their clients with the terminal policy. A provider stop ends the execution
   failed with "provider unavailable after 6 attempts: <status or error>",
@@ -89,12 +87,25 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   read on every poll, and `declaration_error` (null, or the refusal
   sentence with both values null when the table does not declare the
   model or a retired effort variable is set).
-- `build_record.schema.json` documents an execution's declared `models`
-  and `sampling` keys (string or null, none required, version unchanged,
-  every older record valid; the sampling carries the declared temperature
-  under `generator_temperature` and `judge_temperature` too); the regenerated mock data carry one execution of the
-  declared shape (`intermediate_build.json`, `run4align000`). The dashboard
-  recopies the contract as its first commit.
+- `build_record.schema.json` documents an execution's declared `models` and
+  `sampling` keys (string or null, none required, version unchanged, every
+  older record valid; the sampling carries the declared temperature under
+  `generator_temperature` and `judge_temperature` too); the regenerated mock
+  data carry one execution of the declared shape (`intermediate_build.json`,
+  `run4align000`). The dashboard recopies the contract as its first commit.
+- A resume of `scripts/run_ablations.py` under another declaration is refused
+  and exits 2, naming the keys that differ ("used different models:
+  model_parameters_sha256"): the resumed record's `models` are compared with
+  the loaded ones (a record made before `model_parameters_sha256` existed
+  differs too), and each checkpointed unit now names the digest, so a
+  `--resume-unrecorded` resume refuses units of another one.
+  `scripts/elicit_benchmark_features.py` writes the declaration (`models`, the
+  public model configuration) into each checkpoint entry and into
+  `benchmark_features.json`, loads the configuration once, and refuses (exit
+  2) a rerun over entries of another declaration. A row's
+  `documentation.read_on` must be written YYYY-MM-DD (a week date is refused)
+  and its `url` must name a host, and a `ModelConfig` whose rows name another
+  model or provider than its role is refused.
 
 ### Build numbers (B94)
 - A published build gets a build number (spec G D-G50): the build record

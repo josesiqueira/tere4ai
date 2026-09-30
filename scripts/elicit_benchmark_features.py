@@ -5,9 +5,12 @@
 
 Checkpointed per item; resume by re-running. A provider overload is waited
 out under the terminal policy; a stop or a provider refusal keeps the
-checkpoint and prints the command that resumes it (spec F D-F30). Writes
-eval/gold/benchmark_features.json with provenance llm_elicited so ablation
-summaries can separate authored from elicited features.
+checkpoint and prints the command that resumes it (spec F D-F30). Every
+checkpoint entry and the output name the model declaration they were
+elicited under (`models`, spec F D-F29), and a rerun over entries of another
+declaration is refused. Writes eval/gold/benchmark_features.json with
+provenance llm_elicited so ablation summaries can separate authored from
+elicited features.
 """
 
 from __future__ import annotations
@@ -65,6 +68,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"resume: {len(done)} already elicited")
 
     cfg = load_model_config()
+    # spec F D-F29: the entries and the output name the declaration, so the
+    # cache never mixes items elicited under two (a missing one differs too)
+    models = cfg.as_public_dict()
+    if any((e.get("models") or {}).get("model_parameters_sha256") != models["model_parameters_sha256"]
+           for e in done.values()):
+        print(f"refusing to resume {CKPT.name}: an elicited item was run under different models: "
+              "model_parameters_sha256; restore the row in config/model_parameters.json to resume it, or move "
+              "the checkpoint away to start again")
+        return 2
     generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)  # spec F D-F30: a terminal run with a checkpoint waits out an overload
 
     try:
@@ -80,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
                         "notes": ["no usable system_text; skipped without a model call"],
                         "provenance": "llm_elicited",
                         "elicitor_model": cfg.generator_model,
+                        "models": models,
                     }
                     ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                     ckpt.flush()
@@ -100,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
                     "notes": notes,
                     "provenance": "llm_elicited",
                     "elicitor_model": cfg.generator_model,
+                    "models": models,
                 }
                 ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 ckpt.flush()
@@ -121,7 +135,8 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = {
         "provenance": "llm_elicited",
-        "elicitor_model": load_model_config().generator_model,
+        "elicitor_model": cfg.generator_model,
+        "models": models,
         "prompt_version": args.prompt_version,
         "note": (
             "Machine-elicited features for benchmark free-text scenarios. The "

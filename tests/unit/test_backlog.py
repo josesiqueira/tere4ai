@@ -122,7 +122,7 @@ def test_happy_path_status_and_items(tmp_path):
     assert "truncated" not in answer
     assert answer["judge_rationale"] == "Items stay within the cited norms."
     assert answer["judge_model"] == "fake-judge"
-    assert answer["judge_effort"] == "not configured"  # FakeClient carries no effort record; a real client reports its outcome
+    assert answer["judge_effort"] == "not configured"  # FakeClient declares no effort; a real client carries its declared one
     assert answer["judge_temperature"] == "not configured"
     cited = {norm_id for it in answer["items"] for norm_id in it["norm_ids"]}
     assert cited <= {NORM_A["norm_id"], NORM_B["norm_id"], NORM_C["norm_id"]}
@@ -387,7 +387,7 @@ def test_mechanical_priority_keeps_unconditional_obligations_must(tmp_path):
 
 
 class CountingClient(FakeClient):
-    """A FakeClient with the real clients' usage record and effort outcome (B91)."""
+    """A FakeClient with the real clients' usage record (B91) and declared effort and temperature."""
 
     def __init__(self, scripted, model, effort="xhigh", temperature="0", tokens=(100, 20)):
         super().__init__(scripted, model=model)

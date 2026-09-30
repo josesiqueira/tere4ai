@@ -27,7 +27,7 @@ def _dumps(tmp_path, with_hash, with_effort=False, with_temperature=False):
     if with_hash:
         run["prompt_sha256"] = "5" * 64
     if with_effort:
-        # B84 (spec F D-F22): the JudgeRun carries its effort outcome.
+        # B84 (spec F D-F22): the JudgeRun carries its effort, the declared one since B99 (spec F D-F29).
         run["judge_effort"] = "xhigh"
     if with_temperature:
         # B99 (spec F D-F29): the JudgeRun carries its declared temperature
@@ -104,7 +104,7 @@ def test_units_and_trace_carry_a_null_judge_effort_when_absent(tmp_path):
 
 
 def test_units_and_trace_carry_the_judge_effort_when_the_dump_records_it(tmp_path):
-    """B84 (spec F D-F22): the JudgeRun's effort outcome surfaces on both
+    """B84 (spec F D-F22): the JudgeRun's declared effort surfaces on both
     read surfaces once the dump records it."""
     dump, alignments = _dumps(tmp_path, with_hash=False, with_effort=True)
     rendered = trace_tool.trace_alignment("n1", alignments, dump)

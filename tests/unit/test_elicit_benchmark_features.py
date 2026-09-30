@@ -9,27 +9,38 @@ import importlib.util
 import json
 import shlex
 from pathlib import Path
-from types import SimpleNamespace
+
+from tests.fixtures.model_parameters import declared
 
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     ProviderRefused,
     ProviderUnavailable,
 )
+from tere4ai.judge.config import DeclaredParameterRefused, ModelConfig
 
 ROOT = Path(__file__).resolve().parents[2]
 ITEMS = [{"id": "bench:1", "kind": "classification", "system_text": "a scoring system for loans"},
          {"id": "bench:2", "kind": "classification", "system_text": "a triage system for claims"}]
 
 
-def _script(monkeypatch, fail_on=None, failure=None):
+def _cfg(effort="xhigh"):
+    return ModelConfig(generator_model="g", judge_model="claude-j", generator_api_key="k1", judge_api_key="k2",
+                       generator_parameters=declared("g", "openai", effort=effort),
+                       judge_parameters=declared("claude-j", "anthropic"))
+
+
+def _script(monkeypatch, fail_on=None, failure=None, cfg=None):
     spec = importlib.util.spec_from_file_location("elicit_benchmark_features",
                                                   ROOT / "scripts" / "elicit_benchmark_features.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     policies: list = []
     monkeypatch.setattr(mod.harness, "load_benchmark_items", lambda path: [dict(i) for i in ITEMS])
-    monkeypatch.setattr(mod, "load_model_config", lambda: SimpleNamespace(generator_model="g"))
+    # B99 (spec F D-F29) final review M1: a real configuration, whose declaration the script records
+    loaded = []
+    monkeypatch.setattr(mod, "load_model_config", lambda: loaded.append(1) or (cfg or _cfg()))
+    mod._TEST_LOADS = loaded
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: policies.append(kw.get("retry_policy")) or object())
 
     def elicit(description, generator, prompt_version="v2"):
@@ -64,3 +75,43 @@ def test_a_provider_refusal_names_the_item_and_exits_5(tmp_path, monkeypatch, ca
     mod, _ = _script(monkeypatch, fail_on=ITEMS[0]["system_text"], failure=ProviderRefused("HTTP 413"))
     assert mod.main(["--out", str(tmp_path / "features.json")]) == 5
     assert "stopped: provider refused the request: HTTP 413 (item bench:1)" in capsys.readouterr().err
+
+
+def test_the_entries_and_the_output_name_the_declaration_and_the_config_is_loaded_once(tmp_path, monkeypatch):
+    """B99 (spec F D-F29) final review M1."""
+    out = tmp_path / "features.json"
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=ProviderUnavailable(6, "HTTP 529"))
+    assert mod.main(["--out", str(out)]) == 3
+    (entry,) = [json.loads(line) for line in out.with_suffix(".checkpoint.jsonl").read_text().splitlines()]
+    assert entry["models"] == _cfg().as_public_dict() and entry["elicitor_model"] == "g"
+    mod, _ = _script(monkeypatch)
+    assert mod.main(["--out", str(out)]) == 0
+    assert mod._TEST_LOADS == [1]
+    payload = json.loads(out.read_text())
+    assert payload["models"] == _cfg().as_public_dict() and payload["elicitor_model"] == "g"
+
+
+def test_a_rerun_under_another_declaration_is_refused_by_name(tmp_path, monkeypatch, capsys):
+    """B99 (spec F D-F29) final review M1: the cache never mixes items
+    elicited under two declarations."""
+    out = tmp_path / "features.json"
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=ProviderUnavailable(6, "HTTP 529"))
+    assert mod.main(["--out", str(out)]) == 3
+    ckpt = out.with_suffix(".checkpoint.jsonl")
+    before = ckpt.read_bytes()
+    mod, _ = _script(monkeypatch, cfg=_cfg(effort="high"))
+    assert mod.main(["--out", str(out)]) == 2
+    assert (f"refusing to resume {ckpt.name}: an elicited item was run under different models: "
+            "model_parameters_sha256; restore the row in config/model_parameters.json to resume it, or move "
+            "the checkpoint away to start again") in capsys.readouterr().out
+    assert ckpt.read_bytes() == before and not out.exists()
+
+
+def test_a_refused_declared_parameter_exits_4_and_keeps_the_checkpoint(tmp_path, monkeypatch, capsys):
+    out = tmp_path / "features.json"
+    refused = DeclaredParameterRefused("openai", "g", "effort", "xhigh", "HTTP 400: effort unsupported")
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=refused)
+    assert mod.main(["--out", str(out)]) == 4
+    assert ("stopped: configuration error: openai:g refused the declared effort xhigh (HTTP 400: effort "
+            "unsupported); correct its row in config/model_parameters.json") in capsys.readouterr().err
+    assert out.with_suffix(".checkpoint.jsonl").exists() and not out.exists()
