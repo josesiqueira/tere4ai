@@ -186,6 +186,9 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     envelope = response.json()
     assert envelope["status"] == "rejected_as_unsupported"
     assert envelope["answer"]["risk_category"] is None
+    # DEC-18: no rule ran, so prohibited is unknown, and null survives the
+    # serialization boundary (never coerced to false).
+    assert envelope["answer"]["prohibited"] is None
     assert any("schema validation" in fact for fact in envelope["missing_facts"])
 
     # No regression: a well-formed, genuinely out-of-scope system still returns

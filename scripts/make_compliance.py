@@ -29,6 +29,14 @@ sys.path.insert(0, str(ROOT / "src"))
 from fastmcp import Client  # noqa: E402
 from fastmcp.client.transports import StdioTransport  # noqa: E402
 
+
+def _prohibited_text(value: object) -> str:
+    """DEC-18: the classifier's prohibited field is true, false or null,
+    printed as the JSON words true and false, and null as unknown."""
+    if value is None:
+        return "unknown"
+    return "true" if value else "false"
+
 FEATURES: dict[str, Any] = {
     "description": (
         "CredScore, a creditworthiness scoring service for a small consumer loan fintech. "
@@ -194,7 +202,7 @@ def render(classify: dict[str, Any], requirements: dict[str, Any]) -> str:
     add("## Classification")
     add("")
     add(f"- risk category: **{c_answer.get('risk_category')}**")
-    add(f"- prohibited: {c_answer.get('prohibited')}")
+    add(f"- prohibited: {_prohibited_text(c_answer.get('prohibited'))}")
     add(f"- Annex III category: `{c_answer.get('annex_iii_category')}`")
     add(f"- envelope status: `{classify.get('status')}`, confidence {classify.get('confidence')}")
     add(f"- Article 6(3) exception candidate: {c_answer.get('article_6_3_exception_candidate')}")

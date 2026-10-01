@@ -166,6 +166,21 @@ def test_prohibited_full_stop_banner() -> None:
     assert "violated" not in html.lower()
 
 
+def test_null_prohibited_renders_as_unknown(tmp_path: Path) -> None:
+    """DEC-18: a null prohibited is printed as unknown, never as null."""
+    lines = SHOPBOT.read_text(encoding="utf-8").splitlines()
+    first = json.loads(lines[0])
+    assert first["tool"] == "classify_ai_system"
+    first["envelope"]["answer"]["prohibited"] = None
+    doctored = tmp_path / "null-prohibited.jsonl"
+    doctored.write_text(
+        "\n".join([json.dumps(first), *lines[1:]]) + "\n", encoding="utf-8"
+    )
+    html = render_report_from_paths([doctored])
+    assert 'data-envelope-field="prohibited">unknown<' in html
+    assert 'data-envelope-field="prohibited">null<' not in html
+
+
 def test_duplicate_classify_last_wins_with_call_history(tmp_path: Path) -> None:
     lines = SHOPBOT.read_text(encoding="utf-8").splitlines()
     first = json.loads(lines[0])

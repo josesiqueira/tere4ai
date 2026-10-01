@@ -62,7 +62,7 @@ type FriaAnswer = {
 
 type ClassificationAnswer = {
   risk_category: string | null;
-  prohibited: boolean;
+  prohibited: boolean | null;
   annex_iii_category: string | null;
   article_6_3_exception_candidate: boolean;
   rationale: string[];
@@ -1647,6 +1647,14 @@ export default function AssessPage() {
               <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                 <span>Envelope status:</span>
                 <StatusBadge status={classification.status} />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                <span>Prohibited:</span>
+                <span className="font-mono text-foreground">
+                  {classification.answer.prohibited === null
+                    ? "unknown"
+                    : String(classification.answer.prohibited)}
+                </span>
               </div>
               {risk === "prohibited" && (
                 <p className="text-sm text-destructive">

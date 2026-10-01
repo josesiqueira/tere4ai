@@ -38,6 +38,14 @@ sys.path.insert(0, str(ROOT / "src"))
 from fastmcp import Client  # noqa: E402
 from fastmcp.client.transports import StdioTransport  # noqa: E402
 
+
+def _prohibited_text(value: object) -> str:
+    """DEC-18: the classifier's prohibited field is true, false or null,
+    printed as the JSON words true and false, and null as unknown."""
+    if value is None:
+        return "unknown"
+    return "true" if value else "false"
+
 DESCRIPTION = (
     "MoodWatch, an employee wellbeing dashboard for a mid sized employer. It analyses "
     "employees' facial expressions from webcam feeds and their typing patterns to infer "
@@ -202,7 +210,7 @@ def render(
     add("## Outcome")
     add("")
     add(f"- risk category: **{a2.get('risk_category')}**")
-    add(f"- prohibited: **{a2.get('prohibited')}**")
+    add(f"- prohibited: **{_prohibited_text(a2.get('prohibited'))}**")
     add(f"- envelope status: `{round_2.get('status')}`, confidence {round_2.get('confidence')}")
     add(f"- engineering requirements returned: **{returned}**")
     add("")

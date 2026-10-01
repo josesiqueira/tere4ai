@@ -5,6 +5,30 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### The classification says "unknown" when an Article 5 fact is missing (B36.1, DEC-18)
+- `classify_ai_system`'s `prohibited` field is now `true`, `false` or
+  `null`. `null` means unknown: no prohibition is proven and at least one
+  Article 5 path cannot be settled because a fact is missing. `false` now
+  means every Article 5 path is ruled out. Before, the field was `false`
+  on every answer that was not prohibited. Contract change: a client that
+  shows the field must show `null` as unknown, never as false.
+- Each Article 5 point is resolved on its own. An absent flag is no longer
+  reported as missing when another known fact already rules its point out:
+  significant harm known false for points (a) and (b), the detrimental
+  treatment known false for (c), the medical or safety exception known true
+  for (f), and for (h) no law-enforcement use or the strict-necessity
+  carve-out. The status lowering and the uncertain exit read the same
+  resolution, so some answers move from uncertain to the exit their other
+  facts give.
+- `real_time_remote_biometric_public` is reported as an unknown Annex III
+  fact when its Article 5 path is ruled out, so it still blocks a confident
+  minimal answer.
+- The rejected-input answer gives `prohibited: null`.
+- `get_applicable_requirements` explains an uncertain classification by
+  its cause: an unknown Article 5 fact, or (with every Article 5 path ruled
+  out) an unknown high-risk fact.
+- "uncertain" is an assessment state, not a legal risk level.
+
 ### The backlog answer names its two prompts (B99.7a, spec F D-F35 (1))
 - `generate_control_backlog`'s answer gains six fields beside each role's
   model, effort and temperature: `generator_prompt` (`generate_backlog`),

@@ -11,9 +11,14 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.mcp_server import classify as classify_module
 from tere4ai.mcp_server import requirements as requirements_module
 from tere4ai.mcp_server.classify import classify_ai_system
-from tere4ai.mcp_server.requirements import get_applicable_requirements
+from tere4ai.mcp_server.requirements import (
+    UNCERTAIN_HIGH_RISK_MESSAGE,
+    UNCERTAIN_MESSAGE,
+    get_applicable_requirements,
+)
 from tere4ai.mcp_server.tools import (
     NON_LEGAL_ADVICE_NOTICE,
     STATUS_VOCABULARY,
@@ -447,3 +452,35 @@ def test_no_served_requirement_drops_its_norms_exceptions(dump, norms_payload):
         "census vacuous: no served high-risk requirement has exceptions; "
         "expected some (37 accepted norms carry them)"
     )
+
+
+def test_uncertain_message_follows_the_classification_state(dump, norms_payload):
+    """Research case 3 followed by its requirements call: Article 5 is ruled
+    out and only an Annex III fact is missing, so the message must not say
+    prohibition-relevant facts are unknown (Codex brief finding 8)."""
+    all_false = {
+        **dict.fromkeys(classify_module.PROHIBITION_RELEVANT_FLAGS, False),
+        **dict.fromkeys(classify_module.ANNEX_III_RELEVANT_FLAGS, False),
+        "interacts_with_natural_persons": False,
+        "generates_synthetic_content": False,
+        "medical_or_safety_component": False,
+        "annex_i_covered_product": False,
+    }
+    del all_false["employment_decisions"]
+    classification = classify_ai_system({"description": "A hiring helper.", "flags": all_false}, dump)
+    assert classification["answer"]["risk_category"] == "uncertain"
+    assert classification["answer"]["prohibited"] is False
+    envelope = get_applicable_requirements(classification, norms_payload, dump)
+    assert envelope["answer"]["message"] == UNCERTAIN_HIGH_RISK_MESSAGE
+
+
+def test_uncertain_message_names_article_5_when_prohibited_is_unknown(dump, norms_payload):
+    classification = classify_ai_system({"description": "Nothing settled."}, dump)
+    assert classification["answer"]["prohibited"] is None
+    envelope = get_applicable_requirements(classification, norms_payload, dump)
+    assert envelope["answer"]["message"] == UNCERTAIN_MESSAGE
+
+
+def test_bare_uncertain_answer_keeps_the_conservative_message(dump, norms_payload):
+    envelope = get_applicable_requirements({"risk_category": "uncertain"}, norms_payload, dump)
+    assert envelope["answer"]["message"] == UNCERTAIN_MESSAGE

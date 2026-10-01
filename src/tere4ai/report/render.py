@@ -785,7 +785,11 @@ def _render_classification(
         "<div><dt>risk category</dt><dd>"
         + emit_field("risk_category", ans.get("risk_category"))
         + "</dd></div><div><dt>prohibited</dt><dd>"
-        + emit_field("prohibited", ans.get("prohibited"))
+        + emit_field(
+            "prohibited",
+            # DEC-18: null is unknown, never printed as "null".
+            "unknown" if ans.get("prohibited") is None else ans.get("prohibited"),
+        )
         + "</dd></div><div><dt>Annex III category</dt><dd>"
         + emit_field("annex_iii_category", ans.get("annex_iii_category"))
         + "</dd></div><div><dt>Article 6(3) exception candidate</dt><dd>"

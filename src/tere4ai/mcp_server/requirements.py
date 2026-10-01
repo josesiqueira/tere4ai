@@ -10,7 +10,7 @@ requirements, only the prohibition citation. No model is involved anywhere
 in this module; selection and grouping are structural rules over already
 judged data.
 
-@implements: DEC-08, DEC-03 (partial: runtime consumption)
+@implements: DEC-08, DEC-03 (partial: runtime consumption), DEC-18
 @grounded_by: REF-17, REF-16
 """
 
@@ -57,10 +57,22 @@ MINIMAL_MESSAGE = (
     "from the v2 high-risk core apply. General provisions such as AI literacy "
     "(Article 4) are outside this deterministic check."
 )
+# DEC-18: the message follows why the classification is uncertain, read from
+# the classifier's prohibited field: null means an Article 5 fact is
+# missing; false means every Article 5 path is ruled out and the missing
+# facts decide whether the system is high-risk. A bare answer without the
+# field gets the Article 5 message, the conservative one.
 UNCERTAIN_MESSAGE = (
-    "The classification is uncertain because prohibition-relevant facts are "
-    "unknown. No requirements are returned until the missing facts are "
-    "provided or a human reviewer settles the classification."
+    "The classification is uncertain: facts that decide whether an Article 5 "
+    "prohibition applies are unknown (see the missing facts). No requirements "
+    "are returned until the missing facts are provided or a human reviewer "
+    "settles the classification."
+)
+UNCERTAIN_HIGH_RISK_MESSAGE = (
+    "The classification is uncertain: every Article 5 prohibition is ruled "
+    "out, but facts that decide whether the system is high-risk are unknown "
+    "(see the missing facts). No requirements are returned until the missing "
+    "facts are provided or a human reviewer settles the classification."
 )
 
 
@@ -261,7 +273,11 @@ def get_applicable_requirements(
                 "risk_category": "uncertain",
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
-                "message": UNCERTAIN_MESSAGE,
+                "message": (
+                    UNCERTAIN_HIGH_RISK_MESSAGE
+                    if answer_in.get("prohibited") is False
+                    else UNCERTAIN_MESSAGE
+                ),
             },
             status="requires_human_review",
             graph_version=graph_version,
