@@ -10,7 +10,8 @@ requirements, only the prohibition citation. No model is involved anywhere
 in this module; selection and grouping are structural rules over already
 judged data.
 
-@implements: DEC-08, DEC-03 (partial: runtime consumption), DEC-18
+@implements: DEC-08, DEC-03 (partial: runtime consumption)
+@implements: DEC-18
 @grounded_by: REF-17, REF-16
 """
 

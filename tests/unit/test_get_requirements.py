@@ -484,3 +484,21 @@ def test_uncertain_message_names_article_5_when_prohibited_is_unknown(dump, norm
 def test_bare_uncertain_answer_keeps_the_conservative_message(dump, norms_payload):
     envelope = get_applicable_requirements({"risk_category": "uncertain"}, norms_payload, dump)
     assert envelope["answer"]["message"] == UNCERTAIN_MESSAGE
+
+
+def test_high_risk_keeps_the_whole_article_50_group_without_a_trigger(dump, norms_payload):
+    """DEC-18: get_applicable_requirements is not gated on the answer's
+    transparency_duties: the triggers do not cover 50(4) or 50(5), so a
+    high-risk system is served the whole Article 50 group (the conservative
+    side) even when no trigger is known true."""
+    flags = {
+        **dict.fromkeys(classify_module.PROHIBITION_RELEVANT_FLAGS, False),
+        **dict.fromkeys(classify_module.ANNEX_III_RELEVANT_FLAGS, False),
+        **dict.fromkeys(classify_module.ARTICLE_50_TRIGGER_FLAGS, False),
+        "employment_decisions": True,
+    }
+    classification = classify_ai_system({"description": "CV screening for hiring.", "flags": flags}, dump)
+    assert classification["answer"]["risk_category"] == "high_risk"
+    assert classification["answer"]["transparency_duties"] == []
+    envelope = get_applicable_requirements(classification, norms_payload, dump)
+    assert "article-50" in envelope["answer"]["requirements_by_article"]

@@ -174,6 +174,16 @@ def test_classify_triage_scenario_is_high_risk_with_annex_iii_citation(client):
     assert facade.PAID_HEADER not in response.headers
 
 
+def test_classify_high_risk_answer_carries_its_article_50_duty_through_the_facade(client):
+    """DEC-18 (B36.2), research case 5 over HTTP: the list survives the
+    serialization boundary beside high_risk."""
+    features = {**TRIAGE_FEATURES, "flags": {**TRIAGE_FEATURES["flags"], "interacts_with_natural_persons": True}}
+    envelope = client.post("/api/classify", json={"features": features}).json()
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["answer"]["transparency_duties"] == ["eu-ai-act:article-50:paragraph-1"]
+    assert "eu-ai-act:article-50:paragraph-1" in envelope["source_nodes"]
+
+
 def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     # Schema-invalid input is refused, not assessed, so it surfaces
     # rejected_as_unsupported. not_applicable is reserved for a well-formed
@@ -189,6 +199,8 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     # DEC-18: no rule ran, so prohibited is unknown, and null survives the
     # serialization boundary (never coerced to false).
     assert envelope["answer"]["prohibited"] is None
+    # DEC-18 (B36.2): the list is present on the rejected answer, empty.
+    assert envelope["answer"]["transparency_duties"] == []
     assert any("schema validation" in fact for fact in envelope["missing_facts"])
 
     # No regression: a well-formed, genuinely out-of-scope system still returns

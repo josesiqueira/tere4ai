@@ -17,7 +17,8 @@ The rule logic follows the FLI compliance checker's decision structure as a
 classification-logic source and baseline (REF-30, architecture.md Section
 8); the text tested against is the frozen Regulation source (REF-01).
 
-@implements: DEC-08, DEC-10, DEC-18 (partial: runtime classification)
+@implements: DEC-08, DEC-10 (partial: runtime classification)
+@implements: DEC-18
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -431,6 +432,22 @@ ARTICLE_50_RULES: tuple[tuple[str, str, str], ...] = (
     ),
 )
 
+# DEC-18: each Article 50 trigger fact once, in rule order. An absent one is
+# named in missing_facts on the high-risk and minimal exits, information
+# only (Jose, 2026-10-01: "Keep minimal, name the fact").
+ARTICLE_50_TRIGGER_FLAGS: tuple[str, ...] = tuple(
+    dict.fromkeys(flag for flag, _node_id, _note in ARTICLE_50_RULES)
+)
+
+# DEC-18: a listed paragraph is triggered by a known fact, never proven.
+ARTICLE_50_TRIGGERED_NOTE = (
+    "eu-ai-act:article-50: the paragraphs in transparency_duties are "
+    "triggered by a known fact, not proven to apply: their own exceptions "
+    "(an interaction obvious to the person, assistive editing, uses "
+    "authorised by law to detect or prosecute criminal offences) and "
+    "paragraphs 4 and 5 are not decided by the rules"
+)
+
 RISK_CATEGORIES = (
     "prohibited",
     "high_risk",
@@ -590,7 +607,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     Consumes structured system features (system_features.schema.json) and the
     offline Layer 0+1 dump. Returns the mandatory response envelope with
     answer fields: risk_category, prohibited, annex_iii_category,
-    article_6_3_exception_candidate, rationale. Schema-invalid input returns
+    article_6_3_exception_candidate, transparency_duties (DEC-18: the Article
+    50 paragraphs triggered by a known fact), rationale. Schema-invalid input returns
     status rejected_as_unsupported (never an exception) with the validation
     errors in missing_facts: the input was refused, not assessed, so it must
     not borrow not_applicable, which is a substantive in-scope verdict ("this
@@ -610,6 +628,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "prohibited": None,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
+                "transparency_duties": [],
                 "rationale": ["input rejected: features do not conform to system_features.schema.json"],
             },
             status="rejected_as_unsupported",
@@ -748,6 +767,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "prohibited": True,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
+                # DEC-18: a prohibited system may not be placed on the market,
+                # so no Article 50 duty is listed.
+                "transparency_duties": [],
                 "rationale": rationale,
             },
             status="potentially_applicable",
@@ -769,6 +791,43 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # unknown while any path is unresolved and false only when every path is
     # ruled out. The status lowering below reads the same list.
     prohibited_state: bool | None = None if unknown_prohibition_flags else False
+
+    # DEC-18: the Article 50 duties are read once, before the exits, so a
+    # high-risk answer keeps them: under Article 50(6) the transparency
+    # obligations "shall not affect the requirements and obligations set out
+    # in Chapter III". The list holds the paragraphs whose trigger fact is
+    # true; empty means none is triggered by a known fact, never ruled out.
+    article_50_hits = [
+        (flag, node_id, note)
+        for flag, node_id, note in ARTICLE_50_RULES
+        if flags.get(flag) is True
+    ]
+    transparency_duties = list(dict.fromkeys(node_id for _f, node_id, _n in article_50_hits))
+
+    def _carry_transparency_duties() -> None:
+        # On an exit other than the Article 50 rule. Deliberately not the
+        # "rule X: flag Y matches Z" grammar, which
+        # scripts/elicitation_error_report.py parses as the classification
+        # trigger: here Article 50 does not decide the category.
+        for flag, node_id, note in article_50_hits:
+            citations.cite(node_id)
+            rationale.append(
+                f"Article 50 duty triggered: flag {flag} is true for {node_id} "
+                f"({note}); listed in transparency_duties beside the "
+                "classification (Article 50(6))"
+            )
+        if transparency_duties:
+            legal_status_notes.append(ARTICLE_50_TRIGGERED_NOTE)
+
+    def _name_absent_article_50_facts() -> None:
+        # Information only: the status and the category do not change.
+        for flag, node_id, _note in ARTICLE_50_RULES:
+            if flag not in flags:
+                missing_facts.append(
+                    f"flags.{flag} is unknown (Article 50 transparency trigger, "
+                    f"{node_id}); absence is not treated as false, so that "
+                    "duty may be missing from transparency_duties"
+                )
 
     # Rule 2a: Article 6(1) embedded-product route. High-risk when the
     # system is a safety component of (or is itself) a product covered by
@@ -799,6 +858,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "graph models the base act as enacted, so re-check this route "
             "against docs/omnibus_amendments.md"
         )
+        _carry_transparency_duties()
+        _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"
         confidence = 1.0
@@ -815,6 +876,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
+                "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
             status=status,
@@ -905,6 +967,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                     "cancels the derogation (Article 6(3) third subparagraph)"
                 )
 
+        _carry_transparency_duties()
+        _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"
         confidence = 1.0
@@ -926,6 +990,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "prohibited": prohibited_state,
                 "annex_iii_category": annex_match["node"],
                 "article_6_3_exception_candidate": exception_candidate,
+                "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
             status=status,
@@ -955,6 +1020,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "conformity assessment (Article 6(1)) cannot be decided "
             "deterministically from the provided facts"
         )
+        # DEC-18 (Codex spec review finding 5): this exit returns before the
+        # Article 50 rule, so a known trigger is listed here too.
+        _carry_transparency_duties()
         missing_facts.extend(citations.unresolved)
         return make_envelope(
             answer={
@@ -962,6 +1030,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
+                "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
             status="requires_human_review",
@@ -973,16 +1042,12 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             missing_facts=missing_facts,
         )
 
-    # Rule 4: Article 50 transparency obligations.
-    transparency_hits = [
-        (flag, node_id, note)
-        for flag, node_id, note in ARTICLE_50_RULES
-        if flags.get(flag) is True
-    ]
-    if transparency_hits:
-        for flag, node_id, note in transparency_hits:
+    # Rule 4: Article 50 transparency obligations (the hits read above).
+    if article_50_hits:
+        for flag, node_id, note in article_50_hits:
             citations.cite(node_id)
             rationale.append(f"rule transparency: flag {flag} matches {node_id} ({note})")
+        legal_status_notes.append(ARTICLE_50_TRIGGERED_NOTE)
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"
         confidence = 1.0
@@ -1010,6 +1075,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
+                "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
             status=status,
@@ -1045,6 +1111,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
+                # Empty here by construction: a true trigger would have
+                # returned at the Article 50 rule above.
+                "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
             status="requires_human_review",
@@ -1059,6 +1128,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         "high-risk flag known false, no Annex III category matched, no "
         "Article 50 transparency flag set"
     )
+    # DEC-18 (Jose, 2026-10-01: "Keep minimal, name the fact"): an absent
+    # Article 50 trigger is named, the answer stays minimal_or_none.
+    _name_absent_article_50_facts()
     missing_facts.extend(citations.unresolved)
     return make_envelope(
         answer={
@@ -1066,6 +1138,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "prohibited": prohibited_state,
             "annex_iii_category": None,
             "article_6_3_exception_candidate": False,
+            "transparency_duties": transparency_duties,
             "rationale": rationale,
         },
         status="not_applicable",

@@ -876,3 +876,143 @@ def test_article_50_rule_nodes_are_paragraphs_in_the_dump(dump):
         assert nodes[node_id]["type"] == "Paragraph", flag
     assert "biometric categorisation system" in nodes[ARTICLE_50_3]["text"]
     assert "eu-ai-act:article-50" in nodes
+
+
+# DEC-18, B36.2: transparency_duties on every answer ------------------------
+
+ARTICLE_50_1 = "eu-ai-act:article-50:paragraph-1"
+ARTICLE_50_2 = "eu-ai-act:article-50:paragraph-2"
+
+
+def test_case5_high_risk_plus_article_50_lists_the_duty(dump, node_ids):
+    """Research case 5: a high-risk system that also interacts with people
+    keeps its Article 50(1) duty (Article 50(6)); the category stays
+    high_risk and the duty is cited, worded as triggered."""
+    envelope = classify_ai_system(
+        {"description": "CV screening chatbot that interviews candidates.",
+         "flags": all_false_flags(employment_decisions=True, interacts_with_natural_persons=True)},
+        dump,
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["prohibited"] is False
+    assert answer["transparency_duties"] == [ARTICLE_50_1]
+    assert envelope["status"] == "potentially_applicable"
+    assert ARTICLE_50_1 in envelope["source_nodes"]
+    assert any(
+        line.startswith("Article 50 duty triggered: flag interacts_with_natural_persons")
+        for line in answer["rationale"]
+    )
+    # Not the classification-trigger grammar the elicitation error report parses.
+    assert not any(line.startswith("rule transparency") for line in answer["rationale"])
+    assert classify_module.ARTICLE_50_TRIGGERED_NOTE in envelope["legal_status_notes"]
+    assert envelope["missing_facts"] == []
+
+
+def test_transparency_duties_is_a_list_on_every_exit(dump):
+    """DEC-18: the field is present on every exit; it lists the triggered
+    paragraphs on every exit except prohibited and rejected input."""
+    cases = {
+        "rejected": ({"description": "short"}, None, []),
+        "prohibited": (
+            {"description": "Scrapes faces and chats with users.",
+             "flags": all_false_flags(facial_image_scraping=True, interacts_with_natural_persons=True)},
+            "prohibited", [],
+        ),
+        "annex i high-risk": (
+            {"description": "Safety component that writes synthetic reports.",
+             "flags": all_false_flags(annex_i_covered_product=True,
+                                      third_party_conformity_assessment_required=True,
+                                      generates_synthetic_content=True)},
+            "high_risk", [ARTICLE_50_2],
+        ),
+        "safety exit": (
+            {"description": "Product component with a chat interface.",
+             "flags": _without(all_false_flags(annex_i_covered_product=True,
+                                               interacts_with_natural_persons=True),
+                               "third_party_conformity_assessment_required")},
+            "uncertain", [ARTICLE_50_1],
+        ),
+        "article 50": (
+            {"description": "Customer service chatbot for a webshop.",
+             "flags": all_false_flags(interacts_with_natural_persons=True)},
+            "transparency_only", [ARTICLE_50_1],
+        ),
+        "second uncertain": (
+            {"description": "A hiring helper with one fact unknown.",
+             "flags": _without(all_false_flags(), "employment_decisions")},
+            "uncertain", [],
+        ),
+        "minimal": (
+            {"description": "Movie recommendation engine for streaming.",
+             "flags": all_false_flags()},
+            "minimal_or_none", [],
+        ),
+    }
+    for name, (features, category, duties) in cases.items():
+        answer = classify_ai_system(features, dump)["answer"]
+        assert answer["risk_category"] == category, name
+        assert answer["transparency_duties"] == duties, name
+
+
+def test_transparency_only_is_never_returned_with_high_risk(dump):
+    """transparency_only stays reserved for Article 50 without high-risk:
+    every Annex III fact, each with every Article 50 trigger true."""
+    # emotion_recognition is both a 50(3) trigger and an Annex III point 1
+    # fact, so it is left out of the triggers: otherwise every iteration
+    # would be high-risk through point 1 whatever flag the loop sets.
+    triggers = dict.fromkeys(
+        (f for f in classify_module.ARTICLE_50_TRIGGER_FLAGS if f != "emotion_recognition"), True
+    )
+    for flag in classify_module.ANNEX_III_RELEVANT_FLAGS:
+        if flag in classify_module.PROHIBITION_RELEVANT_FLAGS:
+            continue
+        envelope = classify_ai_system(
+            {"description": "A described AI system.", "flags": all_false_flags(**{**triggers, flag: True})},
+            dump,
+        )
+        answer = envelope["answer"]
+        assert answer["risk_category"] == "high_risk", flag
+        assert answer["annex_iii_category"] is not None, flag
+        assert ARTICLE_50_1 in answer["transparency_duties"], flag
+        assert ARTICLE_50_2 in answer["transparency_duties"], flag
+
+
+def test_two_triggers_of_one_paragraph_list_it_once(dump):
+    envelope = classify_ai_system(
+        {"description": "Infers moods and sorts visitors by camera images.",
+         "flags": all_false_flags(emotion_recognition=True, biometric_categorisation_system=True)},
+        dump,
+    )
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["transparency_duties"] == [ARTICLE_50_3]
+    assert envelope["source_nodes"].count(ARTICLE_50_3) == 1
+
+
+def test_absent_article_50_fact_is_named_on_minimal_and_minimal_stays(dump):
+    """Jose, 2026-10-01: "Keep minimal, name the fact"."""
+    flags = _without(all_false_flags(), "interacts_with_natural_persons")
+    envelope = classify_ai_system({"description": "Movie recommendation engine.", "flags": flags}, dump)
+    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["status"] == "not_applicable"
+    assert envelope["confidence"] == 1.0
+    assert envelope["answer"]["transparency_duties"] == []
+    assert envelope["missing_facts"] == [
+        f"flags.interacts_with_natural_persons is unknown (Article 50 transparency trigger, "
+        f"{ARTICLE_50_1}); absence is not treated as false, so that duty may be missing "
+        "from transparency_duties"
+    ]
+
+
+def test_absent_article_50_fact_is_named_on_high_risk_without_lowering_it(dump):
+    flags = _without(all_false_flags(employment_decisions=True), "biometric_categorisation_system")
+    envelope = classify_ai_system({"description": "CV screening for hiring.", "flags": flags}, dump)
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["status"] == "potentially_applicable"
+    assert envelope["confidence"] == 1.0
+    assert any(
+        "flags.biometric_categorisation_system is unknown (Article 50 transparency trigger" in f
+        for f in envelope["missing_facts"]
+    )
