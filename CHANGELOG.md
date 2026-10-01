@@ -27,6 +27,8 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - `get_applicable_requirements` explains an uncertain classification by
   its cause: an unknown Article 5 fact, or (with every Article 5 path ruled
   out) an unknown high-risk fact.
+- The HTML report, `scripts/make_compliance.py`, `scripts/make_prohibition.py`
+  and the demo `/assess` page show `unknown` for a null `prohibited`.
 - "uncertain" is an assessment state, not a legal risk level.
 
 ### The backlog answer names its two prompts (B99.7a, spec F D-F35 (1))

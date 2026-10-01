@@ -1651,7 +1651,7 @@ export default function AssessPage() {
               <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                 <span>Prohibited:</span>
                 <span className="font-mono text-foreground">
-                  {classification.answer.prohibited === null
+                  {classification.answer.prohibited == null
                     ? "unknown"
                     : String(classification.answer.prohibited)}
                 </span>

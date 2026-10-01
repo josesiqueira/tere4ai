@@ -1,6 +1,6 @@
 """HTML rendering of recorded MCP envelopes as one self-contained report.
 
-@implements: DEC-08, DEC-15
+@implements: DEC-08, DEC-15, DEC-18
 @grounded_by: ADD-14, ADD-15
 
 Pure function of the ingested exchanges: no clock, no randomness, no model,
