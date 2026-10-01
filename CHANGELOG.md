@@ -5,6 +5,18 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### The elicitor quotes the Act from the graph and the description for every fact, and is an MCP tool (B10, DEC-13, DEC-18)
+- New module `tere4ai.elicit_features.provisions`: a prompt template names
+  a provision as `{{provision:<node id>}}`, and rendering prints it as
+  `[<node id>] <text>`, the node's own `text` in the served build's dump,
+  after the node's span has been verified against its snapshot checksum
+  (the raw Formex XML or EUR-Lex HTML slice is never printed). An unknown
+  node, a node without text, a node without a span, or a span that fails
+  verification raises `ProvisionUnresolved`, naming the node, the build id
+  and the reason. `fact_provisions` reads the fact-to-provision table from
+  the template's "## Facts and their provisions" section. Nothing calls it
+  yet.
+
 ### Every operator obligation and every generated control carries its requirement type (B65, B4, DEC-19)
 - Contract change: norms.schema.json gains `requirement_type` (functional,
   quality or process, three of the examples of ISO/IEC/IEEE 29148:2018
