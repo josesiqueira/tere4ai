@@ -26,9 +26,10 @@ by having a plan. Every safeguard is behavioral:
   There is no max_norms parameter and no truncation path; a call the
   generator or judge cannot serve fails loudly (a degraded envelope or an
   error), never with a shorter input.
-- The answer names the generator's model id and effort and both roles'
-  usage for this call (spec F D-F26 (g)), degraded answers after the first
-  request included, so the cost of a generation is recorded wherever the
+- The answer names both roles' model ids, efforts, temperatures and usage
+  for this call (spec F D-F26 (g)) and both roles' prompts with version and
+  hash (spec F D-F35 (1)), degraded answers after the first request
+  included, so the cost of a generation is recorded wherever the
   envelope is stored. A generator or judge request that raises after its
   retries answers degraded with the spend (a judge that sent a request as
   judge_verdict judge_error), never an error that loses the cost (B97
@@ -106,7 +107,8 @@ def _degraded_envelope(
     judge_verdict: str = JUDGE_NOT_RUN,
 ) -> dict[str, Any]:
     """requires_human_review envelope for paths where no judged backlog exists.
-    spend: both roles' ids, efforts and usage, once a request was sent.
+    spend: both roles' ids, efforts, temperatures, prompts (name, version,
+    hash) and usage, once a request was sent.
     judge_verdict: JUDGE_NOT_RUN unless the judge sent a request and raised (JUDGE_ERROR)."""
     return make_envelope(
         answer={"tool": TOOL_NAME, "refused": True, "message": reason, **(spend or {})},

@@ -463,6 +463,9 @@ def test_the_refusal_before_any_request_carries_no_spend(tmp_path):
     judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
     envelope = generate_control_backlog([rejected], "ctx", generator, judge, log_path=tmp_path / "l.jsonl")
     assert "usage" not in envelope["answer"] and "generator_model" not in envelope["answer"]
+    # spec F D-F35 (1): nor the prompts, which travel with the spend
+    assert not set(envelope["answer"]) & {"generator_prompt", "generator_prompt_version", "generator_prompt_sha256",
+                                          "judge_prompt", "judge_prompt_version", "judge_prompt_sha256"}
 
 
 def test_a_judge_failure_after_the_generator_answered_returns_a_degraded_answer_with_the_spend(tmp_path):
@@ -695,9 +698,38 @@ def test_the_prompt_version_reaches_both_roles(tmp_path, monkeypatch):
         [NORM_A, NORM_B, NORM_C], "ctx", generator, judge, prompt_version="v2",
         graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
     )
+    v2_hashes = {kind: pipeline.prompt_sha256((prompts / kind / "v2.md").read_text(encoding="utf-8"))
+                 for kind in ("generate_backlog", "runtime_grounding")}
     answer = envelope["answer"]
     assert answer["generator_prompt_version"] == answer["judge_prompt_version"] == "v2"
-    assert answer["generator_prompt_sha256"] == pipeline.prompt_sha256(
-        (prompts / "generate_backlog" / "v2.md").read_text(encoding="utf-8"))
-    assert answer["judge_prompt_sha256"] == pipeline.prompt_sha256(
-        (prompts / "runtime_grounding" / "v2.md").read_text(encoding="utf-8"))
+    assert answer["generator_prompt_sha256"] == v2_hashes["generate_backlog"]
+    assert answer["judge_prompt_sha256"] == v2_hashes["runtime_grounding"]
+    # a degraded answer, which takes the judge's hash from the read before the
+    # generator call, names v2 too
+    degraded = generate_control_backlog(
+        [NORM_A, NORM_B, NORM_C], "ctx", CountingClient({KEY: "not json"}, model="fake-generator"),
+        CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge"), prompt_version="v2",
+        graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )["answer"]
+    assert degraded["refused"] is True and degraded["judge_prompt_version"] == "v2"
+    assert degraded["judge_prompt_sha256"] == v2_hashes["runtime_grounding"]
+
+
+def test_a_judged_answer_takes_the_judge_hash_from_its_judge_run(tmp_path, monkeypatch):
+    """The read before the generator call fails, the judge's own read succeeds:
+    the judged answer carries the hash the judge run records, never null."""
+    import tere4ai.judge.runtime_grounding as rg
+
+    real_load = rg.load_prompt
+    reads = []
+
+    def first_read_fails(kind, version):
+        if kind == "runtime_grounding":
+            reads.append(version)
+            if len(reads) == 1:
+                raise FileNotFoundError("prompts/runtime_grounding/v1.md")
+        return real_load(kind, version)
+
+    monkeypatch.setattr(rg, "load_prompt", first_read_fails)
+    envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    assert len(reads) == 2 and envelope["answer"]["judge_prompt_sha256"] == _prompt_fields()["judge_prompt_sha256"]
