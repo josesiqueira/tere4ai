@@ -704,7 +704,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   fact"). get_applicable_requirements keeps serving the whole Article 50
   group to every high-risk system: the triggers do not cover every
   paragraph (50(4), 50(5)), so the requirements stay on the conservative
-  side and the answer's list is the proven side.
+  side and the answer's list is the side triggered by known facts.
   verify: src/tere4ai/mcp_server/classify.py (per-path Article 5
   resolution, transparency_duties); tests/unit/test_classify.py (the six
   cases of the brief and the ruled-out-by-exculpating-fact cases);
