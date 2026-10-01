@@ -365,7 +365,7 @@ def build_sheet(
             inference = None
             if (
                 decision["judge_kind"] == "extraction"
-                and run.get("prompt_version") not in _PROMPTS_WITHOUT_INFERENCE_TEXT
+                and (run.get("prompt_version") or "v1") not in _PROMPTS_WITHOUT_INFERENCE_TEXT
             ):
                 inference = _inference_source_block(
                     layer1_payload, layer1_index, {"node_id": content.get("source_node_id")}, content

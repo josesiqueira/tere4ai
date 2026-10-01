@@ -301,6 +301,19 @@ def test_a_v1_judge_run_gets_no_inference_text_on_the_sheet(tmp_path):
     assert "Actor-inference source" not in judge_input
 
 
+def test_a_judge_run_with_no_prompt_version_is_treated_as_v1(tmp_path):
+    """A run recorded before prompt versions existed read no inference text."""
+    generator = FakeClient({B4_UNIT: B4_GENERATOR}, model="fake-generator")
+    judge = FakeClient({B4_UNIT: B4_JUDGE}, model="fake-judge")
+    result = extract_norms(B4_DUMP, [B4_UNIT], generator, judge, prompt_version="v2",
+                           log_path=tmp_path / "log-none.jsonl")
+    for run in result["judge_runs"]:
+        run.pop("prompt_version", None)
+    payload = {"build": {"build_id": "b-test"}, **result}
+    sheet = sampling.build_sheet(payload, {"assertions": [], "judge_runs": []}, B4_DUMP, total=1, minimum=1)
+    assert "actor_inference_source" not in sheet["items"][0]
+
+
 # Determinism and strata on the real artifacts ------------------------------
 
 

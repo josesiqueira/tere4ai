@@ -17,6 +17,7 @@ from jsonschema import Draft202012Validator
 from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.extract_norms.pipeline import (
     DEFAULT_PROMPT_VERSION,
+    _inference_source_block,
     expand_source_units,
     extract_norms,
     load_prompt,
@@ -519,3 +520,24 @@ def test_an_inferred_actor_without_a_source_id_is_named_as_such(tmp_path):
 def test_an_inference_source_missing_from_the_dump_is_named_not_hidden(tmp_path):
     _, judge, _ = run_v2({PARA_ID: GENERATOR_ANSWER}, {PARA_ID: JUDGE_ACCEPT}, tmp_path)
     assert "Actor-inference source: eu-ai-act:article-16, not present in the graph dump (no text)." in judge.calls[0][1]
+
+
+def test_an_article_source_lists_the_topmost_units_with_text_once():
+    """Article 16 shape: paragraph 1 already contains points (a) and (b), so
+    the points are not listed a second time."""
+    dump = {"nodes": [
+        {"id": "eu-ai-act:article-16", "type": "Article"},
+        {"id": "eu-ai-act:article-16:paragraph-1", "type": "Paragraph",
+         "text": "Providers shall: (a) ensure compliance; (b) indicate their name."},
+        {"id": "eu-ai-act:article-16:paragraph-1:point-a", "type": "Point", "text": "(a) ensure compliance;"},
+        {"id": "eu-ai-act:article-16:paragraph-1:point-b", "type": "Point", "text": "(b) indicate their name."},
+        {"id": "eu-ai-act:article-16:paragraph-2", "type": "Paragraph", "text": "On request, providers demonstrate it."},
+    ]}
+    nodes = {n["id"]: n for n in dump["nodes"]}
+    candidate = {"actor_inferred": "provider", "actor_inference_source_node_id": "eu-ai-act:article-16"}
+    block = _inference_source_block(dump, nodes, {"node_id": "x"}, candidate)
+    assert block.count("ensure compliance") == 1
+    assert block.count("indicate their name") == 1
+    assert "[eu-ai-act:article-16:paragraph-1]" in block
+    assert "[eu-ai-act:article-16:paragraph-2]" in block
+    assert "point-a" not in block

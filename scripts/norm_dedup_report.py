@@ -46,8 +46,8 @@ def render(pairs, summary, norms_path: Path) -> str:
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for p in pairs:
-        # DEC-19: each norm's type, "none" where it carries none
-        types = " / ".join(t or "none" for t in p.get("requirement_types") or [None, None])
+        # DEC-19: the type label of each norm that carries the key
+        types = " / ".join(p.get("requirement_types") or [])
         lines.append(
             "| {similarity} | {band} | {norm_a} | {norm_b} | {article} | "
             "{actor} | {deontic_type} | {t} | {v} |".format(t=types, v=", ".join(p["verdicts"]), **p)

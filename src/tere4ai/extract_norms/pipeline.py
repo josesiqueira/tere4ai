@@ -243,13 +243,17 @@ def _inference_source_block(
     if node.get("text"):
         texts = [(source_id, node["text"])]
     else:
-        texts = [
-            (n["id"], n["text"])
-            for n in dump["nodes"]
-            if n["id"].startswith(source_id + ":")
-            and n.get("type") in SOURCE_UNIT_TYPES
-            and n.get("text")
-        ]
+        # Only the topmost units that have text: a paragraph's text already
+        # contains its points, so the points are not listed a second time.
+        texts: list[tuple[str, str]] = []
+        for n in dump["nodes"]:
+            if (
+                n["id"].startswith(source_id + ":")
+                and n.get("type") in SOURCE_UNIT_TYPES
+                and n.get("text")
+                and not any(n["id"].startswith(listed + ":") for listed, _ in texts)
+            ):
+                texts.append((n["id"], n["text"]))
     if not texts:
         return f"Actor-inference source: {source_id} ({node.get('type')}), no text in the graph dump."
     body = "\n".join(f"[{node_id}] {text}" for node_id, text in texts)

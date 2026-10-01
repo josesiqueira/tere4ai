@@ -118,6 +118,21 @@ class TestRequirementTypes:
         assert (pairs[0]["norm_a"], pairs[0]["norm_b"]) == ("n1", "n2")
         assert pairs[0]["requirement_types"] == ["process", "functional"]
 
-    def test_a_norm_without_a_type_shows_none(self):
+    def test_a_norm_without_the_key_gets_no_entry(self):
         pairs = find_near_duplicates([_norm("n1", "keep", "the logs"), _norm("n2", "keep", "the logs")])
-        assert pairs[0]["requirement_types"] == [None, None]
+        assert "requirement_types" not in pairs[0]
+
+    def test_only_the_norm_that_carries_the_key_gets_an_entry(self):
+        n1 = {**_norm("n1", "keep", "the logs"), "requirement_type": None}
+        pairs = find_near_duplicates([n1, _norm("n2", "keep", "the logs")])
+        assert pairs[0]["requirement_types"] == ["no type"]
+
+    def test_a_null_type_outside_the_scope_reads_not_an_operator_requirement(self):
+        n1 = {**_norm("n1", "keep", "the logs", deontic="permission"), "requirement_type": None}
+        pairs = find_near_duplicates([n1, {**n1, "norm_id": "n2"}])
+        assert pairs[0]["requirement_types"] == ["not an operator requirement"] * 2
+
+    def test_a_null_type_inside_the_scope_reads_no_type(self):
+        n1 = {**_norm("n1", "keep", "the logs"), "requirement_type": None}
+        pairs = find_near_duplicates([n1, {**n1, "norm_id": "n2"}])
+        assert pairs[0]["requirement_types"] == ["no type"] * 2

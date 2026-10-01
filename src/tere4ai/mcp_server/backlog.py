@@ -274,7 +274,7 @@ def _record_type_views(raw: Any, items: list[dict[str, Any]]) -> list[dict[str, 
     """
     by_position: dict[int, Any] = {}
     for entry in raw if isinstance(raw, list) else []:
-        if isinstance(entry, dict) and isinstance(entry.get("item"), int):
+        if isinstance(entry, dict) and isinstance(entry.get("item"), int) and not isinstance(entry.get("item"), bool):
             by_position.setdefault(entry["item"], entry)
     views = []
     for position, item in enumerate(items, start=1):

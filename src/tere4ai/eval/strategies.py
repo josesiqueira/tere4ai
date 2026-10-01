@@ -527,8 +527,8 @@ def build_strategy(
     if base == "graph_full":
         if judge is None:
             raise ValueError("graph_full needs a judge client (runtime grounding judge)")
-        # "graph_full@v2" runs the same condition with the runtime grounding
-        # judge prompt at version v2: prompt A/B as a first-class ablation
+        # "graph_full@vB" runs the same condition with the runtime grounding
+        # judge prompt at version vB: prompt A/B as a first-class ablation
         # condition, recorded in the strategy's models dict (#39).
         return GraphStrategy(
             name, generator, dump, norms_payload, judged_only=True,

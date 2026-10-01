@@ -854,7 +854,10 @@ def test_the_judges_type_views_are_recorded_and_never_change_the_verdict(tmp_pat
     assert rejected["answer"]["judge_type_views"] == accepted["answer"]["judge_type_views"]
 
 
-@pytest.mark.parametrize("raw_views", [None, "agrees", [{"item": "1", "requirement_type_agrees": True}], []])
+@pytest.mark.parametrize(
+    "raw_views",
+    [None, "agrees", [{"item": "1", "requirement_type_agrees": True}], [{"item": True, "requirement_type_agrees": True}], []],
+)
 def test_unusable_type_views_record_null_and_keep_the_verdict(tmp_path, raw_views):
     reply = JUDGE_ACCEPT if raw_views is None else judge_with_views(JUDGE_ACCEPT, raw_views)
     envelope, _, _ = run_v2(gen_items(typed_item("Retain logs", [KEY], "functional")), reply, tmp_path)

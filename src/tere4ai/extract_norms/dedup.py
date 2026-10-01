@@ -19,6 +19,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from tere4ai.extract_norms.requirement_type import type_label
+
 # Pairs at or above HIGH are near-duplicates; between REVIEW and HIGH they
 # are flagged for human review only.
 HIGH_SIMILARITY = 0.8
@@ -76,6 +78,11 @@ def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     # finding regardless of input order.
                     id_a, id_b = sorted((a["norm_id"], b["norm_id"]))
                     by_id = {a["norm_id"]: a, b["norm_id"]: b}
+                    typed = [
+                        type_label(by_id[i])
+                        for i in (id_a, id_b)
+                        if "requirement_type" in by_id[i]
+                    ]
                     pairs.append(
                         {
                             "norm_a": id_a,
@@ -90,10 +97,7 @@ def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
                             # DEC-19: the type is not part of the block, so
                             # two near-duplicates typed differently are shown
                             # with both types for the human who merges them.
-                            "requirement_types": [
-                                by_id[id_a].get("requirement_type"),
-                                by_id[id_b].get("requirement_type"),
-                            ],
+                            **({"requirement_types": typed} if typed else {}),
                             "verdicts": sorted(
                                 {
                                     a.get("judge_verdict") or "none",
