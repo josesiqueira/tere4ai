@@ -643,31 +643,60 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   repository). Engineering MUST (no silent degradation, Section 13; the
   same missing_facts discipline as DEC-13 and DEC-14); the rules mirror
   the frozen source text (REF-01): Article 5(1) points (a) to (h) with
-  their statutory qualifiers, the Omnibus points (ba) and (bb), and
-  Article 50(6), under which the transparency obligations "shall not
-  affect the requirements and obligations set out in Chapter III".
+  their statutory qualifiers, and Article 50(6), under which the transparency obligations "shall not
+  affect the requirements and obligations set out in Chapter III"; the
+  Omnibus points (ba) and (bb) are grounded in the amending source
+  (REF-02, DEC-12), cited as today through its SourceDocument with the
+  applies-from date as data.
   Defense: false and unknown do not mean the same thing, and a reader of
   `prohibited: false` beside an unresolved Article 5 fact is told
   something the rules never established. Each Article 5 path is resolved
-  on its own: proven (its flag true and, where the point has an
-  exculpating fact, that fact known and not exculpating), ruled out (its
-  flag false, or its exculpating fact known and exculpating; point (h)
-  also when law_enforcement_use is false), or unresolved (a fact it needs
-  is missing). `prohibited` is true when a path is proven, null when
+  on its own: proven (its flag true, for point (h) both
+  real_time_remote_biometric_public and law_enforcement_use true, and,
+  where the point has an exculpating fact, that fact known and not
+  exculpating), ruled out (its flag false, for point (h) either fact
+  false; or its exculpating fact known and exculpating), or unresolved (a
+  fact it needs is missing). An exculpating fact rules out a path whose
+  flag is absent only where it is the statute's complete element: points
+  (a) and (b) (causes_significant_harm false), (c)
+  (social_score_detrimental_treatment false), (f)
+  (emotion_recognition_medical_or_safety true) and (h)
+  (rtrb_strictly_necessary_authorised true); the point (d) and (g)
+  exception facts do not, because their definitions were wider than the
+  Act's exceptions (Codex review of this decision, finding 2) and an
+  answer of "no" must not rest on them, and points (e), (ba) and (bb)
+  have no exculpating fact. `prohibited` is true when a path is proven, null when
   none is proven and any is unresolved, false only when every path is
   ruled out; the rejected-input answer, where no rule ran, gives null.
   The same resolution decides the existing status lowering and the
   uncertain exit, so an answer never says false beside "unknown
   prohibition-relevant flags". null rather than a string, so a client
-  that tests the field for truth reads unknown as not prohibited.
+  that tests the field for truth reads unknown as "not known to be
+  prohibited", never as "prohibited"; a reader still shows null as
+  unknown, never as no.
   "uncertain" is an assessment state (facts the rules need are missing),
   never a legal risk level. The answer carries `transparency_duties` on
   every exit: the Article 50 paragraph nodes whose trigger fact is true,
-  listed on the high-risk and Article 50 exits and empty elsewhere (an
-  empty list means none known, not ruled out); the triggers are 50(1)
+  listed on every exit except the prohibited and rejected-input ones,
+  where it is empty (an empty list means none triggered by a known fact,
+  never ruled out). A listed paragraph is triggered, not proven: the
+  paragraphs' own exceptions (an interaction obvious to the person,
+  assistive editing, uses authorised by law to detect or prosecute
+  criminal offences) and paragraphs 4 and 5 are not decided by the
+  rules, and the answer says so in legal_status_notes. The triggers are 50(1)
   interaction with natural persons, 50(2) synthetic content, and 50(3)
-  emotion recognition or a biometric categorisation system (fact
-  biometric_categorisation_system, added with this decision). risk_category
+  emotion recognition or a biometric categorisation system. Biometric
+  categorisation is three facts, one per provision, each defined in the
+  schema and the elicitor by the Act's own words (Jose, 2026-10-01):
+  biometric_categorisation_system (Article 3(40); the 50(3) trigger), a
+  fact for categorisation by sensitive or protected attributes (Annex III
+  point 1(b); a high-risk rule beside point 1's others), and the existing
+  biometric_categorisation narrowed to the traits Article 5(1)(g) lists.
+  The point (d) and (g) exception facts are redefined by the Act's text
+  ("directly linked to a criminal activity"; labelling or filtering of
+  lawfully acquired biometric datasets, or categorising of biometric data
+  in the area of law enforcement), and the elicitor's prompt takes a new
+  version. risk_category
   keeps its values: transparency_only stays reserved for Article 50
   without high-risk. An absent Article 50 trigger fact is named in
   missing_facts on the high-risk and minimal exits without changing the
