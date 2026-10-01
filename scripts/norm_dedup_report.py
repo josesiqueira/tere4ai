@@ -1,6 +1,7 @@
 """Generate the norm near-duplicate report from a norms dump.
 
 @implements: DEC-03 (partial: norm de-duplication hygiene)
+@implements: DEC-19
 @grounded_by: REF-11, REF-12
 
 Usage:
@@ -41,13 +42,15 @@ def render(pairs, summary, norms_path: Path) -> str:
         "",
         "## Flagged pairs (most similar first)",
         "",
-        "| similarity | band | norm_a | norm_b | article | actor | deontic | verdicts |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| similarity | band | norm_a | norm_b | article | actor | deontic | requirement types | verdicts |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for p in pairs:
+        # DEC-19: each norm's type, "none" where it carries none
+        types = " / ".join(t or "none" for t in p.get("requirement_types") or [None, None])
         lines.append(
             "| {similarity} | {band} | {norm_a} | {norm_b} | {article} | "
-            "{actor} | {deontic_type} | {v} |".format(v=", ".join(p["verdicts"]), **p)
+            "{actor} | {deontic_type} | {t} | {v} |".format(t=types, v=", ".join(p["verdicts"]), **p)
         )
     lines.append("")
     return "\n".join(lines)

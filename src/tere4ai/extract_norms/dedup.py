@@ -1,6 +1,7 @@
 """Norm near-duplicate detection: deterministic hygiene report for Layer 2.
 
 @implements: DEC-03 (partial: norm de-duplication hygiene)
+@implements: DEC-19
 @grounded_by: REF-11, REF-12
 
 An article often yields several NormativeStatements, and the generator can
@@ -74,6 +75,7 @@ def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     # Canonical within-pair order: the pair (x, y) is the same
                     # finding regardless of input order.
                     id_a, id_b = sorted((a["norm_id"], b["norm_id"]))
+                    by_id = {a["norm_id"]: a, b["norm_id"]: b}
                     pairs.append(
                         {
                             "norm_a": id_a,
@@ -85,6 +87,13 @@ def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
                             "article": article,
                             "actor": actor,
                             "deontic_type": deontic,
+                            # DEC-19: the type is not part of the block, so
+                            # two near-duplicates typed differently are shown
+                            # with both types for the human who merges them.
+                            "requirement_types": [
+                                by_id[id_a].get("requirement_type"),
+                                by_id[id_b].get("requirement_type"),
+                            ],
                             "verdicts": sorted(
                                 {
                                     a.get("judge_verdict") or "none",

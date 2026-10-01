@@ -1,6 +1,7 @@
 """Apply human review decisions to pipeline payloads at publish time.
 
 @implements: DEC-06 (partial: human review loop)
+@implements: DEC-19
 @grounded_by: REF-24, REF-32
 
 The pipeline dumps are never edited in place. This module takes a pristine
@@ -43,6 +44,8 @@ _VERDICT = {"accept": "accepted", "reject": "rejected", "replace": "accepted", "
 _SLOT_FIELDS = (
     "source_node_id", "source_span_id", "deontic_type", "modal", "actor_explicit", "actor_inferred",
     "actor_inference_source_node_id", "action", "object", "conditions", "exceptions", "lifecycle_phase_ids",
+    # DEC-19: the human's type stands as given (no scope applied, ruling 13).
+    "requirement_type",
 )
 # Every slot of a human norm is the human's alone (B77 plan 1 final review
 # for the actor triple, B78 item 12 for the rest): a slot the payload omits
@@ -103,6 +106,10 @@ def _stamp_human_norm(item: dict[str, Any], entry: dict[str, Any]) -> None:
     item["judge_verdict"] = "accepted"
     item["review_status"] = "accepted"
     item["judge_run_id"] = None
+    # DEC-19: no judge ran on the human's norm, so the model judge's view of
+    # the type it replaced does not stay on it.
+    item["judge_type_agrees"] = None
+    item["judge_requirement_type"] = None
 
 
 def apply_decisions(

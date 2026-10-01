@@ -1,6 +1,7 @@
 """Unified human review queue over the pipeline dump artifacts.
 
 @implements: DEC-06 (partial: human review loop)
+@implements: DEC-19
 @grounded_by: REF-24, REF-32
 
 Builds one adjudication queue out of the three pending pools:
@@ -25,11 +26,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from tere4ai.extract_norms.requirement_type import REQUIREMENT_TYPES, type_label
+
 EXCERPT_CHARS = 280
 
 VALID_DECISIONS = ("accept", "reject", "replace", "add")
+# DEC-19: requirement_type is required as a key, its value one of the three
+# types or null ("not an operator requirement"), so a human norm never gets
+# a null the annotator did not choose.
 HUMAN_NORM_REQUIRED = (
     "source_node_id", "source_span_id", "deontic_type", "modal", "actor_explicit", "action", "object",
+    "requirement_type",
 )
 
 
@@ -69,11 +76,16 @@ def _judge_rationales(payload: dict[str, Any] | None) -> dict[str, str]:
 
 def _norm_digest(norm: dict[str, Any]) -> str:
     actor = norm.get("actor_explicit") or norm.get("actor_inferred") or "?"
-    return (
+    digest = (
         f"{norm.get('deontic_type', '?')}/{norm.get('modal', '?')} "
         f"actor={actor} action={norm.get('action', '?')} "
         f"object={_excerpt(norm.get('object'))[:80]}"
     )
+    # DEC-19: the type when the norm carries it; a null reads "no type" in
+    # the scope and "not an operator requirement" outside it (ruling 53).
+    if "requirement_type" in norm:
+        digest += f" requirement_type={type_label(norm)}"
+    return digest
 
 
 def _alignment_digest(assertion: dict[str, Any]) -> str:
@@ -194,6 +206,11 @@ def validate_human_payload(decision: Any, payload: dict[str, Any] | None) -> Non
     missing = [k for k in HUMAN_NORM_REQUIRED if k not in payload]
     if missing:
         raise ValueError(f"payload is missing {', '.join(missing)}")
+    if payload.get("requirement_type") is not None and payload.get("requirement_type") not in REQUIREMENT_TYPES:
+        raise ValueError(
+            f"payload requirement_type={payload.get('requirement_type')!r} is not one of "
+            "functional, quality, process or null (not an operator requirement)"
+        )
     actor_inferred = payload.get("actor_inferred")
     if actor_inferred is not None and not payload.get("actor_inference_source_node_id"):
         raise ValueError(

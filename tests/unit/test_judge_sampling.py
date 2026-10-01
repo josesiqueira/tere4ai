@@ -24,6 +24,8 @@ import pytest
 
 from tere4ai.eval import present_evaluation as pe
 from tere4ai.eval.evaluation_record import EvaluationRecordError, EvaluationRecordStore
+from tere4ai.extract_norms.model_clients import FakeClient
+from tere4ai.extract_norms.pipeline import extract_norms
 from tere4ai.graph_store.build_chain import build_chain
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -208,6 +210,95 @@ def test_sheet_extraction_items_carry_norm_fields_and_source_excerpt():
     assert mp["judged_content"]["target_quote"] == "tq"
     # The mapping item resolves its source excerpt through the source norm.
     assert mp["source_excerpt"]["node_id"].startswith("node:")
+
+
+def test_the_e1_sheet_shows_the_type_and_folds_the_judges_view():
+    """DEC-19 (the E1 sheet shows the type and the judge's view): the
+    extractor's type is judged content, a null reads by the scope ("no
+    type" inside, "not an operator requirement" outside, ruling 53), the
+    judge's view sits in the folded judge block, and a build before DEC-19
+    shows neither."""
+    norms, alignments, layer1 = _synthetic_payloads(extraction={"accepted": 4}, mapping={})
+    norms["norms"][0].update(requirement_type="quality")
+    norms["judge_runs"][0].update(judge_type_agrees=False, judge_requirement_type="functional")
+    norms["norms"][1].update(requirement_type=None)
+    norms["judge_runs"][1].update(judge_type_agrees=None, judge_requirement_type=None)
+    norms["norms"][3].update(requirement_type=None, deontic_type="permission")
+    sheet = sampling.build_sheet(norms, alignments, layer1, total=4, minimum=4)
+    items = {i["decision_id"]: i for i in sheet["items"]}
+    typed = items[norms["judge_runs"][0]["id"]]
+    assert typed["judged_content"]["requirement_type"] == "quality"
+    assert (typed["judge_run"]["judge_type_agrees"], typed["judge_run"]["judge_requirement_type"]) == (False, "functional")
+    untouched = items[norms["judge_runs"][2]["id"]]
+    assert "requirement_type" not in untouched["judged_content"]
+    assert "judge_type_agrees" not in untouched["judge_run"]
+    md = sampling.render_sheet_md(sheet)
+    assert md.count("- requirement_type: quality") == 1
+    assert md.count("- requirement_type: no type") == 1  # in scope, untyped (ruling 53)
+    assert md.count("- requirement_type: not an operator requirement") == 1
+    folded = md.split("<details>")[1:]
+    assert any("requirement type view: disagrees, the judge's type is functional" in block for block in folded)
+    assert any("requirement type view: none recorded" in block for block in folded)
+    assert "never decides accept or reject (DEC-19)" in sheet["labelling_rule"]
+
+
+def _span(anchor: str) -> dict:
+    return {"span_id": f"span:{anchor}", "snapshot_file": "fake.html", "snapshot_sha256": "0" * 64,
+            "start": 0, "end": 10, "anchor": anchor}
+
+
+B4_UNIT = "eu-ai-act:article-12:paragraph-1"
+B4_DUMP = {
+    "build": {"build_id": "b-test"},
+    "nodes": [
+        {"id": "eu-ai-act:article-12", "type": "Article", "number": 12, "title": "Record-keeping",
+         "source_span": _span("art_12")},
+        {"id": B4_UNIT, "type": "Paragraph", "text": "1. High-risk AI systems shall allow logging.",
+         "source_span": _span("012.001")},
+        {"id": "eu-ai-act:article-16", "type": "Article", "number": 16, "title": "Obligations of providers",
+         "source_span": _span("art_16")},
+        {"id": "eu-ai-act:article-16:paragraph-1", "type": "Paragraph",
+         "text": "Providers of high-risk AI systems shall ensure the logging.", "source_span": _span("016.001")},
+    ],
+    "edges": [],
+}
+B4_GENERATOR = json.dumps({"norms": [{
+    "deontic_type": "obligation", "modal": "shall", "actor_explicit": None, "actor_inferred": "provider",
+    "actor_inference_source_node_id": "eu-ai-act:article-16", "action": "allow", "object": "logging",
+    "conditions": [], "exceptions": [], "lifecycle_phase_ids": [], "requirement_type": "functional"}]})
+B4_JUDGE = json.dumps({"verdict": "accepted", "scores": {}, "rationale": "Article 16 assigns it."})
+
+
+def _b4_sheet(tmp_path, prompt_version):
+    generator = FakeClient({B4_UNIT: B4_GENERATOR}, model="fake-generator")
+    judge = FakeClient({B4_UNIT: B4_JUDGE}, model="fake-judge")
+    result = extract_norms(B4_DUMP, [B4_UNIT], generator, judge, prompt_version=prompt_version,
+                           log_path=tmp_path / f"log-{prompt_version}.jsonl")
+    payload = {"build": {"build_id": "b-test"}, **result}
+    sheet = sampling.build_sheet(payload, {"assertions": [], "judge_runs": []}, B4_DUMP, total=1, minimum=1)
+    return sheet, judge.calls[0][1]
+
+
+def test_the_e1_sheet_shows_the_inference_source_text_the_judge_received(tmp_path):
+    """B4 (Jose, 2026-10-01: "Show the same text (Recommended)"): the
+    labeller and the v2 judge read the same actor-inference source text."""
+    sheet, judge_input = _b4_sheet(tmp_path, "v2")
+    (item,) = sheet["items"]
+    text = item["actor_inference_source"]
+    assert text.startswith("Actor-inference source: eu-ai-act:article-16 (Article)")
+    assert "Providers of high-risk AI systems shall ensure the logging." in text
+    assert f"{text}\n\nCandidate norm (JSON):" in judge_input
+    md = sampling.render_sheet_md(sheet)
+    assert "### Actor-inference source (as the judge received it)" in md
+    assert "> [eu-ai-act:article-16:paragraph-1] Providers of high-risk AI systems shall ensure the logging." in md
+
+
+def test_a_v1_judge_run_gets_no_inference_text_on_the_sheet(tmp_path):
+    """judge_norms v1 never received the text, so the sheet of a v1 run does
+    not show it either: gold and judge keep reading the same material."""
+    sheet, judge_input = _b4_sheet(tmp_path, "v1")
+    assert "actor_inference_source" not in sheet["items"][0]
+    assert "Actor-inference source" not in judge_input
 
 
 # Determinism and strata on the real artifacts ------------------------------

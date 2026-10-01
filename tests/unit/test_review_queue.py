@@ -486,6 +486,8 @@ HUMAN_NORM = {
     "conditions": ["over the lifetime of the system"],
     "exceptions": [],
     "lifecycle_phase_ids": ["cross_phase"],
+    # DEC-19: Article 12(1) is DEC-19's functional example
+    "requirement_type": "functional",
 }
 
 
@@ -856,3 +858,64 @@ def test_publish_helper_materialises_a_human_written_condition():
     assert edges[0]["to"] == added["condition_ids"][0]
     clause = next(n for n in g["nodes"] if n.get("type") == "Condition")
     assert clause["text"] == "over the lifetime of the system"
+
+
+# DEC-19, B65: the requirement type is one more closed slot of a human norm.
+
+
+def test_a_human_norm_payload_must_carry_the_type_key():
+    bad = dict(HUMAN_NORM)
+    bad.pop("requirement_type")
+    with pytest.raises(ValueError, match="requirement_type"):
+        record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "missing type", "annotator a", payload=bad)
+
+
+def test_a_human_norm_type_outside_the_four_values_is_refused():
+    with pytest.raises(ValueError, match="requirement_type"):
+        record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "bad type", "annotator a",
+                        payload={**HUMAN_NORM, "requirement_type": "non-functional"})
+
+
+def test_a_human_type_stands_as_given_and_clears_the_model_judges_view():
+    """Ruling 13: the scope binds the model's proposal, never the human's
+    label; a null type is the human's "not an operator requirement"."""
+    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": "x", "source_span_id": "s",
+                          "deontic_type": "obligation", "modal": "shall", "actor_explicit": "provider",
+                          "action": "old", "object": "old", "extraction_method": "llm_extract_v1",
+                          "extractor_model": "gpt-6-astra", "confidence": 0.4, "requirement_type": "quality",
+                          "judge_type_agrees": False, "judge_requirement_type": "process",
+                          "judge_verdict": "needs_human_review", "review_status": "needs_review", "judge_run_id": "r1"}]}
+    decisions = {}
+    record_decision(decisions, "norm:x:n1", "replace", "the commission's duty, typed by the annotator", "annotator a",
+                    payload={**HUMAN_NORM, "source_node_id": "x", "source_span_id": "s",
+                             "actor_explicit": "the Commission", "requirement_type": "process"})
+    record_decision(decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "not an operator requirement",
+                    "annotator a", payload={**HUMAN_NORM, "requirement_type": None})
+    out = apply_decisions(payload, decisions)
+    replaced, added = out["norms"]
+    assert replaced["requirement_type"] == "process"
+    assert replaced["judge_type_agrees"] is None and replaced["judge_requirement_type"] is None
+    assert added["requirement_type"] is None
+
+
+def test_the_queue_digest_names_the_type_when_the_norm_carries_it():
+    norms = {"norms": [
+        {"norm_id": "norm:a:n1", "judge_verdict": "needs_human_review", "deontic_type": "obligation",
+         "modal": "shall", "actor_explicit": "provider", "action": "keep", "object": "logs",
+         "requirement_type": "process"},
+        {"norm_id": "norm:a:n2", "judge_verdict": "needs_human_review", "deontic_type": "right",
+         "modal": "may", "actor_explicit": "affected person", "action": "obtain", "object": "an explanation",
+         "requirement_type": None},
+        {"norm_id": "norm:a:n3", "judge_verdict": "needs_human_review", "deontic_type": "obligation",
+         "modal": "shall", "actor_explicit": "provider", "action": "keep", "object": "logs"},
+    ]}
+    norms["norms"].append(
+        {"norm_id": "norm:a:n4", "judge_verdict": "needs_human_review", "deontic_type": "obligation",
+         "modal": "shall", "actor_explicit": "provider", "action": "keep", "object": "logs",
+         "source_node_id": "eu-ai-act:article-19:paragraph-1", "requirement_type": None})
+    digests = {item["queue_id"]: item["digest"] for item in list_pending(norms_payload=norms)}
+    assert digests["norm:a:n1"].endswith(" requirement_type=process")
+    assert digests["norm:a:n2"].endswith(" requirement_type=not an operator requirement")
+    assert "requirement_type=" not in digests["norm:a:n3"]
+    # ruling 53: an in-scope norm without a type reads "no type"
+    assert digests["norm:a:n4"].endswith(" requirement_type=no type")

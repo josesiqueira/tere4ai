@@ -1,6 +1,7 @@
 """Stratified deterministic sample of judge decisions for FA/FR gold labels.
 
 @implements: DEC-11, DEC-17
+@implements: DEC-19
 @grounded_by: REF-16
 
 Implements the judge false-accept / false-reject labelling step of
@@ -88,6 +89,11 @@ from tere4ai.eval.metrics import (  # noqa: E402
     METRICS_VERSION,
     judge_error_rates_by_kind,
 )
+from tere4ai.extract_norms.pipeline import (  # noqa: E402
+    _PROMPTS_WITHOUT_INFERENCE_TEXT,
+    _inference_source_block,
+)
+from tere4ai.extract_norms.requirement_type import type_label  # noqa: E402
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
 
@@ -117,6 +123,8 @@ NORM_SHEET_FIELDS = (
     "target_system_category",
     "conditions",
     "exceptions",
+    # DEC-19: the extractor's type, scoped (a null reads by the scope, ruling 53)
+    "requirement_type",
 )
 
 # Assertion fields shown to the annotator (the judged content of a mapping
@@ -345,6 +353,23 @@ def build_sheet(
                 NORM_SHEET_FIELDS if decision["judge_kind"] == "extraction"
                 else ASSERTION_SHEET_FIELDS
             )
+            judged_content = {f: content.get(f) for f in fields}
+            if decision["judge_kind"] == "extraction" and "requirement_type" not in content:
+                # DEC-19: a build before DEC-19 records no type, and no
+                # reader invents a null for it.
+                judged_content.pop("requirement_type")
+            # B4 (Jose, 2026-10-01: "Show the same text (Recommended)"): the
+            # labeller reads the actor-inference source text the judge read,
+            # from the same function, wherever the judge's prompt version
+            # gave it to the judge.
+            inference = None
+            if (
+                decision["judge_kind"] == "extraction"
+                and run.get("prompt_version") not in _PROMPTS_WITHOUT_INFERENCE_TEXT
+            ):
+                inference = _inference_source_block(
+                    layer1_payload, layer1_index, {"node_id": content.get("source_node_id")}, content
+                )
             items.append(
                 {
                     "decision_id": decision_id,
@@ -358,9 +383,13 @@ def build_sheet(
                         "rationale": run.get("rationale"),
                         "scores": run.get("scores"),
                         "build_id": run.get("build_id"),
+                        # DEC-19: the judge's recorded view of the type, when
+                        # the run records it; shown only in the folded block.
+                        **{k: run[k] for k in ("judge_type_agrees", "judge_requirement_type") if k in run},
                     },
-                    "judged_content": {f: content.get(f) for f in fields},
+                    "judged_content": judged_content,
                     "source_excerpt": _source_excerpt(decision, layer1_index, norms_by_id),
+                    **({"actor_inference_source": inference} if inference is not None else {}),
                     "human_label": None,
                     "human_rationale": None,
                 }
@@ -382,8 +411,9 @@ def build_sheet(
             "recorded inference, action and object grounded, conditions and "
             "exceptions not dropped; for mappings: both quotes verbatim and "
             "the relation supported by concepts present in both spans). Any "
-            "single failure means reject. Do not read the judge verdict "
-            "before labelling."
+            "single failure means reject. The requirement type, where shown, "
+            "is not one of these criteria and never decides accept or reject "
+            "(DEC-19). Do not read the judge verdict before labelling."
         ),
         "sampling": {
             "method": (
@@ -413,6 +443,18 @@ def build_sheet(
         "items": items,
         **({"sample": sample} if sample is not None else {}),
     }
+
+
+def _type_view_lines(run: dict[str, Any]) -> list[str]:
+    """DEC-19: the judge's recorded view of the type, when the run records it."""
+    if "judge_type_agrees" not in run:
+        return []
+    agrees = run.get("judge_type_agrees")
+    if agrees is None:
+        return ["- requirement type view: none recorded"]
+    if agrees:
+        return [f"- requirement type view: agrees ({run.get('judge_requirement_type')})"]
+    return [f"- requirement type view: disagrees, the judge's type is {run.get('judge_requirement_type')}"]
 
 
 def render_sheet_md(sheet: dict[str, Any]) -> str:
@@ -464,6 +506,8 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
             "",
         ]
         for key, value in item["judged_content"].items():
+            if key == "requirement_type" and value is None:
+                value = type_label(item["judged_content"])  # DEC-19, ruling 53
             if value in (None, [], ""):
                 continue
             if isinstance(value, list):
@@ -475,6 +519,9 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
             lines += [f"Node `{excerpt['node_id']}`:", "", f"> {excerpt['text']}"]
         else:
             lines.append(f"Not resolvable: {excerpt.get('note', 'no source text')}")
+        if item.get("actor_inference_source") is not None:
+            lines += ["", "### Actor-inference source (as the judge received it)", ""]
+            lines += [f"> {line}" for line in item["actor_inference_source"].splitlines()]
         lines += ["", "### Your label", ""]
         if item.get("human_label"):
             lines.append(f"- human_label: {item['human_label']}")
@@ -492,6 +539,7 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
             "",
             f"- verdict: {item['judge_run']['verdict']}",
             f"- rationale: {item['judge_run']['rationale']}",
+            *_type_view_lines(item["judge_run"]),
             "",
             "</details>",
             "",

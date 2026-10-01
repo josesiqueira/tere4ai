@@ -80,7 +80,13 @@ assertions, not the eval items above. Assignment:
   (architecture.md Section 7): the span exists, the deontic type is
   supported by the text, the actor is explicit or a valid recorded
   inference, action and object are grounded, and conditions and
-  exceptions are not dropped. Any single failure means `reject`.
+  exceptions are not dropped. Any single failure means `reject`. The
+  requirement type, where the sheet shows it, is not one of these
+  criteria and never decides `accept` or `reject` (DEC-19); the
+  extraction judge's view of it is compared with the adjudicated human
+  type apart, as judge type agreement. Where the sheet shows the
+  actor-inference source text, it is the text the judge received, there
+  for the actor criterion.
 - The annotator never sees the judge verdict while labelling.
 - false accept: judge accepted, gold says reject. false reject: judge
   rejected, gold says accept. A judge `needs_human_review` verdict is an

@@ -104,3 +104,20 @@ class TestSummary:
         assert s["pairs_flagged"] == 1
         assert s["near_duplicate_pairs"] == 1
         assert s["pairs_both_accepted"] == 1
+
+
+class TestRequirementTypes:
+    """DEC-19: the type is not part of the block, so near-duplicates typed
+    differently are still paired, and the pair shows both types."""
+
+    def test_differently_typed_duplicates_are_paired_with_both_types(self):
+        n1 = {**_norm("n1", "keep", "the logs"), "requirement_type": "process"}
+        n2 = {**_norm("n2", "keep", "the logs"), "requirement_type": "functional"}
+        pairs = find_near_duplicates([n2, n1])
+        assert len(pairs) == 1
+        assert (pairs[0]["norm_a"], pairs[0]["norm_b"]) == ("n1", "n2")
+        assert pairs[0]["requirement_types"] == ["process", "functional"]
+
+    def test_a_norm_without_a_type_shows_none(self):
+        pairs = find_near_duplicates([_norm("n1", "keep", "the logs"), _norm("n2", "keep", "the logs")])
+        assert pairs[0]["requirement_types"] == [None, None]
