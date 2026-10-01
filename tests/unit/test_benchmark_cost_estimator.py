@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
+
 ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
     "estimate_benchmark_cost", ROOT / "scripts" / "estimate_benchmark_cost.py"
@@ -18,6 +20,11 @@ _spec.loader.exec_module(est)
 FULL_FILES_PRESENT = (est.BENCH_DIR / "scenarios.json").exists() and (
     est.BENCH_DIR / "qa_pairs.json"
 ).exists()
+
+
+def test_elicitation_prompt_path_follows_the_default_prompt_version():
+    assert est.ELICIT_PROMPT.name == f"{DEFAULT_PROMPT_VERSION}.md"
+    assert est.ELICIT_PROMPT.exists()
 
 
 def test_counting_client_records_and_replies():

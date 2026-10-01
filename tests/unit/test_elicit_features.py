@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from tere4ai.elicit_features import elicit_features
+from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
 from tere4ai.extract_norms.model_clients import FakeClient
 
 DESC = "A chatbot that answers shopper questions and tracks their mood at work."
@@ -125,8 +126,6 @@ def test_default_prompt_version_is_v5():
     assert signature.parameters["prompt_version"].default == "v5"
     envelope_signature = inspect.signature(elicit_envelope)
     assert envelope_signature.parameters["prompt_version"].default == "v5"
-    from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
-
     assert DEFAULT_PROMPT_VERSION == "v5"
 
 
@@ -244,6 +243,10 @@ OMNIBUS_PASSAGES = (
     "that manipulates material in a way that does not increase the exposure of any "
     "depicted intimate parts or alter the nature of any depicted sexually explicit "
     "activities shall not constitute manipulation.",
+    "1a. For the purposes of paragraph 1, first subparagraph, points (ba) and (bb):",
+    "(a) the placing on the market or putting into service of an AI system that generates or manipulates the material or performance referred to in paragraph 1, first subparagraph, point (ba) or (bb) is only prohibited where:",
+    "(i) that generation or manipulation is the intended purpose of the AI system; or",
+    "(ii) the system\u2019s design, training, architecture, capabilities or user-facing functionalities make that generation or manipulation a reasonably foreseeable and reproducible outcome, without requiring significant technical modification, and the system does not have reasonable and adequate technical safety measures and other safeguards to reliably prevent that generation or manipulation, taking into account reasonably foreseeable misuse, and to correct observed or reported misuse;",
 )
 
 

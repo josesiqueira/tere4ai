@@ -681,8 +681,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   where it is empty (an empty list means none triggered by a known fact,
   never ruled out). A listed paragraph is triggered, not proven: the
   paragraphs' own exceptions (an interaction obvious to the person,
-  assistive editing, uses authorised by law to detect or prosecute
-  criminal offences) and paragraphs 4 and 5 are not decided by the
+  assistive editing, uses authorised by law to detect, prevent,
+  investigate or prosecute criminal offences in 50(1) and 50(2), uses
+  permitted by law to detect, prevent or investigate criminal offences in
+  50(3)) and paragraphs 4 and 5 are not decided by the
   rules, and the answer says so in legal_status_notes. The triggers are 50(1)
   interaction with natural persons, 50(2) synthetic content, and 50(3)
   emotion recognition or a biometric categorisation system. Biometric

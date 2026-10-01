@@ -444,7 +444,9 @@ ARTICLE_50_TRIGGERED_NOTE = (
     "eu-ai-act:article-50: the paragraphs in transparency_duties are "
     "triggered by a known fact, not proven to apply: their own exceptions "
     "(an interaction obvious to the person, assistive editing, uses "
-    "authorised by law to detect or prosecute criminal offences) and "
+    "authorised by law to detect, prevent, investigate or prosecute criminal "
+    "offences in 50(1) and 50(2), uses permitted by law to detect, prevent or "
+    "investigate criminal offences in 50(3)) and "
     "paragraphs 4 and 5 are not decided by the rules"
 )
 
@@ -823,10 +825,15 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         # Information only: the status and the category do not change.
         for flag, node_id, _note in ARTICLE_50_RULES:
             if flag not in flags:
+                if node_id in transparency_duties:
+                    # The paragraph is listed through another trigger, so no
+                    # duty can be missing from the list because of this fact.
+                    consequence = f"{node_id} is already listed through another trigger"
+                else:
+                    consequence = "that duty may be missing from transparency_duties"
                 missing_facts.append(
                     f"flags.{flag} is unknown (Article 50 transparency trigger, "
-                    f"{node_id}); absence is not treated as false, so that "
-                    "duty may be missing from transparency_duties"
+                    f"{node_id}); absence is not treated as false, so {consequence}"
                 )
 
     # Rule 2a: Article 6(1) embedded-product route. High-risk when the

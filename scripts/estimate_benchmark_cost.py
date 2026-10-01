@@ -43,6 +43,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
 from tere4ai.eval.harness import load_benchmark_items, run_eval  # noqa: E402
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
 
@@ -51,7 +52,7 @@ SAMPLE_PATH = ROOT / "eval" / "gold" / "benchmark_sample.json"
 CHECKPOINT = ROOT / "eval" / "results" / "ablation_checkpoint.jsonl"
 RUNTIME_LOG = ROOT / "data" / "review_queue" / "runtime_log.jsonl"
 FEATURES = ROOT / "eval" / "gold" / "benchmark_features.json"
-ELICIT_PROMPT = ROOT / "prompts" / "elicit_features" / "v1.md"
+ELICIT_PROMPT = ROOT / "prompts" / "elicit_features" / f"{DEFAULT_PROMPT_VERSION}.md"
 OUT_PATH = ROOT / "docs" / "benchmark_cost_estimate.md"
 
 CHARS_PER_TOKEN = 4.0

@@ -1006,6 +1006,29 @@ def test_absent_article_50_fact_is_named_on_minimal_and_minimal_stays(dump):
     ]
 
 
+def test_absent_article_50_fact_wording_when_paragraph_is_listed_through_another_trigger(dump):
+    """DEC-18: the absent fact is still named, but the line must not claim
+    the duty may be missing when its paragraph is already listed."""
+    listed_flags = _without(all_false_flags(emotion_recognition=True), "biometric_categorisation_system")
+    listed = classify_ai_system({"description": "Mood tracker.", "flags": listed_flags}, dump)
+    assert listed["answer"]["transparency_duties"] == [ARTICLE_50_3]
+    assert (
+        "flags.biometric_categorisation_system is unknown (Article 50 transparency trigger, "
+        f"{ARTICLE_50_3}); absence is not treated as false, so {ARTICLE_50_3} is already "
+        "listed through another trigger"
+    ) in listed["missing_facts"]
+    assert not any("may be missing" in fact for fact in listed["missing_facts"])
+
+    unlisted_flags = _without(all_false_flags(), "biometric_categorisation_system")
+    unlisted = classify_ai_system({"description": "Mood tracker.", "flags": unlisted_flags}, dump)
+    assert unlisted["answer"]["transparency_duties"] == []
+    assert (
+        "flags.biometric_categorisation_system is unknown (Article 50 transparency trigger, "
+        f"{ARTICLE_50_3}); absence is not treated as false, so that duty may be missing "
+        "from transparency_duties"
+    ) in unlisted["missing_facts"]
+
+
 def test_absent_article_50_fact_is_named_on_high_risk_without_lowering_it(dump):
     flags = _without(all_false_flags(employment_decisions=True), "biometric_categorisation_system")
     envelope = classify_ai_system({"description": "CV screening for hiring.", "flags": flags}, dump)

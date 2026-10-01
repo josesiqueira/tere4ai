@@ -257,11 +257,11 @@ const PROHIBITION_FLAGS: [string, string][] = [
   ],
   [
     "biometric_categorisation",
-    "Biometric categorisation inferring race, political opinions, union membership, beliefs, sex life or orientation (Art. 5(1)(g))",
+    "Biometric categorisation inferring race, political opinions, trade union membership, religious or philosophical beliefs, sex life or sexual orientation (Art. 5(1)(g))",
   ],
   [
     "biometric_categorisation_lawful_or_law_enforcement",
-    "Labelling or filtering lawful biometric datasets, or categorising biometric data in law enforcement (Art. 5(1)(g) exception)",
+    "Labelling or filtering lawfully acquired biometric datasets, or categorising biometric data in law enforcement (Art. 5(1)(g) exception)",
   ],
   ["real_time_remote_biometric_public", "Real-time remote biometric ID in public"],
   [
