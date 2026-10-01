@@ -636,6 +636,51 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   being written where they are; metrics.judge_error_rates returns None
   on an empty denominator (METRICS_VERSION metrics.v2).
 
+- DEC-18: the classification answer says "not known" for a prohibition it
+  cannot settle, and a high-risk answer keeps its Article 50 duties
+  (added 2026-10-01; thesis tasks B36.1 and B36.2, brief
+  sdd/2026-10-01-B36-classifier-answer/brief.md in the private research
+  repository). Engineering MUST (no silent degradation, Section 13; the
+  same missing_facts discipline as DEC-13 and DEC-14); the rules mirror
+  the frozen source text (REF-01): Article 5(1) points (a) to (h) with
+  their statutory qualifiers, the Omnibus points (ba) and (bb), and
+  Article 50(6), under which the transparency obligations "shall not
+  affect the requirements and obligations set out in Chapter III".
+  Defense: false and unknown do not mean the same thing, and a reader of
+  `prohibited: false` beside an unresolved Article 5 fact is told
+  something the rules never established. Each Article 5 path is resolved
+  on its own: proven (its flag true and, where the point has an
+  exculpating fact, that fact known and not exculpating), ruled out (its
+  flag false, or its exculpating fact known and exculpating; point (h)
+  also when law_enforcement_use is false), or unresolved (a fact it needs
+  is missing). `prohibited` is true when a path is proven, null when
+  none is proven and any is unresolved, false only when every path is
+  ruled out; the rejected-input answer, where no rule ran, gives null.
+  The same resolution decides the existing status lowering and the
+  uncertain exit, so an answer never says false beside "unknown
+  prohibition-relevant flags". null rather than a string, so a client
+  that tests the field for truth reads unknown as not prohibited.
+  "uncertain" is an assessment state (facts the rules need are missing),
+  never a legal risk level. The answer carries `transparency_duties` on
+  every exit: the Article 50 paragraph nodes whose trigger fact is true,
+  listed on the high-risk and Article 50 exits and empty elsewhere (an
+  empty list means none known, not ruled out); the triggers are 50(1)
+  interaction with natural persons, 50(2) synthetic content, and 50(3)
+  emotion recognition or a biometric categorisation system (fact
+  biometric_categorisation_system, added with this decision). risk_category
+  keeps its values: transparency_only stays reserved for Article 50
+  without high-risk. An absent Article 50 trigger fact is named in
+  missing_facts on the high-risk and minimal exits without changing the
+  status or the category (Jose, 2026-10-01: "Keep minimal, name the
+  fact"). get_applicable_requirements keeps serving the whole Article 50
+  group to every high-risk system: the triggers do not cover every
+  paragraph (50(4), 50(5)), so the requirements stay on the conservative
+  side and the answer's list is the proven side.
+  verify: src/tere4ai/mcp_server/classify.py (per-path Article 5
+  resolution, transparency_duties); tests/unit/test_classify.py (the six
+  cases of the brief and the ruled-out-by-exculpating-fact cases);
+  CHANGELOG.md names the contract change.
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)
