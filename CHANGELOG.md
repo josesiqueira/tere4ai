@@ -5,6 +5,67 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Every operator obligation and every generated control carries its requirement type (B65, B4, DEC-19)
+- Contract change: norms.schema.json gains `requirement_type` (functional,
+  quality or process, three of the examples of ISO/IEC/IEEE 29148:2018
+  clause 5.2.8.3, ADD-54) and the extraction judge's recorded view of it,
+  `judge_type_agrees` and `judge_requirement_type`. All three are optional
+  and nullable: an extractor reply that omits the type or gives another
+  value keeps the norm with null, never drops it.
+- The definitions of the three types, the reading rules and the scope have
+  one source each, prompts/requirement_type/definitions.md and scope.md,
+  which the v2 prompts carry byte for byte and the dashboard pins its copy
+  against.
+- The scope is applied in code: a norm keeps its type only when it is an
+  obligation or a prohibition, its source unit is outside Articles 5 to 7
+  and the annexes, and its actor, explicit or inferred, is an operator;
+  every other norm carries null, read "not an operator requirement",
+  whatever the extractor proposed. An in-scope norm the extractor left
+  untyped reads "no type" and is counted in the extraction stats
+  (`untyped_in_scope`) and the execution record's counts. An annotator's or
+  the adjudicator's type stands as given.
+- Prompts extract_norms v2 and judge_norms v2 (one shared version, now the
+  default of `extract_norms` and `python -m tere4ai.extract_norms`) carry
+  that text. The judge records whether it agrees with the type and, when it
+  does not, its own type; the type never changes the verdict, and a reply
+  without that view keeps its verdict and records null. A run under the v1
+  prompts feeds its judges what it always did and writes no type field.
+- Thesis task B4, a change of the extraction judge as an instrument: from
+  judge_norms v2 the judge's input carries the verbatim text of the
+  actor-inference source (DEC-04), the whole Article for an Article id such
+  as `eu-ai-act:article-16`, for the actor check only, so an inferred actor
+  is judged against the provision it rests on. The E1 label sheet shows the
+  labeller the same text (`actor_inference_source`).
+- Contract change: get_applicable_requirements entries, the
+  explain_requirement deontic block and the facade's `/api/units`
+  candidates carry `requirement_type` when the norm carries it; a norm from
+  a build before DEC-19 gains no key. The units candidate's `judge` block
+  carries the judge's recorded view on the same rule. The type, the view
+  and the judge run's view are stored in Neo4j.
+- Human review: a replace or add payload must carry `requirement_type`
+  (one of the three or null); a human norm clears the model judge's view.
+  The queue digest, the near-duplicate pairs and report, the E1 label
+  sheet (the type as judged content, the judge's view in the folded judge
+  block, and the rule that the type never decides accept or reject) and
+  the demo UI's review queue view show the type.
+- Contract change: under generate_backlog v2 and runtime_grounding v2, now
+  the backlog's default, items carry their own `requirement_type` (null
+  with a note when the generator gave none or an invalid one), and the
+  answer carries `judge_type_views`, the runtime judge's view of each
+  item's type in item order, which never changes the backlog's verdict.
+  Neither digest carries the norms' types, nor does the ablation's. Merged
+  items keep the first item's type, and a different type is named in the
+  note. A v1 backlog keeps its old input and output.
+- evaluate_project_evidence and its batch keep evaluate_evidence v1 and
+  runtime_grounding v1 (`GENERATOR_PROMPT_VERSION`, `JUDGE_PROMPT_VERSION`
+  and a new `judge_prompt_version` parameter); their version is no longer
+  the backlog's. The report shows each requirement's and each control's
+  requirement type, the explain record's, and the judge's view of a
+  control's type.
+- data/graph_dumps/norms_core.json predates DEC-19 and is not converted
+  (everything before B74 is disposable); B74 extracts and generates with
+  the v2 prompts.
+
 ### A high-risk answer keeps its Article 50 duties; biometric categorisation is three facts (B36.2, DEC-18)
 - `classify_ai_system`'s answer gains `transparency_duties`, always present:
   the Article 50 paragraph node ids whose trigger fact is true

@@ -9,12 +9,16 @@ extractor proposed.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
 
+from tere4ai.eval.strategies import GraphStrategy
+from tere4ai.extract_norms import pipeline
 from tere4ai.extract_norms.requirement_type import (
     DEFINITIONS_PATH,
     DEFINITIONS_TEXT,
@@ -33,6 +37,10 @@ from tere4ai.extract_norms.requirement_type import (
     type_label,
     types_for,
 )
+from tere4ai.graph_store import layer23
+from tere4ai.judge import runtime_grounding
+from tere4ai.mcp_server import backlog
+from tere4ai.review_queue import apply, queue
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "schema" / "json_schemas" / "norms.schema.json").read_text(encoding="utf-8"))
@@ -213,3 +221,32 @@ def test_the_scope_text_names_every_non_operator_role():
     for words in ("commission", "ai office", "member state", "notifying authority",
                   "market surveillance authority", "notified body", "affected person"):
         assert words in text
+
+
+def _script(name: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_every_hand_kept_norm_field_list_carries_the_type():
+    """A field missing from a hand-kept list is dropped without an error
+    (brief section 2.2), so each list is pinned here."""
+    assert "requirement_type" in pipeline._NORM_CANDIDATE_FIELDS
+    for field in ("requirement_type", "judge_type_agrees", "judge_requirement_type"):
+        assert field in layer23._NORM_SCALAR_FIELDS
+    assert "requirement_type" in apply._SLOT_FIELDS
+    assert "requirement_type" in queue.HUMAN_NORM_REQUIRED
+    assert "requirement_type" in _script("sample_judge_decisions").NORM_SHEET_FIELDS
+
+
+def test_the_generation_and_ablation_digests_leave_the_norms_types_out():
+    """B65 ruling 10 and ruling 40: the backlog generator and the runtime
+    judge never see a norm's type; ruling 52 (review I4): the ablation's
+    graph conditions keep their inputs, so E6 measures what it measured."""
+    assert "requirement_type" not in backlog._NORM_PROMPT_FIELDS
+    assert "requirement_type" not in runtime_grounding._NORM_DIGEST_FIELDS
+    typed = {"norm_id": "norm:x:n1", "deontic_type": "obligation", "requirement_type": "process"}
+    assert "requirement_type" not in GraphStrategy._norm_digest(None, typed)
