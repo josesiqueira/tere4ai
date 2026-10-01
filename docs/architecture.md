@@ -814,9 +814,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   an extractor reply that omits it is never dropped for that reason
   (today a schema failure drops the norm).
   Reading a norm. By the outcome the obligation constrains, not by its
-  main verb: "shall be designed and developed in such a way that"
-  (Articles 13(1), 14(1), 15(1)) is functional or quality by the outcome
-  that follows. A required level of a function's output is quality when
+  main verb: obligations that require the system to be designed and
+  developed so that an outcome holds (Articles 13(1), 14(1), 15(1)) are
+  typed by that outcome, not by the verb. A required level of a function's output is quality when
   the obligation is about the level (Article 15(1)). A duty to draw up,
   keep, update or submit documents or logs is process (Articles 11(1),
   18, 19, 47, 49); a required content of what is delivered with the

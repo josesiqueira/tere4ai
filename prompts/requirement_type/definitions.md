@@ -42,8 +42,9 @@ typed requirement has exactly one requirement_type, one of three values:
 Reading rules:
 
 1. Read by the outcome the obligation constrains, not by its main verb:
-   "shall be designed and developed in such a way that" (Articles 13(1),
-   14(1), 15(1)) is functional or quality by the outcome that follows.
+   obligations that require the system to be designed and developed so
+   that an outcome holds (Articles 13(1), 14(1), 15(1)) are typed by that
+   outcome, not by the verb.
 2. A required level of a function's output is quality when the
    obligation is about the level (Article 15(1)).
 3. A duty to draw up, keep, update or submit documents or logs is process
