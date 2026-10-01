@@ -51,8 +51,9 @@ class ModelClient(Protocol):
 # refusal the SDK raises before sending is not a request sent (spec F D-F29).
 # Spec F D-F32: a seventh count, requests_rejected_before_processing, counts
 # the attempts the provider answered with one of the seven statuses below,
-# known by the status alone (the D-F26 (e) class, which the providers do not
-# bill). It is a subset of requests_refused, and each such attempt stays in
+# known by the status alone (the D-F26 (e) class, which the providers are
+# taken not to bill: Anthropic's billing guidance; for OpenAI inferred, no
+# invoice checked). It is a subset of requests_refused, and each such attempt stays in
 # requests_sent. The name spells the class out so it is never read as
 # requests_refused; the dashboard pins its own copy of the seven (spend.ts).
 USAGE_KEYS = ("calls", "input_tokens", "output_tokens", "requests_sent", "replies_with_usage",

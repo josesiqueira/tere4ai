@@ -687,16 +687,49 @@ def test_the_seven_statuses_rejected_before_processing():
     (408, 0), (409, 0), (499, 0), (500, 0), (503, 0), (529, 0),
 ])
 def test_one_attempt_answered_with_a_status_counts_rejected_only_for_the_seven(status, rejected):
+    """Under the service policy a 408, 409, 429 or 5xx is sent again and the
+    second attempt answers; any other status is raised after one attempt."""
+    retried = status in (408, 409, 429) or status >= 500
     transport = _Flaky([_ProviderError("no", status_code=status), _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = lambda seconds: None
-    try:
-        gen.complete("s", "u")
-    except _ProviderError:
-        pass
+    if retried:
+        assert gen.complete("s", "u") == "a"
+    else:
+        with pytest.raises(_ProviderError):
+            gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == (2 if retried else 1)
     assert gen.usage["requests_refused"] == 1
     assert gen.usage["requests_rejected_before_processing"] == rejected
-    assert gen.usage["requests_rejected_before_processing"] <= gen.usage["requests_refused"] <= gen.usage["requests_sent"]
+
+
+def test_the_judge_counts_a_retried_429_as_rejected_before_processing():
+    transport = _Flaky([_ProviderError("rate limited", status_code=429), _anthropic_response("v", 1, 1)])
+    judge = _judge_over(transport)
+    judge._wait = lambda seconds: None
+    assert judge.complete("s", "u") == "v"
+    assert (judge.usage["requests_sent"], judge.usage["requests_refused"],
+            judge.usage["requests_rejected_before_processing"]) == (2, 1, 1)
+
+
+def test_the_terminal_policy_counts_the_class_on_a_refusal_and_on_a_stop():
+    gen = _terminal(_generator_over(_Flaky([_ProviderError("unauthorized", status_code=401)])))
+    with pytest.raises(ProviderRefused):
+        gen.complete("s", "u")
+    assert (gen.usage["requests_sent"], gen.usage["requests_refused"],
+            gen.usage["requests_rejected_before_processing"]) == (1, 1, 1)
+
+    judge = _terminal(_judge_over(_Flaky([_ProviderError("rate limited", status_code=429)] * 6)), [])
+    with pytest.raises(ProviderUnavailable):
+        judge.complete("s", "u")
+    assert (judge.usage["requests_sent"], judge.usage["requests_refused"],
+            judge.usage["requests_rejected_before_processing"]) == (6, 6, 6)
+
+    judge = _terminal(_judge_over(_Flaky([_ProviderError("overloaded", status_code=529)] * 6)), [])
+    with pytest.raises(ProviderUnavailable):
+        judge.complete("s", "u")
+    assert (judge.usage["requests_sent"], judge.usage["requests_refused"],
+            judge.usage["requests_rejected_before_processing"]) == (6, 6, 0)
 
 
 def test_a_retried_429_is_rejected_before_processing_and_the_reply_counts_as_usual():

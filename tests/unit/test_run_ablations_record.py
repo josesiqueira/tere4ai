@@ -468,6 +468,9 @@ def test_the_summary_sums_the_two_counts_and_drops_them_when_a_unit_lacks_them(r
     old_by_role = json.loads((tmp_path / "results" / "old_summary.json").read_text())[
         "usage_provider_reported"]["by_role"]
     assert "requests_sent" not in old_by_role["generator"] and old_by_role["generator"]["calls"] == 2
+    # spec F D-F32: the subsets of requests_sent go with it
+    assert "requests_refused" not in old_by_role["generator"]
+    assert "requests_rejected_before_processing" not in old_by_role["generator"]
 
 
 def test_a_unit_without_any_usage_drops_the_counts_too(runner, monkeypatch, tmp_path):
@@ -484,6 +487,7 @@ def test_a_unit_without_any_usage_drops_the_counts_too(runner, monkeypatch, tmp_
                         str(tmp_path / "results" / "mixed_summary.json"), "--resume-unrecorded"]) == 0
     usage = json.loads((tmp_path / "results" / "mixed_summary.json").read_text())["usage_provider_reported"]
     assert usage["units_without_usage"] == 1 and "requests_sent" not in usage["by_role"]["generator"]
+    assert "requests_rejected_before_processing" not in usage["by_role"]["generator"]
 
 
 def test_a_resumed_record_counts_only_its_own_spend(runner, tmp_path):
@@ -538,6 +542,21 @@ def test_the_summary_sums_the_rejected_count_and_drops_only_it_when_a_unit_lacks
     summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
     assert summary["usage_provider_reported"]["by_role"]["generator"]["requests_rejected_before_processing"] == 0
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
+    # each unit's generator met one 429 and retried it: the summary sums the units
+    for entry in lines:
+        generator = entry["usage"]["generator"]
+        generator["requests_sent"] += 1
+        generator["requests_refused"] += 1
+        generator["requests_rejected_before_processing"] += 1
+    rejected = tmp_path / "results" / "rejected_checkpoint.jsonl"
+    rejected.write_text("".join(json.dumps(e) + "\n" for e in lines))
+    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(rejected), "--summary",
+                        str(tmp_path / "results" / "rejected_summary.json"), "--resume-unrecorded"]) == 0
+    summed = json.loads((tmp_path / "results" / "rejected_summary.json").read_text())[
+        "usage_provider_reported"]["by_role"]["generator"]
+    assert len(lines) == 2
+    assert (summed["requests_sent"], summed["requests_refused"], summed["requests_rejected_before_processing"]) == (4, 2, 2)
     lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
     for role in lines[0]["usage"].values():
         role.pop("requests_rejected_before_processing", None)

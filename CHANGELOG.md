@@ -9,8 +9,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - A seventh per-role count, `requests_rejected_before_processing`, counts the
   attempts the provider answered with HTTP 400, 401, 403, 404, 413, 422 or 429
   (`REJECTED_BEFORE_PROCESSING_STATUSES` in
-  `src/tere4ai/extract_norms/model_clients.py`), which the providers do not
-  bill. It is a subset of `requests_refused`, which keeps counting every HTTP
+  `src/tere4ai/extract_norms/model_clients.py`), which the providers are
+  taken not to bill (spec F D-F26 (e): Anthropic's billing guidance; for
+  OpenAI inferred, no invoice checked). It is a subset of `requests_refused`, which keeps counting every HTTP
   error status, and each such attempt stays in `requests_sent`. A 400 naming a
   declared parameter and a retried 429 count here; 408, 409, 499, any 5xx, a
   timeout, a lost connection and an interrupt never do.
@@ -20,8 +21,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   that count out for its role) and the backlog answer's usage.
 - `build_record.schema.json` `role_usage` gains it as an optional
   non-negative integer; the schema stays `build_record.v1`. The mock record
-  `resumed_align.json` carries it (one generator 429 retried on the resumed
-  attempt). Records made before keep what they carry.
+  `resumed_align.json` carries it and `requests_refused` on both attempts;
+  the resumed attempt's generator met one 429, retried, so it now reads 3
+  requests sent (2 before), 1 refused and 1 rejected before processing.
+  Records made before keep what they carry.
 
 ### Declared model parameters and the terminal retry policy (B99, spec F D-F29, D-F30)
 - Each model's temperature, effort and JSON mode are declared in
