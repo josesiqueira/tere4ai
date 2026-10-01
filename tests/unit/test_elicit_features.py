@@ -1,6 +1,7 @@
 """Tests for the feature elicitor (LLM extracts facts, rules decide)."""
 
 import json
+from pathlib import Path
 
 from tere4ai.elicit_features import elicit_features
 from tere4ai.extract_norms.model_clients import FakeClient
@@ -117,3 +118,74 @@ def test_default_prompt_version_is_v4():
 
     signature = inspect.signature(elicit_features)
     assert signature.parameters["prompt_version"].default == "v4"
+
+
+# DEC-18, B36.2: the three biometric facts and the point (d) and (g)
+# exceptions are defined by the Act's words. Each passage is checked against
+# the dump first, so a match in the schema or the prompt proves the copy is
+# verbatim (build build-3b753e5e9297).
+
+ROOT = Path(__file__).resolve().parents[2]
+ACT_PASSAGES = {
+    "eu-ai-act:definition:biometric-categorisation-system": (
+        "biometric categorisation system means an AI system for the purpose of "
+        "assigning natural persons to specific categories on the basis of their "
+        "biometric data, unless it is ancillary to another commercial service and "
+        "strictly necessary for objective technical reasons"
+    ),
+    "eu-ai-act:annex-iii:point-1:b": (
+        "AI systems intended to be used for biometric categorisation, according to "
+        "sensitive or protected attributes or characteristics based on the inference "
+        "of those attributes or characteristics"
+    ),
+    "eu-ai-act:article-5:paragraph-1:point-g": (
+        "biometric categorisation systems that categorise individually natural persons "
+        "based on their biometric data to deduce or infer their race, political "
+        "opinions, trade union membership, religious or philosophical beliefs, sex "
+        "life or sexual orientation"
+    ),
+    "eu-ai-act:article-5:paragraph-1:point-d": (
+        "this prohibition shall not apply to AI systems used to support the human "
+        "assessment of the involvement of a person in a criminal activity, which is "
+        "already based on objective and verifiable facts directly linked to a "
+        "criminal activity"
+    ),
+}
+# Point (g)'s exception, checked against the same node as its trait list.
+POINT_G_EXCEPTION = (
+    "this prohibition does not cover any labelling or filtering of lawfully acquired "
+    "biometric datasets, such as images, based on biometric data or categorizing of "
+    "biometric data in the area of law enforcement"
+)
+SCHEMA_PASSAGES = {
+    "biometric_categorisation_system": ACT_PASSAGES["eu-ai-act:definition:biometric-categorisation-system"],
+    "biometric_categorisation_sensitive_or_protected_attributes": ACT_PASSAGES["eu-ai-act:annex-iii:point-1:b"],
+    "biometric_categorisation": ACT_PASSAGES["eu-ai-act:article-5:paragraph-1:point-g"],
+    "supports_human_assessment_on_verifiable_facts": ACT_PASSAGES["eu-ai-act:article-5:paragraph-1:point-d"],
+    "biometric_categorisation_lawful_or_law_enforcement": POINT_G_EXCEPTION,
+}
+
+
+def _act_nodes() -> dict:
+    import pytest
+
+    dump_path = ROOT / "data" / "graph_dumps" / "layer1.json"
+    if not dump_path.is_file():
+        pytest.skip("layer1.json dump not built")
+    nodes = {n["id"]: n for n in json.loads(dump_path.read_text(encoding="utf-8"))["nodes"]}
+    for node_id, passage in ACT_PASSAGES.items():
+        assert passage in nodes[node_id]["text"], node_id
+    assert POINT_G_EXCEPTION in nodes["eu-ai-act:article-5:paragraph-1:point-g"]["text"]
+    return nodes
+
+
+def test_schema_defines_the_biometric_facts_and_the_exceptions_by_the_acts_words():
+    """Jose, 2026-10-01: three biometric facts defined by the Act's words,
+    and the point (d) and (g) exceptions corrected to the Act's words."""
+    _act_nodes()
+    schema = json.loads(
+        (ROOT / "schema" / "json_schemas" / "system_features.schema.json").read_text(encoding="utf-8")
+    )
+    flags = schema["properties"]["flags"]["properties"]
+    for flag, passage in SCHEMA_PASSAGES.items():
+        assert passage in flags[flag]["description"], flag

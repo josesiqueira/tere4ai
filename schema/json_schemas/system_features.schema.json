@@ -29,7 +29,18 @@
       "description": "Boolean facts. Absent flag = unknown, which is NOT treated as false for prohibition-relevant flags; unknowns surface in missing_facts.",
       "properties": {
         "biometric_identification": { "type": "boolean" },
-        "biometric_categorisation": { "type": "boolean" },
+        "biometric_categorisation": {
+          "type": "boolean",
+          "description": "Article 5(1)(g) practice, the Act's words: 'biometric categorisation systems that categorise individually natural persons based on their biometric data to deduce or infer their race, political opinions, trade union membership, religious or philosophical beliefs, sex life or sexual orientation'. True only for those traits. Categorisation by other sensitive or protected attributes is biometric_categorisation_sensitive_or_protected_attributes; the general system is biometric_categorisation_system. When true, those two are true as well. Absence leaves the ban unsettled."
+        },
+        "biometric_categorisation_system": {
+          "type": "boolean",
+          "description": "Article 3(40), the Act's words: 'biometric categorisation system means an AI system for the purpose of assigning natural persons to specific categories on the basis of their biometric data, unless it is ancillary to another commercial service and strictly necessary for objective technical reasons'. A system that is ancillary to another commercial service and strictly necessary for objective technical reasons is not one (false). Triggers the Article 50(3) information duty. If this is false, biometric_categorisation (Article 5(1)(g)) is false too, since point (g) uses the defined term."
+        },
+        "biometric_categorisation_sensitive_or_protected_attributes": {
+          "type": "boolean",
+          "description": "Annex III point 1(b), the Act's words: 'AI systems intended to be used for biometric categorisation, according to sensitive or protected attributes or characteristics based on the inference of those attributes or characteristics'. High-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer."
+        },
         "causes_significant_harm": {
           "type": "boolean",
           "description": "Article 5(1)(a)/(b) qualifier: the subliminal/manipulative or vulnerability-exploiting practice causes or is reasonably likely to cause significant harm. Prohibited only where this holds; false means the point does not prohibit it. Absence leaves the ban unsettled."
@@ -40,7 +51,7 @@
         },
         "supports_human_assessment_on_verifiable_facts": {
           "type": "boolean",
-          "description": "Article 5(1)(d) exception: the system supports the human assessment of involvement in criminal activity already based on objective and verifiable facts. True means the prohibition does not apply."
+          "description": "Article 5(1)(d) exception, the Act's words: 'this prohibition shall not apply to AI systems used to support the human assessment of the involvement of a person in a criminal activity, which is already based on objective and verifiable facts directly linked to a criminal activity'. True means the prohibition does not apply. Facts that are not directly linked to a criminal activity do not meet the exception."
         },
         "emotion_recognition_medical_or_safety": {
           "type": "boolean",
@@ -48,7 +59,7 @@
         },
         "biometric_categorisation_lawful_or_law_enforcement": {
           "type": "boolean",
-          "description": "Article 5(1)(g) carve-out: labelling or filtering of lawfully acquired biometric datasets, or biometric categorisation in the area of law enforcement. True means the prohibition does not apply."
+          "description": "Article 5(1)(g) exception, the Act's words: 'this prohibition does not cover any labelling or filtering of lawfully acquired biometric datasets, such as images, based on biometric data or categorizing of biometric data in the area of law enforcement'. True means the prohibition does not apply. A law-enforcement user alone does not meet the exception: the system must label or filter lawfully acquired biometric datasets, or categorise biometric data in the area of law enforcement."
         },
         "rtrb_strictly_necessary_authorised": {
           "type": "boolean",

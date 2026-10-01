@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created": "2026-07-08",
-  "description": "Seed gold set for the M4 evaluation (architecture.md Section 12). 10 hand-authored items on the v2 high-risk core; the full gold set targets 60 to 80 items with a second annotator on a 20 to 30 percent subset (see ANNOTATION_PROTOCOL.md). Every gold_citations id was verified to exist in data/graph_dumps/layer1.json (build build-3b753e5e9297), and every classification item was verified against the deterministic classify_ai_system before this file was written. Maintenance 2026-09-02 (B59): Regulation (EU) 2026/1744 added two prohibition-relevant facts (generates_nonconsensual_intimate_material, generates_csam); every item that enumerates its flags now settles both as false, preserving each item's original fully-settled semantics under the extended fail-closed flag set. No gold verdict changed.",
+  "description": "Seed gold set for the M4 evaluation (architecture.md Section 12). 10 hand-authored items on the v2 high-risk core; the full gold set targets 60 to 80 items with a second annotator on a 20 to 30 percent subset (see ANNOTATION_PROTOCOL.md). Every gold_citations id was verified to exist in data/graph_dumps/layer1.json (build build-3b753e5e9297), and every classification item was verified against the deterministic classify_ai_system before this file was written. Maintenance 2026-09-02 (B59): Regulation (EU) 2026/1744 added two prohibition-relevant facts (generates_nonconsensual_intimate_material, generates_csam); every item that enumerates its flags now settles both as false, preserving each item's original fully-settled semantics under the extended fail-closed flag set. No gold verdict changed. Maintenance 2026-10-01 (B36.2, DEC-18): biometric categorisation became three facts, one per provision; every item that enumerates its flags now settles the two new ones (biometric_categorisation_system, biometric_categorisation_sensitive_or_protected_attributes) as false, by the same rule. No gold verdict changed.",
   "items": [
     {
       "id": "gold:cls-01",
@@ -41,6 +41,8 @@
         "flags": {
           "biometric_identification": false,
           "biometric_categorisation": false,
+          "biometric_categorisation_system": false,
+          "biometric_categorisation_sensitive_or_protected_attributes": false,
           "real_time_remote_biometric_public": false,
           "emotion_recognition": false,
           "emotion_recognition_workplace_or_education": false,
@@ -88,6 +90,8 @@
         "flags": {
           "biometric_identification": false,
           "biometric_categorisation": false,
+          "biometric_categorisation_system": false,
+          "biometric_categorisation_sensitive_or_protected_attributes": false,
           "real_time_remote_biometric_public": false,
           "emotion_recognition": false,
           "emotion_recognition_workplace_or_education": false,
@@ -133,6 +137,8 @@
         "flags": {
           "biometric_identification": false,
           "biometric_categorisation": false,
+          "biometric_categorisation_system": false,
+          "biometric_categorisation_sensitive_or_protected_attributes": false,
           "real_time_remote_biometric_public": false,
           "emotion_recognition": false,
           "emotion_recognition_workplace_or_education": false,
@@ -177,6 +183,8 @@
         "flags": {
           "biometric_identification": false,
           "biometric_categorisation": false,
+          "biometric_categorisation_system": false,
+          "biometric_categorisation_sensitive_or_protected_attributes": false,
           "real_time_remote_biometric_public": false,
           "emotion_recognition": false,
           "emotion_recognition_workplace_or_education": false,

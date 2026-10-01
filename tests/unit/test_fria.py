@@ -365,6 +365,8 @@ _ALL_FLAGS_FALSE = {
     "generates_csam": False,
     "biometric_identification": False,
     "biometric_categorisation": False,
+    "biometric_categorisation_system": False,
+    "biometric_categorisation_sensitive_or_protected_attributes": False,
     "real_time_remote_biometric_public": False,
     "emotion_recognition": False,
     "emotion_recognition_workplace_or_education": False,

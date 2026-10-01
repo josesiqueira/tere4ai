@@ -89,11 +89,15 @@ ARTICLE_5_POINT_BY_FLAG: dict[str, tuple[str, str]] = {
     # point (g): "biometric categorisation systems that categorise
     # individually natural persons based on their biometric data to deduce or
     # infer their race, political opinions, trade union membership, religious
-    # or philosophical beliefs, sex life or sexual orientation"
+    # or philosophical beliefs, sex life or sexual orientation". DEC-18: the
+    # flag means exactly these traits; categorisation by other sensitive or
+    # protected attributes is the Annex III point 1(b) fact, and the general
+    # Article 3(40) system is biometric_categorisation_system.
     "biometric_categorisation": (
         "eu-ai-act:article-5:paragraph-1:point-g",
-        "biometric categorisation deducing or inferring sensitive traits "
-        "(race, political opinions, beliefs, sex life or sexual orientation)",
+        "biometric categorisation deducing or inferring race, political "
+        "opinions, trade union membership, religious or philosophical beliefs, "
+        "sex life or sexual orientation",
     ),
 }
 
@@ -160,12 +164,15 @@ ARTICLE_5_EXCULPATING_FACT: dict[str, tuple[str, bool, str]] = {
         False,
         "the point (c) detrimental-treatment element",
     ),
-    # (d) "shall not apply to AI systems used to support the human assessment
-    # ... based on objective and verifiable facts".
+    # (d) "this prohibition shall not apply to AI systems used to support the
+    # human assessment of the involvement of a person in a criminal activity,
+    # which is already based on objective and verifiable facts directly linked
+    # to a criminal activity" (DEC-18: the fact carries the Act's words).
     "predictive_policing_profiling": (
         "supports_human_assessment_on_verifiable_facts",
         True,
-        "the point (d) human-assessment-on-verifiable-facts exception",
+        "the point (d) exception (support of a human assessment already based "
+        "on objective and verifiable facts directly linked to a criminal activity)",
     ),
     # (f) "except where ... intended ... for medical or safety reasons".
     "emotion_recognition_workplace_or_education": (
@@ -173,12 +180,17 @@ ARTICLE_5_EXCULPATING_FACT: dict[str, tuple[str, bool, str]] = {
         True,
         "the point (f) medical or safety exception",
     ),
-    # (g) "does not cover ... labelling or filtering of lawfully acquired
-    # biometric datasets ... or ... in the area of law enforcement".
+    # (g) "this prohibition does not cover any labelling or filtering of
+    # lawfully acquired biometric datasets, such as images, based on
+    # biometric data or categorizing of biometric data in the area of law
+    # enforcement" (DEC-18: the fact carries the Act's words; a
+    # law-enforcement user alone does not meet it).
     "biometric_categorisation": (
         "biometric_categorisation_lawful_or_law_enforcement",
         True,
-        "the point (g) lawful-dataset / law-enforcement carve-out",
+        "the point (g) exception (labelling or filtering of lawfully acquired "
+        "biometric datasets, or categorising of biometric data in the area of "
+        "law enforcement)",
     ),
 }
 # (h) real-time RBI for law enforcement is conditionally permitted where
@@ -203,13 +215,17 @@ PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
 ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
     {
         # point 1: "Biometrics ... remote biometric identification systems
-        # ... emotion recognition"
+        # ... emotion recognition"; point 1(b) (DEC-18): "AI systems intended
+        # to be used for biometric categorisation, according to sensitive or
+        # protected attributes or characteristics based on the inference of
+        # those attributes or characteristics".
         "node": "eu-ai-act:annex-iii:point-1",
         "label": "biometrics",
         "flags": (
             "biometric_identification",
             "emotion_recognition",
             "real_time_remote_biometric_public",
+            "biometric_categorisation_sensitive_or_protected_attributes",
         ),
         "domains": (),
     },
@@ -405,6 +421,13 @@ ARTICLE_50_RULES: tuple[tuple[str, str, str], ...] = (
         "emotion_recognition",
         "eu-ai-act:article-50:paragraph-3",
         "exposed persons must be informed of emotion recognition",
+    ),
+    # DEC-18: the 50(3) trigger for "a biometric categorisation system"
+    # (Article 3(40), with its ancillary-service exclusion).
+    (
+        "biometric_categorisation_system",
+        "eu-ai-act:article-50:paragraph-3",
+        "exposed persons must be informed of biometric categorisation",
     ),
 )
 

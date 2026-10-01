@@ -20,9 +20,9 @@ class FakeGenerator:
         return self._payload
 
 
-def test_schema_flag_names_lists_all_36_flags():
+def test_schema_flag_names_lists_all_38_flags():
     names = schema_flag_names()
-    assert len(names) == 36
+    assert len(names) == 38
     assert names == sorted(names)
     assert "social_scoring" in names
     assert "creditworthiness_evaluation" in names

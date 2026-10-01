@@ -41,7 +41,7 @@ export type ScenarioPreset = {
   flags: Record<string, TriState>;
 };
 
-/* All 34 flags defined in schema/json_schemas/system_features.schema.json,
+/* All 38 flags defined in schema/json_schemas/system_features.schema.json,
    matching schema_flag_names() in src/tere4ai/elicit_features/elicitor.py
    (alphabetically sorted; the drift gate in
    tests/unit/test_web_copy_honesty.py::test_presets_cover_every_schema_flag
@@ -50,6 +50,8 @@ const ALL_FLAG_KEYS = [
   "annex_i_covered_product",
   "biometric_categorisation",
   "biometric_categorisation_lawful_or_law_enforcement",
+  "biometric_categorisation_sensitive_or_protected_attributes",
+  "biometric_categorisation_system",
   "biometric_identification",
   "causes_significant_harm",
   "creditworthiness_evaluation",

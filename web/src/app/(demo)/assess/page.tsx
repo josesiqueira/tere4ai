@@ -247,7 +247,7 @@ const PROHIBITION_FLAGS: [string, string][] = [
   ["predictive_policing_profiling", "Predictive policing by profiling"],
   [
     "supports_human_assessment_on_verifiable_facts",
-    "Supports human assessment on verifiable facts (Art. 5(1)(d) exception)",
+    "Supports a human assessment based on facts directly linked to a criminal activity (Art. 5(1)(d) exception)",
   ],
   ["facial_image_scraping", "Untargeted facial image scraping"],
   ["emotion_recognition_workplace_or_education", "Emotion recognition at work / education"],
@@ -255,10 +255,13 @@ const PROHIBITION_FLAGS: [string, string][] = [
     "emotion_recognition_medical_or_safety",
     "Emotion recognition for medical or safety reasons (Art. 5(1)(f) exception)",
   ],
-  ["biometric_categorisation", "Biometric categorisation (sensitive traits)"],
+  [
+    "biometric_categorisation",
+    "Biometric categorisation inferring race, political opinions, union membership, beliefs, sex life or orientation (Art. 5(1)(g))",
+  ],
   [
     "biometric_categorisation_lawful_or_law_enforcement",
-    "Lawful dataset / law enforcement carve-out (Art. 5(1)(g))",
+    "Labelling or filtering lawful biometric datasets, or categorising biometric data in law enforcement (Art. 5(1)(g) exception)",
   ],
   ["real_time_remote_biometric_public", "Real-time remote biometric ID in public"],
   [
@@ -275,6 +278,10 @@ const PROHIBITION_FLAGS: [string, string][] = [
 
 const CATEGORY_FLAGS: [string, string][] = [
   ["biometric_identification", "Biometric identification"],
+  [
+    "biometric_categorisation_sensitive_or_protected_attributes",
+    "Biometric categorisation by sensitive or protected attributes (Annex III point 1(b))",
+  ],
   ["emotion_recognition", "Emotion recognition"],
   ["critical_infrastructure_safety", "Critical infrastructure safety component"],
   ["education_scoring_or_access", "Education scoring or access"],
@@ -298,6 +305,10 @@ const CATEGORY_FLAGS: [string, string][] = [
     "Detects patterns without replacing human assessment (Art. 6(3)(c))",
   ],
   ["interacts_with_natural_persons", "Interacts with natural persons"],
+  [
+    "biometric_categorisation_system",
+    "Biometric categorisation system (Art. 3(40), Art. 50(3) duty)",
+  ],
   ["generates_synthetic_content", "Generates synthetic content"],
   ["profiling_of_natural_persons", "Profiling of natural persons"],
   ["annex_i_covered_product", "Annex I covered product / safety component"],

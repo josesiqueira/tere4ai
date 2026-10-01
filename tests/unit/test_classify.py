@@ -29,6 +29,8 @@ pytestmark = pytest.mark.skipif(
 ALL_FLAGS = (
     "biometric_identification",
     "biometric_categorisation",
+    "biometric_categorisation_system",
+    "biometric_categorisation_sensitive_or_protected_attributes",
     "real_time_remote_biometric_public",
     "generates_nonconsensual_intimate_material",
     "generates_csam",
@@ -771,3 +773,106 @@ def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
         envelope = classify_ai_system({"description": "A described AI system.", "flags": flags}, dump)
         assert envelope["answer"]["prohibited"] is None, name
         assert envelope["status"] == "requires_human_review", name
+
+
+# DEC-18, B36.2: three biometric facts, the (d) and (g) exceptions in the
+# Act's words, the Article 50(3) trigger for a biometric categorisation system
+
+
+ARTICLE_50_3 = "eu-ai-act:article-50:paragraph-3"
+
+
+def test_annex_iii_point_1b_sensitive_attributes_is_high_risk(dump, node_ids):
+    """Codex spec review finding 3: categorisation by sensitive or protected
+    attributes outside the Article 5(1)(g) traits has its Annex III route."""
+    envelope = classify_ai_system(
+        {"description": "Infers age and disability from gait video.",
+         "flags": all_false_flags(biometric_categorisation_sensitive_or_protected_attributes=True)},
+        dump,
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["prohibited"] is False
+    assert answer["annex_iii_category"] == "eu-ai-act:annex-iii:point-1"
+    assert any(
+        "flag biometric_categorisation_sensitive_or_protected_attributes matches" in line
+        for line in answer["rationale"]
+    )
+
+
+def test_absent_point_1b_fact_blocks_a_confident_minimal(dump):
+    """Like every Annex III fact, an absent point 1(b) fact is unknown, never
+    false (audit D1)."""
+    flags = _without(all_false_flags(), "biometric_categorisation_sensitive_or_protected_attributes")
+    envelope = classify_ai_system({"description": "A recommender system.", "flags": flags}, dump)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["prohibited"] is False
+    assert any(
+        "flags.biometric_categorisation_sensitive_or_protected_attributes" in f and "Annex III" in f
+        for f in envelope["missing_facts"]
+    )
+
+
+def test_biometric_categorisation_system_is_an_article_50_3_trigger(dump, node_ids):
+    """Jose, 2026-10-01: "Add it in B36.2": the Article 3(40) system is the
+    Article 50(3) trigger beside emotion recognition."""
+    envelope = classify_ai_system(
+        {"description": "Sorts shoppers into age bands from camera images.",
+         "flags": all_false_flags(biometric_categorisation_system=True)},
+        dump,
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "transparency_only"
+    assert answer["prohibited"] is False
+    assert envelope["status"] == "potentially_applicable"
+    assert envelope["source_nodes"] == [ARTICLE_50_3]
+
+
+def test_the_general_biometric_system_alone_is_not_the_article_5_ban(dump):
+    """The narrowed point (g) flag: a biometric categorisation system that
+    infers none of the Article 5(1)(g) traits is not prohibited."""
+    envelope = classify_ai_system(
+        {"description": "Sorts shoppers into age bands from camera images.",
+         "flags": all_false_flags(biometric_categorisation_system=True)},
+        dump,
+    )
+    assert envelope["answer"]["prohibited"] is False
+    assert not any(":article-5:" in n for n in envelope["source_nodes"])
+
+
+def test_point_d_exception_carries_the_acts_words(dump):
+    """Jose, 2026-10-01: "Correct both to the Act's words" (point (d))."""
+    flags = all_false_flags(predictive_policing_profiling=True, law_enforcement_use=True)
+    flags["supports_human_assessment_on_verifiable_facts"] = True
+    envelope = classify_ai_system({"description": "Supports detectives' case reviews.", "flags": flags}, dump)
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert any(
+        "directly linked to a criminal activity" in line for line in envelope["answer"]["rationale"]
+    )
+
+
+def test_point_g_exception_carries_the_acts_words(dump):
+    """Jose, 2026-10-01: "Correct both to the Act's words" (point (g))."""
+    flags = all_false_flags(
+        biometric_categorisation=True,
+        biometric_categorisation_system=True,
+        biometric_categorisation_sensitive_or_protected_attributes=True,
+    )
+    flags["biometric_categorisation_lawful_or_law_enforcement"] = True
+    envelope = classify_ai_system({"description": "Filters a lawfully acquired image set.", "flags": flags}, dump)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert any(
+        "labelling or filtering of lawfully acquired biometric datasets" in line
+        for line in answer["rationale"]
+    )
+
+
+def test_article_50_rule_nodes_are_paragraphs_in_the_dump(dump):
+    nodes = {n["id"]: n for n in dump["nodes"]}
+    for flag, node_id, _note in classify_module.ARTICLE_50_RULES:
+        assert nodes[node_id]["type"] == "Paragraph", flag
+    assert "biometric categorisation system" in nodes[ARTICLE_50_3]["text"]
+    assert "eu-ai-act:article-50" in nodes
