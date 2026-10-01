@@ -51,12 +51,14 @@ from tere4ai.extract_norms.pipeline import (
     prompt_sha256,
 )
 from tere4ai.graph_store.present import exception_reason
+from tere4ai.judge import runtime_grounding
 from tere4ai.judge.config import require_independent_clients
 from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
 from tere4ai.mcp_server.evidence import JUDGE_ERROR, JUDGE_NOT_RUN
 from tere4ai.mcp_server.tools import make_envelope
 
 TOOL_NAME = "generate_control_backlog"
+GENERATOR_PROMPT = "generate_backlog"
 
 PRIORITIES = ("must", "should")
 # Deontic types whose norms make a backlog item mandatory (Section 3).
@@ -271,6 +273,18 @@ def generate_control_backlog(
     # clients counted it over this call only (a client may be reused)
     generator_before, judge_before = usage_snapshot(generator), usage_snapshot(judge)
 
+    # Spec F D-F35 (1): both roles' prompts, named by prompt and version, with
+    # the SHA-256 of the prompt file's text, as the audit log records them.
+    # The judge's prompt is read the way ground_check reads it; a file that
+    # cannot be read is named with no hash (the judge then does not run), and
+    # a judged answer takes the hash from its judge run.
+    gen_prompt = load_prompt(GENERATOR_PROMPT, prompt_version)
+    try:
+        judge_prompt_sha256: str | None = prompt_sha256(
+            runtime_grounding.load_prompt(runtime_grounding.JUDGE_KIND, prompt_version))
+    except Exception:  # noqa: BLE001  (any read failure; ground_check then raises before a request)
+        judge_prompt_sha256 = None
+
     # Both roles are named (B98 seat B P3-3): a judge_error answer can carry
     # judge tokens, and a token line is priced from the model that spent it.
     def spend() -> dict[str, Any]:
@@ -281,6 +295,12 @@ def generate_control_backlog(
             "judge_model": judge.model,
             "judge_effort": getattr(judge, "effort", "not configured"),
             "judge_temperature": getattr(judge, "temperature", "not configured"),
+            "generator_prompt": GENERATOR_PROMPT,
+            "generator_prompt_version": prompt_version,
+            "generator_prompt_sha256": prompt_sha256(gen_prompt),
+            "judge_prompt": runtime_grounding.JUDGE_KIND,
+            "judge_prompt_version": prompt_version,
+            "judge_prompt_sha256": judge_prompt_sha256,
             "usage": {"generator": usage_since(generator, generator_before),
                       "judge": usage_since(judge, judge_before)},
         }
@@ -294,7 +314,6 @@ def generate_control_backlog(
         norm.get("norm_id"): norm.get("conditions") or [] for norm in norms
     }
 
-    gen_prompt = load_prompt("generate_backlog", prompt_version)
     gen_user = _generator_user_message(norms, system_context)
     # A generator that raises after its retries (B97 item 5) yields a degraded
     # answer carrying the spend of the requests it sent, never an error that
@@ -370,6 +389,7 @@ def generate_control_backlog(
             spend(),
             judge_verdict=JUDGE_ERROR if sent else JUDGE_NOT_RUN,
         )
+    judge_prompt_sha256 = check["judge_run"]["prompt_sha256"]
     verdict = check["verdict"]
     accepted = verdict == "accepted"
     status = "applicable_missing_evidence" if accepted else "requires_human_review"

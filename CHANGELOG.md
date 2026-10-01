@@ -5,6 +5,18 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### The backlog answer names its two prompts (B99.7a, spec F D-F35 (1))
+- `generate_control_backlog`'s answer gains six fields beside each role's
+  model, effort and temperature: `generator_prompt` (`generate_backlog`),
+  `generator_prompt_version`, `generator_prompt_sha256`, `judge_prompt`
+  (`runtime_grounding`), `judge_prompt_version` and `judge_prompt_sha256`,
+  the SHA-256 of the prompt file's text as the audit log records it. Every
+  answer that carries the spend carries them, a degraded one included; a
+  judged answer takes the judge's hash from its judge run, and a judge
+  prompt file that cannot be read is named with `judge_prompt_sha256` null
+  (the judge then does not run). Answers stored before keep what they
+  carry.
+
 ### Requests rejected before processing counted apart (B99.1a, spec F D-F32)
 - A seventh per-role count, `requests_rejected_before_processing`, counts the
   attempts the provider answered with HTTP 400, 401, 403, 404, 413, 422 or 429

@@ -590,3 +590,114 @@ def test_a_judge_step_that_raises_before_any_request_reads_not_run(tmp_path, mon
     envelope, _, judge = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
     assert judge.calls == [] and envelope["answer"]["usage"]["judge"]["requests_sent"] == 0
     assert envelope["judge_verdict"] == "not_run" and envelope["answer"]["refused"] is True
+
+
+# Spec F D-F35 (1): the answer names the prompt, the version and the SHA-256 of
+# the prompt file's text for both roles, generate_backlog for the generator and
+# runtime_grounding for the runtime judge, on every answer that carries the spend.
+
+
+def _prompt_fields(version="v1", judge_sha256="read"):
+    from tere4ai.extract_norms.pipeline import load_prompt, prompt_sha256
+
+    if judge_sha256 == "read":
+        judge_sha256 = prompt_sha256(load_prompt("runtime_grounding", version))
+    return {
+        "generator_prompt": "generate_backlog",
+        "generator_prompt_version": version,
+        "generator_prompt_sha256": prompt_sha256(load_prompt("generate_backlog", version)),
+        "judge_prompt": "runtime_grounding",
+        "judge_prompt_version": version,
+        "judge_prompt_sha256": judge_sha256,
+    }
+
+
+def _fields_of(answer):
+    return {key: answer.get(key) for key in _prompt_fields()}
+
+
+def test_a_judged_answer_names_both_prompts_with_version_and_hash(tmp_path):
+    envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    answer = envelope["answer"]
+    assert _fields_of(answer) == _prompt_fields()
+    # the judge's hash is the one the judge run and the audit log record
+    events = [json.loads(line) for line in (tmp_path / "runtime_log.jsonl").read_text().splitlines()]
+    (judge_event,) = [e for e in events if e["direction"] == "judge"]
+    (generator_event,) = [e for e in events if e["direction"] == "generator"]
+    assert answer["judge_prompt_sha256"] == judge_event["prompt_sha256"]
+    assert answer["generator_prompt_sha256"] == generator_event["prompt_sha256"]
+
+
+@pytest.mark.parametrize("gen_response", [
+    "not json at all",  # generator output unusable
+    gen_items(item("Risk management", ["norm:unknown"])),  # no item survives the citation check
+])
+def test_a_degraded_answer_with_the_spend_names_both_prompts(tmp_path, gen_response):
+    envelope, _, _ = _counted_run(tmp_path, gen_response, JUDGE_ACCEPT)
+    assert envelope["answer"]["refused"] is True
+    assert _fields_of(envelope["answer"]) == _prompt_fields()
+
+
+def test_a_failed_generator_request_or_judge_names_both_prompts(tmp_path):
+    class FailingGenerator(CountingClient):
+        def complete(self, system, user):
+            self.usage["requests_sent"] += 1
+            raise RuntimeError("503 upstream overloaded")
+
+    envelope, _, _ = _counted_run(tmp_path, "{}", JUDGE_ACCEPT,
+                                  generator=FailingGenerator({KEY: "{}"}, model="fake-generator"))
+    assert _fields_of(envelope["answer"]) == _prompt_fields()
+
+    class FailingJudge(CountingClient):
+        def complete(self, system, user):
+            self.usage["requests_sent"] += 1
+            raise RuntimeError("judge provider unreachable")
+
+    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    envelope = generate_control_backlog(
+        [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator,
+        FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge"),
+        prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )
+    assert envelope["judge_verdict"] == "judge_error"
+    assert _fields_of(envelope["answer"]) == _prompt_fields()
+
+
+def test_an_unreadable_judge_prompt_is_named_with_no_hash(tmp_path, monkeypatch):
+    import tere4ai.judge.runtime_grounding as rg
+
+    real_load = rg.load_prompt
+
+    def missing_prompt(kind, version):
+        if kind == "runtime_grounding":
+            raise FileNotFoundError("prompts/runtime_grounding/v1.md")
+        return real_load(kind, version)
+
+    monkeypatch.setattr(rg, "load_prompt", missing_prompt)
+    envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    assert envelope["judge_verdict"] == "not_run"
+    assert _fields_of(envelope["answer"]) == _prompt_fields(judge_sha256=None)
+
+
+def test_the_prompt_version_reaches_both_roles(tmp_path, monkeypatch):
+    """A version other than v1 is named on both roles (a v2 file is written for the test)."""
+    import tere4ai.extract_norms.pipeline as pipeline
+
+    prompts = tmp_path / "prompts"
+    for kind in ("generate_backlog", "runtime_grounding"):
+        (prompts / kind).mkdir(parents=True)
+        text = (pipeline.PROMPTS_DIR / kind / "v1.md").read_text(encoding="utf-8")
+        (prompts / kind / "v2.md").write_text(text + "\n", encoding="utf-8")
+    monkeypatch.setattr(pipeline, "PROMPTS_DIR", prompts)
+    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
+    envelope = generate_control_backlog(
+        [NORM_A, NORM_B, NORM_C], "ctx", generator, judge, prompt_version="v2",
+        graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )
+    answer = envelope["answer"]
+    assert answer["generator_prompt_version"] == answer["judge_prompt_version"] == "v2"
+    assert answer["generator_prompt_sha256"] == pipeline.prompt_sha256(
+        (prompts / "generate_backlog" / "v2.md").read_text(encoding="utf-8"))
+    assert answer["judge_prompt_sha256"] == pipeline.prompt_sha256(
+        (prompts / "runtime_grounding" / "v2.md").read_text(encoding="utf-8"))
