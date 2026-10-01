@@ -554,6 +554,44 @@ PDF). VERIFIED. SUPPORTING. Grounds: in LLM-as-a-judge work a "calibration
 set" is a small set of human preferences on which a judge's threshold is
 chosen (pp. 1 to 3), so "calibration" is not used as the name of a paid run.
 
+**[ADD-54]** STD. ISO/IEC/IEEE 29148:2018, "Systems and software engineering,
+Life cycle processes, Requirements engineering", DOI
+10.1109/IEEESTD.2018.8559686. VERIFIED 2026-10-01, read in TUNI's licensed
+copy. CORE. Grounds: the requirement type of B65 (functional, quality,
+process): the type attribute of clause 5.2.8.3 lists Functional/Performance,
+Process Requirements (including compliance with national, state or local
+laws) and Quality (Non-Functional) Requirements (printed pp. 15 to 16), and
+clause 3.1.7 defines a constraint as reaching the process used to develop a
+system (p. 3).
+
+**[ADD-55]** STD. ISO/IEC/IEEE 24765:2017, "Systems and software
+engineering, Vocabulary", DOI 10.1109/IEEESTD.2017.8016712. VERIFIED
+2026-10-01, read in TUNI's licensed copy. CORE. Grounds: the definitions of
+"functional requirement" (3.1704, p. 195) and "quality requirement" (3.3287,
+definition 1, p. 364). Supersedes the mention of 24765 marked "UNVERIFIED by
+Claude, paywalled" in thesis/sdd/2026-09-29-B100-board/brief.md.
+
+**[ADD-56]** PEER. "On Non-Functional Requirements", Glinz, 15th IEEE
+International Requirements Engineering Conference (RE 2007), pp. 21-26, DOI
+10.1109/RE.2007.45 (466 citations on Crossref, 2026-10-01). VERIFIED
+2026-10-01, read in TUNI's licensed copy. CORE. Grounds: process requirements
+are peers of functional and quality requirements, "distinguished at the root
+level and not in a sub-category such as non-functional requirements"
+(section 4.2, p. 24).
+
+**[ADD-57]** STD. Guide to the Software Engineering Body of Knowledge
+(SWEBOK Guide) V4.0a, IEEE Computer Society, 2024. IEEE Computer Society
+guide; its V3.0 was adopted as ISO/IEC TR 19759:2015, V4.0 is not an ISO
+document. VERIFIED 2026-10-01. SUPPORTING. Grounds: process (project)
+requirements at the root beside product requirements: Software Requirements
+KA 1.3 (p. 1-3) and Figure 1.2 (p. 1-4).
+
+**[ADD-58]** OFF. European Commission, Commission Implementing Decision
+C(2025) 3871 final, Annexes 1 to 2 (standardisation request on artificial
+intelligence), 23.6.2025. VERIFIED 2026-10-01. SUPPORTING. Grounds: the AI
+Act's standardisation request separates "requirements applicable to
+high-risk AI systems" from "process requirements" (Annex II, section 1, p. 4).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
