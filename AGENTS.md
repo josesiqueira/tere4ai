@@ -22,7 +22,6 @@ This file governs how the agent works. @docs/DESIGN.md is the visual design syst
 ## CHANGE / EDIT MODE
 
 - Never implement features yourself when possible, use sub-agents.
-- Identify changes that can be implemented in parallel and dispatch them to sub-agents.
 - When using sub-agents to implement, act as a coordinator only.
 - Use the best model for the task: premium models for complex work like implementation and judging logic, mid-tier models for simpler work like documentation.
 - After completing any change, run the project's available quality checks (lint, type check, build, tests). Never assume a change passes them.
