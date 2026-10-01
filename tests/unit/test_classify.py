@@ -13,6 +13,7 @@ from tere4ai.mcp_server import classify as classify_module
 from tere4ai.mcp_server.classify import (
     ARTICLE_5_POINT_BY_FLAG,
     ARTICLE_5_POINT_H,
+    OMNIBUS_ARTICLE_5_POINT_BY_FLAG,
     classify_ai_system,
 )
 from tere4ai.mcp_server.tools import NON_LEGAL_ADVICE_NOTICE, STATUS_VOCABULARY
@@ -751,10 +752,22 @@ def test_rejected_input_has_prohibited_null(dump):
 
 def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
     """The field and the status lowering read one resolution (ruling 6)."""
-    for flag in ARTICLE_5_POINT_BY_FLAG:
+    for flag in (*ARTICLE_5_POINT_BY_FLAG, *OMNIBUS_ARTICLE_5_POINT_BY_FLAG):
         envelope = classify_ai_system(
             {"description": "A described AI system.", "flags": _without(all_false_flags(employment_decisions=True), flag)},
             dump,
         )
         assert envelope["answer"]["prohibited"] is None, flag
         assert envelope["status"] == "requires_human_review", flag
+    # Point (h): the biometric flag and the law enforcement exception each unresolved.
+    base = all_false_flags(employment_decisions=True)
+    scenarios = {
+        "both_missing": _without(base, "real_time_remote_biometric_public", "law_enforcement_use"),
+        "biometric_true_exception_missing": _without(
+            {**base, "real_time_remote_biometric_public": True}, "law_enforcement_use"
+        ),
+    }
+    for name, flags in scenarios.items():
+        envelope = classify_ai_system({"description": "A described AI system.", "flags": flags}, dump)
+        assert envelope["answer"]["prohibited"] is None, name
+        assert envelope["status"] == "requires_human_review", name

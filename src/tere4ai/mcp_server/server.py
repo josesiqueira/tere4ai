@@ -350,9 +350,9 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     / Article 50 nodes. uncertain is not a legal risk level: facts the rules
     need are missing. The answer's prohibited field is true (an Article 5
     prohibition is proven), false (every Article 5 path is ruled out) or null
-    (unknown: an Article 5 fact is missing). A fixed rule ladder decides, never a model; unknown
-    prohibition-relevant facts surface in missing_facts and lower the status
-    to requires_human_review. The answer also carries a fria block: whether
+    (unknown: an Article 5 fact is missing). A fixed rule ladder decides,
+    never a model; unknown prohibition-relevant facts surface in
+    missing_facts and lower the status to requires_human_review. The answer also carries a fria block: whether
     the Article 27(1) fundamental rights impact assessment obligation
     applies to the deployer (applies, does_not_apply, unknown), decided by
     the same deterministic rules from the flags and the optional deployer
