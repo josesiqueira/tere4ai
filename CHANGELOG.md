@@ -5,6 +5,45 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### A high-risk answer keeps its Article 50 duties; biometric categorisation is three facts (B36.2, DEC-18)
+- `classify_ai_system`'s answer gains `transparency_duties`, always present:
+  the Article 50 paragraph node ids whose trigger fact is true
+  (`eu-ai-act:article-50:paragraph-1` interaction with natural persons,
+  `paragraph-2` synthetic content, `paragraph-3` emotion recognition or a
+  biometric categorisation system). It lists them on every answer except
+  the prohibited and the rejected-input ones, where it is empty, so a
+  high-risk answer now names its Article 50 duties (Article 50(6)). An
+  empty list means none is triggered by a known fact, never ruled out. A
+  listed paragraph is triggered, not proven: legal_status_notes says the
+  paragraphs' own exceptions and paragraphs 4 and 5 are not decided by the
+  rules. Contract change: a client that shows the classification shows the
+  list worded "triggered". `risk_category` keeps its values;
+  `transparency_only` still means Article 50 without high-risk.
+- An absent Article 50 trigger fact is named in missing_facts on the
+  high-risk and minimal answers; status, confidence and category do not
+  change.
+- Two new facts in system_features.schema.json:
+  `biometric_categorisation_system` (Article 3(40), the Article 50(3)
+  trigger) and `biometric_categorisation_sensitive_or_protected_attributes`
+  (Annex III point 1(b), high-risk beside point 1's other uses). Like
+  every Annex III fact the second one blocks a confident minimal answer
+  while it is absent, so a feature set written before this change
+  classifies uncertain where it classified minimal until the fact is
+  given. The gold seed settles both as false in every item that
+  enumerates its flags; no gold verdict changed.
+- `biometric_categorisation` now means exactly the Article 5(1)(g) traits,
+  and the point (d) and (g) exception facts are defined by the Act's words
+  (schema descriptions and rationale text). They still never settle an
+  absent Article 5 flag.
+- The elicitor prompt is v5 (prompts/elicit_features/v5.md), one default
+  (`DEFAULT_PROMPT_VERSION`) for `elicit_features`, the facade's
+  `/api/elicit` and scripts/elicit_benchmark_features.py (its default was
+  v2); v4 is kept for the records that name it. v5 also names the two
+  Omnibus prohibition facts (points (ba) and (bb)), quoting the amending
+  act, so an elicitation can now settle them.
+- `get_applicable_requirements` is unchanged: a high-risk system is still
+  served the whole Article 50 group.
+
 ### The classification says "unknown" when an Article 5 fact is missing (B36.1, DEC-18)
 - `classify_ai_system`'s `prohibited` field is now `true`, `false` or
   `null`. `null` means unknown: no prohibition is proven and at least one

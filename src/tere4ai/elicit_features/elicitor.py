@@ -1,6 +1,6 @@
 """Feature elicitation: free-text system description to system_features.
 
-@implements: DEC-13
+@implements: DEC-13, DEC-18
 @grounded_by: REF-17, REF-16
 
 The trust split of USER.md holds: the LLM extracts FACTS from the given
@@ -23,6 +23,9 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "system_features.schema.json"
 PROMPT_PATH = ROOT / "prompts" / "elicit_features" / "v1.md"
+# DEC-18: the one default prompt version; the facade's elicit_envelope and
+# scripts/elicit_benchmark_features.py import it rather than repeat it.
+DEFAULT_PROMPT_VERSION = "v5"
 
 _schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 _validator = Draft202012Validator(_schema)
@@ -45,7 +48,7 @@ def _clean(candidate: dict[str, Any], description: str) -> dict[str, Any]:
 def elicit_features(
     description: str,
     generator: Any,
-    prompt_version: str = "v4",
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     """Return (schema-valid system_features, notes) or (None, notes).
 

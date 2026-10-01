@@ -1,6 +1,6 @@
 """Elicit system_features for the benchmark's free-text scenarios (paid).
 
-@implements: DEC-13
+@implements: DEC-13, DEC-18
 @grounded_by: REF-17
 
 Checkpointed per item; resume by re-running. A provider overload is waited
@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.elicit_features import elicit_features  # noqa: E402
+from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
 from tere4ai.eval import harness  # noqa: E402
 from tere4ai.extract_norms.model_clients import (  # noqa: E402
     TERMINAL_POLICY,
@@ -45,8 +46,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument(
-        "--prompt-version", default="v2",
-        help="elicitor prompt version, recorded in the output",
+        "--prompt-version", default=DEFAULT_PROMPT_VERSION,
+        help="elicitor prompt version, recorded in the output (default: the elicitor's own)",
     )
     args = parser.parse_args(argv)
     run_argv = list(sys.argv[1:] if argv is None else argv)

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from tests.fixtures.model_parameters import declared
 
+from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     ProviderRefused,
@@ -115,3 +116,21 @@ def test_a_refused_declared_parameter_exits_4_and_keeps_the_checkpoint(tmp_path,
     assert ("stopped: configuration error: openai:g refused the declared effort xhigh (HTTP 400: effort "
             "unsupported); correct its row in config/model_parameters.json") in capsys.readouterr().err
     assert out.with_suffix(".checkpoint.jsonl").exists() and not out.exists()
+
+
+def test_the_default_prompt_version_is_the_elicitors(tmp_path, monkeypatch):
+    """Jose, 2026-10-01: "Re-extract at B74 with v5": without --prompt-version
+    the run elicits with the elicitor's own default, one default, not two."""
+    out = tmp_path / "features.json"
+    mod, _ = _script(monkeypatch)
+    seen: list[str] = []
+
+    def elicit(description, generator, prompt_version):
+        seen.append(prompt_version)
+        return {"flag": True}, ["elicited on attempt 1"]
+
+    monkeypatch.setattr(mod, "elicit_features", elicit)
+    assert mod.main(["--out", str(out)]) == 0
+    assert seen == [DEFAULT_PROMPT_VERSION, DEFAULT_PROMPT_VERSION]
+    assert DEFAULT_PROMPT_VERSION == "v5"
+    assert json.loads(out.read_text())["prompt_version"] == "v5"

@@ -1,7 +1,10 @@
 """Tests for the feature elicitor (LLM extracts facts, rules decide)."""
 
 import json
+import re
 from pathlib import Path
+
+import pytest
 
 from tere4ai.elicit_features import elicit_features
 from tere4ai.extract_norms.model_clients import FakeClient
@@ -66,12 +69,11 @@ def test_default_prompt_carries_the_dump_verbatim_article_3_definitions():
     root = Path(__file__).resolve().parents[2]
     dump_path = root / "data" / "graph_dumps" / "layer1.json"
     if not dump_path.is_file():
-        import pytest
-
         pytest.skip("layer1.json dump not built")
     dump = json.loads(dump_path.read_text(encoding="utf-8"))
     defs = {n["id"]: n for n in dump["nodes"] if n.get("type") == "Definition"}
-    prompt = (root / "prompts" / "elicit_features" / "v4.md").read_text(
+    # DEC-18: v5 is the default; it keeps every v4 definition verbatim.
+    prompt = (root / "prompts" / "elicit_features" / "v5.md").read_text(
         encoding="utf-8"
     )
     for node_id in (
@@ -83,7 +85,7 @@ def test_default_prompt_carries_the_dump_verbatim_article_3_definitions():
         "eu-ai-act:definition:profiling",
     ):
         assert defs[node_id]["text"].strip() in prompt, (
-            f"v4 prompt lost or drifted the verbatim definition {node_id}"
+            f"v5 prompt lost or drifted the verbatim definition {node_id}"
         )
 
 
@@ -111,13 +113,21 @@ def test_v4_prompt_carries_the_article_5_exculpating_facts():
         assert flag in prompt, f"v4 prompt omits the fact {flag}"
 
 
-def test_default_prompt_version_is_v4():
+def test_default_prompt_version_is_v5():
+    """DEC-18: the three biometric facts and the corrected (d), (g)
+    exceptions are in v5, so the elicitor and the facade default to it."""
     import inspect
 
     from tere4ai.elicit_features.elicitor import elicit_features
+    from tere4ai.mcp_server.elicit import elicit_envelope
 
     signature = inspect.signature(elicit_features)
-    assert signature.parameters["prompt_version"].default == "v4"
+    assert signature.parameters["prompt_version"].default == "v5"
+    envelope_signature = inspect.signature(elicit_envelope)
+    assert envelope_signature.parameters["prompt_version"].default == "v5"
+    from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
+
+    assert DEFAULT_PROMPT_VERSION == "v5"
 
 
 # DEC-18, B36.2: the three biometric facts and the point (d) and (g)
@@ -167,8 +177,6 @@ SCHEMA_PASSAGES = {
 
 
 def _act_nodes() -> dict:
-    import pytest
-
     dump_path = ROOT / "data" / "graph_dumps" / "layer1.json"
     if not dump_path.is_file():
         pytest.skip("layer1.json dump not built")
@@ -189,3 +197,67 @@ def test_schema_defines_the_biometric_facts_and_the_exceptions_by_the_acts_words
     flags = schema["properties"]["flags"]["properties"]
     for flag, passage in SCHEMA_PASSAGES.items():
         assert passage in flags[flag]["description"], flag
+
+
+def _collapse(text: str) -> str:
+    return " ".join(text.split())
+
+
+def test_v5_prompt_carries_the_acts_words_for_biometrics_and_exceptions():
+    """DEC-18 (B36.2): v5 teaches the elicitor the three biometric facts and
+    the corrected point (d) and (g) exceptions, verbatim."""
+    _act_nodes()
+    prompt = _collapse((ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8"))
+    for passage in (*ACT_PASSAGES.values(), POINT_G_EXCEPTION):
+        assert passage in prompt, passage[:60]
+
+
+def test_v5_prompt_names_every_schema_flag():
+    """Every fact the schema defines is in the v5 list, the two Omnibus
+    prohibition facts included (Jose, 2026-10-01: "Add them to v5")."""
+    from tere4ai.elicit_features.elicitor import schema_flag_names
+
+    prompt = (ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8")
+    listed = set(re.findall(r"[a-z0-9_]+", prompt))
+    missing = [name for name in schema_flag_names() if name not in listed]
+    assert missing == []
+
+
+# The Omnibus points are not in the base-text dump (REF-02, DEC-12): their
+# words come from the verified inventory docs/omnibus_amendments.md.
+OMNIBUS_PASSAGES = (
+    "(ba) the placing on the market, the putting into service or the use of an AI "
+    "system that generates or manipulates realistic images, videos, audio or similar "
+    "material of an identifiable natural person\u2019s intimate parts, or of an "
+    "identifiable natural person engaged in sexually explicit activities, without that "
+    "person\u2019s freely-given, specific, informed, unambiguous and explicit consent "
+    "for that generation or manipulation;",
+    "(bb) the placing on the market, the putting into service or the use of an AI "
+    "system that generates or manipulates material or performance within the meaning "
+    "of Article 2, points (c) and (e), of Directive 2011/93/EU, except where a "
+    "\u201cwithout right\u201d defence applies under national law;",
+    "(b) the use of an AI system that generates or manipulates the material or "
+    "performance referred to in paragraph 1, first subparagraph, points (ba) and (bb) "
+    "is only prohibited where the deployer uses the system for the purpose of "
+    "generating or manipulating such material or performance.",
+    "1b. For the purposes of paragraph 1, first subparagraph, point (ba), an AI system "
+    "that manipulates material in a way that does not increase the exposure of any "
+    "depicted intimate parts or alter the nature of any depicted sexually explicit "
+    "activities shall not constitute manipulation.",
+)
+
+
+def test_v5_prompt_carries_the_omnibus_points_verbatim():
+    """Jose, 2026-10-01: "Add them to v5": points (ba) and (bb) and the
+    Article 5(1a), 5(1b) scoping, in the amending act's words."""
+    inventory = (ROOT / "docs" / "omnibus_amendments.md").read_text(encoding="utf-8")
+    prompt = _collapse((ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8"))
+    for passage in OMNIBUS_PASSAGES:
+        assert passage in inventory, passage[:60]
+        assert passage in prompt, passage[:60]
+
+
+def test_v4_prompt_is_kept_unchanged_for_the_records_that_name_it():
+    """A recorded elicitation names its prompt version, so v4 stays as it was."""
+    prompt = (ROOT / "prompts" / "elicit_features" / "v4.md").read_text(encoding="utf-8")
+    assert "biometric_categorisation_system" not in prompt

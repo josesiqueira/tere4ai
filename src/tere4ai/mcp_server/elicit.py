@@ -1,6 +1,6 @@
 """Elicitation envelope wrapper for the demo facade.
 
-@implements: DEC-13
+@implements: DEC-13, DEC-18
 Engineering MUST (architecture.md Section 13, no silent degradation).
 The elicitor proposes schema-valid facts with textual support; it never
 classifies. This wrapper packages the proposal as a Section 8 envelope
@@ -11,7 +11,11 @@ deterministic ladder ever assigns a risk category.
 
 from typing import Any
 
-from tere4ai.elicit_features.elicitor import elicit_features, schema_flag_names
+from tere4ai.elicit_features.elicitor import (
+    DEFAULT_PROMPT_VERSION,
+    elicit_features,
+    schema_flag_names,
+)
 from tere4ai.mcp_server.tools import make_envelope
 
 ELICITATION_JUDGE_VERDICT = "not_judged_elicitation_proposal"
@@ -22,7 +26,7 @@ def elicit_envelope(
     generator: Any,
     *,
     graph_version: str,
-    prompt_version: str = "v4",
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> dict[str, Any]:
     """One paid generator call; returns a facts PROPOSAL envelope."""
     features, notes = elicit_features(
