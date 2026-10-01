@@ -76,10 +76,10 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   prohibition addressed to an operator in a requirement group carries
   requirement_type, one of functional, quality or process, the types of
   ISO/IEC/IEEE 29148:2018 clause 5.2.8.3 (ADD-54); every other norm carries
-  null, shown "not an operator requirement". The type sits beside the
-  Institutional Grammar slots, not inside them. The extraction judge records
-  its view of the type without gating on it. grounded_by: ADD-54, ADD-55,
-  ADD-56
+  null, shown "not an operator requirement". The type is one more closed
+  slot of the norm, one with no Institutional Grammar counterpart. The
+  extraction judge records its view of the type without gating on it.
+  grounded_by: ADD-54, ADD-55, ADD-56
 - Schema is grounded in Institutional Grammar (OVR-9): actor maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
   Aim. Pull the primary sources (REF-14c) before citing.
@@ -762,7 +762,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   3.3287, definition 1, p. 364). Here: the system or its data shall have
   a property or meet a level (Article 15(1): accuracy, robustness and
   cybersecurity; Article 10(3): data sets that are relevant and
-  sufficiently representative).
+  sufficiently representative). Applying the definition, which speaks of
+  "a software attribute" present "in software", to the training,
+  validation and testing data is this project's reading beyond the
+  source.
   process: "Process Requirements. These are stakeholder, usually
   acquirer or user, requirements imposed through the contract or
   statement of work." (p. 15). Here: the obligation constrains the
@@ -794,15 +797,20 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   follows: interface as functional; usability and human factors as
   quality. On screen: "functional", "quality (non-functional)",
   "process".
-  Scope. A norm carries a type only when it is an obligation or a
-  prohibition whose actor, explicit or inferred (DEC-04), is an operator
-  (provider, deployer, importer, distributor, authorised representative,
-  product manufacturer) and whose source unit is in a requirement group
+  Scope. A norm carries a type when it is an obligation or a prohibition
+  whose source unit is in a requirement group
   (src/tere4ai/mcp_server/requirements.py _is_requirement_group: not
-  Articles 5 to 7, not the annexes). Every other norm (a definition, a
-  right, a permission, an exemption, a duty of the Commission or of an
-  authority) carries null, shown "not an operator requirement", whatever
-  the extractor proposed. The field is nullable in norms.schema.json, so
+  Articles 5 to 7, not the annexes) and whose actor, explicit or inferred
+  (DEC-04), is an operator: one of the actorRole values provider,
+  deployer, importer, distributor, authorised_representative,
+  product_manufacturer, operator_general and unspecified_needs_review
+  (norms.schema.json). A norm carries null, shown "not an operator
+  requirement", whatever the extractor proposed, when it is not an
+  obligation or a prohibition (a definition, a right, a permission, an
+  exemption), when its source unit is outside the requirement groups, or
+  when it is addressed to someone who is not an operator: the
+  commission, the ai_office, a member_state, a notifying_authority, a
+  market_surveillance_authority, a notified_body, or an affected_person. The field is nullable in norms.schema.json, so
   an extractor reply that omits it is never dropped for that reason
   (today a schema failure drops the norm).
   Reading a norm. By the outcome the obligation constrains, not by its
@@ -823,7 +831,15 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   in two fields beside its verdict. The type never changes acceptance:
   the verdict rests on the six checks of Section 7 as before, so the
   Layer 2 counts and the judge error rates keep measuring what they
-  measured, and type agreement is reported apart. Both prompts carry the
+  measured, and type agreement is reported apart. The two fields are
+  optional for the verdict: a judge reply that omits them or gives an
+  invalid value keeps its verdict, and the recorded view is null; on a
+  norm whose type the scope set to null the judge records nothing. The
+  recorded view is compared with the adjudicated human type of the
+  matched norm (the Layer 2 adjudication, spec G in the private research
+  repository) and reported beside the judge error rates (E1) as judge
+  type agreement: Cohen's kappa and percent agreement over the in-scope
+  matched norms. Both prompts carry the
   definitions above and move together to extract_norms v2 and
   judge_norms v2 (they share one version). The same v2 carries thesis
   task B4: the judge's input gains the verbatim text of the
@@ -831,7 +847,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   against the paragraph it came from. The type is stored on the norm,
   loaded into Neo4j, served by get_applicable_requirements,
   explain_requirement and the facade's units list, and carried by the
-  human review lists, so the annotators keep, edit or add it like any
+  human review lists, so the annotators keep, edit or add it as one more
   closed slot.
   Controls. The backlog generator writes each control's own type, never
   copied from the norms it cites: from Article 19's process obligation
@@ -843,14 +859,18 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   or invalid, with null and a note; _group_items merges by norm set as
   today and the merged control keeps the first item's type. The runtime
   judge records its view of each control's type; the backlog's verdict
-  does not depend on it. generate_backlog and runtime_grounding move
+  does not depend on it. That view is optional in the same way: a reply
+  that omits it or gives an invalid value keeps its verdict and records
+  null, and on a control whose type is null the judge records nothing.
+  It is compared with the specialists' yes or no on "Is the control's
+  type right?" and reported beside the runtime judge calibration (E5). generate_backlog and runtime_grounding move
   together to v2; evaluate_project_evidence keeps evaluate_evidence v1
   and runtime_grounding v1, its version no longer shared with the
   backlog's.
   Inspection. Code inspection follows the norm's type: functional and
   quality norms offer it; a process norm offers none and states the
-  evidence it needs, and its controls are not inspectable either, since
-  code tags cite norm ids (DEC-15) and controls are not traced. The
+  evidence it needs. Code tags cite norm ids (DEC-15) and no control is
+  traced, so neither a process norm nor any control offers inspection. The
   consumer dashboard's hand-made per-article kind is retired in favour of
   this field.
   Defense: the thesis frames the Act's obligations as requirements, so

@@ -558,11 +558,14 @@ chosen (pp. 1 to 3), so "calibration" is not used as the name of a paid run.
 Life cycle processes, Requirements engineering", DOI
 10.1109/IEEESTD.2018.8559686. VERIFIED 2026-10-01, read in TUNI's licensed
 copy. CORE. Grounds: the requirement type of B65 (functional, quality,
-process): the type attribute of clause 5.2.8.3 lists Functional/Performance,
-Process Requirements (including compliance with national, state or local
-laws) and Quality (Non-Functional) Requirements (printed pp. 15 to 16), and
-clause 3.1.7 defines a constraint as reaching the process used to develop a
-system (p. 3).
+process): clause 5.2.8.3 lists six examples of the type attribute,
+Functional/Performance, Interface, Process Requirements (including
+compliance with national, state or local laws), Quality (Non-Functional)
+Requirements, Usability/Quality-in-Use Requirements and Human Factors
+Requirements (printed pp. 15 to 16), of which the project uses three
+(DEC-19, which does not read the laws sentence as making every legal duty a
+process requirement), and clause 3.1.7 defines a constraint as reaching the
+process used to develop a system (p. 3).
 
 **[ADD-55]** STD. ISO/IEC/IEEE 24765:2017, "Systems and software
 engineering, Vocabulary", DOI 10.1109/IEEESTD.2017.8016712. VERIFIED
