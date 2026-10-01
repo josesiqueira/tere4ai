@@ -17,7 +17,7 @@ The rule logic follows the FLI compliance checker's decision structure as a
 classification-logic source and baseline (REF-30, architecture.md Section
 8); the text tested against is the frozen Regulation source (REF-01).
 
-@implements: DEC-08, DEC-10 (partial: runtime classification)
+@implements: DEC-08, DEC-10, DEC-18 (partial: runtime classification)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -287,17 +287,68 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
 # the prohibition flags, absence is NOT treated as false: an unknown Annex
 # III fact is surfaced in missing_facts and blocks a confident
 # minimal_or_none verdict (audit 2026-07-20 D1). Built from the rule table so
-# it can never drift from the categories. Flags already covered by
-# PROHIBITION_RELEVANT_FLAGS are excluded to avoid double-surfacing.
+# it can never drift from the categories. A flag that is also an Article 5
+# flag (real_time_remote_biometric_public) stays in this list: its Article 5
+# path can be ruled out while its Annex III one is not (DEC-18); the ladder
+# skips it here only when the Article 5 side already names it.
 ANNEX_III_RELEVANT_FLAGS: tuple[str, ...] = tuple(
-    f
-    for f in dict.fromkeys(
+    dict.fromkeys(
         flag
         for rule in ANNEX_III_RULES
         for flag in (*rule["flags"], *rule.get("subflags", ()))
     )
-    if f not in PROHIBITION_RELEVANT_FLAGS
 )
+
+# DEC-18: exculpating facts that settle their Article 5 point even when the
+# point's own flag is absent, because each is the statute's complete element
+# or exception for that point: (a) and (b) significant harm, (c) the
+# detrimental-treatment element, (f) the medical or safety exception. The
+# point (d) and (g) facts are left out on purpose: their definitions were
+# wider than the Act's exceptions, so an answer of "no" must not rest on
+# them. Point (h) is handled in _unresolved_article_5_facts.
+ARTICLE_5_CLEARS_ABSENT_FLAG: frozenset[str] = frozenset(
+    {
+        "subliminal_or_manipulative",
+        "exploits_vulnerabilities",
+        "social_scoring",
+        "emotion_recognition_workplace_or_education",
+    }
+)
+
+
+def _unresolved_article_5_facts(flags: dict[str, Any]) -> list[str]:
+    """Absent facts that leave an Article 5 path unresolved (DEC-18).
+
+    A path is ruled out when its flag is false, or when its exculpating fact
+    is known and exculpating (only for the points in
+    ARTICLE_5_CLEARS_ABSENT_FLAG, and for point (h)). A path whose flag is
+    true is resolved by the Article 5 rule itself (proven, exception met, or
+    pending exception fact), so only absent flags are returned here. Point
+    (h) needs both real_time_remote_biometric_public and law_enforcement_use:
+    either known false, or the strict-necessity carve-out known true, rules
+    it out; the law-enforcement context is asked for by the Article 5 rule
+    when the biometric flag is true.
+
+    @implements: DEC-18
+    """
+    missing: list[str] = []
+    for flag in (*ARTICLE_5_POINT_BY_FLAG, *OMNIBUS_ARTICLE_5_POINT_BY_FLAG):
+        if flag in flags:
+            continue
+        exculpating = ARTICLE_5_EXCULPATING_FACT.get(flag)
+        if flag in ARTICLE_5_CLEARS_ABSENT_FLAG and exculpating is not None:
+            fact_name, exculpating_value, _desc = exculpating
+            if flags.get(fact_name) is exculpating_value:
+                continue
+        missing.append(flag)
+    point_h_ruled_out = (
+        flags.get("real_time_remote_biometric_public") is False
+        or flags.get("law_enforcement_use") is False
+        or flags.get(ARTICLE_5_POINT_H_EXCULPATING[0]) is ARTICLE_5_POINT_H_EXCULPATING[1]
+    )
+    if not point_h_ruled_out and "real_time_remote_biometric_public" not in flags:
+        missing.append("real_time_remote_biometric_public")
+    return missing
 
 ARTICLE_6_PARAGRAPH_1 = "eu-ai-act:article-6:paragraph-1"
 ARTICLE_6_PARAGRAPH_2 = "eu-ai-act:article-6:paragraph-2"
@@ -532,7 +583,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         return make_envelope(
             answer={
                 "risk_category": None,
-                "prohibited": False,
+                # DEC-18: no rule ran, so nothing about Article 5 is known.
+                "prohibited": None,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "rationale": ["input rejected: features do not conform to system_features.schema.json"],
@@ -555,8 +607,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     legal_status_notes: list[str] = []
     missing_facts: list[str] = []
 
-    # Unknown prohibition-relevant flags: absence is never treated as false.
-    unknown_prohibition_flags = [f for f in PROHIBITION_RELEVANT_FLAGS if f not in flags]
+    # Unresolved Article 5 paths (DEC-18): an absent fact is named only when
+    # its path is not already ruled out by another known fact. Absence is
+    # never treated as false.
+    unknown_prohibition_flags = _unresolved_article_5_facts(flags)
     for flag in unknown_prohibition_flags:
         missing_facts.append(
             f"flags.{flag} is unknown (prohibition-relevant, Article 5); "
@@ -567,7 +621,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # An absent Annex III fact could be the one that makes the system
     # high-risk, so it must not be silently read as false and cleared as
     # minimal. Surfaced here; the minimal and transparency exits consult it.
-    unknown_annex_flags = [f for f in ANNEX_III_RELEVANT_FLAGS if f not in flags]
+    unknown_annex_flags = [
+        f for f in ANNEX_III_RELEVANT_FLAGS
+        if f not in flags and f not in unknown_prohibition_flags
+    ]
     for flag in unknown_annex_flags:
         missing_facts.append(
             f"flags.{flag} is unknown (Annex III high-risk relevant, Article "
@@ -627,7 +684,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 ARTICLE_5_POINT_H_FRAGMENT,
                 ARTICLE_5_POINT_H_EXCULPATING,
             )
-        elif "law_enforcement_use" not in flags:
+        elif (
+            "law_enforcement_use" not in flags
+            and flags.get(ARTICLE_5_POINT_H_EXCULPATING[0]) is not ARTICLE_5_POINT_H_EXCULPATING[1]
+        ):
             # The unknown context could change the outcome to prohibited.
             unknown_prohibition_flags.append("law_enforcement_use")
             missing_facts.append(
@@ -682,6 +742,11 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # confident non-prohibited verdict (audit D2).
     unknown_prohibition_flags.extend(prohibition_review)
 
+    # DEC-18: past the Article 5 rule nothing is proven, so the field is
+    # unknown while any path is unresolved and false only when every path is
+    # ruled out. The status lowering below reads the same list.
+    prohibited_state: bool | None = None if unknown_prohibition_flags else False
+
     # Rule 2a: Article 6(1) embedded-product route. High-risk when the
     # system is a safety component of (or is itself) a product covered by
     # Annex I Union harmonisation legislation AND that product requires a
@@ -724,7 +789,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         return make_envelope(
             answer={
                 "risk_category": "high_risk",
-                "prohibited": False,
+                "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "rationale": rationale,
@@ -835,7 +900,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         return make_envelope(
             answer={
                 "risk_category": "high_risk",
-                "prohibited": False,
+                "prohibited": prohibited_state,
                 "annex_iii_category": annex_match["node"],
                 "article_6_3_exception_candidate": exception_candidate,
                 "rationale": rationale,
@@ -871,7 +936,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         return make_envelope(
             answer={
                 "risk_category": "uncertain",
-                "prohibited": False,
+                "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "rationale": rationale,
@@ -919,7 +984,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         return make_envelope(
             answer={
                 "risk_category": "transparency_only",
-                "prohibited": False,
+                "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "rationale": rationale,
@@ -954,7 +1019,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         return make_envelope(
             answer={
                 "risk_category": "uncertain",
-                "prohibited": False,
+                "prohibited": prohibited_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "rationale": rationale,
@@ -967,15 +1032,15 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         )
 
     rationale.append(
-        "rule minimal: all prohibition-relevant AND Annex III high-risk flags "
-        "known false, no Annex III category matched, no Article 50 transparency "
-        "flag set"
+        "rule minimal: every Article 5 path ruled out, every Annex III "
+        "high-risk flag known false, no Annex III category matched, no "
+        "Article 50 transparency flag set"
     )
     missing_facts.extend(citations.unresolved)
     return make_envelope(
         answer={
             "risk_category": "minimal_or_none",
-            "prohibited": False,
+            "prohibited": prohibited_state,
             "annex_iii_category": None,
             "article_6_3_exception_candidate": False,
             "rationale": rationale,

@@ -347,7 +347,10 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     Consumes structured system features (system_features.schema.json) and
     returns risk_category (prohibited, high_risk, transparency_only,
     minimal_or_none, uncertain) with cited Article 5 / Article 6 / Annex III
-    / Article 50 nodes. A fixed rule ladder decides, never a model; unknown
+    / Article 50 nodes. uncertain is not a legal risk level: facts the rules
+    need are missing. The answer's prohibited field is true (an Article 5
+    prohibition is proven), false (every Article 5 path is ruled out) or null
+    (unknown: an Article 5 fact is missing). A fixed rule ladder decides, never a model; unknown
     prohibition-relevant facts surface in missing_facts and lower the status
     to requires_human_review. The answer also carries a fria block: whether
     the Article 27(1) fundamental rights impact assessment obligation

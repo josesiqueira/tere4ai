@@ -131,7 +131,8 @@ def test_scenario_b_hospital_triage_is_high_risk(dump, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
     assert answer["risk_category"] == "high_risk"
-    assert answer["prohibited"] is False
+    # DEC-18: the prohibition flags were not provided, so it is not known.
+    assert answer["prohibited"] is None
     assert answer["annex_iii_category"] == "eu-ai-act:annex-iii:point-5"
     assert "eu-ai-act:annex-iii:point-5" in envelope["source_nodes"]
     # Prohibition flags were not provided, so the outcome is not settled.
@@ -605,3 +606,155 @@ def test_omnibus_prohibition_flags_are_fail_closed(dump, node_ids):
     missing = " ".join(envelope["missing_facts"])
     assert "generates_nonconsensual_intimate_material" in missing
     assert "generates_csam" in missing
+
+
+# DEC-18: three states for prohibited, per-path Article 5 resolution -------
+
+
+def _without(flags: dict, *names: str) -> dict:
+    return {k: v for k, v in flags.items() if k not in names}
+
+
+def test_case1_proven_prohibition_is_true_even_with_other_facts_missing(dump, node_ids):
+    """Research case 1: a proven Article 5 practice is prohibited true;
+    other missing facts do not turn it unknown. Point (e) has no exception."""
+    envelope = classify_ai_system(
+        {"description": "Builds a face database by scraping CCTV footage.",
+         "flags": {"facial_image_scraping": True}},
+        dump,
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "prohibited"
+    assert envelope["answer"]["prohibited"] is True
+
+
+def test_case2_unresolved_article_5_path_is_unknown(dump, node_ids):
+    """Research case 2, the research answer's own example: emotions are
+    inferred (Annex III point 1, high-risk) but nobody said whether at the
+    workplace or in education, so Article 5(1)(f) is unresolved."""
+    flags = _without(
+        all_false_flags(emotion_recognition=True),
+        "emotion_recognition_workplace_or_education",
+    )
+    envelope = classify_ai_system(
+        {"description": "Infers candidates' emotions during video interviews.", "flags": flags},
+        dump,
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["prohibited"] is None
+    assert envelope["status"] == "requires_human_review"
+    assert any("flags.emotion_recognition_workplace_or_education" in f for f in envelope["missing_facts"])
+
+
+def test_case2_unresolved_with_nothing_else_is_uncertain_and_unknown(dump, node_ids):
+    envelope = classify_ai_system(
+        {"description": "A scoring system.", "flags": _without(all_false_flags(), "social_scoring")},
+        dump,
+    )
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["prohibited"] is None
+
+
+def test_case3_uncertain_but_article_5_ruled_out_is_false(dump, node_ids):
+    """Research case 3: the overall answer is uncertain because an Annex III
+    fact is missing, while every Article 5 path is ruled out."""
+    envelope = classify_ai_system(
+        {"description": "A hiring helper.", "flags": _without(all_false_flags(), "employment_decisions")},
+        dump,
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["prohibited"] is False
+    assert not any("prohibition-relevant" in f for f in envelope["missing_facts"])
+
+
+def test_case4_article_5_ruled_out_and_high_risk_is_false(dump, node_ids):
+    envelope = classify_ai_system(
+        {"description": "CV screening for hiring decisions.",
+         "flags": all_false_flags(employment_decisions=True)},
+        dump,
+    )
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["answer"]["prohibited"] is False
+    assert envelope["status"] == "potentially_applicable"
+
+
+def test_case6_article_50_only_is_transparency_only_and_false(dump, node_ids):
+    envelope = classify_ai_system(
+        {"description": "Customer service chatbot.",
+         "flags": all_false_flags(interacts_with_natural_persons=True)},
+        dump,
+    )
+    assert envelope["answer"]["risk_category"] == "transparency_only"
+    assert envelope["answer"]["prohibited"] is False
+
+
+def test_absent_flag_ruled_out_by_its_harm_element_is_false(dump, node_ids):
+    """Codex finding 1: point (a) needs significant harm; with harm known
+    false the practice is not prohibited whatever the flag, so its absence
+    leaves nothing unresolved."""
+    flags = _without(all_false_flags(), "subliminal_or_manipulative")
+    flags["causes_significant_harm"] = False
+    envelope = classify_ai_system({"description": "A recommender.", "flags": flags}, dump)
+    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["prohibited"] is False
+    assert envelope["status"] == "not_applicable"
+    assert not any("subliminal_or_manipulative" in f for f in envelope["missing_facts"])
+
+
+def test_point_d_and_g_exceptions_never_clear_an_absent_flag(dump, node_ids):
+    """Ruling 7: the (d) and (g) exception facts were defined more widely
+    than the Act, so a "no" never rests on them."""
+    for flag, fact in (
+        ("predictive_policing_profiling", "supports_human_assessment_on_verifiable_facts"),
+        ("biometric_categorisation", "biometric_categorisation_lawful_or_law_enforcement"),
+    ):
+        flags = _without(all_false_flags(), flag)
+        flags[fact] = True
+        envelope = classify_ai_system({"description": "A described AI system.", "flags": flags}, dump)
+        assert envelope["answer"]["prohibited"] is None, flag
+        assert any(f"flags.{flag}" in f for f in envelope["missing_facts"]), flag
+
+
+def test_rtrb_absent_with_le_false_is_uncertain_not_minimal(dump, node_ids):
+    """Point (h) is ruled out (no law-enforcement use), but the same flag is
+    an Annex III point 1 fact, so a confident minimal is not allowed."""
+    flags = _without(all_false_flags(), "real_time_remote_biometric_public")
+    envelope = classify_ai_system({"description": "A camera system.", "flags": flags}, dump)
+    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert any(
+        "flags.real_time_remote_biometric_public" in f and "Annex III" in f
+        for f in envelope["missing_facts"]
+    )
+
+
+def test_rtrb_carve_out_known_true_does_not_ask_for_law_enforcement(dump, node_ids):
+    """Codex finding 1, third example: with the point (h) carve-out known
+    true, the unknown law-enforcement context cannot make it prohibited."""
+    flags = _without(all_false_flags(real_time_remote_biometric_public=True), "law_enforcement_use")
+    flags["rtrb_strictly_necessary_authorised"] = True
+    envelope = classify_ai_system({"description": "Live identification.", "flags": flags}, dump)
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["answer"]["prohibited"] is False
+    assert not any("point (h) applies only to law-enforcement use" in f for f in envelope["missing_facts"])
+
+
+def test_rejected_input_has_prohibited_null(dump):
+    envelope = classify_ai_system({"description": "short", "bogus_field": 1}, dump)
+    assert envelope["status"] == "rejected_as_unsupported"
+    assert envelope["answer"]["risk_category"] is None
+    assert envelope["answer"]["prohibited"] is None
+
+
+def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
+    """The field and the status lowering read one resolution (ruling 6)."""
+    for flag in ARTICLE_5_POINT_BY_FLAG:
+        envelope = classify_ai_system(
+            {"description": "A described AI system.", "flags": _without(all_false_flags(employment_decisions=True), flag)},
+            dump,
+        )
+        assert envelope["answer"]["prohibited"] is None, flag
+        assert envelope["status"] == "requires_human_review", flag
