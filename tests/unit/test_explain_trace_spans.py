@@ -320,3 +320,19 @@ def test_server_registers_explain_trace_and_span_tools():
 
     for name in ("explain_requirement", "trace_alignment", "resolve_span"):
         assert hasattr(server, name), f"server.py does not register {name}"
+
+
+def test_explain_carries_the_type_only_when_the_norm_has_it(dump, norms_payload, alignments_payload):
+    """DEC-19: the deontic block passes the norm's type on; the pre-DEC-19
+    build has none and gains no key."""
+    plain = explain_requirement(ACCEPTED_NORM_ID, dump, norms_payload, alignments_payload)
+    assert "requirement_type" not in plain["answer"]["deontic"]
+    typed_payload = {
+        **norms_payload,
+        "norms": [
+            {**n, "requirement_type": "process"} if n["norm_id"] == ACCEPTED_NORM_ID else n
+            for n in norms_payload["norms"]
+        ],
+    }
+    typed = explain_requirement(ACCEPTED_NORM_ID, dump, typed_payload, alignments_payload)
+    assert typed["answer"]["deontic"]["requirement_type"] == "process"

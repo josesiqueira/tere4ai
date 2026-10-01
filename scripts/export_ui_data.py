@@ -1,6 +1,7 @@
 """Export the demo UI data file from the service layer.
 
 @implements: DEC-10 (partial: M1 structural coverage view only)
+@implements: DEC-19
 @grounded_by: REF-17, REF-15
 
 The demo web UI is a thin, read-only facade over the same service layer
@@ -139,6 +140,8 @@ def build_review_queue(dump: dict, norms_payload: dict | None, alignments_payloa
                     "confidence": n.get("confidence"),
                     "judge_verdict": n.get("judge_verdict", ""),
                     "review_status": n.get("review_status", ""),
+                    # DEC-19: the type when the norm carries it
+                    **({"requirement_type": n["requirement_type"]} if "requirement_type" in n else {}),
                 }
             )
     norm_items.sort(key=lambda item: item["norm_id"])

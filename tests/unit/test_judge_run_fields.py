@@ -127,3 +127,25 @@ def test_units_and_trace_carry_the_judge_temperature_or_null(tmp_path):
         with TestClient(facade.create_app(root)) as client:
             candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
             assert candidate["judge"]["temperature"] == expected
+
+
+def test_units_carry_the_type_and_the_judges_view_only_when_recorded(tmp_path):
+    """DEC-19: the candidate carries requirement_type and its judge block the
+    judge's recorded view when the dump records them; a dump from before
+    DEC-19 gains no key (no reader invents a null for it)."""
+    _dumps(tmp_path, with_hash=False)
+    with TestClient(facade.create_app(tmp_path)) as client:
+        candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
+    assert "requirement_type" not in candidate
+    assert "judge_type_agrees" not in candidate["judge"]
+    typed = tmp_path / "typed"
+    typed.mkdir()
+    _dumps(typed, with_hash=False)
+    norms = json.loads((typed / "norms_core.json").read_text())
+    norms["norms"][0].update(requirement_type="quality", judge_type_agrees=False, judge_requirement_type="process")
+    norms["judge_runs"][0].update(judge_type_agrees=False, judge_requirement_type="process")
+    (typed / "norms_core.json").write_text(json.dumps(norms))
+    with TestClient(facade.create_app(typed)) as client:
+        candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
+    assert candidate["requirement_type"] == "quality"
+    assert (candidate["judge"]["judge_type_agrees"], candidate["judge"]["judge_requirement_type"]) == (False, "process")

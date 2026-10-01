@@ -288,3 +288,57 @@ def test_cli_exit_codes(tmp_path: Path) -> None:
         text=True,
     )
     assert no_output.returncode == 2
+
+
+def _doctored_shopbot(tmp_path: Path, extra=None, edit=None) -> Path:
+    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
+    if edit is not None:
+        edit(lines)
+    path = tmp_path / "doctored-shopbot.jsonl"
+    path.write_text("".join(json.dumps(x) + "\n" for x in [*lines, *(extra or [])]), encoding="utf-8")
+    return path
+
+
+def test_requirement_rows_show_the_requirement_type_and_read_null_by_the_scope(tmp_path: Path) -> None:
+    """DEC-19 (rulings 53 and 58): the label is "requirement type"; a null on
+    an in-scope obligation reads "no type", a null outside the scope "not an
+    operator requirement"; a row recorded before DEC-19 shows nothing."""
+    before = render_report_from_paths([SHOPBOT])
+    assert 'data-envelope-field="requirement_type"' not in before
+    assert "requirement type" not in before
+
+    def edit(lines):
+        requirements = next(x for x in lines if x["tool"] == "get_applicable_requirements")
+        rows = requirements["envelope"]["answer"]["requirements_by_article"]["article-50"]
+        rows[0]["requirement_type"] = "process"
+        rows[1]["requirement_type"] = None
+        rows[2]["requirement_type"] = None
+        rows[2]["deontic_type"] = "permission"
+
+    html = _section_body(render_report_from_paths([_doctored_shopbot(tmp_path, edit=edit)]), "requirements")
+    assert html.count('requirement type <span class="field" data-envelope-field="requirement_type">process<') == 1
+    assert html.count('requirement type <span class="muted">no type</span>') == 1
+    assert html.count('requirement type <span class="muted">not an operator requirement</span>') == 1
+
+
+def test_the_explain_record_shows_the_requirement_type(tmp_path: Path) -> None:
+    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
+    requirements = next(x for x in lines if x["tool"] == "get_applicable_requirements")
+    entry = requirements["envelope"]["answer"]["requirements_by_article"]["article-50"][0]
+    explain = {
+        "seq": 3, "ts": requirements["ts"], "tool": "explain_requirement", "repo_ref": requirements["repo_ref"],
+        "request": {"norm_id": entry["norm_id"]},
+        "envelope": {
+            **{k: v for k, v in requirements["envelope"].items() if k != "answer"},
+            "answer": {
+                "norm_id": entry["norm_id"], "found": True, "review_note": "This norm is judge-accepted.",
+                "deontic": {"deontic_type": "obligation", "modal": "shall", "action": "inform",
+                            "object": "natural persons", "requirement_type": "functional",
+                            "actor": {"explicit": "providers", "inferred": None, "inference_source_node_id": None}},
+                "source": {"node_id": entry["source_node_id"]},
+            },
+        },
+    }
+    html = _section_body(render_report_from_paths([_doctored_shopbot(tmp_path, extra=[explain])]), "requirements")
+    record = html.split("explain_requirement record for", 1)[1]
+    assert 'requirement type <span class="field" data-envelope-field="requirement_type">functional<' in record

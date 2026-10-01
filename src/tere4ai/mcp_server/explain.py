@@ -14,6 +14,7 @@ norms are still explainable; their review status downgrades the envelope
 status to requires_human_review, never silently.
 
 @implements: DEC-08
+@implements: DEC-19
 @grounded_by: REF-17, REF-16
 """
 
@@ -222,6 +223,9 @@ def explain_requirement(
             "exceptions": list(norm.get("exceptions") or []),
             "target_system_category": norm.get("target_system_category"),
             "lifecycle_phase_ids": list(norm.get("lifecycle_phase_ids") or []),
+            # DEC-19: the type when the norm carries it; a norm from a build
+            # before DEC-19 has none, and no reader invents a null for it.
+            **({"requirement_type": norm["requirement_type"]} if "requirement_type" in norm else {}),
         },
         "source": {
             "node_id": source_node_id,

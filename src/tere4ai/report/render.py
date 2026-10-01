@@ -1,6 +1,7 @@
 """HTML rendering of recorded MCP envelopes as one self-contained report.
 
 @implements: DEC-08, DEC-15, DEC-18
+@implements: DEC-19
 @grounded_by: ADD-14, ADD-15
 
 Pure function of the ingested exchanges: no clock, no randomness, no model,
@@ -25,6 +26,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from tere4ai.extract_norms.requirement_type import type_label
 from tere4ai.mcp_server.explain import HLEG_MAPPING_CAVEAT
 from tere4ai.mcp_server.tools import (
     NON_LEGAL_ADVICE_NOTICE,
@@ -205,6 +207,16 @@ def _status_badge(status: Any) -> str:
         '<span class="microlabel">status</span> '
         f'<span class="status" data-status="{_esc(status)}">{_esc(status)}</span>'
     )
+
+
+def _requirement_type_html(value: Any, norm: dict[str, Any]) -> str:
+    """DEC-19: a recorded requirement type, or how its null reads: "no type"
+    inside the scope, "not an operator requirement" outside it (ruling 53).
+    norm holds the deontic type, the source node and the actor fields."""
+    if value is not None:
+        return "requirement type " + emit_field("requirement_type", value)
+    label = type_label({**norm, "requirement_type": None})
+    return f'requirement type <span class="muted">{_esc(label)}</span>'
 
 
 def _chip(field_name: str, value: Any) -> str:
@@ -902,6 +914,15 @@ def _render_requirements(
                 meta_parts.append(
                     "(" + emit_field("actor_source", norm.get("actor_source")) + ")"
                 )
+            # DEC-19: the requirement type, when the recorded entry carries it.
+            if "requirement_type" in norm:
+                explicit = norm.get("actor_source") == "explicit"
+                meta_parts.append(_requirement_type_html(norm.get("requirement_type"), {
+                    "deontic_type": norm.get("deontic_type"),
+                    "source_node_id": norm.get("source_node_id"),
+                    "actor_explicit": norm.get("actor") if explicit else None,
+                    "actor_inferred": None if explicit else norm.get("actor"),
+                }))
             conditions = norm.get("conditions") or []
             exceptions = norm.get("exceptions") or []
             details = ""
@@ -980,6 +1001,17 @@ def _render_requirements(
             out.append(
                 f'<p class="caption">{emit_field("review_note", explain_ans.get("review_note"))}</p>'
             )
+        actor = deontic.get("actor") if isinstance(deontic.get("actor"), dict) else {}
+        type_html = (
+            " · " + _requirement_type_html(deontic.get("requirement_type"), {
+                "deontic_type": deontic.get("deontic_type"),
+                "source_node_id": (explain_ans.get("source") or {}).get("node_id"),
+                "actor_explicit": actor.get("explicit"),
+                "actor_inferred": actor.get("inferred"),
+            })
+            if "requirement_type" in deontic  # DEC-19, when the record carries it
+            else ""
+        )
         out.append(
             "<p>"
             + emit_field("deontic_type", deontic.get("deontic_type"))
@@ -989,6 +1021,7 @@ def _render_requirements(
             + emit_field("action", deontic.get("action"))
             + " "
             + emit_field("object", deontic.get("object"))
+            + type_html
             + "</p>"
         )
         out.append(_record_line(explain_ex, mixed, []))

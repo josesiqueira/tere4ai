@@ -12,6 +12,7 @@ judged data.
 
 @implements: DEC-08, DEC-03 (partial: runtime consumption)
 @implements: DEC-18
+@implements: DEC-19
 @grounded_by: REF-17, REF-16
 """
 
@@ -159,6 +160,11 @@ def _requirement_entry(norm: dict[str, Any]) -> dict[str, Any]:
         "source_node_id": norm.get("source_node_id"),
         "source_span_id": norm.get("source_span_id"),
     }
+    # DEC-19: the requirement type, passed on when the norm carries it; null
+    # has a meaning of its own, so a norm from a build before DEC-19, which
+    # has no type, gets no key rather than an invented null.
+    if "requirement_type" in norm:
+        entry["requirement_type"] = norm["requirement_type"]
     conditions = norm.get("conditions") or []
     if conditions:
         entry["conditions"] = conditions

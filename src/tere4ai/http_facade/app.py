@@ -2,6 +2,7 @@
 
 @implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log)
 @implements: DEC-17
+@implements: DEC-19
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
@@ -82,6 +83,7 @@ from tere4ai.eval.present_evaluation import (
 )
 from tere4ai.eval.present_evaluation import summary_of as evaluation_summary_of
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+from tere4ai.extract_norms.requirement_type import JUDGE_VIEW_FIELDS, carried
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import (
     exception_reason,
@@ -691,6 +693,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                     "extractor_prompt_version", "judge_verdict", "review_status",
                 )
             }
+            # DEC-19: the type when the norm carries it (a build before DEC-19
+            # has none, and no reader invents a null for it).
+            candidate.update(carried(norm, ("requirement_type",)))
             candidate["judge"] = {
                 "run_id": norm.get("judge_run_id"),
                 "model": run.get("judge_model"),
@@ -708,6 +713,10 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 # otherwise, never invented.
                 "completed_at": run.get("completed_at"),
                 "prompt_sha256": run.get("prompt_sha256"),
+                # DEC-19: the judge's recorded view of the type, served here
+                # with the judge's other opinions; spec G D-G54 keeps it from
+                # the annotators' screen in every mode.
+                **carried(run, JUDGE_VIEW_FIELDS),
             }
             by_unit.setdefault(str(norm.get("source_node_id")), []).append(candidate)
         units_out = []

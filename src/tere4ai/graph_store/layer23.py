@@ -1,6 +1,7 @@
 """Adapter: norms and alignment results into graph nodes and edges.
 
 @implements: DEC-03 (partial: persistence), DEC-05 (partial: persistence)
+@implements: DEC-19
 @grounded_by: REF-11, REF-24
 
 Converts the extraction pipeline output ({norms, judge_runs, stats}) and the
@@ -42,6 +43,10 @@ _NORM_SCALAR_FIELDS = (
     "judge_verdict",
     "judge_run_id",
     "review_status",
+    # DEC-19: the type and the extraction judge's recorded view of it.
+    "requirement_type",
+    "judge_type_agrees",
+    "judge_requirement_type",
 )
 
 
@@ -109,6 +114,8 @@ def _judge_run_node(run: dict[str, Any]) -> dict[str, Any]:
         "prompt_version",
         "verdict",
         "rationale",
+        "judge_type_agrees",
+        "judge_requirement_type",
         "started_at",
         "completed_at",
         "build_id",

@@ -156,3 +156,24 @@ def test_loadable_through_graph_store_fake_driver():
     counts = GraphStore().load_dump(dump, driver)
     assert sum(v for k, v in counts.items() if k.startswith("node:")) == 3
     assert any("NormativeStatement" in q for q in driver.log)
+
+
+def test_norm_nodes_and_judge_runs_keep_the_type_and_the_judges_view():
+    """DEC-19: the type and the extraction judge's recorded view are stored
+    on the norm node and the judge run node; a null value is not written,
+    as for every scalar field."""
+    result = _norms_result()
+    result["norms"][0].update(requirement_type="quality", judge_type_agrees=False,
+                              judge_requirement_type="functional")
+    result["norms"][1].update(requirement_type=None, judge_type_agrees=None, judge_requirement_type=None)
+    result["judge_runs"] = [{"id": "judgerun:x:1", "judge_kind": "extraction", "verdict": "accepted",
+                             "judge_type_agrees": False, "judge_requirement_type": "functional"}]
+    graph = norms_to_graph(result, build_id="b1")
+    nodes = {n["id"]: n for n in graph["nodes"]}
+    typed = nodes["norm:eu-ai-act:article-9:paragraph-1:n1"]
+    assert (typed["requirement_type"], typed["judge_type_agrees"], typed["judge_requirement_type"]) == (
+        "quality", False, "functional")
+    untyped = nodes["norm:eu-ai-act:article-9:paragraph-1:n2"]
+    assert "requirement_type" not in untyped and "judge_type_agrees" not in untyped
+    run = nodes["judgerun:x:1"]
+    assert (run["judge_type_agrees"], run["judge_requirement_type"]) == (False, "functional")

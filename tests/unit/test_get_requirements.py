@@ -502,3 +502,25 @@ def test_high_risk_keeps_the_whole_article_50_group_without_a_trigger(dump, norm
     assert classification["answer"]["transparency_duties"] == []
     envelope = get_applicable_requirements(classification, norms_payload, dump)
     assert "article-50" in envelope["answer"]["requirements_by_article"]
+
+
+# DEC-19: the requirement type on every served requirement whose norm
+# carries it; a norm from a build before DEC-19 gets no key.
+
+
+def test_requirement_entry_carries_the_type_when_the_norm_has_it():
+    base = {"norm_id": "norm:test:n1", "deontic_type": "obligation", "modal": "shall",
+            "actor_explicit": "provider", "action": "keep", "object": "the logs",
+            "source_node_id": "eu-ai-act:article-19:paragraph-1", "source_span_id": "span:019.001"}
+    assert requirements_module._requirement_entry({**base, "requirement_type": "process"})["requirement_type"] == "process"
+    assert requirements_module._requirement_entry({**base, "requirement_type": None})["requirement_type"] is None
+    assert "requirement_type" not in requirements_module._requirement_entry(base)
+
+
+def test_the_pre_dec_19_norms_build_serves_no_type(dump, norms_payload):
+    """norms_core.json predates DEC-19 (disposable, replaced at B74): no
+    served entry gains a type it never had."""
+    envelope = get_applicable_requirements({"risk_category": "high_risk"}, norms_payload, dump)
+    entries = [e for rows in envelope["answer"]["requirements_by_article"].values() for e in rows]
+    assert entries
+    assert all("requirement_type" not in e for e in entries)
