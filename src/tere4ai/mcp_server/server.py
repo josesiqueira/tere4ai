@@ -352,11 +352,12 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     prohibition is proven), false (every Article 5 path is ruled out) or null
     (unknown: an Article 5 fact is missing). A fixed rule ladder decides,
     never a model; unknown prohibition-relevant facts surface in
-    missing_facts and lower the status to requires_human_review. The answer also carries a fria block: whether
-    the Article 27(1) fundamental rights impact assessment obligation
-    applies to the deployer (applies, does_not_apply, unknown), decided by
-    the same deterministic rules from the flags and the optional deployer
-    facts (deployer.body_governed_by_public_law,
+    missing_facts and lower the status to requires_human_review. The
+    answer also carries a fria block: whether the Article 27(1)
+    fundamental rights impact assessment obligation applies to the
+    deployer (applies, does_not_apply, unknown), decided by the same
+    deterministic rules from the flags and the optional deployer facts
+    (deployer.body_governed_by_public_law,
     deployer.private_entity_providing_public_services). Free, no model
     calls."""
     loaded = _active()
