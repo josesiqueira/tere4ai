@@ -1,6 +1,7 @@
 """Runtime grounding judge: the third judge, gating every generated runtime answer.
 
 @implements: DEC-06 (partial: runtime grounding judge)
+@implements: DEC-19
 @grounded_by: REF-16, REF-24, REF-31, ADD-16, ADD-18
 
 Architecture.md Section 7: on every generated requirement, backlog item, or
@@ -56,6 +57,10 @@ UNTRUSTED_END = "UNTRUSTED PROJECT TEXT END"
 # legal wording when the caller resolved it (the evidence generator gets
 # it, so the judge gating that output must hold the same text; without it
 # paraphrase drift from the statute is invisible to the judge).
+# DEC-19: the norms' requirement_type is left out on purpose: a control's
+# type is its own, so the judge's view of it must not be read off the norms
+# (B65 ruling 10), and the evidence judge (runtime_grounding v1) keeps the
+# input it had.
 _NORM_DIGEST_FIELDS = (
     "norm_id",
     "source_node_id",
@@ -108,12 +113,15 @@ def ground_check(
 ) -> dict[str, Any]:
     """Judge one generated runtime answer against its cited norms.
 
-    Returns {"verdict", "scores", "rationale", "judge_run"} where verdict is
-    one of accepted, rejected, needs_human_review, scores carries the five
-    dimensions of Section 4, and judge_run is a JudgeRun-shaped record with
-    judge_kind "runtime_grounding". Callers must treat any verdict other
-    than "accepted" as a degradation to requires_human_review; this function
-    never suppresses or upgrades a verdict.
+    Returns {"verdict", "scores", "rationale", "judge_run", "type_views"}
+    where verdict is one of accepted, rejected, needs_human_review, scores
+    carries the five dimensions of Section 4, and judge_run is a
+    JudgeRun-shaped record with judge_kind "runtime_grounding". Callers must
+    treat any verdict other than "accepted" as a degradation to
+    requires_human_review; this function never suppresses or upgrades a
+    verdict. type_views is the judge's raw "type_views" value (DEC-19,
+    runtime_grounding v2 on a control backlog), None when absent; the
+    caller cleans it, and it never touches the verdict.
     """
     log_path = log_path or DEFAULT_LOG_PATH
     judge_prompt = load_prompt("runtime_grounding", prompt_version)
@@ -168,4 +176,5 @@ def ground_check(
         "scores": scores,
         "rationale": rationale,
         "judge_run": judge_run,
+        "type_views": judged.get("type_views"),
     }

@@ -342,3 +342,39 @@ def test_the_explain_record_shows_the_requirement_type(tmp_path: Path) -> None:
     html = _section_body(render_report_from_paths([_doctored_shopbot(tmp_path, extra=[explain])]), "requirements")
     record = html.split("explain_requirement record for", 1)[1]
     assert 'requirement type <span class="field" data-envelope-field="requirement_type">functional<' in record
+
+
+def test_backlog_items_show_their_type_and_the_judges_view(tmp_path: Path) -> None:
+    """DEC-19: a control's type ("no type" for null, ruling 21) and the
+    runtime judge's recorded view of it, when the answer records them."""
+    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
+    classify = next(x for x in lines if x["tool"] == "classify_ai_system")
+    backlog = {
+        "seq": 3, "ts": classify["ts"], "tool": "generate_control_backlog", "repo_ref": classify["repo_ref"],
+        "request": {"norm_ids": ["norm:a:n1"], "system_context": "A shop assistant."},
+        "envelope": {
+            **{k: v for k, v in classify["envelope"].items() if k != "answer"},
+            "judge_verdict": "accepted",
+            "status": "applicable_missing_evidence",
+            "answer": {
+                "tool": "generate_control_backlog",
+                "items": [
+                    {"title": "Disclose the chatbot", "description": "Show a notice.", "norm_ids": ["norm:a:n1"],
+                     "suggested_evidence": [], "priority": "must", "requirement_type": "functional"},
+                    {"title": "Keep a record", "description": "Log the notices.", "norm_ids": ["norm:a:n1"],
+                     "suggested_evidence": [], "priority": "must", "requirement_type": None},
+                ],
+                "judge_type_views": [
+                    {"judge_type_agrees": False, "judge_requirement_type": "process"},
+                    {"judge_type_agrees": None, "judge_requirement_type": None},
+                ],
+                "dropped_items": 0, "merged_items": 0, "notes": [],
+            },
+        },
+    }
+    path = tmp_path / "with_backlog.jsonl"
+    path.write_text("".join(json.dumps(x) + "\n" for x in [*lines, backlog]), encoding="utf-8")
+    html = _section_body(render_report_from_paths([path]), "backlog")
+    assert html.count('requirement type</span> <span class="token"><span class="field" data-envelope-field="requirement_type">functional<') == 1
+    assert html.count("no type") == 1
+    assert 'judge gives the requirement type</span> <span class="field" data-envelope-field="judge_requirement_type">process<' in html

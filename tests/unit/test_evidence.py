@@ -297,3 +297,15 @@ def test_malformed_evidence_raises_value_error(tmp_path):
             judge,
             log_path=tmp_path / "log.jsonl",
         )
+
+
+def test_evidence_keeps_its_v1_prompts_after_the_backlog_moved_to_v2(tmp_path):
+    """DEC-19 (B65 ruling 16): evaluate_project_evidence keeps
+    evaluate_evidence v1 and runtime_grounding v1; its version is no longer
+    the backlog's."""
+    generator = FakeClient({NORM["norm_id"]: gen_answer("satisfied", [REAL_QUOTE])}, model="fake-generator")
+    judge = FakeClient({NORM["norm_id"]: JUDGE_ACCEPT}, model="fake-judge")
+    envelope = evaluate_project_evidence(NORM, EVIDENCE, generator, judge, log_path=tmp_path / "log.jsonl")
+    assert envelope["judge_verdict"] == "accepted"
+    assert generator.calls[0][0].startswith("# evaluate_evidence system prompt, version v1")
+    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v1")

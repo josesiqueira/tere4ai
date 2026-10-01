@@ -16,7 +16,10 @@ import json
 import pytest
 
 from tere4ai.extract_norms.model_clients import FakeClient, _new_usage
-from tere4ai.mcp_server.backlog import generate_control_backlog
+from tere4ai.extract_norms.pipeline import load_prompt
+from tere4ai.extract_norms.requirement_type import DEFINITIONS_TEXT, SCOPE_TEXT
+from tere4ai.judge import runtime_grounding
+from tere4ai.mcp_server.backlog import DEFAULT_PROMPT_VERSION, generate_control_backlog
 from tere4ai.mcp_server.tools import STATUS_VOCABULARY
 
 
@@ -733,3 +736,143 @@ def test_a_judged_answer_takes_the_judge_hash_from_its_judge_run(tmp_path, monke
     monkeypatch.setattr(rg, "load_prompt", first_read_fails)
     envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
     assert len(reads) == 2 and envelope["answer"]["judge_prompt_sha256"] == _prompt_fields()["judge_prompt_sha256"]
+
+
+# DEC-19, B65: each control carries its own requirement type; the runtime
+# judge records its view of it without changing the backlog's verdict.
+
+
+def run_v2(gen_response, judge_response, tmp_path, norms=None):
+    """The backlog under its default prompts, generate_backlog v2 and
+    runtime_grounding v2 (run_tool pins v1)."""
+    norms = norms if norms is not None else [NORM_A, NORM_B, NORM_C]
+    generator = FakeClient({KEY: gen_response}, model="fake-generator")
+    judge = FakeClient({KEY: judge_response}, model="fake-judge")
+    envelope = generate_control_backlog(
+        norms, "A high-risk AI triage system for a hospital.", generator, judge,
+        prompt_version="v2", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )
+    return envelope, generator, judge
+
+
+def typed_item(title, norm_ids, requirement_type, **extra):
+    return {**item(title, norm_ids), "requirement_type": requirement_type, **extra}
+
+
+def judge_with_views(verdict_json, views):
+    reply = json.loads(verdict_json)
+    reply["type_views"] = views
+    return json.dumps(reply)
+
+
+def test_the_v2_backlog_prompts_carry_the_definitions_and_are_the_default(tmp_path):
+    assert DEFAULT_PROMPT_VERSION == "v2"
+    generate = load_prompt("generate_backlog", "v2")
+    grounding = load_prompt("runtime_grounding", "v2")
+    for prompt in (generate, grounding):
+        assert DEFINITIONS_TEXT in prompt
+        assert SCOPE_TEXT not in prompt  # every control is typed; the scope is the norms'
+    assert '"requirement_type": "process"' in generate
+    assert '"type_views"' in grounding and "never a reason" in grounding
+    assert '"requirement_type_agrees": false' not in grounding  # the example shows agreement
+    generator = FakeClient({KEY: gen_items(typed_item("Risk process", [KEY], "process"))}, model="fake-generator")
+    judge = FakeClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
+    envelope = generate_control_backlog([NORM_A], "A triage system.", generator, judge,
+                                        log_path=tmp_path / "runtime_log.jsonl")
+    assert generator.calls[0][0].startswith("# generate_backlog system prompt, version v2")
+    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v2")
+    assert envelope["answer"]["generator_prompt_version"] == "v2"
+    assert envelope["answer"]["judge_prompt_version"] == "v2"
+
+
+def test_each_control_keeps_its_own_type(tmp_path):
+    envelope, _, _ = run_v2(
+        gen_items(typed_item("Retain logs for six months", [KEY], "functional"),
+                  typed_item("Tamper-evident log storage", [NORM_B["norm_id"]], "quality")),
+        JUDGE_ACCEPT, tmp_path,
+    )
+    assert [i["requirement_type"] for i in envelope["answer"]["items"]] == ["functional", "quality"]
+
+
+@pytest.mark.parametrize("bad", [None, "non-functional", "", 7])
+def test_a_control_without_a_valid_type_is_kept_with_null_and_a_note(tmp_path, bad):
+    raw = item("Risk process", [KEY]) if bad is None else typed_item("Risk process", [KEY], bad)
+    envelope, _, _ = run_v2(gen_items(raw), JUDGE_ACCEPT, tmp_path)
+    answer = envelope["answer"]
+    assert answer["dropped_items"] == 0
+    assert answer["items"][0]["requirement_type"] is None
+    assert any("no valid requirement_type" in note for note in answer["notes"])
+
+
+def test_the_generator_and_the_judge_never_see_the_norms_types(tmp_path):
+    """B65 ruling 10: the norms' types are left out of both digests, so a
+    control's type and the judge's view of it are their own."""
+    typed_norms = [{**n, "requirement_type": "process"} for n in (NORM_A, NORM_B, NORM_C)]
+    _, generator, judge = run_v2(
+        gen_items(typed_item("Retain logs", [KEY], "functional")), JUDGE_ACCEPT, tmp_path, norms=typed_norms
+    )
+    assert "requirement_type" not in generator.calls[0][1]
+    assert "requirement_type" not in runtime_grounding._norm_digest(typed_norms[0])
+    # the judge sees the control's own type, in the answer under review
+    assert '"requirement_type": "functional"' in judge.calls[0][1]
+
+
+def test_a_merged_control_keeps_the_first_items_type_and_says_so(tmp_path):
+    envelope, _, _ = run_v2(
+        gen_items(typed_item("Retain logs", [KEY], "functional"),
+                  typed_item("Keep the logs", [KEY], "process")),
+        JUDGE_ACCEPT, tmp_path,
+    )
+    answer = envelope["answer"]
+    assert answer["merged_items"] == 1
+    assert answer["items"][0]["requirement_type"] == "functional"
+    assert any("requirement_type 'process' differs" in note for note in answer["notes"])
+
+
+def test_the_judges_type_views_are_recorded_and_never_change_the_verdict(tmp_path):
+    """Jose, 2026-10-01: "Record, do not gate (Recommended)"."""
+    items_json = gen_items(
+        typed_item("Retain logs", [KEY], "functional"),
+        typed_item("Tamper-evident storage", [NORM_B["norm_id"]], "quality"),
+        item("Untyped control", [NORM_C["norm_id"]]),
+    )
+    views = [
+        {"item": 1, "requirement_type_agrees": True, "requirement_type": None},
+        {"item": 2, "requirement_type_agrees": False, "requirement_type": "process"},
+        {"item": 3, "requirement_type_agrees": True, "requirement_type": None},
+    ]
+    accepted, _, _ = run_v2(items_json, judge_with_views(JUDGE_ACCEPT, views), tmp_path)
+    assert accepted["judge_verdict"] == "accepted"
+    assert accepted["status"] == "applicable_missing_evidence"
+    assert accepted["answer"]["judge_type_views"] == [
+        {"judge_type_agrees": True, "judge_requirement_type": "functional"},
+        {"judge_type_agrees": False, "judge_requirement_type": "process"},
+        {"judge_type_agrees": None, "judge_requirement_type": None},  # a null-typed control records nothing
+    ]
+    rejected, _, _ = run_v2(items_json, judge_with_views(JUDGE_REJECT, views), tmp_path)
+    assert rejected["judge_verdict"] == "rejected"
+    assert rejected["answer"]["judge_type_views"] == accepted["answer"]["judge_type_views"]
+
+
+@pytest.mark.parametrize("raw_views", [None, "agrees", [{"item": "1", "requirement_type_agrees": True}], []])
+def test_unusable_type_views_record_null_and_keep_the_verdict(tmp_path, raw_views):
+    reply = JUDGE_ACCEPT if raw_views is None else judge_with_views(JUDGE_ACCEPT, raw_views)
+    envelope, _, _ = run_v2(gen_items(typed_item("Retain logs", [KEY], "functional")), reply, tmp_path)
+    assert envelope["judge_verdict"] == "accepted"
+    assert envelope["answer"]["judge_type_views"] == [{"judge_type_agrees": None, "judge_requirement_type": None}]
+
+
+def test_a_v1_backlog_keeps_its_old_input_and_output(tmp_path):
+    """Review I1 (ruling 49): under generate_backlog v1 and runtime_grounding
+    v1 a control gains no type field, the judge's input carries none, and
+    the answer has no judge_type_views."""
+    envelope, _, judge, _ = run_tool(
+        gen_items(typed_item("Retain logs", [KEY], "functional")),
+        judge_with_views(JUDGE_ACCEPT, [{"item": 1, "requirement_type_agrees": True}]),
+        tmp_path,
+    )
+    answer = envelope["answer"]
+    assert "requirement_type" not in answer["items"][0]
+    assert "judge_type_views" not in answer
+    assert not any("requirement_type" in note for note in answer["notes"])
+    assert "requirement_type" not in judge.calls[0][1]

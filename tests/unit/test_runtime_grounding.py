@@ -190,3 +190,15 @@ def test_judge_sees_the_norms_verbatim_source_text(tmp_path):
     )
     _, judge_user = judge.calls[0]
     assert "A risk management system shall be established." in judge_user
+
+
+def test_ground_check_passes_the_judges_type_views_on_and_none_when_absent(tmp_path):
+    """DEC-19: the raw type_views reach the caller, who cleans them; a reply
+    without them gives None, and the verdict is the same either way."""
+    views = [{"item": 1, "requirement_type_agrees": True}]
+    reply = json.dumps({**json.loads(JUDGE_ACCEPT), "type_views": views})
+    _, with_views = run_check({NORM["norm_id"]: reply}, log_path=tmp_path / "a.jsonl")
+    _, without = run_check({NORM["norm_id"]: JUDGE_ACCEPT}, log_path=tmp_path / "b.jsonl")
+    assert with_views["type_views"] == views
+    assert without["type_views"] is None
+    assert with_views["verdict"] == without["verdict"] == "accepted"

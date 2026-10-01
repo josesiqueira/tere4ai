@@ -26,7 +26,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
-from tere4ai.extract_norms.requirement_type import type_label
+from tere4ai.extract_norms.requirement_type import NO_TYPE, type_label
 from tere4ai.mcp_server.explain import HLEG_MAPPING_CAVEAT
 from tere4ai.mcp_server.tools import (
     NON_LEGAL_ADVICE_NOTICE,
@@ -1283,6 +1283,28 @@ def _judge_record_html(source: dict[str, Any], envelope: dict[str, Any]) -> str:
     return "".join(parts)
 
 
+def _control_type_html(item: dict[str, Any], view: Any) -> str:
+    """DEC-19: a control's recorded requirement type ("no type" for null:
+    every control must have one, ruling 21) and the runtime judge's recorded
+    view of it, when the answer carries them."""
+    if "requirement_type" not in item:
+        return ""
+    value = item.get("requirement_type")
+    html = ' <span class="microlabel">requirement type</span> ' + (
+        _token("requirement_type", value) if value is not None
+        else f'<span class="token muted">{NO_TYPE}</span>'
+    )
+    if isinstance(view, dict) and view.get("judge_type_agrees") is not None:
+        if view["judge_type_agrees"]:
+            html += ' <span class="muted">judge agrees on the requirement type</span>'
+        else:
+            html += (
+                ' <span class="muted">judge gives the requirement type</span> '
+                + emit_field("judge_requirement_type", view.get("judge_requirement_type"))
+            )
+    return html
+
+
 def _render_backlog(
     backlog_ex: Exchange | None, mixed: bool, superseded: list[Exchange]
 ) -> str:
@@ -1297,8 +1319,10 @@ def _render_backlog(
         return "".join(out)
     ans = _answer(backlog_ex)
     items = [i for i in (ans.get("items") or []) if isinstance(i, dict)]
+    views = ans.get("judge_type_views")
+    views = views if isinstance(views, list) and len(views) == len(items) else None
     out.append("<ol>")
-    for item in items:
+    for position, item in enumerate(items):
         norm_chips = " ".join(
             _chip("norm_ids", n) for n in (item.get("norm_ids") or [])
         )
@@ -1311,6 +1335,7 @@ def _render_backlog(
             + emit_field("title", item.get("title"))
             + "</strong> "
             + _token("priority", item.get("priority"))
+            + _control_type_html(item, views[position] if views else None)
             + "</p><p>"
             + emit_field("description", item.get("description"))
             + f"</p><p>{norm_chips}</p>"

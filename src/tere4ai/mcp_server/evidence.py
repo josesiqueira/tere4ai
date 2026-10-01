@@ -1,6 +1,7 @@
 """evaluate_project_evidence: the judged M3 evidence-evaluation tool.
 
 @implements: DEC-06 (partial: runtime grounding judge), DEC-08
+@implements: DEC-19
 @grounded_by: REF-16, REF-24, REF-17
 
 Evaluates ONE untrusted project evidence artifact against ONE judge-accepted
@@ -48,6 +49,12 @@ from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
 from tere4ai.mcp_server.tools import make_envelope
 
 TOOL_NAME = "evaluate_project_evidence"
+
+# DEC-19: the evidence path keeps its prompts. evaluate_evidence and the
+# runtime grounding judge stay at v1 here; their version is no longer the
+# one the backlog shares (generate_backlog v2, runtime_grounding v2).
+GENERATOR_PROMPT_VERSION = "v1"
+JUDGE_PROMPT_VERSION = "v1"
 
 # Closed generator assessment vocabulary (prompts/evaluate_evidence/v1.md).
 GENERATOR_ASSESSMENTS = (
@@ -143,9 +150,10 @@ def evaluate_project_evidence(
     evidence: dict[str, Any],
     generator: ModelClient,
     judge: ModelClient,
-    prompt_version: str = "v1",
+    prompt_version: str = GENERATOR_PROMPT_VERSION,
     graph_version: str = "unknown",
     log_path: Path | None = None,
+    judge_prompt_version: str = JUDGE_PROMPT_VERSION,
 ) -> dict[str, Any]:
     """Evaluate one untrusted evidence artifact against one accepted norm.
 
@@ -239,7 +247,7 @@ def evaluate_project_evidence(
         [norm],
         content,
         judge,
-        prompt_version=prompt_version,
+        prompt_version=judge_prompt_version,
         log_path=log_path,
         context=f"{TOOL_NAME}:{norm_id}",
     )
@@ -312,9 +320,10 @@ def evaluate_evidence_batch(
     evidence: dict[str, Any],
     generator: ModelClient,
     judge: ModelClient,
-    prompt_version: str = "v1",
+    prompt_version: str = GENERATOR_PROMPT_VERSION,
     graph_version: str = "unknown",
     log_path: Path | None = None,
+    judge_prompt_version: str = JUDGE_PROMPT_VERSION,
 ) -> dict[str, Any]:
     """One artifact vs many norms; one envelope with per-norm results.
 
@@ -364,6 +373,7 @@ def evaluate_evidence_batch(
             prompt_version=prompt_version,
             graph_version=graph_version,
             log_path=log_path,
+            judge_prompt_version=judge_prompt_version,
         )
         statuses.append(envelope["status"])
         confidences.append(envelope["confidence"])
