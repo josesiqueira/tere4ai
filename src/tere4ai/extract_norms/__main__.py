@@ -1,6 +1,7 @@
 """Build entry point: python -m tere4ai.extract_norms --nodes eu-ai-act:article-9
 
 @implements: DEC-03, DEC-06 (partial: extraction judge only), DEC-16 (partial: the L2.1 and L2.2 execution record)
+@implements: DEC-19
 @grounded_by: REF-11, REF-12, REF-13, REF-16, REF-24, REF-27, ADD-20
 
 Runs the judged norm-extraction pipeline over the given Layer 1 node ids
@@ -28,6 +29,7 @@ from tere4ai.extract_norms.model_clients import (
 )
 from tere4ai.extract_norms.pipeline import (
     DEFAULT_DUMP_PATH,
+    DEFAULT_PROMPT_VERSION,
     REPO_ROOT,
     expand_source_units,
     extract_norms,
@@ -110,7 +112,8 @@ def _main(argv: list[str] | None = None) -> int:
         help=f"layer1 dump path (default {DEFAULT_DUMP_PATH})",
     )
     parser.add_argument(
-        "--prompt-version", default="v1", help="prompt version for generator and judge"
+        "--prompt-version", default=DEFAULT_PROMPT_VERSION,
+        help=f"prompt version for generator and judge (default {DEFAULT_PROMPT_VERSION})"
     )
     parser.add_argument(
         "--dry-run",
@@ -268,6 +271,11 @@ def _main(argv: list[str] | None = None) -> int:
                 )
             merged["stats"]["nodes_failed"].extend(stats.get("nodes_failed", []))
             merged["stats"]["invalid_norms"].extend(stats.get("invalid_norms", []))
+            # B65 ruling 54: summed when the groups count it (prompt v2 on)
+            if "untyped_in_scope" in stats:
+                merged["stats"]["untyped_in_scope"] = (
+                    merged["stats"].get("untyped_in_scope", 0) + stats["untyped_in_scope"]
+                )
 
         generator_sampling = declared_sampling(generator, judge)
         payload = {
@@ -292,7 +300,8 @@ def _main(argv: list[str] | None = None) -> int:
             outputs=[{"role": "norms", "file": relative_to_dump_dir(out_path, dump_dir),
                      "sha256": sha256_of_file(out_path)}],
             counts={"source_units": stats["source_units"], "candidates": stats["candidates"],
-                    "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"])},
+                    "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"]),
+                    **({"untyped_in_scope": stats["untyped_in_scope"]} if "untyped_in_scope" in stats else {})},
             usage=usage(),
             sampling=declared_sampling(generator, judge),
             completed_keys=completed,
@@ -325,6 +334,8 @@ def _main(argv: list[str] | None = None) -> int:
         print(f"failed nodes: {len(stats['nodes_failed'])} (see stats in the output file)")
     if stats["invalid_norms"]:
         print(f"invalid norms dropped: {len(stats['invalid_norms'])}")
+    if stats.get("untyped_in_scope"):
+        print(f"in-scope norms without a requirement type: {stats['untyped_in_scope']}")
     return 0
 
 

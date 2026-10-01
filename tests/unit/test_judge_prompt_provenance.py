@@ -109,8 +109,8 @@ def _run_extraction(tmp_path):
 
 def test_extraction_events_and_judgeruns_carry_the_real_prompt_hash(tmp_path):
     result, events = _run_extraction(tmp_path)
-    extract_hash = prompt_sha256(load_prompt("extract_norms", "v1"))
-    judge_hash = prompt_sha256(load_prompt("judge_norms", "v1"))
+    extract_hash = prompt_sha256(load_prompt("extract_norms", "v2"))
+    judge_hash = prompt_sha256(load_prompt("judge_norms", "v2"))
 
     gen_events = [e for e in events if e["direction"] == "generator"]
     judge_events = [e for e in events if e["direction"] == "judge"]
@@ -124,7 +124,7 @@ def test_extraction_events_and_judgeruns_carry_the_real_prompt_hash(tmp_path):
     for judge_run in result["judge_runs"]:
         assert judge_run["prompt_sha256"] == judge_hash
         # The hash is tied to the same version label, not a substitute for it.
-        assert judge_run["prompt_version"] == "v1"
+        assert judge_run["prompt_version"] == "v2"
 
 
 def test_prompt_hash_changes_when_the_prompt_text_changes():

@@ -15,7 +15,13 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from tere4ai.extract_norms.model_clients import FakeClient
-from tere4ai.extract_norms.pipeline import expand_source_units, extract_norms
+from tere4ai.extract_norms.pipeline import (
+    DEFAULT_PROMPT_VERSION,
+    expand_source_units,
+    extract_norms,
+    load_prompt,
+)
+from tere4ai.extract_norms.requirement_type import DEFINITIONS_TEXT, SCOPE_TEXT
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 NORMS_SCHEMA = json.loads(
@@ -331,3 +337,185 @@ def test_judge_run_records_the_declared_judge_temperature(tmp_path):
                            log_path=tmp_path / "extraction_log.jsonl")
     run = result["judge_runs"][0]
     assert (run["judge_effort"], run["judge_temperature"]) == ("xhigh", "N/A")
+
+
+# DEC-19, B65: from prompt v2 on, every norm carries its requirement type,
+# scoped in code, and the judge's view of it beside a verdict it never
+# changes; a v1 run keeps its old input and output (ruling 49).
+
+
+def _generator_with(**overrides):
+    norm = json.loads(GENERATOR_ANSWER)["norms"][0]
+    norm.update(overrides)
+    return json.dumps({"norms": [norm]})
+
+
+def _judge_with(verdict_json, **view):
+    reply = json.loads(verdict_json)
+    reply.update(view)
+    return json.dumps(reply)
+
+
+def run_v2(generator_script, judge_script, tmp_path, dump=FAKE_DUMP):
+    generator = FakeClient(generator_script, model="fake-generator")
+    judge = FakeClient(judge_script, model="fake-judge")
+    log_path = tmp_path / "extraction_log.jsonl"
+    result = extract_norms(dump, [PARA_ID], generator, judge, prompt_version="v2", log_path=log_path)
+    return result, judge, log_path
+
+
+def test_an_in_scope_norm_keeps_the_extractors_type_and_the_judges_agreement(tmp_path):
+    result, _, log_path = run_v2(
+        {PARA_ID: _generator_with(requirement_type="process")},
+        {PARA_ID: _judge_with(JUDGE_ACCEPT, requirement_type_agrees=True, requirement_type=None)},
+        tmp_path,
+    )
+    norm = result["norms"][0]
+    NORM_VALIDATOR.validate(norm)
+    assert norm["requirement_type"] == "process"
+    assert (norm["judge_type_agrees"], norm["judge_requirement_type"]) == (True, "process")
+    run = result["judge_runs"][0]
+    assert (run["judge_type_agrees"], run["judge_requirement_type"]) == (True, "process")
+    judge_line = [json.loads(x) for x in log_path.read_text().splitlines()][-1]
+    assert judge_line["judge_requirement_type"] == "process"
+    assert result["stats"]["untyped_in_scope"] == 0
+
+
+def test_a_judge_that_disagrees_on_the_type_keeps_its_verdict(tmp_path):
+    """Jose, 2026-10-01: "Record, do not gate (Recommended)"."""
+    result, _, _ = run_v2(
+        {PARA_ID: _generator_with(requirement_type="process")},
+        {PARA_ID: _judge_with(JUDGE_ACCEPT, requirement_type_agrees=False, requirement_type="functional")},
+        tmp_path,
+    )
+    norm = result["norms"][0]
+    assert norm["judge_verdict"] == "accepted" and norm["review_status"] == "accepted"
+    assert norm["requirement_type"] == "process"
+    assert (norm["judge_type_agrees"], norm["judge_requirement_type"]) == (False, "functional")
+    assert result["stats"]["verdicts"]["accepted"] == 1
+
+
+def test_a_judge_reply_without_the_view_keeps_its_verdict_and_records_null(tmp_path):
+    result, _, _ = run_v2({PARA_ID: _generator_with(requirement_type="quality")}, {PARA_ID: JUDGE_REJECT}, tmp_path)
+    norm = result["norms"][0]
+    assert norm["judge_verdict"] == "rejected"
+    assert norm["requirement_type"] == "quality"
+    assert norm["judge_type_agrees"] is None and norm["judge_requirement_type"] is None
+
+
+def test_a_missing_or_invalid_type_is_null_and_the_norm_is_never_dropped(tmp_path):
+    """DEC-19: the field is nullable, so an extractor reply that omits it or
+    gives a value outside the three is kept with null (today a schema
+    failure would drop the norm), and the in-scope gap is counted (ruling 54)."""
+    for generator_answer in (GENERATOR_ANSWER, _generator_with(requirement_type="non-functional")):
+        result, _, _ = run_v2({PARA_ID: generator_answer}, {PARA_ID: JUDGE_ACCEPT}, tmp_path)
+        assert result["stats"]["invalid_norms"] == []
+        norm = result["norms"][0]
+        NORM_VALIDATOR.validate(norm)
+        assert norm["requirement_type"] is None
+        assert result["stats"]["untyped_in_scope"] == 1
+
+
+def test_outside_the_scope_the_type_is_null_and_the_judge_records_nothing(tmp_path):
+    """A permission carries no type whatever the extractor proposed, the
+    judge's agreement on it is not recorded (DEC-19), and it is not counted
+    as untyped."""
+    result, judge, _ = run_v2(
+        {PARA_ID: _generator_with(deontic_type="permission", modal="may", requirement_type="functional")},
+        {PARA_ID: _judge_with(JUDGE_ACCEPT, requirement_type_agrees=True)},
+        tmp_path,
+    )
+    norm = result["norms"][0]
+    assert norm["requirement_type"] is None
+    assert norm["judge_type_agrees"] is None and norm["judge_requirement_type"] is None
+    assert result["stats"]["untyped_in_scope"] == 0
+    # The judge saw the scoped candidate, never the discarded type.
+    assert '"requirement_type": null' in judge.calls[0][1]
+
+
+def test_a_v1_run_keeps_its_old_input_and_output(tmp_path):
+    """Review I1 (ruling 49): under v1 the extractor's type is not kept, the
+    judge's input carries no type and no inference text, and the norm, the
+    judge run, the log and the stats gain no type field."""
+    generator = FakeClient({PARA_ID: _generator_with(requirement_type="process")}, model="fake-generator")
+    judge = FakeClient({PARA_ID: _judge_with(JUDGE_ACCEPT, requirement_type_agrees=True)}, model="fake-judge")
+    log_path = tmp_path / "log.jsonl"
+    result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, prompt_version="v1", log_path=log_path)
+    assert "requirement_type" not in judge.calls[0][1]
+    assert "Actor-inference source" not in judge.calls[0][1]
+    norm, run = result["norms"][0], result["judge_runs"][0]
+    for field in ("requirement_type", "judge_type_agrees", "judge_requirement_type"):
+        assert field not in norm and field not in run
+    assert "judge_type_agrees" not in [json.loads(x) for x in log_path.read_text().splitlines()][-1]
+    assert "untyped_in_scope" not in result["stats"]
+
+
+# DEC-19 and thesis task B4 (folded into B65): extract_norms v2 and
+# judge_norms v2 carry the one definitions text and the scope; the judge's
+# input carries the verbatim text of the actor-inference source.
+
+ARTICLE_16_PARA = "eu-ai-act:article-16:paragraph-1"
+B4_DUMP = {
+    "build": {"build_id": "build-test"},
+    "nodes": FAKE_DUMP["nodes"] + [
+        {"id": "eu-ai-act:article-16", "layer": 1, "type": "Article", "number": 16,
+         "title": "Obligations of providers of high-risk AI systems", "source_span": _span("art_16")},
+        {"id": ARTICLE_16_PARA, "layer": 1, "type": "Paragraph", "index": 1,
+         "text": "Providers of high-risk AI systems shall keep the risk log.", "source_span": _span("016.001")},
+    ],
+    "edges": [],
+}
+
+
+def test_the_v2_prompts_carry_the_definitions_and_the_scope_verbatim():
+    assert DEFAULT_PROMPT_VERSION == "v2"
+    extract = load_prompt("extract_norms", "v2")
+    judge = load_prompt("judge_norms", "v2")
+    assert extract.startswith("# extract_norms system prompt, version v2")
+    assert judge.startswith("# judge_norms system prompt, version v2")
+    for prompt in (extract, judge):
+        assert DEFINITIONS_TEXT in prompt
+        assert SCOPE_TEXT in prompt
+    assert '"requirement_type": "process"' in extract
+    assert '"requirement_type_agrees": true' in judge  # the example shows agreement
+    assert "never a reason" in judge  # recorded, never gating (DEC-19)
+    assert "serves check 3 only" in judge  # the inference text feeds the actor check alone
+    # v1 is kept unchanged for reading old records
+    assert "requirement_type" not in load_prompt("judge_norms", "v1")
+
+
+def test_extraction_defaults_to_the_v2_prompts(tmp_path):
+    generator = FakeClient({PARA_ID: GENERATOR_ANSWER}, model="fake-generator")
+    judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
+    result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, log_path=tmp_path / "log.jsonl")
+    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v2")
+    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v2")
+    assert result["norms"][0]["extractor_prompt_version"] == "v2"
+    assert result["judge_runs"][0]["prompt_version"] == "v2"
+
+
+def test_the_v2_judge_receives_the_actor_inference_source_text(tmp_path):
+    """B4 (Jose, 2026-09-30: "Fix before B74"): an actor inferred via
+    Article 16 is judged against Article 16's own words."""
+    _, judge, _ = run_v2({PARA_ID: GENERATOR_ANSWER}, {PARA_ID: JUDGE_ACCEPT}, tmp_path, dump=B4_DUMP)
+    user = judge.calls[0][1]
+    assert "Actor-inference source: eu-ai-act:article-16 (Article)" in user
+    assert f"[{ARTICLE_16_PARA}] Providers of high-risk AI systems shall keep the risk log." in user
+    assert user.index("Actor-inference source") < user.index("Candidate norm (JSON)")
+
+
+def test_an_explicit_actor_gets_no_inference_text(tmp_path):
+    explicit = _generator_with(actor_explicit="provider", actor_inferred=None, actor_inference_source_node_id=None)
+    _, judge, _ = run_v2({PARA_ID: explicit}, {PARA_ID: JUDGE_ACCEPT}, tmp_path, dump=B4_DUMP)
+    assert "Actor-inference source: none (the candidate's actor is not inferred)." in judge.calls[0][1]
+
+
+def test_an_inferred_actor_without_a_source_id_is_named_as_such(tmp_path):
+    unsourced = _generator_with(actor_inference_source_node_id=None)
+    _, judge, _ = run_v2({PARA_ID: unsourced}, {PARA_ID: JUDGE_ACCEPT}, tmp_path, dump=B4_DUMP)
+    assert "Actor-inference source: none recorded (the candidate infers its actor" in judge.calls[0][1]
+
+
+def test_an_inference_source_missing_from_the_dump_is_named_not_hidden(tmp_path):
+    _, judge, _ = run_v2({PARA_ID: GENERATOR_ANSWER}, {PARA_ID: JUDGE_ACCEPT}, tmp_path)
+    assert "Actor-inference source: eu-ai-act:article-16, not present in the graph dump (no text)." in judge.calls[0][1]

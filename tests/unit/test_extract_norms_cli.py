@@ -73,11 +73,11 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[],
                                  inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
-                                 config={"prompt_version": "v1", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
+                                 config={"prompt_version": "v2", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
                                  expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
-                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v1"),
-                                                "judge": cli.prompt_sha256("judge_norms-v1")})
+                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v2"),
+                                                "judge": cli.prompt_sha256("judge_norms-v2")})
     # Changed by final review A1: a resume is refused while the run it resumes
     # is live, so the prior attempt ends failed here as an interrupted run does.
     store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
@@ -483,3 +483,25 @@ def test_a_refused_declaration_is_recorded_and_exits_4(tmp_path, monkeypatch, ca
     assert ex["error"] == ("configuration error: openai:g refused the declared temperature 0 "
                            "(HTTP 400: temperature unsupported); correct its row in config/model_parameters.json")
     assert "stopped: configuration error: openai:g refused" in capsys.readouterr().err
+
+
+def test_the_groups_untyped_in_scope_counts_are_summed_into_the_payload_and_the_record(tmp_path, monkeypatch):
+    """B65 ruling 54 (DEC-19): the per-group count of in-scope norms without a
+    requirement type survives the merge, which sums a fixed key list."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+
+    def group(node_id, untyped):
+        return {"norms": [{"norm_id": f"norm:{node_id}:n1"}], "judge_runs": [],
+                "stats": {"source_units": 1, "candidates": 1, "verdicts": {"accepted": 1},
+                          "nodes_failed": [], "invalid_norms": [], "untyped_in_scope": untyped}}
+
+    _fakes(monkeypatch, cli, [], results={"eu-ai-act:article-9": group("eu-ai-act:article-9", 2),
+                                          "eu-ai-act:article-10": group("eu-ai-act:article-10", 1)})
+    rc = cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)])
+    assert rc == 0
+    assert json.loads(out.read_text())["stats"]["untyped_in_scope"] == 3
+    store = BuildRecordStore(tmp_path)
+    assert store.read(store.resolve("test"))["executions"][0]["counts"]["untyped_in_scope"] == 3

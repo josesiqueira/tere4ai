@@ -92,11 +92,11 @@ merit, this document says so explicitly instead of inventing a citation.
   judge-in-evaluation and independence stance), REF-11 (PEER, extraction
   judge in an obligation pipeline), REF-16 (PEER: 68.2 percent unjudged
   grounding accuracy is the number the judge exists to beat).
-- Implementation: src/tere4ai/extract_norms/pipeline.py:326-337 (per-candidate
-  judging), :397 (only an accepting verdict yields an accepted norm),
-  :230-242 (unusable judge output falls back to needs_human_review, never
+- Implementation: src/tere4ai/extract_norms/pipeline.py:411-438 (per-candidate
+  judging), :513 (only an accepting verdict yields an accepted norm),
+  :314-326 (unusable judge output falls back to needs_human_review, never
   accepted).
-- Tests: tests/unit/test_extract_norms.py:180, :248, :265.
+- Tests: tests/unit/test_extract_norms.py:200, :268, :285.
 - See it: jq '.stats.verdicts' data/graph_dumps/norms_core.json
   (339 accepted / 54 rejected / 41 review).
 

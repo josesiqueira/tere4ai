@@ -1,6 +1,7 @@
 """M2 norm-extraction pipeline: generator plus build-time extraction judge.
 
 @implements: DEC-03, DEC-06 (partial: extraction judge only)
+@implements: DEC-19
 @grounded_by: REF-11, REF-12, REF-13, REF-16, REF-24
 
 An Article is not one requirement: each extracted norm is a NormativeStatement
@@ -12,6 +13,12 @@ Section 7 before it may be accepted. Hard invariants enforced here:
 - Recitals are NEVER extraction sources (Section 1); a recital id raises.
 - No norm leaves this module without a source_span_id and a judge verdict;
   review_status is "accepted" only when the judge accepted.
+- DEC-19, from prompt v2 on: the norm keeps the extractor's
+  requirement_type only inside the scope (an operator obligation or
+  prohibition in a requirement group), null outside it whatever was
+  proposed; the judge's view of the type is recorded beside the verdict and
+  never changes it. A v1 run feeds its judge what it always did and writes
+  no type field.
 - Every generator and judge call is logged to
   data/review_queue/extraction_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
@@ -30,6 +37,12 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from tere4ai.extract_norms.model_clients import ModelClient
+from tere4ai.extract_norms.requirement_type import (
+    in_scope,
+    parse_judge_view,
+    scoped_type,
+    types_for,
+)
 from tere4ai.judge.config import require_independent_clients
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -39,6 +52,13 @@ DEFAULT_LOG_PATH = REPO_ROOT / "data" / "review_queue" / "extraction_log.jsonl"
 DEFAULT_DUMP_PATH = REPO_ROOT / "data" / "graph_dumps" / "layer1.json"
 
 EXTRACTION_METHOD = "llm_extract_v1"
+
+# The prompt version extract_norms and judge_norms share (DEC-19: v2 carries
+# the requirement type and thesis task B4's actor-inference source text).
+DEFAULT_PROMPT_VERSION = "v2"
+# B4: judge_norms v1 never received the actor-inference source text; a v1
+# run keeps the input v1 had, so the version names one instrument.
+_PROMPTS_WITHOUT_INFERENCE_TEXT = frozenset({"v1"})
 
 # Node types that carry extractable operative text (Layer 1, Section 6).
 SOURCE_UNIT_TYPES = ("Paragraph", "Point", "AnnexItem")
@@ -57,6 +77,9 @@ _NORM_CANDIDATE_FIELDS = (
     "conditions",
     "exceptions",
     "lifecycle_phase_ids",
+    # DEC-19, from v2 on: the extractor proposes it; the scope decides
+    # whether it stays.
+    "requirement_type",
 )
 
 
@@ -191,10 +214,59 @@ def _generator_user_message(unit: dict[str, Any]) -> str:
     )
 
 
-def _judge_user_message(unit: dict[str, Any], candidate: dict[str, Any]) -> str:
+def _inference_source_block(
+    dump: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    unit: dict[str, Any],
+    candidate: dict[str, Any],
+) -> str:
+    """B4 (DEC-04, DEC-19): the verbatim text the candidate's inferred actor rests on.
+
+    A node with text gives its text; a container without text (Article 16,
+    the usual source) gives every source unit under it in the Act's order.
+    The node type is named, so a recital or an unknown id is visible to the
+    judge rather than hidden; an inference that names no source says so.
+    """
+    if not candidate.get("actor_inferred"):
+        return "Actor-inference source: none (the candidate's actor is not inferred)."
+    source_id = candidate.get("actor_inference_source_node_id")
+    if not source_id:
+        return (
+            "Actor-inference source: none recorded (the candidate infers its actor "
+            "without naming the node the inference rests on)."
+        )
+    if source_id == unit["node_id"]:
+        return f"Actor-inference source: {source_id}, the source unit above."
+    node = nodes.get(source_id)
+    if node is None:
+        return f"Actor-inference source: {source_id}, not present in the graph dump (no text)."
+    if node.get("text"):
+        texts = [(source_id, node["text"])]
+    else:
+        texts = [
+            (n["id"], n["text"])
+            for n in dump["nodes"]
+            if n["id"].startswith(source_id + ":")
+            and n.get("type") in SOURCE_UNIT_TYPES
+            and n.get("text")
+        ]
+    if not texts:
+        return f"Actor-inference source: {source_id} ({node.get('type')}), no text in the graph dump."
+    body = "\n".join(f"[{node_id}] {text}" for node_id, text in texts)
+    return (
+        f"Actor-inference source: {source_id} ({node.get('type')})\n"
+        f"Verbatim text of the actor-inference source:\n{body}"
+    )
+
+
+def _judge_user_message(
+    unit: dict[str, Any], candidate: dict[str, Any], inference_block: str | None = None
+) -> str:
+    inference = f"{inference_block}\n\n" if inference_block is not None else ""
     return (
         f"Source unit node id: {unit['node_id']}\n"
         f"Verbatim source text:\n{unit['text']}\n\n"
+        f"{inference}"
         f"Candidate norm (JSON):\n{json.dumps(candidate, ensure_ascii=False, indent=1)}"
     )
 
@@ -259,7 +331,7 @@ def extract_norms(
     node_ids: list[str],
     generator: ModelClient,
     judge: ModelClient,
-    prompt_version: str = "v1",
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
     log_path: Path | None = None,
 ) -> dict[str, Any]:
     """Run the judged extraction over the given node ids.
@@ -280,6 +352,12 @@ def extract_norms(
     build_id = dump.get("build", {}).get("build_id", "build-unknown")
 
     units = expand_source_units(dump, node_ids)
+    nodes = _index_nodes(dump)
+    with_inference_text = prompt_version not in _PROMPTS_WITHOUT_INFERENCE_TEXT
+    typed = types_for(prompt_version)  # B65 ruling 49
+    candidate_fields = tuple(
+        key for key in _NORM_CANDIDATE_FIELDS if typed or key != "requirement_type"
+    )
 
     norms: list[dict[str, Any]] = []
     judge_runs: list[dict[str, Any]] = []
@@ -289,6 +367,8 @@ def extract_norms(
         "candidates": 0,
         "invalid_norms": [],
         "verdicts": {"accepted": 0, "rejected": 0, "needs_human_review": 0},
+        # B65 ruling 54: in-scope norms the extractor left without a type
+        **({"untyped_in_scope": 0} if typed else {}),
     }
 
     for unit in units:
@@ -335,11 +415,19 @@ def extract_norms(
                 )
                 continue
             stats["candidates"] += 1
-            candidate = {
-                key: candidate.get(key) for key in _NORM_CANDIDATE_FIELDS if key in candidate
-            }
+            candidate = {key: candidate.get(key) for key in candidate_fields if key in candidate}
+            if typed:
+                # DEC-19: the scope is applied before the judge sees the
+                # candidate, so the judge is never asked about a type the
+                # code discards; a missing or invalid proposal is null, never
+                # a dropped norm.
+                candidate["requirement_type"] = scoped_type({**candidate, "source_node_id": node_id})
 
-            judge_user = _judge_user_message(unit, candidate)
+            judge_user = _judge_user_message(
+                unit,
+                candidate,
+                _inference_source_block(dump, nodes, unit, candidate) if with_inference_text else None,
+            )
             judge_started = _now()
             judged, judge_error = _call_json_with_retry(judge, judge_prompt, judge_user)
             if judged is None or judged.get("verdict") not in (
@@ -351,6 +439,11 @@ def extract_norms(
             verdict = judged["verdict"]
             scores = _judge_scores(judged)
             rationale = str(judged.get("rationale") or "no rationale returned")
+            # DEC-19: recorded beside the verdict, never gating it.
+            type_view: dict[str, Any] = {}
+            if typed:
+                agrees, judge_type = parse_judge_view(judged, candidate["requirement_type"])
+                type_view = {"judge_type_agrees": agrees, "judge_requirement_type": judge_type}
 
             _log_event(
                 log_path,
@@ -364,6 +457,7 @@ def extract_norms(
                     "input_sha256": _input_hash(judge_user),
                     "verdict": verdict,
                     "rationale": rationale,
+                    **type_view,
                 },
             )
 
@@ -382,6 +476,7 @@ def extract_norms(
                 "verdict": verdict,
                 "scores": scores,
                 "rationale": rationale,
+                **type_view,
                 "started_at": judge_started,
                 "completed_at": _now(),
                 "build_id": build_id,
@@ -408,6 +503,7 @@ def extract_norms(
                 "condition_ids": [],
                 "exception_ids": [],
                 "lifecycle_phase_ids": candidate.get("lifecycle_phase_ids") or [],
+                **({"requirement_type": candidate["requirement_type"], **type_view} if typed else {}),
                 "extraction_method": EXTRACTION_METHOD,
                 "extractor_model": generator.model,
                 "extractor_prompt_version": prompt_version,
@@ -432,6 +528,8 @@ def extract_norms(
                 continue
 
             stats["verdicts"][verdict] += 1
+            if typed and norm["requirement_type"] is None and in_scope(norm):
+                stats["untyped_in_scope"] += 1
             judge_runs.append(judge_run)
             norms.append(norm)
 
