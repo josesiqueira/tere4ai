@@ -70,7 +70,16 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   modal, actor_explicit, actor_inferred, actor_inference_source_node_id, action,
   object, target_system_category, condition_ids, exception_ids,
   lifecycle_phase_ids, required_artifact_ids, evidence_expectation_ids,
-  extraction_method, extractor_model, confidence, judge_verdict, review_status.
+  requirement_type, extraction_method, extractor_model, confidence,
+  judge_verdict, review_status.
+- Requirement type (added 2026-10-01, DEC-19): an obligation or a
+  prohibition addressed to an operator in a requirement group carries
+  requirement_type, one of functional, quality or process, the types of
+  ISO/IEC/IEEE 29148:2018 clause 5.2.8.3 (ADD-54); every other norm carries
+  null, shown "not an operator requirement". The type sits beside the
+  Institutional Grammar slots, not inside them. The extraction judge records
+  its view of the type without gating on it. grounded_by: ADD-54, ADD-55,
+  ADD-56
 - Schema is grounded in Institutional Grammar (OVR-9): actor maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
   Aim. Pull the primary sources (REF-14c) before citing.
@@ -160,6 +169,10 @@ Three judges, kept separate:
   exists, deontic type is supported by the text, actor is explicit or a valid
   recorded inference, action and object are grounded, conditions and exceptions
   are not dropped, and no recital, guidance, or proposal is treated as binding.
+  Since judge_norms v2 (2026-10-01, DEC-19) it also receives the verbatim
+  text of an inferred actor's source unit (DEC-04), and it records whether it
+  agrees with the norm's requirement type, and its own type when it does
+  not, without that record changing the verdict.
 - Build-time mapping judge: before an alignment is accepted, scores it, may
   correct the relation type, and rejects any mapping whose rationale relies on
   concepts absent from both source spans.
@@ -168,7 +181,9 @@ Three judges, kept separate:
   ethics guideline, guidance, and inferred engineering practice are
   distinguished, that conditions and exceptions are kept, that classification is
   marked uncertain when facts are incomplete, and that no citation is
-  hallucinated and no compliance is asserted.
+  hallucinated and no compliance is asserted. Since runtime_grounding v2
+  (2026-10-01, DEC-19) it records its view of each generated control's
+  requirement type, which never changes the backlog's verdict.
 
 Why the judge matters, and the claim discipline: sibling systems ground legal
 references correctly only around 50 to 68 percent of the time without gating
@@ -711,6 +726,152 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   resolution, transparency_duties); tests/unit/test_classify.py (the six
   cases of the brief and the ruled-out-by-exculpating-fact cases);
   CHANGELOG.md names the contract change.
+
+- DEC-19: every operator obligation or prohibition among the norms, and
+  every generated control, carries its requirement type, functional,
+  quality or process, the types of ISO/IEC/IEEE 29148:2018 clause
+  5.2.8.3; the judges record their view of the type and never gate on it
+  (added 2026-10-01; thesis task B65, brief
+  sdd/2026-10-01-B65-requirement-type/brief.md revision 3 and its
+  rulings file progress.md in the private research repository; thesis
+  task B4 folded into the same prompt version). Research claim (the
+  thesis reports the Act's obligations and the generated controls by
+  type): grounded_by ADD-54 and ADD-55 (STD) and ADD-56 (PEER); ADD-57
+  (STD) and ADD-58 (OFF) support; ADD-11 links regulatory rules to
+  software requirements.
+  The types. One field, requirement_type, holding three of the examples
+  of the requirements type attribute in 29148 clause 5.2.8.3 ("Examples
+  of the requirements type attribute", printed pp. 15 and 16, ADD-54).
+  The clause gives examples, not a closed list; this project uses three:
+  functional: "Functional/Performance. Functional requirements describe
+  the system or system element functions or tasks to be performed by the
+  system." (p. 15); the vocabulary standard defines a functional
+  requirement as "1. statement that identifies what results a product or
+  process shall produce 2. requirement that specifies a function that a
+  system or system component shall perform" (ADD-55, 3.1704, p. 195).
+  Here: the AI system or one of its elements shall perform a function or
+  produce a result (Article 12(1): the system technically allows the
+  automatic recording of events).
+  quality: the type 29148 names Quality (Non-Functional) Requirements,
+  whose entry reads "Include a number of the 'ilities' in requirements to
+  include, for example, transportability, survivability, flexibility,
+  portability, reusability, reliability, maintainability and security."
+  (p. 16); 24765 defines a quality requirement as a "requirement that a
+  software attribute be present in software to satisfy a contract,
+  standard, specification, or other formally imposed document" (ADD-55,
+  3.3287, definition 1, p. 364). Here: the system or its data shall have
+  a property or meet a level (Article 15(1): accuracy, robustness and
+  cybersecurity; Article 10(3): data sets that are relevant and
+  sufficiently representative).
+  process: "Process Requirements. These are stakeholder, usually
+  acquirer or user, requirements imposed through the contract or
+  statement of work." (p. 15). Here: the obligation constrains the
+  operator's activities, organisation or records rather than the AI
+  system or its data, as project requirements "constrain the project
+  that constructs the software." (ADD-57, Software Requirements 1.3,
+  p. 1-3), extended to the operator's activities after development
+  (deployment, use, monitoring, reporting): Article 17's quality
+  management system, Article 19's keeping of the logs, Article 72's
+  post-market monitoring. The clause's sentence that process
+  requirements include compliance with national, "state or local laws,
+  including environmental laws, administrative requirements,
+  acquirer/supplier relationship requirements and specific work
+  directives." (p. 16) is not read as making every legal obligation a
+  process requirement: the type follows what the obligation constrains,
+  not where it comes from.
+  Process is a peer of functional and quality, never a kind of
+  non-functional: "As project and process requirements are conceptually
+  different from system requirements, they should be distinguished at
+  the root level and not in a sub-category such as non-functional
+  requirements." (ADD-56, Glinz, section 4.2, p. 24); SWEBOK V4.0a's
+  "Figure 1.2. Categories of Software Requirements" (ADD-57, p. 1-4)
+  places project requirements beside product requirements at the root.
+  The Commission's standardisation request for the Act separates
+  "requirements applicable to high-risk AI systems or process
+  requirements" (ADD-58, Annex II, section 1, p. 4); it is cited for that
+  separation only, since it splits by provision and not obligation by
+  obligation as this decision does. 29148's other examples are read as
+  follows: interface as functional; usability and human factors as
+  quality. On screen: "functional", "quality (non-functional)",
+  "process".
+  Scope. A norm carries a type only when it is an obligation or a
+  prohibition whose actor, explicit or inferred (DEC-04), is an operator
+  (provider, deployer, importer, distributor, authorised representative,
+  product manufacturer) and whose source unit is in a requirement group
+  (src/tere4ai/mcp_server/requirements.py _is_requirement_group: not
+  Articles 5 to 7, not the annexes). Every other norm (a definition, a
+  right, a permission, an exemption, a duty of the Commission or of an
+  authority) carries null, shown "not an operator requirement", whatever
+  the extractor proposed. The field is nullable in norms.schema.json, so
+  an extractor reply that omits it is never dropped for that reason
+  (today a schema failure drops the norm).
+  Reading a norm. By the outcome the obligation constrains, not by its
+  main verb: "shall be designed and developed in such a way that"
+  (Articles 13(1), 14(1), 15(1)) is functional or quality by the outcome
+  that follows. A required level of a function's output is quality when
+  the obligation is about the level (Article 15(1)). A duty to draw up,
+  keep, update or submit documents or logs is process (Articles 11(1),
+  18, 19, 47, 49); a required content of what is delivered with the
+  system (the instructions for use, Article 13(2) and 13(3)) is
+  functional, a result the product shall produce (24765 3.1704,
+  definition 1). A typed norm has exactly one type; an obligation that
+  mixes a system function and an operator process takes the type of the
+  outcome it mainly constrains, and the annotators' agreement (spec G in
+  the private research repository) measures how often that is contested.
+  Norms. The extractor proposes the type with the slots; the extraction
+  judge records whether it agrees and, when it does not, its own type,
+  in two fields beside its verdict. The type never changes acceptance:
+  the verdict rests on the six checks of Section 7 as before, so the
+  Layer 2 counts and the judge error rates keep measuring what they
+  measured, and type agreement is reported apart. Both prompts carry the
+  definitions above and move together to extract_norms v2 and
+  judge_norms v2 (they share one version). The same v2 carries thesis
+  task B4: the judge's input gains the verbatim text of the
+  actor-inference source unit (DEC-04), so an inferred actor is judged
+  against the paragraph it came from. The type is stored on the norm,
+  loaded into Neo4j, served by get_applicable_requirements,
+  explain_requirement and the facade's units list, and carried by the
+  human review lists, so the annotators keep, edit or add it like any
+  closed slot.
+  Controls. The backlog generator writes each control's own type, never
+  copied from the norms it cites: from Article 19's process obligation
+  (the provider keeps the logs) come a functional control (the logging
+  subsystem retains records for six months) and a quality one (retained
+  records resist tampering). The generator's input digest leaves out the
+  norms' types, so nothing invites a copy; a control and its norms stay
+  linked by norm_ids. _clean_items keeps a control whose type is missing
+  or invalid, with null and a note; _group_items merges by norm set as
+  today and the merged control keeps the first item's type. The runtime
+  judge records its view of each control's type; the backlog's verdict
+  does not depend on it. generate_backlog and runtime_grounding move
+  together to v2; evaluate_project_evidence keeps evaluate_evidence v1
+  and runtime_grounding v1, its version no longer shared with the
+  backlog's.
+  Inspection. Code inspection follows the norm's type: functional and
+  quality norms offer it; a process norm offers none and states the
+  evidence it needs, and its controls are not inspectable either, since
+  code tags cite norm ids (DEC-15) and controls are not traced. The
+  consumer dashboard's hand-made per-article kind is retired in favour of
+  this field.
+  Defense: the thesis frames the Act's obligations as requirements, so
+  the classification it reports must carry the requirements engineering
+  standard's definition, not the author's hypothesis the per-article kind
+  rested on; the type is set per obligation, not per article, because
+  articles mix types (Article 15(1) asks for a quality of the system,
+  15(4) for technical and organisational measures that are partly the
+  operator's process). Recording the judges' view without gating keeps
+  every verdict and every measured judge error rate comparable with the
+  checks they had, and makes type agreement a figure of its own.
+  verify: schema/json_schemas/norms.schema.json (requirement_type,
+  nullable, three values); prompts/extract_norms/v2.md,
+  prompts/judge_norms/v2.md, prompts/generate_backlog/v2.md,
+  prompts/runtime_grounding/v2.md; src/tere4ai/extract_norms/pipeline.py
+  (the field kept, the scope applied, the inference-source text in the
+  judge's input), src/tere4ai/graph_store/layer23.py,
+  src/tere4ai/mcp_server/requirements.py, explain.py and backlog.py,
+  src/tere4ai/judge/runtime_grounding.py; tests/unit/test_extract_norms.py,
+  test_get_requirements.py, test_backlog.py, test_runtime_grounding.py
+  and test_review_queue.py; CHANGELOG.md names the contract change.
 
 ## 17. Implementation-traceability convention
 
