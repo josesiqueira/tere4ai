@@ -113,10 +113,14 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     prev = store.start_execution(rid, argv=["--norms", norms.name], **common)
     store.finish_execution(
         rid, prev, status="failed", completed_keys=done_before,
+        # spec F D-F32: the failure is a timeout, which carries no status, so
+        # nothing is refused or rejected before processing
         usage={"generator": {"calls": 3, "input_tokens": 1200, "output_tokens": 340, "requests_sent": 4,
-                             "replies_with_usage": 3},
+                             "replies_with_usage": 3, "requests_refused": 0,
+                             "requests_rejected_before_processing": 0},
                "judge": {"calls": 3, "input_tokens": 900, "output_tokens": 210, "requests_sent": 3,
-                         "replies_with_usage": 3}},
+                         "replies_with_usage": 3, "requests_refused": 0,
+                         "requests_rejected_before_processing": 0}},
         error="TimeoutError: the alignment model did not answer on batch:3:norm-d",
     )
     resumed = store.start_execution(rid, argv=["--norms", norms.name, "--resume"], resumes_run_id=prev,
@@ -127,10 +131,15 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         outputs=[{"role": "alignments", "file": alignments.name, "sha256": sha256_of_file(alignments)}],
         counts={"norms_total": 5, "norms_skipped_not_accepted": 0, "zero_alignment_norms": 0, "candidates": 7,
                 "verdicts": {"accepted": 5, "rejected": 2}, "mechanical_rejects_count": 0},
-        usage={"generator": {"calls": 2, "input_tokens": 800, "output_tokens": 230, "requests_sent": 2,
-                             "replies_with_usage": 2},
+        # spec F D-F32: one generator request answered 429 and retried, so it
+        # is sent, refused and rejected before processing, and the step is
+        # complete
+        usage={"generator": {"calls": 2, "input_tokens": 800, "output_tokens": 230, "requests_sent": 3,
+                             "replies_with_usage": 2, "requests_refused": 1,
+                             "requests_rejected_before_processing": 1},
                "judge": {"calls": 2, "input_tokens": 600, "output_tokens": 140, "requests_sent": 2,
-                         "replies_with_usage": 2}},
+                         "replies_with_usage": 2, "requests_refused": 0,
+                         "requests_rejected_before_processing": 0}},
         sampling={"generator": "0", "judge": "0"},
         work_failures={"nodes_failed": 0, "norms_failed": 0},
     )

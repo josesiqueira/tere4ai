@@ -34,7 +34,7 @@
       "required": ["nodes_failed", "norms_failed"]
     },
     "role_usage": {
-      "description": "One model role's usage over one execution (spec F D-F26 (g)): provider-reported token sums, replies received (calls), requests sent and replies that reported usage. requests_sent greater than replies_with_usage means some request may have been billed without a figure. requests_refused counts the failed attempts the provider answered with an HTTP error status (a refused request, as opposed to a connection error, a timeout or an interrupt); every one of them is also in requests_sent. Records made before 2026-09-26 carry only the first three, and records made on 2026-09-26 before the pre-B74 final fixes carry no requests_refused.",
+      "description": "One model role's usage over one execution (spec F D-F26 (g)): provider-reported token sums, replies received (calls), requests sent and replies that reported usage. requests_sent greater than replies_with_usage means some request may have been billed without a figure. requests_refused counts the failed attempts the provider answered with an HTTP error status (a refused request, as opposed to a connection error, a timeout or an interrupt); every one of them is also in requests_sent. requests_rejected_before_processing (spec F D-F32) counts the attempts the provider answered with HTTP 400, 401, 403, 404, 413, 422 or 429, which the providers do not bill; it is a subset of requests_refused, so on every record requests_rejected_before_processing is at most requests_refused and requests_refused at most requests_sent. Records made before 2026-09-26 carry only the first three, records made on 2026-09-26 before the pre-B74 final fixes carry no requests_refused, and records made before 2026-10-01 carry no requests_rejected_before_processing.",
       "type": "object",
       "additionalProperties": true,
       "properties": {
@@ -43,7 +43,8 @@
         "output_tokens": {"type": "integer", "minimum": 0},
         "requests_sent": {"type": "integer", "minimum": 0},
         "replies_with_usage": {"type": "integer", "minimum": 0},
-        "requests_refused": {"type": "integer", "minimum": 0}
+        "requests_refused": {"type": "integer", "minimum": 0},
+        "requests_rejected_before_processing": {"type": "integer", "minimum": 0}
       }
     },
     "usage_by_role": {

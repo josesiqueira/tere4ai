@@ -36,11 +36,13 @@ class _Client:
     """A model client double: usage and sampling like the real ones, canned replies."""
 
     # B91: the double counts like the real clients (final review A3: the
-    # sixth count, requests_refused, too)
+    # sixth count, requests_refused, too; spec F D-F32: the seventh,
+    # requests_rejected_before_processing)
     def __init__(self, reply, sampling="stub"):
         self.reply, self.sampling = reply, sampling
         self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "requests_sent": 0,
-                      "replies_with_usage": 0, "requests_refused": 0}
+                      "replies_with_usage": 0, "requests_refused": 0,
+                      "requests_rejected_before_processing": 0}
 
     def complete(self, *args, **kwargs):
         self.usage["requests_sent"] += 1
@@ -523,6 +525,29 @@ def test_the_summary_sums_requests_refused_and_drops_only_it_when_a_unit_lacks_i
                         str(tmp_path / "results" / "b91_summary.json"), "--resume-unrecorded"]) == 0
     by_role = json.loads((tmp_path / "results" / "b91_summary.json").read_text())["usage_provider_reported"]["by_role"]
     assert "requests_refused" not in by_role["generator"] and by_role["generator"]["requests_sent"] == 2
+    # the seventh count is a subset of requests_refused, so it goes with it
+    assert "requests_rejected_before_processing" not in by_role["generator"]
+
+
+def test_the_summary_sums_the_rejected_count_and_drops_only_it_when_a_unit_lacks_it(runner, monkeypatch, tmp_path):
+    """Spec F D-F32: a unit checkpointed before requests_rejected_before_processing
+    existed leaves that count unknown for its role; the six counts it does carry
+    stay."""
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    assert runner.main(_argv(tmp_path)) == 0
+    summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
+    assert summary["usage_provider_reported"]["by_role"]["generator"]["requests_rejected_before_processing"] == 0
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
+    for role in lines[0]["usage"].values():
+        role.pop("requests_rejected_before_processing", None)
+    older = tmp_path / "results" / "a3_checkpoint.jsonl"
+    older.write_text("".join(json.dumps(e) + "\n" for e in lines))
+    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
+                        str(tmp_path / "results" / "a3_summary.json"), "--resume-unrecorded"]) == 0
+    by_role = json.loads((tmp_path / "results" / "a3_summary.json").read_text())["usage_provider_reported"]["by_role"]
+    assert "requests_rejected_before_processing" not in by_role["generator"]
+    assert by_role["generator"]["requests_refused"] == 0 and by_role["generator"]["requests_sent"] == 2
 
 
 # Review I3 (Codex review of 73b8baa..782f26a, the sibling writer): the models

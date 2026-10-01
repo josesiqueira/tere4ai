@@ -450,6 +450,10 @@ def main(argv: list[str] | None = None) -> int:
         # final review A3: likewise a unit written before requests_refused
         # existed leaves only that count unknown for its role
         roles_missing_refused: set[str] = set()
+        # spec F D-F32: likewise a unit written before
+        # requests_rejected_before_processing existed leaves only that count
+        # unknown for its role
+        roles_missing_rejected: set[str] = set()
         for entry in unit_results:
             if "usage" not in entry:
                 units_without_usage += 1
@@ -462,16 +466,21 @@ def main(argv: list[str] | None = None) -> int:
                     roles_missing_counts.add(role)
                 if "requests_refused" not in counts:
                     roles_missing_refused.add(role)
+                if "requests_rejected_before_processing" not in counts:
+                    roles_missing_rejected.add(role)
         # a unit with no usage block at all (units_without_usage) makes every
         # role's total incomplete: the counts go for every role (review fix C4)
         if units_without_usage:
             roles_missing_counts.update(usage_total)
             roles_missing_refused.update(usage_total)
+            roles_missing_rejected.update(usage_total)
         for role in roles_missing_counts:
             usage_total[role].pop("requests_sent", None)
             usage_total[role].pop("replies_with_usage", None)
         for role in roles_missing_refused | roles_missing_counts:
             usage_total[role].pop("requests_refused", None)
+        for role in roles_missing_rejected | roles_missing_refused | roles_missing_counts:
+            usage_total[role].pop("requests_rejected_before_processing", None)
 
         # metrics per strategy against gold labels where present
         gold_items = [i for i in items if i.get("gold") or i.get("gold_citations")]

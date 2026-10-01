@@ -121,6 +121,8 @@
      "input_tokens": 1200,
      "output_tokens": 340,
      "replies_with_usage": 3,
+     "requests_refused": 0,
+     "requests_rejected_before_processing": 0,
      "requests_sent": 4
     },
     "judge": {
@@ -128,6 +130,8 @@
      "input_tokens": 900,
      "output_tokens": 210,
      "replies_with_usage": 3,
+     "requests_refused": 0,
+     "requests_rejected_before_processing": 0,
      "requests_sent": 3
     }
    },
@@ -259,13 +263,17 @@
      "input_tokens": 800,
      "output_tokens": 230,
      "replies_with_usage": 2,
-     "requests_sent": 2
+     "requests_refused": 1,
+     "requests_rejected_before_processing": 1,
+     "requests_sent": 3
     },
     "judge": {
      "calls": 2,
      "input_tokens": 600,
      "output_tokens": 140,
      "replies_with_usage": 2,
+     "requests_refused": 0,
+     "requests_rejected_before_processing": 0,
      "requests_sent": 2
     }
    },

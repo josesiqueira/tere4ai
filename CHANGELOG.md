@@ -5,6 +5,24 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### Requests rejected before processing counted apart (B99.1a, spec F D-F32)
+- A seventh per-role count, `requests_rejected_before_processing`, counts the
+  attempts the provider answered with HTTP 400, 401, 403, 404, 413, 422 or 429
+  (`REJECTED_BEFORE_PROCESSING_STATUSES` in
+  `src/tere4ai/extract_norms/model_clients.py`), which the providers do not
+  bill. It is a subset of `requests_refused`, which keeps counting every HTTP
+  error status, and each such attempt stays in `requests_sent`. A 400 naming a
+  declared parameter and a retried 429 count here; 408, 409, 499, any 5xx, a
+  timeout, a lost connection and an interrupt never do.
+- The count travels wherever the other counts do: the execution records of
+  extract_norms and align_hleg, the evaluation records, the per-role summary
+  of `scripts/run_ablations.py` (a unit checkpointed without it leaves only
+  that count out for its role) and the backlog answer's usage.
+- `build_record.schema.json` `role_usage` gains it as an optional
+  non-negative integer; the schema stays `build_record.v1`. The mock record
+  `resumed_align.json` carries it (one generator 429 retried on the resumed
+  attempt). Records made before keep what they carry.
+
 ### Declared model parameters and the terminal retry policy (B99, spec F D-F29, D-F30)
 - Each model's temperature, effort and JSON mode are declared in
   `config/model_parameters.json`, keyed by model id; the table selects nothing

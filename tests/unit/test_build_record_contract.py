@@ -82,10 +82,17 @@ def test_the_usage_of_a_role_documents_the_two_completeness_counts():
     """B91 (spec F D-F26 (g)): requests sent and replies with usage, optional so older records validate."""
     schema = _schema()
     role = schema["$defs"]["role_usage"]
-    # final review A3 adds a sixth optional count, requests_refused
+    # final review A3 adds a sixth optional count, requests_refused, and spec F
+    # D-F32 a seventh, requests_rejected_before_processing
     assert set(role["properties"]) == {"calls", "input_tokens", "output_tokens", "requests_sent",
-                                       "replies_with_usage", "requests_refused"}
+                                       "replies_with_usage", "requests_refused",
+                                       "requests_rejected_before_processing"}
     assert list(validator_for("usage_by_role").iter_errors({"generator": {"requests_refused": -1}}))
+    assert list(validator_for("usage_by_role").iter_errors(
+        {"generator": {"requests_rejected_before_processing": -1}}))
+    # the description names the seven statuses and the subset relation for a reader
+    assert "HTTP 400, 401, 403, 404, 413, 422 or 429" in role["description"]
+    assert "subset of requests_refused" in role["description"]
     assert role.get("required", []) == []
     for definition in ("execution", "presented_execution"):
         assert schema["$defs"][definition]["properties"]["usage"] == {"$ref": "#/$defs/usage_by_role"}
@@ -102,6 +109,21 @@ def test_the_resumed_align_mock_data_carries_an_incomplete_failed_attempt():
     assert failed["usage"]["generator"]["requests_sent"] == 4
     assert failed["usage"]["generator"]["replies_with_usage"] == 3
     assert done["usage"]["judge"]["requests_sent"] == done["usage"]["judge"]["replies_with_usage"] == 2
+
+
+def test_the_resumed_align_mock_data_carries_a_request_rejected_before_processing():
+    """Spec F D-F32: the resumed attempt's generator met one 429 and retried it,
+    so the dashboard's copy can test a line with the seventh count above 0;
+    the failed attempt's timeout is refused nowhere."""
+    resumed = json.loads((FIXTURES / "resumed_align.json").read_text())
+    failed, done = (e for e in resumed["executions"] if e["command"] == "align_hleg")
+    generator = done["usage"]["generator"]
+    assert (generator["requests_sent"], generator["replies_with_usage"], generator["requests_refused"],
+            generator["requests_rejected_before_processing"]) == (3, 2, 1, 1)
+    for execution in (failed, done):
+        for role in execution["usage"].values():
+            assert role["requests_rejected_before_processing"] <= role["requests_refused"] <= role["requests_sent"]
+    assert failed["usage"]["generator"]["requests_rejected_before_processing"] == 0
 
 
 def test_the_contract_carries_a_record_with_declared_parameters_and_older_ones_stay_valid():

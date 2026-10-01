@@ -49,8 +49,15 @@ class ModelClient(Protocol):
 # timeout, interrupt) and may have been billed. requests_sent counts every
 # attempt the SDK sent, a 400 refusing a declared parameter included; a
 # refusal the SDK raises before sending is not a request sent (spec F D-F29).
+# Spec F D-F32: a seventh count, requests_rejected_before_processing, counts
+# the attempts the provider answered with one of the seven statuses below,
+# known by the status alone (the D-F26 (e) class, which the providers do not
+# bill). It is a subset of requests_refused, and each such attempt stays in
+# requests_sent. The name spells the class out so it is never read as
+# requests_refused; the dashboard pins its own copy of the seven (spend.ts).
 USAGE_KEYS = ("calls", "input_tokens", "output_tokens", "requests_sent", "replies_with_usage",
-              "requests_refused")
+              "requests_refused", "requests_rejected_before_processing")
+REJECTED_BEFORE_PROCESSING_STATUSES = (400, 401, 403, 404, 413, 422, 429)
 
 
 def _new_usage() -> dict[str, int]:
@@ -319,9 +326,14 @@ class _SamplingRecord:
     def _count_refused(self, exc: BaseException) -> None:
         """A failed attempt the provider answered with an HTTP error status
         (any numeric status_code) is refused (final review A3); a connection
-        error, a timeout or an interrupt carries no status and is not."""
-        if isinstance(getattr(exc, "status_code", None), int):
+        error, a timeout or an interrupt carries no status and is not. One of
+        the seven statuses is also rejected before processing (spec F D-F32)."""
+        status = getattr(exc, "status_code", None)
+        if isinstance(status, int):
             self.usage["requests_refused"] = self.usage.get("requests_refused", 0) + 1
+            if status in REJECTED_BEFORE_PROCESSING_STATUSES:
+                key = "requests_rejected_before_processing"
+                self.usage[key] = self.usage.get(key, 0) + 1
 
     def _count_reply(self, reported: object, input_field: str, output_field: str) -> None:
         """One reply received: add the provider's token figures; count the reply as
@@ -407,8 +419,9 @@ class OpenAIGenerator(_SamplingRecord):
     Sends the model's declared temperature (0), JSON mode and reasoning
     effort, each only where the table declares it (spec F D-F29); a refusal
     of one is DeclaredParameterRefused, never learned. .usage accumulates
-    provider-reported token counts plus requests_sent, replies_with_usage
-    and requests_refused (spec F D-F26 (g)). The SDK's own retries are off
+    provider-reported token counts plus requests_sent, replies_with_usage,
+    requests_refused (spec F D-F26 (g)) and requests_rejected_before_processing
+    (spec F D-F32). The SDK's own retries are off
     (max_retries=0); the retry policy is the caller's (spec F D-F30).
     """
 
@@ -465,8 +478,9 @@ class AnthropicJudge(_SamplingRecord):
     the thinking counts against max_tokens: the former 2048 would have
     truncated the judge's JSON mid-rationale. Only text blocks are returned; thinking
     blocks (empty by default) are skipped. .usage accumulates
-    provider-reported token counts plus requests_sent and
-    replies_with_usage (spec F D-F26 (g)); a response without a complete
+    provider-reported token counts plus requests_sent, replies_with_usage,
+    requests_refused (spec F D-F26 (g)) and requests_rejected_before_processing
+    (spec F D-F32); a response without a complete
     usage block adds to calls and requests_sent only (thinking tokens are
     inside output_tokens). The SDK's own retries are off (max_retries=0);
     the retry policy is the caller's (spec F D-F30).

@@ -13,8 +13,10 @@ import pytest
 from tests.fixtures.model_parameters import declared
 
 from tere4ai.extract_norms.model_clients import (
+    REJECTED_BEFORE_PROCESSING_STATUSES,
     SERVICE_POLICY,
     TERMINAL_POLICY,
+    USAGE_KEYS,
     AnthropicJudge,
     OpenAIGenerator,
     ProviderRefused,
@@ -60,9 +62,11 @@ def test_generator_accumulates_provider_counts():
     assert gen.complete("s", "u") == "a"
     assert gen.complete("s", "u") == "b"
     # B91: the usage record also counts requests sent and replies with usage
-    # final review A3 adds the sixth count, requests_refused (none here)
+    # final review A3 adds the sixth count, requests_refused, and spec F D-F32 the
+    # seventh, requests_rejected_before_processing (none here)
     assert gen.usage == {"calls": 2, "input_tokens": 150, "output_tokens": 25,
-                         "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0}
+                         "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0,
+                         "requests_rejected_before_processing": 0}
 
 
 def test_generator_without_usage_block_counts_only_the_call():
@@ -70,9 +74,11 @@ def test_generator_without_usage_block_counts_only_the_call():
     gen.complete("s", "u")
     # B91: the usage record also counts requests sent and replies with usage
     # (no usage block: sent and answered, but not reported)
-    # final review A3 adds the sixth count, requests_refused (none here)
+    # final review A3 adds the sixth count, requests_refused, and spec F D-F32 the
+    # seventh, requests_rejected_before_processing (none here)
     assert gen.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
-                         "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0}
+                         "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0,
+                         "requests_rejected_before_processing": 0}
 
 
 def _anthropic_response(text: str, input_tokens=None, output_tokens=None):
@@ -103,9 +109,11 @@ def test_judge_accumulates_provider_counts():
     assert judge.complete("s", "u") == "v"
     assert judge.complete("s", "u") == "w"
     # B91: the usage record also counts requests sent and replies with usage
-    # final review A3 adds the sixth count, requests_refused (none here)
+    # final review A3 adds the sixth count, requests_refused, and spec F D-F32 the
+    # seventh, requests_rejected_before_processing (none here)
     assert judge.usage == {"calls": 2, "input_tokens": 210, "output_tokens": 41,
-                           "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0}
+                           "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0,
+                           "requests_rejected_before_processing": 0}
 
 
 def test_judge_without_usage_block_counts_only_the_call():
@@ -113,9 +121,11 @@ def test_judge_without_usage_block_counts_only_the_call():
     judge.complete("s", "u")
     # B91: the usage record also counts requests sent and replies with usage
     # (no usage block: sent and answered, but not reported)
-    # final review A3 adds the sixth count, requests_refused (none here)
+    # final review A3 adds the sixth count, requests_refused, and spec F D-F32 the
+    # seventh, requests_rejected_before_processing (none here)
     assert judge.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
-                           "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0}
+                           "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0,
+                           "requests_rejected_before_processing": 0}
 
 
 class _Rejecting:
@@ -212,8 +222,10 @@ def test_a_400_naming_a_declared_parameter_stops_as_a_configuration_error(messag
         f"configuration error: openai:stub-generator refused the declared {parameter} {value} (HTTP 400: ")
     assert str(refused.value).endswith("); correct its row in config/model_parameters.json")
     assert isinstance(refused.value, ConfigurationError) and len(transport.calls) == 1
-    # a provider's 400 is a request sent, and a refused one (spec F D-F29, final review A3)
+    # a provider's 400 is a request sent, and a refused one (spec F D-F29, final review A3),
+    # and rejected before processing (spec F D-F32)
     assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 1
+    assert gen.usage["requests_rejected_before_processing"] == 1
 
 
 def test_the_judge_names_a_refused_effort():
@@ -237,6 +249,7 @@ def test_an_sdk_refusal_before_sending_stops_and_is_not_a_request_sent():
         "config/model_parameters.json")
     assert len(transport.calls) == 1
     assert judge.usage["requests_sent"] == 0 and judge.usage["requests_refused"] == 0
+    assert judge.usage["requests_rejected_before_processing"] == 0
 
 
 def test_a_400_naming_a_parameter_that_was_not_sent_is_an_ordinary_error():
@@ -371,9 +384,11 @@ def test_usage_since_is_the_difference_and_none_without_a_record():
     gen.complete("s", "u")
     before = usage_snapshot(gen)
     gen.complete("s", "u")
-    # final review A3 adds the sixth count, requests_refused (none here)
+    # final review A3 adds the sixth count, requests_refused, and spec F D-F32 the
+    # seventh, requests_rejected_before_processing (none here)
     assert usage_since(gen, before) == {"calls": 1, "input_tokens": 50, "output_tokens": 5,
-                                        "requests_sent": 1, "replies_with_usage": 1, "requests_refused": 0}
+                                        "requests_sent": 1, "replies_with_usage": 1, "requests_refused": 0,
+                                        "requests_rejected_before_processing": 0}
     assert usage_snapshot(object()) is None and usage_since(object(), None) is None
 
 
@@ -654,6 +669,60 @@ def test_a_connection_error_or_an_interrupt_is_not_refused():
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 0
 
+
+
+# Spec F D-F32: a seventh count, requests_rejected_before_processing, the
+# attempts the provider answered with one of the seven statuses of D-F26 (e),
+# known by the status alone. It is a subset of requests_refused, and each such
+# attempt stays in requests_sent.
+
+
+def test_the_seven_statuses_rejected_before_processing():
+    assert REJECTED_BEFORE_PROCESSING_STATUSES == (400, 401, 403, 404, 413, 422, 429)
+    assert USAGE_KEYS[-1] == "requests_rejected_before_processing"
+
+
+@pytest.mark.parametrize("status, rejected", [
+    (400, 1), (401, 1), (403, 1), (404, 1), (413, 1), (422, 1), (429, 1),
+    (408, 0), (409, 0), (499, 0), (500, 0), (503, 0), (529, 0),
+])
+def test_one_attempt_answered_with_a_status_counts_rejected_only_for_the_seven(status, rejected):
+    transport = _Flaky([_ProviderError("no", status_code=status), _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = lambda seconds: None
+    try:
+        gen.complete("s", "u")
+    except _ProviderError:
+        pass
+    assert gen.usage["requests_refused"] == 1
+    assert gen.usage["requests_rejected_before_processing"] == rejected
+    assert gen.usage["requests_rejected_before_processing"] <= gen.usage["requests_refused"] <= gen.usage["requests_sent"]
+
+
+def test_a_retried_429_is_rejected_before_processing_and_the_reply_counts_as_usual():
+    transport = _Flaky([_ProviderError("rate limited", status_code=429), _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = lambda seconds: None
+    gen.complete("s", "u")
+    assert (gen.usage["requests_sent"], gen.usage["requests_refused"],
+            gen.usage["requests_rejected_before_processing"], gen.usage["calls"]) == (2, 1, 1, 1)
+
+
+def test_a_timeout_a_lost_connection_and_an_interrupt_are_never_rejected():
+    transport = _Flaky([APIConnectionError("Connection error."), APITimeoutError("Request timed out."),
+                        _openai_response("a", 1, 1)])
+    gen = _generator_over(transport)
+    gen._wait = lambda seconds: None
+    gen.complete("s", "u")
+    assert gen.usage["requests_sent"] == 3 and gen.usage["requests_rejected_before_processing"] == 0
+
+    class _Interrupting:
+        def create(self, **kwargs):
+            raise KeyboardInterrupt
+    gen = _generator_over(_Interrupting())
+    with pytest.raises(KeyboardInterrupt):
+        gen.complete("s", "u")
+    assert gen.usage["requests_rejected_before_processing"] == 0
 
 
 # B99 (spec F D-F30): the terminal policy of the runs a person resumes from a

@@ -422,12 +422,13 @@ def test_backlog_answer_names_the_generator_and_both_roles_usage(tmp_path):
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "xhigh"
     assert answer["judge_model"] == "fake-judge" and answer["judge_effort"] == "xhigh"
     assert answer["generator_temperature"] == "0" and answer["judge_temperature"] == "0"
-    # final review A3 adds the sixth count, requests_refused (none here)
+    # final review A3 adds the sixth count, requests_refused, and spec F D-F32
+    # the seventh, requests_rejected_before_processing (none here)
     assert answer["usage"] == {
         "generator": {"calls": 1, "input_tokens": 100, "output_tokens": 20, "requests_sent": 1,
-                      "replies_with_usage": 1, "requests_refused": 0},
+                      "replies_with_usage": 1, "requests_refused": 0, "requests_rejected_before_processing": 0},
         "judge": {"calls": 1, "input_tokens": 40, "output_tokens": 8, "requests_sent": 1,
-                  "replies_with_usage": 1, "requests_refused": 0},
+                  "replies_with_usage": 1, "requests_refused": 0, "requests_rejected_before_processing": 0},
     }
 
 
@@ -539,6 +540,7 @@ def test_a_generator_that_raises_after_its_retries_answers_degraded_with_its_spe
         def complete(self, system, user):
             self.usage["requests_sent"] += 3  # the first attempt and the client's two retries
             self.usage["requests_refused"] += 3
+            self.usage["requests_rejected_before_processing"] += 1  # one of the three was a 429 (spec F D-F32)
             raise RuntimeError("503 upstream overloaded")
 
     generator = FailingGenerator({KEY: "{}"}, model="fake-generator")
@@ -554,6 +556,7 @@ def test_a_generator_that_raises_after_its_retries_answers_degraded_with_its_spe
     assert answer["message"] == ("generator request failed, no backlog produced: "
                                  "RuntimeError: 503 upstream overloaded")
     assert answer["usage"]["generator"]["requests_sent"] == 3 and answer["usage"]["generator"]["calls"] == 0
+    assert answer["usage"]["generator"]["requests_rejected_before_processing"] == 1
     assert answer["generator_model"] == "fake-generator"
     (event,) = [json.loads(line) for line in log_path.read_text().splitlines()]
     assert event["direction"] == "generator" and event["parse_ok"] is False
