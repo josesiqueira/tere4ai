@@ -43,6 +43,25 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   wrapper over `elicit` for the facade and the benchmark script until they
   move (Tasks 4 and 5): without a dump it serves the build load_active
   reads from data/graph_dumps, and it names each dropped fact in its notes.
+- The elicitation envelope (`tere4ai.mcp_server.elicit.elicit_envelope`) takes
+  the served build's dump and snapshots dir and calls `elicit`: the answer
+  becomes {"features", "quotes", "dropped", "notes", "prompt"} and
+  graph_version is the dump's build. missing_facts names every flag not
+  elicited and every dropped fact once ("flags.x dropped: quote not in the
+  description" in place of "flag not elicited: x"); when a provision does not
+  resolve it carries the "definition <id> does not resolve" line.
+  legal_status_notes adds that code checked the quoted words are in the
+  description and a person judges whether they support the fact. A failed
+  elicitation still answers null.
+- POST /api/elicit passes the build it serves; the response gains the answer
+  fields with no other change. New MCP tool `elicit_features(description)`
+  (PAID, one generator call, no judge) over the active build per call, with
+  the facade's 30-character floor (`MIN_DESCRIPTION_CHARS`, now read by both),
+  degrading without a dump, on an empty or short description, or on missing
+  model configuration, before any model client is built. New key scope
+  `elicit_paid` (ruling R11) in SCOPES, TOOL_SCOPES and the key manager;
+  docs/PHASE2_DESIGN.md Section 3 (six scopes), SKILL.md's tool list and the
+  server instructions name the tool.
 
 ### Every operator obligation and every generated control carries its requirement type (B65, B4, DEC-19)
 - Contract change: norms.schema.json gains `requirement_type` (functional,

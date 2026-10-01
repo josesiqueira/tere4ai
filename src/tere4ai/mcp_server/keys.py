@@ -38,7 +38,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_KEYS_PATH = _PROJECT_ROOT / "data" / "keys" / "mcp_keys.json"
 DEFAULT_USAGE_PATH = _PROJECT_ROOT / "data" / "keys" / "mcp_usage.jsonl"
 
-SCOPES = frozenset({"read_graph", "classify", "evidence_paid", "backlog_paid", "admin"})
+SCOPES = frozenset(
+    {"read_graph", "classify", "evidence_paid", "backlog_paid", "elicit_paid", "admin"}
+)
 
 # docs/PHASE2_DESIGN.md Section 3: every MCP tool maps to exactly one scope.
 TOOL_SCOPES: dict[str, str] = {
@@ -55,6 +57,9 @@ TOOL_SCOPES: dict[str, str] = {
     "evaluate_project_evidence": "evidence_paid",
     "evaluate_project_evidence_batch": "evidence_paid",
     "generate_control_backlog": "backlog_paid",
+    # B10: the paid elicitor has its own scope, so a free classify key
+    # cannot spend money on it.
+    "elicit_features": "elicit_paid",
 }
 
 

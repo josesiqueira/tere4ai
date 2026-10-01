@@ -8,10 +8,12 @@ data/graph_dumps/norms_core.json (versioned build artifacts); no running
 Neo4j is required. If a dump has not been built, the tools return a
 degraded envelope instead of failing silently (Section 13).
 
-evaluate_project_evidence and generate_control_backlog perform PAID model
-calls (OpenAI generator plus Anthropic runtime grounding judge); their
-descriptions say so, and a missing model configuration surfaces as a clean
-degraded envelope, never a traceback.
+evaluate_project_evidence, evaluate_project_evidence_batch and
+generate_control_backlog perform PAID model calls (OpenAI generator plus
+Anthropic runtime grounding judge), and elicit_features one PAID generator
+call (fact elicitation, no judge); their descriptions say so, and a missing
+model configuration surfaces as a clean degraded envelope, never a
+traceback.
 
 Transport: stdio by default (Mode B, architecture.md Section 9). The
 streamable HTTP transport for remote consumers sits behind an explicit
@@ -47,6 +49,7 @@ from tere4ai.graph_store.publication import (
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_rules
 from tere4ai.mcp_server import classify as classify_rules
+from tere4ai.mcp_server import elicit as elicit_rules
 from tere4ai.mcp_server import evidence as evidence_rules
 from tere4ai.mcp_server import explain as explain_rules
 from tere4ai.mcp_server import requirements as requirements_rules
@@ -73,9 +76,11 @@ mcp = FastMCP(
         "(explain_requirement, trace_alignment, resolve_span) plus M3 "
         "runtime tools (classify_ai_system, get_applicable_requirements, "
         "trace_implementation, evaluate_project_evidence, "
-        "evaluate_project_evidence_batch, generate_control_backlog). "
-        "Read-only; evaluate_project_evidence, evaluate_project_evidence_batch "
-        "and generate_control_backlog perform paid model calls. "
+        "evaluate_project_evidence_batch, generate_control_backlog) plus "
+        "elicit_features, which proposes the facts classify_ai_system reads "
+        "from a plain-text description. "
+        "Read-only; evaluate_project_evidence, evaluate_project_evidence_batch, "
+        "generate_control_backlog and elicit_features perform paid model calls. "
         + tools.NON_LEGAL_ADVICE_NOTICE
     ),
 )
@@ -636,6 +641,56 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
         generator,
         judge,
         graph_version=_graph_version(dump),
+    )
+
+
+@mcp.tool(annotations=_READ_ONLY_PAID)
+def elicit_features(description: str) -> dict[str, Any]:
+    """Propose the system_features facts of a plain-text system description,
+    for the person to confirm before classify_ai_system runs.
+
+    PAID: this tool performs one paid model call (one OpenAI generator call,
+    no judge) on every invocation.
+
+    description is the system's description in plain text, at least 30
+    characters. The prompt quotes the Act's provisions from the served
+    build. The answer carries features (schema-valid system_features, never
+    a risk category), quotes (for each kept fact, the words of the
+    description it rests on, with start and end offsets in code points),
+    dropped (each fact removed because its quote was missing, shorter than
+    three words, or not in the description), notes, and prompt (version,
+    template and rendered prompt hashes, provision ids, build). Code checks
+    that the quoted words are in the description; a person judges whether
+    they support the fact. The status is requires_human_review by
+    construction: the deterministic ladder alone classifies. missing_facts
+    names every flag not elicited and every dropped fact. A provision that
+    does not resolve in the build stops the call before the model is paid,
+    and missing_facts names it."""
+    loaded = _active()
+    dump = loaded.dump
+    if dump is None:
+        return _dump_missing_envelope(loaded.error)
+    if not isinstance(description, str) or not description.strip():
+        return _invalid_input_envelope(
+            "'description' must be a non-empty string describing the system; "
+            f"got {type(description).__name__}; no facts were elicited and no "
+            "model call was made",
+            dump,
+        )
+    if len(description) < elicit_rules.MIN_DESCRIPTION_CHARS:
+        # The facade's ElicitRequest floor, so both surfaces refuse alike.
+        return _invalid_input_envelope(
+            f"'description' must be at least {elicit_rules.MIN_DESCRIPTION_CHARS} "
+            f"characters; got {len(description)}; no facts were elicited and no "
+            "model call was made",
+            dump,
+        )
+    clients = _paid_clients_or_envelope()
+    if isinstance(clients, dict):
+        return clients
+    generator, _judge = clients
+    return elicit_rules.elicit_envelope(
+        description, generator, dump=dump, snapshots_dir=SNAPSHOTS_DIR
     )
 
 

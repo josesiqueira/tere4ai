@@ -15,13 +15,22 @@ Remote MCP (streamable HTTP, spec 2025-06-18): set `TERE4AI_MCP_TRANSPORT=http`
 default 8765); endpoint is `/mcp`. HTTP tool calls require a scoped API key
 sent as a Bearer token; mint one with
 `python scripts/manage_mcp_keys.py create --tenant <name> --scopes read_graph classify`
-(scopes: read_graph, classify, evidence_paid, backlog_paid, admin; usage is
-metered per key, body-free).
+(scopes: read_graph, classify, evidence_paid, backlog_paid, elicit_paid,
+admin; usage is metered per key, body-free).
 HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008`.
 
 ## Tools, in the order a build journey uses them
 
-1. `classify_ai_system(features)`: deterministic rule ladder over the Act's
+1. `elicit_features(description)` (PAID): proposes the facts
+   `classify_ai_system` reads from a plain-text description (at least 30
+   characters), never a risk category. The prompt quotes the Act's provisions
+   from the served build. Each kept fact carries the words of your description
+   it rests on (`answer.quotes`, with code point offsets); a fact whose quote is
+   missing, shorter than three words or not in the description is dropped and
+   named in `answer.dropped` and `missing_facts`. Code checks that the words are
+   there; you and the human judge whether they support the fact. Confirm or edit
+   the facts before classifying.
+2. `classify_ai_system(features)`: deterministic rule ladder over the Act's
    real Article 5 and Annex III nodes. Input schema:
    `schema/json_schemas/system_features.schema.json`. Provide every fact you
    know; ABSENT flags are treated as unknown, never as false, and surface in
@@ -31,25 +40,25 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
    unknown), decided by the same deterministic rules from the flags and the
    optional `deployer` facts. It reports only whether a FRIA is required, not
    the assessment content.
-2. `get_applicable_requirements(classification, actor?)`: judge-accepted
+3. `get_applicable_requirements(classification, actor?)`: judge-accepted
    normative statements for the classified category, grouped by article,
    each with its source node and span ids.
-3. `explain_requirement(norm_id)`: one norm in depth: deontic reading,
+4. `explain_requirement(norm_id)`: one norm in depth: deontic reading,
    source span, Article 3 definitions in play, and its HLEG alignments.
    Free, deterministic.
-4. `trace_alignment(id)`: the reified ethics alignments for a norm or
+5. `trace_alignment(id)`: the reified ethics alignments for a norm or
    article, with judge scores and evidence spans. The EU-to-HLEG mappings
    are LLM-generated and not expert-validated; the envelope says so. Free,
    deterministic.
-5. `evaluate_project_evidence(norm_id, artifact_type, content)` (PAID):
+6. `evaluate_project_evidence(norm_id, artifact_type, content)` (PAID):
    assesses one artifact against one norm; quotes are mechanically verified
    against your text; a runtime grounding judge gates every answer.
-6. `generate_control_backlog(norm_ids, system_context)` (PAID): engineering
+7. `generate_control_backlog(norm_ids, system_context)` (PAID): engineering
    backlog items citing only the provided norms.
-7. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`
+8. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`
    (PAID): one artifact against every judge-accepted norm of one article, in a
    single envelope with per-norm results and worst-case aggregation.
-7. `coverage_report()`, `source_trace(node_id)`, and `resolve_span(span_id)`:
+9. `coverage_report()`, `source_trace(node_id)`, and `resolve_span(span_id)`:
    graph coverage, span-level provenance for any node id, and the
    checksum-verified exact source text behind any span id.
 

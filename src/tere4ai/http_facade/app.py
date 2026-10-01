@@ -204,7 +204,8 @@ class RequirementsRequest(_Utf8GuardedModel):
 
 
 class ElicitRequest(_Utf8GuardedModel):
-    description: str = Field(min_length=30)
+    # The MCP tool elicit_features applies the same floor (B10).
+    description: str = Field(min_length=elicit_tool.MIN_DESCRIPTION_CHARS)
 
 
 class EvidenceRequest(_Utf8GuardedModel):
@@ -1034,8 +1035,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         except ModelConfigError as exc:
             return JSONResponse(status_code=503, content={"error": str(exc)})
         try:
+            # B10: the prompt quotes the Act from the build this request
+            # serves, and the answer names that build.
             envelope = elicit_tool.elicit_envelope(
-                body.description, generator, graph_version=_graph_version(request)
+                body.description,
+                generator,
+                dump=request.app.state.dump,
+                snapshots_dir=SNAPSHOTS_DIR,
             )
         except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
             return JSONResponse(

@@ -288,9 +288,9 @@ def elicit_features(
 ) -> tuple[dict[str, Any] | None, list[str]]:
     """Return (schema-valid system_features, notes) or (None, notes).
 
-    Kept for the callers that still use it (the facade's elicit_envelope,
-    scripts/elicit_benchmark_features.py) until B10 Tasks 4 and 5 move them
-    to elicit(). Without dump and snapshots_dir it serves the build that
+    Kept for the caller that still uses it,
+    scripts/elicit_benchmark_features.py, until B10 Task 5 moves it to
+    elicit(); the facade and the MCP tool call elicit() since Task 4. Without dump and snapshots_dir it serves the build that
     load_active reads from data/graph_dumps and the snapshots in
     data/snapshots. Each dropped fact is named in the notes, since this
     return has no place for quotes or dropped.

@@ -63,7 +63,7 @@ keys, and a single body-free request log (src/tere4ai/http_facade/app.py).
 
 ## 3. API keys, scopes, and endpoint mapping
 
-Five scopes, matching Section 8's "per-consumer keys are revocable and scoped"
+Six scopes, matching Section 8's "per-consumer keys are revocable and scoped"
 (REF-31) and the read-only-by-default rule:
 
 | Scope | Meaning | Cost class |
@@ -72,6 +72,7 @@ Five scopes, matching Section 8's "per-consumer keys are revocable and scoped"
 | classify | run the deterministic classifier | free, deterministic |
 | evidence_paid | evidence evaluation (OpenAI generator plus Anthropic judge) | paid model calls |
 | backlog_paid | control-backlog generation (paid model calls) | paid model calls |
+| elicit_paid | fact elicitation from a system description (OpenAI generator, no judge) | paid model calls |
 | admin | key management, metering readout, tenant administration | platform-internal |
 
 Mapping of every existing endpoint and MCP tool to a scope:
@@ -88,13 +89,17 @@ Mapping of every existing endpoint and MCP tool to a scope:
 | (build-time report) | coverage_report | read_graph |
 | POST /api/evidence | evaluate_project_evidence | evidence_paid |
 | POST /api/backlog | generate_control_backlog | backlog_paid |
+| POST /api/elicit | elicit_features | elicit_paid |
 | (new in Phase 2) | (none) | admin: create/revoke keys, read metering aggregates |
 
 Notes:
-- The paid split follows the facade contract as implemented: /api/evidence and
-  /api/backlog are the only endpoints that perform paid model calls, and they
-  already mark responses with the X-TERE4AI-Paid-Call header
+- The paid split follows the facade contract as implemented: /api/evidence,
+  /api/backlog and /api/elicit are the only endpoints that perform paid model
+  calls, and they mark responses with the X-TERE4AI-Paid-Call header
   (src/tere4ai/http_facade/app.py). The scope boundary reuses that boundary.
+- elicit_paid is a scope of its own (B10): the elicitor is paid like
+  evidence_paid and backlog_paid and is neither, and putting it under classify
+  would let a free-scope key spend money.
 - read_graph and classify are separate scopes even though both are free and
   deterministic, because classify accepts tenant system descriptions (untrusted
   input worth gating separately) while read_graph never accepts tenant content

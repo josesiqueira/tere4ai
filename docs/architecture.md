@@ -253,7 +253,7 @@ grounded_by: REF-31, REF-32
   the revision demands that this server satisfies structurally: no token
   passthrough (consumer keys are never forwarded; model credentials are
   server-side configuration), statelessness with no state handles, and scope
-  minimization (five narrow scopes; paid tools behind their own scopes).
+  minimization (six narrow scopes; paid tools behind their own scopes).
   Engineering MUSTs of this project, corroborated but not mandated by the
   spec: read-only default, request logging, rate limiting, secret redaction,
   no arbitrary command execution, no unscoped filesystem access. Treat project

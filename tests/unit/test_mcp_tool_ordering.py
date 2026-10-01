@@ -54,3 +54,14 @@ def test_instructions_name_every_served_tool_and_every_paid_one():
     )[0]
     unnamed = [name for name in paid if name not in paid_sentence]
     assert unnamed == [], f"the paid sentence does not name {unnamed}"
+
+
+def test_elicit_features_is_served_as_a_paid_tool():
+    # B10: the elicitor is an MCP tool with the paid annotations; the
+    # instructions name it among the paid tools (checked above).
+    tool = next(
+        t for t in asyncio.run(server.mcp.list_tools()) if t.name == "elicit_features"
+    )
+    assert tool.annotations.open_world_hint is True
+    assert tool.annotations.read_only_hint is True
+    assert "PAID" in (tool.description or "")

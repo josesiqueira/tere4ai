@@ -408,10 +408,13 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
         },
     }
     # B10: the default prompt is v6, whose reply carries "features" and a
-    # quote of the description per fact.
+    # quote of the description per fact. The answer gains quotes, dropped
+    # and the prompt record over the served build; the one flag quoted with
+    # words the description does not have is dropped and named once.
     quote = "A spam filter for a small team inbox"
     quotes = {"domain": quote, "autonomy": quote}
     quotes.update({f"flags.{name}": quote for name in features["flags"]})
+    quotes["flags.social_scoring"] = "it never scores anyone socially"
     gen_response = json.dumps({"features": features, "quotes": quotes})
     fake_models(
         {"spam filter": gen_response},
@@ -425,8 +428,20 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
     assert resp.status_code == 200
     env = resp.json()
     assert env["status"] == "requires_human_review"
-    assert "features" in (env["answer"] or {})
     assert resp.headers.get(facade.PAID_HEADER) == "true"
+    answer = env["answer"]
+    assert set(answer) == {"features", "quotes", "dropped", "notes", "prompt"}
+    assert answer["quotes"]["domain"] == {"text": quote, "start": 0, "end": len(quote)}
+    assert answer["dropped"] == [
+        {"path": "flags.social_scoring", "reason": "quote not in the description"}
+    ]
+    assert "social_scoring" not in answer["features"]["flags"]
+    assert answer["prompt"]["version"] == "v6"
+    assert re.fullmatch(r"[0-9a-f]{64}", answer["prompt"]["template_sha256"])
+    served = client.app.state.dump["build"]["build_id"]
+    assert answer["prompt"]["graph_version"] == served == env["graph_version"]
+    named = [m for m in env["missing_facts"] if "social_scoring" in m]
+    assert named == ["flags.social_scoring dropped: quote not in the description"]
 
 
 def test_elicit_degrades_without_model_config(client, monkeypatch):

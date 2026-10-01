@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 
 import pytest
 from fastmcp.exceptions import ToolError
@@ -94,6 +95,33 @@ def test_admin_scope_covers_everything(store_path, usage_file):
     plaintext, _ = keys.create_key("ops", ["admin"], store_path)
     mw = keys.ScopedKeyMiddleware(keys_file=store_path, usage_file=usage_file)
     assert _call(mw, "generate_control_backlog", plaintext) == "TOOL RAN"
+
+
+def test_elicit_features_has_its_own_paid_scope(store_path, usage_file):
+    # B10, ruling R11: the paid elicitor is neither evidence nor backlog,
+    # and a free classify key must not spend money on it.
+    assert keys.TOOL_SCOPES["elicit_features"] == "elicit_paid"
+    assert "elicit_paid" in keys.SCOPES
+    classify_key, _ = keys.create_key("t", ["classify"], store_path)
+    elicit_key, _ = keys.create_key("t", ["elicit_paid"], store_path)
+    mw = keys.ScopedKeyMiddleware(keys_file=store_path, usage_file=usage_file)
+    with pytest.raises(ToolError, match="elicit_paid"):
+        _call(mw, "elicit_features", classify_key)
+    assert _call(mw, "elicit_features", elicit_key) == "TOOL RAN"
+
+
+def test_the_key_manager_offers_the_elicit_scope(tmp_path, monkeypatch, capsys):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "manage_mcp_keys",
+        Path(__file__).resolve().parents[2] / "scripts" / "manage_mcp_keys.py",
+    )
+    manager = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(manager)
+    monkeypatch.setenv("TERE4AI_MCP_KEYS", str(tmp_path / "keys.json"))
+    assert manager.main(["create", "--tenant", "t", "--scopes", "elicit_paid"]) == 0
+    assert "scopes: elicit_paid" in capsys.readouterr().out
 
 
 def test_usage_events_are_body_free(store_path, usage_file):
