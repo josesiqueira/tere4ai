@@ -139,3 +139,18 @@ def test_judge_run_documents_its_declared_effort_and_temperature():
     validate({k: v for k, v in run.items() if k not in ("judge_effort", "judge_temperature")}, align_schema)
     with pytest.raises(ValidationError):
         validate({**run, "judge_temperature": 0}, align_schema)
+
+
+def test_judge_run_documents_the_extraction_judges_type_view():
+    """DEC-19: an additive, not required, nullable pair; a run from before
+    DEC-19 stays valid, and a value outside the three types is refused."""
+    run = {"id": "judgerun:extraction:x:n1", "type": "JudgeRun", "layer": 3, "judge_kind": "extraction",
+           "judge_model": "test-judge-pinned", "prompt_version": "v2", "verdict": "accepted",
+           "rationale": "grounded", "started_at": "2026-10-01T00:00:00Z", "build_id": "build-test",
+           "judge_type_agrees": False, "judge_requirement_type": "process"}
+    validate(run, align_schema)
+    validate({**run, "judge_type_agrees": None, "judge_requirement_type": None}, align_schema)
+    validate({k: v for k, v in run.items() if not k.startswith("judge_type") and k != "judge_requirement_type"},
+             align_schema)
+    with pytest.raises(ValidationError):
+        validate({**run, "judge_requirement_type": "non-functional"}, align_schema)

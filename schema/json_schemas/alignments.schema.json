@@ -107,6 +107,14 @@
         "corrected_relation_type": {
           "anyOf": [{ "$ref": "#/$defs/relationType" }, { "type": "null" }]
         },
+        "judge_type_agrees": {
+          "type": ["boolean", "null"],
+          "description": "DEC-19, extraction judge only: whether it agrees with the norm's requirement_type; null when no view was recorded; never changes the verdict; absent before DEC-19"
+        },
+        "judge_requirement_type": {
+          "enum": ["functional", "quality", "process", null],
+          "description": "DEC-19, extraction judge only: the agreed type, or the judge's own when it disagrees; null when no view was recorded; absent before DEC-19"
+        },
         "started_at": { "type": "string" },
         "completed_at": { "type": "string" },
         "build_id": { "type": "string" }

@@ -47,6 +47,10 @@
     },
     "judgeVerdict": {
       "enum": ["accepted", "rejected", "needs_human_review", "pending"]
+    },
+    "requirementType": {
+      "description": "DEC-19: three of the requirements type attribute examples of ISO/IEC/IEEE 29148:2018 clause 5.2.8.3",
+      "enum": ["functional", "quality", "process"]
     }
   },
   "type": "object",
@@ -99,6 +103,18 @@
     },
     "condition_ids": { "type": "array", "items": { "type": "string" } },
     "exception_ids": { "type": "array", "items": { "type": "string" } },
+    "requirement_type": {
+      "anyOf": [{ "$ref": "#/$defs/requirementType" }, { "type": "null" }],
+      "description": "DEC-19: set only on an operator obligation or prohibition in a requirement group; null otherwise, shown \"not an operator requirement\". Optional so a norm from a build before DEC-19, or a reply that omits it, is never dropped for it."
+    },
+    "judge_type_agrees": {
+      "type": ["boolean", "null"],
+      "description": "DEC-19: whether the extraction judge agrees with requirement_type; null when the judge recorded no view or the type is null. Never changes judge_verdict."
+    },
+    "judge_requirement_type": {
+      "anyOf": [{ "$ref": "#/$defs/requirementType" }, { "type": "null" }],
+      "description": "DEC-19: the extraction judge's view of the type (the agreed type, or its own when it disagrees); null when no view was recorded."
+    },
     "lifecycle_phase_ids": {
       "type": "array",
       "items": { "$ref": "#/$defs/lifecyclePhase" }
