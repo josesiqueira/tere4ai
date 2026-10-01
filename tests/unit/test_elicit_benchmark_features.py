@@ -132,5 +132,6 @@ def test_the_default_prompt_version_is_the_elicitors(tmp_path, monkeypatch):
     monkeypatch.setattr(mod, "elicit_features", elicit)
     assert mod.main(["--out", str(out)]) == 0
     assert seen == [DEFAULT_PROMPT_VERSION, DEFAULT_PROMPT_VERSION]
-    assert DEFAULT_PROMPT_VERSION == "v5"
-    assert json.loads(out.read_text())["prompt_version"] == "v5"
+    # B10: the elicitor's default moved from v5 to v6 (quotes per fact).
+    assert DEFAULT_PROMPT_VERSION == "v6"
+    assert json.loads(out.read_text())["prompt_version"] == "v6"

@@ -29,9 +29,19 @@ def test_schema_flag_names_lists_all_38_flags():
 
 
 def test_elicit_envelope_is_a_section8_proposal():
+    # B10: the default prompt is v6, whose reply carries "features" and a
+    # quote of the description per fact.
+    quote = "A spam filter for a small company's inboxes."
     gen = FakeGenerator(json.dumps({
-        "domain": "email security",
-        "flags": {"social_scoring": False, "interacts_with_natural_persons": False},
+        "features": {
+            "domain": "email security",
+            "flags": {"social_scoring": False, "interacts_with_natural_persons": False},
+        },
+        "quotes": {
+            "domain": quote,
+            "flags.social_scoring": quote,
+            "flags.interacts_with_natural_persons": quote,
+        },
     }))
     env = elicit_envelope("A spam filter for a small company's inboxes.",
                           gen, graph_version="build-test")

@@ -390,25 +390,29 @@ def test_model_config_error_returns_clean_json_error(client, monkeypatch):
 
 def test_elicit_returns_a_proposal_envelope(client, fake_models):
     """Elicitation returns a requires_human_review envelope with features."""
-    gen_response = json.dumps(
-        {
-            "description": "A spam filter for a small team inbox, quarantines mail retrievably.",
-            "domain": "email",
-            "autonomy": "full",
-            "flags": {
-                "essential_services_access": False,
-                "subliminal_or_manipulative": False,
-                "exploits_vulnerabilities": False,
-                "social_scoring": False,
-                "predictive_policing_profiling": False,
-                "facial_image_scraping": False,
-                "emotion_recognition_workplace_or_education": False,
-                "biometric_categorisation": False,
-                "real_time_remote_biometric_public": False,
-                "law_enforcement_use": False,
-            },
-        }
-    )
+    features = {
+        "description": "A spam filter for a small team inbox, quarantines mail retrievably.",
+        "domain": "email",
+        "autonomy": "full",
+        "flags": {
+            "essential_services_access": False,
+            "subliminal_or_manipulative": False,
+            "exploits_vulnerabilities": False,
+            "social_scoring": False,
+            "predictive_policing_profiling": False,
+            "facial_image_scraping": False,
+            "emotion_recognition_workplace_or_education": False,
+            "biometric_categorisation": False,
+            "real_time_remote_biometric_public": False,
+            "law_enforcement_use": False,
+        },
+    }
+    # B10: the default prompt is v6, whose reply carries "features" and a
+    # quote of the description per fact.
+    quote = "A spam filter for a small team inbox"
+    quotes = {"domain": quote, "autonomy": quote}
+    quotes.update({f"flags.{name}": quote for name in features["flags"]})
+    gen_response = json.dumps({"features": features, "quotes": quotes})
     fake_models(
         {"spam filter": gen_response},
         {},
@@ -618,25 +622,30 @@ def test_elicit_system_fields_have_no_banned_terms(client, fake_models):
     """DEC-08 scoped scan over the elicit payload: after scrubbing the
     verbatim-quote fields, no banned claim term may remain anywhere in
     the response."""
-    gen_response = json.dumps(
-        {
-            "description": "A spam filter for a small team inbox, quarantines mail retrievably.",
-            "domain": "email",
-            "autonomy": "full",
-            "flags": {
-                "essential_services_access": False,
-                "subliminal_or_manipulative": False,
-                "exploits_vulnerabilities": False,
-                "social_scoring": False,
-                "predictive_policing_profiling": False,
-                "facial_image_scraping": False,
-                "emotion_recognition_workplace_or_education": False,
-                "biometric_categorisation": False,
-                "real_time_remote_biometric_public": False,
-                "law_enforcement_use": False,
-            },
-        }
-    )
+    features = {
+        "description": "A spam filter for a small team inbox, quarantines mail retrievably.",
+        "domain": "email",
+        "autonomy": "full",
+        "flags": {
+            "essential_services_access": False,
+            "subliminal_or_manipulative": False,
+            "exploits_vulnerabilities": False,
+            "social_scoring": False,
+            "predictive_policing_profiling": False,
+            "facial_image_scraping": False,
+            "emotion_recognition_workplace_or_education": False,
+            "biometric_categorisation": False,
+            "real_time_remote_biometric_public": False,
+            "law_enforcement_use": False,
+        },
+    }
+    # B10: the default prompt is v6, whose reply carries "features" and a
+    # quote of the description per fact; without the quotes the answer would
+    # be None and the scan would pass over an empty payload.
+    quote = "A spam filter for a small team inbox"
+    quotes = {"domain": quote, "autonomy": quote}
+    quotes.update({f"flags.{name}": quote for name in features["flags"]})
+    gen_response = json.dumps({"features": features, "quotes": quotes})
     fake_models(
         {"spam filter": gen_response},
         {},
@@ -647,6 +656,7 @@ def test_elicit_system_fields_have_no_banned_terms(client, fake_models):
                              "quarantines mail retrievably."},
     )
     assert response.status_code == 200
+    assert response.json()["answer"]["features"]["domain"] == "email"
     serialized = json.dumps(strip_verbatim_quote_fields(response.json())).lower()
     for term in BANNED_CLAIM_TERMS:
         assert term not in serialized

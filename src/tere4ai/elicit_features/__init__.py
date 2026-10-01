@@ -1,3 +1,3 @@
-from tere4ai.elicit_features.elicitor import elicit_features
+from tere4ai.elicit_features.elicitor import Elicitation, elicit, elicit_features
 
-__all__ = ["elicit_features"]
+__all__ = ["Elicitation", "elicit", "elicit_features"]

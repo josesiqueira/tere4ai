@@ -27,7 +27,17 @@ FACTS_LINE_PREFIX = "- Facts:"
 
 
 class ProvisionUnresolved(Exception):
-    """A provision named in a prompt template cannot be read from the graph."""
+    """A provision named in a prompt template cannot be read from the graph.
+
+    node_id, build and reason are kept apart from the message so a caller
+    can word its own note (the elicitor's "definition <id> does not resolve
+    in <build>: <reason>")."""
+
+    def __init__(self, node_id: str, build: str, reason: str) -> None:
+        super().__init__(f"provision '{node_id}' on build '{build}': {reason}")
+        self.node_id = node_id
+        self.build = build
+        self.reason = reason
 
 
 def _build_id(dump: dict[str, Any]) -> str:
@@ -38,9 +48,7 @@ def _build_id(dump: dict[str, Any]) -> str:
 
 
 def _unresolved(node_id: str, dump: dict[str, Any], reason: str) -> ProvisionUnresolved:
-    return ProvisionUnresolved(
-        f"provision '{node_id}' on build '{_build_id(dump)}': {reason}"
-    )
+    return ProvisionUnresolved(node_id, _build_id(dump), reason)
 
 
 def provision_text(

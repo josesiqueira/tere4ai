@@ -21,7 +21,9 @@ def test_valid_elicitation_passes_schema_and_keeps_description():
         "description": "model tried to overwrite this",
     }
     fake = FakeClient({DESC[:30]: json.dumps(payload)})
-    features, notes = elicit_features(DESC, fake)
+    # B10: the default is v6, whose reply nests the facts under "features"
+    # beside "quotes"; this test keeps v5's reply shape, so it names v5.
+    features, notes = elicit_features(DESC, fake, prompt_version="v5")
     assert features is not None
     assert features["description"] == DESC, "original description always wins"
     assert features["flags"]["interacts_with_natural_persons"] is True
@@ -35,7 +37,8 @@ def test_unknown_fields_and_non_boolean_flags_stripped():
                   "invented_flag": True},
     }
     fake = FakeClient({DESC[:30]: json.dumps(payload)})
-    features, _ = elicit_features(DESC, fake)
+    # B10: v5's reply shape, so v5 is named (the default is v6).
+    features, _ = elicit_features(DESC, fake, prompt_version="v5")
     assert features is not None
     assert "risk_category" not in features, "elicitor never outputs a classification"
     assert "invented_flag" not in features["flags"]
@@ -114,19 +117,19 @@ def test_v4_prompt_carries_the_article_5_exculpating_facts():
         assert flag in prompt, f"v4 prompt omits the fact {flag}"
 
 
-def test_default_prompt_version_is_v5():
-    """DEC-18: the three biometric facts and the corrected (d), (g)
-    exceptions are in v5, so the elicitor and the facade default to it."""
+def test_default_prompt_version_is_v6():
+    """DEC-18: the elicitor and the facade share one default."""
     import inspect
 
-    from tere4ai.elicit_features.elicitor import elicit_features
+    from tere4ai.elicit_features.elicitor import elicit, elicit_features
     from tere4ai.mcp_server.elicit import elicit_envelope
 
-    signature = inspect.signature(elicit_features)
-    assert signature.parameters["prompt_version"].default == "v5"
-    envelope_signature = inspect.signature(elicit_envelope)
-    assert envelope_signature.parameters["prompt_version"].default == "v5"
-    assert DEFAULT_PROMPT_VERSION == "v5"
+    # B10: the default moves from v5 to v6, which quotes every flag's
+    # provisions from the graph and asks for a quote per fact.
+    assert DEFAULT_PROMPT_VERSION == "v6"
+    for function in (elicit, elicit_features, elicit_envelope):
+        signature = inspect.signature(function)
+        assert signature.parameters["prompt_version"].default == "v6"
 
 
 # DEC-18, B36.2: the three biometric facts and the point (d) and (g)
@@ -300,3 +303,273 @@ def test_v4_prompt_is_kept_unchanged_for_the_records_that_name_it():
     """A recorded elicitation names its prompt version, so v4 stays as it was."""
     prompt = (ROOT / "prompts" / "elicit_features" / "v4.md").read_text(encoding="utf-8")
     assert "biometric_categorisation_system" not in prompt
+
+
+# B10 Task 3: elicit() keeps a fact only with a quote from the description
+# (at least three words, found by character identity after collapsing
+# whitespace runs) and names every fact it drops. The prompt is rendered
+# from the graph first; a provision that does not resolve stops the call
+# before the generator is asked anything.
+
+import copy  # noqa: E402
+import hashlib  # noqa: E402
+
+from tere4ai.elicit_features import Elicitation, elicit  # noqa: E402
+from tere4ai.elicit_features.provisions import PLACEHOLDER_RE  # noqa: E402
+
+DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
+SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
+V6_PATH = ROOT / "prompts" / "elicit_features" / "v6.md"
+BANK = (
+    "A chatbot on our bank's website answers customers' questions about opening "
+    "hours and card fees. It does not make or support any decision about credit."
+)
+
+
+@pytest.fixture(scope="module")
+def dump() -> dict:
+    if not DUMP_PATH.is_file():
+        pytest.skip("layer1.json dump not built")
+    return json.loads(DUMP_PATH.read_text(encoding="utf-8"))
+
+
+class Scripted:
+    """Fake generator: replies in order and records every system prompt."""
+
+    model = "fake"
+
+    def __init__(self, *replies):
+        self.replies = list(replies)
+        self.systems: list[str] = []
+
+    def complete(self, system, user):
+        self.systems.append(system)
+        reply = self.replies.pop(0) if len(self.replies) > 1 else self.replies[0]
+        return reply if isinstance(reply, str) else json.dumps(reply)
+
+
+def _run(reply, dump, description=BANK, **kwargs):
+    gen = reply if isinstance(reply, Scripted) else Scripted(reply)
+    result = elicit(description, gen, dump=dump, snapshots_dir=SNAPSHOTS_DIR, **kwargs)
+    return result, gen
+
+
+def test_quoted_true_flag_is_kept_with_its_offsets(dump):
+    quote = "A chatbot on our bank's website answers customers' questions"
+    result, _ = _run(
+        {"features": {"flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": quote}},
+        dump,
+    )
+    assert isinstance(result, Elicitation)
+    assert result.features["flags"] == {"interacts_with_natural_persons": True}
+    assert result.features["description"] == BANK
+    got = result.quotes["flags.interacts_with_natural_persons"]
+    assert got == {"text": quote, "start": 0, "end": len(quote)}
+    assert result.dropped == []
+
+
+def test_false_flag_with_its_quote_is_kept(dump):
+    quote = "It does not make or support any decision about credit."
+    result, _ = _run(
+        {"features": {"flags": {"creditworthiness_evaluation": False}},
+         "quotes": {"flags.creditworthiness_evaluation": quote}},
+        dump,
+    )
+    assert result.features["flags"] == {"creditworthiness_evaluation": False}
+    start = BANK.index(quote)
+    assert result.quotes["flags.creditworthiness_evaluation"] == {
+        "text": quote, "start": start, "end": start + len(quote),
+    }
+
+
+def test_unquoted_flag_is_dropped_and_its_empty_flags_object_removed(dump):
+    result, _ = _run(
+        {"features": {"domain": "banking", "flags": {"social_scoring": False}},
+         "quotes": {"domain": "on our bank's website"}},
+        dump,
+    )
+    assert "flags" not in result.features
+    assert result.features["domain"] == "banking"
+    assert result.dropped == [{"path": "flags.social_scoring", "reason": "no quote"}]
+
+
+def test_quote_not_in_the_description_is_dropped(dump):
+    result, _ = _run(
+        {"features": {"flags": {"interacts_with_natural_persons": True,
+                                "social_scoring": False}},
+         "quotes": {"flags.interacts_with_natural_persons": "a bot that talks to people",
+                    "flags.social_scoring": "It does not make or support any decision"}},
+        dump,
+    )
+    assert result.features["flags"] == {"social_scoring": False}
+    assert result.dropped == [{"path": "flags.interacts_with_natural_persons",
+                               "reason": "quote not in the description"}]
+    assert "flags.interacts_with_natural_persons" not in result.quotes
+
+
+def test_two_word_quote_is_dropped(dump):
+    result, _ = _run(
+        {"features": {"domain": "banking", "flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"domain": "bank's website",
+                    "flags.interacts_with_natural_persons": "A chatbot on our bank's website"}},
+        dump,
+    )
+    assert "domain" not in result.features
+    assert result.dropped == [{"path": "domain", "reason": "quote shorter than three words"}]
+
+
+def test_whitespace_differences_are_tolerated_and_offsets_name_the_original(dump):
+    description = "A chatbot  on our\nbank's   website answers customers."
+    result, _ = _run(
+        {"features": {"flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": " chatbot on   our bank's\twebsite "}},
+        dump,
+        description=description,
+    )
+    got = result.quotes["flags.interacts_with_natural_persons"]
+    assert (got["start"], got["end"]) == (2, description.index(" answers"))
+    assert got["text"] == description[got["start"]:got["end"]]
+    assert got["text"] == "chatbot  on our\nbank's   website"
+
+
+def test_case_differences_are_not_tolerated(dump):
+    result, _ = _run(
+        {"features": {"flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": "a chatbot on our bank's website"}},
+        dump,
+    )
+    assert "flags" not in result.features
+    assert result.dropped == [{"path": "flags.interacts_with_natural_persons",
+                               "reason": "quote not in the description"}]
+
+
+def test_offsets_are_code_points_at_the_first_occurrence(dump):
+    description = "Café \U0001F600 bot: it answers questions. Later: it answers questions."
+    quote = "it answers questions."
+    result, _ = _run(
+        {"features": {"flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": quote}},
+        dump,
+        description=description,
+    )
+    got = result.quotes["flags.interacts_with_natural_persons"]
+    assert got["start"] == description.index(quote) == 12
+    assert got["end"] == 12 + len(quote)
+
+
+def test_deployer_key_without_quote_is_dropped_and_array_field_kept(dump):
+    result, _ = _run(
+        {"features": {"purposes": ["answer questions about card fees"],
+                      "deployer": {"body_governed_by_public_law": False}},
+         "quotes": {"purposes": "answers customers' questions about opening hours and card fees"}},
+        dump,
+    )
+    assert result.features["purposes"] == ["answer questions about card fees"]
+    assert "deployer" not in result.features
+    assert result.dropped == [{"path": "deployer.body_governed_by_public_law",
+                               "reason": "no quote"}]
+
+
+def test_quote_for_a_path_the_features_do_not_carry_is_ignored_and_noted(dump):
+    result, _ = _run(
+        {"features": {"flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": "A chatbot on our bank's website",
+                    "flags.social_scoring": "It does not make or support any decision"}},
+        dump,
+    )
+    assert "flags.social_scoring" not in result.quotes
+    assert result.dropped == []
+    assert any("flags.social_scoring" in n and "ignored" in n for n in result.notes)
+
+
+def test_reply_without_features_is_retried(dump):
+    gen = Scripted(
+        {"quotes": {}},
+        {"features": {"flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": "A chatbot on our bank's website"}},
+    )
+    result, gen = _run(gen, dump)
+    assert len(gen.systems) == 2, "exactly one retry"
+    assert result.features["flags"] == {"interacts_with_natural_persons": True}
+    assert any("attempt 1" in n and "features" in n for n in result.notes)
+
+
+@pytest.mark.parametrize("reply", [
+    ["not an object"],
+    {"features": {"flags": {}}},
+    {"features": "x", "quotes": {}},
+    {"features": {}, "quotes": ["a"]},
+])
+def test_reply_of_the_wrong_shape_is_a_schema_violation_twice_then_none(dump, reply):
+    result, gen = _run(reply, dump)
+    assert len(gen.systems) == 2
+    assert result.features is None
+    assert result.quotes == {} and result.dropped == []
+    assert any("failed" in n for n in result.notes)
+
+
+def test_prompt_record_names_the_template_the_render_and_the_build(dump):
+    result, gen = _run(
+        {"features": {}, "quotes": {}}, dump,
+    )
+    template = V6_PATH.read_bytes()
+    ids = list(dict.fromkeys(PLACEHOLDER_RE.findall(template.decode("utf-8"))))
+    assert result.prompt == {
+        "prompt": "elicit_features",
+        "version": "v6",
+        "template_sha256": hashlib.sha256(template).hexdigest(),
+        "rendered_sha256": hashlib.sha256(gen.systems[0].encode("utf-8")).hexdigest(),
+        "provisions": ids,
+        "graph_version": dump["build"]["build_id"],
+    }
+    assert "{{provision:" not in gen.systems[0]
+
+
+def test_provision_failure_makes_no_generator_call(dump):
+    broken = copy.deepcopy(dump)
+    first = PLACEHOLDER_RE.findall(V6_PATH.read_text(encoding="utf-8"))[0]
+    broken["nodes"] = [n for n in broken["nodes"] if n.get("id") != first]
+    gen = Scripted({"features": {}, "quotes": {}})
+    result, gen = _run(gen, broken)
+    assert gen.systems == [], "no model call"
+    assert result.features is None
+    assert result.quotes == {} and result.dropped == []
+    assert result.notes == [
+        f"definition {first} does not resolve in {dump['build']['build_id']}: "
+        "unknown node; no model call made"
+    ]
+    assert result.prompt["rendered_sha256"] is None
+    assert result.prompt["provisions"] == []
+
+
+def test_v5_still_works_and_returns_no_quotes(dump):
+    result, gen = _run(
+        {"domain": "banking", "flags": {"interacts_with_natural_persons": True}},
+        dump,
+        prompt_version="v5",
+    )
+    v5 = (ROOT / "prompts" / "elicit_features" / "v5.md").read_bytes()
+    assert gen.systems == [v5.decode("utf-8")]
+    assert result.features["flags"] == {"interacts_with_natural_persons": True}
+    assert result.quotes == {} and result.dropped == []
+    assert result.prompt["version"] == "v5"
+    assert result.prompt["provisions"] == []
+    assert result.prompt["template_sha256"] == hashlib.sha256(v5).hexdigest()
+
+
+def test_wrapper_without_a_dump_serves_the_repositorys_build():
+    """Until Tasks 4 and 5 move the callers, elicit_features keeps its
+    signature; without dump and snapshots_dir it renders over the build
+    load_active serves from data/graph_dumps."""
+    if not DUMP_PATH.is_file():
+        pytest.skip("layer1.json dump not built")
+    gen = Scripted(
+        {"features": {"flags": {"interacts_with_natural_persons": True,
+                                "social_scoring": False}},
+         "quotes": {"flags.interacts_with_natural_persons": "A chatbot on our bank's website"}},
+    )
+    features, notes = elicit_features(BANK, gen)
+    assert features["flags"] == {"interacts_with_natural_persons": True}
+    assert "flags.social_scoring dropped: no quote" in notes
+    assert "{{provision:" not in gen.systems[0]

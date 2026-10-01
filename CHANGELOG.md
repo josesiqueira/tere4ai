@@ -27,6 +27,22 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   from the description for every fact, true or false, with a worked
   example. The default prompt stays v5 until the elicitor can render v6
   (Task 3); v1 to v5 are unchanged.
+- New entry point `tere4ai.elicit_features.elicit(description, generator,
+  *, dump, snapshots_dir, prompt_version)` returning an `Elicitation`
+  (features, quotes, dropped, notes, prompt). The template is rendered over
+  the served build's dump first; a provision that does not resolve returns
+  no features and the note "definition <id> does not resolve in <build>:
+  <reason>; no model call made", with no generator call. A v6 fact is kept
+  only with a quote of at least three words found in the description
+  (whitespace runs collapsed, no case folding), its start and end in code
+  points of the original description, first occurrence; every other fact
+  is removed and named in dropped ("no quote", "quote shorter than three
+  words", "quote not in the description"). The prompt record names the
+  template's SHA-256, the rendered prompt's SHA-256, the provisions and the
+  build. DEFAULT_PROMPT_VERSION is now v6. `elicit_features` stays as a
+  wrapper over `elicit` for the facade and the benchmark script until they
+  move (Tasks 4 and 5): without a dump it serves the build load_active
+  reads from data/graph_dumps, and it names each dropped fact in its notes.
 
 ### Every operator obligation and every generated control carries its requirement type (B65, B4, DEC-19)
 - Contract change: norms.schema.json gains `requirement_type` (functional,
