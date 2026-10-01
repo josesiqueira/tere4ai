@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -153,3 +154,142 @@ def test_fact_provisions_rejects_a_placeholder_before_any_facts_line() -> None:
     )
     with pytest.raises(ValueError):
         fact_provisions(template)
+
+
+# Prompt v6 (B10 task 2): the fact-to-provision table lives in the template.
+
+V6_PATH = ROOT / "prompts" / "elicit_features" / "v6.md"
+OMNIBUS_FLAGS = ("generates_nonconsensual_intimate_material", "generates_csam")
+
+
+def _v6_text() -> str:
+    return V6_PATH.read_text(encoding="utf-8")
+
+
+def _v6_table() -> dict[str, list[str]]:
+    return fact_provisions(_v6_text())
+
+
+def test_v6_every_schema_flag_but_the_two_omnibus_facts_has_a_provision() -> None:
+    """Each flag's list is not empty; the Omnibus points have no node in the
+    pinned base graph, so they carry none."""
+    from tere4ai.elicit_features.elicitor import schema_flag_names
+
+    table = _v6_table()
+    without = [
+        name
+        for name in schema_flag_names()
+        if name not in OMNIBUS_FLAGS and not table.get(f"flags.{name}")
+    ]
+    assert without == []
+    for name in OMNIBUS_FLAGS:
+        assert table.get(f"flags.{name}", []) == []
+
+
+def test_v6_article_5_flags_quote_the_point_the_classifier_cites() -> None:
+    from tere4ai.mcp_server.classify import (
+        ARTICLE_5_EXCULPATING_FACT,
+        ARTICLE_5_POINT_BY_FLAG,
+        ARTICLE_5_POINT_H,
+        ARTICLE_5_POINT_H_EXCULPATING,
+    )
+
+    table = _v6_table()
+    for flag, (node_id, _fragment) in ARTICLE_5_POINT_BY_FLAG.items():
+        assert node_id in table.get(f"flags.{flag}", []), flag
+    assert ARTICLE_5_POINT_H in table["flags.real_time_remote_biometric_public"]
+    # Each exculpating fact quotes the point whose exception or element it is.
+    for flag, (fact, _value, _element) in ARTICLE_5_EXCULPATING_FACT.items():
+        point = ARTICLE_5_POINT_BY_FLAG[flag][0]
+        assert point in table.get(f"flags.{fact}", []), fact
+    assert ARTICLE_5_POINT_H in table[f"flags.{ARTICLE_5_POINT_H_EXCULPATING[0]}"]
+
+
+def test_v6_annex_iii_flags_quote_the_classifiers_node_or_one_of_its_points() -> None:
+    from tere4ai.mcp_server.classify import ANNEX_III_RULES
+
+    table = _v6_table()
+    for rule in ANNEX_III_RULES:
+        node = rule["node"]
+        for flag in (*rule["flags"], *rule.get("subflags", ())):
+            nodes = table.get(f"flags.{flag}", [])
+            assert any(n == node or n.startswith(node + ":") for n in nodes), flag
+    assert "eu-ai-act:annex-iii:point-5:b" in table["flags.creditworthiness_evaluation"]
+    assert "eu-ai-act:annex-iii:point-5:c" in table["flags.life_health_insurance_risk_pricing"]
+    assert "eu-ai-act:annex-iii:point-1:b" in table[
+        "flags.biometric_categorisation_sensitive_or_protected_attributes"
+    ]
+
+
+def test_v6_article_6_and_article_50_flags_quote_the_classifiers_nodes() -> None:
+    from tere4ai.mcp_server.classify import (
+        ARTICLE_6_3_CONDITIONS,
+        ARTICLE_6_3_PROFILING_OVERRIDE,
+        ARTICLE_50_RULES,
+    )
+
+    table = _v6_table()
+    for flag, node_ids, _note in ARTICLE_6_3_CONDITIONS:
+        for node_id in node_ids:
+            assert node_id in table.get(f"flags.{flag}", []), flag
+    assert ARTICLE_6_3_PROFILING_OVERRIDE in table["flags.profiling_of_natural_persons"]
+    assert "eu-ai-act:article-6:paragraph-1:point-a" in table["flags.annex_i_covered_product"]
+    assert "eu-ai-act:article-6:paragraph-1:point-b" in table[
+        "flags.third_party_conformity_assessment_required"
+    ]
+    for flag, node_id, _note in ARTICLE_50_RULES:
+        assert node_id in table.get(f"flags.{flag}", []), flag
+
+
+def test_v6_keeps_the_article_3_definitions_v5_used() -> None:
+    v5 = (ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8")
+    v5_definitions = set(re.findall(r"\[(eu-ai-act:definition:[a-z0-9-]+)\]", v5))
+    assert v5_definitions, "v5 names its definitions"
+    quoted = {n for nodes in _v6_table().values() for n in nodes}
+    assert v5_definitions <= quoted
+
+
+def test_v6_renders_against_the_repository_dump(dump: dict) -> None:
+    """Every provision resolves on the repository's build; the rendered
+    prompt carries node text only, never raw Formex or HTML."""
+    text = _v6_text()
+    rendered, provisions = render_template(text, dump, SNAPSHOTS_DIR)
+    assert "{{provision:" not in rendered
+    assert "<" not in rendered
+    rendered_ids = [p["node_id"] for p in provisions]
+    table_ids = {n for nodes in fact_provisions(text).values() for n in nodes}
+    # No placeholder outside the table, none in the table left unrendered.
+    assert set(rendered_ids) == table_ids
+    for node_id in rendered_ids:
+        node = _node(dump, node_id)
+        assert node.get("type") not in {"Article", "Annex"}, node_id
+        assert f"[{node_id}] {node['text']}" in rendered
+
+
+def test_v6_output_example_quotes_are_in_its_description() -> None:
+    """The worked example shows the reply shape: features and quotes, each
+    quote at least three words copied from the example description."""
+    text = _v6_text()
+    description = re.search(r"```text\n(.*?)\n```", text, re.S)
+    reply = re.search(r"```json\n(.*?)\n```", text, re.S)
+    assert description and reply
+    example = json.loads(reply.group(1))
+    assert set(example) == {"features", "quotes"}
+    quotes = example["quotes"]
+    flags = example["features"].get("flags", {})
+    assert any(value is False for value in flags.values()), "a false flag is quoted too"
+    for path, quote in quotes.items():
+        assert len(quote.split()) >= 3, path
+        assert quote in description.group(1), path
+        if path.startswith("flags."):
+            assert path[len("flags."):] in flags, path
+        else:
+            assert path in example["features"], path
+    for name in flags:
+        assert f"flags.{name}" in quotes, name
+
+
+def test_v6_has_no_em_or_en_dash() -> None:
+    text = _v6_text()
+    assert chr(0x2014) not in text
+    assert chr(0x2013) not in text

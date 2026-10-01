@@ -16,6 +16,17 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   and the reason. `fact_provisions` reads the fact-to-provision table from
   the template's "## Facts and their provisions" section. Nothing calls it
   yet.
+- New prompt `prompts/elicit_features/v6.md`: v5's role, field list,
+  binding rules 1 to 5, consistency rules and Omnibus block (now headed as
+  verbatim from the amending act, the base graph having no node for points
+  (ba) and (bb)), with every hand-pasted or paraphrased provision replaced
+  by a placeholder under "## Facts and their provisions": 58 nodes, every
+  schema flag but the two Omnibus facts with at least one, the Article 5
+  and Annex III flags quoting the classifier's own point. The reply becomes
+  `{"features": {...}, "quotes": {...}}`, a quote of at least three words
+  from the description for every fact, true or false, with a worked
+  example. The default prompt stays v5 until the elicitor can render v6
+  (Task 3); v1 to v5 are unchanged.
 
 ### Every operator obligation and every generated control carries its requirement type (B65, B4, DEC-19)
 - Contract change: norms.schema.json gains `requirement_type` (functional,

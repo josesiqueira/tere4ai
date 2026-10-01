@@ -260,6 +260,42 @@ def test_v5_prompt_carries_the_omnibus_points_verbatim():
         assert passage in prompt, passage[:60]
 
 
+def test_v6_prompt_carries_the_omnibus_points_verbatim_and_says_why():
+    """B10: the base graph is pinned before the amendment and has no node
+    for points (ba) and (bb), so v6 keeps the amending act's words from the
+    verified inventory, under a heading that says so."""
+    raw = (ROOT / "prompts" / "elicit_features" / "v6.md").read_text(encoding="utf-8")
+    prompt = _collapse(raw)
+    for passage in OMNIBUS_PASSAGES:
+        assert passage in prompt, passage[:60]
+    heading = next(
+        line for line in raw.splitlines() if line.startswith("## ") and "Omnibus" in line
+    )
+    assert "verbatim from the amending act" in heading
+    assert "docs/omnibus_amendments.md" in prompt
+    assert "no node for these points" in prompt
+
+
+def test_v6_prompt_names_every_schema_flag():
+    """Every fact the schema defines is in the v6 field list."""
+    from tere4ai.elicit_features.elicitor import schema_flag_names
+
+    prompt = (ROOT / "prompts" / "elicit_features" / "v6.md").read_text(encoding="utf-8")
+    listed = set(re.findall(r"[a-z0-9_]+", prompt))
+    missing = [name for name in schema_flag_names() if name not in listed]
+    assert missing == []
+
+
+def test_v6_prompt_keeps_the_v5_binding_rules():
+    """v6 keeps v5's role and binding rules 1 to 5 word for word."""
+    v5 = _collapse((ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8"))
+    v6 = _collapse((ROOT / "prompts" / "elicit_features" / "v6.md").read_text(encoding="utf-8"))
+    role = v5[: v5.index("Output exactly one JSON object")]
+    assert v6.startswith(role)
+    rules = v5[v5.index("Rules, all binding:") : v5.index("5. Output the JSON object only")]
+    assert rules in v6
+
+
 def test_v4_prompt_is_kept_unchanged_for_the_records_that_name_it():
     """A recorded elicitation names its prompt version, so v4 stays as it was."""
     prompt = (ROOT / "prompts" / "elicit_features" / "v4.md").read_text(encoding="utf-8")
