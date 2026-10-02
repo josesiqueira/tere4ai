@@ -714,6 +714,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 # otherwise, never invented.
                 "completed_at": run.get("completed_at"),
                 "prompt_sha256": run.get("prompt_sha256"),
+                "prompt_sha256_reason": trace_tool.prompt_hash_reason(run),
                 # DEC-19: the judge's recorded view of the type, served here
                 # with the judge's other opinions; spec G D-G54 keeps it from
                 # the annotators' screen in every mode.

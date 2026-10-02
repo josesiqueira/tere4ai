@@ -149,3 +149,29 @@ def test_units_carry_the_type_and_the_judges_view_only_when_recorded(tmp_path):
         candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
     assert candidate["requirement_type"] == "quality"
     assert (candidate["judge"]["judge_type_agrees"], candidate["judge"]["judge_requirement_type"]) == (False, "process")
+
+
+def test_a_missing_prompt_hash_is_served_null_with_its_reason(tmp_path):
+    """B81 item 41 (spec G D-G39): null with a reason otherwise; the reason is
+    null beside a recorded hash, on the trace chain and the /api/units judge."""
+    for with_hash in (False, True):
+        root = tmp_path / str(with_hash)
+        root.mkdir()
+        dump, alignments = _dumps(root, with_hash=with_hash)
+        judge = trace_tool.trace_alignment("n1", alignments, dump)["answer"]["assertions"][0]["judge_run"]
+        with TestClient(facade.create_app(root)) as client:
+            candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
+        for served in (judge, candidate["judge"]):
+            if with_hash:
+                assert served["prompt_sha256"] == "5" * 64 and served["prompt_sha256_reason"] is None
+            else:
+                assert served["prompt_sha256"] is None
+                assert served["prompt_sha256_reason"] == "the judge run records no prompt hash (dumps record it since B74)"
+
+
+def test_a_judge_run_absent_from_the_dump_gives_its_own_reason(tmp_path):
+    dump, alignments = _dumps(tmp_path, with_hash=True)
+    alignments["judge_runs"] = []
+    judge = trace_tool.trace_alignment("n1", alignments, dump)["answer"]["assertions"][0]["judge_run"]
+    assert judge["prompt_sha256"] is None
+    assert judge["prompt_sha256_reason"] == "the dump holds no judge run for this item"

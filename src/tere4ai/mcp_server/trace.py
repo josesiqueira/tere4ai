@@ -35,6 +35,17 @@ def _index_runs(alignments_payload: dict[str, Any], key: str) -> dict[str, dict[
     }
 
 
+def prompt_hash_reason(judge_run: dict[str, Any] | None) -> str | None:
+    """Spec G D-G39 (B81 item 41): a judge run's prompt hash is null with a
+    reason when the dump does not record it, and the reason is null beside a
+    recorded hash. Shared by the trace chain and GET /api/units."""
+    if not judge_run:
+        return "the dump holds no judge run for this item"
+    if judge_run.get("prompt_sha256") is None:
+        return "the judge run records no prompt hash (dumps record it since B74)"
+    return None
+
+
 def _render_assertion(
     assertion: dict[str, Any],
     mapping_runs: dict[str, dict[str, Any]],
@@ -93,6 +104,7 @@ def _render_assertion(
             "corrected_relation_type": (judge_run or {}).get("corrected_relation_type"),
             "completed_at": (judge_run or {}).get("completed_at"),
             "prompt_sha256": (judge_run or {}).get("prompt_sha256"),
+            "prompt_sha256_reason": prompt_hash_reason(judge_run),
         },
     }
 

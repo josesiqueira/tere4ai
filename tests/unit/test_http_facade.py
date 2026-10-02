@@ -1048,9 +1048,10 @@ def test_units_serves_every_core_unit_with_all_candidates(client):
                 "extractor_model", "judge_verdict", "judge"):
         assert key in candidate
     # B99 (spec F D-F29): the candidate's judge gains the additive key "temperature".
+    # B81 item 41 (spec G D-G39): and "prompt_sha256_reason", null beside a recorded hash.
     assert set(candidate["judge"]) == {
         "run_id", "model", "prompt_version", "verdict", "scores", "rationale",
-        "completed_at", "prompt_sha256", "effort", "temperature",
+        "completed_at", "prompt_sha256", "prompt_sha256_reason", "effort", "temperature",
     }
     # B84: the fixture is a pre-B84 dump, so no run carries judge_effort;
     # None, never invented (spec F D-F22).
