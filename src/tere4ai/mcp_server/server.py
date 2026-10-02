@@ -429,10 +429,9 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     is requires_human_review, and with no rule firing the level is
     uncertain, never minimal_or_none. The answer also carries a fria block:
     whether the Article 27(1) fundamental rights impact assessment
-    obligation applies to the
-    deployer (applies, does_not_apply, unknown), decided by the same
-    deterministic rules from the flags and the optional deployer facts
-    (deployer.body_governed_by_public_law,
+    obligation applies to the deployer (applies, does_not_apply, unknown),
+    decided by the same deterministic rules from the flags and the optional
+    deployer facts (deployer.body_governed_by_public_law,
     deployer.private_entity_providing_public_services). Free, no model
     calls."""
     loaded = _active()

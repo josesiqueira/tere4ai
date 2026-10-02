@@ -532,6 +532,7 @@ def test_annex_i_false_rules_out_the_route_whatever_third_party(dump, node_ids):
         for f in envelope["missing_facts"]
     )
 
+
 def test_safety_component_with_third_party_false_is_not_held_at_uncertain(dump, node_ids):
     """R4: the safety exit's second case holds only while the route is open."""
     features = {
