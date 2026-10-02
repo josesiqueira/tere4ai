@@ -66,7 +66,7 @@ class IngestResult:
 
 # Answer-shape fingerprints for loose envelopes, checked in this order.
 _FINGERPRINTS: tuple[tuple[tuple[str, ...], str], ...] = (
-    (("risk_category", "prohibited"), "classify_ai_system"),
+    (("risk_category", "unacceptable_risk"), "classify_ai_system"),
     (("requirements_by_article",), "get_applicable_requirements"),
     (("assertions",), "trace_alignment"),
     (("deontic",), "explain_requirement"),

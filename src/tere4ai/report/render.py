@@ -28,6 +28,7 @@ from typing import Any
 
 from tere4ai.extract_norms.requirement_type import NO_TYPE, type_label
 from tere4ai.mcp_server.explain import HLEG_MAPPING_CAVEAT
+from tere4ai.mcp_server.levels import RISK_CATEGORIES, level_name
 from tere4ai.mcp_server.tools import (
     NON_LEGAL_ADVICE_NOTICE,
     STATUS_VOCABULARY,
@@ -370,15 +371,16 @@ def _tier(classify_ex: Exchange | None) -> str:
     ans = _answer(classify_ex)
     if not ans:
         return "uncertain"
-    if ans.get("prohibited") is True or ans.get("risk_category") == "prohibited":
-        return "prohibited"
     risk_category = ans.get("risk_category")
+    if ans.get("unacceptable_risk") is True or risk_category == "unacceptable_risk":
+        return "prohibited"
     if (
         risk_category is None
+        or risk_category == "undetermined"
         or classify_ex.envelope.get("status") == "requires_human_review"
     ):
         return "uncertain"
-    if risk_category == "minimal_or_none":
+    if risk_category == "minimal_risk":
         return "minimal"
     return "full"
 
@@ -615,8 +617,17 @@ def _render_summary_band(
     matrix_ex: Exchange | None,
     backlog_ex: Exchange | None,
     evidence_exs: list[Exchange],
+    unknown_level: str | None = None,
 ) -> str:
     out = ['<section class="summary-band"><h2>Summary figures</h2>']
+    if unknown_level is not None:
+        out.append(
+            f'<p class="placeholder">The recorded classification uses'
+            f" '{_esc(unknown_level)}', which is not a level this report knows"
+            " (the levels were renamed on 2026-10-02, spec G D-G60); it is"
+            " shown as not classified.</p></section>"
+        )
+        return "".join(out)
     if tier == "prohibited":
         out.append(
             '<p class="placeholder">summary figures are not rendered: the'
@@ -627,7 +638,7 @@ def _render_summary_band(
     if tier == "minimal":
         out.append(
             '<p class="placeholder">summary figures are not rendered: the'
-            " recorded classification is minimal_or_none (see the"
+            f" recorded classification is {level_name('minimal_risk')} (see the"
             " classification section)</p></section>"
         )
         return "".join(out)
@@ -795,12 +806,14 @@ def _render_classification(
     out.append(
         '<dl class="pairs">'
         "<div><dt>risk category</dt><dd>"
-        + emit_field("risk_category", ans.get("risk_category"))
-        + "</dd></div><div><dt>prohibited</dt><dd>"
+        + emit_field("risk_category", level_name(ans.get("risk_category")))
+        + "</dd></div><div><dt>unacceptable risk</dt><dd>"
         + emit_field(
-            "prohibited",
+            "unacceptable_risk",
             # DEC-18: null is unknown, never printed as "null".
-            "unknown" if ans.get("prohibited") is None else ans.get("prohibited"),
+            "unknown"
+            if ans.get("unacceptable_risk") is None
+            else ("yes" if ans.get("unacceptable_risk") else "no"),
         )
         + "</dd></div><div><dt>Annex III category</dt><dd>"
         + emit_field("annex_iii_category", ans.get("annex_iii_category"))
@@ -1061,7 +1074,7 @@ def _render_matrix(
     if tier == "minimal":
         out.append(
             '<p class="placeholder">the traceability matrix is not rendered'
-            " for a minimal_or_none classification; recorded tags are listed"
+            f" for a {level_name('minimal_risk')} classification; recorded tags are listed"
             " below as claims out of scope</p>"
         )
         matrix_ans = _answer(matrix_ex)
@@ -1825,6 +1838,14 @@ def render_report(
         return history.get((ex.tool, _identity_of(ex)), [])
 
     classify_ex = single("classify_ai_system")
+    unknown_level: str | None = None
+    if classify_ex is not None:
+        recorded = _answer(classify_ex).get("risk_category")
+        if isinstance(recorded, str) and recorded not in RISK_CATEGORIES:
+            # B118 (ruling R9): an old or unknown level renders as no
+            # classification, with one line naming the stored value.
+            unknown_level = recorded
+            classify_ex = None
     requirements_ex = single("get_applicable_requirements")
     matrix_ex = single("trace_implementation")
     backlog_ex = single("generate_control_backlog")
@@ -1882,6 +1903,7 @@ def render_report(
             matrix_ex=matrix_ex,
             backlog_ex=backlog_ex,
             evidence_exs=evidence_exs,
+            unknown_level=unknown_level,
         )
     )
     body.append(

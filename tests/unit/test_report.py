@@ -167,13 +167,13 @@ def test_prohibited_full_stop_banner() -> None:
 
 
 def _render_with_prohibited(tmp_path: Path, value: object) -> str:
-    """Render the shopbot session with the classify answer's prohibited
+    """Render the shopbot session with the classify answer's unacceptable_risk
     field set to value (the recorded value is replaced, not relied on)."""
     lines = SHOPBOT.read_text(encoding="utf-8").splitlines()
     first = json.loads(lines[0])
     assert first["tool"] == "classify_ai_system"
-    first["envelope"]["answer"]["prohibited"] = value
-    doctored = tmp_path / f"prohibited-{value}.jsonl"
+    first["envelope"]["answer"]["unacceptable_risk"] = value
+    doctored = tmp_path / f"unacceptable-{value}.jsonl"
     doctored.write_text(
         "\n".join([json.dumps(first), *lines[1:]]) + "\n", encoding="utf-8"
     )
@@ -183,18 +183,18 @@ def _render_with_prohibited(tmp_path: Path, value: object) -> str:
 def test_false_prohibited_renders_verbatim(tmp_path: Path) -> None:
     """DEC-18: false is shown as false, not as unknown."""
     html = _render_with_prohibited(tmp_path, False)
-    assert 'data-envelope-field="prohibited">false<' in html
-    assert 'data-envelope-field="prohibited">unknown<' not in html
+    assert 'data-envelope-field="unacceptable_risk">no<' in html
+    assert 'data-envelope-field="unacceptable_risk">unknown<' not in html
 
 
 def test_null_prohibited_renders_as_unknown(tmp_path: Path) -> None:
-    """DEC-18: a null prohibited is printed as unknown, never as null."""
+    """DEC-18: a null unacceptable_risk is printed as unknown, never as null."""
     # Start from a known non-null value so the test reads as a change.
     before = _render_with_prohibited(tmp_path, True)
-    assert 'data-envelope-field="prohibited">true<' in before
+    assert 'data-envelope-field="unacceptable_risk">yes<' in before
     html = _render_with_prohibited(tmp_path, None)
-    assert 'data-envelope-field="prohibited">unknown<' in html
-    assert 'data-envelope-field="prohibited">null<' not in html
+    assert 'data-envelope-field="unacceptable_risk">unknown<' in html
+    assert 'data-envelope-field="unacceptable_risk">null<' not in html
 
 
 def test_duplicate_classify_last_wins_with_call_history(tmp_path: Path) -> None:
@@ -414,3 +414,53 @@ def test_the_alignment_judge_run_line_shows_the_judge_effort(tmp_path: Path) -> 
     ) in with_effort
     assert 'data-envelope-field="judge_model">m</span> · prompt ' in without_effort
     assert "judge_effort" not in without_effort
+
+
+def test_old_session_renders_as_not_classified(tmp_path: Path) -> None:
+    """B118 (ruling R9): a session recorded before the rename, whose
+    classify answer carries an old level, renders as not classified,
+    never as a full requirements report."""
+    old = subprocess.run(
+        [
+            "git",
+            "show",
+            "c492285:tests/fixtures/demo_sessions/moodwatch-prohibited.jsonl",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=Path(__file__).resolve().parents[2],
+    ).stdout
+    path = tmp_path / "old.jsonl"
+    path.write_text(old, encoding="utf-8")
+    html = render_report_from_paths([path])
+    assert "is not a level this report knows" in html
+    assert "'prohibited'" in html
+    assert "applicable requirements returned" not in html
+    assert "class=\"prohibition-banner" not in html
+
+
+@pytest.mark.parametrize(
+    ("value", "tier"),
+    [
+        ("unacceptable_risk", "prohibited"),
+        ("minimal_risk", "minimal"),
+        ("high_risk", "full"),
+        ("limited_risk", "full"),
+        ("undetermined", "uncertain"),
+    ],
+)
+def test_tier_maps_each_current_level(value: str, tier: str) -> None:
+    """B118: _tier reads the stored values (the tier names stay private)."""
+    from tere4ai.report.ingest import Exchange
+    from tere4ai.report.render import _tier
+
+    ex = Exchange(
+        seq=0,
+        ts="",
+        tool="classify_ai_system",
+        request={},
+        envelope={"status": "ok", "answer": {"risk_category": value}},
+        source="t.jsonl",
+    )
+    assert _tier(ex) == tier
