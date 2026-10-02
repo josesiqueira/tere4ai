@@ -16,6 +16,10 @@ overwrites an existing norm's slots, add appends a brand new norm, and both
 stamp extraction_method "human" and human_review.provenance HUMAN_AUTHORED.
 The graph adapter (tere4ai.graph_store.layer23) prefers
 human_review.provenance over the judge-derived class when persisting edges.
+A human norm takes the target_system_category of its source unit by the
+rule (B124, spec G D-G62), as every extracted norm does; one on a unit
+outside the rule table is refused, since the Layer 2 review covers the core
+scope only.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from tere4ai.extract_norms.target_system_category import category_for
 from tere4ai.review_queue.queue import validate_human_payload
 
 NORMS_SCHEMA_PATH = (
@@ -94,6 +99,17 @@ def _stamp_human_norm(item: dict[str, Any], entry: dict[str, Any]) -> None:
     for field in _SLOT_FIELDS:
         default: Any = [] if field in _LIST_SLOTS else None
         item[field] = copy.deepcopy(payload.get(field, default))
+    # B124 (spec G D-G62): the rule value of the norm's source unit, as on
+    # every extracted norm; the model's label on a replaced norm does not
+    # stay. The Layer 2 review covers the core scope only, so a unit outside
+    # the rule table is refused rather than given null.
+    category = category_for(item.get("source_node_id"))
+    if category is None:
+        raise ValueError(
+            f"human norm {item.get('norm_id')!r} is on {item.get('source_node_id')!r}, a source unit "
+            "outside the target_system_category rule table; the Layer 2 review covers the core scope only"
+        )
+    item["target_system_category"] = category
     # The clause ids belong to the text the human just wrote: they are
     # re-materialised from conditions and exceptions by canonicalize_norms at
     # publish, never inherited from the model's clause nodes.

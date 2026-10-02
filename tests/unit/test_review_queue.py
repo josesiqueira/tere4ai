@@ -473,6 +473,10 @@ def test_publish_retires_the_decisions_flag(tmp_path, capsys):
     assert not (tmp_path / "build_records").exists()
 
 
+# B124 (DEC-21): a human norm must sit on a unit of the target_system_category
+# rule table, so the replace tests use Article 12(1) where they used "x".
+UNIT_12_1 = "eu-ai-act:article-12:paragraph-1"
+
 HUMAN_NORM = {
     "source_node_id": "eu-ai-act:article-12:paragraph-1",
     "source_span_id": "span:fmx:art_12.par_1",
@@ -542,14 +546,14 @@ def _schema_objects(node):
 
 
 def test_apply_decisions_replace_overwrites_slots_and_stamps_human_provenance():
-    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": "x", "source_span_id": "s",
+    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": UNIT_12_1, "source_span_id": "s",
                           "deontic_type": "permission", "modal": "may", "actor_explicit": None,
                           "action": "old", "object": "old", "extraction_method": "llm_extract_v1",
                           "extractor_model": "gpt-6-astra", "confidence": 0.4,
                           "judge_verdict": "rejected", "review_status": "rejected", "judge_run_id": "r1"}]}
     decisions = {}
     record_decision(decisions, "norm:x:n1", "replace", "the sentence is an obligation", "annotator a",
-                    payload={**HUMAN_NORM, "source_node_id": "x", "source_span_id": "s"})
+                    payload={**HUMAN_NORM, "source_node_id": UNIT_12_1, "source_span_id": "s"})
     out = apply_decisions(payload, decisions)
     norm = out["norms"][0]
     assert norm["deontic_type"] == "obligation" and norm["action"] == "technically allow for"
@@ -625,7 +629,7 @@ def test_apply_decisions_add_defaults_actor_inference_fields_to_none():
 
 
 def test_apply_decisions_replace_refuses_to_move_a_norm_to_another_span():
-    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": "x", "source_span_id": "s",
+    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": UNIT_12_1, "source_span_id": "s",
                           "deontic_type": "permission", "modal": "may", "actor_explicit": None,
                           "action": "old", "object": "old", "extraction_method": "llm_extract_v1",
                           "extractor_model": "gpt-6-astra", "confidence": 0.4,
@@ -788,7 +792,7 @@ def _inferred_actor_norm():
         "norms": [
             {
                 "norm_id": "norm:x:n1",
-                "source_node_id": "x",
+                "source_node_id": UNIT_12_1,
                 "source_span_id": "s",
                 "deontic_type": "obligation",
                 "modal": "shall",
@@ -816,7 +820,7 @@ def test_replace_resets_the_actor_triple_from_the_payload():
     decisions = {}
     payload = {
         **HUMAN_NORM,
-        "source_node_id": "x",
+        "source_node_id": UNIT_12_1,
         "source_span_id": "s",
         "actor_explicit": "the provider",
     }
@@ -834,7 +838,7 @@ def test_replace_clears_stale_clause_ids():
     decisions = {}
     payload = {
         **HUMAN_NORM,
-        "source_node_id": "x",
+        "source_node_id": UNIT_12_1,
         "source_span_id": "s",
         "conditions": [],
         "exceptions": [],
@@ -849,7 +853,7 @@ def test_replace_clears_stale_clause_ids():
 def test_a_replace_that_leaves_out_the_clauses_keeps_none_of_the_model_text():
     """B78 item 12: under HUMAN_AUTHORED every slot is the human's; nothing the model wrote survives."""
     decisions = {}
-    payload = {**HUMAN_NORM, "source_node_id": "x", "source_span_id": "s"}
+    payload = {**HUMAN_NORM, "source_node_id": UNIT_12_1, "source_span_id": "s"}
     for slot in ("conditions", "exceptions", "lifecycle_phase_ids"):
         payload.pop(slot)
     record_decision(decisions, "norm:x:n1", "replace", "the clauses are not in the text", "annotator a",
@@ -880,7 +884,7 @@ def test_publish_helper_drops_the_edge_to_a_removed_condition():
     decisions = {}
     payload = {
         **HUMAN_NORM,
-        "source_node_id": "x",
+        "source_node_id": UNIT_12_1,
         "source_span_id": "s",
         "conditions": [],
         "exceptions": [],
@@ -931,7 +935,7 @@ def test_a_human_norm_type_outside_the_four_values_is_refused():
 def test_a_human_type_stands_as_given_and_clears_the_model_judges_view():
     """Ruling 13: the scope binds the model's proposal, never the human's
     label; a null type is the human's "not an operator requirement"."""
-    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": "x", "source_span_id": "s",
+    payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": UNIT_12_1, "source_span_id": "s",
                           "deontic_type": "obligation", "modal": "shall", "actor_explicit": "provider",
                           "action": "old", "object": "old", "extraction_method": "llm_extract_v1",
                           "extractor_model": "gpt-6-astra", "confidence": 0.4, "requirement_type": "quality",
@@ -939,7 +943,7 @@ def test_a_human_type_stands_as_given_and_clears_the_model_judges_view():
                           "judge_verdict": "needs_human_review", "review_status": "needs_review", "judge_run_id": "r1"}]}
     decisions = {}
     record_decision(decisions, "norm:x:n1", "replace", "the commission's duty, typed by the annotator", "annotator a",
-                    payload={**HUMAN_NORM, "source_node_id": "x", "source_span_id": "s",
+                    payload={**HUMAN_NORM, "source_node_id": UNIT_12_1, "source_span_id": "s",
                              "actor_explicit": "the Commission", "requirement_type": "process"})
     record_decision(decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "not an operator requirement",
                     "annotator a", payload={**HUMAN_NORM, "requirement_type": None})
@@ -971,3 +975,41 @@ def test_the_queue_digest_names_the_type_when_the_norm_carries_it():
     assert "requirement_type=" not in digests["norm:a:n3"]
     # ruling 53: an in-scope norm without a type reads "no type"
     assert digests["norm:a:n4"].endswith(" requirement_type=no type")
+
+
+# B124 (DEC-21, spec G D-G62): the review apply step sets the rule value on a
+# norm a person adds or replaces, and refuses one on a unit outside the table.
+
+
+def test_a_human_norm_carries_the_rule_category_of_its_unit():
+    decisions = {}
+    record_decision(decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add",
+                    "the unit holds an obligation", "annotator a", payload=HUMAN_NORM)
+    added = apply_decisions({"norms": []}, decisions)["norms"][0]
+    assert added["target_system_category"] == "high_risk_ai_system"
+    # Review focus 4: the model's free label on a replaced norm does not stay.
+    model_norm = _inferred_actor_norm()
+    model_norm["norms"][0]["target_system_category"] = "gpai"
+    decisions = {}
+    record_decision(decisions, "norm:x:n1", "replace", "the actor is named in the text", "annotator a",
+                    payload={**HUMAN_NORM, "source_node_id": UNIT_12_1, "source_span_id": "s"})
+    replaced = apply_decisions(model_norm, decisions)["norms"][0]
+    assert replaced["target_system_category"] == "high_risk_ai_system"
+    assert replaced["human_review"]["provenance"] == "HUMAN_AUTHORED"
+
+
+def test_a_human_norm_on_a_unit_outside_the_rule_table_is_refused():
+    for unit in ("eu-ai-act:article-4:paragraph-1", None):
+        decisions = {}
+        record_decision(decisions, "norm:eu-ai-act:article-4:paragraph-1:h1", "add",
+                        "the unit holds an obligation", "annotator a",
+                        payload={**HUMAN_NORM, "source_node_id": unit, "source_span_id": "span:fmx:art_4.par_1"})
+        with pytest.raises(ValueError, match="a source unit outside the target_system_category rule table"):
+            apply_decisions({"norms": []}, decisions)
+    decisions = {}
+    record_decision(decisions, "norm:eu-ai-act:article-4:paragraph-1:h1", "add",
+                    "the unit holds an obligation", "annotator a",
+                    payload={**HUMAN_NORM, "source_node_id": "eu-ai-act:article-4:paragraph-1",
+                             "source_span_id": "span:fmx:art_4.par_1"})
+    with pytest.raises(ValueError, match="eu-ai-act:article-4:paragraph-1"):
+        apply_decisions({"norms": []}, decisions)

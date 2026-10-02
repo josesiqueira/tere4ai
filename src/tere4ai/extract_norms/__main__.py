@@ -264,6 +264,8 @@ def _main(argv: list[str] | None = None) -> int:
         merged: dict = {"norms": [], "judge_runs": [], "stats": {
             "source_units": 0, "candidates": 0, "verdicts": {},
             "nodes_failed": [], "invalid_norms": [],
+            # B124 (spec G D-G62): a group written before B124 carries no count
+            "without_target_system_category": 0,
         }}
         for result in group_results:
             merged["norms"].extend(result["norms"])
@@ -277,6 +279,7 @@ def _main(argv: list[str] | None = None) -> int:
                 )
             merged["stats"]["nodes_failed"].extend(stats.get("nodes_failed", []))
             merged["stats"]["invalid_norms"].extend(stats.get("invalid_norms", []))
+            merged["stats"]["without_target_system_category"] += stats.get("without_target_system_category", 0)
             # B65 ruling 54: summed when the groups count it (prompt v2 on)
             if "untyped_in_scope" in stats:
                 merged["stats"]["untyped_in_scope"] = (
@@ -307,6 +310,7 @@ def _main(argv: list[str] | None = None) -> int:
                      "sha256": sha256_of_file(out_path)}],
             counts={"source_units": stats["source_units"], "candidates": stats["candidates"],
                     "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"]),
+                    "without_target_system_category": stats["without_target_system_category"],
                     **({"untyped_in_scope": stats["untyped_in_scope"]} if "untyped_in_scope" in stats else {})},
             usage=usage(),
             sampling=declared_sampling(generator, judge),
@@ -342,6 +346,9 @@ def _main(argv: list[str] | None = None) -> int:
         print(f"invalid norms dropped: {len(stats['invalid_norms'])}")
     if stats.get("untyped_in_scope"):
         print(f"in-scope norms without a requirement type: {stats['untyped_in_scope']}")
+    if stats["without_target_system_category"]:
+        print("norms without a target_system_category (source unit outside the rule table): "
+              f"{stats['without_target_system_category']}")
     return 0
 
 

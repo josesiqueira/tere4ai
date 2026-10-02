@@ -555,3 +555,31 @@ def test_the_groups_untyped_in_scope_counts_are_summed_into_the_payload_and_the_
     assert json.loads(out.read_text())["stats"]["untyped_in_scope"] == 3
     store = BuildRecordStore(tmp_path)
     assert store.read(store.resolve("test"))["executions"][0]["counts"]["untyped_in_scope"] == 3
+
+
+def test_the_groups_counts_of_norms_without_a_category_are_summed_into_the_payload_and_the_record(
+    tmp_path, monkeypatch, capsys
+):
+    """B124 (DEC-21, spec G D-G62): the count of norms on a unit outside the
+    rule table survives the merge, which sums a fixed key list; a group
+    written before B124 carries no count and adds nothing (review focus 3)."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+
+    def group(node_id, without):
+        return {"norms": [{"norm_id": f"norm:{node_id}:n1"}], "judge_runs": [],
+                "stats": {"source_units": 1, "candidates": 1, "verdicts": {"accepted": 1},
+                          "nodes_failed": [], "invalid_norms": [], "without_target_system_category": without}}
+
+    # article-10 takes _fakes' default result, whose stats carry no count
+    _fakes(monkeypatch, cli, [], results={"eu-ai-act:article-9": group("eu-ai-act:article-9", 0),
+                                          "eu-ai-act:article-99": group("eu-ai-act:article-99", 2)})
+    rc = cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10,eu-ai-act:article-99",
+                   "--dump", str(dump_path), "--out", str(out)])
+    assert rc == 0
+    assert json.loads(out.read_text())["stats"]["without_target_system_category"] == 2
+    store = BuildRecordStore(tmp_path)
+    assert store.read(store.resolve("test"))["executions"][0]["counts"]["without_target_system_category"] == 2
+    assert "norms without a target_system_category (source unit outside the rule table): 2" in capsys.readouterr().out

@@ -19,6 +19,11 @@ Section 7 before it may be accepted. Hard invariants enforced here:
   proposed; the judge's view of the type is recorded beside the verdict and
   never changes it. A v1 run feeds its judge what it always did and writes
   no type field.
+- B124 (spec G D-G62): target_system_category is set by rule from the
+  norm's source Article or Annex (target_system_category.py) when the norm
+  is assembled, after the judge, under every prompt version; a model's
+  label is never kept. A norm on a unit outside the rule table carries
+  null and is counted in stats["without_target_system_category"].
 - Every generator and judge call is logged to
   data/review_queue/extraction_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
@@ -43,6 +48,7 @@ from tere4ai.extract_norms.requirement_type import (
     scoped_type,
     types_for,
 )
+from tere4ai.extract_norms.target_system_category import category_for
 from tere4ai.judge.config import require_independent_clients
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -371,6 +377,9 @@ def extract_norms(
         "candidates": 0,
         "invalid_norms": [],
         "verdicts": {"accepted": 0, "rejected": 0, "needs_human_review": 0},
+        # B124 (spec G D-G62): norms on a source unit outside the rule table,
+        # whose target_system_category is null
+        "without_target_system_category": 0,
         # B65 ruling 54: in-scope norms the extractor left without a type
         **({"untyped_in_scope": 0} if typed else {}),
     }
@@ -503,7 +512,8 @@ def extract_norms(
                 ),
                 "action": candidate.get("action"),
                 "object": candidate.get("object"),
-                "target_system_category": candidate.get("target_system_category"),
+                # B124: the rule's value from the source unit, never the model's label
+                "target_system_category": category_for(node_id),
                 "conditions": candidate.get("conditions") or [],
                 "exceptions": candidate.get("exceptions") or [],
                 "condition_ids": [],
@@ -534,6 +544,8 @@ def extract_norms(
                 continue
 
             stats["verdicts"][verdict] += 1
+            if norm["target_system_category"] is None:
+                stats["without_target_system_category"] += 1
             if typed and norm["requirement_type"] is None and in_scope(norm):
                 stats["untyped_in_scope"] += 1
             judge_runs.append(judge_run)

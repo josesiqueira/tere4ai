@@ -541,3 +541,34 @@ def test_an_article_source_lists_the_topmost_units_with_text_once():
     assert "[eu-ai-act:article-16:paragraph-1]" in block
     assert "[eu-ai-act:article-16:paragraph-2]" in block
     assert "point-a" not in block
+
+
+# DEC-21 (B124, spec G D-G62): target_system_category is set by rule from
+# the norm's source Article or Annex under every prompt version; the model's
+# label is never kept. Under v1 and v2 the judge still reads it (read and
+# dropped); a norm on a unit outside the rule table carries null and is
+# counted.
+
+
+def test_the_rule_sets_the_category_and_drops_the_models_label_under_v1_and_v2(tmp_path):
+    for version in ("v1", "v2"):
+        generator = FakeClient({ARTICLE_16_PARA: GENERATOR_ANSWER}, model="fake-generator")
+        judge = FakeClient({ARTICLE_16_PARA: JUDGE_ACCEPT}, model="fake-judge")
+        result = extract_norms(B4_DUMP, [ARTICLE_16_PARA], generator, judge, prompt_version=version,
+                               log_path=tmp_path / f"log-{version}.jsonl")
+        norm = result["norms"][0]
+        NORM_VALIDATOR.validate(norm)
+        assert norm["target_system_category"] == "high_risk_ai_system", version
+        # the judge reads the candidate the model wrote, as it always did
+        assert '"target_system_category": "high_risk"' in judge.calls[0][1], version
+        assert result["stats"]["without_target_system_category"] == 0
+
+
+def test_a_unit_outside_the_rule_table_gets_null_and_is_counted(tmp_path):
+    """Article 99 of the mock dump is not in the table: the model's
+    "high_risk" is not kept and no value is guessed."""
+    result, _ = run_pipeline({PARA_ID: GENERATOR_ANSWER}, {PARA_ID: JUDGE_ACCEPT}, [PARA_ID], tmp_path)
+    norm = result["norms"][0]
+    NORM_VALIDATOR.validate(norm)
+    assert norm["target_system_category"] is None
+    assert result["stats"]["without_target_system_category"] == 1

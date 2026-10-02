@@ -51,7 +51,7 @@ def _fixture_norm() -> dict:
         "actor_inference_source_node_id": "eu-ai-act:article-16",
         "action": "establish, implement, document and maintain",
         "object": "a risk management system",
-        "target_system_category": "high_risk",
+        "target_system_category": "high_risk_ai_system",
         "conditions": ["in relation to high-risk AI systems"],
         "exceptions": [],
         "condition_ids": [],

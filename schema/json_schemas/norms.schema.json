@@ -51,6 +51,10 @@
     "requirementType": {
       "description": "DEC-19: three of the requirements type attribute examples of ISO/IEC/IEEE 29148:2018 clause 5.2.8.3",
       "enum": ["functional", "quality", "process"]
+    },
+    "targetSystemCategory": {
+      "description": "DEC-21: the Act's own scope terms, one per part of its rules: Chapter I (any_ai_system), Chapter II (prohibited_ai_practice), Chapter III with Annexes III and IV and Articles 72 and 73 (high_risk_ai_system), Chapter IV (article_50_ai_system)",
+      "enum": ["any_ai_system", "prohibited_ai_practice", "high_risk_ai_system", "article_50_ai_system"]
     }
   },
   "type": "object",
@@ -98,8 +102,8 @@
     "action": { "type": "string", "minLength": 1 },
     "object": { "type": "string", "minLength": 1 },
     "target_system_category": {
-      "type": ["string", "null"],
-      "description": "e.g. high_risk, gpai, prohibited_practice, any"
+      "anyOf": [{ "$ref": "#/$defs/targetSystemCategory" }, { "type": "null" }],
+      "description": "DEC-21: the part of the Act's rules the norm belongs to, named by the category of AI systems those rules govern; not the system a single paragraph talks about (the addressee stays in the actor fields). Set by rule from the norm's source Article or Annex (src/tere4ai/extract_norms/target_system_category.py), never by a model; null only for a source unit outside the rule table."
     },
     "condition_ids": { "type": "array", "items": { "type": "string" } },
     "exception_ids": { "type": "array", "items": { "type": "string" } },

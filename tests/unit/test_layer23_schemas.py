@@ -31,7 +31,7 @@ def _valid_norm():
         "actor_inference_source_node_id": "eu-ai-act:article-16",
         "action": "establish, implement, document and maintain",
         "object": "a risk management system",
-        "target_system_category": "high_risk",
+        "target_system_category": "high_risk_ai_system",
         "condition_ids": [],
         "exception_ids": [],
         "lifecycle_phase_ids": ["cross_phase"],
@@ -154,3 +154,15 @@ def test_judge_run_documents_the_extraction_judges_type_view():
              align_schema)
     with pytest.raises(ValidationError):
         validate({**run, "judge_requirement_type": "non-functional"}, align_schema)
+
+
+def test_target_system_category_is_a_closed_set_or_null():
+    """DEC-21 (B124): four values or null; the model's old free labels fail."""
+    norm = _valid_norm()
+    validate(norm, norms_schema)
+    norm["target_system_category"] = None
+    validate(norm, norms_schema)
+    for old_label in ("high_risk", "gpai", "prohibited_practice", "any", "annex_iii"):
+        norm["target_system_category"] = old_label
+        with pytest.raises(ValidationError):
+            validate(norm, norms_schema)
