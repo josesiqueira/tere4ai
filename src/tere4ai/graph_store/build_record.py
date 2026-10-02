@@ -25,6 +25,7 @@ import tempfile
 import threading
 import uuid
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -45,7 +46,7 @@ NUMBERING_UNBLOCK = ("repair or move each file aside, or write build_records/num
 SCHEMA_VERSION = "build_record.v1"
 HEARTBEAT_EXPIRY_SECONDS = 300
 STEP_IDS = ("L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.3", "L3.4", "L3.5", "P.1", "P.2")
-_REDACT_MARKERS = ("key", "token", "secret")
+_REDACT_MARKERS = ("key", "token", "secret", "password", "passwd", "credential", "auth")
 RECORD_FILE_STEM = re.compile(r"^(?:[0-9a-f]{12}|legacy-.+)$")
 _SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "build_record.schema.json"
 
@@ -141,7 +142,9 @@ def _stored_record_validator() -> Draft202012Validator:
 
 
 def scrub_argv(argv: list[str]) -> list[str]:
-    """Redact the value of any flag whose name mentions key, token or secret."""
+    """Redact the value of any flag whose name mentions key, token, secret,
+    password, passwd, credential or auth (B79 item 8; "auth" also catches a
+    flag such as --author, which errs on the safe side)."""
     out: list[str] = []
     redact_next = False
     for arg in argv:
@@ -397,8 +400,10 @@ class BuildRecordStore:
             "layer1_digest": layer1_digest, "executions": [], "publication": None,
         }
         with self._locked("aliases"):
-            self._write(record)
+            # the index first (B79 item 17): an unreadable index refuses before
+            # the record file exists, so no unaliased record is left behind
             aliases = self._aliases()
+            self._write(record)
             aliases[alias] = record_id
             atomic_write_json(self.dir / ALIASES_FILENAME, aliases)
         return record_id
@@ -460,7 +465,7 @@ class BuildRecordStore:
                          models=None, prompt_sha256=None, sampling=None, gates=None, completed_keys=None,
                          work_failures=None, error: str | None = None) -> None:
         if status not in ("done", "failed"):
-            raise ValueError(f"status must be done or failed, got {status!r}")
+            raise RecordError(f"status must be done or failed, got {status!r}")
 
         def mutate(record):
             ex = self._execution(record, run_id)
@@ -602,32 +607,78 @@ def live_run_refusal(store: BuildRecordStore, record_id: str, command: str) -> s
             f"(a killed run stops blocking {HEARTBEAT_EXPIRY_SECONDS} s after its last heartbeat)")
 
 
-def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
-                  layer1_digest: str | None) -> tuple[str, str | None]:
+@dataclass(frozen=True)
+class RecordChoice:
+    """Which record a recording command works in, decided without writing
+    (B79 item 10). record_id names an existing record to reuse; None means a
+    record is still to be created under ref, as a descendant of
+    parent_record_id when that is set. continues says why a descendant
+    continues another record ("record X is published")."""
+
+    ref: str
+    base_build_id: str | None
+    layer1_digest: str | None
+    record_id: str | None = None
+    parent_record_id: str | None = None
+    continues: str | None = None
+
+    @property
+    def message(self) -> str | None:
+        """What to say before the record is created, or None when nothing
+        needs to be said."""
+        if self.continues is None:
+            return None
+        if self.record_id is not None:
+            return f"{self.continues}; continuing in descendant {self.record_id}"
+        return f"{self.continues}; continuing as a new descendant"
+
+
+def choose_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
+                  layer1_digest: str | None) -> RecordChoice:
     """Reuse an open record built on the same Layer 1; otherwise continue as a
     descendant (D-G20): a published record is frozen, and a record built on
     another layer1.json is another assembly. An open descendant already
-    continuing that record is reused before a new one is made. Returns the record id and a
-    message to print, or None when nothing needs to be said. Shared by every
-    recording command (extract_norms, align_hleg) so the rule and its
-    message stay in one place."""
+    continuing that record is reused before a new one is made. Reads only:
+    a command runs its refusals before create_chosen_record, so a refused run
+    leaves no record and moves no alias (B79 item 10)."""
     existing = store.resolve(ref)
     if existing is None:
-        return store.create_record(ref, base_build_id, layer1_digest), None
+        return RecordChoice(ref, base_build_id, layer1_digest)
     record = store.read(existing)
     same_layer1 = record["layer1_digest"] in (None, layer1_digest)
     if record["publication"] is None and same_layer1:
-        return existing, None
+        return RecordChoice(ref, base_build_id, layer1_digest, record_id=existing)
     why = "is published" if record["publication"] is not None else "was built on another Layer 1"
+    continues = f"record {existing} {why}"
     # An open descendant of that record under the same alias and Layer 1
     # already continues it (an earlier attempt): reuse it, so a resume finds
     # the run ids its checkpoint names and no attempt leaves an orphan.
     for candidate in store._valid_records_newest_first():
         if (candidate["parent_record_id"] == existing and ref in candidate["aliases"]
                 and candidate["publication"] is None and candidate["layer1_digest"] in (None, layer1_digest)):
-            return candidate["record_id"], f"record {existing} {why}; continuing in descendant {candidate['record_id']}"
-    child = store.create_record(ref, base_build_id, layer1_digest, parent_record_id=existing)
-    return child, f"record {existing} {why}; continuing as descendant {child}"
+            return RecordChoice(ref, base_build_id, layer1_digest, record_id=candidate["record_id"],
+                                parent_record_id=existing, continues=continues)
+    return RecordChoice(ref, base_build_id, layer1_digest, parent_record_id=existing, continues=continues)
+
+
+def create_chosen_record(store: BuildRecordStore, choice: RecordChoice) -> tuple[str, str | None]:
+    """The record id of the choice, creating the record when the choice names
+    none, and the message to print (None when nothing needs to be said)."""
+    if choice.record_id is not None:
+        return choice.record_id, choice.message
+    record_id = store.create_record(choice.ref, choice.base_build_id, choice.layer1_digest,
+                                    parent_record_id=choice.parent_record_id)
+    message = f"{choice.continues}; continuing as descendant {record_id}" if choice.continues else None
+    return record_id, message
+
+
+def select_record(store: BuildRecordStore, ref: str, base_build_id: str | None,
+                  layer1_digest: str | None) -> tuple[str, str | None]:
+    """choose_record then create_chosen_record in one call, for a command
+    with no refusal between the two (publish_layer23 runs its own before it
+    selects). Returns the record id and a message to print, or None when
+    nothing needs to be said."""
+    return create_chosen_record(store, choose_record(store, ref, base_build_id, layer1_digest))
 
 
 def existing_artefact_digest(path: Path) -> str | None:

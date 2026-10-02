@@ -35,11 +35,12 @@ from tere4ai.graph_store.build_record import (
     BuildRecordStore,
     Heartbeat,
     RecordError,
+    choose_record,
+    create_chosen_record,
     existing_artefact_digest,
     live_run_refusal,
     published_artefact_owner,
     relative_to_dump_dir,
-    select_record,
     signals_as_interrupt,
 )
 from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume, resume_command
@@ -171,17 +172,17 @@ def _main(argv: list[str] | None = None) -> int:
               {"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest}]
     config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size}
     ref = args.record or store.find_by_output_digest(norms_digest) or slug
-    record_id, message = select_record(store, ref, payload.get("build", {}).get("build_id"), layer1_digest)
-    refusal = live_run_refusal(store, record_id, "align_hleg")
+    # B79 item 10: the record is chosen here and created only after every
+    # refusal below, so a refused run leaves no record and moves no alias
+    choice = choose_record(store, ref, payload.get("build", {}).get("build_id"), layer1_digest)
+    refusal = live_run_refusal(store, choice.record_id, "align_hleg") if choice.record_id else None
     if refusal:
         print(f"refusing to start: {refusal}", file=sys.stderr)
         return 2
-    if message and existing:
-        print(f"refusing to overwrite {out_path.name}: {message}, and the file belongs to the record it continues; "
-              "pass --out with a new slug", file=sys.stderr)
+    if choice.message and existing:
+        print(f"refusing to overwrite {out_path.name}: {choice.message}, and the file belongs to the record it "
+              "continues; pass --out with a new slug", file=sys.stderr)
         return 1
-    if message:
-        print(message)
     # The models and prompt texts a resume must share with the run it
     # inherits from (D-G20): known before the checkpoint is judged.
     cfg = load_model_config()
@@ -190,7 +191,7 @@ def _main(argv: list[str] | None = None) -> int:
                "judge": prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, args.prompt_version))}
     try:
         plan = prepare_resume(checkpoint_path, "batch", RESULT_KEYS, resume=args.resume,
-                              accept_legacy=args.accept_legacy_checkpoint, store=store, record_id=record_id,
+                              accept_legacy=args.accept_legacy_checkpoint, store=store, record_id=choice.record_id,
                               expected_config=config, expected_inputs=inputs, expected_models=models,
                               expected_prompt_sha256=prompts)
     except CheckpointError as exc:
@@ -203,6 +204,11 @@ def _main(argv: list[str] | None = None) -> int:
     generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
     judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
     hleg_nodes = build_hleg_nodes()
+    # B79 item 10: created only now, after every refusal and every build step
+    # that can fail, so nothing before the run starts leaves a record
+    record_id, message = create_chosen_record(store, choice)
+    if message:
+        print(message)
     run_argv = list(sys.argv[1:] if argv is None else argv)
     run_id = store.start_execution(
         record_id, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"],

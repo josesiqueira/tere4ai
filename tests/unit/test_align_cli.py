@@ -18,6 +18,11 @@ def _norms_file(tmp_path, n=3, name="norms_test.json"):
     return p, layer1, norms
 
 
+def _first_execution(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    return store.read(store.resolve("test"))["executions"][0]
+
+
 def _fakes(monkeypatch, cli, batches):
     def fake_align(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
         batches.append(len(chunk))
@@ -129,6 +134,52 @@ def test_align_stale_checkpoint_exit_2(tmp_path, monkeypatch, capsys):
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"batch": "b", "result": {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 2
     assert "--resume" in capsys.readouterr().err
+    # B79 item 10: a refused run leaves no record and no alias
+    assert BuildRecordStore(tmp_path).list_records() == []
+    aliases = tmp_path / "build_records" / "aliases.json"
+    assert not aliases.is_file() or "test" not in json.loads(aliases.read_text(encoding="utf-8"))
+
+
+def test_a_refusal_over_a_published_record_creates_no_descendant(tmp_path, monkeypatch, capsys):
+    """B79 item 10: the stale checkpoint is refused before the descendant is made."""
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+    store = BuildRecordStore(tmp_path)
+    old = store.create_record("test", "b", sha256_of_file(layer1))
+    store.set_publication(old, {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+                                "gating": {"layer2": "llm", "layer3": "absent"}, "label": None, "gates": [],
+                                "postload_gates": [], "manifests": []})
+    out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"batch": "b", "result": {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
+    assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 2
+    assert "--resume" in capsys.readouterr().err and batches == []
+    assert [r["record_id"] for r in store.list_records()] == [old] and store.resolve("test") == old
+
+
+def test_a_client_that_fails_to_build_leaves_no_record(tmp_path, monkeypatch):
+    """B79 item 10: the record is created only after the model clients and the HLEG nodes are built."""
+    import pytest
+
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    out = tmp_path / "alignments_test.json"
+    batches: list[int] = []
+    _fakes(monkeypatch, cli, batches)
+
+    def no_client(cfg, **kw):
+        raise RuntimeError("the judge client could not be built")
+
+    monkeypatch.setattr(cli, "AnthropicJudge", no_client)
+    with pytest.raises(RuntimeError, match="could not be built"):
+        cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)])
+    assert batches == []
+    assert BuildRecordStore(tmp_path).list_records() == []
+    aliases = tmp_path / "build_records" / "aliases.json"
+    assert not aliases.is_file() or "test" not in json.loads(aliases.read_text(encoding="utf-8"))
 
 
 def test_align_never_overwrites_an_input_of_a_publication(tmp_path, monkeypatch, capsys):
@@ -332,7 +383,7 @@ def test_a_sighup_ends_the_align_execution_failed_and_each_batch_writes_the_usag
             signal.signal(sig, handler)
     assert got == []
     assert seen[0]["status"] == "running" and seen[0]["usage"]["generator"]["calls"] == 1
-    ex = BuildRecordStore(tmp_path).read(BuildRecordStore(tmp_path).resolve("test"))["executions"][0]
+    ex = _first_execution(tmp_path)
     assert ex["status"] == "failed" and "SIGHUP" in ex["error"] and ex["usage"]["judge"]["calls"] == 1
 
 

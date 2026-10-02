@@ -19,6 +19,8 @@ from tere4ai.graph_store.build_record import (
     Heartbeat,
     LiveExecutionError,
     RecordError,
+    choose_record,
+    create_chosen_record,
     gate_entries,
     liveness,
     relative_to_dump_dir,
@@ -51,6 +53,18 @@ def test_corrupted_alias_index_raises_instead_of_being_overwritten(tmp_path):
     with pytest.raises(RecordError):
         store.create_record("x", None, None)
     assert (tmp_path / "build_records" / "aliases.json").read_text(encoding="utf-8") == "{"
+    # B79 item 17: the index is read before the record is written, so no unaliased record file is left
+    assert sorted(p.name for p in (tmp_path / "build_records").glob("*.json")) == ["aliases.json"]
+
+
+def test_finish_execution_refuses_an_unknown_status_with_a_record_error(tmp_path):
+    """B79 item 17: the same error class as the module's other guards."""
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core", None, None)
+    run = _start(store, rid)
+    with pytest.raises(RecordError, match="status must be done or failed"):
+        store.finish_execution(rid, run, status="x")
+    assert store.read(rid)["executions"][0]["status"] == "running"
 
 
 def test_descendant_takes_the_alias_and_parent_keeps_history(tmp_path):
@@ -153,6 +167,10 @@ def test_concurrent_heartbeats_lose_no_update(tmp_path):
 def test_scrub_argv_redacts_key_material():
     argv = ["--nodes", "a", "--api-key", "sk-live", "--token=abc", "--out", "x.json"]
     assert scrub_argv(argv) == ["--nodes", "a", "--api-key", "<redacted>", "--token=<redacted>", "--out", "x.json"]
+    # B79 item 8: password, passwd, credential and auth flags too
+    argv = ["--neo4j-password", "x", "--db-passwd=x", "--credential", "x", "--auth-header", "x", "--out", "y.json"]
+    assert scrub_argv(argv) == ["--neo4j-password", "<redacted>", "--db-passwd=<redacted>", "--credential", "<redacted>",
+                                "--auth-header", "<redacted>", "--out", "y.json"]
 
 
 def test_liveness_unknown_after_expiry_never_failed():
@@ -247,6 +265,31 @@ def test_select_record_reuses_the_open_descendant_of_a_frozen_record(tmp_path):
     assert [r["record_id"] for r in store.list_records() if r.get("parent_record_id") == parent] == [child]
     other, _ = select_record(store, parent, "build-b", "M" * 64)
     assert other != child, "a descendant on another Layer 1 is another assembly"
+
+
+def test_choose_record_writes_nothing_and_create_chosen_record_makes_the_choice(tmp_path):
+    """B79 item 10 (R29): the read-only decision and the create step that select_record composes."""
+    store = BuildRecordStore(tmp_path)
+
+    def files():
+        return sorted(p.name for p in (tmp_path / "build_records").glob("*.json"))
+
+    fresh = choose_record(store, "core", "build-b", "L" * 64)
+    assert fresh.record_id is None and fresh.parent_record_id is None and fresh.message is None and files() == []
+    rid, message = create_chosen_record(store, fresh)
+    assert message is None and store.resolve("core") == rid and store.read(rid)["layer1_digest"] == "L" * 64
+    assert choose_record(store, "core", "build-b", "L" * 64).record_id == rid
+    store.set_publication(rid, {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
+                                "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [],
+                                "postload_gates": [], "manifests": []})
+    before = files()
+    descendant = choose_record(store, "core", "build-b", "L" * 64)
+    assert descendant.record_id is None and descendant.parent_record_id == rid
+    assert descendant.message == f"record {rid} is published; continuing as a new descendant"
+    assert files() == before and store.resolve("core") == rid, "nothing written, the alias not moved"
+    child, message = create_chosen_record(store, descendant)
+    assert message == f"record {rid} is published; continuing as descendant {child}"
+    assert store.read(child)["parent_record_id"] == rid and store.resolve("core") == child
 
 
 def test_list_records_skips_files_that_are_not_records(tmp_path):

@@ -148,14 +148,63 @@ def test_extract_refuses_stale_or_incompatible_checkpoint_with_exit_2(tmp_path, 
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"group": "x", "result": {"norms": [], "judge_runs": [], "stats": {}}}) + "\n")
     assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)]) == 2
     assert "--resume" in capsys.readouterr().err and calls == []
+    _assert_no_record(tmp_path)  # B79 item 10: a refused run leaves no record and no alias
     assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out), "--resume"]) == 2
     assert "accept-legacy" in capsys.readouterr().err and calls == []
+    _assert_no_record(tmp_path)
     rc = cli.main(["--nodes", "eu-ai-act:article-9,x", "--dump", str(dump_path), "--out", str(out), "--resume",
                    "--accept-legacy-checkpoint"])
     assert rc == 0 and calls == ["eu-ai-act:article-9"], "the legacy group x is inherited, only article-9 runs"
     store = BuildRecordStore(tmp_path)
     ex = store.read(store.resolve("test"))["executions"][-1]
     assert ex["inherited_from"] == "legacy" and ex["inherited_keys"] == ["x"]
+
+
+def _assert_no_record(tmp_path):
+    assert BuildRecordStore(tmp_path).list_records() == []
+    aliases = tmp_path / "build_records" / "aliases.json"
+    assert not aliases.is_file() or "test" not in json.loads(aliases.read_text(encoding="utf-8"))
+
+
+def _first_execution(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    return store.read(store.resolve("test"))["executions"][0]
+
+
+def test_a_refusal_over_a_published_record_creates_no_descendant(tmp_path, monkeypatch, capsys):
+    """B79 item 10: the stale checkpoint is refused before the descendant is made."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    store = BuildRecordStore(tmp_path)
+    old = store.create_record("test", "build-b", None)
+    store.set_publication(old, PUBLISHED)
+    out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"group": "x", "result": {"norms": [], "judge_runs": [], "stats": {}}}) + "\n")
+    assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)]) == 2
+    assert "--resume" in capsys.readouterr().err and calls == []
+    assert [r["record_id"] for r in store.list_records()] == [old] and store.resolve("test") == old
+
+
+def test_a_client_that_fails_to_build_leaves_no_record(tmp_path, monkeypatch):
+    """B79 item 10: the record is created only after the model clients are built."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+
+    def no_client(cfg, **kw):
+        raise RuntimeError("the judge client could not be built")
+
+    monkeypatch.setattr(cli, "AnthropicJudge", no_client)
+    with pytest.raises(RuntimeError, match="could not be built"):
+        cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)])
+    assert calls == []
+    _assert_no_record(tmp_path)
 
 
 def test_extract_on_a_published_record_continues_as_descendant(tmp_path, monkeypatch, capsys):
@@ -217,7 +266,7 @@ def test_ctrl_c_ends_the_execution_failed_with_the_spend_so_far(tmp_path, monkey
     monkeypatch.setattr(cli, "extract_norms", interrupted)
     with pytest.raises(KeyboardInterrupt):
         cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)])
-    ex = BuildRecordStore(tmp_path).read(BuildRecordStore(tmp_path).resolve("test"))["executions"][0]
+    ex = _first_execution(tmp_path)
     assert ex["status"] == "failed" and ex["error"] == "KeyboardInterrupt: " and ex["ended_at"]
     assert ex["completed_keys"] == ["eu-ai-act:article-9"] and ex["usage"]["generator"]["calls"] == 2
     # review fix F2: the failed attempt records what the clients applied, not the start value
@@ -264,6 +313,7 @@ def test_extract_never_overwrites_an_artefact_a_published_build_names(tmp_path, 
     before = out.read_bytes()
     assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path)]) == 1
     assert "descendant" in capsys.readouterr().err and calls == [] and out.read_bytes() == before
+    assert [r["record_id"] for r in store.list_records()] == [rid], "B79 item 10: refused before the descendant is made"
 
 
 def test_a_long_group_keeps_the_execution_live(tmp_path, monkeypatch):
@@ -385,7 +435,7 @@ def test_a_sigterm_ends_the_extract_execution_failed_with_the_spend_so_far(tmp_p
     finally:
         restore()
     assert got == []
-    ex = BuildRecordStore(tmp_path).read(BuildRecordStore(tmp_path).resolve("test"))["executions"][0]
+    ex = _first_execution(tmp_path)
     assert ex["status"] == "failed" and "SIGTERM" in ex["error"] and ex["usage"]["generator"]["calls"] == 2
     assert ex["sampling"]["generator_effort"] == "xhigh"
 
