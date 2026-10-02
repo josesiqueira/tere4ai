@@ -7,7 +7,7 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ### B123: the Article 6(1) route resolved like an Article 5 path (2026-10-02)
 - `classify_ai_system` names an unknown `annex_i_covered_product` in
-  missing_facts on every exit but the rejected-input one, and an unknown
+  `missing_facts` on every exit but the rejected-input one, and an unknown
   `third_party_conformity_assessment_required` beside a true Annex I fact
   on the prohibited exit too. While the route is open the last exit gives
   uncertain instead of minimal_or_none (and the FRIA block unknown instead

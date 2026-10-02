@@ -673,17 +673,17 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   on an empty denominator (METRICS_VERSION metrics.v2).
 
 - DEC-18: the classification answer says "not known" for a prohibition it
-  cannot settle, and a high-risk answer keeps its Article 50 duties
-  (added 2026-10-01; extended 2026-10-02, B123; thesis tasks B36.1 and B36.2, brief
-  sdd/2026-10-01-B36-classifier-answer/brief.md in the private research
-  repository). Engineering MUST (no silent degradation, Section 13; the
-  same missing_facts discipline as DEC-13 and DEC-14); the rules mirror
-  the frozen source text (REF-01): Article 5(1) points (a) to (h) with
-  their statutory qualifiers, and Article 50(6), under which the transparency obligations "shall not
-  affect the requirements and obligations set out in Chapter III"; the
-  Omnibus points (ba) and (bb) are grounded in the amending source
-  (REF-02, DEC-12), cited as today through its SourceDocument with the
-  applies-from date as data.
+  cannot settle, and a high-risk answer keeps its Article 50 duties (added
+  2026-10-01; extended 2026-10-02, B123; thesis tasks B36.1 and B36.2,
+  brief sdd/2026-10-01-B36-classifier-answer/brief.md in the private
+  research repository). Engineering MUST (no silent degradation, Section
+  13; the same missing_facts discipline as DEC-13 and DEC-14); the rules
+  mirror the frozen source text (REF-01): Article 5(1) points (a) to (h)
+  with their statutory qualifiers, and Article 50(6), under which the
+  transparency obligations "shall not affect the requirements and
+  obligations set out in Chapter III"; the Omnibus points (ba) and (bb)
+  are grounded in the amending source (REF-02, DEC-12), cited as today
+  through its SourceDocument with the applies-from date as data.
   Defense: false and unknown do not mean the same thing, and a reader of
   `prohibited: false` beside an unresolved Article 5 fact is told
   something the rules never established. Each Article 5 path is resolved
@@ -701,25 +701,24 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   exception facts do not, because their definitions were wider than the
   Act's exceptions (Codex review of this decision, finding 2) and an
   answer of "no" must not rest on them, and points (e), (ba) and (bb)
-  have no exculpating fact. `prohibited` is true when a path is proven, null when
-  none is proven and any is unresolved, false only when every path is
-  ruled out; the rejected-input answer, where no rule ran, gives null.
-  The same resolution decides the existing status lowering and the
+  have no exculpating fact. `prohibited` is true when a path is proven,
+  null when none is proven and any is unresolved, false only when every
+  path is ruled out; the rejected-input answer, where no rule ran, gives
+  null. The same resolution decides the existing status lowering and the
   uncertain exit, so an answer never says false beside "unknown
-  prohibition-relevant flags". The Article 6(1) route is
-  resolved the same way (B123, 2026-10-02; spec G D-G59 in the private
-  research repository): proven when annex_i_covered_product and
-  third_party_conformity_assessment_required are both true, ruled out
-  when either is known false, open otherwise; an open route's unknown fact
-  is named in missing_facts on every exit but the rejected-input one (the
-  third-party assessment only once the product is known to be covered by
-  Annex I), turns the last exit to uncertain instead of minimal_or_none,
-  and lowers the Article 50 exit's status; a medical or safety component
-  with the Annex I fact unknown holds the answer at uncertain only while
-  the route is open. null rather than a string, so a client
-  that tests the field for truth reads unknown as "not known to be
-  prohibited", never as "prohibited"; a reader still shows null as
-  unknown, never as no.
+  prohibition-relevant flags". null rather than a string, so a client that
+  tests the field for truth reads unknown as "not known to be prohibited",
+  never as "prohibited"; a reader still shows null as unknown, never as
+  no. The Article 6(1) route is resolved the same way (B123, 2026-10-02;
+  spec G D-G59 in the private research repository): proven when
+  annex_i_covered_product and third_party_conformity_assessment_required
+  are both true, ruled out when either is known false, open otherwise; an
+  open route's unknown fact is named in missing_facts on every exit but
+  the rejected-input one (the third-party assessment only once the product
+  is known to be covered by Annex I), turns the last exit to uncertain
+  instead of minimal_or_none, and lowers the Article 50 exit's status; a
+  medical or safety component with the Annex I fact unknown holds the
+  answer at uncertain only while the route is open.
   "uncertain" is an assessment state (facts the rules need are missing),
   never a legal risk level. The answer carries `transparency_duties` on
   every exit: the Article 50 paragraph nodes whose trigger fact is true,
