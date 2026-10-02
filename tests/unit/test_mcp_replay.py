@@ -59,11 +59,12 @@ SCORES = {
     "judge_confidence": 0.9,
 }
 JUDGE_REPLY = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded."})
-# C3: the note says the repeated answer's usage counts are 0 (final review fix).
+# C3: the note names the zeroed usage counts only when the answer carries
+# usage (final review fix; today only the backlog's answer does).
 NOTE_RE = re.compile(
     r"^this answer repeats the answer to an identical call made at "
-    r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ); no new model call was made, so its usage "
-    r"counts are 0; the first call's usage is in the answer it returned$"
+    r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ); no new model call was made"
+    r"(, so its usage counts are 0; the first call's usage is in the answer it returned)?$"
 )
 
 
@@ -431,6 +432,28 @@ def test_a_repeated_answer_reports_zero_usage_and_the_first_keeps_its_own():
     assert third["answer"]["usage"] == usage, "the kept answer still holds the first counts"
     assert store._kept[next(iter(store._kept))].envelope["answer"]["usage"]["judge"][
         "output_tokens"] == 80
+
+
+def test_the_note_names_zeroed_usage_only_when_the_answer_carries_usage():
+    # C3: final review fix; an answer without usage (evidence, elicitation)
+    # gets the note without the usage clause.
+    store = replay.ReplayStore(window_seconds=600)
+
+    def plain():
+        return {"answer": {"verdict": "ok"}, "judge_verdict": "accepted", "legal_status_notes": []}
+
+    def run(tool, compute):
+        return store.run(tool=tool, arguments={"a": 1}, build="b",
+                         model_parameters_sha256="p", compute=compute)
+
+    run("evaluate_project_evidence", plain)
+    no_usage = [n for n in run("evaluate_project_evidence", plain)["legal_status_notes"]
+                if NOTE_RE.match(n)]
+    assert len(no_usage) == 1 and "usage" not in no_usage[0]
+    run("generate_control_backlog", _backlog_like_envelope)
+    with_usage = [n for n in run("generate_control_backlog", _backlog_like_envelope)[
+        "legal_status_notes"] if NOTE_RE.match(n)]
+    assert len(with_usage) == 1 and "so its usage counts are 0" in with_usage[0]
 
 
 def test_with_a_zero_window_an_identical_concurrent_call_does_not_wait():

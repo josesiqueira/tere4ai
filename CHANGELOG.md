@@ -47,10 +47,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   (not tested here). REF-31 and architecture.md Section 8 state the dual era
   and SKILL.md no longer names a revision.
 - Final review fixes. A repeated paid answer sets every usage count under
-  answer.usage (and under each batch result's answer.usage) to 0 and its
-  note now ends "no new model call was made, so its usage counts are 0;
-  the first call's usage is in the answer it returned", so a client that
-  adds up usage counts the first call once. A window of 0 turns the replay
+  answer.usage (and under each batch result's answer.usage) to 0, and when
+  the answer carries usage (today the backlog's) its note ends "no new
+  model call was made, so its usage counts are 0; the first call's usage is
+  in the answer it returned", so a client that adds up usage counts the
+  first call once. A window of 0 turns the replay
   off (no store, no wait for an identical running call). The window is
   aged by time.monotonic(); the UTC wall time only dates the note. The
   protocol tests assert the logging/setLevel refusal over HTTP too, write

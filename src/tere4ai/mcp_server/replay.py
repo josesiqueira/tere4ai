@@ -44,8 +44,9 @@ monotonic clock, so a change of the wall clock neither expires an answer
 nor keeps it longer; the wall clock only dates the note. An identical call
 inside the window gets a copy of it with one line appended to
 legal_status_notes: "this answer repeats the answer to an identical call
-made at <UTC time>; no new model call was made, so its usage counts are 0;
-the first call's usage is in the answer it returned", the time being the
+made at <UTC time>; no new model call was made", followed, when the
+answer carries usage counts, by ", so its usage counts are 0; the first
+call's usage is in the answer it returned", the time being the
 first call's completion in ISO 8601 to the second with a Z. In that copy
 every numeric count under answer.usage (and under each batch result's
 answer.usage) is 0, so a client that adds up usage counts the first call's
@@ -85,7 +86,11 @@ MAX_ENTRIES = 256
 LOCAL_CALLER = "local"
 NOTE = (
     "this answer repeats the answer to an identical call made at {time}; "
-    "no new model call was made, so its usage counts are 0; "
+    "no new model call was made"
+)
+# Appended only when the answer carries usage counts (today the backlog's).
+USAGE_CLAUSE = (
+    ", so its usage counts are 0; "
     "the first call's usage is in the answer it returned"
 )
 
@@ -181,18 +186,22 @@ def _zero_counts(usage: Any) -> Any:
     return usage
 
 
-def _zero_usage(answer: Any) -> None:
+def _zero_usage(answer: Any) -> bool:
     """Set the usage counts of an answer, and of each batch result's answer,
-    to 0 in place (backlog.py spend() puts them in answer.usage)."""
+    to 0 in place (backlog.py spend() puts them in answer.usage). True when
+    any usage was found, so the note names the zeroed counts only then."""
     if not isinstance(answer, dict):
-        return
+        return False
+    found = False
     if "usage" in answer:
         answer["usage"] = _zero_counts(answer["usage"])
+        found = True
     results = answer.get("results")
     if isinstance(results, list):
         for result in results:
             if isinstance(result, dict):
-                _zero_usage(result.get("answer"))
+                found = _zero_usage(result.get("answer")) or found
+    return found
 
 
 @dataclass(frozen=True)
@@ -300,9 +309,10 @@ class ReplayStore:
     @staticmethod
     def _repeat(tool: str, kept: _Kept) -> dict[str, Any]:
         envelope = copy.deepcopy(kept.envelope)
-        _zero_usage(envelope.get("answer"))
+        had_usage = _zero_usage(envelope.get("answer"))
         notes = list(envelope.get("legal_status_notes") or [])
-        notes.append(NOTE.format(time=_utc_second(kept.completed)))
+        note = NOTE.format(time=_utc_second(kept.completed))
+        notes.append(note + USAGE_CLAUSE if had_usage else note)
         envelope["legal_status_notes"] = notes
         _log.info("%s: identical call inside the replay window; no new model call", tool)
         return envelope
