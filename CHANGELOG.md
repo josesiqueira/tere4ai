@@ -5,6 +5,21 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B123: the Article 6(1) route resolved like an Article 5 path (2026-10-02)
+- `classify_ai_system` names an unknown `annex_i_covered_product` in
+  missing_facts on every exit but the rejected-input one, and an unknown
+  `third_party_conformity_assessment_required` beside a true Annex I fact
+  on the prohibited exit too. While the route is open the last exit gives
+  uncertain instead of minimal_or_none (and the FRIA block unknown instead
+  of does_not_apply), and the Article 50 exit is requires_human_review.
+  A third-party assessment known false rules the route out whatever the
+  Annex I fact is. Contract change: a fact set that left both facts out
+  and answered minimal_or_none, not_applicable now answers uncertain,
+  requires_human_review. On the 339 stored benchmark fact sets no level
+  or status changes; 318 answers gain the missing-fact line.
+- eval/gold/gold_seed.json: gold:cls-03 to cls-05 give both Article 6(1)
+  facts as false, as their scenarios intend; no gold answer changes.
+
 ### B102: review leftovers of B78 to B97 (2026-10-02)
 - `extract_norms` and `align_hleg` choose their build record without
   writing, refuse a live run, an overwrite or a stale checkpoint, build

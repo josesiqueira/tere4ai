@@ -674,7 +674,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 
 - DEC-18: the classification answer says "not known" for a prohibition it
   cannot settle, and a high-risk answer keeps its Article 50 duties
-  (added 2026-10-01; thesis tasks B36.1 and B36.2, brief
+  (added 2026-10-01; extended 2026-10-02, B123; thesis tasks B36.1 and B36.2, brief
   sdd/2026-10-01-B36-classifier-answer/brief.md in the private research
   repository). Engineering MUST (no silent degradation, Section 13; the
   same missing_facts discipline as DEC-13 and DEC-14); the rules mirror
@@ -706,7 +706,17 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   ruled out; the rejected-input answer, where no rule ran, gives null.
   The same resolution decides the existing status lowering and the
   uncertain exit, so an answer never says false beside "unknown
-  prohibition-relevant flags". null rather than a string, so a client
+  prohibition-relevant flags". The Article 6(1) route is
+  resolved the same way (B123, 2026-10-02; spec G D-G59 in the private
+  research repository): proven when annex_i_covered_product and
+  third_party_conformity_assessment_required are both true, ruled out
+  when either is known false, open otherwise; an open route's unknown fact
+  is named in missing_facts on every exit but the rejected-input one (the
+  third-party assessment only once the product is known to be covered by
+  Annex I), turns the last exit to uncertain instead of minimal_or_none,
+  and lowers the Article 50 exit's status; a medical or safety component
+  with the Annex I fact unknown holds the answer at uncertain only while
+  the route is open. null rather than a string, so a client
   that tests the field for truth reads unknown as "not known to be
   prohibited", never as "prohibited"; a reader still shows null as
   unknown, never as no.
@@ -748,8 +758,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   paragraph (50(4), 50(5)), so the requirements stay on the conservative
   side and the answer's list is the side triggered by known facts.
   verify: src/tere4ai/mcp_server/classify.py (per-path Article 5
-  resolution, transparency_duties); tests/unit/test_classify.py (the six
-  cases of the brief and the ruled-out-by-exculpating-fact cases);
+  resolution, _unresolved_article_6_1_facts, transparency_duties);
+  tests/unit/test_classify.py (the six cases of the brief, the
+  ruled-out-by-exculpating-fact cases and the B123 cases);
   CHANGELOG.md names the contract change.
 
 - DEC-19: every operator obligation or prohibition among the norms, and
