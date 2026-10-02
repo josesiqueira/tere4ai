@@ -14,6 +14,10 @@ Token model, stated plainly so nobody mistakes this for a measurement:
 - Input tokens are estimated as prompt characters / 4 (a standard rough
   heuristic; the true OpenAI and Anthropic tokenizers are not available
   offline). The report carries a +/-25 percent band.
+- The elicitation system prompt is the default prompt rendered over the
+  repository's dump (data/graph_dumps/layer1.json, spans verified against
+  data/snapshots), the text a live call sends (B10: v6 prints each
+  provision from the graph), not the template with its placeholders.
 - Output tokens come from observed run-2 answer lengths per strategy
   (eval/results/ablation_checkpoint.jsonl) and observed elicitation
   payloads (eval/gold/benchmark_features.json), same chars/4 mapping.
@@ -43,6 +47,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.elicit_features import render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
 from tere4ai.eval.harness import load_benchmark_items, run_eval  # noqa: E402
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
@@ -53,6 +58,8 @@ CHECKPOINT = ROOT / "eval" / "results" / "ablation_checkpoint.jsonl"
 RUNTIME_LOG = ROOT / "data" / "review_queue" / "runtime_log.jsonl"
 FEATURES = ROOT / "eval" / "gold" / "benchmark_features.json"
 ELICIT_PROMPT = ROOT / "prompts" / "elicit_features" / f"{DEFAULT_PROMPT_VERSION}.md"
+ELICIT_DUMP = ROOT / "data" / "graph_dumps" / "layer1.json"
+SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
 OUT_PATH = ROOT / "docs" / "benchmark_cost_estimate.md"
 
 CHARS_PER_TOKEN = 4.0
@@ -84,6 +91,14 @@ class CountingClient:
         self.calls += 1
         self.prompt_chars += len(system) + len(user)
         return self._reply
+
+
+def elicit_system_prompt() -> str:
+    """The default elicitation prompt rendered over the repository's dump,
+    as a live call sends it (B10); no model call."""
+    dump = json.loads(ELICIT_DUMP.read_text(encoding="utf-8"))
+    system, _ = render_prompt(dump, SNAPSHOTS_DIR, DEFAULT_PROMPT_VERSION)
+    return system
 
 
 def verify_full_benchmark() -> Path:
@@ -207,9 +222,9 @@ def main() -> int:
             )
 
     # Elicitation: one generator call per scenario (DEC-13); prompt is the
-    # elicitor system prompt plus the scenario free text, output size from
-    # the 32 observed elicitations.
-    elicit_system = len(ELICIT_PROMPT.read_text(encoding="utf-8"))
+    # elicitor system prompt rendered over the dump plus the scenario free
+    # text, output size from the 32 observed elicitations.
+    elicit_system = len(elicit_system_prompt())
     elicit_user = sum(len(i["system_text"]) for i in items if i["kind"] == "classification")
     feats = json.loads(FEATURES.read_text(encoding="utf-8"))["features_by_item"]
     elicit_out_mean = statistics.mean(len(json.dumps(v)) for v in feats.values())

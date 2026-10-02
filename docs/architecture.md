@@ -515,9 +515,16 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Defense: free-text inputs need facts extracted before rules can run; the
   elicitor emits only schema-valid facts with textual support, omits unknowns,
   and never outputs a risk category, so the deterministic ladder and its
-  missing_facts guard stay the sole decision path.
+  missing_facts guard stay the sole decision path. Since prompt v6 (B10,
+  2026-10-02) the textual support is checked by code: each fact, true or
+  false, keeps only with a quote of at least three words that is found in
+  the description (character identity after collapsing whitespace runs, no
+  case folding); any other fact is dropped and named (the answer's dropped list
+  and missing_facts), and the answer carries each kept fact's quote with its offsets. Code checks
+  that the words are there; a person judges whether they support the fact.
   verify: src/tere4ai/elicit_features/ never outputs a classification; flags
-  without textual support omitted; elicitation-vs-abstention measured in the
+  without textual support omitted; elicitor.elicit drops an unquoted fact
+  (tests/unit/test_elicit_features.py); elicitation-vs-abstention measured in the
   ablation artifacts (eval/results/FULL_RUN_ANALYSIS.md, docs/variance_study.md;
   earlier sweep in eval/results/RUN2_ANALYSIS.md).
 - DEC-14: FRIA applicability (Article 27(1)) decided by a deterministic rule,
@@ -713,7 +720,11 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   ("directly linked to a criminal activity"; labelling or filtering of
   lawfully acquired biometric datasets, or categorising of biometric data
   in the area of law enforcement), and the elicitor's prompt takes a new
-  version. risk_category
+  version (v5). Since v6 (B10, 2026-10-02) the prompt quotes no provision
+  by hand: each provision it shows is the node text of the build the call
+  is served on, read from the graph at call time after its source span is
+  verified against the frozen snapshot, and a provision that does not
+  resolve stops the call before any model call. risk_category
   keeps its values: transparency_only stays reserved for Article 50
   without high-risk. An absent Article 50 trigger fact is named in
   missing_facts on the high-risk and minimal exits without changing the

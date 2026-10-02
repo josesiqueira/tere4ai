@@ -13,20 +13,20 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | plain_llm | 476 | 92,144 | 44,847 | 0 | 0 | 0 |
 | vector_rag | 476 | 915,280 | 82,015 | 0 | 0 | 0 |
-| graph_no_judge | 137 | 167,561 | 20,283 | 0 | 0 | 0 |
-| graph_build_judge | 137 | 179,775 | 21,132 | 0 | 0 | 0 |
-| graph_full | 137 | 179,775 | 21,473 | 476 | 709,814 | 71,403 |
-| elicitation (DEC-13, once per scenario) | 339 | 210,602 | 56,629 | 0 | 0 | 0 |
+| graph_no_judge | 137 | 252,937 | 20,283 | 0 | 0 | 0 |
+| graph_build_judge | 137 | 265,151 | 21,132 | 0 | 0 | 0 |
+| graph_full | 137 | 265,151 | 21,473 | 476 | 753,839 | 75,765 |
+| elicitation (DEC-13, once per scenario) | 339 | 3,475,257 | 56,629 | 0 | 0 | 0 |
 
 ## Totals
 
-- Generator (gpt-5.2): 1,745,137 input + 246,379 output tokens
-  (band: 1,308,852 to 2,181,421 input).
-- Judge (claude-opus-4-8): 709,814 input + 71,403 output tokens.
+- Generator (gpt-5.2): 5,265,920 input + 246,379 output tokens
+  (band: 3,949,440 to 6,582,400 input).
+- Judge (claude-opus-4-8): 753,839 input + 75,765 output tokens.
 
 ## Cost
 
-- Judge cost at 5.00/25.00 USD per MTok (Anthropic pricing, cached 2026-06): **5.33 USD** (band 4.00 to 6.67).
+- Judge cost at 5.00/25.00 USD per MTok (Anthropic pricing, cached 2026-06): **5.66 USD** (band 4.25 to 7.08).
 - Generator (gpt-5.2) price is NOT recorded in this repo and is not
   invented here. Cost formula: gen_in/1e6 x P_in + gen_out/1e6 x P_out.
   Set TERE4AI_PRICE_GPT52_IN and TERE4AI_PRICE_GPT52_OUT (USD per

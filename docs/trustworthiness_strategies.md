@@ -66,10 +66,10 @@ merit, this document says so explicitly instead of inventing a citation.
 ### 2. Fact elicitation split from decision (DEC-13)
 - Grounding: REF-17 (PRE), REF-16 (PEER: extraction accuracy limits motivate
   keeping extraction away from the decision).
-- Implementation: src/tere4ai/elicit_features/elicitor.py:31-42 (_clean strips
-  any model-emitted risk field via schema allow-listing), :59-81 (retry then
+- Implementation: src/tere4ai/elicit_features/elicitor.py:77-88 (_clean strips
+  any model-emitted risk field via schema allow-listing), :260-300 (retry then
   honest None).
-- Tests: tests/unit/test_elicit_features.py:25, :41.
+- Tests: tests/unit/test_elicit_features.py:28, :44.
 - See it: elicited feature JSON never contains a risk category; classification
   always re-runs the deterministic ladder.
 

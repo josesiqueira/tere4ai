@@ -106,8 +106,8 @@ source span.
 
 ## The tools
 
-All eleven run over stdio from the offline dumps. Eight are free and
-deterministic; three make paid model calls and say so in their metadata.
+All twelve run over stdio from the offline dumps. Eight are free and
+deterministic; four make paid model calls and say so in their metadata.
 
 | Tool | What it does | Cost |
 |---|---|---|
@@ -121,6 +121,7 @@ deterministic; three make paid model calls and say so in their metadata.
 | `trace_implementation` | Which requirements the `@implements` tags in a codebase claim to cover, and which claims the server refuses | free |
 | `evaluate_project_evidence` (+ `_batch`) | Judge whether pasted project evidence satisfies a requirement | paid |
 | `generate_control_backlog` | Engineering controls for a set of requirements, judge-gated | paid |
+| `elicit_features` | Proposes the facts `classify_ai_system` reads from a plain-text system description, each with the words of the description it rests on, for a person to confirm; never a risk category | paid |
 
 Paid tools need `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` in `.env` (see
 `.env.example`). Without keys they return a `requires_human_review`
@@ -230,7 +231,8 @@ cd web && npm run build && npx next start -p 3111
 
 /api/classify and /api/requirements are deterministic and free.
 /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
-plus Anthropic runtime grounding judge; keys in .env, see .env.example) and
+plus Anthropic runtime grounding judge; keys in .env, see .env.example), and
+/api/elicit one PAID generator call (fact elicitation, no judge); all three
 mark their responses with the X-TERE4AI-Paid-Call header.
 
 ## Build records, materialisation, publication and activation
@@ -344,7 +346,12 @@ and, on a stop (exit 3) or a refusal naming the item (exit 5), keeps its
 checkpoint and prints the command whose rerun resumes it; a refused
 declared parameter exits 4. Its checkpoint entries and output name the
 declaration (`models`), and a rerun over entries of another declaration is
-refused (exit 2).
+refused (exit 2). Since B10 it elicits over the build `load_active` serves,
+and each entry also carries the quotes, the dropped facts and the prompt
+record (version, template and rendered hashes, provisions, build); the
+output names that prompt once beside `quotes_by_item` and
+`dropped_by_item`, and a rerun over entries of another prompt version,
+template or build is refused (exit 2) the same way.
 The sampler's three acts on one sheet run one at a time: each holds the
 lock file `<sheet>.lock` from its first read of the sheet to its record's
 finish, and a second act waits (one line on stderr), then reads what the
@@ -403,7 +410,7 @@ and docs/traceability.md, which is generated from code tags):
   Article 5 and Annex III nodes, never an LLM) and
   get_applicable_requirements; judged evaluate_project_evidence and
   generate_control_backlog gated by the runtime grounding judge; the
-  eleven tools on the MCP server; HTTP facade plus the /assess demo flow,
+  twelve tools on the MCP server; HTTP facade plus the /assess demo flow,
   the recorded-session /mcp-demo page and the agent replay.
 - M4: evaluation harness with the five-condition ablation ladder, Section 12
   metrics, a 10-item seed gold set, and the located REF-15 benchmark. Live

@@ -27,6 +27,21 @@ def test_elicitation_prompt_path_follows_the_default_prompt_version():
     assert est.ELICIT_PROMPT.exists()
 
 
+@pytest.mark.skipif(not est.ELICIT_DUMP.is_file(), reason="layer1.json dump not built")
+def test_the_elicitation_prompt_counted_is_the_rendered_one():
+    """B10: v6 carries provision placeholders; the estimator counts the
+    prompt rendered over the repository's dump (no model call), the size a
+    live call sends, not the template's."""
+    from tere4ai.elicit_features import render_prompt
+
+    dump = json.loads(est.ELICIT_DUMP.read_text(encoding="utf-8"))
+    system, _ = render_prompt(dump, ROOT / "data" / "snapshots")
+    counted = est.elicit_system_prompt()
+    assert counted == system
+    assert "{{provision:" not in counted
+    assert len(counted) > len(est.ELICIT_PROMPT.read_text(encoding="utf-8"))
+
+
 def test_counting_client_records_and_replies():
     client = est.CountingClient("gpt-5.2", {"answer_text": "x", "citations": []})
     reply = client.complete("system prompt", "user text")

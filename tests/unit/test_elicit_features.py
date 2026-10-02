@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tere4ai.elicit_features import elicit_features
+from tere4ai.elicit_features import elicit
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
 from tere4ai.extract_norms.model_clients import FakeClient
 
@@ -23,7 +23,9 @@ def test_valid_elicitation_passes_schema_and_keeps_description():
     fake = FakeClient({DESC[:30]: json.dumps(payload)})
     # B10: the default is v6, whose reply nests the facts under "features"
     # beside "quotes"; this test keeps v5's reply shape, so it names v5.
-    features, notes = elicit_features(DESC, fake, prompt_version="v5")
+    # B10: elicit_features (the wrapper) is gone; elicit() with v5 renders no
+    # provision, so the dump it is given is not read.
+    features = elicit(DESC, fake, dump={}, snapshots_dir=SNAPSHOTS_DIR, prompt_version="v5").features
     assert features is not None
     assert features["description"] == DESC, "original description always wins"
     assert features["flags"]["interacts_with_natural_persons"] is True
@@ -38,7 +40,8 @@ def test_unknown_fields_and_non_boolean_flags_stripped():
     }
     fake = FakeClient({DESC[:30]: json.dumps(payload)})
     # B10: v5's reply shape, so v5 is named (the default is v6).
-    features, _ = elicit_features(DESC, fake, prompt_version="v5")
+    # B10: elicit() replaces the deleted elicit_features wrapper.
+    features = elicit(DESC, fake, dump={}, snapshots_dir=SNAPSHOTS_DIR, prompt_version="v5").features
     assert features is not None
     assert "risk_category" not in features, "elicitor never outputs a classification"
     assert "invented_flag" not in features["flags"]
@@ -46,7 +49,7 @@ def test_unknown_fields_and_non_boolean_flags_stripped():
     assert features["flags"]["social_scoring"] is False
 
 
-def test_invalid_json_retries_then_none():
+def test_invalid_json_retries_then_none(dump):
     calls = []
 
     class Bad:
@@ -56,7 +59,9 @@ def test_invalid_json_retries_then_none():
             calls.append(1)
             return "not json at all"
 
-    features, notes = elicit_features(DESC, Bad())
+    # B10: elicit() over the repository's build replaces the deleted wrapper.
+    result = elicit(DESC, Bad(), dump=dump, snapshots_dir=SNAPSHOTS_DIR)
+    features, notes = result.features, result.notes
     assert features is None
     assert len(calls) == 2, "exactly one retry"
     assert any("failed" in n for n in notes)
@@ -121,13 +126,15 @@ def test_default_prompt_version_is_v6():
     """DEC-18: the elicitor and the facade share one default."""
     import inspect
 
-    from tere4ai.elicit_features.elicitor import elicit, elicit_features
+    from tere4ai.elicit_features.elicitor import elicit, render_prompt
     from tere4ai.mcp_server.elicit import elicit_envelope
 
     # B10: the default moves from v5 to v6, which quotes every flag's
     # provisions from the graph and asks for a quote per fact.
     assert DEFAULT_PROMPT_VERSION == "v6"
-    for function in (elicit, elicit_features, elicit_envelope):
+    # B10: the elicit_features wrapper is deleted (Task 5); render_prompt,
+    # which the benchmark script calls, shares the default.
+    for function in (elicit, render_prompt, elicit_envelope):
         signature = inspect.signature(function)
         assert signature.parameters["prompt_version"].default == "v6"
 
@@ -314,8 +321,8 @@ def test_v4_prompt_is_kept_unchanged_for_the_records_that_name_it():
 import copy  # noqa: E402
 import hashlib  # noqa: E402
 
-from tere4ai.elicit_features import Elicitation, elicit  # noqa: E402
-from tere4ai.elicit_features.provisions import PLACEHOLDER_RE  # noqa: E402
+from tere4ai.elicit_features import Elicitation  # noqa: E402
+from tere4ai.elicit_features.provisions import PLACEHOLDER_RE, ProvisionUnresolved  # noqa: E402
 
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
@@ -558,18 +565,46 @@ def test_v5_still_works_and_returns_no_quotes(dump):
     assert result.prompt["template_sha256"] == hashlib.sha256(v5).hexdigest()
 
 
-def test_wrapper_without_a_dump_serves_the_repositorys_build():
-    """Until Tasks 4 and 5 move the callers, elicit_features keeps its
-    signature; without dump and snapshots_dir it renders over the build
-    load_active serves from data/graph_dumps."""
+def test_the_served_build_renders_v6_and_names_dropped_facts():
+    """B10: was the elicit_features wrapper's test; the wrapper is deleted
+    (Task 5) and its callers serve the build load_active reads from
+    data/graph_dumps, so elicit() is run over that build here."""
     if not DUMP_PATH.is_file():
         pytest.skip("layer1.json dump not built")
+    from tere4ai.graph_store.publication import load_active
+
     gen = Scripted(
         {"features": {"flags": {"interacts_with_natural_persons": True,
                                 "social_scoring": False}},
          "quotes": {"flags.interacts_with_natural_persons": "A chatbot on our bank's website"}},
     )
-    features, notes = elicit_features(BANK, gen)
-    assert features["flags"] == {"interacts_with_natural_persons": True}
-    assert "flags.social_scoring dropped: no quote" in notes
+    # B10: the dropped fact is in result.dropped, no longer folded into the notes
+    result = elicit(BANK, gen, dump=load_active(ROOT / "data" / "graph_dumps").dump,
+                    snapshots_dir=SNAPSHOTS_DIR)
+    assert result.features["flags"] == {"interacts_with_natural_persons": True}
+    assert {"path": "flags.social_scoring", "reason": "no quote"} in result.dropped
     assert "{{provision:" not in gen.systems[0]
+
+
+def test_render_prompt_is_the_system_prompt_elicit_sends_and_its_record(dump):
+    """B10: the benchmark script records the prompt once per run with
+    render_prompt; it is the prompt and record elicit() uses."""
+    from tere4ai.elicit_features.elicitor import render_prompt
+
+    system, prompt = render_prompt(dump, SNAPSHOTS_DIR)
+    result, gen = _run(
+        {"features": {"flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": "A chatbot on our bank's website"}},
+        dump,
+    )
+    assert gen.systems == [system]
+    assert prompt == result.prompt
+    assert prompt["version"] == "v6" and prompt["graph_version"] == dump["build"]["build_id"]
+
+
+def test_render_prompt_raises_when_a_provision_does_not_resolve(dump):
+    from tere4ai.elicit_features.elicitor import render_prompt
+
+    broken = {**dump, "nodes": [n for n in dump["nodes"] if n["id"] != "eu-ai-act:definition:profiling"]}
+    with pytest.raises(ProvisionUnresolved, match="eu-ai-act:definition:profiling"):
+        render_prompt(broken, SNAPSHOTS_DIR)

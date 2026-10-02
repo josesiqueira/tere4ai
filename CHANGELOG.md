@@ -62,6 +62,30 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   `elicit_paid` (ruling R11) in SCOPES, TOOL_SCOPES and the key manager;
   docs/PHASE2_DESIGN.md Section 3 (six scopes), SKILL.md's tool list and the
   server instructions name the tool.
+- `scripts/elicit_benchmark_features.py` elicits with `elicit` over the build
+  `load_active` serves and renders the prompt once before the first item
+  (new `render_prompt`, the prompt and record `elicit` uses; a build that does
+  not load or a provision that does not resolve exits 2 before any client is
+  built). Each checkpoint entry gains "quotes", "dropped" and "prompt"; the
+  output gains "prompt" (one record: prompt, version, template and rendered
+  hashes, provisions, build), "quotes_by_item" and "dropped_by_item" beside
+  the unchanged "features_by_item" and "prompt_version". A rerun over entries
+  of another prompt version, template, rendered prompt or build (or entries
+  without a prompt record) is refused with exit 2, as one under other models
+  is. The `elicit_features` wrapper is deleted: its last callers were this
+  script and four tests, which now call `elicit`. `scripts/run_ablations.py`
+  names the elicitor's prompt in the E6 record's prompt_versions
+  (`"elicit_features": {"version", "template_sha256"}`, from the facts file's
+  "prompt"; a facts file from before B10 gives its prompt_version and a null
+  hash) when it reads the facts file, beside each strategy's models.
+  `scripts/estimate_benchmark_cost.py` counts the default prompt rendered over
+  data/graph_dumps/layer1.json (no model call); docs/benchmark_cost_estimate.md
+  is regenerated (the rendered v6 prompt is about 40,700 characters against
+  v5's 14,200, so the elicitation row rises from 210,602 to 3,475,257 input
+  tokens). docs/architecture.md DEC-13 and DEC-18 say that the provisions are
+  read from the graph at call time and each fact needs its quote; README lists
+  `elicit_features` among the paid tools and /api/elicit among the paid
+  endpoints.
 
 ### Every operator obligation and every generated control carries its requirement type (B65, B4, DEC-19)
 - Contract change: norms.schema.json gains `requirement_type` (functional,

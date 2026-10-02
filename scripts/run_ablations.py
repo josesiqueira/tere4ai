@@ -231,6 +231,18 @@ def load_items(benchmark_path=None, features_path=None) -> list[dict]:
     return items
 
 
+def elicitor_prompt(features_path: Path) -> dict[str, Any]:
+    """The elicitor's prompt the facts file names, for the record's
+    prompt_versions (B10): its version and template hash from the file's
+    "prompt" record (scripts/elicit_benchmark_features.py); a file written
+    before B10 names only prompt_version, so its template hash is None."""
+    cache = json.loads(features_path.read_text(encoding="utf-8"))
+    prompt = cache.get("prompt")
+    if isinstance(prompt, dict):
+        return {"version": prompt.get("version"), "template_sha256": prompt.get("template_sha256")}
+    return {"version": cache.get("prompt_version"), "template_sha256": None}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--benchmark", type=Path, default=None,
@@ -315,6 +327,7 @@ def main(argv: list[str] | None = None) -> int:
 
     store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
     record_id = None
+    elicitor_versions: dict[str, Any] = {}
     if store is not None:
         if args.repeat_of is not None:
             try:
@@ -332,6 +345,8 @@ def main(argv: list[str] | None = None) -> int:
         # the cache is optional to load_items: recorded only when it was read (G7)
         if features_path.is_file():
             inputs.append(file_ref("features", features_path))
+            # B10: the record names the elicitor's prompt beside the strategies' models
+            elicitor_versions = {"elicit_features": elicitor_prompt(features_path)}
         else:
             notes.append("no elicited-features cache was read")
         if done:
@@ -343,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
             inputs=inputs,
             build={"base_build_id": str(base_build_id) if base_build_id is not None else None,
                    "publication": publication, "publication_reason": publication_reason},
-            models=config, prompt_versions=None, config={
+            models=config, prompt_versions=elicitor_versions or None, config={
                 "strategies": list(strategies.STRATEGY_NAMES), "batch_size": BATCH_SIZE,
                 "metrics_version": METRICS_VERSION, "code_version": code_version(ROOT), "mode": "live"},
             item_selection=[i["id"] for i in items], intended_items=[i["id"] for i in items],
@@ -604,7 +619,7 @@ def main(argv: list[str] | None = None) -> int:
             store.finish(
                 record_id, status="completed" if len(completed) == len(items) else "partial",
                 completed_items=completed, outputs=outputs, usage=_own_usage(generator, judge),
-                prompt_versions=models_now,
+                prompt_versions={**models_now, **elicitor_versions},
                 prompt_sha256=harness.runtime_judge_prompt_sha256(models_now),
                 sampling=declared_sampling(generator, judge),
                 counts={"items_total": len(items), "units_without_usage": units_without_usage,
@@ -631,7 +646,8 @@ def main(argv: list[str] | None = None) -> int:
                              notes=notes + _resumed_only_notes(built, ran, resumes, bool(done)),
                              completed_items=completed, usage=_own_usage(generator, judge),
                              sampling=declared_sampling(generator, judge) if generator is not None else None,
-                             counts={"units_run": units_run}, prompt_versions=models_now,
+                             counts={"units_run": units_run},
+                             prompt_versions={**(models_now or {}), **elicitor_versions} or None,
                              prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
             except EvaluationRecordError:
                 pass  # the record already ended inside the try; the original error is what matters

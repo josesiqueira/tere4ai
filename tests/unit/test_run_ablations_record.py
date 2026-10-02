@@ -126,7 +126,9 @@ def test_a_completed_run_writes_a_record_with_inputs_outputs_usage_and_copies(ru
                                "generator_effort": "unknown", "judge_effort": "unknown",
                                "generator_json_mode": "unknown"}
     assert rec["usage"]["generator"]["calls"] == 2 and rec["config"]["metrics_version"] == "metrics.v2"
-    assert rec["prompt_versions"] == {"plain_llm": {"generator": "g", "judge": "j", "judge_prompt_version": "v1"}}
+    # B10: the run reads the repository's facts file, so prompt_versions also
+    # names the elicitor's prompt (its own test below); the strategy's entry is unchanged
+    assert rec["prompt_versions"]["plain_llm"] == {"generator": "g", "judge": "j", "judge_prompt_version": "v1"}
     assert rec["config"]["mode"] == "live" and rec["config"]["strategies"] == ["plain_llm"]
     roles = {o["role"]: o for o in rec["outputs"]}
     assert set(roles) == {"summary", "checkpoint"}
@@ -447,6 +449,62 @@ def test_the_features_cache_is_recorded_only_when_the_run_read_one(runner, tmp_p
     features = [i for i in rec2["inputs"] if i["role"] == "features"]
     assert len(features) == 1 and features[0]["file"] == "benchmark_features.json"
     assert "no elicited-features cache was read" not in rec2["notes"]
+
+
+def _facts(tmp_path, **header):
+    path = tmp_path / "facts.json"
+    path.write_text(json.dumps({"provenance": "llm_elicited", **header,
+                                "features_by_item": {"bench:1": {"flags": {}}}}))
+    return path
+
+
+ELICITOR_PROMPT = {"prompt": "elicit_features", "version": "v6", "template_sha256": "a" * 64,
+                   "rendered_sha256": "b" * 64, "provisions": ["eu-ai-act:definition:profiling"],
+                   "graph_version": "build-b"}
+
+
+def test_the_record_names_the_elicitors_prompt_from_the_facts_file(runner, tmp_path):
+    """B10: the E6 record's prompt_versions names the elicitor's prompt
+    (version and template hash) from the facts file it read, beside each
+    strategy's models."""
+    facts = _facts(tmp_path, prompt_version="v6", prompt=ELICITOR_PROMPT)
+    assert runner.main(_argv(tmp_path, "--features", str(facts))) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["prompt_versions"] == {
+        "plain_llm": {"generator": "g", "judge": "j", "judge_prompt_version": "v1"},
+        "elicit_features": {"version": "v6", "template_sha256": "a" * 64},
+    }
+
+
+def test_a_stopped_run_keeps_the_elicitors_prompt_in_its_record(runner, tmp_path):
+    """B10: the entry is written when the run begins, so a partial record names it too."""
+    runner._TEST_CALLS["unavailable_on"] = "gold:cls-02"
+    facts = _facts(tmp_path, prompt_version="v6", prompt=ELICITOR_PROMPT)
+    assert runner.main(_argv(tmp_path, "--features", str(facts))) == 3
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == "partial"
+    assert rec["prompt_versions"]["elicit_features"] == {"version": "v6", "template_sha256": "a" * 64}
+
+
+def test_a_facts_file_from_before_b10_names_its_version_and_no_template_hash(runner, tmp_path):
+    facts = _facts(tmp_path, prompt_version="v1")
+    assert runner.main(_argv(tmp_path, "--features", str(facts))) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["prompt_versions"]["elicit_features"] == {"version": "v1", "template_sha256": None}
+
+
+def test_without_a_facts_file_the_record_names_no_elicitor_prompt(runner, tmp_path):
+    assert runner.main(_argv(tmp_path, "--features", str(tmp_path / "no_such_features.json"))) == 0
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert "elicit_features" not in rec["prompt_versions"]
+
+
+def test_a_run_that_fails_before_any_strategy_keeps_prompt_versions_none_without_a_facts_file(runner, tmp_path):
+    runner._TEST_CALLS["raise"] = True
+    with pytest.raises(RuntimeError):
+        runner.main(_argv(tmp_path, "--features", str(tmp_path / "no_such_features.json")))
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == "failed" and rec["prompt_versions"] is None
 
 
 def test_the_summary_sums_the_two_counts_and_drops_them_when_a_unit_lacks_them(runner, tmp_path):

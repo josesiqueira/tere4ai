@@ -190,6 +190,43 @@ def _parse_quoted(
     return candidate["features"], candidate["quotes"], None
 
 
+def _template(prompt_version: str, dump: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """The template text and its record before rendering (rendered_sha256
+    None, provisions empty). The hash is of the file's bytes, the text those
+    bytes decoded, so the two are the same bytes."""
+    template_bytes = PROMPT_PATH.with_name(f"{prompt_version}.md").read_bytes()
+    build = dump.get("build") if isinstance(dump, dict) else None
+    graph_version = (
+        str(build["build_id"]) if isinstance(build, dict) and build.get("build_id") else None
+    )
+    return template_bytes.decode("utf-8"), {
+        "prompt": PROMPT_NAME,
+        "version": prompt_version,
+        "template_sha256": hashlib.sha256(template_bytes).hexdigest(),
+        "rendered_sha256": None,
+        "provisions": [],
+        "graph_version": graph_version,
+    }
+
+
+def render_prompt(
+    dump: dict[str, Any],
+    snapshots_dir: Path | str,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+) -> tuple[str, dict[str, Any]]:
+    """The system prompt a call over this build sends, and its record
+    {"prompt", "version", "template_sha256", "rendered_sha256",
+    "provisions", "graph_version"}. Makes no model call; raises
+    ProvisionUnresolved when a provision does not resolve. elicit() uses it,
+    and scripts/elicit_benchmark_features.py records a run's prompt with it
+    once before the first item."""
+    template, prompt = _template(prompt_version, dump)
+    system, provisions = render_template(template, dump, snapshots_dir)
+    prompt["rendered_sha256"] = prompt_sha256(system)
+    prompt["provisions"] = [p["node_id"] for p in provisions]
+    return system, prompt
+
+
 def elicit(
     description: str,
     generator: Any,
@@ -205,23 +242,10 @@ def elicit(
     empty. A template with placeholders is rendered from the dump first;
     ProvisionUnresolved returns features None with no generator call.
     """
-    template_bytes = PROMPT_PATH.with_name(f"{prompt_version}.md").read_bytes()
-    template = template_bytes.decode("utf-8")
-    build = dump.get("build") if isinstance(dump, dict) else None
-    graph_version = (
-        str(build["build_id"]) if isinstance(build, dict) and build.get("build_id") else None
-    )
-    prompt: dict[str, Any] = {
-        "prompt": PROMPT_NAME,
-        "version": prompt_version,
-        "template_sha256": hashlib.sha256(template_bytes).hexdigest(),
-        "rendered_sha256": None,
-        "provisions": [],
-        "graph_version": graph_version,
-    }
+    template, unrendered = _template(prompt_version, dump)
     quoted = PLACEHOLDER_RE.search(template) is not None
     try:
-        system, provisions = render_template(template, dump, snapshots_dir)
+        system, prompt = render_prompt(dump, snapshots_dir, prompt_version)
     except ProvisionUnresolved as exc:
         return Elicitation(
             features=None,
@@ -229,10 +253,8 @@ def elicit(
                 f"definition {exc.node_id} does not resolve in {exc.build}: "
                 f"{exc.reason}; no model call made"
             ],
-            prompt=prompt,
+            prompt=unrendered,
         )
-    prompt["rendered_sha256"] = prompt_sha256(system)
-    prompt["provisions"] = [p["node_id"] for p in provisions]
     notes: list[str] = []
 
     for attempt in (1, 2):
@@ -276,38 +298,6 @@ def elicit(
 
     notes.append("elicitation failed; caller must keep the abstention path")
     return Elicitation(features=None, notes=notes, prompt=prompt)
-
-
-def elicit_features(
-    description: str,
-    generator: Any,
-    prompt_version: str = DEFAULT_PROMPT_VERSION,
-    *,
-    dump: dict[str, Any] | None = None,
-    snapshots_dir: Path | str | None = None,
-) -> tuple[dict[str, Any] | None, list[str]]:
-    """Return (schema-valid system_features, notes) or (None, notes).
-
-    Kept for the caller that still uses it,
-    scripts/elicit_benchmark_features.py, until B10 Task 5 moves it to
-    elicit(); the facade and the MCP tool call elicit() since Task 4. Without dump and snapshots_dir it serves the build that
-    load_active reads from data/graph_dumps and the snapshots in
-    data/snapshots. Each dropped fact is named in the notes, since this
-    return has no place for quotes or dropped.
-    """
-    if dump is None:
-        from tere4ai.graph_store.publication import load_active
-
-        dump = load_active(DUMP_DIR).dump or {}
-    result = elicit(
-        description,
-        generator,
-        dump=dump,
-        snapshots_dir=SNAPSHOTS_DIR if snapshots_dir is None else snapshots_dir,
-        prompt_version=prompt_version,
-    )
-    dropped = [f"{d['path']} dropped: {d['reason']}" for d in result.dropped]
-    return result.features, [*result.notes, *dropped]
 
 
 def schema_flag_names() -> list[str]:
