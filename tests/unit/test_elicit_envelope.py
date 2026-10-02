@@ -17,7 +17,7 @@ import pytest
 from tere4ai.elicit_features.elicitor import schema_flag_names
 from tere4ai.elicit_features.provisions import PLACEHOLDER_RE
 from tere4ai.graph_store.publication import LoadedBuild
-from tere4ai.mcp_server import server
+from tere4ai.mcp_server import replay, server
 from tere4ai.mcp_server.elicit import MIN_DESCRIPTION_CHARS, elicit_envelope
 from tere4ai.mcp_server.tools import NON_LEGAL_ADVICE_NOTICE, SECTION_8_ENVELOPE_FIELDS
 
@@ -175,9 +175,12 @@ def mcp_server(monkeypatch, dump):
 
         def clients():
             built.append(generator)
-            return generator, None
+            # C3: the paid clients carry the model parameters hash, which
+            # keys the replay window; a fresh window keeps tests apart.
+            return server.PaidClients(generator, None, "mock-parameters")
 
         monkeypatch.setattr(server, "_paid_clients_or_envelope", clients)
+        monkeypatch.setattr(server, "_REPLAY", replay.ReplayStore(window_seconds=600))
         return built
 
     return install

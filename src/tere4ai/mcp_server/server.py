@@ -13,7 +13,9 @@ generate_control_backlog perform PAID model calls (OpenAI generator plus
 Anthropic runtime grounding judge), and elicit_features one PAID generator
 call (fact elicitation, no judge); their descriptions say so, and a missing
 model configuration surfaces as a clean degraded envelope, never a
-traceback.
+traceback. The four run their model part through replay.py: an identical
+call inside the replay window (TERE4AI_MCP_REPLAY_WINDOW_SECONDS, default
+600) returns the first answer with a note and pays nothing (C3 ruling R3).
 
 Transport: stdio by default (Mode B, architecture.md Section 9). The
 streamable HTTP transport for remote consumers sits behind an explicit
@@ -34,7 +36,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import mcp.types as mcp_types
 from fastmcp import FastMCP
@@ -54,9 +56,9 @@ from tere4ai.mcp_server import classify as classify_rules
 from tere4ai.mcp_server import elicit as elicit_rules
 from tere4ai.mcp_server import evidence as evidence_rules
 from tere4ai.mcp_server import explain as explain_rules
+from tere4ai.mcp_server import replay, tools
 from tere4ai.mcp_server import requirements as requirements_rules
 from tere4ai.mcp_server import spans as spans_rules
-from tere4ai.mcp_server import tools
 from tere4ai.mcp_server import trace as trace_rules
 from tere4ai.mcp_server import trace_code as trace_code_rules
 
@@ -272,13 +274,28 @@ def _norm_by_id(norms_payload: dict[str, Any], norm_id: str) -> dict[str, Any] |
     )
 
 
-def _paid_clients_or_envelope() -> tuple[Any, Any] | dict[str, Any]:
+class PaidClients(NamedTuple):
+    generator: Any
+    judge: Any
+    # load_model_config's public dict names it; part of the replay key.
+    model_parameters_sha256: str
+
+
+# The paid tools' replay window (replay.py, C3 ruling R3): one per process.
+_REPLAY = replay.ReplayStore()
+
+
+def _paid_clients_or_envelope() -> PaidClients | dict[str, Any]:
     """Real generator and judge, or a clean degraded envelope on config error."""
     try:
         from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
 
         cfg = load_model_config()
-        return OpenAIGenerator(cfg), AnthropicJudge(cfg)
+        return PaidClients(
+            OpenAIGenerator(cfg),
+            AnthropicJudge(cfg),
+            cfg.as_public_dict()["model_parameters_sha256"],
+        )
     except ModelConfigError as exc:
         return tools.make_envelope(
             answer=None,
@@ -543,13 +560,23 @@ def evaluate_project_evidence(
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
-    generator, judge = clients
-    return evidence_rules.evaluate_project_evidence(
-        norm,
-        {"artifact_type": artifact_type, "content": content, "artifact_id": artifact_id},
-        generator,
-        judge,
-        graph_version=_graph_version(dump),
+    return _REPLAY.run(
+        tool="evaluate_project_evidence",
+        arguments={
+            "norm_id": norm_id,
+            "artifact_type": artifact_type,
+            "content": content,
+            "artifact_id": artifact_id,
+        },
+        build=_graph_version(dump),
+        model_parameters_sha256=clients.model_parameters_sha256,
+        compute=lambda: evidence_rules.evaluate_project_evidence(
+            norm,
+            {"artifact_type": artifact_type, "content": content, "artifact_id": artifact_id},
+            clients.generator,
+            clients.judge,
+            graph_version=_graph_version(dump),
+        ),
     )
 
 
@@ -610,13 +637,23 @@ def evaluate_project_evidence_batch(
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
-    generator, judge = clients
-    return evidence_rules.evaluate_evidence_batch(
-        norms,
-        {"artifact_type": artifact_type, "content": content, "artifact_id": artifact_id},
-        generator,
-        judge,
-        graph_version=_graph_version(dump),
+    return _REPLAY.run(
+        tool="evaluate_project_evidence_batch",
+        arguments={
+            "article_node_id": article_node_id,
+            "artifact_type": artifact_type,
+            "content": content,
+            "artifact_id": artifact_id,
+        },
+        build=_graph_version(dump),
+        model_parameters_sha256=clients.model_parameters_sha256,
+        compute=lambda: evidence_rules.evaluate_evidence_batch(
+            norms,
+            {"artifact_type": artifact_type, "content": content, "artifact_id": artifact_id},
+            clients.generator,
+            clients.judge,
+            graph_version=_graph_version(dump),
+        ),
     )
 
 
@@ -681,13 +718,18 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
-    generator, judge = clients
-    return backlog_rules.generate_control_backlog(
-        norms,
-        system_context,
-        generator,
-        judge,
-        graph_version=_graph_version(dump),
+    return _REPLAY.run(
+        tool="generate_control_backlog",
+        arguments={"norm_ids": norm_ids, "system_context": system_context},
+        build=_graph_version(dump),
+        model_parameters_sha256=clients.model_parameters_sha256,
+        compute=lambda: backlog_rules.generate_control_backlog(
+            norms,
+            system_context,
+            clients.generator,
+            clients.judge,
+            graph_version=_graph_version(dump),
+        ),
     )
 
 
@@ -735,9 +777,14 @@ def elicit_features(description: str) -> dict[str, Any]:
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
-    generator, _judge = clients
-    return elicit_rules.elicit_envelope(
-        description, generator, dump=dump, snapshots_dir=SNAPSHOTS_DIR
+    return _REPLAY.run(
+        tool="elicit_features",
+        arguments={"description": description},
+        build=_graph_version(dump),
+        model_parameters_sha256=clients.model_parameters_sha256,
+        compute=lambda: elicit_rules.elicit_envelope(
+            description, clients.generator, dump=dump, snapshots_dir=SNAPSHOTS_DIR
+        ),
     )
 
 
@@ -785,6 +832,12 @@ def main() -> None:
     (the MCP spec's remote transport, REF-31). Anything other than stdio or
     http fails loudly rather than silently serving the wrong surface.
     """
+    try:
+        # A replay window the paid tools cannot use stops the start, not the
+        # first paid call (C3 ruling R3).
+        replay.window_seconds()
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
     _check_dump_integrity_at_startup()
     transport = os.environ.get("TERE4AI_MCP_TRANSPORT", "stdio").strip().lower()
     require_key = transport in ("http", "streamable-http") or os.environ.get(

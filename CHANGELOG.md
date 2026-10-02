@@ -20,6 +20,25 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   tools/list serves every scoped tool alphabetically, coverage_report
   answers, the initialize and server/discover results carry no logging
   capability; a source scan finds no MCP log call in src.
+- The four paid tools (evaluate_project_evidence,
+  evaluate_project_evidence_batch, generate_control_backlog,
+  elicit_features) are not paid twice for an identical call (new
+  src/tere4ai/mcp_server/replay.py, C3 ruling R3). The key is the SHA-256
+  of the caller (the key id the key middleware verified, else "local"),
+  the tool, the arguments as canonical JSON, the served build id and the
+  model parameters hash. An answer the models produced is kept in process
+  memory for TERE4AI_MCP_REPLAY_WINDOW_SECONDS (default 600; 0 keeps
+  nothing; an unusable value stops the server at start); an identical
+  call inside the window, or one made while the first is running, gets
+  that answer with the note "this answer repeats the answer to an
+  identical call made at <UTC time>; no new model call was made" in
+  legal_status_notes. Refusals before the model call, degraded answers
+  (refused, judge not run or judge error, an elicitation without an
+  answer, a batch with such a norm) and exceptions are never kept, so a
+  retry after a failure pays again. At most 256 answers, oldest dropped,
+  per process. `_paid_clients_or_envelope` now returns `PaidClients`
+  (generator, judge, model_parameters_sha256), and ScopedKeyMiddleware
+  sets the caller for the call. New tests/unit/test_mcp_replay.py.
 
 ### The elicitor quotes the Act from the graph and the description for every fact, and is an MCP tool (B10, DEC-13, DEC-18)
 - New module `tere4ai.elicit_features.provisions`: a prompt template names

@@ -34,6 +34,8 @@ from typing import Any
 from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware import Middleware
 
+from tere4ai.mcp_server.replay import CALLER
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_KEYS_PATH = _PROJECT_ROOT / "data" / "keys" / "mcp_keys.json"
 DEFAULT_USAGE_PATH = _PROJECT_ROOT / "data" / "keys" / "mcp_usage.jsonl"
@@ -220,4 +222,11 @@ class ScopedKeyMiddleware(Middleware):
             raise ToolError("authentication required: pass a t4a_ key as a Bearer token")
         if not allowed:
             raise ToolError(f"key lacks the {scope!r} scope required by {tool}")
-        return await call_next(context)
+        # The paid tools' replay window keys a call by its caller (C3 ruling
+        # R3): the key id, never the raw key. fastmcp copies the context into
+        # the worker thread a synchronous tool runs in.
+        token = CALLER.set(record["key_id"])
+        try:
+            return await call_next(context)
+        finally:
+            CALLER.reset(token)
