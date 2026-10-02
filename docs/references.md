@@ -596,6 +596,106 @@ intelligence), 23.6.2025. VERIFIED 2026-10-01. SUPPORTING. Grounds: the AI
 Act's standardisation request separates "requirements applicable to
 high-risk AI systems" from "process requirements" (Annex II, section 1, p. 4).
 
+**[ADD-59]** PEER. "Inter-Coder Agreement for Computational Linguistics",
+Artstein, Poesio, Computational Linguistics 34(4):555-596, 2008, DOI
+10.1162/coli.07-034-R2 (960 citations on Crossref, 2026-10-02). VERIFIED
+2026-10-02. CORE. Grounds: observed agreement "on its own it does not yield
+values that can be compared across studies" (p. 558), so the annotation
+design's "agreed" is labelled raw agreement and never read against kappa
+thresholds (spec G D-G40); unit identification as its own reliability
+question (p. 582).
+
+**[ADD-60]** PEER. "Inter-annotator Agreement for ERE annotation", Kulick,
+Bies, Mott, Proceedings of the 2nd Workshop on EVENTS, ACL 2014, pp. 21-25,
+DOI 10.3115/v1/W14-2904 (workshop paper describing a design, no results).
+VERIFIED 2026-10-02. SUPPORTING. Grounds: a mapping between mentions "as the
+basis for all further evaluation" (p. 22) and an all-components exact match
+beside partial mismatch categories (p. 24), the pattern of D-G40.
+
+**[ADD-61]** PEER. "The Unified and Holistic Method Gamma (γ) for
+Inter-Annotator Agreement Measure and Alignment", Mathet, Widlöcher,
+Métivier, Computational Linguistics 41(3):437-479, 2015, DOI
+10.1162/COLI_a_00227. VERIFIED 2026-10-02. CORE. Grounds: the objection that
+"measuring and aligning cannot constitute two successive stages" (p. 448,
+p. 473), named in D-G40 with its scope (units on a continuum, p. 473) and
+kept against by Jose's choice of 2026-09-28.
+
+**[ADD-62]** PEER. "An automated framework for the extraction of semantic
+legal metadata from legal texts", Sleimi, Sannier, Sabetzadeh, Briand, Ceci,
+Dann, Empirical Software Engineering 26(3), article 43, 2021, DOI
+10.1007/s10664-020-09933-5 (the journal extension of ADD-13). Cite the
+published version only, never arXiv 2001.11245. VERIFIED 2026-10-02. CORE.
+Grounds: inter-annotator agreement counted only "when both annotators
+assigned the same metadata type to the same span of text" (p. 16), and a
+second annotator on 10% of the statements (p. 30).
+
+**[ADD-63]** PEER. "Learning from Disagreement: A Survey", Uma, Fornaciari,
+Hovy, Paun, Plank, Poesio, Journal of Artificial Intelligence Research
+72:1385-1470, 2021, DOI 10.1613/jair.1.12752 (open access; 102 citations on
+Crossref, 2026-10-02). VERIFIED 2026-10-02. CORE. Grounds: training directly
+with soft labels beat aggregated or gold labels on substantial datasets with
+many high-quality judgments (p. 1385), the reason the full distribution of
+Layer 3 verdicts is kept beside the adjudicated reference (spec G Section 6,
+L3-3).
+
+**[ADD-64]** PEER. "Anchoring and Agreement in Syntactic Annotations",
+Berzak, Huang, Barbu, Korhonen, Katz, Proceedings of EMNLP 2016, pp.
+2215-2224, DOI 10.18653/v1/D16-1239. VERIFIED 2026-10-02. CORE. Grounds: a
+"clear anchoring effect" when annotators edit parser output, with
+"overestimation of parsing performance" (p. 2215), the reason for the blind
+subset (spec G Section 6 step 3, L3-4).
+
+**[ADD-65]** PEER. "Influence of Pre-Annotation on POS-Tagged Corpus
+Development", Fort, Sagot, Proceedings of the Fourth Linguistic Annotation
+Workshop (LAW IV), ACL 2010, pp. 56-63, aclanthology.org/W10-1807 (no DOI).
+VERIFIED 2026-10-02. CORE. Grounds: pre-annotation gives "a gain in quality"
+with "biases that should be identified and notified to the annotators"
+(p. 62), and contingency tables between annotation and reference (p. 61);
+the blind subset and the correction-rate table of spec G Section 6.
+
+**[ADD-66]** PEER. "TextEE: Benchmark, Reevaluation, Reflections, and Future
+Challenges in Event Extraction", Huang, Hsu, Parekh, Xie, et al., Findings of
+the Association for Computational Linguistics: ACL 2024, pp. 12804-12825, DOI
+10.18653/v1/2024.findings-acl.760. Cite the published version, not arXiv
+2311.09562. VERIFIED 2026-10-02. SUPPORTING. Grounds: trigger and argument
+identification beside classification, each a strict score (p. 12807,
+p. 12808), practice evidence for D-G40's strict figure beside per-slot
+figures.
+
+**[ADD-67]** STD. ACM SIGSOFT Empirical Standards, Inter-Rater Reliability
+and Agreement supplement, Ralph et al., github.com/acmsigsoft/EmpiricalStandards,
+docs/supplements/InterRaterReliabilityAndAgreement.md, commit 554118c
+(2026-09-17). Community standard of ACM SIGSOFT, not a formal standards
+body. VERIFIED 2026-10-02. CORE. Grounds: "IRR/IRA broken down by property
+or wave of analysis" as a desirable attribute, and "Calculating multiple
+IRR/IRA measures and reporting only the most favourable (p-hacking)" as an
+antipattern (D-G40).
+
+**[ADD-68]** STD. ACM SIGSOFT Empirical Standards, Questionnaire Surveys,
+Ralph et al., github.com/acmsigsoft/EmpiricalStandards,
+docs/standards/QuestionnaireSurveys.md, commit 554118c (2026-09-17).
+Community standard of ACM SIGSOFT, not a formal standards body. VERIFIED
+2026-10-02. SUPPORTING. Grounds: a survey "describes how responses were
+managed/monitored, including contingency actions for non-responses and
+drop-outs" and "analyzes response rates" (essential attributes), the
+participation counts of spec G D-G53.
+
+**[ADD-69]** STD. The American Association for Public Opinion Research,
+"Standard Definitions: Final Dispositions of Case Codes and Outcome Rates for
+Surveys", 10th edition, AAPOR, 2023,
+aapor.org/wp-content/uploads/2023/05/Standards-Definitions-10th-edition.pdf.
+Professional association standard, not a formal standards body. VERIFIED
+2026-10-02. SUPPORTING. Grounds: the vocabulary only (spec G D-G53): a
+partial interview (code 1.2) and a break-off (code 2.12) are both a
+respondent who started and did not finish (p. 10); the project's "abandoned"
+covers the two together.
+
+**[ADD-70]** PROJ. nervaluate, MantisAI, github.com/MantisAI/nervaluate,
+README.md at commit cde2d1b (2026-03-12). Software package, not a paper.
+VERIFIED 2026-10-02. SUPPORTING. Grounds: the strict, exact, partial and type
+evaluation schemes stated in its README, practice evidence that a strict
+figure is reported beside lenient ones (D-G40); never sole grounding.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
