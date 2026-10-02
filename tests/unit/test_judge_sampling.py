@@ -675,6 +675,26 @@ def test_label_act_records_actor_time_and_a_labelling_record(tmp_path, capsys):
     ) == 2
 
 
+def test_an_unlistable_store_is_a_refusal_in_the_label_act_and_in_compute(tmp_path, monkeypatch, capsys):
+    """B81 item 39: an OSError from list_records is a refusal with exit code
+    2, never a traceback, and the sheet is left as it was."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    ids = _label_all(tmp_path)
+    before = (tmp_path / "sheet.json").read_bytes()
+
+    def unlistable(self):
+        raise PermissionError(13, "Permission denied", str(self.dir))
+    monkeypatch.setattr(EvaluationRecordStore, "list_records", unlistable)
+    capsys.readouterr()
+    sheet = tmp_path / "sheet.json"
+    assert sampling.main(_draw_argv(tmp_path, "--label", ids[0], "reject", "--by", "Ana", "--force")) == 2
+    assert f"refusing to label {sheet}: the evaluation records cannot be listed (" in capsys.readouterr().out
+    assert sampling.main(_draw_argv(tmp_path, "--compute")) == 2
+    assert "refusing to compute: the evaluation records cannot be listed (" in capsys.readouterr().out
+    assert (tmp_path / "sheet.json").read_bytes() == before
+
+
 def test_label_file_labels_many_in_one_record(tmp_path):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path)) == 0

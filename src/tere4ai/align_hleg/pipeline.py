@@ -258,6 +258,7 @@ def align_norms(
                 "direction": "generator",
                 "norm_id": norm_id,
                 "model": generator.model,
+                "effort": getattr(generator, "effort", "not configured"),
                 "prompt_version": prompt_version,
                 "prompt_sha256": align_prompt_sha256,
                 "input_sha256": _input_hash(gen_user),
@@ -356,6 +357,7 @@ def align_norms(
                         "norm_id": norm_id,
                         "target_id": target_id,
                         "model": MECHANICAL_JUDGE_MODEL,
+                        "effort": "not applicable (mechanical gate)",
                         "prompt_version": prompt_version,
                         "input_sha256": _input_hash(
                             json.dumps(candidate, ensure_ascii=False, sort_keys=True)
@@ -390,6 +392,7 @@ def align_norms(
                     "norm_id": norm_id,
                     "target_id": target_id,
                     "model": judge.model,
+                    "effort": getattr(judge, "effort", "not configured"),
                     "prompt_version": prompt_version,
                     "prompt_sha256": judge_prompt_sha256,
                     "input_sha256": _input_hash(judge_user),

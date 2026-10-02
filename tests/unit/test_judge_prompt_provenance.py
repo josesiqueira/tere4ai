@@ -95,6 +95,7 @@ def _run_extraction(tmp_path):
         {"Context (orientation only)": GENERATOR_ANSWER}, model="fake-generator"
     )
     judge = FakeClient({"Candidate norm (JSON)": JUDGE_ACCEPT}, model="fake-judge")
+    generator.effort, judge.effort = "medium", "xhigh"
     log_path = tmp_path / "extraction_log.jsonl"
     result = extract_norms(
         FAKE_DUMP,
@@ -119,6 +120,9 @@ def test_extraction_events_and_judgeruns_carry_the_real_prompt_hash(tmp_path):
         assert event["prompt_sha256"] == extract_hash
     for event in judge_events:
         assert event["prompt_sha256"] == judge_hash
+    # B84 item 1: each event names the effort of the client that answered it
+    assert {event["effort"] for event in gen_events} == {"medium"}
+    assert {event["effort"] for event in judge_events} == {"xhigh"}
 
     assert result["judge_runs"], "expected at least one JudgeRun"
     for judge_run in result["judge_runs"]:

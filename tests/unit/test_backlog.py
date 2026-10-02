@@ -89,6 +89,9 @@ def gen_items(*items_):
     return json.dumps({"items": list(items_)})
 
 
+ONE_ITEM = gen_items(item("Risk management", [NORM_A["norm_id"]]))  # one item citing one norm
+
+
 def run_tool(gen_response, judge_response, tmp_path, norms=None, **kwargs):
     norms = norms if norms is not None else [NORM_A, NORM_B, NORM_C]
     generator = FakeClient({KEY: gen_response}, model="fake-generator")
@@ -303,6 +306,7 @@ def test_runtime_log_written_with_no_key_material(tmp_path):
     assert directions == ["generator", "judge"]
     for line in lines:
         assert len(line["input_sha256"]) == 64
+        assert line["effort"] == "not configured"  # FakeClient declares no effort
     assert lines[1]["judge_kind"] == "runtime_grounding"
     raw = log_path.read_text()
     for secret_marker in ("sk-", "api_key", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
@@ -420,7 +424,7 @@ def _counted_run(tmp_path, gen_response, judge_response, generator=None):
 
 
 def test_backlog_answer_names_the_generator_and_both_roles_usage(tmp_path):
-    envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
     answer = envelope["answer"]
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "xhigh"
     assert answer["judge_model"] == "fake-judge" and answer["judge_effort"] == "xhigh"
@@ -436,8 +440,7 @@ def test_backlog_answer_names_the_generator_and_both_roles_usage(tmp_path):
 
 
 def test_backlog_usage_is_the_spend_of_this_call_only(tmp_path):
-    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))},
-                               model="fake-generator")
+    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     generator.usage.update({"calls": 5, "input_tokens": 999, "requests_sent": 6, "replies_with_usage": 5})
     envelope, _, _ = _counted_run(tmp_path, None, JUDGE_ACCEPT, generator=generator)
     assert envelope["answer"]["usage"]["generator"]["calls"] == 1
@@ -445,7 +448,7 @@ def test_backlog_usage_is_the_spend_of_this_call_only(tmp_path):
 
 
 def test_backlog_usage_of_a_client_without_a_usage_record_is_none(tmp_path):
-    envelope, _, _, _ = run_tool(gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT, tmp_path)
+    envelope, _, _, _ = run_tool(ONE_ITEM, JUDGE_ACCEPT, tmp_path)
     answer = envelope["answer"]
     assert answer["usage"] == {"generator": None, "judge": None}
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "not configured"
@@ -480,7 +483,7 @@ def test_a_judge_failure_after_the_generator_answered_returns_a_degraded_answer_
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge provider unreachable")
 
-    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     judge = FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge")
     envelope = generate_control_backlog(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
@@ -503,7 +506,7 @@ def test_a_judge_failure_is_labelled_judge_error_not_not_run(tmp_path):
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge provider unreachable")
 
-    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     envelope = generate_control_backlog(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator,
         FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge"),
@@ -529,7 +532,7 @@ def test_a_judge_error_answer_names_the_judge_model_and_effort_so_its_tokens_can
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge provider unreachable")
 
-    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     judge = HalfFailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge", effort="high")
     envelope = generate_control_backlog(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
@@ -593,7 +596,7 @@ def test_a_judge_step_that_raises_before_any_request_reads_not_run(tmp_path, mon
         return real_load(kind, version)
 
     monkeypatch.setattr(rg, "load_prompt", missing_prompt)
-    envelope, _, judge = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    envelope, _, judge = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
     assert judge.calls == [] and envelope["answer"]["usage"]["judge"]["requests_sent"] == 0
     assert envelope["judge_verdict"] == "not_run" and envelope["answer"]["refused"] is True
 
@@ -623,7 +626,7 @@ def _fields_of(answer):
 
 
 def test_a_judged_answer_names_both_prompts_with_version_and_hash(tmp_path):
-    envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
     answer = envelope["answer"]
     assert _fields_of(answer) == _prompt_fields()
     # the judge's hash is the one the judge run and the audit log record
@@ -632,6 +635,15 @@ def test_a_judged_answer_names_both_prompts_with_version_and_hash(tmp_path):
     (generator_event,) = [e for e in events if e["direction"] == "generator"]
     assert answer["judge_prompt_sha256"] == judge_event["prompt_sha256"]
     assert answer["generator_prompt_sha256"] == generator_event["prompt_sha256"]
+
+
+def test_each_log_event_names_the_effort_of_its_client(tmp_path):
+    """B84 item 1: the generator event and the runtime judge event each carry
+    the declared effort of the client that answered it."""
+    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator", effort="low")
+    _counted_run(tmp_path, None, JUDGE_ACCEPT, generator=generator)
+    events = [json.loads(line) for line in (tmp_path / "runtime_log.jsonl").read_text().splitlines()]
+    assert {e["direction"]: e["effort"] for e in events} == {"generator": "low", "judge": "xhigh"}
 
 
 @pytest.mark.parametrize("gen_response", [
@@ -659,7 +671,7 @@ def test_a_failed_generator_request_or_judge_names_both_prompts(tmp_path):
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge provider unreachable")
 
-    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     envelope = generate_control_backlog(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator,
         FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge"),
@@ -680,7 +692,7 @@ def test_an_unreadable_judge_prompt_is_named_with_no_hash(tmp_path, monkeypatch)
         return real_load(kind, version)
 
     monkeypatch.setattr(rg, "load_prompt", missing_prompt)
-    envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
     assert envelope["judge_verdict"] == "not_run"
     assert _fields_of(envelope["answer"]) == _prompt_fields(judge_sha256=None)
 
@@ -695,7 +707,7 @@ def test_the_prompt_version_reaches_both_roles(tmp_path, monkeypatch):
         text = (pipeline.PROMPTS_DIR / kind / "v1.md").read_text(encoding="utf-8")
         (prompts / kind / "v2.md").write_text(text + "\n", encoding="utf-8")
     monkeypatch.setattr(pipeline, "PROMPTS_DIR", prompts)
-    generator = CountingClient({KEY: gen_items(item("Risk management", [NORM_A["norm_id"]]))}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
     envelope = generate_control_backlog(
         [NORM_A, NORM_B, NORM_C], "ctx", generator, judge, prompt_version="v2",
@@ -734,7 +746,7 @@ def test_a_judged_answer_takes_the_judge_hash_from_its_judge_run(tmp_path, monke
         return real_load(kind, version)
 
     monkeypatch.setattr(rg, "load_prompt", first_read_fails)
-    envelope, _, _ = _counted_run(tmp_path, gen_items(item("Risk management", [NORM_A["norm_id"]])), JUDGE_ACCEPT)
+    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
     assert len(reads) == 2 and envelope["answer"]["judge_prompt_sha256"] == _prompt_fields()["judge_prompt_sha256"]
 
 

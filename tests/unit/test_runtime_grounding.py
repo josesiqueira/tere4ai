@@ -156,6 +156,7 @@ def test_runtime_log_written_with_hashes_and_no_key_material(tmp_path):
     assert event["judge_kind"] == "runtime_grounding"
     assert event["context"] == "unit-test"
     assert event["model"] == "fake-judge"
+    assert event["effort"] == "not configured"  # FakeClient declares no effort
     assert event["verdict"] == "accepted"
     assert event["rationale"]
     assert len(event["input_sha256"]) == 64

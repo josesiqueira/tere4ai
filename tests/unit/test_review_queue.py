@@ -862,6 +862,20 @@ def test_a_replace_that_leaves_out_the_clauses_keeps_none_of_the_model_text():
     assert norm["human_review"]["provenance"] == "HUMAN_AUTHORED"
 
 
+def test_an_add_that_leaves_out_the_clauses_gets_empty_slots():
+    """B97 item 9 (Task 11): the add path stamps the same empty slots as the replace path."""
+    decisions = {}
+    payload = dict(HUMAN_NORM)
+    for slot in ("conditions", "exceptions", "lifecycle_phase_ids"):
+        payload.pop(slot)
+    record_decision(decisions, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "the unit holds an obligation",
+                    "annotator a", payload=payload)
+    added = apply_decisions({"norms": []}, decisions)["norms"][0]
+    assert added["conditions"] == [] and added["exceptions"] == [] and added["lifecycle_phase_ids"] == []
+    assert added["condition_ids"] == [] and added["exception_ids"] == []
+    assert added["human_review"]["provenance"] == "HUMAN_AUTHORED"
+
+
 def test_publish_helper_drops_the_edge_to_a_removed_condition():
     decisions = {}
     payload = {

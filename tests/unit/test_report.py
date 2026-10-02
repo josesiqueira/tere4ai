@@ -369,6 +369,7 @@ def test_backlog_items_show_their_type_and_the_judges_view(tmp_path: Path) -> No
                     {"judge_type_agrees": None, "judge_requirement_type": None},
                 ],
                 "dropped_items": 0, "merged_items": 0, "notes": [],
+                "judge_model": "m", "judge_effort": "xhigh",
             },
         },
     }
@@ -378,3 +379,38 @@ def test_backlog_items_show_their_type_and_the_judges_view(tmp_path: Path) -> No
     assert html.count('requirement type</span> <span class="token"><span class="field" data-envelope-field="requirement_type">functional<') == 1
     assert html.count("no type") == 1
     assert 'judge gives the requirement type</span> <span class="field" data-envelope-field="judge_requirement_type">process<' in html
+    # B84 item 1: the judge record names the judge's effort beside its model
+    assert ' · effort <span class="field" data-envelope-field="judge_effort">xhigh<' in html
+
+
+def test_the_alignment_judge_run_line_shows_the_judge_effort(tmp_path: Path) -> None:
+    """B84 item 1: the trace_alignment judge run line prints the judge's
+    effort; a judge run recorded before B84 has no effort key and shows no
+    effort part."""
+    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
+    classify = next(x for x in lines if x["tool"] == "classify_ai_system")
+
+    def alignment(seq: int, norm_id: str, judge_run: dict) -> dict:
+        assertion = {"source_norm_id": norm_id, "relation_type": "supports", "target_id": "hleg:req:1",
+                     "judge_verdict": "accepted", "judge_run": judge_run}
+        return {
+            "seq": seq, "ts": classify["ts"], "tool": "trace_alignment", "repo_ref": classify["repo_ref"],
+            "request": {"id": norm_id},
+            "envelope": {
+                **{k: v for k, v in classify["envelope"].items() if k != "answer"},
+                "answer": {"tool": "trace_alignment", "id": norm_id, "assertions": [assertion]},
+            },
+        }
+
+    run = {"id": "jr-1", "judge_model": "m", "prompt_version": "v1", "verdict": "accepted"}
+    exchanges = [alignment(3, "norm:a:n1", {**run, "judge_effort": "xhigh"}), alignment(4, "norm:b:n1", run)]
+    path = tmp_path / "with_alignment.jsonl"
+    path.write_text("".join(json.dumps(x) + "\n" for x in [*lines, *exchanges]), encoding="utf-8")
+    html = _section_body(render_report_from_paths([path]), "alignment")
+    with_effort, without_effort = html.split('data-section="alignment_trace"')[1:]
+    assert (
+        'data-envelope-field="judge_model">m</span> · effort '
+        '<span class="field" data-envelope-field="judge_effort">xhigh<'
+    ) in with_effort
+    assert 'data-envelope-field="judge_model">m</span> · prompt ' in without_effort
+    assert "judge_effort" not in without_effort

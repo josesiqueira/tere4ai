@@ -41,17 +41,17 @@ sheet bytes no recorded act wrote names the cp command that puts the last
 act's recorded copy in place (B81 item 34).
 
 --compute reads the filled sheet and prints the FA/FR rates via
-tere4ai.eval.metrics.judge_error_rates_by_kind, pooled and per judge kind
-(the sheet's "mapping" kind is reported as "alignment"). Label semantics per
-the protocol: human_label is "accept" when ALL extraction-judge (or
-mapping-judge) criteria hold and "reject" on any single failure; the judge
-verdicts stay "accepted" / "rejected" / "needs_human_review" and
-needs_human_review is an abstention, never an FA or FR. --compute refuses
-while any human_label is still null or was recorded without an actor and a
-time, and while the sheet's bytes are not the bytes the newest completed
-label act on this store wrote (a hand edit after labelling); a rate with an empty denominator prints as null, never 0.0. This is a
-sample estimate: population weighting is not designed. --compute writes one
-analysis evaluation record.
+tere4ai.eval.metrics.judge_error_rates_by_kind, pooled and per judge kind (the
+sheet's "mapping" kind is reported as "alignment"). Label semantics per the
+protocol: human_label is "accept" when ALL extraction-judge (or mapping-judge)
+criteria hold and "reject" on any single failure; the judge verdicts stay
+"accepted" / "rejected" / "needs_human_review" and needs_human_review is an
+abstention, never an FA or FR. --compute refuses while any human_label is
+still null or was recorded without an actor and a time, and while the sheet's
+bytes are not the bytes the newest completed label act on this store wrote (a
+hand edit after labelling); a rate with an empty denominator prints as null,
+never 0.0. This is a sample estimate: population weighting is not designed.
+--compute writes one analysis evaluation record.
 """
 
 from __future__ import annotations
@@ -620,9 +620,13 @@ def _last_act_refusal(sheet_path: Path, sheet: dict[str, Any], dump_dir: Path) -
     a --no-record label act therefore breaks the chain for the next act.
     """
     sample_id = (sheet.get("sample") or {}).get("sample_id")
+    try:
+        records = EvaluationRecordStore(dump_dir, create=False).list_records()
+    except OSError as exc:
+        return f"refusing to label {sheet_path}: the evaluation records cannot be listed ({exception_reason(exc)})"
     acts = sorted(
         (
-            r for r in EvaluationRecordStore(dump_dir, create=False).list_records()
+            r for r in records
             if not r.get("unreadable") and r["kind"] in _SHEET_ROLE_BY_KIND
             and r["outcome"]["status"] == "completed" and sample_id
             and r["relations"]["sample_id"] == sample_id
@@ -799,9 +803,14 @@ def _compute_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         return 2
     sample_id = (sheet.get("sample") or {}).get("sample_id")
     # completed label acts only, oldest first; the newest must have written these bytes (F7)
+    try:
+        records = EvaluationRecordStore(args.dump_dir, create=False).list_records()
+    except OSError as exc:
+        print(f"refusing to compute: the evaluation records cannot be listed ({exception_reason(exc)})")
+        return 2
     labelling = sorted(
         (
-            r for r in EvaluationRecordStore(args.dump_dir, create=False).list_records()
+            r for r in records
             if not r.get("unreadable") and r["kind"] == "labelling"
             and r["outcome"]["status"] == "completed" and sample_id
             and r["relations"]["sample_id"] == sample_id

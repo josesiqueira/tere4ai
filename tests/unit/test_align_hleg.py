@@ -378,6 +378,7 @@ def test_alignment_log_written_with_no_key_material(tmp_path):
         assert line["prompt_version"] == "v1"
         assert len(line["input_sha256"]) == 64
         assert line["model"] in ("fake-generator", "fake-judge")
+        assert line["effort"] == "not configured"  # FakeClient declares no effort
     judge_line = next(line for line in lines if line["direction"] == "judge")
     assert judge_line["verdict"] == "accepted"
     assert judge_line["target_id"] == ROBUSTNESS_ID
@@ -401,6 +402,7 @@ def test_mechanical_reject_is_logged(tmp_path):
     mechanical = [line for line in lines if line["direction"] == "mechanical"]
     assert len(mechanical) == 1
     assert mechanical[0]["model"] == "mechanical:quote_check"
+    assert mechanical[0]["effort"] == "not applicable (mechanical gate)"
     assert mechanical[0]["verdict"] == "rejected"
     assert mechanical[0]["rationale"] == "quote not found in source"
 

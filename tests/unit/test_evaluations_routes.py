@@ -120,6 +120,15 @@ def test_no_records_directory_yields_the_legacy_rows_only(tmp_path):
         assert not (tmp_path / "evaluation_records").exists(), "a read never creates the directory"
 
 
+def test_a_get_on_both_routes_over_an_empty_dump_directory_creates_nothing(tmp_path):
+    """D-G34: nothing is created on a read, on the list and the detail route alike."""
+    _legacy_dumps(tmp_path)
+    with TestClient(facade.create_app(tmp_path, eval_root=tmp_path / "empty")) as client:
+        assert client.get("/api/evaluations").status_code == 200
+        assert client.get("/api/evaluations/000000000000").status_code == 404
+    assert not (tmp_path / "evaluation_records").exists()
+
+
 def test_a_stored_error_carrying_an_absolute_path_is_presented_with_the_file_name_only(tmp_path):
     _legacy_dumps(tmp_path)
     store = EvaluationRecordStore(tmp_path)

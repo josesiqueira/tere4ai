@@ -802,14 +802,17 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {exception_reason(exc)}"})
         return JSONResponse(content=_sanitize_non_finite(presented))
 
+    def _evaluation_store(request: Request) -> EvaluationRecordStore:
+        # read-only (D-G34): a GET never creates evaluation_records/
+        return EvaluationRecordStore(request.app.state.dump_dir, create=False)
+
     @app.get("/api/evaluations")
     def evaluations(request: Request) -> JSONResponse:
         # Spec G D-G33, D-G34: the evaluation records read per request, never
         # cached, grouped by build identity, every row dated; nothing is
         # created on a read; an outage is an outage, never an empty list.
-        dump_dir = request.app.state.dump_dir
         now = datetime.now(UTC)
-        store = EvaluationRecordStore(dump_dir, create=False)
+        store = _evaluation_store(request)
         try:
             stored = store.list_records()
         except OSError as exc:
@@ -832,7 +835,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
     def evaluation_detail(ref: str, request: Request) -> JSONResponse:
         if not _EVAL_REF_RE.match(ref):
             return JSONResponse(status_code=422, content={"error": "evaluation record reference outside the id syntax"})
-        store = EvaluationRecordStore(request.app.state.dump_dir, create=False)
+        store = _evaluation_store(request)
         now = datetime.now(UTC)
         if (store.dir / f"{ref}.json").is_file():
             return _evaluation_or_404(ref, lambda: store.read(ref), store, now)

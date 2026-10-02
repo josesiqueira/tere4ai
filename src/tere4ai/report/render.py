@@ -1272,6 +1272,8 @@ def _judge_record_html(source: dict[str, Any], envelope: dict[str, Any]) -> str:
     )
     if source.get("judge_model") is not None:
         parts.append(" · model " + emit_field("judge_model", source.get("judge_model")))
+    if "judge_effort" in source:
+        parts.append(" · effort " + emit_field("judge_effort", source.get("judge_effort")))
     if source.get("judge_run_id") is not None:
         parts.append(
             " · run " + emit_field("judge_run_id", source.get("judge_run_id"))
@@ -1545,6 +1547,12 @@ def _render_hleg(
                     + emit_field("id", judge_run.get("id"))
                     + " · judge "
                     + emit_field("judge_model", judge_run.get("judge_model"))
+                    + (
+                        " · effort "
+                        + emit_field("judge_effort", judge_run.get("judge_effort"))
+                        if "judge_effort" in judge_run
+                        else ""
+                    )
                     + " · prompt "
                     + emit_field("prompt_version", judge_run.get("prompt_version"))
                     + " · verdict "

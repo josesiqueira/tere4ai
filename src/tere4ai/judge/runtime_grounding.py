@@ -145,6 +145,7 @@ def ground_check(
             "context": context,
             "cited_norm_ids": [norm.get("norm_id") for norm in cited_norms],
             "model": judge.model,
+            "effort": getattr(judge, "effort", "not configured"),
             "prompt_version": prompt_version,
             "prompt_sha256": judge_prompt_sha256,
             "input_sha256": _input_hash(judge_user),

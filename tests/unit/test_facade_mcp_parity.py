@@ -74,15 +74,17 @@ def client():
 _VOLATILE_KEYS = {"generated_at"}
 
 
-def _strip_volatile(payload):
+def _strip_volatile(payload, keys=_VOLATILE_KEYS):
+    """The payload without the given keys at any depth (test_judge_run_fields.py
+    imports it with its own set)."""
     if isinstance(payload, dict):
         return {
-            k: _strip_volatile(v)
+            k: _strip_volatile(v, keys)
             for k, v in payload.items()
-            if k not in _VOLATILE_KEYS
+            if k not in keys
         }
     if isinstance(payload, list):
-        return [_strip_volatile(v) for v in payload]
+        return [_strip_volatile(v, keys) for v in payload]
     return payload
 
 

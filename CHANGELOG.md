@@ -5,6 +5,87 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B102: review leftovers of B78 to B97 (2026-10-02)
+- `extract_norms` and `align_hleg` choose their build record without
+  writing, refuse a live run, an overwrite or a stale checkpoint, build
+  their clients, and only then create the record, just before the
+  execution starts: a refused run or a client that fails to build leaves no
+  record and moves no alias (B79 item 10).
+- The argv a build record keeps also redacts the value of a flag whose
+  name mentions password, passwd, credential or auth, beside key, token
+  and secret (`--author` is redacted too, on the safe side) (B79 item 8).
+- `BuildRecordStore.finish_execution` raises `RecordError` (was
+  `ValueError`) on a status other than done or failed, and
+  `create_record` reads the alias index before it writes the record, so an
+  unreadable index is refused before a record file exists (B79 item 17).
+- A reason shown on `/api/builds` or in an evaluation record shortens only
+  a token that looks like a path (a leading separator, a drive letter,
+  `~`, `./`, `../`, or two or more separators) to its file name, so a
+  reason such as "L2.1/L2.2" reaches the reader whole (B79 item 3).
+- The build record presenter gives a synthesised record the reasons that
+  follow from its command (a command that calls no model) and the reason
+  for its `parse_record_id`; a matching chain record without a build id
+  says "a chain record matches, but neither it nor the norms file names a
+  build id" instead of "no chain record matches the current artefacts";
+  counts whose values are all null read unavailable; the dump digest
+  cache keeps one entry per file (B79 item 24). The two legacy build
+  record mock data files are regenerated.
+- `build_record.schema.json`: `progress.source` is the enum `record`,
+  `checkpoint` (was any string) (B79 item 16).
+- `publish_layer23` refuses (exit code 1) a `--dump`, `--norms` or
+  `--alignments` outside the dump dir before anything is loaded, as it
+  refused a `--manifest` there: publication names its inputs by file
+  under that directory (B79 item 7).
+- `scripts/materialize_reference.py` refuses a missing `--pristine`,
+  `--decisions` or `--manifest` before any is read (a missing `--pristine`
+  was a traceback), reads the payload kind from the list it holds and
+  refuses a payload holding neither a norms nor an assertions list (B79
+  item 20).
+- The build chain check names a publication manifest as
+  `publications/<chain id>.json` and the chain record by its file name,
+  and refuses a manifest or chain record whose JSON root is not an object
+  or whose bytes are not UTF-8, where it raised (B79 item 21, B81 item 38).
+- The MCP server's startup integrity check also runs when an activation
+  pointer exists without a `layer1.json`, since the activated publication
+  may name its Layer 1 file otherwise (B79 item 23).
+- An E1 evaluation record (the draw, the labelling, the analysis) presents
+  its null `models`, `prompt_versions`, `prompt_sha256`, `sampling` and
+  `usage` as "not applicable: no model is called" (B81 item 3); the three
+  E1 mock data files are regenerated.
+- A schema refusal of an evaluation record keeps its JSON-pointer location
+  whole; only the message is path-shortened (B81 item 21).
+- The eval harness and `scripts/run_ablations.py` resolve `--repeat-of`
+  through a read-only store, so a refused `--repeat-of` leaves no
+  `evaluation_records/` behind (B81 item 10).
+- The runtime judge prompt hash is recorded only for a `graph_full`
+  strategy whose models report `judge_prompt_version`; the strategy name
+  alone no longer counts as a runtime judge call (B81 item 23).
+- The eval harness keeps the temp file when the final replace of its
+  results file fails, and the error names it and the move that puts it in
+  place (B81 item 35).
+- A failure finish of an evaluation record that validation refuses is
+  retried once with the error alone and the refusal named, so the record
+  ends failed and never stays running (`evaluation_record.end_failed`,
+  used by the harness and `run_ablations`) (B97 item 9).
+- New evaluation record mock data: a legacy comparison linking two legacy
+  runs (`e6_legacy_comparison.json`) and the second legacy run
+  (`e6_legacy_variance_summary.json`), both in `list.json` (B81 item 16
+  (c)). The mock data regenerate.py fails naming the pinned list (`CLOCK`,
+  `FIXED_IDS`) a run outgrows, and refuses a file name written twice (B81
+  item 12).
+- The MCP session report prints the judge's effort on the backlog's judge
+  record and on each `trace_alignment` judge run line, beside the judge
+  model; a judge run recorded without an effort shows none (B84 item 1).
+- Every model log event names the effort beside the model: the
+  extraction, alignment, backlog and evidence generators, and the
+  extraction, alignment and runtime grounding judges each write their
+  client's declared effort ("not configured" for a client that declares
+  none), and the alignment mechanical gate writes "not applicable
+  (mechanical gate)" (B84 item 1).
+- The sampler's label act and `--compute` refuse (exit code 2, the sheet
+  untouched) when the evaluation records cannot be listed, naming the
+  reason, where an unlistable directory was a traceback (B81 item 39).
+
 ### B70: the facade image for hosting the experiment
 - The Dockerfile's core target (the facade image) runs uvicorn with
   --no-server-header, as user 1001 in group 0 (OpenShift's arbitrary user
@@ -562,6 +643,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   them as `role_usage` (optional, so older records still validate). The
   ablation summary sums them and drops them for a role when any unit lacks
   them, and for every role when a unit carries no usage block at all.
+- `role_usage` also types the three counts records already carried
+  (`calls`, `input_tokens`, `output_tokens`) as non-negative integers; a
+  record with another value no longer validates.
 - Both SDK clients are built with `max_retries=0`, so every request the
   providers see is counted; the clients retry a 408, 409, 429, 5xx or a
   connection error themselves, at most twice, waiting `retry-after` (at

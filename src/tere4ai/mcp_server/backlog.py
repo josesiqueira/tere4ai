@@ -383,6 +383,7 @@ def generate_control_backlog(
             "tool": TOOL_NAME,
             "norm_ids": sorted(str(norm_id) for norm_id in known_ids),
             "model": generator.model,
+            "effort": getattr(generator, "effort", "not configured"),
             "prompt_version": prompt_version,
             "prompt_sha256": prompt_sha256(gen_prompt),
             "input_sha256": _input_hash(gen_user),

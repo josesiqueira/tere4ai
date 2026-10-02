@@ -190,6 +190,7 @@ def evaluate_project_evidence(
             "tool": TOOL_NAME,
             "norm_id": norm_id,
             "model": generator.model,
+            "effort": getattr(generator, "effort", "not configured"),
             "prompt_version": prompt_version,
             "prompt_sha256": prompt_sha256(gen_prompt),
             "input_sha256": _input_hash(gen_user),

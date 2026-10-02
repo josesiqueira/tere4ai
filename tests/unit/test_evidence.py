@@ -268,6 +268,7 @@ def test_runtime_log_written_with_no_key_material(tmp_path):
     for line in lines:
         assert len(line["input_sha256"]) == 64
         assert line["prompt_version"] == "v1"
+        assert line["effort"] == "not configured"  # FakeClient declares no effort
     judge_line = lines[1]
     assert judge_line["judge_kind"] == "runtime_grounding"
     assert judge_line["verdict"] == "accepted"

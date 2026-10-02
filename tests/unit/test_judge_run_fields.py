@@ -5,19 +5,12 @@ from __future__ import annotations
 import json
 
 from fastapi.testclient import TestClient
+from tests.unit.test_facade_mcp_parity import _strip_volatile
 
 import tere4ai.http_facade.app as facade
 from tere4ai.mcp_server import trace as trace_tool
 
 _VOLATILE_KEYS = {"generated_at", "graph_version", "alignments_build_id"}
-
-
-def _strip_volatile(payload):
-    if isinstance(payload, dict):
-        return {k: _strip_volatile(v) for k, v in payload.items() if k not in _VOLATILE_KEYS}
-    if isinstance(payload, list):
-        return [_strip_volatile(v) for v in payload]
-    return payload
 
 
 def _dumps(tmp_path, with_hash, with_effort=False, with_temperature=False):
@@ -78,7 +71,9 @@ def test_units_and_trace_carry_completed_at_and_a_null_prompt_hash_when_absent(t
         # no build_chain_*.json manifest, so a chain built straight from
         # these fixtures (unstamped) never matches the served one; both are
         # pre-existing, unrelated to D-G39.
-        assert batch == rendered or _strip_volatile(batch) == _strip_volatile(rendered)
+        assert batch == rendered or (
+            _strip_volatile(batch, _VOLATILE_KEYS) == _strip_volatile(rendered, _VOLATILE_KEYS)
+        )
 
 
 def test_units_and_trace_carry_the_prompt_hash_when_the_dump_records_it(tmp_path):
