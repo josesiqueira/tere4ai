@@ -261,6 +261,17 @@ grounded_by: REF-31, REF-32
   separate from evidence so retrieved text cannot override policy (engineering
   MUST; the spec's tool-safety principle treats tool descriptions as
   untrusted but no longer carries this exact separation rule).
+- MCP revisions and transports (C3, 2026-10-02, REF-31). One process serves
+  revision 2026-07-28 and legacy initialize-based clients (2025-11-25 and
+  earlier) over stdio and streamable HTTP; both eras are tested with the
+  official MCP Python SDK client (tests/unit/test_mcp_protocol_revisions.py).
+  The server advertises no MCP logging capability (a middleware in server.py,
+  because fastmcp registers logging/setLevel on every server) and keeps its
+  diagnostics as Python logging on stderr. The four paid tools share a replay
+  window (mcp_server/replay.py): an identical call inside the window gets the
+  kept answer and no second model call, so a client retry is not charged
+  twice; the kept answers are per process, so two replicas do not share them.
+  Client support as reported by the vendors is listed in the README.
 
 ## 9. Deployment and data sovereignty
 

@@ -127,6 +127,48 @@ Paid tools need `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` in `.env` (see
 `.env.example`). Without keys they return a `requires_human_review`
 envelope that names the missing configuration; they never guess.
 
+## MCP revisions and clients
+
+The server answers MCP revision 2026-07-28 (the stateless one, with the
+version in each request) and legacy clients that start with `initialize`
+(2025-11-25 and the earlier revisions the official MCP Python SDK
+negotiates), from one process, over stdio and over streamable HTTP
+(`TERE4AI_MCP_TRANSPORT=http`). It advertises no MCP logging capability and
+answers `logging/setLevel` with method not found; diagnostics go to stderr.
+
+Paid tools (`evaluate_project_evidence`, `evaluate_project_evidence_batch`,
+`generate_control_backlog`, `elicit_features`) are not charged twice for an
+identical call. A repeat with the same caller, arguments, build and model
+settings inside `TERE4AI_MCP_REPLAY_WINDOW_SECONDS` (default 600, 0 keeps
+nothing) gets the kept answer with a note in `legal_status_notes`. Refusals,
+degraded answers and failures are never kept. The kept answers live in the
+memory of one process (at most 256): two replicas behind a load balancer do
+not share them, so a retry that lands on the other replica pays again.
+
+Tested here: the official MCP Python SDK client (mcp 2.2.0), modes legacy
+and 2026-07-28, over stdio and streamable HTTP
+(`tests/unit/test_mcp_protocol_revisions.py`). No other client is tested.
+
+Reported by the vendors' public sources on 2026-09-30 (research input, not
+tested here):
+
+| Client | Reported status | Source |
+|---|---|---|
+| Claude Code, direct HTTP | Uses the v2 MCP client and 2026 negotiation by default | [release notes](https://github.com/anthropics/claude-code/releases) |
+| Claude Code, stdio | No explicit Anthropic statement found about strict 2026-only stdio | none found |
+| Claude Desktop | Modern support in some remote connector paths; one open report of 2026 body metadata with a 2025 HTTP header | [issue 93290](https://github.com/anthropics/claude-code/issues/93290) |
+| OpenAI Codex CLI | 2026 support in code, behind the `mcp_2026_07_28` feature | [features source](https://github.com/openai/codex/blob/main/codex-rs/features/src/lib.rs) |
+| Codex CLI, stdio | Public request still open; experimental flag mentioned in a September comment | [issue 33952](https://github.com/openai/codex/issues/33952) |
+| ChatGPT MCP Events | Requires MCP 2.0 / 2026-07-28 | [MCP Events](https://developers.openai.com/plugins/build/mcp-events) |
+| ChatGPT tools-only connector | No primary page found stating its revision | none found |
+| Cursor | Speaks 2025-11-25 and earlier; no timeline for 2026 (staff, 21 and 25 September) | [forum thread](https://forum.cursor.com/t/mcp-client-cannot-connect-to-modern-only-2026-07-28-streamable-http-servers-legacy-initialize-rejected/172536) |
+| VS Code / GitHub Copilot | Source still sets `LATEST_PROTOCOL_VERSION = "2025-11-25"` | [source](https://github.com/microsoft/vscode/blob/main/extensions/copilot/src/extension/common/modelContextProtocol.ts) |
+| Windsurf | No primary source found for its supported revision | none found |
+| MCP Inspector | Inspector v2 supports legacy and modern negotiation | [docs](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/docs/2026-07-28/tools/inspector.mdx) |
+
+This is why legacy support stays: Cursor and VS Code are reported to speak
+only the earlier revisions.
+
 ## What it is not
 
 - Not a compliance certificate, a legal opinion or a conformity assessment.

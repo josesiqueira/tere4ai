@@ -10,7 +10,7 @@ legal review.
 
 Local MCP (stdio): `python -m tere4ai.mcp_server.server` from the repo root
 (graph dumps must exist; build with `python -m tere4ai.parse_legal_structure`).
-Remote MCP (streamable HTTP, spec 2025-06-18): set `TERE4AI_MCP_TRANSPORT=http`
+Remote MCP (streamable HTTP; revisions in the README): set `TERE4AI_MCP_TRANSPORT=http`
 (optional `TERE4AI_MCP_HOST`, default 127.0.0.1, and `TERE4AI_MCP_PORT`,
 default 8765); endpoint is `/mcp`. HTTP tool calls require a scoped API key
 sent as a Bearer token; mint one with

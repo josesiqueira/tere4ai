@@ -39,6 +39,13 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   per process. `_paid_clients_or_envelope` now returns `PaidClients`
   (generator, judge, model_parameters_sha256), and ScopedKeyMiddleware
   sets the caller for the call. New tests/unit/test_mcp_replay.py.
+- Documentation: the README section "MCP revisions and clients" names the
+  supported revisions (2026-07-28 and legacy, both transports), the absent
+  MCP logging capability, the replay window and its per-process limit, the
+  one tested client (official MCP Python SDK, mcp 2.2.0) and a table of
+  client support as the vendors' public sources reported it on 2026-09-30
+  (not tested here). REF-31 and architecture.md Section 8 state the dual era
+  and SKILL.md no longer names a revision.
 
 ### The elicitor quotes the Act from the graph and the description for every fact, and is an MCP tool (B10, DEC-13, DEC-18)
 - New module `tere4ai.elicit_features.provisions`: a prompt template names

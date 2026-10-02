@@ -236,8 +236,9 @@ treated as untrusted); statelessness (no protocol sessions; cross-call state
 only as explicit server-minted handles, which this server does not need);
 deterministic tools/list ordering (spec SHOULD). Authorization is OPTIONAL in
 the spec and OAuth 2.1 is a SHOULD for HTTP transports; the scoped t4a_ Bearer
-keys are a documented deviation (architecture.md Section 8). The served
-protocol still negotiates 2025-11-25 pending fastmcp support for 2026-07-28.
+keys are a documented deviation (architecture.md Section 8). The server serves
+2026-07-28 and legacy clients (2025-11-25 and earlier) from one process since
+fastmcp 4 (tested since 2026-10-02, C3).
 
 **[REF-32]** PROJ. Graphify (Graphify-Labs),
 github.com/Graphify-Labs/graphify. VERIFIED. SUPPORTING. Grounds: provenance and
