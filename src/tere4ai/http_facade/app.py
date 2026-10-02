@@ -779,12 +779,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         store = BuildRecordStore(dump_dir, create=False)
         now = datetime.now(UTC)
         served = _served_chain(request)
-        record_id = store.resolve(ref)
-        if record_id is not None:
-            try:
-                record = store.read(record_id)
-            except Exception as exc:  # noqa: BLE001 - an unreadable record is reported, never a 500
-                return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {exc}"})
+        # B81 item 17: the reason names the file, never its path on the server
+        try:
+            record_id = store.resolve(ref)
+            record = store.read(record_id) if record_id is not None else None
+        except Exception as exc:  # noqa: BLE001 - an unreadable record or alias index is reported, never a 500
+            return JSONResponse(status_code=404, content={"error": f"build record {ref} is unreadable: {exception_reason(exc)}"})
+        if record is not None:
             return _presented_or_404(ref, record, dump_dir, now, served, store)
         for record in _synthesised(request):
             if record["record_id"] == ref or ref in record.get("aliases", []):

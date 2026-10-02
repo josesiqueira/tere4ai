@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator
 
@@ -96,3 +98,34 @@ def test_one_unreadable_artefact_or_record_never_fails_the_list(tmp_path):
         assert by["legacy-core"]["unreadable"] is False and by["legacy-core"]["steps"]["L2.1"] == "done"
         assert client.get("/api/builds/legacy-x").status_code == 404
         assert client.get(f"/api/builds/{rid}").status_code == 404
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads any file")
+def test_a_build_detail_error_names_the_build_and_the_reason_never_a_server_path(tmp_path):
+    # B81 item 17: the OS error of an unreadable record carries its absolute path
+    _legacy_dumps(tmp_path)
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core.b75", "build-b", None)
+    path = tmp_path / "build_records" / f"{rid}.json"
+    path.chmod(0)
+    try:
+        with TestClient(facade.create_app(tmp_path)) as client:
+            response = client.get(f"/api/builds/{rid}")
+    finally:
+        path.chmod(0o644)
+    assert response.status_code == 404
+    error = response.json()["error"]
+    assert error.startswith(f"build record {rid} is unreadable: ") and "Permission denied" in error
+    assert str(tmp_path) not in error and f"{rid}.json" in error, "the reason names the file, never its path"
+
+
+def test_an_unreadable_alias_index_is_a_404_with_its_reason_never_a_500_or_a_path(tmp_path):
+    _legacy_dumps(tmp_path)
+    (tmp_path / "build_records").mkdir()
+    (tmp_path / "build_records" / "aliases.json").write_text("{", encoding="utf-8")
+    with TestClient(facade.create_app(tmp_path)) as client:
+        response = client.get("/api/builds/core.b75")
+    assert response.status_code == 404
+    error = response.json()["error"]
+    assert error.startswith("build record core.b75 is unreadable: ") and "aliases.json" in error
+    assert str(tmp_path) not in error
