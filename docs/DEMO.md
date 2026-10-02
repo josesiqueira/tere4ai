@@ -84,21 +84,21 @@ Sanity check: `curl localhost:8008/api/health` returns the graph version.
    `docs/screenshots/m2-coverage-with-judged-layers.png`.
 2. **Five presets, ascending severity** (3 min). Go to `/assess`. Click
    through the five preset buttons in order and classify each one:
-   - `spamguard`: minimal_or_none, no prohibition or Annex III flag applies.
-   - `shopbot`: transparency_only via Article 50 (it talks to people and
+   - `spamguard`: minimal_risk (Minimal risk), no prohibition or Annex III flag applies.
+   - `shopbot`: limited_risk (Limited risk) via Article 50 (it talks to people and
      generates text, but does not profile, score, or decide about them).
-   - `credscore`: high_risk via Annex III point 5(b), FRIA applies. This is
+   - `credscore`: high_risk (High risk) via Annex III point 5(b), FRIA applies. This is
      the one to slow down on: load requirements next and open the evidence
      subgraph (see step 3).
-   - `moodwatch`: prohibited via Article 5(1)(f). Workplace emotion
+   - `moodwatch`: unacceptable_risk (Unacceptable risk) via Article 5(1)(f). Workplace emotion
      recognition with the medical or safety exception explicitly ruled out
-     by the scenario text, so the ladder prohibits with no exception to
+     by the scenario text, so the ladder answers unacceptable risk with no exception to
      resolve.
    - `moodwatch-safety`: same workplace emotion recognition, but the
      deploying company now claims a driver fatigue safety purpose. TERE4AI
      cannot verify that claim from a description alone, so the exception
      fact is left unknown rather than assumed true or false. The ladder
-     declines to confidently prohibit or confidently clear the system: the
+     declines to confidently answer unacceptable risk or confidently clear the system: the
      classification card still shows a risk category from the ladder
      (high_risk was observed in testing) alongside status
      requires_human_review. Say this plainly: that pairing is the point,

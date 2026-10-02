@@ -12,7 +12,7 @@ deterministic ladder (free, no model call).
 - review_{light,dark}.png: the human review queue (41 flagged norms with
   span citations, pending alignment and cross-reference counts).
 - assess_{light,dark}.png: the describe-system form with the preset filled.
-- assess_result_{light,dark}.png: the classification card: high_risk via
+- assess_result_{light,dark}.png: the classification card: High risk via
   Annex III point 5, rule trace, judge verdict, calibrated status, span
   citations, and the audit export (envelope JSON download + permalink).
 

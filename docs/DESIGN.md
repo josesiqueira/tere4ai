@@ -89,7 +89,7 @@ this ramp.
 ### Bans (palette)
 
 - No chromatic color besides ember, and ember never decorates: destructive
-  actions and genuine error states only. A prohibited classification is a
+  actions and genuine error states only. An unacceptable risk classification is a
   status, not an error; it renders in ink like every other status.
 - No green success anything. No amber warnings. No gradients, no colored
   shadows, no gradient text (`bg-clip-text` with a gradient is banned).

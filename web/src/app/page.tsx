@@ -48,9 +48,7 @@ function TierCard({
         (dashed ? "border-dashed border-border" : "border-border")
       }
     >
-      <span className="inline-block rounded-full border border-border bg-muted px-2.5 py-1 font-mono text-xs font-medium">
-        {pill}
-      </span>
+      <span className="block text-sm font-semibold">{pill}</span>
       <div className="mt-3 text-3xl font-semibold tracking-tight tabular-nums">{n}</div>
       <div className="text-[13px] text-muted-foreground">{what}</div>
       <p className="mt-2.5 text-[13.5px] text-muted-foreground">{children}</p>
@@ -210,19 +208,19 @@ export default function LandingPage() {
             page.
           </p>
           <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <TierCard pill="minimal_or_none" n="0" what="requirements" href="/assess">
+            <TierCard pill="Minimal risk" n="0" what="requirements" href="/assess">
               A citable, rule-traced permission to not build a compliance program. Delete one
               known fact and the system refuses to say it.
             </TierCard>
-            <TierCard pill="transparency_only" n="13" what="requirements, Article 50" href="/assess">
+            <TierCard pill="Limited risk" n="13" what="requirements, Article 50" href="/assess">
               The disclosure and marking duties, each traced to its sentence of the Act, ready
               to close in code and tag.
             </TierCard>
-            <TierCard pill="high_risk" n="277" what="requirements, 23 articles" href="/assess">
+            <TierCard pill="High risk" n="277" what="requirements, 23 articles" href="/assess">
               The full obligation regime plus the Article 27 fundamental rights impact
               assessment trigger, decided by rule.
             </TierCard>
-            <TierCard pill="prohibited" n="0" what="requirements, by design" href="/assess">
+            <TierCard pill="Unacceptable risk" n="0" what="requirements, by design" href="/assess">
               No backlog can make a prohibited practice permissible. The answer is the Article
               5 citation and a full stop.
             </TierCard>

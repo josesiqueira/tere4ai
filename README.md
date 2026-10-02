@@ -80,10 +80,11 @@ legal snapshot, the graph build id, and the notice above):
 {
   "answer": {
     "risk_category": "high_risk",
+    "unacceptable_risk": null,
     "annex_iii_category": "eu-ai-act:annex-iii:point-5",
     "rationale": [
       "rule high_risk: flag essential_services_access matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)",
-      "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited"
+      "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk"
     ],
     "fria": { "applicability": "unknown", "basis_nodes": ["eu-ai-act:article-27:paragraph-1"] }
   },

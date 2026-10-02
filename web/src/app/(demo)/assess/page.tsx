@@ -10,6 +10,7 @@
    with the non-legal-advice notice. Visual system: docs/DESIGN.md. */
 
 import { useEffect, useRef, useState } from "react";
+import { levelName } from "@/lib/levels";
 import { Loader2 } from "lucide-react";
 
 import { FACADE_URL } from "@/lib/facade";
@@ -62,7 +63,7 @@ type FriaAnswer = {
 
 type ClassificationAnswer = {
   risk_category: string | null;
-  prohibited: boolean | null;
+  unacceptable_risk: boolean | null;
   annex_iii_category: string | null;
   article_6_3_exception_candidate: boolean;
   rationale: string[];
@@ -1640,10 +1641,10 @@ export default function AssessPage() {
               <div className="flex items-center gap-3 flex-wrap">
                 <span
                   className={`text-2xl font-semibold ${
-                    risk === "prohibited" ? "text-destructive" : ""
+                    risk === "unacceptable_risk" ? "text-destructive" : ""
                   }`}
                 >
-                  {risk ?? "(rejected input)"}
+                  {risk ? levelName(risk) : "(rejected input)"}
                 </span>
                 {classification.answer.annex_iii_category && (
                   <Chip>{classification.answer.annex_iii_category}</Chip>
@@ -1652,7 +1653,7 @@ export default function AssessPage() {
               {/* Redteam finding 6: this StatusBadge is the envelope's generic
                   Section 8 `status` field, not a second risk verdict. Shown
                   on its own labelled line, never beside the risk category
-                  span above, so a red "prohibited" risk badge can never sit
+                  span above, so a red "Unacceptable risk" badge can never sit
                   next to an unlabelled grey "potentially_applicable" pill
                   and read as self-contradictory. */}
               <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
@@ -1660,14 +1661,14 @@ export default function AssessPage() {
                 <StatusBadge status={classification.status} />
               </div>
               <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                <span>Prohibited:</span>
+                <span>Unacceptable risk:</span>
                 <span className="font-mono text-foreground">
-                  {classification.answer.prohibited == null
+                  {classification.answer.unacceptable_risk == null
                     ? "unknown"
-                    : String(classification.answer.prohibited)}
+                    : String(classification.answer.unacceptable_risk)}
                 </span>
               </div>
-              {risk === "prohibited" && (
+              {risk === "unacceptable_risk" && (
                 <p className="text-sm text-destructive">
                   Prohibited AI practice under Article 5: no engineering requirement can make
                   this system permissible. Seek legal review.

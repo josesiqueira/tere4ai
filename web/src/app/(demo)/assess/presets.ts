@@ -3,15 +3,15 @@
    examples/ (SpamGuard, ShopBot, CredScore, MoodWatch, plus a MoodWatch
    safety-exception variant), so the demo, the example READMEs, and the
    archived fixtures tell the same story:
-   - spamguard: minimal_or_none (no prohibition or Annex III flag applies);
+   - spamguard: minimal_risk (no prohibition or Annex III flag applies);
      flags reused verbatim from the recorded request fixture
      tests/fixtures/demo_sessions/spamguard-classify.jsonl, which produced
      the archived confident-minimal envelope.
-   - shopbot: transparency_only via Article 50 (interacts with natural
+   - shopbot: limited_risk via Article 50 (interacts with natural
      persons, generates text)
    - credscore: high_risk via Annex III point 5(b) (creditworthiness
      evaluation), FRIA applies
-   - moodwatch: prohibited via Article 5(1)(f) (workplace emotion
+   - moodwatch: unacceptable_risk via Article 5(1)(f) (workplace emotion
      recognition, no medical/safety exception)
    - moodwatch-safety: same facts as moodwatch, but the medical/safety
      exception fact is deliberately left unknown (a driver-fatigue-safety
@@ -97,7 +97,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
   {
     id: "spamguard",
     label: "SpamGuard (email filter)",
-    hint: "minimal_or_none",
+    hint: "minimal_risk",
     description:
       "SpamGuard is a machine learning email filter deployed by a 20 person company for its own shared inboxes. It classifies incoming mail as ham, spam, or phishing using message text and metadata, moves likely spam to a retrievable quarantine folder, and never blocks, deletes, or answers mail on its own. It does not profile or score people and is not used in employment, credit, education, law enforcement, migration, or any other Annex III context.",
     domain: "email security",
@@ -115,7 +115,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
   {
     id: "shopbot",
     label: "ShopBot (customer chat)",
-    hint: "transparency_only (Article 50)",
+    hint: "limited_risk (Article 50)",
     description:
       "ShopBot is an LLM backed chat assistant embedded in a webshop. It answers questions about order status, return policy, and product details, and escalates to a human agent on request or when unsure. It interacts directly with natural persons and generates text, but does not make decisions about people, does not profile, score, or categorize individuals, and performs no biometric processing or emotion inference.",
     domain: "consumer",
@@ -158,7 +158,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
   {
     id: "moodwatch",
     label: "MoodWatch (workplace emotion)",
-    hint: "prohibited (Article 5(1)(f))",
+    hint: "unacceptable_risk (Article 5(1)(f))",
     description:
       "MoodWatch continuously analyzes employees' facial expressions from webcam feeds and their typing patterns to infer emotions such as stress, frustration, and engagement in the workplace, aggregating results into dashboards visible to management. Participation is a condition of employment. It is not a medical device and is not deployed for safety reasons; its stated purpose is productivity and wellbeing monitoring.",
     domain: "employment",

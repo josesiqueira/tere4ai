@@ -1,6 +1,6 @@
 {
   "graph_versions": [
-    "build-3b753e5e9297"
+    "build-3b753e5e9297+chain-7442562dce5c"
   ],
   "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.",
   "systems": [
@@ -11,15 +11,16 @@
         "fria": "unknown",
         "missing_facts": [
           "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
-          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.biometric_categorisation_sensitive_or_protected_attributes is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false"
         ],
-        "prohibited": false,
         "rationale": [
-          "rule uncertain: no rule fired but prohibition-relevant (Article 5) flags are unknown, so the classification cannot be settled deterministically; the named facts must be provided before a minimal verdict is safe"
+          "rule undetermined: no rule fired but prohibition-relevant (Article 5) and Annex III high-risk (Article 6(2)) flags are unknown, so the classification cannot be settled deterministically; the named facts must be provided before a minimal verdict is safe"
         ],
-        "risk_category": "uncertain",
+        "risk_category": "undetermined",
         "source_nodes": [],
-        "status": "requires_human_review"
+        "status": "requires_human_review",
+        "unacceptable_risk": null
       },
       "exchanges": [
         {
@@ -50,7 +51,7 @@
       "report": "/mcp-demo/minimalrisk.html",
       "requirements": {
         "articles": 0,
-        "message": "The classification is uncertain because prohibition-relevant facts are unknown. No requirements are returned until the missing facts are provided or a human reviewer settles the classification.",
+        "message": "The classification is Undetermined: facts missing. Facts that decide whether an Article 5 prohibition applies are unknown (see the missing facts). No requirements are returned until the missing facts are provided or a human reviewer settles the classification.",
         "needs_human_review_total": null,
         "per_article": {},
         "returned": 0,
@@ -66,20 +67,21 @@
         "fria": "does_not_apply",
         "missing_facts": [
           "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
-          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.biometric_categorisation_sensitive_or_protected_attributes is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false"
         ],
-        "prohibited": false,
         "rationale": [
-          "rule transparency: flag interacts_with_natural_persons matches eu-ai-act:article-50:paragraph-1 (interaction with natural persons must be disclosed)",
-          "rule transparency: flag generates_synthetic_content matches eu-ai-act:article-50:paragraph-2 (synthetic content must be marked as artificially generated or manipulated)",
-          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited"
+          "rule limited_risk: flag interacts_with_natural_persons matches eu-ai-act:article-50:paragraph-1 (interaction with natural persons must be disclosed)",
+          "rule limited_risk: flag generates_synthetic_content matches eu-ai-act:article-50:paragraph-2 (synthetic content must be marked as artificially generated or manipulated)",
+          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk"
         ],
-        "risk_category": "transparency_only",
+        "risk_category": "limited_risk",
         "source_nodes": [
           "eu-ai-act:article-50:paragraph-1",
           "eu-ai-act:article-50:paragraph-2"
         ],
-        "status": "requires_human_review"
+        "status": "requires_human_review",
+        "unacceptable_risk": null
       },
       "exchanges": [
         {
@@ -220,19 +222,21 @@
         "fria": "unknown",
         "missing_facts": [
           "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
-          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.biometric_categorisation_sensitive_or_protected_attributes is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.biometric_categorisation_system is unknown (Article 50 transparency trigger, eu-ai-act:article-50:paragraph-3); absence is not treated as false, so that duty may be missing from transparency_duties"
         ],
-        "prohibited": false,
         "rationale": [
           "rule high_risk: flag essential_services_access matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)",
-          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited"
+          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk"
         ],
         "risk_category": "high_risk",
         "source_nodes": [
           "eu-ai-act:annex-iii:point-5",
           "eu-ai-act:article-6:paragraph-2"
         ],
-        "status": "requires_human_review"
+        "status": "requires_human_review",
+        "unacceptable_risk": null
       },
       "exchanges": [
         {
@@ -631,17 +635,19 @@
         "fria": "does_not_apply",
         "missing_facts": [
           "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
-          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false"
+          "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.biometric_categorisation_sensitive_or_protected_attributes is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
+          "flags.annex_i_covered_product is unknown (Article 6(1) high-risk relevant, Annex I); absence is not treated as false"
         ],
-        "prohibited": true,
         "rationale": [
-          "rule prohibited: flag emotion_recognition_workplace_or_education matches eu-ai-act:article-5:paragraph-1:point-f (inferring emotions of a natural person in the areas of workplace and education institutions)"
+          "rule unacceptable_risk: flag emotion_recognition_workplace_or_education matches eu-ai-act:article-5:paragraph-1:point-f (inferring emotions of a natural person in the areas of workplace and education institutions)"
         ],
-        "risk_category": "prohibited",
+        "risk_category": "unacceptable_risk",
         "source_nodes": [
           "eu-ai-act:article-5:paragraph-1:point-f"
         ],
-        "status": "potentially_applicable"
+        "status": "potentially_applicable",
+        "unacceptable_risk": true
       },
       "exchanges": [
         {
@@ -694,6 +700,7 @@
         "missing_facts": [
           "flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false",
           "flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+          "flags.biometric_categorisation_sensitive_or_protected_attributes is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
           "flags.critical_infrastructure_safety is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
           "flags.education_scoring_or_access is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
           "flags.employment_decisions is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
@@ -703,19 +710,25 @@
           "flags.law_enforcement_use is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
           "flags.migration_asylum_border_use is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
           "flags.justice_democratic_use is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false",
-          "flags.emotion_recognition_medical_or_safety is unknown; the point (f) medical or safety exception decides whether emotion_recognition_workplace_or_education is prohibited (Article 5); absence does not settle the ban, so the classification stays for human review"
+          "flags.annex_i_covered_product is unknown (Article 6(1) high-risk relevant, Annex I); absence is not treated as false",
+          "flags.emotion_recognition_medical_or_safety is unknown; the point (f) medical or safety exception decides whether emotion_recognition_workplace_or_education is prohibited (Article 5); absence does not settle the ban, so the classification stays for human review",
+          "flags.interacts_with_natural_persons is unknown (Article 50 transparency trigger, eu-ai-act:article-50:paragraph-1); absence is not treated as false, so that duty may be missing from transparency_duties",
+          "flags.generates_synthetic_content is unknown (Article 50 transparency trigger, eu-ai-act:article-50:paragraph-2); absence is not treated as false, so that duty may be missing from transparency_duties",
+          "flags.biometric_categorisation_system is unknown (Article 50 transparency trigger, eu-ai-act:article-50:paragraph-3); absence is not treated as false, so eu-ai-act:article-50:paragraph-3 is already listed through another trigger"
         ],
-        "prohibited": false,
         "rationale": [
           "rule high_risk: flag emotion_recognition matches Annex III category 'biometrics' (eu-ai-act:annex-iii:point-1), high-risk under Article 6(2)",
-          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to prohibited"
+          "Article 50 duty triggered: flag emotion_recognition is true for eu-ai-act:article-50:paragraph-3 (exposed persons must be informed of emotion recognition); listed in transparency_duties beside the classification (Article 50(6))",
+          "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk"
         ],
         "risk_category": "high_risk",
         "source_nodes": [
           "eu-ai-act:annex-iii:point-1",
-          "eu-ai-act:article-6:paragraph-2"
+          "eu-ai-act:article-6:paragraph-2",
+          "eu-ai-act:article-50:paragraph-3"
         ],
-        "status": "requires_human_review"
+        "status": "requires_human_review",
+        "unacceptable_risk": null
       },
       "exchanges": [
         {

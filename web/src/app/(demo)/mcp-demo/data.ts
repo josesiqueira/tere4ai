@@ -34,7 +34,7 @@ export type DemoSystem = {
   exchanges: { seq: number; tool: string; status: string | null }[];
   classification: {
     risk_category: string | null;
-    prohibited: boolean | null;
+    unacceptable_risk: boolean | null;
     status: string | null;
     confidence: number | null;
     rationale: string[];

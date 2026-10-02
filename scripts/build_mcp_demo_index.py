@@ -210,7 +210,7 @@ def build(sessions_dir: Path) -> dict[str, Any]:
                 ],
                 "classification": {
                     "risk_category": classify_answer.get("risk_category"),
-                    "prohibited": classify_answer.get("prohibited"),
+                    "unacceptable_risk": classify_answer.get("unacceptable_risk"),
                     "status": classify_env.get("status"),
                     "confidence": classify_env.get("confidence"),
                     "rationale": classify_answer.get("rationale") or [],

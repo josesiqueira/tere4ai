@@ -37,7 +37,7 @@ and prove the link from law to line of code.
 
 ## What should happen
 
-transparency_only via Article 50, 13 judge-accepted requirements under one
+limited_risk (Limited risk) via Article 50, 13 judge-accepted requirements under one
 article. The agent should notice that chat.py never tells the visitor they are
 talking to a machine, fix that, and tag the fix.
 

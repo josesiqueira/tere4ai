@@ -21,7 +21,7 @@ Do not implement anything yet. I want the obligations mapped first.
 
 ## What should happen
 
-high_risk via Annex III point 5, and the Article 27 fundamental rights impact
+high_risk (High risk) via Annex III point 5, and the Article 27 fundamental rights impact
 assessment applies. 277 judge-accepted requirements across 23 articles, so the
 right output is a mapped backlog rather than an afternoon of coding. This is the
 tier where the tool changes the size of the project you thought you had.
