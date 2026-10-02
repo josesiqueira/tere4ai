@@ -1114,8 +1114,11 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         else:
             # A transparency system could also be high-risk under Annex III
             # or Article 6(1); with those facts unknown, do not present
-            # transparency-only as settled (audit 2026-07-20 D1; B123). Each
-            # kind that applies adds its line; the status is lowered once.
+            # transparency-only as settled (audit 2026-07-20 D1; B123). When
+            # no Article 5 fact is unknown, each high-risk kind that applies
+            # (Annex III, Article 6(1)) adds its line and the status is
+            # lowered once; an unknown Article 5 fact takes precedence with
+            # its own line, as before.
             lowering: list[str] = []
             if unknown_annex_flags:
                 lowering.append(

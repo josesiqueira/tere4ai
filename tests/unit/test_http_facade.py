@@ -212,8 +212,12 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     )
 
     all_false = dict.fromkeys(
-        (*PROHIBITION_RELEVANT_FLAGS, *ANNEX_III_RELEVANT_FLAGS, *ARTICLE_6_1_FLAGS),
-        False
+        (
+            *PROHIBITION_RELEVANT_FLAGS,
+            *ANNEX_III_RELEVANT_FLAGS,
+            *ARTICLE_6_1_FLAGS,
+        ),
+        False,
     )
     valid = client.post(
         "/api/classify",

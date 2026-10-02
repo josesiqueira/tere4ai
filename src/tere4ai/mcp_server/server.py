@@ -423,13 +423,13 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     Article 50 paragraphs triggered by a known fact, on a high-risk answer
     too (Article 50(6)); a listed paragraph is triggered, not proven, and an
     empty list means none is triggered by a known fact. A fixed rule ladder
-    decides, never a model; unknown facts that could make the system prohibited or
-    high-risk (Article 5, the Article 6(1) route, Annex III) surface in
-    missing_facts; where they could change the level the status is
-    requires_human_review, and with no rule firing the level is uncertain,
-    never minimal_or_none. The
-    answer also carries a fria block: whether the Article 27(1)
-    fundamental rights impact assessment obligation applies to the
+    decides, never a model; unknown facts that could make the system
+    prohibited or high-risk (Article 5, the Article 6(1) route, Annex III)
+    surface in missing_facts; where they could change the level the status
+    is requires_human_review, and with no rule firing the level is
+    uncertain, never minimal_or_none. The answer also carries a fria block:
+    whether the Article 27(1) fundamental rights impact assessment
+    obligation applies to the
     deployer (applies, does_not_apply, unknown), decided by the same
     deterministic rules from the flags and the optional deployer facts
     (deployer.body_governed_by_public_law,

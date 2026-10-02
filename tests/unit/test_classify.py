@@ -515,6 +515,23 @@ def test_third_party_false_rules_out_the_route_whatever_annex_i(dump, node_ids):
     assert not any("annex_i_covered_product" in f for f in envelope["missing_facts"])
 
 
+def test_annex_i_false_rules_out_the_route_whatever_third_party(dump, node_ids):
+    """R4, the other branch: Annex I known false rules the route out; the
+    absent third-party assessment is not named."""
+    features = {
+        "description": "Module of a product outside Annex I.",
+        "domain": "consumer",
+        "flags": _without(all_false_flags(), "third_party_conformity_assessment_required"),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["status"] == "not_applicable"
+    assert not any(
+        "third_party_conformity_assessment_required" in f
+        for f in envelope["missing_facts"]
+    )
+
 def test_safety_component_with_third_party_false_is_not_held_at_uncertain(dump, node_ids):
     """R4: the safety exit's second case holds only while the route is open."""
     features = {
@@ -615,12 +632,9 @@ def test_annex_i_unknown_is_named_on_the_prohibited_and_high_risk_exits(dump, no
         )
         assert envelope["answer"]["risk_category"] == level
         assert ANNEX_I_LINE in envelope["missing_facts"]
-    # The high-risk status is unchanged by the Annex I line (information only).
-    envelope = classify_ai_system(
-        {"description": "A system whose product status is unknown.", "domain": "employment", "flags": high_risk},
-        dump,
-    )
-    assert envelope["status"] == "potentially_applicable"
+        if level == "high_risk":
+            # The Annex I line leaves the status unchanged (information only).
+            assert envelope["status"] == "potentially_applicable"
 
 
 def test_rejected_input_names_no_article_6_1_fact(dump):
