@@ -48,7 +48,7 @@ def alignments() -> dict:
 
 @pytest.fixture(scope="module")
 def transparency_classification() -> dict:
-    """A settled transparency_only classification answer (ShopBot shape)."""
+    """A settled limited_risk classification answer (ShopBot shape)."""
     return {
         "risk_category": "limited_risk",
         "unacceptable_risk": False,

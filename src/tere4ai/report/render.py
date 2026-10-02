@@ -2,6 +2,7 @@
 
 @implements: DEC-08, DEC-15, DEC-18
 @implements: DEC-19
+@implements: DEC-20
 @grounded_by: ADD-14, ADD-15
 
 Pure function of the ingested exchanges: no clock, no randomness, no model,
@@ -786,8 +787,16 @@ def _render_classification(
     tier: str,
     mixed: bool,
     superseded: list[Exchange],
+    unknown_level: str | None = None,
 ) -> str:
     out = ['<section data-section="classification"><h2>Classification</h2>']
+    if classify_ex is None and unknown_level is not None:
+        out.append(
+            '<p class="placeholder">the classification was recorded with a level'
+            " this report does not know (see the summary)</p>"
+        )
+        out.append("</section>")
+        return "".join(out)
     if classify_ex is None:
         out.append(_placeholder("classify_ai_system"))
         out.append("</section>")
@@ -815,15 +824,22 @@ def _render_classification(
         )
         + emit_field("risk_category", ans.get("risk_category"))
         + (")" if isinstance(ans.get("risk_category"), str) else "")
-        + "</dd></div><div><dt>unacceptable risk</dt><dd>"
-        + emit_field(
-            "unacceptable_risk",
-            # DEC-18: null is unknown, never printed as "null".
-            "unknown"
-            if ans.get("unacceptable_risk") is None
-            else ("yes" if ans.get("unacceptable_risk") else "no"),
+        + "</dd></div>"
+        + (
+            "<div><dt>unacceptable risk</dt><dd>"
+            + emit_field(
+                "unacceptable_risk",
+                # DEC-18: null is unknown, never printed as "null". An
+                # answer without the key (an old one) shows no row.
+                "unknown"
+                if ans.get("unacceptable_risk") is None
+                else ("yes" if ans.get("unacceptable_risk") else "no"),
+            )
+            + "</dd></div>"
+            if "unacceptable_risk" in ans
+            else ""
         )
-        + "</dd></div><div><dt>Annex III category</dt><dd>"
+        + "<div><dt>Annex III category</dt><dd>"
         + emit_field("annex_iii_category", ans.get("annex_iii_category"))
         + "</dd></div><div><dt>Article 6(3) exception candidate</dt><dd>"
         + emit_field(
@@ -1916,7 +1932,9 @@ def render_report(
         )
     )
     body.append(
-        _render_classification(classify_ex, tier, mixed, superseded_for(classify_ex))
+        _render_classification(
+            classify_ex, tier, mixed, superseded_for(classify_ex), unknown_level
+        )
     )
     if unknown_level is not None:
         # The recorded requirements and matrix belong to a classification

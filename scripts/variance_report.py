@@ -64,6 +64,8 @@ load_results = _dd.load_results
 gold_risk_by_item = _dd.gold_risk_by_item
 analyse_strategy = _dd.analyse_strategy
 current_level = _dd.current_level
+read_level = _dd.read_level
+LegacyLevelError = _dd.LegacyLevelError
 
 DEFAULT_OUT = ROOT / "docs" / "variance_study.md"
 GRAPH_STRATEGIES = ("graph_no_judge", "graph_build_judge", "graph_full")
@@ -72,9 +74,7 @@ GRAPH_STRATEGIES = ("graph_no_judge", "graph_build_judge", "graph_full")
 def _label(result: dict[str, Any] | None, legacy_levels: bool = False) -> str:
     if not result:
         return "no_prediction"
-    level = result.get("risk_category")
-    if legacy_levels:
-        level = current_level(level)
+    level = read_level(result.get("risk_category"), legacy_levels)
     return level or "no_prediction"
 
 
@@ -264,6 +264,9 @@ def main(argv: list[str] | None = None) -> int:
                 store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes)
             except EvaluationRecordError:
                 pass
+        if isinstance(exc, LegacyLevelError):
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         raise
     for name, c in comparisons.items():
         print(

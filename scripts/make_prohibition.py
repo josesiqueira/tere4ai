@@ -40,11 +40,11 @@ from fastmcp.client.transports import StdioTransport  # noqa: E402
 
 
 def _unacceptable_risk_text(value: object) -> str:
-    """DEC-18: the classifier's unacceptable_risk field is true, false or null,
-    printed as the JSON words true and false, and null as unknown."""
+    """DEC-18, DEC-20: the classifier's unacceptable_risk field is true, false
+    or null, shown under "unacceptable risk" as yes, no or unknown."""
     if value is None:
         return "unknown"
-    return "true" if value else "false"
+    return "yes" if value else "no"
 
 DESCRIPTION = (
     "MoodWatch, an employee wellbeing dashboard for a mid sized employer. It analyses "

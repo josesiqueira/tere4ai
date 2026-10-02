@@ -479,3 +479,35 @@ def test_non_string_level_renders_as_not_classified(tmp_path: Path) -> None:
     html = render_report_from_paths([doctored])
     assert "is not a level this report knows" in html
     assert "[&#x27;high_risk&#x27;]" in html or "['high_risk']" in html
+
+
+def test_old_session_classification_section_says_the_level_is_unknown() -> None:
+    """B118 (DEC-20): the Classification section of an old session says the
+    level was recorded but is not known here, not that nothing was recorded."""
+    path = (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "legacy"
+        / "moodwatch-prohibited-pre-b118.jsonl"
+    )
+    body = _section_body(render_report_from_paths([path]), "classification")
+    assert "recorded with a level this report does not know" in body
+    assert "not recorded in this session" not in body
+
+
+def test_answer_without_the_unacceptable_risk_key_shows_no_such_row(tmp_path: Path) -> None:
+    """B118 (DEC-20, DEC-18): a missing key omits the row; null still reads unknown."""
+    lines = SHOPBOT.read_text(encoding="utf-8").splitlines()
+    first = json.loads(lines[0])
+    assert "unacceptable_risk" in first["envelope"]["answer"]
+    del first["envelope"]["answer"]["unacceptable_risk"]
+    path = tmp_path / "no-field.jsonl"
+    path.write_text("\n".join([json.dumps(first), *lines[1:]]) + "\n", encoding="utf-8")
+    body = _section_body(render_report_from_paths([path]), "classification")
+    assert "<dt>unacceptable risk</dt>" not in body
+    assert "<dt>Annex III category</dt>" in body
+    assert "unknown" not in body.split("<dt>Annex III category</dt>")[0]
+    first["envelope"]["answer"]["unacceptable_risk"] = None
+    path.write_text("\n".join([json.dumps(first), *lines[1:]]) + "\n", encoding="utf-8")
+    body = _section_body(render_report_from_paths([path]), "classification")
+    assert "<dt>unacceptable risk</dt>" in body

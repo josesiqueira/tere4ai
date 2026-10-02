@@ -29,6 +29,7 @@ vocabulary and cannot be mapped deterministically onto the Article 27(1)
 legal categories. Only the structured deployer facts decide.
 
 @implements: DEC-14
+@implements: DEC-20
 @grounded_by: REF-01, REF-30
 """
 

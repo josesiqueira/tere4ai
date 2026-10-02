@@ -43,11 +43,33 @@ sys.path.insert(0, str(ROOT / "src"))
 from tere4ai.eval.harness import load_benchmark_items, load_gold_items  # noqa: E402
 from tere4ai.eval.metrics import current_level, prf1  # noqa: E402
 from tere4ai.mcp_server.classify import RISK_CATEGORIES  # noqa: E402
+from tere4ai.mcp_server.levels import LEGACY_LEVEL_VALUES  # noqa: E402
 
 DEFAULT_RESULTS = ROOT / "eval" / "results" / "ablation_checkpoint.jsonl"
 DEFAULT_OUT = ROOT / "docs" / "ablation_deepdive.md"
 NO_PREDICTION = "no_prediction"
 PREDICTED_LABELS = (*RISK_CATEGORIES, NO_PREDICTION)
+
+
+class LegacyLevelError(ValueError):
+    """A result file carries a level written before B118 and no option says so."""
+
+
+def read_level(value: str | None, legacy_levels: bool) -> str | None:
+    """A level read from a result file (DEC-20).
+
+    With legacy_levels the old-to-new table is applied. Without it, an old
+    value (a key of the table that is not a current level) is refused, never
+    translated and never read as given.
+    """
+    if legacy_levels:
+        return current_level(value)
+    if value in LEGACY_LEVEL_VALUES and value not in RISK_CATEGORIES:
+        raise LegacyLevelError(
+            f"the level {value!r} is a value from before the B118 rename; "
+            "this file was written before the B118 rename; run with --legacy-levels"
+        )
+    return value
 
 
 def load_results(path: Path) -> dict[str, dict[str, dict[str, Any]]]:
@@ -97,11 +119,9 @@ def analyse_strategy(
         gold_label = gold.get(item_id)
         if gold_label is None:
             continue  # retrieval/qa items have no risk gold
-        predicted = result.get("risk_category")
-        if legacy_levels:
-            # B118 (R6): the file predates the rename; read it in today's
-            # vocabulary so its numbers reproduce.
-            predicted = current_level(predicted)
+        # B118 (R6, DEC-20): a file that predates the rename is read in
+        # today's vocabulary only with legacy_levels; otherwise refused.
+        predicted = read_level(result.get("risk_category"), legacy_levels)
         predicted = predicted or NO_PREDICTION
         if predicted not in PREDICTED_LABELS:
             predicted = NO_PREDICTION
@@ -201,13 +221,21 @@ def main(argv: list[str] | None = None) -> int:
 
     per_strategy = load_results(args.results)
     gold = gold_risk_by_item(args.benchmark)
+    return _run(args, per_strategy, gold)
+
+
+def _run(args: argparse.Namespace, per_strategy: dict, gold: dict) -> int:
     scored = len(next(iter(per_strategy.values()), {}))
     labelled = sum(1 for item_id in next(iter(per_strategy.values()), {}) if item_id in gold)
     print(f"result items per strategy: {scored}; with gold risk labels: {labelled}")
-    analyses = {
-        name: analyse_strategy(results, gold, args.legacy_levels)
-        for name, results in sorted(per_strategy.items())
-    }
+    try:
+        analyses = {
+            name: analyse_strategy(results, gold, args.legacy_levels)
+            for name, results in sorted(per_strategy.items())
+        }
+    except LegacyLevelError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     args.out.write_text(render_markdown(args.results, analyses), encoding="utf-8")
     for name, a in analyses.items():
         ab = a["abstention"]

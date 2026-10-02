@@ -13,5 +13,5 @@ export const LEVEL_NAMES: Record<string, string> = {
 
 export function levelName(value: string | null | undefined): string {
   if (value == null) return "";
-  return LEVEL_NAMES[value] ?? value;
+  return Object.hasOwn(LEVEL_NAMES, value) ? LEVEL_NAMES[value] : value;
 }

@@ -13,6 +13,7 @@ judged data.
 @implements: DEC-08, DEC-03 (partial: runtime consumption)
 @implements: DEC-18
 @implements: DEC-19
+@implements: DEC-20
 @grounded_by: REF-17, REF-16
 """
 

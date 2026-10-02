@@ -298,7 +298,7 @@ def test_unrecognised_risk_category_is_graceful(dump, norms_payload, node_ids):
 
 
 def test_old_level_value_is_refused_not_mapped(dump, norms_payload, node_ids):
-    """An answer from before B118 sent back is refused with not_applicable
+    """DEC-20: an answer from before B118 sent back is refused with not_applicable
     and confidence 0, its old value named; it is not mapped (CHANGELOG)."""
     envelope = get_applicable_requirements(
         {"risk_category": "transparency_only"}, norms_payload, dump
@@ -306,9 +306,11 @@ def test_old_level_value_is_refused_not_mapped(dump, norms_payload, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["status"] == "not_applicable"
     assert envelope["confidence"] == 0.0
-    assert any(
-        "'transparency_only'" in f and "limited_risk" in f for f in envelope["missing_facts"]
-    )
+    from tere4ai.mcp_server.classify import RISK_CATEGORIES
+
+    refusal = [f for f in envelope["missing_facts"] if "'transparency_only'" in f]
+    assert refusal
+    assert all(category in refusal[0] for category in RISK_CATEGORIES)
 
 
 def test_empty_norms_payload_degrades_never_fabricates(dump, node_ids):

@@ -3,13 +3,13 @@
 Generated from live TERE4AI MCP answers. Nothing below is legal advice; see the notice at the end, which is the server's own wording.
 
 - graph version: `build-3b753e5e9297+chain-7442562dce5c`
-- classified at: 2026-10-02T17:49:02.634202+00:00
-- requirements fetched at: 2026-10-02T17:49:02.899996+00:00
+- classified at: 2026-10-02T18:25:54.036722+00:00
+- requirements fetched at: 2026-10-02T18:25:54.252335+00:00
 
 ## Classification
 
 - risk category: **high_risk**
-- unacceptable risk: false
+- unacceptable risk: no
 - Annex III category: `eu-ai-act:annex-iii:point-5`
 - envelope status: `potentially_applicable`, confidence 1.0
 - Article 6(3) exception candidate: False

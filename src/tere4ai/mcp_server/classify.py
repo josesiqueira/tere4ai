@@ -489,7 +489,6 @@ ARTICLE_50_TRIGGERED_NOTE = (
 )
 
 
-
 @lru_cache(maxsize=1)
 def _features_validator() -> Draft202012Validator:
     schema = json.loads(FEATURES_SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -707,7 +706,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         )
 
     # B123 (D-G59): an open Article 6(1) route names its unknown fact on
-    # every exit, the prohibited one included, like the Annex III facts.
+    # every exit, the unacceptable_risk exit included, like the Annex III facts.
     unknown_article_6_1_facts = _unresolved_article_6_1_facts(flags)
     for flag in unknown_article_6_1_facts:
         if flag == "annex_i_covered_product":
@@ -726,7 +725,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # practice; where the statute qualifies the point (D2), the ban only
     # fires once the exculpating fact settles against the exception. Pending
     # exception facts go to prohibition_review, which (like an unknown
-    # prohibition flag) blocks a confident non-prohibited verdict downstream.
+    # prohibition flag) blocks a confident not-unacceptable verdict downstream.
     prohibition_hits: list[tuple[str, str, str]] = []
     prohibition_review: list[str] = []
 

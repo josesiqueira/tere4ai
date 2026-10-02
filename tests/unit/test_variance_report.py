@@ -180,3 +180,37 @@ def test_a_run_is_named_by_digest_only_never_by_its_file_name(tmp_path):
     rec = [x for x in store.list_records() if x["kind"] == "comparison"][0]
     assert rec["relations"]["compares"] == [None, None]
     assert rec["notes"] == ["run_a is named by no record", "run_b is named by no record"]
+
+
+def _old_run(tmp_path, name, level):
+    path = tmp_path / name
+    path.write_text(
+        json.dumps({"strategy": "s1", "results": {"c1": {"risk_category": level, "citations": []}}}) + "\n"
+    )
+    return path
+
+
+def test_old_level_values_are_refused_without_the_legacy_flag(tmp_path, capsys, monkeypatch):
+    # DEC-20: a refusal, never a translation
+    monkeypatch.setattr(vr, "gold_risk_by_item", lambda path=None: {"c1": "unacceptable_risk"})
+    with pytest.raises(vr._dd.LegacyLevelError, match="--legacy-levels"):
+        vr.compare_strategy({"c1": {"risk_category": "prohibited"}}, {"c1": {"risk_category": "prohibited"}}, {"c1": "unacceptable_risk"})
+    a, b = _old_run(tmp_path, "a.jsonl", "prohibited"), _old_run(tmp_path, "b.jsonl", "prohibited")
+    bench = tmp_path / "bench.json"
+    bench.write_text("[]")
+    out = tmp_path / "out.md"
+    rc = vr.main(["--run-a", str(a), "--run-b", str(b), "--out", str(out), "--no-record"])
+    assert rc != 0
+    err = capsys.readouterr().err
+    assert "prohibited" in err
+    assert "this file was written before the B118 rename; run with --legacy-levels" in err
+    assert not out.exists()
+
+
+def test_old_level_values_are_read_with_the_legacy_flag():
+    c = vr.compare_strategy(
+        {"c1": {"risk_category": "prohibited"}}, {"c1": {"risk_category": "transparency_only"}},
+        {"c1": "unacceptable_risk"}, legacy_levels=True,
+    )
+    assert c["flip_details"] == [{"item": "c1", "run_a": "unacceptable_risk", "run_b": "limited_risk"}]
+    assert c["accuracy_a"] == 1.0

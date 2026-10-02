@@ -960,7 +960,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   the pyramid's names are those the Act's readers know.
   verify: src/tere4ai/mcp_server/levels.py (RISK_CATEGORIES, LEVEL_NAMES,
   LEGACY_LEVEL_VALUES, level_name), requirements.py, fria.py,
-  report/render.py, eval/harness.py; tests/unit/test_classify.py
+  report/render.py, eval/harness.py, eval/metrics.py (current_level),
+  scripts/ablation_deepdive.py, scripts/variance_report.py and
+  scripts/elicitation_error_report.py (the three --legacy-levels
+  readers); tests/unit/test_classify.py
   (test_levels_are_the_pyramids_names), test_fria.py,
   test_get_requirements.py, test_report.py; CHANGELOG.md names the
   contract change.

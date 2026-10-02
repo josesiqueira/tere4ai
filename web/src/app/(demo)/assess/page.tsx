@@ -1665,7 +1665,9 @@ export default function AssessPage() {
                 <span className="font-mono text-foreground">
                   {classification.answer.unacceptable_risk == null
                     ? "unknown"
-                    : String(classification.answer.unacceptable_risk)}
+                    : classification.answer.unacceptable_risk
+                      ? "yes"
+                      : "no"}
                 </span>
               </div>
               {risk === "unacceptable_risk" && (

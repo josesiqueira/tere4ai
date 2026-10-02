@@ -79,7 +79,7 @@ def test_reconciles_with_the_official_run2_summary():
 
 
 def test_july_checkpoint_values_are_read_through_the_translation_table():
-    # B118 (R6): a result file written before the rename carries the old
+    # B118 (DEC-20, R6): a result file written before the rename carries the old
     # values; the numbers it reproduces must not change.
     old = {
         "i1": {"risk_category": "high_risk"},
@@ -96,13 +96,45 @@ def test_july_checkpoint_values_are_read_through_the_translation_table():
     assert a["abstention"]["abstained"] == 1
 
 
-def test_without_the_legacy_option_an_old_value_is_read_as_given():
-    # never inferred from the values: an old value in a fresh result is not
-    # a label of today's vocabulary, so it is no prediction
+def test_without_the_legacy_option_an_old_value_is_refused_not_translated():
+    # DEC-20: a file with old values is never read as given and never
+    # translated on its own: the reader refuses and names the option.
     old = {"i1": {"risk_category": "transparency_only"}, "i2": {"risk_category": "uncertain"}}
     gold = {"i1": "limited_risk", "i2": "high_risk"}
-    a = dd.analyse_strategy(old, gold)
-    assert a["matrix"]["limited_risk"]["no_prediction"] == 1
-    assert a["matrix"]["limited_risk"]["limited_risk"] == 0
-    assert a["matrix"]["high_risk"]["no_prediction"] == 1
-    assert a["matrix"]["high_risk"]["undetermined"] == 0
+    with pytest.raises(dd.LegacyLevelError, match="--legacy-levels"):
+        dd.analyse_strategy(old, gold)
+
+
+def _write_old_checkpoint(tmp_path):
+    ckpt = tmp_path / "old.jsonl"
+    ckpt.write_text(
+        json.dumps({"strategy": "s1", "results": {"i1": {"risk_category": "prohibited"}}}) + "\n"
+    )
+    return ckpt
+
+
+def test_main_refuses_an_old_checkpoint_without_the_flag(tmp_path, capsys, monkeypatch):
+    # DEC-20
+    monkeypatch.setattr(dd, "gold_risk_by_item", lambda path=None: {"i1": "unacceptable_risk"})
+    out = tmp_path / "out.md"
+    rc = dd.main(["--results", str(_write_old_checkpoint(tmp_path)), "--out", str(out)])
+    assert rc != 0
+    err = capsys.readouterr().err
+    assert "prohibited" in err
+    assert "this file was written before the B118 rename; run with --legacy-levels" in err
+    assert not out.exists()
+
+
+@pytest.mark.skipif(not RUN2.is_file(), reason="run-2 artifacts not present")
+def test_main_refuses_the_july_checkpoint_without_the_flag_and_reads_it_with_it(tmp_path, capsys):
+    # DEC-20: the committed July numbers come out only with the flag
+    out = tmp_path / "out.md"
+    assert dd.main(["--results", str(RUN2), "--out", str(out)]) != 0
+    assert not out.exists()
+    capsys.readouterr()
+    assert dd.main(["--results", str(RUN2), "--out", str(out), "--legacy-levels"]) == 0
+    summary = json.loads(SUMMARY.read_text(encoding="utf-8"))
+    printed = capsys.readouterr().out
+    for name, block in summary["strategies"].items():
+        acc = block["risk_accuracy_overall"]["accuracy"]
+        assert f"{name}: acc {acc:.3f}" in printed

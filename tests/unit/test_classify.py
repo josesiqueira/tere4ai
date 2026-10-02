@@ -160,7 +160,7 @@ def test_scenario_b_with_prohibition_flags_known_false(dump, node_ids):
     assert "eu-ai-act:article-6:paragraph-2" in envelope["source_nodes"]
 
 
-def test_scenario_c_ecommerce_chatbot_is_transparency_only(dump, node_ids):
+def test_scenario_c_ecommerce_chatbot_is_limited_risk(dump, node_ids):
     features = {
         "description": "Customer service chatbot for an e-commerce shop.",
         "domain": "consumer",
@@ -892,7 +892,7 @@ def test_case4_article_5_ruled_out_and_high_risk_is_false(dump, node_ids):
     assert envelope["status"] == "potentially_applicable"
 
 
-def test_case6_article_50_only_is_transparency_only_and_false(dump, node_ids):
+def test_case6_article_50_only_is_limited_risk_and_false(dump, node_ids):
     envelope = classify_ai_system(
         {"description": "Customer service chatbot.",
          "flags": all_false_flags(interacts_with_natural_persons=True)},
@@ -1113,7 +1113,7 @@ def test_case5_high_risk_plus_article_50_lists_the_duty(dump, node_ids):
         for line in answer["rationale"]
     )
     # Not the classification-trigger grammar the elicitation error report parses.
-    assert not any(line.startswith("rule transparency") for line in answer["rationale"])
+    assert not any(line.startswith("rule limited_risk") for line in answer["rationale"])
     assert classify_module.ARTICLE_50_TRIGGERED_NOTE in envelope["legal_status_notes"]
     assert envelope["missing_facts"] == []
 
@@ -1164,8 +1164,8 @@ def test_transparency_duties_is_a_list_on_every_exit(dump):
         assert answer["transparency_duties"] == duties, name
 
 
-def test_transparency_only_is_never_returned_with_high_risk(dump):
-    """transparency_only stays reserved for Article 50 without high-risk:
+def test_limited_risk_is_never_returned_with_high_risk(dump):
+    """limited_risk stays reserved for Article 50 without high-risk:
     every Annex III fact, each with every Article 50 trigger true."""
     # emotion_recognition is both a 50(3) trigger and an Annex III point 1
     # fact, so it is left out of the triggers: otherwise every iteration
@@ -1250,7 +1250,7 @@ def test_absent_article_50_fact_is_named_on_high_risk_without_lowering_it(dump):
 
 
 def test_levels_are_the_pyramids_names():
-    """B118 (spec G D-G60): one stored value per level, one shown name."""
+    """B118 (DEC-20, spec G D-G60): one stored value per level, one shown name."""
     assert classify_module.RISK_CATEGORIES == (
         "unacceptable_risk", "high_risk", "limited_risk", "minimal_risk", "undetermined",
     )

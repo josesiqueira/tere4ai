@@ -1,6 +1,7 @@
 """M4 evaluation metrics: pure functions over eval results and gold labels.
 
 @implements: DEC-11, DEC-17
+@implements: DEC-20
 @grounded_by: REF-16, REF-15
 
 Implements the Section 12 metric set that the M4 harness reports per
@@ -62,9 +63,9 @@ def current_level(value: str | None) -> str | None:
 
     Result files written before B118 (the July ablation checkpoints and
     summaries) carry the old values; this maps them to the new ones so the
-    numbers they reproduce do not change. A current value passes through. Used only by the readers of stored
-    files that are marked as written before B118, never on a live or fresh
-    answer.
+    numbers they reproduce do not change. A current value passes through.
+    Used only by the readers of stored files that are marked as written
+    before B118, never on a live or fresh answer.
     """
     if value is None:
         return None

@@ -1,6 +1,7 @@
 """M4 evaluation harness: run the ablation ladder over gold/benchmark items.
 
 @implements: DEC-11, DEC-17
+@implements: DEC-20
 @grounded_by: REF-15, REF-16, REF-17
 
 Runs the five Section 12 ablation conditions (strategies.py) over evaluation
