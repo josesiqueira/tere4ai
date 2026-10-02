@@ -503,6 +503,44 @@ def test_record_decision_add_requires_source_node_and_span():
         record_decision({}, "norm:eu-ai-act:article-12:paragraph-1:h1", "add", "missing norm", "annotator a", payload=bad)
 
 
+def test_the_two_hand_kept_human_norm_field_lists_stay_equal():
+    """B78 item 4: HUMAN_NORM_REQUIRED (queue.py) decides what a human norm
+    must carry, _SLOT_FIELDS (apply.py) what it keeps; a field in one and not
+    the other would save a specialist's norm with a part missing. The slots
+    are the required fields plus the five a human may leave empty, and every
+    slot norms.schema.json requires is required of the human too."""
+    from tere4ai.review_queue import apply, queue
+
+    optional_slots = {
+        "actor_inferred", "actor_inference_source_node_id", "conditions", "exceptions", "lifecycle_phase_ids",
+    }
+    required = set(queue.HUMAN_NORM_REQUIRED)
+    slots = set(apply._SLOT_FIELDS)
+    assert len(required) == len(queue.HUMAN_NORM_REQUIRED)
+    assert len(slots) == len(apply._SLOT_FIELDS)
+    assert slots == required | optional_slots
+    assert not required & optional_slots
+    item_schema = json.loads(apply.NORMS_SCHEMA_PATH.read_text(encoding="utf-8"))
+    schema_required = {
+        field
+        for node in _schema_objects(item_schema)
+        if "source_span_id" in node.get("properties", {})
+        for field in node.get("required", [])
+    }
+    assert schema_required, "norms.schema.json no longer describes a norm item"
+    assert schema_required & slots <= required
+
+
+def _schema_objects(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from _schema_objects(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _schema_objects(value)
+
+
 def test_apply_decisions_replace_overwrites_slots_and_stamps_human_provenance():
     payload = {"norms": [{"norm_id": "norm:x:n1", "source_node_id": "x", "source_span_id": "s",
                           "deontic_type": "permission", "modal": "may", "actor_explicit": None,
