@@ -11,8 +11,9 @@ from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator
 
 import tere4ai.http_facade.app as facade
+from tere4ai.graph_store.build_chain import build_chain
 from tere4ai.graph_store.build_record import BuildRecordStore
-from tere4ai.graph_store.publication import set_target_state
+from tere4ai.graph_store.publication import activate, set_target_state, write_publication_manifest
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "schema" / "json_schemas" / "build_record.schema.json").read_text())
@@ -129,3 +130,33 @@ def test_an_unreadable_alias_index_is_a_404_with_its_reason_never_a_500_or_a_pat
     error = response.json()["error"]
     assert error.startswith("build record core.b75 is unreadable: ") and "aliases.json" in error
     assert str(tmp_path) not in error
+
+
+def test_the_build_routes_keep_serving_while_the_graph_load_is_refused(tmp_path):
+    # B79 item 25: a drifted activated build refuses the graph (load_error),
+    # and the build routes, which never read the graph, still answer
+    _legacy_dumps(tmp_path)
+    chain = build_chain(tmp_path / "layer1.json", tmp_path / "norms_core.json",
+                        alignments_path=tmp_path / "alignments_core.json")
+    publication = {"chain_id": chain["chain_id"], "build_id": "build-b+chain-" + chain["chain_id"], "published_at": "t",
+                   "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [],
+                   "postload_gates": [], "manifests": []}
+    write_publication_manifest(tmp_path, publication, record_id="r", inputs=chain["inputs"],
+                               files={"layer1_dump": "layer1.json", "norms": "norms_core.json",
+                                      "alignments": "alignments_core.json"})
+    activate(tmp_path, chain["chain_id"])
+    rid = BuildRecordStore(tmp_path).create_record("core.b75", "build-b", None)
+    (tmp_path / "norms_core.json").write_text("{}")
+    with TestClient(facade.create_app(tmp_path)) as client:
+        assert client.app.state.load_error
+        assert client.get("/api/health").status_code == 503
+        response = client.get("/api/builds")
+        assert response.status_code == 200
+        listed = response.json()
+        assert not list(_validator("builds_list").iter_errors(listed))
+        assert listed["served_chain_id"] is None
+        assert {rid, "legacy-core"} <= {b["record_id"] for b in listed["builds"]}
+        for ref in (rid, "legacy-core"):
+            detail = client.get(f"/api/builds/{ref}")
+            assert detail.status_code == 200, ref
+            assert not list(_validator("presented_record").iter_errors(detail.json()))

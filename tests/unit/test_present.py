@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 
+from tere4ai.graph_store import present
 from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import (
+    exception_reason,
     lineage_of,
     present_record,
     step_states,
@@ -305,3 +308,97 @@ def test_lineage_of_reads_consumed_freezes_from_a_real_publication(tmp_path):
     assert summary_of(presented)["lineage"]["consumed_freezes"] == [
         {"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation", "stage": "production",
          "layer": 2, "step": "L2.4", "manifest_sha256": None}]
+
+
+# ---- B102 task 3 (B79 items 3 and 24)
+
+
+def test_exception_reason_shortens_only_tokens_that_look_like_paths():
+    assert "L2.1/L2.2" in exception_reason(ValueError("L2.1/L2.2 differ"))
+    reason = exception_reason(OSError("cannot read /tmp/a/b/norms.json"))
+    assert "norms.json" in reason and "/tmp" not in reason
+    assert exception_reason(OSError("cannot read C:\\x\\y.json")) == "OSError: cannot read y.json"
+    assert exception_reason(OSError("cannot read data/graph_dumps/norms.json")) == "OSError: cannot read norms.json"
+    assert exception_reason(OSError("cannot read ./norms.json or ~/norms.json")) == (
+        "OSError: cannot read norms.json or norms.json")
+
+
+def _legacy_core(tmp_path, stats=None, build=True):
+    payload = {"norms": [], "judge_runs": []}
+    if build:
+        payload["build"] = {"build_id": "build-b"}
+    if stats is not None:
+        payload["stats"] = stats
+    (tmp_path / "layer1.json").write_text(json.dumps({"nodes": [], "edges": []}))
+    (tmp_path / "norms_core.json").write_text(json.dumps(payload))
+
+
+def test_a_synthesised_record_gives_the_reasons_that_hold_whatever_was_recorded(tmp_path):
+    _legacy_core(tmp_path, stats={"source_units": 1, "candidates": 1, "verdicts": {}})
+    record = synthesise_legacy_records(tmp_path)[0]
+    p = present_record(record, tmp_path, NOW, None, None)
+    extract = next(e for e in p["executions"] if e["command"] == "extract_norms")
+    assert extract["progress"] is None and extract["reasons"]["progress"] != "not recorded before DEC-16"
+    assert extract["reasons"]["progress"] == "no checkpoint file recorded"
+    assert extract["reasons"]["run_id"] == "not recorded before DEC-16", "what the record never held stays legacy"
+    parse = next(e for e in p["executions"] if e["command"] == "parse_legal_structure")
+    assert parse["reasons"]["models"] == "the command calls no model"
+    assert parse["reasons"]["progress"] == "the command has no work units"
+    assert p["parse_record_id"] is None and p["reasons"]["parse_record_id"] == "the record holds its own parse execution"
+
+
+def test_a_matched_chain_without_a_build_id_has_its_own_reason(tmp_path):
+    _legacy_core(tmp_path, build=False)
+    chain = build_chain(tmp_path / "layer1.json", tmp_path / "norms_core.json")
+    (tmp_path / f"build_chain_{chain['chain_id']}.json").write_text(json.dumps(chain))
+    record = synthesise_legacy_records(tmp_path)[0]
+    assert record["publication"] is None and record["base_build_id"] is None
+    assert record["reasons"]["publication"] == "a chain record matches, but neither it nor the norms file names a build id"
+    (tmp_path / f"build_chain_{chain['chain_id']}.json").unlink()
+    assert synthesise_legacy_records(tmp_path)[0]["reasons"]["publication"] == (
+        "no chain record matches the current artefacts")
+
+
+def test_the_digest_cache_keeps_one_entry_per_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(present, "_DIGEST_CACHE", {})
+    path = tmp_path / "norms_core.json"
+    for i in range(3):
+        path.write_text("x" * (i + 1))
+        os.utime(path, ns=(1_000_000_000 * (i + 1), 1_000_000_000 * (i + 1)))
+        assert present._digest(path) == sha256_of_file(path)
+    assert len(present._DIGEST_CACHE) == 1
+
+
+def test_a_counts_map_of_nulls_is_unavailable(tmp_path):
+    _legacy_core(tmp_path)  # no stats block: every count reads null
+    record = synthesise_legacy_records(tmp_path)[0]
+    p = present_record(record, tmp_path, NOW, None, None)
+    extract = next(e for e in p["executions"] if e["command"] == "extract_norms")
+    assert set(extract["counts"].values()) == {None}
+    assert extract["provenance"]["counts"] == "unavailable"
+    assert extract["reasons"]["counts"] == "not recorded before DEC-16"
+
+
+def test_a_materialise_execution_makes_l3_1_wait_on_l2_4(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("core.reference", "b", None)
+    ref = _out(tmp_path, "norms_core.reference.json", "norms_reference", '{"norms": []}')
+    run = store.start_execution(rid, command="materialize_reference", covers_steps=["L2.4"], argv=[], inputs=[],
+                                config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    steps, depends, _ = step_states(store.read(rid), store, tmp_path)
+    assert steps["L2.4"] == "running" and steps["L3.1"] == "not_started"
+    assert depends["L3.1"] == steps["L2.4"] == "running", "L3.1 waits on L2.4, not on L2.2"
+    store.finish_execution(rid, run, status="done", outputs=[ref])
+    steps, depends, _ = step_states(store.read(rid), store, tmp_path)
+    assert depends["L3.1"] == steps["L2.4"] == "done"
+
+
+def test_a_legacy_checkpoint_with_a_damaged_middle_line_says_so(tmp_path):
+    _legacy_core(tmp_path)
+    lines = [json.dumps({"batch": f"batch:{i}:n", "result": {}}) for i in range(0, 60, 20)]
+    lines.insert(1, "{damaged")
+    (tmp_path / "alignments_core.checkpoint.jsonl").write_text("\n".join(lines) + "\n")
+    record = synthesise_legacy_records(tmp_path)[0]
+    p = present_record(record, tmp_path, NOW, None, None)
+    assert p["steps"]["L3.1"] == "running"
+    assert p["reasons"]["L3.1"].endswith("corrupt lines in the middle were skipped")

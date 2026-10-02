@@ -168,7 +168,7 @@
         "expected_total": {"type": ["integer", "null"]},
         "work_unit": {"enum": ["groups", "batches", null]},
         "inherited": {"type": "integer"},
-        "source": {"type": "string"}
+        "source": {"enum": ["record", "checkpoint"]}
       },
       "required": ["completed", "expected_total", "work_unit", "inherited", "source"]
     },

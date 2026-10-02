@@ -53,18 +53,19 @@ EXECUTION_DERIVED = {"liveness", "progress"}
 RECORD_DERIVED = {"steps", "depends_on_state", "parse_record_id", "served", "manifest_present", "observed_at", "synthesised"}
 _LEGACY_EXCLUDED = (".reference", ".adjudicated", ".checkpoint", ".writing", ".building")
 
-# Digest per (path, size, mtime) so presenting a list does not re-hash
-# unchanged megabyte dumps on every request.
-_DIGEST_CACHE: dict[tuple[str, int, int], str] = {}
+# The latest (size, mtime, digest) per resolved path, so presenting a list
+# does not re-hash unchanged megabyte dumps on every request; a rewritten
+# file replaces its entry, so the cache holds one entry per path.
+_DIGEST_CACHE: dict[str, tuple[int, int, str]] = {}
 
 
 def _digest(path: Path) -> str:
     stat = path.stat()
-    key = (str(path.resolve()), stat.st_size, stat.st_mtime_ns)
+    key = str(path.resolve())
     cached = _DIGEST_CACHE.get(key)
-    if cached is None:
-        cached = _DIGEST_CACHE[key] = sha256_of_file(path)
-    return cached
+    if cached is None or cached[:2] != (stat.st_size, stat.st_mtime_ns):
+        cached = _DIGEST_CACHE[key] = (stat.st_size, stat.st_mtime_ns, sha256_of_file(path))
+    return cached[2]
 
 
 def _default_state(record: dict[str, Any]) -> str:
@@ -276,16 +277,18 @@ def provenance_of(mapping: dict[str, Any], *, derived_keys: set[str], synthesise
     """One provenance per key. A null is unavailable with a reason (the
     specific one from null_reasons when given); so is an empty collection in a
     synthesised mapping, or under a key of unavailable_when_empty, which
-    states only that nothing was recorded. A presenter-computed key is
-    derived; in a synthesised mapping every value read from an artefact is
-    derived; anything else was recorded."""
+    states only that nothing was recorded. A map whose values are all null
+    holds nothing and counts as empty. A presenter-computed key is derived;
+    in a synthesised mapping every value read from an artefact is derived;
+    anything else was recorded."""
     null_reasons = null_reasons or {}
     provenance: dict[str, str] = {}
     reasons: dict[str, str] = {}
     for key, value in mapping.items():
         if key in ("provenance", "reasons"):
             continue
-        empty = isinstance(value, (list, dict)) and not value
+        empty = (isinstance(value, list) and not value) or (
+            isinstance(value, dict) and all(v is None for v in value.values()))
         if value is None or (empty and (key in unavailable_when_empty or (synthesised and key not in derived_keys))):
             provenance[key] = "unavailable"
             reasons[key] = null_reasons.get(key, reason_null)
@@ -307,7 +310,6 @@ def _progress_of(execution: dict[str, Any], dump_dir: Path) -> dict[str, Any] | 
 
 
 def _execution_null_reasons(execution: dict[str, Any]) -> dict[str, str]:
-    command = execution.get("command")
     running = execution.get("status") == "running"
     reasons: dict[str, str] = {
         "resumes_run_id": "the execution is not a resume",
@@ -319,6 +321,15 @@ def _execution_null_reasons(execution: dict[str, Any]) -> dict[str, str]:
             reasons[key] = "the execution has not ended"
     elif execution.get("status") == "done":
         reasons["error"] = "the execution ended without error"
+    reasons.update(_command_null_reasons(execution))
+    return reasons
+
+
+def _command_null_reasons(execution: dict[str, Any]) -> dict[str, str]:
+    """The null reasons that follow from the command and the presenter, never
+    from what was recorded, so they hold for a synthesised execution too."""
+    command = execution.get("command")
+    reasons: dict[str, str] = {}
     if command not in MODEL_COMMANDS:
         for key in ("models", "prompt_sha256", "sampling", "usage"):
             reasons[key] = "the command calls no model"
@@ -331,14 +342,16 @@ def _execution_null_reasons(execution: dict[str, Any]) -> dict[str, str]:
 
 
 def _record_null_reasons(record: dict[str, Any], steps_covered_here: bool) -> dict[str, str]:
-    reasons = {"parent_record_id": "the record has no parent record", "publication": "the record is not published"}
+    return {"parent_record_id": "the record has no parent record", "publication": "the record is not published",
+            "parse_record_id": _parse_record_null_reason(record, steps_covered_here)}
+
+
+def _parse_record_null_reason(record: dict[str, Any], steps_covered_here: bool) -> str:
     if steps_covered_here:
-        reasons["parse_record_id"] = "the record holds its own parse execution"
-    elif not record.get("layer1_digest"):
-        reasons["parse_record_id"] = "the record names no layer1 digest"
-    else:
-        reasons["parse_record_id"] = "no parse record in this store produced the record's layer1 digest"
-    return reasons
+        return "the record holds its own parse execution"
+    if not record.get("layer1_digest"):
+        return "the record names no layer1 digest"
+    return "no parse record in this store produced the record's layer1 digest"
 
 
 def present_record(record: dict[str, Any], dump_dir: Path, now: datetime, served_chain_id: str | None,
@@ -360,7 +373,7 @@ def present_record(record: dict[str, Any], dump_dir: Path, now: datetime, served
         ex["progress"] = _progress_of(ex, dump_dir)
         ex["provenance"], ex["reasons"] = provenance_of(
             ex, derived_keys=EXECUTION_DERIVED, synthesised=synthesised, reason_null=reason_null,
-            null_reasons=None if synthesised else _execution_null_reasons(ex),
+            null_reasons=_command_null_reasons(ex) if synthesised else _execution_null_reasons(ex),
             unavailable_when_empty=frozenset({"counts"}),
         )
 
@@ -386,7 +399,8 @@ def present_record(record: dict[str, Any], dump_dir: Path, now: datetime, served
     })
     derived_keys = set(RECORD_DERIVED) | ({"publication"} if synthesised else set())
     covered_here = any(set(PARSE_STEPS) & set(ex.get("covers_steps", [])) for ex in presented["executions"])
-    null_reasons = {} if synthesised else _record_null_reasons(presented, covered_here)
+    null_reasons = ({"parse_record_id": _parse_record_null_reason(presented, covered_here)} if synthesised
+                    else _record_null_reasons(presented, covered_here))
     null_reasons.update(own_reasons)
     provenance, reasons = provenance_of(presented, derived_keys=derived_keys, synthesised=synthesised,
                                         reason_null=reason_null, null_reasons=null_reasons)
@@ -395,13 +409,31 @@ def present_record(record: dict[str, Any], dump_dir: Path, now: datetime, served
     return presented
 
 
-_PATH_RE = re.compile(r"(?:[A-Za-z]:)?(?:[^\\/\s'\"]*[\\/])+([^\\/\s'\"]+)")
+_SLASHED_TOKEN_RE = re.compile(r"[^\s'\"]*[\\/][^\s'\"]*")
+_SEPARATOR_RE = re.compile(r"[\\/]")
+
+
+def _file_name_of_path(match: re.Match[str]) -> str:
+    """A token that looks like a path, reduced to its last segment: it starts
+    with a separator, a drive letter, "~", "./" or "../", or holds two or more
+    separators. Any other token with one separator ("L2.1/L2.2") is kept."""
+    token = match.group(0)
+    looks_like_path = (token[0] in "\\/" or re.match(r"[A-Za-z]:[\\/]", token) is not None
+                       or token.startswith(("~", "./", ".\\", "../", "..\\"))
+                       or len(_SEPARATOR_RE.findall(token)) >= 2)
+    segments = [s for s in _SEPARATOR_RE.split(token) if s]
+    return segments[-1] if looks_like_path and segments else token
+
+
+def shorten_paths(text: str) -> str:
+    """Every token of text that looks like a path reduced to its file name."""
+    return _SLASHED_TOKEN_RE.sub(_file_name_of_path, text)
 
 
 def exception_reason(exc: BaseException) -> str:
     """The exception as a one-line reason with every path reduced to its file
     name: the builds list names what could not be read, never where."""
-    return _PATH_RE.sub(r"\1", f"{type(exc).__name__}: {exc}")
+    return shorten_paths(f"{type(exc).__name__}: {exc}")
 
 
 def unreadable(record_id: str, reason: str, aliases: list[str] | None = None) -> dict[str, Any]:
@@ -691,8 +723,10 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
         present["alignments"] = _digest(align_path)
     chain = _matching_chain(chains, present, dump_dir)
     publication = _legacy_publication(chain, base_build_id, has_alignments) if chain else None
-    if publication is None:
+    if chain is None:
         reasons["publication"] = "no chain record matches the current artefacts"
+    elif publication is None:
+        reasons["publication"] = "a chain record matches, but neither it nor the norms file names a build id"
     else:
         reasons["publication.gates"] = NOT_RECORDED_LEGACY
         for key in ("published_at", "label"):

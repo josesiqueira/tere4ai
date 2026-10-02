@@ -32,7 +32,7 @@ from jsonschema import Draft202012Validator
 
 from tere4ai.graph_store.build_chain import sha256_of_file, verify_dumps_against_chain
 from tere4ai.graph_store.build_record import atomic_write_json, scrub_argv
-from tere4ai.graph_store.present import _PATH_RE
+from tere4ai.graph_store.present import shorten_paths
 from tere4ai.graph_store.publication import active_manifest, manifest_path
 
 RECORDS_DIRNAME = "evaluation_records"
@@ -76,7 +76,7 @@ def reduce_paths(text: str) -> str:
     """Every path in text reduced to its file name (the rule of
     graph_store.present.exception_reason): a record or a route names what
     could not be read, never where."""
-    return _PATH_RE.sub(r"\1", text)
+    return shorten_paths(text)
 
 
 def file_ref(role: str, path: Path | str) -> dict[str, Any]:

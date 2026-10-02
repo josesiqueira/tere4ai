@@ -7,7 +7,16 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from tests.fixtures.build_records.regenerate import NOW
+from tests.fixtures.build_records.regenerate import _intermediate_scenario as intermediate_scenario
 from tests.fixtures.build_records.regenerate import main as regenerate
+from tests.unit.test_align_cli import _fakes as align_fakes
+from tests.unit.test_align_cli import _norms_file as norms_file
+from tests.unit.test_extract_norms_cli import _dump as extract_dump
+from tests.unit.test_extract_norms_cli import _fakes as extract_fakes
+
+from tere4ai.graph_store.build_record import BuildRecordStore
+from tere4ai.graph_store.present import present_record
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "build_record.schema.json"
@@ -152,3 +161,87 @@ def test_the_contract_carries_a_record_with_declared_parameters_and_older_ones_s
     missing_role = {**last, "sampling": {"generator": "0", "judge": "0", "generator_effort": "xhigh",
                                          "judge_effort": None}}
     assert list(validator.iter_errors(missing_role)) == []
+
+
+# ---- B102 task 3 (B79 item 16, ruling R3)
+
+# Each pair holds a base definition and the derived one that copies its
+# property list. The derived executions list holds presented executions,
+# so that one reference differs by design.
+SHARED_PAIRS = [("execution", "presented_execution"), ("stored_record", "presented_record"),
+                ("publication", "publication_manifest")]
+DERIVED_REFS = {"#/$defs/execution": "#/$defs/presented_execution"}
+
+
+def _as_derived(definition):
+    if isinstance(definition, dict):
+        return {k: DERIVED_REFS.get(v, v) if k == "$ref" else _as_derived(v) for k, v in definition.items()}
+    if isinstance(definition, list):
+        return [_as_derived(v) for v in definition]
+    return definition
+
+
+@pytest.mark.parametrize(("base", "derived"), SHARED_PAIRS)
+def test_every_shared_key_of_a_copied_property_list_has_the_same_definition(base, derived):
+    defs = _schema()["$defs"]
+    base_props, derived_props = defs[base]["properties"], defs[derived]["properties"]
+    assert set(base_props) <= set(derived_props), f"{derived} lacks {set(base_props) - set(derived_props)}"
+    for key, definition in base_props.items():
+        assert derived_props[key] == _as_derived(definition), f"{base}.{key} and {derived}.{key} differ"
+    assert set(defs[base]["required"]) <= set(defs[derived]["required"])
+
+
+def test_progress_source_is_record_or_checkpoint():
+    progress = {"completed": 1, "expected_total": 2, "work_unit": "batches", "inherited": 0}
+    for source in ("record", "checkpoint"):
+        assert not list(validator_for("progress").iter_errors({**progress, "source": source}))
+    assert list(validator_for("progress").iter_errors({**progress, "source": "other"}))
+
+
+# ---- B102 task 3 (B79 item 6)
+
+
+def _command_execution(dump_dir, alias, command):
+    store = BuildRecordStore(dump_dir)
+    presented = present_record(store.read(store.resolve(alias)), dump_dir, NOW, None, store)
+    errors = list(validator_for("presented_record").iter_errors(presented))
+    assert not errors, f"{command}: {errors[0].message} at {list(errors[0].path)}"
+    return next(e for e in presented["executions"] if e["command"] == command)
+
+
+def test_records_the_commands_write_match_the_contract(tmp_path, monkeypatch):
+    """The extract and align commands, run with the fakes of their CLI tests,
+    write records that present and validate, with the execution keys and the
+    count keys the mock data carry, so the counts regenerate.py writes by
+    hand cannot part from what the commands write."""
+    import tere4ai.align_hleg.__main__ as align_cli
+    import tere4ai.extract_norms.__main__ as extract_cli
+
+    extract_dir, align_dir, regenerated_dir = (tmp_path / d for d in ("extract", "align", "regenerated"))
+    for d in (extract_dir, align_dir, regenerated_dir):
+        d.mkdir()
+    extract_fakes(monkeypatch, extract_cli, [])
+    dump = extract_dump(extract_dir)
+    assert extract_cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump),
+                             "--out", str(extract_dir / "norms_test.json")]) == 0
+    align_fakes(monkeypatch, align_cli, [])
+    norms_path, layer1, _ = norms_file(align_dir, 3)
+    assert align_cli.main(["--norms", str(norms_path), "--dump", str(layer1),
+                           "--out", str(align_dir / "alignments_test.json"), "--batch-size", "2"]) == 0
+    extract = _command_execution(extract_dir, "test", "extract_norms")
+    align = _command_execution(align_dir, "test", "align_hleg")
+
+    committed_align = [e for name in ("intermediate_build.json", "resumed_align.json")
+                       for e in json.loads((FIXTURES / name).read_text(encoding="utf-8"))["executions"]
+                       if e["command"] == "align_hleg" and e["status"] == "done"]
+    assert committed_align
+    for execution in committed_align:
+        assert set(align) == set(execution)
+        assert set(align["counts"]) == set(execution["counts"])
+    # No committed file holds a recorded extract execution (intermediate_build.json
+    # is the descendant record); the one regenerate.py writes is the published
+    # parent of scenario (e), presented for list.json.
+    _, parent, _ = intermediate_scenario(regenerated_dir, "0" * 12)
+    regenerated = next(e for e in parent["executions"] if e["command"] == "extract_norms")
+    assert set(extract) == set(regenerated)
+    assert set(extract["counts"]) == set(regenerated["counts"])
