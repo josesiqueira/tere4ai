@@ -416,28 +416,29 @@ def test_the_alignment_judge_run_line_shows_the_judge_effort(tmp_path: Path) -> 
     assert "judge_effort" not in without_effort
 
 
-def test_old_session_renders_as_not_classified(tmp_path: Path) -> None:
+def test_old_session_renders_as_not_classified() -> None:
     """B118 (ruling R9): a session recorded before the rename, whose
     classify answer carries an old level, renders as not classified,
     never as a full requirements report."""
-    old = subprocess.run(
-        [
-            "git",
-            "show",
-            "c492285:tests/fixtures/demo_sessions/moodwatch-prohibited.jsonl",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-        cwd=Path(__file__).resolve().parents[2],
-    ).stdout
-    path = tmp_path / "old.jsonl"
-    path.write_text(old, encoding="utf-8")
+    path = (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "legacy"
+        / "moodwatch-prohibited-pre-b118.jsonl"
+    )
     html = render_report_from_paths([path])
     assert "is not a level this report knows" in html
     assert "'prohibited'" in html
     assert "applicable requirements returned" not in html
     assert "class=\"prohibition-banner" not in html
+    assert "returned" not in html
+    # (the fixed status legend names not_applicable; the recorded sections do not)
+    for section in ("requirements", "trace_matrix"):
+        body = _section_body(html, section)
+        assert "not_applicable" not in body
+        assert "returned" not in body
+    assert "prohibited AI practice" not in html
+    assert "not rendered: the recorded classification uses a level" in html
 
 
 @pytest.mark.parametrize(
@@ -464,3 +465,17 @@ def test_tier_maps_each_current_level(value: str, tier: str) -> None:
         source="t.jsonl",
     )
     assert _tier(ex) == tier
+
+
+def test_non_string_level_renders_as_not_classified(tmp_path: Path) -> None:
+    """B118: a risk_category that is not a string takes the unknown path."""
+    lines = SHOPBOT.read_text(encoding="utf-8").splitlines()
+    first = json.loads(lines[0])
+    first["envelope"]["answer"]["risk_category"] = ["high_risk"]
+    doctored = tmp_path / "list-level.jsonl"
+    doctored.write_text(
+        "\n".join([json.dumps(first), *lines[1:]]) + "\n", encoding="utf-8"
+    )
+    html = render_report_from_paths([doctored])
+    assert "is not a level this report knows" in html
+    assert "[&#x27;high_risk&#x27;]" in html or "['high_risk']" in html

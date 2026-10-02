@@ -806,7 +806,15 @@ def _render_classification(
     out.append(
         '<dl class="pairs">'
         "<div><dt>risk category</dt><dd>"
-        + emit_field("risk_category", level_name(ans.get("risk_category")))
+        # The span carries the stored value verbatim (a machine token); the
+        # shown name stands beside it.
+        + (
+            f"{_esc(level_name(ans.get('risk_category')))} ("
+            if isinstance(ans.get("risk_category"), str)
+            else ""
+        )
+        + emit_field("risk_category", ans.get("risk_category"))
+        + (")" if isinstance(ans.get("risk_category"), str) else "")
         + "</dd></div><div><dt>unacceptable risk</dt><dd>"
         + emit_field(
             "unacceptable_risk",
@@ -1841,10 +1849,11 @@ def render_report(
     unknown_level: str | None = None
     if classify_ex is not None:
         recorded = _answer(classify_ex).get("risk_category")
-        if isinstance(recorded, str) and recorded not in RISK_CATEGORIES:
-            # B118 (ruling R9): an old or unknown level renders as no
-            # classification, with one line naming the stored value.
-            unknown_level = recorded
+        if recorded is not None and recorded not in RISK_CATEGORIES:
+            # B118 (ruling R9): an old or unknown level (any non-null value
+            # that is not a current string) renders as no classification,
+            # with one line naming the stored value.
+            unknown_level = recorded if isinstance(recorded, str) else repr(recorded)
             classify_ex = None
     requirements_ex = single("get_applicable_requirements")
     matrix_ex = single("trace_implementation")
@@ -1909,16 +1918,36 @@ def render_report(
     body.append(
         _render_classification(classify_ex, tier, mixed, superseded_for(classify_ex))
     )
-    body.append(
-        _render_requirements(
-            requirements_ex, tier, mixed, superseded_for(requirements_ex), explain_exs
+    if unknown_level is not None:
+        # The recorded requirements and matrix belong to a classification
+        # this report does not know; no recorded figure or note is shown.
+        not_rendered = (
+            '<p class="placeholder">not rendered: the recorded classification'
+            " uses a level this report does not know</p></section>"
         )
-    )
-    body.append(
-        _render_matrix(
-            matrix_ex, requirements_ex, tier, mixed, superseded_for(matrix_ex)
+        body.append(
+            '<section data-section="requirements"><h2>Applicable requirements</h2>'
+            + not_rendered
         )
-    )
+        body.append(
+            '<section data-section="trace_matrix"><h2>Traceability matrix</h2>'
+            + not_rendered
+        )
+    else:
+        body.append(
+            _render_requirements(
+                requirements_ex,
+                tier,
+                mixed,
+                superseded_for(requirements_ex),
+                explain_exs,
+            )
+        )
+        body.append(
+            _render_matrix(
+                matrix_ex, requirements_ex, tier, mixed, superseded_for(matrix_ex)
+            )
+        )
     body.append(_render_backlog(backlog_ex, mixed, superseded_for(backlog_ex)))
     body.append(_render_hleg(matrix_ex, alignment_exs, mixed, history))
     body.append(_render_evidence(evidence_exs, mixed, history))
