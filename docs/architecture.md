@@ -928,6 +928,43 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   test_get_requirements.py, test_backlog.py, test_runtime_grounding.py
   and test_review_queue.py; CHANGELOG.md names the contract change.
 
+- DEC-20: the classifier's levels and its yes or no field are named as the
+  Commission's risk pyramid names them, one name everywhere (added
+  2026-10-02; thesis task B118, brief
+  sdd/2026-10-02-B118-level-names/brief.md revision 2 and spec G D-G60 in
+  the private research repository). Engineering decision (one vocabulary
+  between the answer, the screens and the thesis; no rule changes). The
+  stored values are unacceptable_risk, high_risk, limited_risk,
+  minimal_risk and undetermined (facts missing, not a level; DEC-18),
+  replacing prohibited, high_risk, transparency_only, minimal_or_none and
+  uncertain; the answer's field prohibited becomes unacceptable_risk
+  (true, false, null). Tokens a program reads (risk_category, the field,
+  the rationale's rule names) carry the stored value; sentences a person
+  reads (the FRIA rationale, the requirements messages, the status lines,
+  errors, the tool description) carry the shown name: Unacceptable risk,
+  High risk, Limited risk, Minimal risk, "Undetermined: facts missing"
+  (src/tere4ai/mcp_server/levels.py LEVEL_NAMES, level_name). Limited risk
+  means Article 50 transparency obligations apply and the system is
+  neither prohibited nor high-risk on the facts given; the Commission's
+  policy page now heads that box "Transparency risk" (the 2021 pyramid
+  and practitioner tools say Limited). The benchmark's own labels (REF-15)
+  are kept; BENCHMARK_RISK_MAP maps them to the new values. Result files
+  written before the rename are read through LEGACY_LEVEL_VALUES only
+  when marked so (--legacy-levels), so the July numbers reproduce; fresh
+  answers are scored as given; old stored answers are not converted and
+  an unknown value renders as not classified. The evaluation's shared
+  prompts (eval/strategies.py: the system prompt every model condition
+  sends, the item question the plain LLM and vector RAG conditions
+  classify from) ask for the new values, a change to a B74 instrument
+  made before B74. Defense: a reader met two vocabularies for one thing;
+  the pyramid's names are those the Act's readers know.
+  verify: src/tere4ai/mcp_server/levels.py (RISK_CATEGORIES, LEVEL_NAMES,
+  LEGACY_LEVEL_VALUES, level_name), requirements.py, fria.py,
+  report/render.py, eval/harness.py; tests/unit/test_classify.py
+  (test_levels_are_the_pyramids_names), test_fria.py,
+  test_get_requirements.py, test_report.py; CHANGELOG.md names the
+  contract change.
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)

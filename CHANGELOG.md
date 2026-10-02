@@ -5,6 +5,27 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B118: the levels take the pyramid's names (2026-10-02)
+- Contract change: `classify_ai_system`'s `risk_category` is one of
+  `unacceptable_risk`, `high_risk`, `limited_risk`, `minimal_risk`,
+  `undetermined` (were `prohibited`, `high_risk`, `transparency_only`,
+  `minimal_or_none`, `uncertain`); the answer's field `prohibited` is now
+  `unacceptable_risk`; the rationale's rule names follow. Sentences
+  (the FRIA rationale, requirements messages, status lines, the tool
+  description) show Unacceptable risk, High risk, Limited risk, Minimal
+  risk, "Undetermined: facts missing". An answer from before the rename
+  sent back to `get_applicable_requirements` is refused
+  (not_applicable, confidence 0), not mapped.
+- The evaluation maps the benchmark's labels to the new values; result
+  files from before the rename are read through one table only when marked
+  so (`--legacy-levels` on `scripts/ablation_deepdive.py`,
+  `variance_report.py` and `elicitation_error_report.py`), so their
+  numbers reproduce; fresh answers are scored as given; the evaluation
+  prompts ask for the new values.
+- The MCP demo recordings, index and pages are regenerated (free,
+  deterministic tools only); the recorder's four titled systems now give
+  every fact the rules read, so each session answers its titled level.
+
 ### B123: the Article 6(1) route resolved like an Article 5 path (2026-10-02)
 - `classify_ai_system` names an unknown `annex_i_covered_product` in
   `missing_facts` on every exit but the rejected-input one, and an unknown

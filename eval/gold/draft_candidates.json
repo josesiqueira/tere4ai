@@ -47,7 +47,7 @@
     }
    },
    "gold": {
-    "risk_category": "prohibited",
+    "risk_category": "unacceptable_risk",
     "article_6_3_exception_candidate": false
    },
    "gold_citations": [
@@ -93,7 +93,7 @@
     }
    },
    "gold": {
-    "risk_category": "prohibited",
+    "risk_category": "unacceptable_risk",
     "article_6_3_exception_candidate": false
    },
    "gold_citations": [
@@ -139,7 +139,7 @@
     }
    },
    "gold": {
-    "risk_category": "prohibited",
+    "risk_category": "unacceptable_risk",
     "article_6_3_exception_candidate": false
    },
    "gold_citations": [
@@ -567,7 +567,7 @@
     }
    },
    "gold": {
-    "risk_category": "transparency_only",
+    "risk_category": "limited_risk",
     "article_6_3_exception_candidate": false
    },
    "gold_citations": [
@@ -613,7 +613,7 @@
     }
    },
    "gold": {
-    "risk_category": "transparency_only",
+    "risk_category": "limited_risk",
     "article_6_3_exception_candidate": false
    },
    "gold_citations": [
@@ -659,7 +659,7 @@
     }
    },
    "gold": {
-    "risk_category": "minimal_or_none",
+    "risk_category": "minimal_risk",
     "article_6_3_exception_candidate": false
    },
    "gold_citations": [],
@@ -676,7 +676,7 @@
     "flags": {}
    },
    "gold": {
-    "risk_category": "uncertain",
+    "risk_category": "undetermined",
     "article_6_3_exception_candidate": false
    },
    "gold_citations": [],
