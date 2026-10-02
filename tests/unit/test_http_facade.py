@@ -207,11 +207,13 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     # not_applicable, keeping the rejection and the in-scope verdict distinct.
     from tere4ai.mcp_server.classify import (
         ANNEX_III_RELEVANT_FLAGS,
+        ARTICLE_6_1_FLAGS,
         PROHIBITION_RELEVANT_FLAGS,
     )
 
     all_false = dict.fromkeys(
-        (*PROHIBITION_RELEVANT_FLAGS, *ANNEX_III_RELEVANT_FLAGS), False
+        (*PROHIBITION_RELEVANT_FLAGS, *ANNEX_III_RELEVANT_FLAGS, *ARTICLE_6_1_FLAGS),
+        False
     )
     valid = client.post(
         "/api/classify",

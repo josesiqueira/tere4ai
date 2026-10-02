@@ -12,6 +12,9 @@ conditions (with the third-subparagraph profiling override), then Article
 is resolved against the offline Layer 0+1 dump; unknown facts are never
 guessed, they surface in missing_facts and lower the status to
 requires_human_review where they could change the outcome.
+The Article 6(1) route is resolved like an Article 5 path: proven when both of
+its facts are true, ruled out when either is known false, open otherwise, and
+an open route names its unknown fact and blocks a confident minimal (B123).
 
 The rule logic follows the FLI compliance checker's decision structure as a
 classification-logic source and baseline (REF-30, architecture.md Section
@@ -375,6 +378,35 @@ ANNEX_I = "eu-ai-act:annex-i"
 # high-risk where the AI system performs profiling of natural persons".
 ARTICLE_6_3_PROFILING_OVERRIDE = "eu-ai-act:article-6:paragraph-3:subparagraph-3"
 
+# B123 (spec G D-G59): the two facts of the Article 6(1) route. Article
+# 6(1) points (a) and (b) are cumulative, so the route is resolved like an
+# Article 5 path (DEC-18): proven when both are true, ruled out when either
+# is known false, open otherwise.
+ARTICLE_6_1_FLAGS: tuple[str, str] = (
+    "annex_i_covered_product",
+    "third_party_conformity_assessment_required",
+)
+
+
+def _unresolved_article_6_1_facts(flags: dict[str, Any]) -> list[str]:
+    """The absent fact that leaves the Article 6(1) route open (B123).
+
+    Empty when the route is proven or ruled out. The third-party
+    assessment is returned only once the product is known to be covered
+    by Annex I: before that it decides nothing (ruling R1, the way
+    law_enforcement_use is asked for only when the biometric flag is true).
+
+    @implements: DEC-18
+    """
+    annex_i, third_party = ARTICLE_6_1_FLAGS
+    if flags.get(annex_i) is False or flags.get(third_party) is False:
+        return []
+    if annex_i not in flags:
+        return [annex_i]
+    if flags.get(annex_i) is True and third_party not in flags:
+        return [third_party]
+    return []
+
 # Article 6(3) second-subparagraph conditions: flag -> the real Point nodes.
 # The legacy combined flag covers point (a) "narrow procedural task" and
 # point (d) "preparatory task to an assessment"; the two newer flags map to
@@ -675,6 +707,22 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "6(2)); absence is not treated as false"
         )
 
+    # B123 (D-G59): an open Article 6(1) route names its unknown fact on
+    # every exit, the prohibited one included, like the Annex III facts.
+    unknown_article_6_1_facts = _unresolved_article_6_1_facts(flags)
+    for flag in unknown_article_6_1_facts:
+        if flag == "annex_i_covered_product":
+            missing_facts.append(
+                "flags.annex_i_covered_product is unknown (Article 6(1) "
+                "high-risk relevant, Annex I); absence is not treated as false"
+            )
+        else:
+            missing_facts.append(
+                "flags.third_party_conformity_assessment_required is unknown while "
+                "flags.annex_i_covered_product is true; Article 6(1) point (b) "
+                "requires a third-party conformity assessment for the route to fire"
+            )
+
     # Rule 1: Article 5 prohibitions. A prohibition flag names a candidate
     # practice; where the statute qualifies the point (D2), the ban only
     # fires once the exculpating fact settles against the exception. Pending
@@ -895,12 +943,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             missing_facts=missing_facts,
         )
     if annex_i_covered is True and third_party_required is None:
+        # Named at the top (B123); here it only holds the route open.
         article_6_1_unresolved = True
-        missing_facts.append(
-            "flags.third_party_conformity_assessment_required is unknown while "
-            "flags.annex_i_covered_product is true; Article 6(1) point (b) "
-            "requires a third-party conformity assessment for the route to fire"
-        )
     if annex_i_covered is True and third_party_required is False:
         citations.cite(ARTICLE_6_PARAGRAPH_1)
         rationale.append(
@@ -1011,9 +1055,11 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
 
     # Safety valve, not an auto-classification: the Article 6(1) route was
     # not settled (its facts are unknown, or a safety component was declared
-    # without the Annex I facts). Never silently call that minimal.
+    # without the Annex I facts). Never silently call that minimal. A
+    # third-party assessment known false rules the route out (B123, R4).
     if article_6_1_unresolved or (
         flags.get("medical_or_safety_component") is True and annex_i_covered is None
+        and third_party_required is not False
     ):
         citations.cite(ARTICLE_6_PARAGRAPH_1)
         rationale.append(
@@ -1065,17 +1111,28 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "status lowered to requires_human_review: unknown "
                 "prohibition-relevant flags could change the outcome to prohibited"
             )
-        elif unknown_annex_flags:
-            # A transparency system could also be high-risk under Annex III;
-            # with those facts unknown, do not present transparency-only as
-            # settled (audit 2026-07-20 D1).
-            status = "requires_human_review"
-            confidence = 0.5
-            rationale.append(
-                "status lowered to requires_human_review: unknown Annex III "
-                "high-risk flags could add high-risk obligations on top of the "
-                "Article 50 transparency duty"
-            )
+        else:
+            # A transparency system could also be high-risk under Annex III
+            # or Article 6(1); with those facts unknown, do not present
+            # transparency-only as settled (audit 2026-07-20 D1; B123). Each
+            # kind that applies adds its line; the status is lowered once.
+            lowering: list[str] = []
+            if unknown_annex_flags:
+                lowering.append(
+                    "status lowered to requires_human_review: unknown Annex III "
+                    "high-risk flags could add high-risk obligations on top of the "
+                    "Article 50 transparency duty"
+                )
+            if unknown_article_6_1_facts:
+                lowering.append(
+                    "status lowered to requires_human_review: unknown Article "
+                    "6(1) facts could add high-risk obligations on top of the "
+                    "Article 50 transparency duty"
+                )
+            if lowering:
+                status = "requires_human_review"
+                confidence = 0.5
+                rationale.extend(lowering)
         return make_envelope(
             answer={
                 "risk_category": "transparency_only",
@@ -1097,11 +1154,14 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # Rule 5: nothing fired. A confident minimal verdict requires that every
     # prohibition-relevant AND Annex III-relevant fact is known: an unknown
     # one could be the fact that makes the system high-risk or prohibited, so
-    # absence must never be read as a clean "not regulated" (audit D1).
-    if unknown_prohibition_flags or unknown_annex_flags:
+    # absence must never be read as a clean "not regulated" (audit D1). The
+    # Article 6(1) route must likewise be ruled out, not merely unmentioned (B123).
+    if unknown_prohibition_flags or unknown_article_6_1_facts or unknown_annex_flags:
         which = []
         if unknown_prohibition_flags:
             which.append("prohibition-relevant (Article 5)")
+        if unknown_article_6_1_facts:
+            which.append("Article 6(1) (Annex I)")
         if unknown_annex_flags:
             which.append("Annex III high-risk (Article 6(2))")
         rationale.append(
@@ -1131,9 +1191,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         )
 
     rationale.append(
-        "rule minimal: every Article 5 path ruled out, every Annex III "
-        "high-risk flag known false, no Annex III category matched, no "
-        "Article 50 transparency flag set"
+        "rule minimal: every Article 5 path ruled out, the Article 6(1) "
+        "route ruled out, every Annex III high-risk flag known false, no "
+        "Annex III category matched, no Article 50 transparency flag set"
     )
     # DEC-18 (Jose, 2026-10-01: "Keep minimal, name the fact"): an absent
     # Article 50 trigger is named, the answer stays minimal_or_none.

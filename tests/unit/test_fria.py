@@ -358,8 +358,9 @@ def test_new_subflag_gates_point_5_high_risk_on_its_own(dump):
     assert envelope["answer"]["annex_iii_category"] == POINT_5
 
 
-# Every Annex III high-risk flag plus the prohibition flags, all false: the
-# only way to reach a confident minimal verdict after audit D1.
+# Every Annex III high-risk flag, the prohibition flags and the two Article
+# 6(1) facts, all false: the only way to reach a confident minimal verdict
+# after audit D1 and B123.
 _ALL_FLAGS_FALSE = {
     "generates_nonconsensual_intimate_material": False,
     "generates_csam": False,
@@ -388,6 +389,8 @@ _ALL_FLAGS_FALSE = {
     "interacts_with_natural_persons": False,
     "generates_synthetic_content": False,
     "profiling_of_natural_persons": False,
+    "annex_i_covered_product": False,
+    "third_party_conformity_assessment_required": False,
 }
 
 

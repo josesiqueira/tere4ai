@@ -13,6 +13,7 @@ from tere4ai.mcp_server import classify as classify_module
 from tere4ai.mcp_server.classify import (
     ARTICLE_5_POINT_BY_FLAG,
     ARTICLE_5_POINT_H,
+    ARTICLE_6_1_FLAGS,
     OMNIBUS_ARTICLE_5_POINT_BY_FLAG,
     classify_ai_system,
 )
@@ -431,6 +432,10 @@ def test_annex_i_route_unresolved_third_party_fact_never_settles(dump, node_ids)
         "third_party_conformity_assessment_required" in fact
         for fact in envelope["missing_facts"]
     )
+    assert sum(
+        f.startswith("flags.third_party_conformity_assessment_required is unknown")
+        for f in envelope["missing_facts"]
+    ) == 1
 
 
 def test_annex_i_route_explicitly_ruled_out_continues_ladder(dump, node_ids):
@@ -443,6 +448,194 @@ def test_annex_i_route_explicitly_ruled_out_continues_ladder(dump, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["answer"]["risk_category"] == "minimal_or_none"
     assert any("article_6_1" in r for r in envelope["answer"]["rationale"])
+
+
+# B123 (spec G D-G59): the Article 6(1) route is resolved like an Article 5
+# path: proven when both facts are true, ruled out when either is known
+# false, open otherwise. An open route's unknown fact is named.
+
+ANNEX_I_LINE = (
+    "flags.annex_i_covered_product is unknown (Article 6(1) high-risk "
+    "relevant, Annex I); absence is not treated as false"
+)
+
+
+def _without(flags: dict, *names: str) -> dict:
+    return {k: v for k, v in flags.items() if k not in names}
+
+
+def test_lift_case_annex_i_unknown_is_named_and_not_minimal(dump, node_ids):
+    """The brief's lift example: every fact false except the two Article
+    6(1) facts, which are absent. Never a confident minimal; only the Annex
+    I fact is named (R1); the FRIA block follows the level."""
+    features = {
+        "description": "Vision module that detects a jammed lift door.",
+        "domain": "consumer",
+        "flags": _without(all_false_flags(), *ARTICLE_6_1_FLAGS),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["status"] == "requires_human_review"
+    assert envelope["missing_facts"].count(ANNEX_I_LINE) == 1
+    assert not any(
+        "third_party_conformity_assessment_required" in f
+        for f in envelope["missing_facts"]
+    )
+    assert any("Article 6(1) (Annex I)" in r for r in envelope["answer"]["rationale"])
+    assert envelope["answer"]["fria"]["applicability"] == "unknown"
+
+
+def test_annex_i_unknown_with_third_party_true_is_uncertain(dump, node_ids):
+    features = {
+        "description": "Module of a product needing third-party assessment.",
+        "domain": "consumer",
+        "flags": _without(
+            all_false_flags(third_party_conformity_assessment_required=True),
+            "annex_i_covered_product",
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["status"] == "requires_human_review"
+    assert ANNEX_I_LINE in envelope["missing_facts"]
+
+
+def test_third_party_false_rules_out_the_route_whatever_annex_i(dump, node_ids):
+    """R4: either fact known false rules the route out; nothing is named."""
+    features = {
+        "description": "Module of a product assessed without a third party.",
+        "domain": "consumer",
+        "flags": _without(all_false_flags(), "annex_i_covered_product"),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["status"] == "not_applicable"
+    assert not any("annex_i_covered_product" in f for f in envelope["missing_facts"])
+
+
+def test_safety_component_with_third_party_false_is_not_held_at_uncertain(dump, node_ids):
+    """R4: the safety exit's second case holds only while the route is open."""
+    features = {
+        "description": "Safety component, assessed without a third party.",
+        "domain": "consumer",
+        "flags": _without(
+            all_false_flags(medical_or_safety_component=True),
+            "annex_i_covered_product",
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["status"] == "not_applicable"
+
+
+def test_safety_component_with_annex_i_unknown_stays_uncertain(dump, node_ids):
+    """Unchanged case of the safety exit, now with the flag line beside the
+    exit's own prose line."""
+    features = {
+        "description": "Safety component of an unknown product.",
+        "domain": "consumer",
+        "flags": _without(
+            all_false_flags(medical_or_safety_component=True), *ARTICLE_6_1_FLAGS
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["missing_facts"].count(ANNEX_I_LINE) == 1
+    assert any("cannot be decided" in f for f in envelope["missing_facts"])
+
+
+def test_annex_i_unknown_lowers_the_article_50_exit(dump, node_ids):
+    features = {
+        "description": "Chatbot whose product status was not given.",
+        "domain": "consumer",
+        "flags": _without(
+            all_false_flags(interacts_with_natural_persons=True), *ARTICLE_6_1_FLAGS
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    assert envelope["answer"]["risk_category"] == "transparency_only"
+    assert envelope["status"] == "requires_human_review"
+    assert ANNEX_I_LINE in envelope["missing_facts"]
+    assert any(
+        "unknown Article 6(1) facts could add high-risk obligations" in r
+        for r in envelope["answer"]["rationale"]
+    )
+
+
+def test_article_50_exit_names_both_high_risk_kinds(dump, node_ids):
+    """Each applying kind adds its lowering line (R2)."""
+    features = {
+        "description": "Chatbot with an Annex III fact and the product status unknown.",
+        "domain": "consumer",
+        "flags": _without(
+            all_false_flags(interacts_with_natural_persons=True),
+            *ARTICLE_6_1_FLAGS,
+            "employment_decisions",
+        ),
+    }
+    envelope = classify_ai_system(features, dump)
+    rationale = " ".join(envelope["answer"]["rationale"])
+    assert envelope["status"] == "requires_human_review"
+    assert "unknown Annex III high-risk flags could add" in rationale
+    assert "unknown Article 6(1) facts could add high-risk obligations" in rationale
+
+
+def test_annex_i_true_third_party_unknown_is_named_on_the_prohibited_exit(dump, node_ids):
+    flags = _without(
+        all_false_flags(
+            subliminal_or_manipulative=True,
+            causes_significant_harm=True,
+            annex_i_covered_product=True,
+        ),
+        "third_party_conformity_assessment_required",
+    )
+    envelope = classify_ai_system(
+        {"description": "Manipulative module of a covered product.", "flags": flags}, dump
+    )
+    assert envelope["answer"]["risk_category"] == "prohibited"
+    named = [
+        f for f in envelope["missing_facts"]
+        if f.startswith("flags.third_party_conformity_assessment_required is unknown")
+    ]
+    assert len(named) == 1
+
+
+def test_annex_i_unknown_is_named_on_the_prohibited_and_high_risk_exits(dump, node_ids):
+    prohibited = _without(
+        all_false_flags(subliminal_or_manipulative=True, causes_significant_harm=True),
+        *ARTICLE_6_1_FLAGS,
+    )
+    high_risk = _without(all_false_flags(employment_decisions=True), *ARTICLE_6_1_FLAGS)
+    for flags, level in ((prohibited, "prohibited"), (high_risk, "high_risk")):
+        envelope = classify_ai_system(
+            {"description": "A system whose product status is unknown.", "domain": "employment", "flags": flags},
+            dump,
+        )
+        assert envelope["answer"]["risk_category"] == level
+        assert ANNEX_I_LINE in envelope["missing_facts"]
+    # The high-risk status is unchanged by the Annex I line (information only).
+    envelope = classify_ai_system(
+        {"description": "A system whose product status is unknown.", "domain": "employment", "flags": high_risk},
+        dump,
+    )
+    assert envelope["status"] == "potentially_applicable"
+
+
+def test_rejected_input_names_no_article_6_1_fact(dump):
+    envelope = classify_ai_system({"description": "short"}, dump)
+    assert envelope["status"] == "rejected_as_unsupported"
+    assert not any("annex_i_covered_product" in f for f in envelope["missing_facts"])
+
+
+def test_minimal_rationale_says_the_article_6_1_route_is_ruled_out(dump):
+    envelope = classify_ai_system(
+        {"description": "Movie recommendation engine.", "domain": "consumer", "flags": all_false_flags()},
+        dump,
+    )
+    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert any("the Article 6(1) route ruled out" in r for r in envelope["answer"]["rationale"])
 
 
 # Input validation ------------------------------------------------------------
