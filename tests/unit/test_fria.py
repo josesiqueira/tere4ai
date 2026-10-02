@@ -538,3 +538,122 @@ def test_fria_rationale_uses_the_shown_name(dump):
     rationale = " ".join(envelope["answer"]["fria"]["rationale"])
     assert "classified Limited risk" in rationale
     assert "limited_risk" not in rationale
+
+
+# B125: an unknown Annex III fact on a limited_risk or minimal_risk answer ---
+
+UNKNOWN_LINE = (
+    "flags.{flag} is unknown (Annex III high-risk relevant, Article 6(2)); if "
+    "true the system is high-risk under Article 6(2), which Article 27(1) "
+    "covers, so absence is not treated as false"
+)
+NEITHER_DEPLOYER = {
+    "body_governed_by_public_law": False,
+    "private_entity_providing_public_services": False,
+}
+POINT_1 = "eu-ai-act:annex-iii:point-1"
+
+
+def test_limited_risk_with_every_annex_iii_fact_unknown_is_unknown():
+    """Review Focus 1 at the rule level: each unknown Annex III fact that
+    could trigger is named, point 2 is not."""
+    unknown = {
+        "real_time_remote_biometric_public": POINT_1,
+        "critical_infrastructure_safety": ANNEX_III_POINT_2,
+        "employment_decisions": "eu-ai-act:annex-iii:point-4",
+        "creditworthiness_evaluation": POINT_5,
+    }
+    block = assess_fria_applicability(
+        "limited_risk", None, {}, {}, unknown_annex_iii_facts=unknown
+    )
+    assert block["applicability"] == "unknown"
+    assert block["basis_nodes"] == [ARTICLE_27_PARAGRAPH_1]
+    assert block["missing_facts"] == [
+        UNKNOWN_LINE.format(flag=f)
+        for f in (
+            "real_time_remote_biometric_public",
+            "employment_decisions",
+            "creditworthiness_evaluation",
+        )
+    ]
+    assert not any("critical_infrastructure_safety" in m for m in block["missing_facts"])
+    assert any(
+        "Limited risk on the facts given" in r and "cannot be settled yet" in r
+        for r in block["rationale"]
+    )
+
+
+def test_only_the_point_2_fact_unknown_does_not_apply():
+    """Review Focus 2: Article 27(1) excepts the point 2 area."""
+    block = assess_fria_applicability(
+        "limited_risk",
+        None,
+        {},
+        {},
+        unknown_annex_iii_facts={"critical_infrastructure_safety": ANNEX_III_POINT_2},
+    )
+    assert block["applicability"] == "does_not_apply"
+    assert block["missing_facts"] == []
+    assert any("point 2" in r and "excepts" in r for r in block["rationale"])
+
+
+def test_point_4_unknown_with_deployer_known_neither_does_not_apply():
+    """Review Focus 3: the deployer, not the system, is the trigger, and the
+    deployer is known to be neither category."""
+    block = assess_fria_applicability(
+        "limited_risk",
+        None,
+        {"creditworthiness_evaluation": False, "life_health_insurance_risk_pricing": False},
+        NEITHER_DEPLOYER,
+        unknown_annex_iii_facts={"employment_decisions": "eu-ai-act:annex-iii:point-4"},
+    )
+    assert block["applicability"] == "does_not_apply"
+    assert block["missing_facts"] == []
+    assert any("deployer" in r for r in block["rationale"])
+
+
+def test_creditworthiness_unknown_triggers_for_a_private_deployer():
+    """Review Focus 4: 5(b) triggers for any deployer."""
+    block = assess_fria_applicability(
+        "limited_risk",
+        None,
+        {},
+        NEITHER_DEPLOYER,
+        unknown_annex_iii_facts={"creditworthiness_evaluation": POINT_5},
+    )
+    assert block["applicability"] == "unknown"
+    assert block["missing_facts"] == [UNKNOWN_LINE.format(flag="creditworthiness_evaluation")]
+
+
+def test_minimal_risk_with_point_4_unknown_and_empty_deployer_is_unknown():
+    block = assess_fria_applicability(
+        "minimal_risk",
+        None,
+        {},
+        {},
+        unknown_annex_iii_facts={"employment_decisions": "eu-ai-act:annex-iii:point-4"},
+    )
+    assert block["applicability"] == "unknown"
+    assert block["missing_facts"] == [UNKNOWN_LINE.format(flag="employment_decisions")]
+    assert any("Minimal risk" in r for r in block["rationale"])
+
+
+def test_one_known_false_deployer_fact_still_leaves_the_deployer_open():
+    block = assess_fria_applicability(
+        "limited_risk",
+        None,
+        {},
+        {"body_governed_by_public_law": False},
+        unknown_annex_iii_facts={"employment_decisions": "eu-ai-act:annex-iii:point-4"},
+    )
+    assert block["applicability"] == "unknown"
+
+
+@pytest.mark.parametrize("unknown", [None, {}])
+@pytest.mark.parametrize("category", ["minimal_risk", "limited_risk"])
+def test_no_unknown_annex_iii_facts_keeps_does_not_apply(category, unknown):
+    block = assess_fria_applicability(
+        category, None, {}, {}, unknown_annex_iii_facts=unknown
+    )
+    assert block["applicability"] == "does_not_apply"
+    assert block["missing_facts"] == []

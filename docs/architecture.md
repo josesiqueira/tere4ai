@@ -555,6 +555,13 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   named, including a pending Article 6(3) derogation candidacy. The
   Omnibus-postponed application date rides on the block as data
   (applies_from), never as control flow, per the Section 11 overlay pattern.
+  Added 2026-10-02 (B125): on a limited_risk or minimal_risk answer, an
+  unknown Annex III fact that could make Article 27(1) apply keeps the
+  answer unknown and is named in the block's missing_facts (the point 2
+  area is excepted by Article 27(1); other areas whose trigger is the
+  deployer count only until the deployer is known to be neither category;
+  points 5(b) and 5(c) count for any deployer); the level, the status and
+  the envelope's missing_facts do not change.
   verify: src/tere4ai/mcp_server/fria.py (no model imports); classify answers
   carry the fria block and get_applicable_requirements passes it through;
   tests/unit/test_fria.py.

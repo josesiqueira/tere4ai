@@ -5,6 +5,18 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B125: the FRIA block reads the unknown Annex III facts (2026-10-02)
+- Contract change: on a `limited_risk` or `minimal_risk` answer the `fria`
+  block is `unknown`, not `does_not_apply`, while an Annex III fact absent
+  from the input could make the system high-risk under Article 6(2) and so
+  bring Article 27(1) in; each such fact is named in the fria block's
+  `missing_facts`. The point 2 area (excepted by Article 27(1)) never counts,
+  and the other areas stop counting once the deployer is known to be neither
+  a public-law body nor a private entity providing public services (points
+  5(b) and 5(c) count for any deployer). The level, the status and the
+  envelope's `missing_facts` do not change. The shopbot-transparency test
+  session is re-recorded for its first answer.
+
 ### B118: the levels take the pyramid's names (2026-10-02)
 - Contract change: `classify_ai_system`'s `risk_category` is one of
   `unacceptable_risk`, `high_risk`, `limited_risk`, `minimal_risk`,

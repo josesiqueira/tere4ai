@@ -1286,3 +1286,75 @@ def test_answer_carries_the_unacceptable_risk_field_not_prohibited(dump):
     assert answer["unacceptable_risk"] is False
     assert "prohibited" not in answer
     assert any(r.startswith("rule minimal_risk:") for r in answer["rationale"])
+
+
+# B125: the FRIA block reads the unknown Annex III facts -------------------------
+
+
+def _chatbot(**overrides) -> dict:
+    return {
+        "description": "Customer service chatbot for an e-commerce shop.",
+        "domain": "consumer",
+        "flags": overrides.pop("flags"),
+        **overrides,
+    }
+
+
+def test_chatbot_with_annex_iii_facts_absent_has_an_unknown_fria(dump, node_ids):
+    """Review Focus 1 through classify: level and status unchanged, the
+    unknown Annex III facts named in the fria block only."""
+    flags = _without(
+        all_false_flags(interacts_with_natural_persons=True),
+        *classify_module.ANNEX_III_RELEVANT_FLAGS,
+    )
+    envelope = classify_ai_system(_chatbot(flags=flags), dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "limited_risk"
+    assert envelope["status"] == "requires_human_review"
+    fria = envelope["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    named = " ".join(fria["missing_facts"])
+    for flag in classify_module.ANNEX_III_RELEVANT_FLAGS:
+        if flag == "critical_infrastructure_safety":
+            assert f"flags.{flag}" not in named
+        else:
+            assert f"flags.{flag} is unknown (Annex III high-risk relevant" in named, flag
+
+
+def test_scenario_c_chatbot_with_every_flag_false_keeps_fria_does_not_apply(dump):
+    envelope = classify_ai_system(
+        _chatbot(flags=all_false_flags(interacts_with_natural_persons=True)), dump
+    )
+    assert envelope["answer"]["fria"]["applicability"] == "does_not_apply"
+
+
+def test_rtrb_absent_counts_as_an_unknown_annex_iii_fact_for_fria(dump, node_ids):
+    """Review Focus 5: a point 1 fact as well as an Article 5 one."""
+    flags = _without(
+        all_false_flags(interacts_with_natural_persons=True),
+        "real_time_remote_biometric_public",
+    )
+    envelope = classify_ai_system(
+        _chatbot(flags=flags, deployer={"body_governed_by_public_law": True}), dump
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "limited_risk"
+    fria = envelope["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert fria["missing_facts"] == [
+        "flags.real_time_remote_biometric_public is unknown (Annex III high-risk "
+        "relevant, Article 6(2)); if true the system is high-risk under Article "
+        "6(2), which Article 27(1) covers, so absence is not treated as false"
+    ]
+
+
+def test_unknown_annex_iii_facts_helper_is_in_point_order_and_skips_known():
+    got = classify_module._unknown_annex_iii_facts(
+        {"employment_decisions": False}
+    )
+    assert "employment_decisions" not in got
+    assert got["real_time_remote_biometric_public"] == "eu-ai-act:annex-iii:point-1"
+    assert got["critical_infrastructure_safety"] == "eu-ai-act:annex-iii:point-2"
+    assert got["creditworthiness_evaluation"] == "eu-ai-act:annex-iii:point-5"
+    nodes = list(got.values())
+    assert nodes == sorted(nodes)

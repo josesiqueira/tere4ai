@@ -570,6 +570,23 @@ def _annex_iii_all_matches(flags: dict[str, Any], domain: str | None) -> list[st
     return matches
 
 
+def _unknown_annex_iii_facts(flags: dict[str, Any]) -> dict[str, str]:
+    """Every Annex III fact absent from flags, mapped to its point node.
+
+    In point order, from ANNEX_III_RULES (flags and subflags). A flag that
+    is also an Article 5 one (real_time_remote_biometric_public) counts here
+    too: its Annex III side is open whatever the Article 5 side says. Input
+    to the FRIA rule, which reads an unknown Annex III fact on a limited_risk
+    or minimal_risk answer (B125, DEC-14).
+    """
+    unknown: dict[str, str] = {}
+    for rule in ANNEX_III_RULES:
+        for flag in (*rule["flags"], *rule.get("subflags", ())):
+            if flag not in flags:
+                unknown.setdefault(flag, rule["node"])
+    return unknown
+
+
 def _article_6_3_candidate(flags: dict[str, Any], autonomy: Any) -> bool:
     """Whether an Article 6(3) derogation candidacy is flagged for this system.
 
@@ -1227,7 +1244,12 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     the Article 6(1) embedded-product route the system's separate Article
     6(2) membership is still checked (both routes can hold at once, and
     Article 27(1) covers the 6(2) side). The fria block is self-contained:
-    it never changes risk_category, envelope status, or confidence.
+    it never changes risk_category, envelope status, or confidence. On a
+    limited_risk or minimal_risk answer the block is unknown, not
+    does_not_apply, while an Annex III fact absent from the input could
+    still make the system high-risk under Article 6(2) and so bring
+    Article 27(1) in; each such fact is named in the block's missing_facts
+    only (the point 2 area, which Article 27(1) excepts, never is).
     """
     envelope = _classify_core(features, dump)
     answer = envelope.get("answer")
@@ -1268,5 +1290,9 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         # An unsettled high-risk classification (requires_human_review) must
         # not carry a settled FRIA verdict (audit D6).
         classification_unsettled=(envelope.get("status") == "requires_human_review"),
+        # An unknown Annex III fact keeps a limited_risk or minimal_risk
+        # answer's FRIA block open when it could make Article 27(1) apply
+        # (B125); only the fria block reads it, never the level or status.
+        unknown_annex_iii_facts=_unknown_annex_iii_facts(flags),
     )
     return envelope
