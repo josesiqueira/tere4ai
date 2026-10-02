@@ -3,21 +3,20 @@
 Generated from live TERE4AI MCP answers. Nothing below is legal advice; see the notice at the end, which is the server's own wording.
 
 - graph version: `build-3b753e5e9297+chain-7442562dce5c`
-- classified at: 2026-10-02T17:45:45.360649+00:00
-- requirements fetched at: 2026-10-02T17:45:45.721926+00:00
+- classified at: 2026-10-02T17:49:02.634202+00:00
+- requirements fetched at: 2026-10-02T17:49:02.899996+00:00
 
 ## Classification
 
 - risk category: **high_risk**
-- unacceptable risk: unknown
+- unacceptable risk: false
 - Annex III category: `eu-ai-act:annex-iii:point-5`
-- envelope status: `requires_human_review`, confidence 0.5
+- envelope status: `potentially_applicable`, confidence 1.0
 - Article 6(3) exception candidate: False
 
 Rule trace returned by the server:
 
 - rule high_risk: flag essential_services_access matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)
-- status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk
 
 Cited nodes:
 
@@ -26,8 +25,9 @@ Cited nodes:
 
 ## Article 27 fundamental rights impact assessment
 
-- applicability: **unknown**
-- the risk classification is high-risk but not settled (see the classification's own missing facts); FRIA applicability stays unknown until the classification is confirmed, because a change to Unacceptable risk would remove the obligation
+- applicability: **applies**
+- Article 27(1) trigger: creditworthiness_evaluation is true (evaluate the creditworthiness of natural persons or establish their credit score (Annex III point 5(b))); the FRIA obligation covers deployers of these systems regardless of deployer type
+- the assessment must be performed 'Prior to deploying a high-risk AI system referred to in Article 6(2)' (Article 27(1))
 - applies from 2027-12-02 (`in_force`, source REF-02: Digital Omnibus on AI, Regulation (EU) 2026/1744, Official Journal (OJ) L, 2026/1744, 24.7.2026, CELEX 32026R1744)
 
 ## Scope of the backlog
@@ -36,7 +36,7 @@ Cited nodes:
 - returned in this fetch: 277
 - articles touched: 23
 - norms still in the human review queue, never served: 36
-- calibrated status carried by every row below: `requires_human_review`
+- calibrated status carried by every row below: `applicable_missing_evidence`
 
 That status is the honest one for a codebase that has submitted no artifacts. The obligation applies and no evidence has been offered for it yet. Nothing here says satisfied, compliant, or certified.
 
@@ -462,10 +462,7 @@ That status is the honest one for a codebase that has submitted no artifacts. Th
 
 ## Facts that could not be settled from the README
 
-- flags.generates_nonconsensual_intimate_material is unknown (prohibition-relevant, Article 5); absence is not treated as false
-- flags.generates_csam is unknown (prohibition-relevant, Article 5); absence is not treated as false
-- flags.biometric_categorisation_sensitive_or_protected_attributes is unknown (Annex III high-risk relevant, Article 6(2)); absence is not treated as false
-- flags.biometric_categorisation_system is unknown (Article 50 transparency trigger, eu-ai-act:article-50:paragraph-3); absence is not treated as false, so that duty may be missing from transparency_duties
+The server reported no missing facts: every prohibition-relevant and Annex III relevant flag was answered. That is not the same as every fact being stated outright in the README. The flags below were set by inference from what it does say, and each one is open to challenge.
 
 | flag | set to | why |
 | --- | --- | --- |

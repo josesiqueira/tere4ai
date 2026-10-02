@@ -357,6 +357,62 @@ SYSTEMS: list[dict[str, Any]] = [
 ]
 
 
+# B118 fix: the rules of B36, B59 and B123 read facts the first recording
+# never gave. Each titled system states every fact its description does not
+# contradict as false, the way gold:cls-03 to cls-05 do, so that its session
+# answers the level its key names. A fact a system sets itself is kept. The
+# abstention session is left alone (it must keep abstaining), and so is the
+# first round of unacceptablerisk (the superseded answer that asks for facts).
+EVERY_FACT: tuple[str, ...] = (
+    "biometric_identification",
+    "biometric_categorisation",
+    "biometric_categorisation_system",
+    "biometric_categorisation_sensitive_or_protected_attributes",
+    "real_time_remote_biometric_public",
+    "generates_nonconsensual_intimate_material",
+    "generates_csam",
+    "emotion_recognition",
+    "emotion_recognition_workplace_or_education",
+    "social_scoring",
+    "subliminal_or_manipulative",
+    "exploits_vulnerabilities",
+    "predictive_policing_profiling",
+    "facial_image_scraping",
+    "law_enforcement_use",
+    "migration_asylum_border_use",
+    "justice_democratic_use",
+    "education_scoring_or_access",
+    "employment_decisions",
+    "essential_services_access",
+    "creditworthiness_evaluation",
+    "life_health_insurance_risk_pricing",
+    "critical_infrastructure_safety",
+    "medical_or_safety_component",
+    "interacts_with_natural_persons",
+    "generates_synthetic_content",
+    "profiling_of_natural_persons",
+    "preparatory_or_narrow_procedural_task",
+    "improves_previous_human_activity",
+    "detects_patterns_without_replacing_human_assessment",
+    "annex_i_covered_product",
+    "third_party_conformity_assessment_required",
+)
+
+
+def _give_every_fact() -> None:
+    for system in SYSTEMS:
+        if system["key"] == "abstention":
+            continue
+        rounds = system["features_rounds"]
+        for features in rounds[-1:]:
+            flags = features["flags"]
+            for fact in EVERY_FACT:
+                flags.setdefault(fact, False)
+
+
+_give_every_fact()
+
+
 def _envelope_of(result: Any) -> dict[str, Any]:
     """The tool's return value, whichever way this fastmcp version hands it back."""
     for attr in ("structured_content", "data"):
