@@ -1,0 +1,51 @@
+# Build context of the TERE4AI v2 images (B70). The rule: a clean checkout
+# plus the files the served facade reads. tests/unit/test_container_image.py
+# checks both lists.
+
+# secrets and local environment
+.env
+.env.*
+**/.env
+**/.env.*
+.venv/
+**/node_modules/
+web/.next/
+.git/
+.superpowers/
+.impeccable/
+graphify-out/
+_queries.cypher
+/*.pdf
+
+# caches and build output
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+**/*.egg-info/
+dist/
+build/
+web/tsconfig.tsbuildinfo
+web/next-env.d.ts
+
+# runtime logs: the facade's request log, the review queue logs
+data/review_queue/*.jsonl
+
+# graph dump directory: work files and local state the facade never reads.
+# Kept: layer1.json, norms_core.json, alignments_core.json and core_nodes.txt
+# (the four served files), BUILD_CHAIN_CURRENT.txt, build_chain_*.json,
+# ACTIVE_MANIFEST.json and publications/ (load_active and the served build
+# id), NEO4J_TARGET.json, build_records/ and evaluation_records/ (read by
+# /api/builds and /api/evaluations for the dashboard's Build and Research
+# views), the tracked norms_*.json and LICENSE.
+data/graph_dumps/*.checkpoint.jsonl
+data/graph_dumps/*.writing.json
+data/graph_dumps/*.building.json
+data/graph_dumps/*.dump
+data/graph_dumps/*.nt
+data/graph_dumps/**/*.lock
+
+# benchmark payload built by scripts/build_full_benchmark_payload.py
+data/snapshots/benchmark/full_payload.json
+data/keys/

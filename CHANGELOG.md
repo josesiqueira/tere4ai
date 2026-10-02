@@ -5,6 +5,27 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B70: the facade image for hosting the experiment
+- The Dockerfile's core target (the facade image) runs uvicorn with
+  --no-server-header, as user 1001 in group 0 (OpenShift's arbitrary user
+  id runs it too), with data/review_queue writable by group 0 and the dumps
+  read-only; the request log path stays TERE4AI_REQUEST_LOG (the hosted
+  deployment sets /dev/stdout). The build-time Layer 1 parse now writes to
+  a scratch directory: it used to rewrite data/graph_dumps/layer1.json with
+  a new built_at, so the image served another chain id than the dump it
+  was built from (build-3b753e5e9297+chain-5cd54648b7fd instead of
+  +chain-7442562dce5c), and it refuses to run once a publication names the
+  file. New scripts/served_build_id.py prints the build id the facade
+  serves (load_active); the image build runs it with --expect
+  "$TERE4AI_SERVED_BUILD_ID", fails on a different id, keeps the id in
+  /app/SERVED_BUILD_ID and labels the image tere4ai.served_build_id with
+  the build argument. New .dockerignore keeps .env files, .venv,
+  node_modules, caches, .git, the request logs, checkpoints, work files,
+  lock files, layer23.nt and the benchmark payload out of the build
+  context, and keeps the served files, the chain and publication files and
+  the build and evaluation records /api/builds and /api/evaluations read.
+  Tests: tests/unit/test_container_image.py.
+
 ### C3: both MCP revisions supported, tested and documented
 - fastmcp 4.0.10, pinned `fastmcp>=4.0.10,<4.1` (was `>=2.0`, 4.0.3
   installed); the suite passes unchanged on it. The server advertises no
