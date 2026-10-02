@@ -518,10 +518,13 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   missing_facts guard stay the sole decision path. Since prompt v6 (B10,
   2026-10-02) the textual support is checked by code: each fact, true or
   false, keeps only with a quote of at least three words that is found in
-  the description (character identity after collapsing whitespace runs, no
-  case folding); any other fact is dropped and named (the answer's dropped list
-  and missing_facts), and the answer carries each kept fact's quote with its offsets. Code checks
-  that the words are there; a person judges whether they support the fact.
+  the description as whole words (character identity after collapsing
+  whitespace runs, no case folding, a match starting and ending at a word
+  boundary); any other fact is dropped and named (the answer's dropped list
+  and missing_facts), a field the model sets to null or to an empty list is
+  unknown and removed without a dropped entry, and the answer carries each
+  kept fact's quote with its offsets. Code checks that the words are there;
+  a person judges whether they support the fact.
   verify: src/tere4ai/elicit_features/ never outputs a classification; flags
   without textual support omitted; elicitor.elicit drops an unquoted fact
   (tests/unit/test_elicit_features.py); elicitation-vs-abstention measured in the
