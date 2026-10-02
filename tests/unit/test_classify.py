@@ -111,8 +111,8 @@ def test_scenario_a_deepfake_generator_is_prohibited(dump, node_ids):
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
-    assert answer["risk_category"] == "prohibited"
-    assert answer["prohibited"] is True
+    assert answer["risk_category"] == "unacceptable_risk"
+    assert answer["unacceptable_risk"] is True
     assert envelope["status"] == "potentially_applicable"
     # Cites an Article 5 point node that exists in the dump.
     cited = [n for n in envelope["source_nodes"] if ":article-5:" in n]
@@ -136,7 +136,7 @@ def test_scenario_b_hospital_triage_is_high_risk(dump, node_ids):
     answer = envelope["answer"]
     assert answer["risk_category"] == "high_risk"
     # DEC-18: the prohibition flags were not provided, so it is not known.
-    assert answer["prohibited"] is None
+    assert answer["unacceptable_risk"] is None
     assert answer["annex_iii_category"] == "eu-ai-act:annex-iii:point-5"
     assert "eu-ai-act:annex-iii:point-5" in envelope["source_nodes"]
     # Prohibition flags were not provided, so the outcome is not settled.
@@ -169,8 +169,8 @@ def test_scenario_c_ecommerce_chatbot_is_transparency_only(dump, node_ids):
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
-    assert answer["risk_category"] == "transparency_only"
-    assert answer["prohibited"] is False
+    assert answer["risk_category"] == "limited_risk"
+    assert answer["unacceptable_risk"] is False
     assert answer["annex_iii_category"] is None
     assert envelope["status"] == "potentially_applicable"
     assert envelope["source_nodes"] == ["eu-ai-act:article-50:paragraph-1"]
@@ -185,8 +185,8 @@ def test_scenario_d_movie_recommender_is_minimal(dump, node_ids):
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
-    assert answer["risk_category"] == "minimal_or_none"
-    assert answer["prohibited"] is False
+    assert answer["risk_category"] == "minimal_risk"
+    assert answer["unacceptable_risk"] is False
     assert envelope["status"] == "not_applicable"
     assert envelope["missing_facts"] == []
 
@@ -198,7 +198,7 @@ def test_absent_prohibition_flags_populate_missing_facts_and_uncertain(dump, nod
     features = {"description": "A system described with no structured facts at all."}
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     facts = " ".join(envelope["missing_facts"])
     for flag in ARTICLE_5_POINT_BY_FLAG:
@@ -217,7 +217,7 @@ def test_absent_annex_iii_flags_block_a_confident_minimal(dump, node_ids):
         dump,
     )
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     facts = " ".join(envelope["missing_facts"])
     for flag in ("employment_decisions", "essential_services_access", "creditworthiness_evaluation"):
@@ -235,7 +235,7 @@ def test_homoglyph_or_invisible_domain_does_not_silently_clear(dump, node_ids):
             {"description": "A finance system, domain obfuscated.", "domain": bad_domain, "flags": flags},
             dump,
         )
-        assert envelope["answer"]["risk_category"] != "minimal_or_none", bad_domain
+        assert envelope["answer"]["risk_category"] != "minimal_risk", bad_domain
         assert envelope["status"] != "not_applicable", bad_domain
     # A zero-width-padded but otherwise exact known domain normalises cleanly.
     clean = classify_ai_system(
@@ -278,7 +278,7 @@ def test_rtrb_with_law_enforcement_is_prohibited_point_h(dump, node_ids):
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "prohibited"
+    assert envelope["answer"]["risk_category"] == "unacceptable_risk"
     assert ARTICLE_5_POINT_H in envelope["source_nodes"]
 
 
@@ -292,7 +292,7 @@ def test_article_5_exception_fact_unknown_routes_to_review_not_ban(dump, node_id
         },
         dump,
     )
-    assert envelope["answer"]["risk_category"] != "prohibited"
+    assert envelope["answer"]["risk_category"] != "unacceptable_risk"
     assert envelope["status"] == "requires_human_review"
     assert any("emotion_recognition_medical_or_safety" in f for f in envelope["missing_facts"])
 
@@ -311,8 +311,8 @@ def test_article_5_exception_met_continues_the_ladder_not_prohibited(dump, node_
         dump,
     )
     answer = envelope["answer"]
-    assert answer["prohibited"] is False
-    assert answer["risk_category"] != "prohibited"
+    assert answer["unacceptable_risk"] is False
+    assert answer["risk_category"] != "unacceptable_risk"
     assert any("not prohibited under that point" in r for r in answer["rationale"])
 
 
@@ -426,7 +426,7 @@ def test_annex_i_route_unresolved_third_party_fact_never_settles(dump, node_ids)
     features["flags"].pop("third_party_conformity_assessment_required")
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     assert any(
         "third_party_conformity_assessment_required" in fact
@@ -446,7 +446,7 @@ def test_annex_i_route_explicitly_ruled_out_continues_ladder(dump, node_ids):
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
     assert any("article_6_1" in r for r in envelope["answer"]["rationale"])
 
 
@@ -475,7 +475,7 @@ def test_lift_case_annex_i_unknown_is_named_and_not_minimal(dump, node_ids):
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     assert envelope["missing_facts"].count(ANNEX_I_LINE) == 1
     assert not any(
@@ -496,7 +496,7 @@ def test_annex_i_unknown_with_third_party_true_is_uncertain(dump, node_ids):
         ),
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     assert ANNEX_I_LINE in envelope["missing_facts"]
 
@@ -510,7 +510,7 @@ def test_third_party_false_rules_out_the_route_whatever_annex_i(dump, node_ids):
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
     assert envelope["status"] == "not_applicable"
     assert not any("annex_i_covered_product" in f for f in envelope["missing_facts"])
 
@@ -525,7 +525,7 @@ def test_annex_i_false_rules_out_the_route_whatever_third_party(dump, node_ids):
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
     assert envelope["status"] == "not_applicable"
     assert not any(
         "third_party_conformity_assessment_required" in f
@@ -544,7 +544,7 @@ def test_safety_component_with_third_party_false_is_not_held_at_uncertain(dump, 
         ),
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
     assert envelope["status"] == "not_applicable"
 
 
@@ -559,7 +559,7 @@ def test_safety_component_with_annex_i_unknown_stays_uncertain(dump, node_ids):
         ),
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["missing_facts"].count(ANNEX_I_LINE) == 1
     assert any("cannot be decided" in f for f in envelope["missing_facts"])
 
@@ -573,7 +573,7 @@ def test_annex_i_unknown_lowers_the_article_50_exit(dump, node_ids):
         ),
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "transparency_only"
+    assert envelope["answer"]["risk_category"] == "limited_risk"
     assert envelope["status"] == "requires_human_review"
     assert ANNEX_I_LINE in envelope["missing_facts"]
     assert any(
@@ -612,7 +612,7 @@ def test_annex_i_true_third_party_unknown_is_named_on_the_prohibited_exit(dump, 
     envelope = classify_ai_system(
         {"description": "Manipulative module of a covered product.", "flags": flags}, dump
     )
-    assert envelope["answer"]["risk_category"] == "prohibited"
+    assert envelope["answer"]["risk_category"] == "unacceptable_risk"
     named = [
         f for f in envelope["missing_facts"]
         if f.startswith("flags.third_party_conformity_assessment_required is unknown")
@@ -626,7 +626,7 @@ def test_annex_i_unknown_is_named_on_the_prohibited_and_high_risk_exits(dump, no
         *ARTICLE_6_1_FLAGS,
     )
     high_risk = _without(all_false_flags(employment_decisions=True), *ARTICLE_6_1_FLAGS)
-    for flags, level in ((prohibited, "prohibited"), (high_risk, "high_risk")):
+    for flags, level in ((prohibited, "unacceptable_risk"), (high_risk, "high_risk")):
         envelope = classify_ai_system(
             {"description": "A system whose product status is unknown.", "domain": "employment", "flags": flags},
             dump,
@@ -649,7 +649,7 @@ def test_minimal_rationale_says_the_article_6_1_route_is_ruled_out(dump):
         {"description": "Movie recommendation engine.", "domain": "consumer", "flags": all_false_flags()},
         dump,
     )
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
     assert any("the Article 6(1) route ruled out" in r for r in envelope["answer"]["rationale"])
 
 
@@ -687,7 +687,7 @@ def test_invalid_input_is_rejected_as_unsupported_never_raises(dump, node_ids):
         dump,
     )
     assert valid_out_of_scope["status"] == "not_applicable"
-    assert valid_out_of_scope["answer"]["risk_category"] == "minimal_or_none"
+    assert valid_out_of_scope["answer"]["risk_category"] == "minimal_risk"
 
 
 # Rule table grounding: hardcoded point markers match the real dump text ------
@@ -762,7 +762,7 @@ def test_domain_fallback_yields_to_explicitly_false_flags(dump):
         },
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "transparency_only"
+    assert envelope["answer"]["risk_category"] == "limited_risk"
     assert any("scenario 161" in r for r in envelope["answer"]["rationale"])
 
     # unknown flags keep the domain match (unknown is never false)
@@ -784,8 +784,8 @@ def test_omnibus_ncii_prohibition_cites_amending_instrument(dump, node_ids):
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "prohibited"
-    assert envelope["answer"]["prohibited"] is True
+    assert envelope["answer"]["risk_category"] == "unacceptable_risk"
+    assert envelope["answer"]["unacceptable_risk"] is True
     assert "src:omnibus-com-2025-836" in envelope["source_nodes"]
     notes = " ".join(envelope["legal_status_notes"])
     assert "2026/1744" in notes
@@ -801,7 +801,7 @@ def test_omnibus_csam_prohibition_cites_amending_instrument(dump, node_ids):
     }
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "prohibited"
+    assert envelope["answer"]["risk_category"] == "unacceptable_risk"
     assert "src:omnibus-com-2025-836" in envelope["source_nodes"]
     assert any("point (bb)" in n for n in envelope["legal_status_notes"])
 
@@ -835,8 +835,8 @@ def test_case1_proven_prohibition_is_true_even_with_other_facts_missing(dump, no
         dump,
     )
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "prohibited"
-    assert envelope["answer"]["prohibited"] is True
+    assert envelope["answer"]["risk_category"] == "unacceptable_risk"
+    assert envelope["answer"]["unacceptable_risk"] is True
 
 
 def test_case2_unresolved_article_5_path_is_unknown(dump, node_ids):
@@ -854,7 +854,7 @@ def test_case2_unresolved_article_5_path_is_unknown(dump, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
     assert answer["risk_category"] == "high_risk"
-    assert answer["prohibited"] is None
+    assert answer["unacceptable_risk"] is None
     assert envelope["status"] == "requires_human_review"
     assert any("flags.emotion_recognition_workplace_or_education" in f for f in envelope["missing_facts"])
 
@@ -864,8 +864,8 @@ def test_case2_unresolved_with_nothing_else_is_uncertain_and_unknown(dump, node_
         {"description": "A scoring system.", "flags": _without(all_false_flags(), "social_scoring")},
         dump,
     )
-    assert envelope["answer"]["risk_category"] == "uncertain"
-    assert envelope["answer"]["prohibited"] is None
+    assert envelope["answer"]["risk_category"] == "undetermined"
+    assert envelope["answer"]["unacceptable_risk"] is None
 
 
 def test_case3_uncertain_but_article_5_ruled_out_is_false(dump, node_ids):
@@ -876,8 +876,8 @@ def test_case3_uncertain_but_article_5_ruled_out_is_false(dump, node_ids):
         dump,
     )
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["answer"]["risk_category"] == "uncertain"
-    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["risk_category"] == "undetermined"
+    assert envelope["answer"]["unacceptable_risk"] is False
     assert not any("prohibition-relevant" in f for f in envelope["missing_facts"])
 
 
@@ -888,7 +888,7 @@ def test_case4_article_5_ruled_out_and_high_risk_is_false(dump, node_ids):
         dump,
     )
     assert envelope["answer"]["risk_category"] == "high_risk"
-    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["unacceptable_risk"] is False
     assert envelope["status"] == "potentially_applicable"
 
 
@@ -898,8 +898,8 @@ def test_case6_article_50_only_is_transparency_only_and_false(dump, node_ids):
          "flags": all_false_flags(interacts_with_natural_persons=True)},
         dump,
     )
-    assert envelope["answer"]["risk_category"] == "transparency_only"
-    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["risk_category"] == "limited_risk"
+    assert envelope["answer"]["unacceptable_risk"] is False
 
 
 def test_absent_flag_ruled_out_by_its_harm_element_is_false(dump, node_ids):
@@ -909,8 +909,8 @@ def test_absent_flag_ruled_out_by_its_harm_element_is_false(dump, node_ids):
     flags = _without(all_false_flags(), "subliminal_or_manipulative")
     flags["causes_significant_harm"] = False
     envelope = classify_ai_system({"description": "A recommender.", "flags": flags}, dump)
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
-    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
+    assert envelope["answer"]["unacceptable_risk"] is False
     assert envelope["status"] == "not_applicable"
     assert not any("subliminal_or_manipulative" in f for f in envelope["missing_facts"])
 
@@ -925,7 +925,7 @@ def test_point_d_and_g_exceptions_never_clear_an_absent_flag(dump, node_ids):
         flags = _without(all_false_flags(), flag)
         flags[fact] = True
         envelope = classify_ai_system({"description": "A described AI system.", "flags": flags}, dump)
-        assert envelope["answer"]["prohibited"] is None, flag
+        assert envelope["answer"]["unacceptable_risk"] is None, flag
         assert any(f"flags.{flag}" in f for f in envelope["missing_facts"]), flag
 
 
@@ -934,8 +934,8 @@ def test_rtrb_absent_with_le_false_is_uncertain_not_minimal(dump, node_ids):
     an Annex III point 1 fact, so a confident minimal is not allowed."""
     flags = _without(all_false_flags(), "real_time_remote_biometric_public")
     envelope = classify_ai_system({"description": "A camera system.", "flags": flags}, dump)
-    assert envelope["answer"]["prohibited"] is False
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["unacceptable_risk"] is False
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert any(
         "flags.real_time_remote_biometric_public" in f and "Annex III" in f
         for f in envelope["missing_facts"]
@@ -949,7 +949,7 @@ def test_rtrb_carve_out_known_true_does_not_ask_for_law_enforcement(dump, node_i
     flags["rtrb_strictly_necessary_authorised"] = True
     envelope = classify_ai_system({"description": "Live identification.", "flags": flags}, dump)
     assert envelope["answer"]["risk_category"] == "high_risk"
-    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["unacceptable_risk"] is False
     assert not any("point (h) applies only to law-enforcement use" in f for f in envelope["missing_facts"])
 
 
@@ -957,7 +957,7 @@ def test_rejected_input_has_prohibited_null(dump):
     envelope = classify_ai_system({"description": "short", "bogus_field": 1}, dump)
     assert envelope["status"] == "rejected_as_unsupported"
     assert envelope["answer"]["risk_category"] is None
-    assert envelope["answer"]["prohibited"] is None
+    assert envelope["answer"]["unacceptable_risk"] is None
 
 
 def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
@@ -967,7 +967,7 @@ def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
             {"description": "A described AI system.", "flags": _without(all_false_flags(employment_decisions=True), flag)},
             dump,
         )
-        assert envelope["answer"]["prohibited"] is None, flag
+        assert envelope["answer"]["unacceptable_risk"] is None, flag
         assert envelope["status"] == "requires_human_review", flag
     # Point (h): the biometric flag and the law enforcement exception each unresolved.
     base = all_false_flags(employment_decisions=True)
@@ -979,7 +979,7 @@ def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
     }
     for name, flags in scenarios.items():
         envelope = classify_ai_system({"description": "A described AI system.", "flags": flags}, dump)
-        assert envelope["answer"]["prohibited"] is None, name
+        assert envelope["answer"]["unacceptable_risk"] is None, name
         assert envelope["status"] == "requires_human_review", name
 
 
@@ -1001,7 +1001,7 @@ def test_annex_iii_point_1b_sensitive_attributes_is_high_risk(dump, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
     assert answer["risk_category"] == "high_risk"
-    assert answer["prohibited"] is False
+    assert answer["unacceptable_risk"] is False
     assert answer["annex_iii_category"] == "eu-ai-act:annex-iii:point-1"
     assert any(
         "flag biometric_categorisation_sensitive_or_protected_attributes matches" in line
@@ -1014,8 +1014,8 @@ def test_absent_point_1b_fact_blocks_a_confident_minimal(dump):
     false (audit D1)."""
     flags = _without(all_false_flags(), "biometric_categorisation_sensitive_or_protected_attributes")
     envelope = classify_ai_system({"description": "A recommender system.", "flags": flags}, dump)
-    assert envelope["answer"]["risk_category"] == "uncertain"
-    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["risk_category"] == "undetermined"
+    assert envelope["answer"]["unacceptable_risk"] is False
     assert any(
         "flags.biometric_categorisation_sensitive_or_protected_attributes" in f and "Annex III" in f
         for f in envelope["missing_facts"]
@@ -1032,8 +1032,8 @@ def test_biometric_categorisation_system_is_an_article_50_3_trigger(dump, node_i
     )
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
-    assert answer["risk_category"] == "transparency_only"
-    assert answer["prohibited"] is False
+    assert answer["risk_category"] == "limited_risk"
+    assert answer["unacceptable_risk"] is False
     assert envelope["status"] == "potentially_applicable"
     assert envelope["source_nodes"] == [ARTICLE_50_3]
 
@@ -1046,7 +1046,7 @@ def test_the_general_biometric_system_alone_is_not_the_article_5_ban(dump):
          "flags": all_false_flags(biometric_categorisation_system=True)},
         dump,
     )
-    assert envelope["answer"]["prohibited"] is False
+    assert envelope["answer"]["unacceptable_risk"] is False
     assert not any(":article-5:" in n for n in envelope["source_nodes"])
 
 
@@ -1104,7 +1104,7 @@ def test_case5_high_risk_plus_article_50_lists_the_duty(dump, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
     assert answer["risk_category"] == "high_risk"
-    assert answer["prohibited"] is False
+    assert answer["unacceptable_risk"] is False
     assert answer["transparency_duties"] == [ARTICLE_50_1]
     assert envelope["status"] == "potentially_applicable"
     assert ARTICLE_50_1 in envelope["source_nodes"]
@@ -1120,13 +1120,13 @@ def test_case5_high_risk_plus_article_50_lists_the_duty(dump, node_ids):
 
 def test_transparency_duties_is_a_list_on_every_exit(dump):
     """DEC-18: the field is present on every exit; it lists the triggered
-    paragraphs on every exit except prohibited and rejected input."""
+    paragraphs on every exit except unacceptable_risk and rejected input."""
     cases = {
         "rejected": ({"description": "short"}, None, []),
         "prohibited": (
             {"description": "Scrapes faces and chats with users.",
              "flags": all_false_flags(facial_image_scraping=True, interacts_with_natural_persons=True)},
-            "prohibited", [],
+            "unacceptable_risk", [],
         ),
         "annex i high-risk": (
             {"description": "Safety component that writes synthetic reports.",
@@ -1140,22 +1140,22 @@ def test_transparency_duties_is_a_list_on_every_exit(dump):
              "flags": _without(all_false_flags(annex_i_covered_product=True,
                                                interacts_with_natural_persons=True),
                                "third_party_conformity_assessment_required")},
-            "uncertain", [ARTICLE_50_1],
+            "undetermined", [ARTICLE_50_1],
         ),
         "article 50": (
             {"description": "Customer service chatbot for a webshop.",
              "flags": all_false_flags(interacts_with_natural_persons=True)},
-            "transparency_only", [ARTICLE_50_1],
+            "limited_risk", [ARTICLE_50_1],
         ),
         "second uncertain": (
             {"description": "A hiring helper with one fact unknown.",
              "flags": _without(all_false_flags(), "employment_decisions")},
-            "uncertain", [],
+            "undetermined", [],
         ),
         "minimal": (
             {"description": "Movie recommendation engine for streaming.",
              "flags": all_false_flags()},
-            "minimal_or_none", [],
+            "minimal_risk", [],
         ),
     }
     for name, (features, category, duties) in cases.items():
@@ -1203,7 +1203,7 @@ def test_absent_article_50_fact_is_named_on_minimal_and_minimal_stays(dump):
     """Jose, 2026-10-01: "Keep minimal, name the fact"."""
     flags = _without(all_false_flags(), "interacts_with_natural_persons")
     envelope = classify_ai_system({"description": "Movie recommendation engine.", "flags": flags}, dump)
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
     assert envelope["status"] == "not_applicable"
     assert envelope["confidence"] == 1.0
     assert envelope["answer"]["transparency_duties"] == []
@@ -1247,3 +1247,42 @@ def test_absent_article_50_fact_is_named_on_high_risk_without_lowering_it(dump):
         "flags.biometric_categorisation_system is unknown (Article 50 transparency trigger" in f
         for f in envelope["missing_facts"]
     )
+
+
+def test_levels_are_the_pyramids_names():
+    """B118 (spec G D-G60): one stored value per level, one shown name."""
+    assert classify_module.RISK_CATEGORIES == (
+        "unacceptable_risk", "high_risk", "limited_risk", "minimal_risk", "undetermined",
+    )
+    assert classify_module.LEVEL_NAMES == {
+        "unacceptable_risk": "Unacceptable risk",
+        "high_risk": "High risk",
+        "limited_risk": "Limited risk",
+        "minimal_risk": "Minimal risk",
+        "undetermined": "Undetermined: facts missing",
+    }
+    assert classify_module.level_name("limited_risk") == "Limited risk"
+    assert classify_module.level_name("transparency_only") == "transparency_only"
+    assert classify_module.level_name(None) is None
+
+
+def test_old_values_map_to_new_ones_for_reading_old_results():
+    assert classify_module.LEGACY_LEVEL_VALUES == {
+        "prohibited": "unacceptable_risk",
+        "high_risk": "high_risk",
+        "transparency_only": "limited_risk",
+        "minimal_or_none": "minimal_risk",
+        "uncertain": "undetermined",
+    }
+
+
+def test_answer_carries_the_unacceptable_risk_field_not_prohibited(dump):
+    envelope = classify_ai_system(
+        {"description": "Movie recommendation engine.", "domain": "consumer", "flags": all_false_flags()},
+        dump,
+    )
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "minimal_risk"
+    assert answer["unacceptable_risk"] is False
+    assert "prohibited" not in answer
+    assert any(r.startswith("rule minimal_risk:") for r in answer["rationale"])

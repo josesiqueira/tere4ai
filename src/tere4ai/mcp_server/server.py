@@ -414,20 +414,20 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     """Deterministic EU AI Act risk classification of a described AI system.
 
     Consumes structured system features (system_features.schema.json) and
-    returns risk_category (prohibited, high_risk, transparency_only,
-    minimal_or_none, uncertain) with cited Article 5 / Article 6 / Annex III
-    / Article 50 nodes. uncertain is not a legal risk level: facts the rules
-    need are missing. The answer's prohibited field is true (an Article 5
+    returns risk_category (unacceptable_risk, high_risk, limited_risk,
+    minimal_risk, undetermined) with cited Article 5 / Article 6 / Annex III
+    / Article 50 nodes. undetermined is not a legal risk level: facts the rules
+    need are missing. The answer's unacceptable_risk field is true (an Article 5
     prohibition is proven), false (every Article 5 path is ruled out) or null
     (unknown: an Article 5 fact is missing). transparency_duties lists the
     Article 50 paragraphs triggered by a known fact, on a high-risk answer
     too (Article 50(6)); a listed paragraph is triggered, not proven, and an
     empty list means none is triggered by a known fact. A fixed rule ladder
     decides, never a model; unknown facts that could make the system
-    prohibited or high-risk (Article 5, the Article 6(1) route, Annex III)
+    unacceptable risk or high-risk (Article 5, the Article 6(1) route, Annex III)
     surface in missing_facts; where they could change the level the status
     is requires_human_review, and with no rule firing the level is
-    uncertain, never minimal_or_none. The answer also carries a fria block:
+    undetermined, never minimal_risk. The answer also carries a fria block:
     whether the Article 27(1) fundamental rights impact assessment
     obligation applies to the deployer (applies, does_not_apply, unknown),
     decided by the same deterministic rules from the flags and the optional
@@ -489,7 +489,7 @@ def get_applicable_requirements(
     system, grouped by source article.
 
     classification is the classify_ai_system envelope (or its bare answer).
-    Only judge-ACCEPTED NormativeStatements are returned; prohibited systems
+    Only judge-ACCEPTED NormativeStatements are returned; unacceptable-risk systems
     get zero requirements, only the prohibition citation. The optional actor
     filter uses the canonical actor vocabulary (provider, deployer, ...).
     Deterministic selection over the judged build artifact; free, no model

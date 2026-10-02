@@ -36,6 +36,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tere4ai.mcp_server.levels import level_name
+
 ARTICLE_27_PARAGRAPH_1 = "eu-ai-act:article-27:paragraph-1"
 ARTICLE_6_PARAGRAPH_3 = "eu-ai-act:article-6:paragraph-3"
 ANNEX_III_POINT_2 = "eu-ai-act:annex-iii:point-2"
@@ -137,7 +139,7 @@ def assess_fria_applicability(
     obligation of a system that also falls under another point (audit D5).
     classification_unsettled is true when the classification itself is not
     settled (for example an unknown prohibition flag could flip it to
-    prohibited); the obligation then stays unknown (audit D6). A pending
+    unacceptable risk); the obligation then stays unknown (audit D6). A pending
     Article 6(3) derogation likewise blocks the decision (audit D7): a
     confirmed derogation would take the system out of Article 6(2).
     """
@@ -145,7 +147,7 @@ def assess_fria_applicability(
     basis = [ARTICLE_27_PARAGRAPH_1]
     missing: list[str] = []
 
-    if risk_category is None or risk_category == "uncertain":
+    if risk_category is None or risk_category == "undetermined":
         rationale.append(
             "the risk classification is not settled; Article 27(1) applies "
             "only to high-risk AI systems referred to in Article 6(2), so "
@@ -153,7 +155,7 @@ def assess_fria_applicability(
         )
         return _block("unknown", rationale, basis, missing)
 
-    if risk_category == "prohibited":
+    if risk_category == "unacceptable_risk":
         rationale.append(
             "the system falls under an Article 5 prohibited practice; there "
             "is no lawful deployment for Article 27(1) to attach to, and no "
@@ -161,9 +163,9 @@ def assess_fria_applicability(
         )
         return _block("does_not_apply", rationale, basis, missing)
 
-    if risk_category in ("minimal_or_none", "transparency_only"):
+    if risk_category in ("minimal_risk", "limited_risk"):
         rationale.append(
-            f"the system is classified {risk_category}; Article 27(1) "
+            f"the system is classified {level_name(risk_category)}; Article 27(1) "
             "applies only to high-risk AI systems referred to in Article 6(2)"
         )
         return _block("does_not_apply", rationale, basis, missing)
@@ -226,14 +228,14 @@ def assess_fria_applicability(
 
     if classification_unsettled:
         # The high-risk classification is provisional (for example an unknown
-        # Article 5 prohibition fact could still flip it to prohibited, in
+        # Article 5 prohibition fact could still flip it to unacceptable risk, in
         # which case FRIA does_not_apply). Do not present the obligation as
         # settled while its own premise is not (audit D6).
         rationale.append(
             "the risk classification is high-risk but not settled (see the "
             "classification's own missing facts); FRIA applicability stays "
             "unknown until the classification is confirmed, because a change "
-            "to prohibited would remove the obligation"
+            "to Unacceptable risk would remove the obligation"
         )
         return _block("unknown", rationale, basis, missing)
 

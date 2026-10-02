@@ -87,7 +87,7 @@ def test_prohibited_returns_zero_requirements(dump, norms_payload, node_ids):
         },
         dump,
     )
-    assert classification["answer"]["risk_category"] == "prohibited"
+    assert classification["answer"]["risk_category"] == "unacceptable_risk"
     envelope = get_applicable_requirements(classification, norms_payload, dump)
     assert_envelope_invariants(envelope, node_ids)
     answer = envelope["answer"]
@@ -101,7 +101,7 @@ def test_prohibited_returns_zero_requirements(dump, norms_payload, node_ids):
 
 def test_prohibited_bare_answer_falls_back_to_article_5(dump, norms_payload, node_ids):
     envelope = get_applicable_requirements(
-        {"risk_category": "prohibited"}, norms_payload, dump
+        {"risk_category": "unacceptable_risk"}, norms_payload, dump
     )
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["answer"]["requirements_by_article"] == {}
@@ -248,7 +248,7 @@ def test_actor_filter_rejects_non_canonical_actor(dump, norms_payload, node_ids)
 
 def test_transparency_only_returns_article_50_norms_only(dump, norms_payload, node_ids):
     envelope = get_applicable_requirements(
-        {"risk_category": "transparency_only"}, norms_payload, dump
+        {"risk_category": "limited_risk"}, norms_payload, dump
     )
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["status"] == "applicable_missing_evidence"
@@ -270,7 +270,7 @@ def test_transparency_only_returns_article_50_norms_only(dump, norms_payload, no
 
 def test_minimal_returns_empty_not_applicable(dump, norms_payload, node_ids):
     envelope = get_applicable_requirements(
-        {"risk_category": "minimal_or_none"}, norms_payload, dump
+        {"risk_category": "minimal_risk"}, norms_payload, dump
     )
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["status"] == "not_applicable"
@@ -280,7 +280,7 @@ def test_minimal_returns_empty_not_applicable(dump, norms_payload, node_ids):
 
 def test_uncertain_requires_human_review(dump, norms_payload, node_ids):
     envelope = get_applicable_requirements(
-        {"risk_category": "uncertain"}, norms_payload, dump
+        {"risk_category": "undetermined"}, norms_payload, dump
     )
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["status"] == "requires_human_review"
@@ -295,6 +295,20 @@ def test_unrecognised_risk_category_is_graceful(dump, norms_payload, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["status"] == "not_applicable"
     assert any("not a recognised" in f for f in envelope["missing_facts"])
+
+
+def test_old_level_value_is_refused_not_mapped(dump, norms_payload, node_ids):
+    """An answer from before B118 sent back is refused with not_applicable
+    and confidence 0, its old value named; it is not mapped (CHANGELOG)."""
+    envelope = get_applicable_requirements(
+        {"risk_category": "transparency_only"}, norms_payload, dump
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["status"] == "not_applicable"
+    assert envelope["confidence"] == 0.0
+    assert any(
+        "'transparency_only'" in f and "limited_risk" in f for f in envelope["missing_facts"]
+    )
 
 
 def test_empty_norms_payload_degrades_never_fabricates(dump, node_ids):
@@ -468,21 +482,21 @@ def test_uncertain_message_follows_the_classification_state(dump, norms_payload)
     }
     del all_false["employment_decisions"]
     classification = classify_ai_system({"description": "A hiring helper.", "flags": all_false}, dump)
-    assert classification["answer"]["risk_category"] == "uncertain"
-    assert classification["answer"]["prohibited"] is False
+    assert classification["answer"]["risk_category"] == "undetermined"
+    assert classification["answer"]["unacceptable_risk"] is False
     envelope = get_applicable_requirements(classification, norms_payload, dump)
     assert envelope["answer"]["message"] == UNCERTAIN_HIGH_RISK_MESSAGE
 
 
 def test_uncertain_message_names_article_5_when_prohibited_is_unknown(dump, norms_payload):
     classification = classify_ai_system({"description": "Nothing settled."}, dump)
-    assert classification["answer"]["prohibited"] is None
+    assert classification["answer"]["unacceptable_risk"] is None
     envelope = get_applicable_requirements(classification, norms_payload, dump)
     assert envelope["answer"]["message"] == UNCERTAIN_MESSAGE
 
 
 def test_bare_uncertain_answer_keeps_the_conservative_message(dump, norms_payload):
-    envelope = get_applicable_requirements({"risk_category": "uncertain"}, norms_payload, dump)
+    envelope = get_applicable_requirements({"risk_category": "undetermined"}, norms_payload, dump)
     assert envelope["answer"]["message"] == UNCERTAIN_MESSAGE
 
 

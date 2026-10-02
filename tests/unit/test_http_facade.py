@@ -198,7 +198,7 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     assert envelope["answer"]["risk_category"] is None
     # DEC-18: no rule ran, so prohibited is unknown, and null survives the
     # serialization boundary (never coerced to false).
-    assert envelope["answer"]["prohibited"] is None
+    assert envelope["answer"]["unacceptable_risk"] is None
     # DEC-18 (B36.2): the list is present on the rejected answer, empty.
     assert envelope["answer"]["transparency_duties"] == []
     assert any("schema validation" in fact for fact in envelope["missing_facts"])
@@ -232,7 +232,7 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     assert valid.status_code == 200
     valid_envelope = valid.json()
     assert valid_envelope["status"] == "not_applicable"
-    assert valid_envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert valid_envelope["answer"]["risk_category"] == "minimal_risk"
 
 
 def test_requirements_returns_grouped_accepted_norms(client):

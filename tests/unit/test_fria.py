@@ -135,19 +135,19 @@ def test_point_2_plus_other_area_public_deployer_applies():
     assert "eu-ai-act:annex-iii:point-6" in block["basis_nodes"]
 
 
-@pytest.mark.parametrize("category", ["minimal_or_none", "transparency_only"])
+@pytest.mark.parametrize("category", ["minimal_risk", "limited_risk"])
 def test_non_high_risk_categories_do_not_carry_the_obligation(category):
     block = assess_fria_applicability(category, None, {}, {})
     assert block["applicability"] == "does_not_apply"
 
 
 def test_prohibited_systems_have_no_deployment_for_fria_to_attach_to():
-    block = assess_fria_applicability("prohibited", None, {}, {})
+    block = assess_fria_applicability("unacceptable_risk", None, {}, {})
     assert block["applicability"] == "does_not_apply"
     assert any("no lawful deployment" in r for r in block["rationale"])
 
 
-@pytest.mark.parametrize("category", ["uncertain", None])
+@pytest.mark.parametrize("category", ["undetermined", None])
 def test_unsettled_classification_keeps_fria_unknown(category):
     block = assess_fria_applicability(category, None, {}, {})
     assert block["applicability"] == "unknown"
@@ -250,7 +250,7 @@ def test_applies_from_is_data_never_control_flow():
     decision itself."""
     for args in (
         ("high_risk", POINT_5, {"creditworthiness_evaluation": True}, {}),
-        ("minimal_or_none", None, {}, {}),
+        ("minimal_risk", None, {}, {}),
     ):
         block = assess_fria_applicability(*args)
         applies_from = block["applies_from"]
@@ -265,8 +265,8 @@ def test_applies_from_source_carries_no_internal_task_references():
     citation, never an internal task-board reference."""
     for args in (
         ("high_risk", POINT_5, {"creditworthiness_evaluation": True}, {}),
-        ("minimal_or_none", None, {}, {}),
-        ("uncertain", None, {}, {}),
+        ("minimal_risk", None, {}, {}),
+        ("undetermined", None, {}, {}),
     ):
         block = assess_fria_applicability(*args)
         source = block["applies_from"]["source"]
@@ -280,9 +280,9 @@ def test_vocabulary_is_closed_and_output_never_claims_compliance():
         ("high_risk", POINT_5, {"creditworthiness_evaluation": True}, {}),
         ("high_risk", ANNEX_III_POINT_2, {}, {}),
         ("high_risk", POINT_4, {}, {}),
-        ("minimal_or_none", None, {}, {}),
-        ("prohibited", None, {}, {}),
-        ("uncertain", None, {}, {}),
+        ("minimal_risk", None, {}, {}),
+        ("unacceptable_risk", None, {}, {}),
+        ("undetermined", None, {}, {}),
         ("high_risk", None, {}, {}),
     ]
     for args in scenarios:
@@ -405,7 +405,7 @@ def test_scenario_161_domain_yield_semantics_are_preserved(dump):
         "flags": dict(_ALL_FLAGS_FALSE),
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "minimal_or_none"
+    assert envelope["answer"]["risk_category"] == "minimal_risk"
     assert envelope["answer"]["fria"]["applicability"] == "does_not_apply"
 
 
@@ -421,7 +421,7 @@ def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
         "flags": flags,
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "uncertain"
+    assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     assert any(
         "creditworthiness_evaluation" in f for f in envelope["missing_facts"]
@@ -525,3 +525,16 @@ def test_requirements_pass_the_fria_block_through_verbatim(dump):
     answer = envelope["answer"]
     assert "article-27" in answer["requirements_by_article"]
     assert answer["fria"] == classification["answer"]["fria"]
+
+
+def test_fria_rationale_uses_the_shown_name(dump):
+    envelope = classify_ai_system(
+        {"description": "Customer service chatbot.", "domain": "consumer",
+         "flags": {**_ALL_FLAGS_FALSE, "interacts_with_natural_persons": True,
+                   "annex_i_covered_product": False,
+                   "third_party_conformity_assessment_required": False}},
+        dump,
+    )
+    rationale = " ".join(envelope["answer"]["fria"]["rationale"])
+    assert "classified Limited risk" in rationale
+    assert "limited_risk" not in rationale

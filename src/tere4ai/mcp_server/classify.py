@@ -8,7 +8,7 @@ classification). The ladder is: Article 5 prohibitions, then the Article
 assessment), then Article 6(2) plus Annex III high-risk categories, then
 Article 6(3) derogation candidacy over the real second-subparagraph
 conditions (with the third-subparagraph profiling override), then Article
-50 transparency, else minimal. Every cited node id
+50 transparency, else minimal risk. Every cited node id
 is resolved against the offline Layer 0+1 dump; unknown facts are never
 guessed, they surface in missing_facts and lower the status to
 requires_human_review where they could change the outcome.
@@ -36,6 +36,12 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from tere4ai.mcp_server.fria import assess_fria_applicability
+from tere4ai.mcp_server.levels import (  # noqa: F401
+    LEGACY_LEVEL_VALUES,
+    LEVEL_NAMES,
+    RISK_CATEGORIES,
+    level_name,
+)
 from tere4ai.mcp_server.tools import make_envelope
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -306,7 +312,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
 # Flags whose unknown value can change an Annex III high-risk outcome. Like
 # the prohibition flags, absence is NOT treated as false: an unknown Annex
 # III fact is surfaced in missing_facts and blocks a confident
-# minimal_or_none verdict (audit 2026-07-20 D1). Built from the rule table so
+# minimal_risk verdict (audit 2026-07-20 D1). Built from the rule table so
 # it can never drift from the categories. A flag that is also an Article 5
 # flag (real_time_remote_biometric_public) stays in this list: its Article 5
 # path can be ruled out while its Annex III one is not (DEC-18); the ladder
@@ -482,13 +488,6 @@ ARTICLE_50_TRIGGERED_NOTE = (
     "paragraphs 4 and 5 are not decided by the rules"
 )
 
-RISK_CATEGORIES = (
-    "prohibited",
-    "high_risk",
-    "transparency_only",
-    "minimal_or_none",
-    "uncertain",
-)
 
 
 @lru_cache(maxsize=1)
@@ -640,13 +639,13 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
 
     Consumes structured system features (system_features.schema.json) and the
     offline Layer 0+1 dump. Returns the mandatory response envelope with
-    answer fields: risk_category, prohibited, annex_iii_category,
+    answer fields: risk_category, unacceptable_risk, annex_iii_category,
     article_6_3_exception_candidate, transparency_duties (DEC-18: the Article
     50 paragraphs triggered by a known fact), rationale. Schema-invalid input returns
     status rejected_as_unsupported (never an exception) with the validation
     errors in missing_facts: the input was refused, not assessed, so it must
     not borrow not_applicable, which is a substantive in-scope verdict ("this
-    system is out of the high-risk or prohibited regime") that a consumer
+    system is out of the high-risk or Article 5 regime") that a consumer
     reading only status could mistake a rejected input for. A well-formed
     system that is simply out of scope still returns not_applicable. No model
     is involved anywhere in this function.
@@ -659,7 +658,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             answer={
                 "risk_category": None,
                 # DEC-18: no rule ran, so nothing about Article 5 is known.
-                "prohibited": None,
+                "unacceptable_risk": None,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "transparency_duties": [],
@@ -780,7 +779,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "law_enforcement_use" not in flags
             and flags.get(ARTICLE_5_POINT_H_EXCULPATING[0]) is not ARTICLE_5_POINT_H_EXCULPATING[1]
         ):
-            # The unknown context could change the outcome to prohibited.
+            # The unknown context could change the outcome to unacceptable_risk.
             unknown_prohibition_flags.append("law_enforcement_use")
             missing_facts.append(
                 "flags.law_enforcement_use is unknown while "
@@ -791,7 +790,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     if prohibition_hits:
         for flag, node_id, fragment in prohibition_hits:
             citations.cite(node_id)
-            rationale.append(f"rule prohibited: flag {flag} matches {node_id} ({fragment})")
+            rationale.append(f"rule unacceptable_risk: flag {flag} matches {node_id} ({fragment})")
             if flag in OMNIBUS_ARTICLE_5_POINT_BY_FLAG:
                 point, _ = OMNIBUS_ARTICLE_5_POINT_BY_FLAG[flag]
                 legal_status_notes.append(
@@ -813,8 +812,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         missing_facts.extend(citations.unresolved)
         return make_envelope(
             answer={
-                "risk_category": "prohibited",
-                "prohibited": True,
+                "risk_category": "unacceptable_risk",
+                "unacceptable_risk": True,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 # DEC-18: a prohibited system may not be placed on the market,
@@ -833,14 +832,14 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
 
     # Pending Article 5 exception facts keep the ban unsettled: fold them into
     # the unknown-prohibition set so every downstream exit lowers to
-    # requires_human_review and a bare no-match yields uncertain rather than a
-    # confident non-prohibited verdict (audit D2).
+    # requires_human_review and a bare no-match yields undetermined rather than a
+    # confident not-unacceptable verdict (audit D2).
     unknown_prohibition_flags.extend(prohibition_review)
 
     # DEC-18: past the Article 5 rule nothing is proven, so the field is
     # unknown while any path is unresolved and false only when every path is
     # ruled out. The status lowering below reads the same list.
-    prohibited_state: bool | None = None if unknown_prohibition_flags else False
+    unacceptable_risk_state: bool | None = None if unknown_prohibition_flags else False
 
     # DEC-18: the Article 50 duties are read once, before the exits, so a
     # high-risk answer keeps them: under Article 50(6) the transparency
@@ -923,12 +922,12 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             confidence = 0.5
             rationale.append(
                 "status lowered to requires_human_review: unknown "
-                "prohibition-relevant flags could change the outcome to prohibited"
+                "prohibition-relevant flags could change the outcome to Unacceptable risk"
             )
         return make_envelope(
             answer={
                 "risk_category": "high_risk",
-                "prohibited": prohibited_state,
+                "unacceptable_risk": unacceptable_risk_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "transparency_duties": transparency_duties,
@@ -1028,17 +1027,17 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             confidence = 0.5
         elif unknown_prohibition_flags:
             # An unknown prohibition flag could change high_risk to
-            # prohibited, so the outcome is not settled.
+            # unacceptable_risk, so the outcome is not settled.
             status = "requires_human_review"
             confidence = 0.5
             rationale.append(
                 "status lowered to requires_human_review: unknown "
-                "prohibition-relevant flags could change the outcome to prohibited"
+                "prohibition-relevant flags could change the outcome to Unacceptable risk"
             )
         return make_envelope(
             answer={
                 "risk_category": "high_risk",
-                "prohibited": prohibited_state,
+                "unacceptable_risk": unacceptable_risk_state,
                 "annex_iii_category": annex_match["node"],
                 "article_6_3_exception_candidate": exception_candidate,
                 "transparency_duties": transparency_duties,
@@ -1063,7 +1062,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     ):
         citations.cite(ARTICLE_6_PARAGRAPH_1)
         rationale.append(
-            "rule uncertain: the Article 6(1) plus Annex I embedded-product "
+            "rule undetermined: the Article 6(1) plus Annex I embedded-product "
             "route cannot be settled from the provided facts and no Annex III "
             "category matched; human legal review is needed"
         )
@@ -1079,8 +1078,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         missing_facts.extend(citations.unresolved)
         return make_envelope(
             answer={
-                "risk_category": "uncertain",
-                "prohibited": prohibited_state,
+                "risk_category": "undetermined",
+                "unacceptable_risk": unacceptable_risk_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "transparency_duties": transparency_duties,
@@ -1099,7 +1098,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     if article_50_hits:
         for flag, node_id, note in article_50_hits:
             citations.cite(node_id)
-            rationale.append(f"rule transparency: flag {flag} matches {node_id} ({note})")
+            rationale.append(f"rule limited_risk: flag {flag} matches {node_id} ({note})")
         legal_status_notes.append(ARTICLE_50_TRIGGERED_NOTE)
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"
@@ -1109,7 +1108,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             confidence = 0.5
             rationale.append(
                 "status lowered to requires_human_review: unknown "
-                "prohibition-relevant flags could change the outcome to prohibited"
+                "prohibition-relevant flags could change the outcome to Unacceptable risk"
             )
         else:
             # A transparency system could also be high-risk under Annex III
@@ -1138,8 +1137,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 rationale.extend(lowering)
         return make_envelope(
             answer={
-                "risk_category": "transparency_only",
-                "prohibited": prohibited_state,
+                "risk_category": "limited_risk",
+                "unacceptable_risk": unacceptable_risk_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 "transparency_duties": transparency_duties,
@@ -1156,7 +1155,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
 
     # Rule 5: nothing fired. A confident minimal verdict requires that every
     # prohibition-relevant AND Annex III-relevant fact is known: an unknown
-    # one could be the fact that makes the system high-risk or prohibited, so
+    # one could be the fact that makes the system high-risk or unacceptable risk, so
     # absence must never be read as a clean "not regulated" (audit D1). The
     # Article 6(1) route must likewise be ruled out, not merely unmentioned (B123).
     if unknown_prohibition_flags or unknown_article_6_1_facts or unknown_annex_flags:
@@ -1168,7 +1167,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         if unknown_annex_flags:
             which.append("Annex III high-risk (Article 6(2))")
         rationale.append(
-            "rule uncertain: no rule fired but "
+            "rule undetermined: no rule fired but "
             + " and ".join(which)
             + " flags are unknown, so the classification cannot be settled "
             "deterministically; the named facts must be provided before a "
@@ -1177,8 +1176,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         missing_facts.extend(citations.unresolved)
         return make_envelope(
             answer={
-                "risk_category": "uncertain",
-                "prohibited": prohibited_state,
+                "risk_category": "undetermined",
+                "unacceptable_risk": unacceptable_risk_state,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
                 # Empty here by construction: a true trigger would have
@@ -1194,18 +1193,18 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         )
 
     rationale.append(
-        "rule minimal: every Article 5 path ruled out, the Article 6(1) "
+        "rule minimal_risk: every Article 5 path ruled out, the Article 6(1) "
         "route ruled out, every Annex III high-risk flag known false, no "
         "Annex III category matched, no Article 50 transparency flag set"
     )
     # DEC-18 (Jose, 2026-10-01: "Keep minimal, name the fact"): an absent
-    # Article 50 trigger is named, the answer stays minimal_or_none.
+    # Article 50 trigger is named, the answer stays minimal_risk.
     _name_absent_article_50_facts()
     missing_facts.extend(citations.unresolved)
     return make_envelope(
         answer={
-            "risk_category": "minimal_or_none",
-            "prohibited": prohibited_state,
+            "risk_category": "minimal_risk",
+            "unacceptable_risk": unacceptable_risk_state,
             "annex_iii_category": None,
             "article_6_3_exception_candidate": False,
             "transparency_duties": transparency_duties,

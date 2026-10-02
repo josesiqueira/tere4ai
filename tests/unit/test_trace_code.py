@@ -50,8 +50,8 @@ def alignments() -> dict:
 def transparency_classification() -> dict:
     """A settled transparency_only classification answer (ShopBot shape)."""
     return {
-        "risk_category": "transparency_only",
-        "prohibited": False,
+        "risk_category": "limited_risk",
+        "unacceptable_risk": False,
         "confidence": 1.0,
     }
 

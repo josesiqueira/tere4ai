@@ -59,20 +59,21 @@ MINIMAL_MESSAGE = (
     "from the v2 high-risk core apply. General provisions such as AI literacy "
     "(Article 4) are outside this deterministic check."
 )
-# DEC-18: the message follows why the classification is uncertain, read from
-# the classifier's prohibited field: null means an Article 5 fact is
+# DEC-18: the message follows why the classification is undetermined, read from
+# the classifier's unacceptable_risk field: null means an Article 5 fact is
 # missing; false means every Article 5 path is ruled out and the missing
 # facts decide whether the system is high-risk. A bare answer without the
 # field gets the Article 5 message, the conservative one.
 UNCERTAIN_MESSAGE = (
-    "The classification is uncertain: facts that decide whether an Article 5 "
-    "prohibition applies are unknown (see the missing facts). No requirements "
+    "The classification is Undetermined: facts missing. Facts that decide "
+    "whether an Article 5 prohibition applies are unknown (see the missing facts). No requirements "
     "are returned until the missing facts are provided or a human reviewer "
     "settles the classification."
 )
 UNCERTAIN_HIGH_RISK_MESSAGE = (
-    "The classification is uncertain: every Article 5 prohibition is ruled "
-    "out, but facts that decide whether the system is high-risk are unknown "
+    "The classification is Undetermined: facts missing. Every Article 5 "
+    "prohibition is ruled out, but facts that decide whether the system is "
+    "high-risk are unknown "
     "(see the missing facts). No requirements are returned until the missing "
     "facts are provided or a human reviewer settles the classification."
 )
@@ -185,8 +186,8 @@ def get_applicable_requirements(
     """Judge-accepted engineering requirements applicable to a classified system.
 
     Deterministic selection over the judged norms build artifact: high_risk
-    returns all accepted norms grouped by source article; transparency_only
-    returns only Article 50 norms; prohibited, minimal_or_none, and uncertain
+    returns all accepted norms grouped by source article; limited_risk
+    returns only Article 50 norms; unacceptable_risk, minimal_risk, and undetermined
     return no requirements with an explanatory message. The optional actor
     filter uses the canonical actor vocabulary of norms.schema.json.
     """
@@ -210,7 +211,7 @@ def get_applicable_requirements(
     upstream_missing = list(upstream.get("missing_facts") or [])
     unsettled = (
         upstream_status == "requires_human_review"
-        or risk_category == "uncertain"
+        or risk_category == "undetermined"
     )
 
     if actor is not None and actor not in _canonical_actor_roles():
@@ -226,7 +227,7 @@ def get_applicable_requirements(
         )
 
     # Prohibited: zero requirements, only the prohibition citation.
-    if risk_category == "prohibited":
+    if risk_category == "unacceptable_risk":
         prohibition_nodes = [n for n in classification_nodes if ":article-5" in n]
         if not prohibition_nodes:
             # Bare answer without citations: fall back to the Article 5 node.
@@ -239,7 +240,7 @@ def get_applicable_requirements(
         ]
         return make_envelope(
             answer={
-                "risk_category": "prohibited",
+                "risk_category": "unacceptable_risk",
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
                 "message": PROHIBITED_MESSAGE,
@@ -261,10 +262,10 @@ def get_applicable_requirements(
             ],
         )
 
-    if risk_category == "minimal_or_none":
+    if risk_category == "minimal_risk":
         return make_envelope(
             answer={
-                "risk_category": "minimal_or_none",
+                "risk_category": "minimal_risk",
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
                 "message": MINIMAL_MESSAGE,
@@ -274,15 +275,15 @@ def get_applicable_requirements(
             confidence=1.0,
         )
 
-    if risk_category == "uncertain":
+    if risk_category == "undetermined":
         return make_envelope(
             answer={
-                "risk_category": "uncertain",
+                "risk_category": "undetermined",
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
                 "message": (
                     UNCERTAIN_HIGH_RISK_MESSAGE
-                    if answer_in.get("prohibited") is False
+                    if answer_in.get("unacceptable_risk") is False
                     else UNCERTAIN_MESSAGE
                 ),
             },
@@ -291,12 +292,12 @@ def get_applicable_requirements(
             confidence=upstream_confidence if upstream_confidence is not None else 0.5,
             missing_facts=upstream_missing
             or [
-                "risk classification is uncertain; requirements cannot be "
-                "determined until the classification is settled"
+                "the classification is Undetermined: facts missing; requirements "
+                "cannot be determined until the classification is settled"
             ],
         )
 
-    if risk_category not in ("high_risk", "transparency_only"):
+    if risk_category not in ("high_risk", "limited_risk"):
         return make_envelope(
             answer={"risk_category": risk_category, "requirements_by_article": {}, "summary": {}},
             status="not_applicable",
@@ -304,8 +305,8 @@ def get_applicable_requirements(
             confidence=0.0,
             missing_facts=[
                 f"risk_category '{risk_category}' is not a recognised deterministic "
-                "classification (expected prohibited, high_risk, transparency_only, "
-                "minimal_or_none, or uncertain)"
+                "classification (expected unacceptable_risk, high_risk, limited_risk, "
+                "minimal_risk, or undetermined)"
             ],
         )
 
@@ -323,11 +324,11 @@ def get_applicable_requirements(
             missing_facts=["norms payload contains no norms; the Layer 2 build artifact is missing"],
         )
 
-    # Scope: transparency_only consumes only Article 50 norms; high_risk
+    # Scope: limited_risk consumes only Article 50 norms; high_risk
     # consumes the obligation regime, never the classification/prohibition
     # groups (audit W3), so a high-risk system is not handed Article 5
     # prohibitions or Annex classification rows as "requirements".
-    if risk_category == "transparency_only":
+    if risk_category == "limited_risk":
         in_scope = [n for n in norms if _source_group(str(n.get("source_node_id", ""))) == TRANSPARENCY_GROUP]
     else:
         in_scope = [
@@ -415,7 +416,7 @@ def get_applicable_requirements(
         # not upgrade its certainty (DEC-08). Keep the provisional requirements
         # for the tentative risk_category so the answer stays useful, but carry
         # the upstream abstention verbatim: the classification could still
-        # change (for example to prohibited, which yields zero requirements).
+        # change (for example to unacceptable_risk, which yields zero requirements).
         status = "requires_human_review"
         confidence = upstream_confidence if upstream_confidence is not None else 0.5
         missing_facts = list(upstream_missing) + [
@@ -430,8 +431,8 @@ def get_applicable_requirements(
         answer_out["provisional_note"] = (
             "These requirements are provisional pending the human-review "
             "determination of the classification. The risk category is "
-            "tentative and could change, for example to prohibited, which "
-            "yields zero requirements."
+            "tentative and could change, for example to Unacceptable risk, "
+            "which yields zero requirements."
         )
 
     return make_envelope(
