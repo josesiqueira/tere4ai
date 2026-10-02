@@ -1,13 +1,14 @@
-"""Regenerate the evaluation record contract fixtures from synthetic inputs.
+"""Regenerate the evaluation record contract mock data from mock inputs.
 
 @implements: DEC-17
 @grounded_by: REF-27, ADD-20
 
-The seventeen mock data files handed to the dashboard (plan 3b, B102) are the
-presenter's real output over deterministic synthetic runs and legacy files: record ids
-and timestamps are pinned, every file is written with fixed bytes, and the
-byte-stability test in tests/unit/test_evaluation_record_contract.py fails
-when the presenter and the committed fixtures part ways.
+The seventeen mock data files handed to the dashboard (plan 3b, B102) are
+the presenter's real output over deterministic mock runs and legacy files:
+record ids and timestamps are pinned, every file is written with fixed
+bytes, and the byte-stability test in
+tests/unit/test_evaluation_record_contract.py fails when the presenter and
+the committed mock data part ways.
 
 Run from the repo root: python -m tests.fixtures.evaluation_records.regenerate
 """

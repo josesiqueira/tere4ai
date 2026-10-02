@@ -493,9 +493,10 @@ def run_eval(
                 try:
                     os.replace(tmp, out_path)
                 except OSError as exc:
-                    # the temp file is kept: it may be the only copy of the results (B81 item 35)
+                    # the temp file is kept: it may be the only copy of the results (B81 item 35); the
+                    # operator's terminal gets its full path, the record its file name (exception_reason)
                     raise OSError(f"{out_path.name} was not written ({exception_reason(exc)}): the results stay in "
-                                  f"{Path(tmp).name}; move it to {out_path.name}") from exc
+                                  f"{tmp}; move it to {out_path.name}") from exc
         else:
             atomic_write_json(out_path, artifact)
         artifact["artifact_path"] = str(out_path)

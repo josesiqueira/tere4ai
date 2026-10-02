@@ -171,18 +171,34 @@ def test_a_resumed_run_names_its_predecessor_or_says_none_does(runner, tmp_path)
     assert "resumed from a checkpoint no record names" in third["notes"]
 
 
-
 def test_a_failure_finish_refused_by_validation_still_ends_the_record_failed(runner, tmp_path, monkeypatch):
-    # B97 item 9 (Task 8): the record never stays running; the retry carries the error alone
-    runner._TEST_CALLS["raise"] = True
+    # B97 item 9 (Task 8): the record never stays running; B102 final review: the retry drops only the
+    # client-built fields, so the items that finished and the notes survive
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    runner._TEST_CALLS["interrupt_on"] = "gold:cls-02"
     monkeypatch.setattr(runner, "_own_usage", lambda generator, judge: ["not", "an", "object"])
-    with pytest.raises(RuntimeError, match="provider refused"):
-        runner.main(_argv(tmp_path))
+    with pytest.raises(KeyboardInterrupt):  # no features file, so the record carries a note
+        runner.main(_argv(tmp_path, "--features", str(tmp_path / "no_features.json")))
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["outcome"]["status"] == "failed" and rec["ended_at"]
-    assert rec["outcome"]["error"].startswith("RuntimeError: provider refused; the full failure record was refused: "
+    assert rec["outcome"]["error"].startswith("KeyboardInterrupt: ; the full failure record was refused: "
                                               "refusing to finish: ")
     assert "at usage" in rec["outcome"]["error"] and rec["usage"] is None
+    assert rec["outcome"]["completed_items"] == ["gold:cls-01"]
+    assert rec["notes"] == ["no elicited-features cache was read"]
+
+
+def test_a_provider_stop_whose_finish_is_refused_stays_partial(runner, tmp_path, monkeypatch):
+    # B102 final review: the retry keeps the status the runner chose, so a resumable stop is not read as failed
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    runner._TEST_CALLS["unavailable_on"] = "gold:cls-02"
+    monkeypatch.setattr(runner, "_own_usage", lambda generator, judge: ["not", "an", "object"])
+    assert runner.main(_argv(tmp_path)) == 3
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == "partial" and rec["ended_at"] and rec["usage"] is None
+    assert rec["outcome"]["completed_items"] == ["gold:cls-01"]
+    assert "the full failure record was refused: refusing to finish: " in rec["outcome"]["error"]
+
 
 def test_repeat_of_must_resolve_and_no_record_writes_nothing(runner, tmp_path, capsys):
     assert runner.main(_argv(tmp_path, "--repeat-of", "000000000000")) == 2
@@ -411,7 +427,6 @@ def test_a_sidecar_the_store_cannot_confirm_refuses_the_resume_and_records_nothi
     assert len(store.list_records()) == 1, "no record written"
 
 
-
 @pytest.mark.parametrize("case", ["not_json", "bad_record_id", "other_checkpoint"])
 def test_a_sidecar_that_refuses_by_itself_refuses_the_resume_and_records_nothing(runner, tmp_path, capsys, case):
     # B81 item 36: the two refusals that come from the sidecar itself, before any store lookup
@@ -436,6 +451,7 @@ def test_a_sidecar_that_refuses_by_itself_refuses_the_resume_and_records_nothing
         assert out.rstrip().endswith(f"remove the sidecar {ckpt.name}.record to resume it as a checkpoint "
                                      "no record names (--resume-unrecorded)"), "the way out (G2b)"
     assert len(store.list_records()) == 1, "no record written"
+
 
 def test_a_recorded_checkpoint_whose_sidecar_is_gone_is_resumed_only_with_the_flag(runner, tmp_path, capsys):
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
@@ -478,7 +494,7 @@ def test_the_features_cache_is_recorded_only_when_the_run_read_one(runner, tmp_p
     assert runner.main(_argv(tmp_path, "--features", str(tmp_path / "no_such_features.json"))) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert "features" not in {i["role"] for i in rec["inputs"]}
-    assert "no elicited-features cache was read" in rec["notes"]
+    assert rec["notes"] == ["no elicited-features cache was read"]
     assert rec["outcome"]["status"] == "completed"
     default = tmp_path / "second"
     default.mkdir()

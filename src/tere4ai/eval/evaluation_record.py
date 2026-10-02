@@ -345,16 +345,36 @@ class EvaluationRecordStore:
             atomic_write_json(self._path(record_id), record)
 
 
+# the fields a model client or the run's bookkeeping builds; a refused failure finish drops them first
+_CLIENT_BUILT_FIELDS = ("usage", "sampling", "models", "prompt_versions", "prompt_sha256", "counts")
+
+
 def end_failed(store: EvaluationRecordStore, record_id: str, error: str, *, status: str = "failed",
                **fields: Any) -> None:
     """End a record after a failure (status failed, or partial for a provider
     stop) with everything the writer knows. When validation refuses that
-    finish, the record ends failed with the error alone and the refusal named,
-    so it never stays running (B97 item 9); a record that already ended, or
-    cannot be read, is left as it is."""
+    finish, it is tried again without the client-built fields, keeping the
+    status, notes, completed items and outputs, with the refusal named; if
+    that is refused too, the record ends failed with the error alone, so it
+    never stays running (B97 item 9). If even that is refused, one stderr
+    line names the record and nothing is raised, so the caller re-raises the
+    run's own error. A record that already ended, or cannot be read, is left
+    as it is."""
     try:
         store.finish(record_id, status=status, error=error, **fields)
+        return
     except EvaluationRecordError as exc:
         if not str(exc).startswith("refusing to finish"):
             return
-        store.finish(record_id, status="failed", error=f"{error}; the full failure record was refused: {exc}")
+        reason = f"{error}; the full failure record was refused: {exc}"
+    kept = {name: value for name, value in fields.items() if name not in _CLIENT_BUILT_FIELDS}
+    try:
+        store.finish(record_id, status=status, error=reason, **kept)
+        return
+    except EvaluationRecordError as exc:
+        if not str(exc).startswith("refusing to finish"):
+            return
+    try:
+        store.finish(record_id, status="failed", error=reason)
+    except EvaluationRecordError as exc:
+        print(f"evaluation record {record_id} could not be ended: {exc}", file=sys.stderr)

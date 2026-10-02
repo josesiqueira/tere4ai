@@ -850,7 +850,6 @@ def test_an_offline_run_with_graph_full_records_the_runtime_judge_prompt_hash(tm
     assert store.read(plain["record_id"])["prompt_sha256"] is None
 
 
-
 def test_the_runtime_judge_prompt_is_hashed_only_when_the_strategy_reports_its_version(tmp_path):
     # B81 item 23: the name graph_full alone is no evidence that a runtime judge was called
     from tere4ai.eval import harness as h
@@ -866,21 +865,60 @@ def test_the_runtime_judge_prompt_is_hashed_only_when_the_strategy_reports_its_v
 
 
 def test_a_failure_finish_refused_by_validation_still_ends_the_record_failed(tmp_path, monkeypatch):
-    # B97 item 9 (Task 8): the record never stays running; the retry carries the error alone
+    # B97 item 9 (Task 8): the record never stays running; B102 final review: the retry drops only the
+    # client-built fields, so the items that finished and the notes survive
     from tere4ai.eval import harness as h
     from tere4ai.judge.config import ConfigurationError
     store = EvaluationRecordStore(tmp_path)
     monkeypatch.setattr(h, "_own_usage", lambda generator, judge: ["not", "an", "object"])
+    items = list(GOLD_3)[:2]
 
     def refused(item):
-        raise ConfigurationError("effort is not declared")
+        if item["id"] == items[1]["id"]:
+            raise ConfigurationError("effort is not declared")
+        return {"answer_text": "a", "citations": []}
     with pytest.raises(ConfigurationError):
-        run_eval(list(GOLD_3)[:1], {"plain_llm": refused}, results_dir=tmp_path / "r", record_store=store)
+        run_eval(items, {"plain_llm": refused}, results_dir=tmp_path / "r", record_store=store)
     (rec,) = store.list_records()
     assert rec["outcome"]["status"] == "failed" and rec["ended_at"]
     assert rec["outcome"]["error"].startswith("ConfigurationError: effort is not declared; the full failure record "
                                               "was refused: refusing to finish: ")
     assert "at usage" in rec["outcome"]["error"] and rec["usage"] is None
+    assert rec["outcome"]["completed_items"] == [items[0]["id"]]
+    assert rec["notes"] == ["the strategies were passed prebuilt; the harness did not read their inputs"]
+
+
+@pytest.mark.parametrize("refusals", [2, 3])
+def test_a_finish_refused_again_never_replaces_the_runs_own_error(tmp_path, monkeypatch, capsys, refusals):
+    # B102 final review: refused twice, the record ends failed with the error alone; refused three times,
+    # it stays as it is, one stderr line names it, and the caller still raises the run's own error
+    from tere4ai.eval.evaluation_record import EvaluationRecordError
+    from tere4ai.judge.config import ConfigurationError
+    store = EvaluationRecordStore(tmp_path)
+    real_finish, calls = store.finish, []
+
+    def finish(record_id, **fields):
+        calls.append(fields)
+        if len(calls) <= refusals:
+            raise EvaluationRecordError("refusing to finish: a test refusal")
+        return real_finish(record_id, **fields)
+    monkeypatch.setattr(store, "finish", finish)
+
+    def refused(item):
+        raise ConfigurationError("effort is not declared")
+    with pytest.raises(ConfigurationError, match="effort is not declared"):
+        run_eval(list(GOLD_3)[:1], {"plain_llm": refused}, results_dir=tmp_path / "r", record_store=store)
+    (rec,) = store.list_records()
+    assert len(calls) == 3 and set(calls[2]) == {"status", "error"}
+    if refusals == 2:
+        assert rec["outcome"]["status"] == "failed" and rec["ended_at"]
+        assert rec["outcome"]["error"].startswith("ConfigurationError: effort is not declared; the full failure "
+                                                  "record was refused: refusing to finish: a test refusal")
+    else:
+        assert rec["outcome"]["status"] == "running" and rec["ended_at"] is None
+        assert (f"evaluation record {rec['record_id']} could not be ended: refusing to finish: a test refusal"
+                in capsys.readouterr().err)
+
 
 def test_the_record_keeps_this_runs_artifact_bytes_under_the_compatibility_name(tmp_path):
     store = EvaluationRecordStore(tmp_path)
@@ -893,9 +931,9 @@ def test_the_record_keeps_this_runs_artifact_bytes_under_the_compatibility_name(
     assert [p.name for p in (tmp_path / "r").iterdir()] == [out_path.name], "no temp file left"
 
 
-
 def test_a_failed_final_move_names_the_temp_file_that_holds_the_results(tmp_path, monkeypatch):
-    # B81 item 35: the temp file is the only copy of the results when the move fails; it is kept and named
+    # B81 item 35: the temp file is the only copy of the results when the move fails; it is kept and named,
+    # by its full path in the raised error (the operator's terminal) and by its file name in the record
     import os
     store = EvaluationRecordStore(tmp_path)
     results_dir = tmp_path / "r"
@@ -906,16 +944,18 @@ def test_a_failed_final_move_names_the_temp_file_that_holds_the_results(tmp_path
             raise OSError(18, "Invalid cross-device link", str(src))
         return real_replace(src, dst)
     monkeypatch.setattr(os, "replace", failing)
-    with pytest.raises(OSError, match="the results stay in tmp"):
+    with pytest.raises(OSError) as raised:
         run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
                  results_dir=results_dir, record_store=store)
     (tmp,) = results_dir.iterdir()
+    assert f"the results stay in {tmp}; move it to " in str(raised.value)
     assert tmp.name.startswith("tmp") and json.loads(tmp.read_text())["item_ids"] == [GOLD_3[0]["id"]]
     (rec,) = store.list_records()
     out_name = results_artifact_name("unknown-build", ["plain_llm"])
     assert rec["outcome"]["status"] == "failed"
     assert f"the results stay in {tmp.name}; move it to {out_name}" in rec["outcome"]["error"]
     assert str(tmp_path) not in rec["outcome"]["error"]
+
 
 def test_a_concurrent_writer_replacing_the_shared_path_never_lands_in_this_record(tmp_path, monkeypatch):
     store = EvaluationRecordStore(tmp_path)
