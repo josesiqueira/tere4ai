@@ -5,6 +5,22 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### C3: both MCP revisions supported, tested and documented
+- fastmcp 4.0.10, pinned `fastmcp>=4.0.10,<4.1` (was `>=2.0`, 4.0.3
+  installed); the suite passes unchanged on it. The server advertises no
+  MCP logging capability in either revision and answers
+  logging/setLevel with method not found (a `_NoMcpLogging` middleware
+  in server.py, through fastmcp's public Middleware hooks: fastmcp
+  registers a setLevel handler on every server and offers no option to
+  leave it out); diagnostics stay Python logging on stderr. New
+  tests/unit/test_mcp_protocol_revisions.py starts the server over stdio
+  and over streamable HTTP (a free localhost port, a key from a
+  temporary key store) and drives it with the official MCP Python SDK
+  client in mode "legacy" (negotiates 2025-11-25) and mode "2026-07-28":
+  tools/list serves every scoped tool alphabetically, coverage_report
+  answers, the initialize and server/discover results carry no logging
+  capability; a source scan finds no MCP log call in src.
+
 ### The elicitor quotes the Act from the graph and the description for every fact, and is an MCP tool (B10, DEC-13, DEC-18)
 - New module `tere4ai.elicit_features.provisions`: a prompt template names
   a provision as `{{provision:<node id>}}`, and rendering prints it as

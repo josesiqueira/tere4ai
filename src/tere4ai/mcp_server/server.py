@@ -36,8 +36,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import mcp.types as mcp_types
 from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
+from mcp import MCPError
 
 from tere4ai.graph_store.build_chain import stamp_served_build
 from tere4ai.graph_store.publication import (
@@ -100,6 +102,51 @@ class _DeterministicToolOrder(Middleware):
 
 
 mcp.add_middleware(_DeterministicToolOrder())
+
+
+class _NoMcpLogging(Middleware):
+    """Advertise no MCP logging capability and refuse logging/setLevel.
+
+    The MCP Python SDK derives the logging capability from a registered
+    logging/setLevel handler, and fastmcp 4.0.10 registers one on every
+    server with no constructor option to leave it out. MCP logging is
+    deprecated in the 2026-07-28 revision, and no TERE4AI tool ever sent an
+    MCP log message: the server's diagnostics are Python logging on stderr
+    (C3 ruling R4). This middleware is the narrowest override through
+    fastmcp's public Middleware hooks, scoped to this server instance (no
+    private attribute and no module patch): it removes the capability from
+    the legacy initialize result and the 2026-07-28 server/discover result,
+    and answers logging/setLevel with method not found, so what is served
+    matches what is advertised.
+    """
+
+    async def on_initialize(self, context, call_next):
+        result = await call_next(context)
+        if result is None:
+            return result
+        return result.model_copy(
+            update={"capabilities": result.capabilities.model_copy(update={"logging": None})}
+        )
+
+    async def on_discover(self, context, call_next):
+        result = await call_next(context)
+        if not isinstance(result, mcp_types.DiscoverResult):
+            return result
+        return result.model_copy(
+            update={"capabilities": result.capabilities.model_copy(update={"logging": None})}
+        )
+
+    async def on_request(self, context, call_next):
+        if context.method == "logging/setLevel":
+            raise MCPError(
+                mcp_types.METHOD_NOT_FOUND,
+                "logging/setLevel is not served: this server sends no MCP log "
+                "messages (its diagnostics go to stderr)",
+            )
+        return await call_next(context)
+
+
+mcp.add_middleware(_NoMcpLogging())
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
