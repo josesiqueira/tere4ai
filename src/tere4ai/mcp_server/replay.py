@@ -1,10 +1,11 @@
 """Replay window for the paid MCP tools: an identical call is not paid twice.
 
-@implements: DEC-06 (partial: runtime grounding judge), DEC-08
-@implements: DEC-13, DEC-18, DEC-19
 @grounded_by: REF-31
 
-Why (C3 ruling R3): the 2026-07-28 MCP revision removed SSE redelivery,
+An engineering MUST against architecture.md Section 8 (paid tools reach
+external model APIs) and Section 13 (no silent degradation), like
+keys.py; it implements no DEC of its own, so it carries no @implements
+tag. Why (C3 ruling R3): the 2026-07-28 MCP revision removed SSE redelivery,
 so a client whose stream drops sends the same request again, and each of
 the four paid tools (evaluate_project_evidence,
 evaluate_project_evidence_batch, generate_control_backlog,
