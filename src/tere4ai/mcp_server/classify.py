@@ -1250,9 +1250,9 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     while an Annex III fact absent from the input could still make the
     system high-risk under Article 6(2) and the assessment apply (B125):
     on a limited_risk or minimal_risk answer, and on a high_risk answer
-    through the Article 6(1) route only or in the point 2 area only once
-    the 5(b) and 5(c) facts are known false. Each such fact is named in
-    the block's missing_facts only. A fact that cannot change the outcome
+    through the Article 6(1) route only or in the point 2 area only (there
+    beside an unknown 5(b) or 5(c) fact, which keeps its own line). Each
+    such fact is named in the block's missing_facts only. A fact that cannot change the outcome
     is not named: a point 2 fact never is (Article 27(1) excepts that
     area), and a fact of another area other than 5(b) and 5(c) is not
     once the deployer is known to be neither a body governed by public

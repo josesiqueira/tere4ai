@@ -27,6 +27,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   deployer known to be neither category, or both (it said both every time).
 - The shopbot-transparency test session's second call is re-recorded with the
   first call's new answer as its input.
+- On those two `high_risk` answers, while a point 5(b) or 5(c) fact is still
+  unknown, the other unknown Annex III facts that could trigger are named
+  beside it, so a fact that decides once 5(b) and 5(c) turn out false is
+  never left out (re-review N1).
 
 ### B118: the levels take the pyramid's names (2026-10-02)
 - Contract change: `classify_ai_system`'s `risk_category` is one of

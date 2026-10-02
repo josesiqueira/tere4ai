@@ -783,8 +783,9 @@ def test_annex_i_route_with_only_the_point_2_fact_unknown_does_not_apply():
     assert POINT_2_ONLY_LINE in block["rationale"]
 
 
-def test_annex_i_route_with_unknown_5b_keeps_the_old_answer():
-    """5(b) unknown is the existing branch: its own line, unchanged."""
+def test_annex_i_route_with_unknown_5b_also_names_another_fact_that_could_trigger():
+    """Re-review N1: 5(b) unknown keeps its own line, and employment_decisions,
+    which a public-law deployer would also trigger on, is named too."""
     block = assess_fria_applicability(
         "high_risk",
         None,
@@ -797,10 +798,78 @@ def test_annex_i_route_with_unknown_5b_keeps_the_old_answer():
         },
     )
     assert block["applicability"] == "unknown"
-    assert len(block["missing_facts"]) == 1
+    assert len(block["missing_facts"]) == 2
     assert block["missing_facts"][0].startswith(
         "flags.creditworthiness_evaluation is unknown (Article 27(1) FRIA-relevant)"
     )
+    assert block["missing_facts"][1] == UNKNOWN_LINE.format(flag="employment_decisions")
+
+
+def test_annex_i_route_with_5c_and_employment_unknown_names_both():
+    """Re-review N1, the reviewer's example: if 5(c) turns out false,
+    employment_decisions decides, so it is named now."""
+    block = assess_fria_applicability(
+        "high_risk",
+        None,
+        {"creditworthiness_evaluation": False},
+        {"body_governed_by_public_law": True},
+        annex_points=[],
+        unknown_annex_iii_facts={
+            "employment_decisions": POINT_4,
+            "life_health_insurance_risk_pricing": POINT_5,
+        },
+    )
+    assert block["applicability"] == "unknown"
+    assert block["missing_facts"] == [
+        "flags.life_health_insurance_risk_pricing is unknown (Article 27(1) "
+        "FRIA-relevant); if true it places the system under Annex III point "
+        "5(b)/(c) and triggers the FRIA, so absence is not treated as false",
+        UNKNOWN_LINE.format(flag="employment_decisions"),
+    ]
+
+
+def test_annex_i_route_with_5c_unknown_and_deployer_known_neither_names_5c_only():
+    """The other unknown facts cannot trigger for this deployer (R1), and a
+    point 2 fact never does."""
+    block = assess_fria_applicability(
+        "high_risk",
+        None,
+        {"creditworthiness_evaluation": False},
+        NEITHER_DEPLOYER,
+        annex_points=[],
+        unknown_annex_iii_facts={
+            "critical_infrastructure_safety": ANNEX_III_POINT_2,
+            "employment_decisions": POINT_4,
+            "life_health_insurance_risk_pricing": POINT_5,
+        },
+    )
+    assert block["applicability"] == "unknown"
+    assert len(block["missing_facts"]) == 1
+    assert block["missing_facts"][0].startswith(
+        "flags.life_health_insurance_risk_pricing is unknown (Article 27(1) FRIA-relevant)"
+    )
+
+
+def test_point_2_only_with_5c_and_education_unknown_names_both():
+    block = assess_fria_applicability(
+        "high_risk",
+        ANNEX_III_POINT_2,
+        {"creditworthiness_evaluation": False},
+        {"body_governed_by_public_law": True},
+        annex_points=[ANNEX_III_POINT_2],
+        unknown_annex_iii_facts={
+            "critical_infrastructure_safety": ANNEX_III_POINT_2,
+            "education_scoring_or_access": "eu-ai-act:annex-iii:point-3",
+            "life_health_insurance_risk_pricing": POINT_5,
+        },
+    )
+    assert block["applicability"] == "unknown"
+    assert block["missing_facts"] == [
+        "flags.life_health_insurance_risk_pricing is unknown (Article 27(1) "
+        "FRIA-relevant); if true it places the system under Annex III point "
+        "5(b)/(c) and triggers the FRIA, so absence is not treated as false",
+        UNKNOWN_LINE.format(flag="education_scoring_or_access"),
+    ]
 
 
 def test_point_2_only_with_education_unknown_and_a_public_law_deployer_is_unknown():
