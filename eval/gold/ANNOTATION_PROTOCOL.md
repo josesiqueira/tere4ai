@@ -23,9 +23,9 @@ Every item carries: `id`, `kind`, the task input, `gold`, `gold_citations`
 
 1. `classification`: input is a structured `system_features` object
    (schema/json_schemas/system_features.schema.json). Gold label is
-   `risk_category`, one of the closed set: `prohibited`, `high_risk`,
-   `transparency_only`, `minimal_or_none`, `uncertain`. Rules:
-   - `uncertain` is the correct label whenever a prohibition-relevant fact
+   `risk_category`, one of the closed set: `unacceptable_risk`, `high_risk`,
+   `limited_risk`, `minimal_risk`, `undetermined`. Rules:
+   - `undetermined` is the correct label whenever a prohibition-relevant fact
      is unknown and could change the outcome; annotators never assume an
      absent flag is false.
    - Article 6(3) derogation candidates stay `high_risk` with
@@ -33,7 +33,7 @@ Every item carries: `id`, `kind`, the task input, `gold`, `gold_citations`
      applied by annotation.
    - `gold_citations` are the operative nodes that justify the label (an
      Article 5 point, an Annex III item plus Article 6(2), an Article 50
-     paragraph). `minimal_or_none` and `uncertain` items have an empty
+     paragraph). `minimal_risk` and `undetermined` items have an empty
      list and are excluded from citation completeness.
 2. `retrieval`: input is a `question` asking which provision covers a
    described situation. Gold is the single most precise node id (for

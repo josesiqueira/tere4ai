@@ -61,8 +61,8 @@ _TEXT_NODE_TYPES = ("Paragraph", "Point", "AnnexItem", "Recital")
 _GEN_SYSTEM = (
     "You answer questions about the EU AI Act (Regulation 2024/1689). "
     "Respond with a single JSON object with keys: answer_text (string), "
-    "citations (list of node id strings), risk_category (one of prohibited, "
-    "high_risk, transparency_only, minimal_or_none, uncertain, or null when "
+    "citations (list of node id strings), risk_category (one of unacceptable_risk, "
+    "high_risk, limited_risk, minimal_risk, undetermined, or null when "
     "the question is not a classification). Cite only node ids you were "
     "given in the context; if you were given none, citations must be []. "
     "Never claim compliance or certification."
@@ -128,7 +128,7 @@ def _item_question(item: dict[str, Any]) -> str:
         flags = features.get("flags") or {}
         parts = [
             "Classify the EU AI Act risk category of this AI system "
-            "(prohibited, high_risk, transparency_only, minimal_or_none, or uncertain).",
+            "(unacceptable_risk, high_risk, limited_risk, minimal_risk, or undetermined).",
             f"System description: {described}",
         ]
         if features.get("domain"):
@@ -349,10 +349,10 @@ class GraphStrategy:
                 "answer_text": (
                     "No structured system_features were provided, so the "
                     "deterministic classifier cannot run; the classification "
-                    "is uncertain and needs the features to be annotated."
+                    "is Undetermined: facts missing and needs the features to be annotated."
                 ),
                 "citations": [],
-                "risk_category": "uncertain",
+                "risk_category": "undetermined",
                 "notes": ["classification item without structured system_features"],
             }
         envelope = classify_ai_system(features, self._dump)
@@ -395,7 +395,7 @@ class GraphStrategy:
         carry no requirements."""
         if envelope["answer"].get("risk_category") not in (
             "high_risk",
-            "transparency_only",
+            "limited_risk",
         ):
             return []
         from tere4ai.mcp_server.requirements import get_applicable_requirements

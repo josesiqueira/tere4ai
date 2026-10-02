@@ -5,8 +5,8 @@
 
 eval/results/RUN2_ANALYSIS.md identifies 3 real errors of the graph
 strategies on the REF-15 benchmark sample: 2 items over-classified from
-limited (transparency_only) to high_risk and 1 from high-risk to
-prohibited, all traceable to elicited-flag strength. This script pins those
+limited (limited_risk) to high_risk and 1 from high-risk to
+unacceptable_risk, all traceable to elicited-flag strength. This script pins those
 errors down against the existing artifacts, with ZERO model calls:
 
 1. finds WHICH benchmark items they are (graph_build_judge results in
@@ -41,7 +41,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from tere4ai.eval.harness import load_benchmark_items  # noqa: E402
+from tere4ai.eval.harness import current_level, load_benchmark_items  # noqa: E402
 from tere4ai.mcp_server.classify import classify_ai_system  # noqa: E402
 
 CHECKPOINT_PATH = ROOT / "eval" / "results" / "ablation_checkpoint.jsonl"
@@ -52,10 +52,10 @@ OUT_PATH = ROOT / "eval" / "results" / "ELICITATION_ERRORS.md"
 STRATEGY = "graph_build_judge"
 
 # The two real over-classification patterns from RUN2_ANALYSIS.md, in our
-# closed vocabulary (benchmark "limited" maps to transparency_only).
+# closed vocabulary (benchmark "limited" maps to limited_risk).
 OVER_CLASSIFICATION_PATTERNS = (
-    ("transparency_only", "high_risk"),
-    ("high_risk", "prohibited"),
+    ("limited_risk", "high_risk"),
+    ("high_risk", "unacceptable_risk"),
 )
 
 TRIGGER_FLAG_RE = re.compile(r"rule \w+: flag ([\w+ ]+?) matches (\S+)")
@@ -67,7 +67,7 @@ TRIGGER_DOMAIN_RE = re.compile(r"rule high_risk: domain '(\w+)' matches [^(]*\((
 ANALYSIS: dict[str, dict[str, Any]] = {
     "bench:scenario:76": {
         "expected_gold": "high_risk",
-        "expected_predicted": "prohibited",
+        "expected_predicted": "unacceptable_risk",
         # RESOLVED 2026-07-20 by audit D2: the classifier no longer treats a
         # bare predictive_policing_profiling flag as a confident Article
         # 5(1)(d) ban. Point (d) carries a statutory exception (supporting
@@ -76,7 +76,7 @@ ANALYSIS: dict[str, dict[str, Any]] = {
         # the ladder lands on the correct Annex III point 6 (law enforcement)
         # high_risk, which matches the gold. This is the productionised form
         # of the counterfactual below. The frozen checkpoint still records the
-        # pre-fix "prohibited", so the item stays in the RUN2 error record;
+        # pre-fix "prohibited" (now unacceptable_risk), so the item stays in the RUN2 error record;
         # the reproduce-the-checkpoint assertions are relaxed for a resolved
         # item (it must now return the GOLD instead).
         "resolved_in_classifier": (
@@ -122,7 +122,7 @@ ANALYSIS: dict[str, dict[str, Any]] = {
         ),
     },
     "bench:scenario:159": {
-        "expected_gold": "transparency_only",
+        "expected_gold": "limited_risk",
         "expected_predicted": "high_risk",
         "expected_triggers": ["domain:critical_infrastructure"],
         "trigger_node": "eu-ai-act:annex-iii:point-2",
@@ -153,11 +153,11 @@ ANALYSIS: dict[str, dict[str, Any]] = {
         ),
         "counterfactual": {
             "change": "set domain to 'consumer' (the supported reading)",
-            "expected_category": "transparency_only",
+            "expected_category": "limited_risk",
             "note": (
                 "with the domain read as consumer, the elicited "
                 "interacts_with_natural_persons flag yields "
-                "transparency_only, which matches the benchmark gold "
+                "limited_risk, which matches the benchmark gold "
                 "(limited)"
             ),
         },
@@ -172,7 +172,7 @@ ANALYSIS: dict[str, dict[str, Any]] = {
         ),
     },
     "bench:scenario:161": {
-        "expected_gold": "transparency_only",
+        "expected_gold": "limited_risk",
         "expected_predicted": "high_risk",
         "expected_triggers": ["domain:education"],
         "trigger_node": "eu-ai-act:annex-iii:point-3",
@@ -205,7 +205,7 @@ ANALYSIS: dict[str, dict[str, Any]] = {
         ),
         "counterfactual": {
             "change": "add flags.education_scoring_or_access = false (explicit rule-out)",
-            "expected_category": "transparency_only",
+            "expected_category": "limited_risk",
             "note": (
                 "RESOLVED 2026-07-09: the original finding was that the "
                 "ladder returned high_risk regardless of the explicit false "
@@ -214,7 +214,7 @@ ANALYSIS: dict[str, dict[str, Any]] = {
                 "23f3ec0): the Annex III domain fallback now yields when "
                 "every specific flag of the category is explicitly false "
                 "(unknown flags still match). The counterfactual now "
-                "returns transparency_only, matching the benchmark gold."
+                "returns limited_risk, matching the benchmark gold."
             ),
         },
         "recommendation": (
@@ -252,8 +252,9 @@ def find_over_classified(
     for item in items:
         if item.get("kind") != "classification":
             continue
-        gold = (item.get("gold") or {}).get("risk_category")
-        predicted = (results.get(item["id"]) or {}).get("risk_category")
+        # B118 (R6): the checkpoint is a July file with the old values.
+        gold = current_level((item.get("gold") or {}).get("risk_category"))
+        predicted = current_level((results.get(item["id"]) or {}).get("risk_category"))
         if (gold, predicted) in OVER_CLASSIFICATION_PATTERNS:
             found.append({"item": item, "gold": gold, "predicted": predicted})
     return found
@@ -387,7 +388,7 @@ def build_report(
             f"## {item_id}\n"
             f"\n"
             f"- Benchmark gold: `{entry['gold']}` "
-            f"(benchmark label '{'limited' if entry['gold'] == 'transparency_only' else 'high-risk'}')\n"
+            f"(benchmark label '{'limited' if entry['gold'] == 'limited_risk' else 'high-risk'}')\n"
             f"- Predicted ({STRATEGY}): `{entry['predicted']}`\n"
             f"- Elicited domain: `{features.get('domain')}`; elicited flags: {flags_line}\n"
             f"- Triggering signal(s): {', '.join(f'`{t}`' for t in triggers)} "
@@ -438,7 +439,7 @@ def build_report(
         "\n"
         "The three items are the 'real over-classification' cells of the\n"
         "RUN2_ANALYSIS.md confusion table: 2 limited -> high_risk and 1\n"
-        "high-risk -> prohibited, strategy graph_build_judge (the graph\n"
+        "high-risk -> unacceptable_risk, strategy graph_build_judge (the graph\n"
         "strategies answered identically on these items).\n"
         "\n"
         "Summary: one error (scenario 76) is a genuinely unsupported elicited\n"

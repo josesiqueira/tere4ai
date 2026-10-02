@@ -68,7 +68,7 @@ not the sample:
 - Scenario descriptions are free text. Mapping them into our structured
   `system_features` schema is annotation work; the loader therefore keeps
   them as `system_text` with `system_features: null`, and the graph
-  strategies honestly return `uncertain` for such items until the mapping
+  strategies honestly return `undetermined` for such items until the mapping
   is annotated. Do not let any code guess that mapping.
 
 ## The ablation ladder (Section 12)
@@ -159,7 +159,7 @@ pattern at 10x scale: plain_llm 207/339 with zero checkable citations vs
 the graph ladder 144/339 with 0.45 article-level citation completeness and
 a measured 0.000 hallucinated-citation rate over ~4,380 emitted citations.
 The dominant graph loss is one cell: 88 gold-minimal items predicted
-transparency_only (the Article 50 taxonomy disagreement from run 2, now
+limited_risk (the Article 50 taxonomy disagreement from run 2, now
 the priority annotation set). Measured spend exceeded the dry-run
 estimate: judge 9.63 USD vs the 5.33 USD quote (band exceeded; chars/4
 under-counts legal text). Full analysis: results/FULL_RUN_ANALYSIS.md;

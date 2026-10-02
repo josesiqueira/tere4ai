@@ -247,6 +247,12 @@ def elicitor_prompt(features_path: Path) -> dict[str, Any]:
             "rendered_sha256": None, "graph_version": None}
 
 
+def is_abstained(prediction: str | None) -> bool:
+    """No prediction, or "undetermined" (B118; a July checkpoint's
+    "uncertain" is read through current_level), counts as an abstention."""
+    return metrics.current_level(prediction) in (None, "undetermined")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--benchmark", type=Path, default=None,
@@ -538,14 +544,14 @@ def main(argv: list[str] | None = None) -> int:
             gold_ok = sum(
                 1
                 for gi in seed_cls
-                if results.get(gi["id"], {}).get("risk_category")
-                == gi["gold"].get("risk_category")
+                if metrics.current_level(results.get(gi["id"], {}).get("risk_category"))
+                == metrics.current_level(gi["gold"].get("risk_category"))
             )
             bench_ok = sum(
                 1
                 for bi in bench_cls
-                if results.get(bi["id"], {}).get("risk_category")
-                == bi["gold"].get("risk_category")
+                if metrics.current_level(results.get(bi["id"], {}).get("risk_category"))
+                == metrics.current_level(bi["gold"].get("risk_category"))
             )
             # benchmark citation completeness at the benchmark's own granularity
             # (article level; predicted paragraph/point ids credit their article)
@@ -575,8 +581,7 @@ def main(argv: list[str] | None = None) -> int:
                     "abstained": sum(
                         1
                         for bi in bench_cls
-                        if results.get(bi["id"], {}).get("risk_category")
-                        in (None, "uncertain")
+                        if is_abstained(results.get(bi["id"], {}).get("risk_category"))
                     ),
                     "note": (
                         "benchmark scenarios are free text; where an elicited-features "

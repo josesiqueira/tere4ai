@@ -429,13 +429,13 @@ def test_error_report_finds_exactly_the_three_run2_items(tmp_path: Path):
         "bench:scenario:161",
         "bench:scenario:76",
     ]
-    # 2 limited (transparency_only) -> high_risk, 1 high-risk -> prohibited,
+    # 2 limited (limited_risk) -> high_risk, 1 high-risk -> unacceptable_risk,
     # matching the RUN2_ANALYSIS.md confusion cells.
     patterns = sorted((e["gold"], e["predicted"]) for e in found)
     assert patterns == [
-        ("high_risk", "prohibited"),
-        ("transparency_only", "high_risk"),
-        ("transparency_only", "high_risk"),
+        ("high_risk", "unacceptable_risk"),
+        ("limited_risk", "high_risk"),
+        ("limited_risk", "high_risk"),
     ]
 
     # The full report builds against the real artifacts: every verbatim
@@ -1295,3 +1295,18 @@ def test_a_label_act_whose_reading_copy_replace_fails_says_the_next_act_rewrites
     monkeypatch.undo()
     assert sampling.main(_draw_argv(tmp_path, "--label", ids[1], "accept", "--by", "Jose")) == 0
     assert "- human_label: accept" in (tmp_path / "sheet.md").read_text()
+
+
+def test_error_report_parser_reads_the_trigger_of_a_fresh_classify_answer():
+    # B118: a fresh classify answer names its rule by the stored level value
+    report_mod = _load_script("elicitation_error_report")
+    rationale = [
+        "rule limited_risk: flag interacts_with_natural_persons matches "
+        "eu-ai-act:article-50:paragraph-1",
+        "rule high_risk: domain 'education' matches Annex III point 3 "
+        "(eu-ai-act:annex-iii:point-3)",
+    ]
+    assert report_mod.rule_trace_triggers(rationale) == [
+        "flag:interacts_with_natural_persons",
+        "domain:education",
+    ]

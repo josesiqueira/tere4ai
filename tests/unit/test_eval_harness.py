@@ -98,7 +98,7 @@ GOLD_3 = [
             "description": "An unknown-flags test system with no structured facts.",
             "flags": {},
         },
-        "gold": {"risk_category": "uncertain"},
+        "gold": {"risk_category": "undetermined"},
         "gold_citations": [],
     },
     {
@@ -128,7 +128,7 @@ def make_generator() -> FakeClient:
     """Scripted generator covering the three test items (keyed on their text)."""
     return FakeClient(
         {
-            "unknown-flags test system": _gen_response([], risk="uncertain"),
+            "unknown-flags test system": _gen_response([], risk="undetermined"),
             "Which annex item covers biometric widgets": _gen_response(
                 ["test:annex-x:point-1", "test:fabricated-node"]
             ),
@@ -192,9 +192,9 @@ def test_graph_strategies_use_deterministic_classification(tmp_path):
     strategies = build_all_strategies(tmp_path)
     for name in ("graph_no_judge", "graph_build_judge", "graph_full"):
         result = strategies[name](GOLD_3[0])
-        # Unknown flags: the deterministic ladder says uncertain; the
+        # Unknown flags: the deterministic ladder says undetermined; the
         # generator can never override it.
-        assert result["risk_category"] == "uncertain", name
+        assert result["risk_category"] == "undetermined", name
 
 
 def test_graph_no_judge_offers_rejected_norms_and_build_judge_does_not(tmp_path):
@@ -1136,3 +1136,25 @@ def test_a_generator_only_live_record_leaves_the_judge_sampling_null(tmp_path, m
         run_eval(list(GOLD_3)[:1], ["plain_llm"], results_dir=tmp_path / "r2", **kw)
     (failed,) = [r for r in store.list_records() if r["outcome"]["status"] == "failed"]
     assert failed["sampling"] == expected
+
+
+def test_current_level_maps_old_values_and_passes_new_ones():
+    from tere4ai.eval.harness import current_level
+
+    assert current_level("transparency_only") == "limited_risk"
+    assert current_level("prohibited") == "unacceptable_risk"
+    assert current_level("limited_risk") == "limited_risk"
+    assert current_level(None) is None
+    assert current_level("uncertain") == "undetermined"
+    assert current_level("minimal_or_none") == "minimal_risk"
+
+
+def test_benchmark_map_uses_the_pyramid_names():
+    from tere4ai.eval.harness import BENCHMARK_RISK_MAP
+
+    assert BENCHMARK_RISK_MAP == {
+        "prohibited": "unacceptable_risk",
+        "high-risk": "high_risk",
+        "limited": "limited_risk",
+        "minimal": "minimal_risk",
+    }

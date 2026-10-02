@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tere4ai.mcp_server.levels import LEGACY_LEVEL_VALUES
+
 # Judge gold labels (annotation protocol, eval/gold/ANNOTATION_PROTOCOL.md).
 JUDGE_GOLD_LABELS = ("accept", "reject")
 # Judge verdicts as produced by the judges (tere4ai.judge.runtime_grounding).
@@ -55,6 +57,18 @@ def prf1(tp: int, fp: int, fn: int) -> dict[str, float]:
     return {"precision": precision(tp, fp), "recall": recall(tp, fn), "f1": f1(tp, fp, fn)}
 
 
+def current_level(value: str | None) -> str | None:
+    """A level read from a result file, in today's vocabulary (B118, R6).
+
+    Result files written before B118 (the July ablation checkpoints and
+    summaries) carry the old values; this maps them to the new ones so the
+    numbers they reproduce do not change. A current value passes through.
+    """
+    if value is None:
+        return None
+    return LEGACY_LEVEL_VALUES.get(value, value)
+
+
 def risk_classification_accuracy(
     results: dict[str, dict[str, Any]],
     gold_items: list[dict[str, Any]],
@@ -73,11 +87,11 @@ def risk_classification_accuracy(
     for item in gold_items:
         if item.get("kind") != "classification":
             continue
-        gold_risk = (item.get("gold") or {}).get("risk_category")
+        gold_risk = current_level((item.get("gold") or {}).get("risk_category"))
         if gold_risk is None:
             continue
         total += 1
-        predicted = (results.get(item["id"]) or {}).get("risk_category")
+        predicted = current_level((results.get(item["id"]) or {}).get("risk_category"))
         if predicted == gold_risk:
             correct += 1
         else:

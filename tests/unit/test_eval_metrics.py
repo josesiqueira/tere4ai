@@ -44,11 +44,11 @@ def test_prf1_zero_denominators_are_zero_not_error():
 # Risk classification accuracy ------------------------------------------------
 
 GOLD_ITEMS = [
-    {"id": "i1", "kind": "classification", "gold": {"risk_category": "prohibited"},
+    {"id": "i1", "kind": "classification", "gold": {"risk_category": "unacceptable_risk"},
      "gold_citations": ["n:a"]},
     {"id": "i2", "kind": "classification", "gold": {"risk_category": "high_risk"},
      "gold_citations": ["n:b", "n:c"]},
-    {"id": "i3", "kind": "classification", "gold": {"risk_category": "minimal_or_none"},
+    {"id": "i3", "kind": "classification", "gold": {"risk_category": "minimal_risk"},
      "gold_citations": []},
     {"id": "i4", "kind": "qa", "gold": {"answer_text": "x"}, "gold_citations": ["n:d"]},
 ]
@@ -56,9 +56,9 @@ GOLD_ITEMS = [
 
 def test_risk_classification_accuracy_exact():
     results = {
-        "i1": {"risk_category": "prohibited"},   # correct
-        "i2": {"risk_category": "minimal_or_none"},  # wrong
-        "i3": {"risk_category": "minimal_or_none"},  # correct
+        "i1": {"risk_category": "unacceptable_risk"},   # correct
+        "i2": {"risk_category": "minimal_risk"},  # wrong
+        "i3": {"risk_category": "minimal_risk"},  # correct
         "i4": {"risk_category": "high_risk"},    # qa item: never scored
     }
     out = risk_classification_accuracy(results, GOLD_ITEMS)
@@ -66,7 +66,7 @@ def test_risk_classification_accuracy_exact():
     assert out["total"] == 3
     assert out["accuracy"] == pytest.approx(2 / 3)
     assert out["mismatches"] == [
-        {"id": "i2", "gold": "high_risk", "predicted": "minimal_or_none"}
+        {"id": "i2", "gold": "high_risk", "predicted": "minimal_risk"}
     ]
 
 

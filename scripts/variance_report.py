@@ -59,6 +59,7 @@ _spec.loader.exec_module(_dd)
 load_results = _dd.load_results
 gold_risk_by_item = _dd.gold_risk_by_item
 analyse_strategy = _dd.analyse_strategy
+current_level = _dd.current_level
 
 DEFAULT_OUT = ROOT / "docs" / "variance_study.md"
 GRAPH_STRATEGIES = ("graph_no_judge", "graph_build_judge", "graph_full")
@@ -67,7 +68,7 @@ GRAPH_STRATEGIES = ("graph_no_judge", "graph_build_judge", "graph_full")
 def _label(result: dict[str, Any] | None) -> str:
     if not result:
         return "no_prediction"
-    return result.get("risk_category") or "no_prediction"
+    return current_level(result.get("risk_category")) or "no_prediction"
 
 
 def _jaccard(a: set[str], b: set[str]) -> float:

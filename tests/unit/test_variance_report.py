@@ -22,18 +22,18 @@ _spec = importlib.util.spec_from_file_location(
 vr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(vr)
 
-GOLD = {"c1": "high_risk", "c2": "minimal_or_none", "c3": "prohibited"}
+GOLD = {"c1": "high_risk", "c2": "minimal_risk", "c3": "unacceptable_risk"}
 RUN_A = {
     "c1": {"risk_category": "high_risk", "citations": ["eu-ai-act:article-6"]},
-    "c2": {"risk_category": "minimal_or_none", "citations": []},
-    "c3": {"risk_category": "uncertain", "citations": []},
+    "c2": {"risk_category": "minimal_risk", "citations": []},
+    "c3": {"risk_category": "undetermined", "citations": []},
     "q1": {"risk_category": None, "answer_text": "same", "citations": ["eu-ai-act:article-13"]},
     "q2": {"risk_category": None, "answer_text": "alpha", "citations": []},
 }
 RUN_B = {
     "c1": {"risk_category": "high_risk", "citations": ["eu-ai-act:article-6"]},
-    "c2": {"risk_category": "transparency_only", "citations": []},  # flip
-    "c3": {"risk_category": None, "citations": []},  # uncertain -> no_prediction: flip
+    "c2": {"risk_category": "limited_risk", "citations": []},  # flip
+    "c3": {"risk_category": None, "citations": []},  # undetermined -> no_prediction: flip
     "q1": {"risk_category": None, "answer_text": "same", "citations": ["eu-ai-act:article-13"]},
     "q2": {"risk_category": None, "answer_text": "beta", "citations": []},
 }
@@ -44,8 +44,8 @@ def test_flip_counting_includes_abstention_form_changes():
     assert c["labelled_items"] == 3
     assert c["label_flips"] == 2
     flipped = {f["item"]: (f["run_a"], f["run_b"]) for f in c["flip_details"]}
-    assert flipped["c2"] == ("minimal_or_none", "transparency_only")
-    assert flipped["c3"] == ("uncertain", "no_prediction")
+    assert flipped["c2"] == ("minimal_risk", "limited_risk")
+    assert flipped["c3"] == ("undetermined", "no_prediction")
 
 
 def test_citation_jaccard_and_qa_identity():

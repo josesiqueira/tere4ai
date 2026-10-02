@@ -15,10 +15,10 @@ _spec = importlib.util.spec_from_file_location(
 dd = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(dd)
 
-GOLD = {"i1": "high_risk", "i2": "high_risk", "i3": "minimal_or_none", "i4": "prohibited"}
+GOLD = {"i1": "high_risk", "i2": "high_risk", "i3": "minimal_risk", "i4": "unacceptable_risk"}
 RESULTS = {
     "i1": {"risk_category": "high_risk"},        # correct, committed
-    "i2": {"risk_category": "uncertain"},        # abstained
+    "i2": {"risk_category": "undetermined"},        # abstained
     "i3": {"risk_category": "high_risk"},        # wrong, committed
     "i4": {"risk_category": None},               # no prediction = abstained
     "qa1": {"risk_category": None},              # not in gold: ignored
@@ -29,9 +29,9 @@ def test_matrix_and_abstention_math():
     a = dd.analyse_strategy(RESULTS, GOLD)
     assert a["scored_items"] == 4
     assert a["matrix"]["high_risk"]["high_risk"] == 1
-    assert a["matrix"]["high_risk"]["uncertain"] == 1
-    assert a["matrix"]["minimal_or_none"]["high_risk"] == 1
-    assert a["matrix"]["prohibited"]["no_prediction"] == 1
+    assert a["matrix"]["high_risk"]["undetermined"] == 1
+    assert a["matrix"]["minimal_risk"]["high_risk"] == 1
+    assert a["matrix"]["unacceptable_risk"]["no_prediction"] == 1
     ab = a["abstention"]
     assert ab["abstained"] == 2 and ab["committed"] == 2
     assert ab["selective_accuracy"] == 0.5
@@ -76,3 +76,21 @@ def test_reconciles_with_the_official_run2_summary():
         computed = dd.analyse_strategy(per_strategy[name], gold)
         assert computed["scored_items"] == official["total"], name
         assert computed["overall_accuracy"] == pytest.approx(official["accuracy"]), name
+
+
+def test_july_checkpoint_values_are_read_through_the_translation_table():
+    # B118 (R6): a result file written before the rename carries the old
+    # values; the numbers it reproduces must not change.
+    old = {
+        "i1": {"risk_category": "high_risk"},
+        "i2": {"risk_category": "uncertain"},
+        "i3": {"risk_category": "transparency_only"},
+        "i4": {"risk_category": "prohibited"},
+    }
+    gold = {"i1": "high_risk", "i2": "high_risk", "i3": "limited_risk", "i4": "unacceptable_risk"}
+    a = dd.analyse_strategy(old, gold)
+    assert a["matrix"]["high_risk"]["undetermined"] == 1
+    assert a["matrix"]["limited_risk"]["limited_risk"] == 1
+    assert a["matrix"]["unacceptable_risk"]["unacceptable_risk"] == 1
+    assert a["overall_accuracy"] == 3 / 4
+    assert a["abstention"]["abstained"] == 1

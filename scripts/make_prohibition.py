@@ -39,8 +39,8 @@ from fastmcp import Client  # noqa: E402
 from fastmcp.client.transports import StdioTransport  # noqa: E402
 
 
-def _prohibited_text(value: object) -> str:
-    """DEC-18: the classifier's prohibited field is true, false or null,
+def _unacceptable_risk_text(value: object) -> str:
+    """DEC-18: the classifier's unacceptable_risk field is true, false or null,
     printed as the JSON words true and false, and null as unknown."""
     if value is None:
         return "unknown"
@@ -210,7 +210,7 @@ def render(
     add("## Outcome")
     add("")
     add(f"- risk category: **{a2.get('risk_category')}**")
-    add(f"- prohibited: **{_prohibited_text(a2.get('prohibited'))}**")
+    add(f"- unacceptable risk: **{_unacceptable_risk_text(a2.get('unacceptable_risk'))}**")
     add(f"- envelope status: `{round_2.get('status')}`, confidence {round_2.get('confidence')}")
     add(f"- engineering requirements returned: **{returned}**")
     add("")

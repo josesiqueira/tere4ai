@@ -49,7 +49,7 @@ from tere4ai.eval.evaluation_record import (
     observe_publication,
     served_input_paths,
 )
-from tere4ai.eval.metrics import METRICS_VERSION
+from tere4ai.eval.metrics import METRICS_VERSION, current_level  # noqa: F401
 from tere4ai.eval.strategies import STRATEGY_NAMES, build_strategy
 from tere4ai.extract_norms.model_clients import ModelClient, declared_sampling
 from tere4ai.graph_store.build_record import atomic_write_json
@@ -81,11 +81,13 @@ ITEM_KINDS = ("classification", "retrieval", "qa")
 
 # REF-15 benchmark risk levels -> our closed risk-category vocabulary.
 # "limited" in the benchmark is the Article 50 transparency regime.
+# B118: the benchmark's "limited" is its own overall label, grounded by REF-15
+# in Articles 50 and 10; it is aligned here with the pyramid's limited_risk.
 BENCHMARK_RISK_MAP = {
-    "prohibited": "prohibited",
+    "prohibited": "unacceptable_risk",
     "high-risk": "high_risk",
-    "limited": "transparency_only",
-    "minimal": "minimal_or_none",
+    "limited": "limited_risk",
+    "minimal": "minimal_risk",
 }
 
 
