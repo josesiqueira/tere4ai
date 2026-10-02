@@ -696,6 +696,16 @@ VERIFIED 2026-10-02. SUPPORTING. Grounds: the strict, exact, partial and type
 evaluation schemes stated in its README, practice evidence that a strict
 figure is reported beside lenient ones (D-G40); never sole grounding.
 
+**[ADD-71]** PEER. "Deciphering disagreement in the annotation of EU
+legislation", van Dijck, Aguilera, Chakravarthy, Artificial Intelligence and
+Law 34:191-226, 2026 (published online 2024-11-12), DOI
+10.1007/s10506-024-09423-9 (open access, CC BY 4.0). VERIFIED 2026-10-02.
+SUPPORTING. Grounds: on EU legislative provisions, agreement levels "vary based
+on the stage of measurement (before/after revisions), the nature of the task,
+the method of assessment, and the annotator combination", and annotators
+"identified multiple valid interpretations" (p. 191); spec G Section 6
+reports agreement per task and stage and keeps the spread of verdicts.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
