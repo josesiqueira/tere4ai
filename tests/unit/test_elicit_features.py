@@ -608,3 +608,76 @@ def test_render_prompt_raises_when_a_provision_does_not_resolve(dump):
     broken = {**dump, "nodes": [n for n in dump["nodes"] if n["id"] != "eu-ai-act:definition:profiling"]}
     with pytest.raises(ProvisionUnresolved, match="eu-ai-act:definition:profiling"):
         render_prompt(broken, SNAPSHOTS_DIR)
+
+
+def test_null_and_empty_list_fields_are_unknown_not_dropped_facts(dump):
+    """B10 final review: a field the model sets to null or to an empty list
+    states no fact, so it needs no quote, is removed as unknown and is not
+    named in dropped."""
+    quote = "A chatbot on our bank's website"
+    result, _ = _run(
+        {"features": {"domain": None, "purposes": [], "affected_persons": [],
+                      "autonomy": None,
+                      "flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": quote}},
+        dump,
+    )
+    assert result.dropped == []
+    for key in ("domain", "purposes", "affected_persons", "autonomy"):
+        assert key not in result.features
+    assert result.features["flags"] == {"interacts_with_natural_persons": True}
+
+
+def test_null_deployer_key_is_unknown_not_a_schema_violation(dump):
+    quote = "A chatbot on our bank's website"
+    result, gen = _run(
+        {"features": {"deployer": {"body_governed_by_public_law": None},
+                      "flags": {"interacts_with_natural_persons": True}},
+         "quotes": {"flags.interacts_with_natural_persons": quote}},
+        dump,
+    )
+    assert len(gen.systems) == 1, "no retry"
+    assert result.dropped == []
+    assert "deployer" not in result.features
+
+
+LOAN = "The bank scores loan applicants, then a clerk decides."
+
+
+def test_quote_that_cuts_a_word_is_not_in_the_description(dump):
+    """B10 final review: a match must start and end at word boundaries."""
+    result, _ = _run(
+        {"features": {"flags": {"creditworthiness_evaluation": True}},
+         "quotes": {"flags.creditworthiness_evaluation": "ank scores loan"}},
+        dump,
+        description=LOAN,
+    )
+    assert "flags" not in result.features
+    assert result.dropped == [{"path": "flags.creditworthiness_evaluation",
+                               "reason": "quote not in the description"}]
+
+
+def test_quote_ending_before_punctuation_is_kept(dump):
+    result, _ = _run(
+        {"features": {"flags": {"creditworthiness_evaluation": True}},
+         "quotes": {"flags.creditworthiness_evaluation": "scores loan applicants"}},
+        dump,
+        description=LOAN,
+    )
+    assert result.features["flags"] == {"creditworthiness_evaluation": True}
+    start = LOAN.index("scores")
+    assert result.quotes["flags.creditworthiness_evaluation"] == {
+        "text": "scores loan applicants", "start": start, "end": start + len("scores loan applicants"),
+    }
+
+
+def test_a_later_occurrence_on_word_boundaries_is_found(dump):
+    description = "Our sandbank scores loan games; the bank scores loan risk daily."
+    result, _ = _run(
+        {"features": {"flags": {"creditworthiness_evaluation": True}},
+         "quotes": {"flags.creditworthiness_evaluation": "bank scores loan"}},
+        dump,
+        description=description,
+    )
+    got = result.quotes["flags.creditworthiness_evaluation"]
+    assert got["start"] == description.index("the bank") + len("the ")

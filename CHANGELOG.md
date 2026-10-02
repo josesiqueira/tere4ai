@@ -86,6 +86,19 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   read from the graph at call time and each fact needs its quote; README lists
   `elicit_features` among the paid tools and /api/elicit among the paid
   endpoints.
+- Final review fixes: a v6 field the model sets to null or to an empty list
+  (and a deployer key set to null) states no fact, so it is removed as
+  unknown, needs no quote and is not named in dropped (a null deployer key no
+  longer fails the schema and costs a retry). A quote is found only on word
+  boundaries: the character before and after the match, where there is one,
+  is not a letter or digit, and a later occurrence is searched when the first
+  cuts a word ("ank scores loan" is not in "bank scores loan"). The E6
+  record's `"elicit_features"` entry adds `rendered_sha256` and
+  `graph_version` from the facts file's "prompt" (null for a file from before
+  B10). `scripts/estimate_benchmark_cost.py` counts an elicitation reply as
+  its features plus its quotes when the facts file has `quotes_by_item`;
+  without them it counts features only and docs/benchmark_cost_estimate.md
+  says so (regenerated, figures unchanged).
 
 ### Every operator obligation and every generated control carries its requirement type (B65, B4, DEC-19)
 - Contract change: norms.schema.json gains `requirement_type` (functional,

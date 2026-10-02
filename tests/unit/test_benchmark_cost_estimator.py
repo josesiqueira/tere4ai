@@ -88,3 +88,24 @@ def test_observed_output_chars_reads_run2_checkpoint():
     out = est.observed_output_chars()
     assert "plain_llm" in out
     assert out["plain_llm"]["classification"] > 0
+
+
+def test_elicitation_output_counts_features_and_quotes_when_the_file_has_quotes():
+    """B10 final review: a v6 reply carries quotes beside the features, so
+    the output size per item is the two together, each quote counted as the
+    reply sends it (path to text; the offsets are added by the code)."""
+    feats = {"a": {"flags": {"x": True}}, "b": {"domain": "banking"}}
+    quotes = {"a": {"flags.x": {"text": "one two three", "start": 0, "end": 13}},
+              "b": {"domain": {"text": "our bank site", "start": 4, "end": 17}}}
+    mean, note = est.elicitation_output_chars({"features_by_item": feats, "quotes_by_item": quotes})
+    sent = {"a": {"flags.x": "one two three"}, "b": {"domain": "our bank site"}}
+    expected = [len(json.dumps(feats[k])) + len(json.dumps(sent[k])) for k in feats]
+    assert mean == sum(expected) / 2
+    assert note is None
+
+
+def test_elicitation_output_counts_features_only_and_says_so_without_quotes():
+    feats = {"a": {"flags": {"x": True}}, "b": {"domain": "banking"}}
+    mean, note = est.elicitation_output_chars({"features_by_item": feats})
+    assert mean == sum(len(json.dumps(v)) for v in feats.values()) / 2
+    assert note is not None and "features only" in note and "no quotes" in note

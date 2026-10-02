@@ -20,7 +20,9 @@ Token model, stated plainly so nobody mistakes this for a measurement:
   provision from the graph), not the template with its placeholders.
 - Output tokens come from observed run-2 answer lengths per strategy
   (eval/results/ablation_checkpoint.jsonl) and observed elicitation
-  payloads (eval/gold/benchmark_features.json), same chars/4 mapping.
+  payloads (eval/gold/benchmark_features.json), same chars/4 mapping; an
+  elicitation payload is its features plus its quotes when the file holds
+  quotes, otherwise features only and the report says so.
 
 Pricing:
 - Judge (claude-opus-4-8): 5.00 USD in / 25.00 USD out per million tokens
@@ -99,6 +101,32 @@ def elicit_system_prompt() -> str:
     dump = json.loads(ELICIT_DUMP.read_text(encoding="utf-8"))
     system, _ = render_prompt(dump, SNAPSHOTS_DIR, DEFAULT_PROMPT_VERSION)
     return system
+
+
+def elicitation_output_chars(facts: dict[str, Any]) -> tuple[float, str | None]:
+    """Mean characters of one elicitation reply, and a note for the report
+    when the figure is partial. A v6 reply carries "features" and "quotes"
+    (B10), so when the facts file has quotes_by_item each item counts its
+    features plus its quotes as the reply sends them ({path: text}; the
+    offsets are added by the code). A file without quotes gives the
+    features-only figure and the note says so."""
+    feats = facts["features_by_item"]
+    quotes = facts.get("quotes_by_item")
+    if not isinstance(quotes, dict):
+        mean = statistics.mean(len(json.dumps(v)) for v in feats.values())
+        return mean, (
+            "The elicitation output size counts features only: the facts file "
+            f"({FEATURES.relative_to(ROOT)}) holds no quotes, so a v6 reply's "
+            "quotes are not in the figure."
+        )
+    sizes = []
+    for item, features in feats.items():
+        sent = {
+            path: q.get("text") if isinstance(q, dict) else q
+            for path, q in (quotes.get(item) or {}).items()
+        }
+        sizes.append(len(json.dumps(features)) + len(json.dumps(sent)))
+    return statistics.mean(sizes), None
 
 
 def verify_full_benchmark() -> Path:
@@ -226,8 +254,9 @@ def main() -> int:
     # text, output size from the 32 observed elicitations.
     elicit_system = len(elicit_system_prompt())
     elicit_user = sum(len(i["system_text"]) for i in items if i["kind"] == "classification")
-    feats = json.loads(FEATURES.read_text(encoding="utf-8"))["features_by_item"]
-    elicit_out_mean = statistics.mean(len(json.dumps(v)) for v in feats.values())
+    elicit_out_mean, elicit_out_note = elicitation_output_chars(
+        json.loads(FEATURES.read_text(encoding="utf-8"))
+    )
     elicitation = {
         "calls": n_cls,
         "gen_in": tokens(n_cls * elicit_system + elicit_user),
@@ -269,6 +298,10 @@ def main() -> int:
         f"| elicitation (DEC-13, once per scenario) | {elicitation['calls']} "
         f"| {elicitation['gen_in']:,} | {elicitation['gen_out']:,} | 0 | 0 | 0 |",
         "",
+    ]
+    if elicit_out_note:
+        lines += [elicit_out_note, ""]
+    lines += [
         "## Totals",
         "",
         f"- Generator (gpt-5.2): {gen_in:,} input + {gen_out:,} output tokens",

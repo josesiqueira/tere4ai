@@ -233,14 +233,17 @@ def load_items(benchmark_path=None, features_path=None) -> list[dict]:
 
 def elicitor_prompt(features_path: Path) -> dict[str, Any]:
     """The elicitor's prompt the facts file names, for the record's
-    prompt_versions (B10): its version and template hash from the file's
-    "prompt" record (scripts/elicit_benchmark_features.py); a file written
-    before B10 names only prompt_version, so its template hash is None."""
+    prompt_versions (B10): its version, template hash, rendered hash and
+    build (graph_version) from the file's "prompt" record
+    (scripts/elicit_benchmark_features.py); a file written before B10 names
+    only prompt_version, so the other three are None."""
     cache = json.loads(features_path.read_text(encoding="utf-8"))
     prompt = cache.get("prompt")
     if isinstance(prompt, dict):
-        return {"version": prompt.get("version"), "template_sha256": prompt.get("template_sha256")}
-    return {"version": cache.get("prompt_version"), "template_sha256": None}
+        return {key: prompt.get(key) for key in
+                ("version", "template_sha256", "rendered_sha256", "graph_version")}
+    return {"version": cache.get("prompt_version"), "template_sha256": None,
+            "rendered_sha256": None, "graph_version": None}
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -16,7 +16,10 @@ graph dump of the build the call is served on before any model call; a
 provision that does not resolve stops the call. Its reply carries
 "features" and "quotes", and a fact is kept only with a quote of at least
 three words found in the description (character identity after collapsing
-whitespace runs, no case folding); every other fact is dropped and named.
+whitespace runs, no case folding, starting and ending on word boundaries);
+every other fact is dropped and named. A field set to null or to an empty
+list states no fact: it is removed as unknown, needs no quote and is not
+named as dropped.
 """
 
 from __future__ import annotations
@@ -111,6 +114,15 @@ def _collapsed_with_offsets(text: str) -> tuple[str, list[int]]:
     return "".join(chars), offsets
 
 
+def _on_word_boundaries(text: str, start: int, end: int) -> bool:
+    """True when text[start:end] neither begins nor ends inside a word: the
+    character before it and the character after it, where there is one, is
+    not a letter or digit."""
+    before_ok = start == 0 or not text[start - 1].isalnum()
+    after_ok = end == len(text) or not text[end].isalnum()
+    return before_ok and after_ok
+
+
 def _locate(quote: Any, description: str) -> tuple[dict[str, Any] | None, str | None]:
     """({"text", "start", "end"}, None) when the quote is in the description,
     else (None, the reason the fact is dropped)."""
@@ -122,11 +134,29 @@ def _locate(quote: Any, description: str) -> tuple[dict[str, Any] | None, str | 
     needle = " ".join(words)
     haystack, offsets = _collapsed_with_offsets(description)
     at = haystack.find(needle)
+    while at >= 0 and not _on_word_boundaries(haystack, at, at + len(needle)):
+        at = haystack.find(needle, at + 1)
     if at < 0:
         return None, "quote not in the description"
     start = offsets[at]
     end = offsets[at + len(needle) - 1] + 1
     return {"text": description[start:end], "start": start, "end": end}, None
+
+
+def _is_unknown(value: Any) -> bool:
+    """A value that states no fact: None or an empty list."""
+    return value is None or value == []
+
+
+def _without_unknowns(features: dict[str, Any]) -> dict[str, Any]:
+    """features without the fields that state no fact (None or an empty
+    list, and a deployer key set to None): such a field is unknown, so it
+    needs no quote and is not a dropped fact (B10 final review)."""
+    kept = {k: v for k, v in features.items() if not _is_unknown(v)}
+    deployer = kept.get("deployer")
+    if isinstance(deployer, dict):
+        kept["deployer"] = {k: v for k, v in deployer.items() if v is not None}
+    return kept
 
 
 def _fact_paths(features: dict[str, Any]) -> list[str]:
@@ -270,7 +300,7 @@ def elicit(
             if violation is not None:
                 notes.append(f"attempt {attempt}: {violation}")
                 continue
-            candidate = features
+            candidate = _without_unknowns(features)
         if not isinstance(candidate, dict):
             notes.append(f"attempt {attempt}: generator output was not an object")
             continue

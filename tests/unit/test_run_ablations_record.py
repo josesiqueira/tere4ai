@@ -465,14 +465,16 @@ ELICITOR_PROMPT = {"prompt": "elicit_features", "version": "v6", "template_sha25
 
 def test_the_record_names_the_elicitors_prompt_from_the_facts_file(runner, tmp_path):
     """B10: the E6 record's prompt_versions names the elicitor's prompt
-    (version and template hash) from the facts file it read, beside each
-    strategy's models."""
+    (version, template hash, rendered hash and build) from the facts file it
+    read, beside each strategy's models."""
     facts = _facts(tmp_path, prompt_version="v6", prompt=ELICITOR_PROMPT)
     assert runner.main(_argv(tmp_path, "--features", str(facts))) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    # B10: final review, the rendered hash and the build join the version and template hash
     assert rec["prompt_versions"] == {
         "plain_llm": {"generator": "g", "judge": "j", "judge_prompt_version": "v1"},
-        "elicit_features": {"version": "v6", "template_sha256": "a" * 64},
+        "elicit_features": {"version": "v6", "template_sha256": "a" * 64,
+                            "rendered_sha256": "b" * 64, "graph_version": "build-b"},
     }
 
 
@@ -483,14 +485,19 @@ def test_a_stopped_run_keeps_the_elicitors_prompt_in_its_record(runner, tmp_path
     assert runner.main(_argv(tmp_path, "--features", str(facts))) == 3
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["outcome"]["status"] == "partial"
-    assert rec["prompt_versions"]["elicit_features"] == {"version": "v6", "template_sha256": "a" * 64}
+    # B10: final review, the rendered hash and the build are in the entry too
+    assert rec["prompt_versions"]["elicit_features"] == {
+        "version": "v6", "template_sha256": "a" * 64,
+        "rendered_sha256": "b" * 64, "graph_version": "build-b"}
 
 
 def test_a_facts_file_from_before_b10_names_its_version_and_no_template_hash(runner, tmp_path):
     facts = _facts(tmp_path, prompt_version="v1")
     assert runner.main(_argv(tmp_path, "--features", str(facts))) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
-    assert rec["prompt_versions"]["elicit_features"] == {"version": "v1", "template_sha256": None}
+    # B10: final review, a file from before B10 has no rendered hash or build either
+    assert rec["prompt_versions"]["elicit_features"] == {
+        "version": "v1", "template_sha256": None, "rendered_sha256": None, "graph_version": None}
 
 
 def test_without_a_facts_file_the_record_names_no_elicitor_prompt(runner, tmp_path):
