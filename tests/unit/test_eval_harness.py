@@ -724,6 +724,13 @@ def test_the_harness_names_the_run_it_repeats_and_refuses_an_unknown_one(tmp_pat
     assert "--repeat-of" in capsys.readouterr().out
     assert h.main(args + ["--repeat-of", first["record_id"], "--no-record"]) == 2
     assert len(EvaluationRecordStore(tmp_path, create=False).list_records()) == 2
+    # B81 item 10: a refused --repeat-of on a fresh dump directory creates no store
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    _write_legacy_dumps(fresh)
+    assert h.main(["--strategies", "plain_llm", "--results-dir", str(tmp_path / "r"), "--dump-dir", str(fresh),
+                   "--repeat-of", "0123456789ab"]) == 2
+    assert not (fresh / "evaluation_records").exists()
 
 
 def test_a_per_item_error_names_the_file_never_the_path(tmp_path):
@@ -843,6 +850,38 @@ def test_an_offline_run_with_graph_full_records_the_runtime_judge_prompt_hash(tm
     assert store.read(plain["record_id"])["prompt_sha256"] is None
 
 
+
+def test_the_runtime_judge_prompt_is_hashed_only_when_the_strategy_reports_its_version(tmp_path):
+    # B81 item 23: the name graph_full alone is no evidence that a runtime judge was called
+    from tere4ai.eval import harness as h
+    from tere4ai.judge.runtime_grounding import load_prompt, prompt_sha256
+    assert h.runtime_judge_prompt_sha256({"graph_full": {}}) is None
+    assert h.runtime_judge_prompt_sha256({"graph_full@v2": {}}) is None
+    assert h.runtime_judge_prompt_sha256({"graph_full": {"judge_prompt_version": "v1"}}) == {
+        "runtime_grounding": prompt_sha256(load_prompt("runtime_grounding", "v1"))}
+    store = EvaluationRecordStore(tmp_path)
+    out = run_eval(list(GOLD_3)[:1], {"graph_full": lambda item: {"answer_text": "a", "citations": []}},
+                   results_dir=tmp_path / "r", record_store=store)
+    assert store.read(out["record_id"])["prompt_sha256"] is None
+
+
+def test_a_failure_finish_refused_by_validation_still_ends_the_record_failed(tmp_path, monkeypatch):
+    # B97 item 9 (Task 8): the record never stays running; the retry carries the error alone
+    from tere4ai.eval import harness as h
+    from tere4ai.judge.config import ConfigurationError
+    store = EvaluationRecordStore(tmp_path)
+    monkeypatch.setattr(h, "_own_usage", lambda generator, judge: ["not", "an", "object"])
+
+    def refused(item):
+        raise ConfigurationError("effort is not declared")
+    with pytest.raises(ConfigurationError):
+        run_eval(list(GOLD_3)[:1], {"plain_llm": refused}, results_dir=tmp_path / "r", record_store=store)
+    (rec,) = store.list_records()
+    assert rec["outcome"]["status"] == "failed" and rec["ended_at"]
+    assert rec["outcome"]["error"].startswith("ConfigurationError: effort is not declared; the full failure record "
+                                              "was refused: refusing to finish: ")
+    assert "at usage" in rec["outcome"]["error"] and rec["usage"] is None
+
 def test_the_record_keeps_this_runs_artifact_bytes_under_the_compatibility_name(tmp_path):
     store = EvaluationRecordStore(tmp_path)
     out = run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
@@ -853,6 +892,30 @@ def test_the_record_keeps_this_runs_artifact_bytes_under_the_compatibility_name(
     assert ref["sha256"] == sha256_of_file(store.dir / ref["copy"]) == sha256_of_file(out_path)
     assert [p.name for p in (tmp_path / "r").iterdir()] == [out_path.name], "no temp file left"
 
+
+
+def test_a_failed_final_move_names_the_temp_file_that_holds_the_results(tmp_path, monkeypatch):
+    # B81 item 35: the temp file is the only copy of the results when the move fails; it is kept and named
+    import os
+    store = EvaluationRecordStore(tmp_path)
+    results_dir = tmp_path / "r"
+    real_replace = os.replace
+
+    def failing(src, dst):
+        if Path(dst).parent == results_dir:
+            raise OSError(18, "Invalid cross-device link", str(src))
+        return real_replace(src, dst)
+    monkeypatch.setattr(os, "replace", failing)
+    with pytest.raises(OSError, match="the results stay in tmp"):
+        run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
+                 results_dir=results_dir, record_store=store)
+    (tmp,) = results_dir.iterdir()
+    assert tmp.name.startswith("tmp") and json.loads(tmp.read_text())["item_ids"] == [GOLD_3[0]["id"]]
+    (rec,) = store.list_records()
+    out_name = results_artifact_name("unknown-build", ["plain_llm"])
+    assert rec["outcome"]["status"] == "failed"
+    assert f"the results stay in {tmp.name}; move it to {out_name}" in rec["outcome"]["error"]
+    assert str(tmp_path) not in rec["outcome"]["error"]
 
 def test_a_concurrent_writer_replacing_the_shared_path_never_lands_in_this_record(tmp_path, monkeypatch):
     store = EvaluationRecordStore(tmp_path)

@@ -114,11 +114,11 @@
  },
  "reasons": {
   "item_selection_sha256": "not recorded",
-  "models": "not recorded",
-  "prompt_sha256": "not recorded",
-  "prompt_versions": "not recorded",
-  "sampling": "not recorded",
-  "usage": "not recorded"
+  "models": "not applicable: no model is called",
+  "prompt_sha256": "not applicable: no model is called",
+  "prompt_versions": "not applicable: no model is called",
+  "sampling": "not applicable: no model is called",
+  "usage": "not applicable: no model is called"
  },
  "record_id": "e1a000000001",
  "relations": {

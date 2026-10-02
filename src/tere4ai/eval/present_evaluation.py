@@ -118,6 +118,11 @@ def present_evaluation(record: dict[str, Any], store: EvaluationRecordStore, now
             null_reasons.setdefault(key, "not applicable: a comparison calls no model")
     if rec.get("command") == "run_ablations":
         null_reasons.setdefault("prompt_sha256", "not recorded: the ablation runner reads no prompt hash")
+    if rec.get("step") == "E1" and not synthesised:
+        # the draw, the labelling and the analysis call no model (B81 item 3); the
+        # legacy sheet keeps the models reason it derives from its items
+        for key in ("models", "prompt_versions", "prompt_sha256", "sampling", "usage"):
+            null_reasons.setdefault(key, "not applicable: no model is called")
     provenance, reasons = provenance_of(
         {k: v for k, v in rec.items() if k not in ("outputs",)}, derived_keys=set(), synthesised=synthesised,
         reason_null=NOT_RECORDED_LEGACY if synthesised else NOT_RECORDED, null_reasons=null_reasons)

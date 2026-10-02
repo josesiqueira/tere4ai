@@ -69,7 +69,8 @@ def _refusal_of(data: Any, name: str) -> str | None:
         return None
     first = errors[0]
     where = "/".join(str(p) for p in first.path) or "the record"
-    return reduce_paths(f"{name}: {first.message} at {where}")
+    # only the message is scrubbed: name is a file name and the JSON pointer is never a path (B81 item 21)
+    return f"{name}: {reduce_paths(first.message)} at {where}"
 
 
 def reduce_paths(text: str) -> str:
@@ -342,3 +343,18 @@ class EvaluationRecordStore:
             if refusal:
                 raise EvaluationRecordError(f"refusing to finish: {refusal}")
             atomic_write_json(self._path(record_id), record)
+
+
+def end_failed(store: EvaluationRecordStore, record_id: str, error: str, *, status: str = "failed",
+               **fields: Any) -> None:
+    """End a record after a failure (status failed, or partial for a provider
+    stop) with everything the writer knows. When validation refuses that
+    finish, the record ends failed with the error alone and the refusal named,
+    so it never stays running (B97 item 9); a record that already ended, or
+    cannot be read, is left as it is."""
+    try:
+        store.finish(record_id, status=status, error=error, **fields)
+    except EvaluationRecordError as exc:
+        if not str(exc).startswith("refusing to finish"):
+            return
+        store.finish(record_id, status="failed", error=f"{error}; the full failure record was refused: {exc}")

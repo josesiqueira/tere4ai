@@ -114,6 +114,19 @@ def test_list_marks_unreadable_and_invalid_records_without_dropping_the_list(tmp
     assert rows["0000000c0000"]["unreadable"] and "required" in rows["0000000c0000"]["reason"]
 
 
+
+def test_a_schema_error_keeps_its_full_json_pointer_location(tmp_path):
+    # B81 item 21: the pointer "inputs/0/sha256" is never shortened like a path to "sha256"
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind="run", step="E6", command="x", argv=[],
+                      inputs=[{"role": "norms", "file": "norms_core.json", "sha256": "b" * 64}],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None})
+    data = json.loads((store.dir / f"{rid}.json").read_text())
+    data["inputs"][0]["sha256"] = 5
+    (store.dir / f"{rid}.json").write_text(json.dumps(data))
+    (row,) = store.list_records()
+    assert row["unreadable"] and row["reason"] == f"{rid}.json: 5 is not of type 'string' at inputs/0/sha256"
+
 def test_lookups_by_output_digest_and_input_digest(tmp_path):
     store = EvaluationRecordStore(tmp_path)
     src = tmp_path / "layer1.json"

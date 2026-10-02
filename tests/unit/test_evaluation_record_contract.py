@@ -15,7 +15,7 @@ EXPECTED = {
     "list.json", "e1_sample.json", "e1_labelling.json", "e1_analysis.json", "e6_run.json",
     "e6_run_repeat.json", "e6_run_other_build.json", "e6_comparison.json", "e6_legacy_summary.json",
     "e1_legacy_sheet.json", "e6_offline.json", "e6_partial.json", "e6_failed.json", "e6_resumed.json",
-    "e6_copy_missing.json",
+    "e6_copy_missing.json", "e6_legacy_variance_summary.json", "e6_legacy_comparison.json",
 }
 
 
@@ -92,6 +92,12 @@ def test_fixtures_state_the_honesty_rules():
     assert other["build"]["publication"] is None and other["build"]["base_build_id"] == "build-c"
     offline = _fixture("e6_offline.json")
     assert offline["config"]["mode"] == "offline" and offline["models"] is None
+    legacy_cmp = _fixture("e6_legacy_comparison.json")
+    runs = [legacy["record_id"], _fixture("e6_legacy_variance_summary.json")["record_id"]]
+    assert legacy_cmp["kind"] == "comparison" and legacy_cmp["synthesised"] is True
+    assert legacy_cmp["relations"]["compares"] == runs and legacy_cmp["provenance"]["relations"] == "derived"
+    assert legacy_cmp["reasons"]["relations"] == ("derived: the study's header names ablation_run1_checkpoint.jsonl "
+                                                  "(run A) and ablation_variance_checkpoint.jsonl (run B)")
 
 
 def test_fixtures_are_byte_stable(tmp_path):
@@ -99,3 +105,52 @@ def test_fixtures_are_byte_stable(tmp_path):
 
     for path in regenerate(tmp_path):
         assert path.read_bytes() == (FIXTURES / path.name).read_bytes(), f"{path.name} drifted: rerun regenerate"
+
+
+def test_the_pinned_clock_names_the_list_to_extend_when_it_runs_out():
+    # B81 item 12 (a): one call past the pinned list is a plain error naming CLOCK, never a bare StopIteration
+    from tests.fixtures.evaluation_records.regenerate import _pinned
+
+    from tere4ai.eval import evaluation_record
+
+    with _pinned(["e6a000000001"], ["2026-09-20T10:00:00+00:00"]):
+        assert evaluation_record._now() == "2026-09-20T10:00:00+00:00"
+        with pytest.raises(RuntimeError, match="the pinned CLOCK list has 1 entries; add one to CLOCK"):
+            evaluation_record._now()
+        assert evaluation_record._new_id() == "e6a000000001"
+        with pytest.raises(RuntimeError, match="add one to FIXED_IDS"):
+            evaluation_record._new_id()
+
+
+def test_each_legacy_record_has_its_own_mock_data_name():
+    # B81 item 12 (b) and 16 (c): a legacy run is named by its summary file, any other kind by its kind
+    from tests.fixtures.evaluation_records.regenerate import (
+        LEGACY_NAMES,
+        LEGACY_RUN_NAMES,
+        _legacy_name,
+    )
+
+    assert LEGACY_NAMES == {"sample": "e1_legacy_sheet", "comparison": "e6_legacy_comparison"}
+    assert LEGACY_RUN_NAMES == {"ablation_run1_summary.json": "e6_legacy_summary",
+                                "ablation_variance_summary.json": "e6_legacy_variance_summary"}
+    names = [*LEGACY_NAMES.values(), *LEGACY_RUN_NAMES.values()]
+    assert len(set(names)) == len(names)
+
+    def run(summary):
+        return {"kind": "run", "outputs": [{"file": summary}]}
+    assert _legacy_name(run("ablation_variance_summary.json")) == "e6_legacy_variance_summary"
+    assert _legacy_name({"kind": "comparison", "outputs": []}) == "e6_legacy_comparison"
+    with pytest.raises(KeyError, match="ablation_full_summary.json"):
+        _legacy_name(run("ablation_full_summary.json"))
+    with pytest.raises(KeyError, match="labelling"):
+        _legacy_name({"kind": "labelling", "outputs": []})
+
+
+def test_regenerate_refuses_to_write_one_name_twice(tmp_path):
+    from tests.fixtures.evaluation_records.regenerate import _write
+
+    written: list[Path] = []
+    _write(tmp_path, "e1_legacy_sheet", {"a": 1}, written)
+    with pytest.raises(RuntimeError, match="e1_legacy_sheet.json would be written twice"):
+        _write(tmp_path, "e1_legacy_sheet", {"a": 2}, written)
+    assert json.loads((tmp_path / "e1_legacy_sheet.json").read_text()) == {"a": 1}

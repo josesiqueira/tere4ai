@@ -1,0 +1,92 @@
+{
+ "argv": [],
+ "build": {
+  "base_build_id": null,
+  "publication": null,
+  "publication_reason": null
+ },
+ "command": "variance_report",
+ "config": {},
+ "counts": {},
+ "ended_at": null,
+ "inputs": [],
+ "item_selection_sha256": null,
+ "kind": "comparison",
+ "models": null,
+ "notes": [],
+ "observed_at": "2026-09-26T00:00:00+00:00",
+ "origin": "legacy",
+ "outcome": null,
+ "outputs": [
+  {
+   "copy": null,
+   "copy_reason": "legacy: the file on disk is the record",
+   "copy_state": "not_kept",
+   "file": "variance_study.md",
+   "role": "study",
+   "sha256": "db5d8af1be1e5491fd8d272ccdc9ff0cb3691e9691541ab7005e2a7354629778"
+  }
+ ],
+ "prompt_sha256": null,
+ "prompt_versions": null,
+ "provenance": {
+  "argv": "unavailable",
+  "build": "unavailable",
+  "command": "derived",
+  "config": "unavailable",
+  "counts": "unavailable",
+  "ended_at": "unavailable",
+  "inputs": "unavailable",
+  "item_selection_sha256": "unavailable",
+  "kind": "derived",
+  "models": "unavailable",
+  "notes": "unavailable",
+  "origin": "derived",
+  "outcome": "unavailable",
+  "outputs": "derived",
+  "prompt_sha256": "unavailable",
+  "prompt_versions": "unavailable",
+  "record_id": "derived",
+  "relations": "derived",
+  "sampling": "unavailable",
+  "schema_version": "derived",
+  "started_at": "unavailable",
+  "step": "derived",
+  "usage": "unavailable"
+ },
+ "reasons": {
+  "argv": "not recorded: the file states none",
+  "build": "not recorded: the study carries no build id",
+  "config": "not recorded: the file states none",
+  "counts": "not recorded: the file states none",
+  "ended_at": "not recorded: the file states none",
+  "inputs": "not recorded: the file states none",
+  "item_selection_sha256": "not applicable: a comparison calls no model",
+  "models": "not applicable: a comparison calls no model",
+  "notes": "not recorded: the file states none",
+  "outcome": "not recorded: the study states no outcome",
+  "prompt_sha256": "not applicable: a comparison calls no model",
+  "prompt_versions": "not applicable: a comparison calls no model",
+  "relations": "derived: the study's header names ablation_run1_checkpoint.jsonl (run A) and ablation_variance_checkpoint.jsonl (run B)",
+  "sampling": "not applicable: a comparison calls no model",
+  "started_at": "not recorded: the study states no date",
+  "usage": "not applicable: a comparison calls no model"
+ },
+ "record_id": "legacy-db5d8af1be1e",
+ "relations": {
+  "compares": [
+   "legacy-dc810e7c686e",
+   "legacy-d22de09f132b"
+  ],
+  "labelling_record_ids": [],
+  "repeat_of": null,
+  "resumes_record_id": null,
+  "sample_id": null
+ },
+ "sampling": null,
+ "schema_version": "evaluation_record.v1",
+ "started_at": null,
+ "step": "E6",
+ "synthesised": true,
+ "usage": null
+}

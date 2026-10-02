@@ -37,6 +37,7 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordError,
     EvaluationRecordStore,
     code_version,
+    end_failed,
     file_ref,
     observe_publication,
     served_input_paths,
@@ -328,16 +329,17 @@ def main(argv: list[str] | None = None) -> int:
             print(refusal)
             return 2
 
+    if args.repeat_of is not None:
+        # resolved through a read-only store first: a refusal leaves no evaluation_records/ behind (B81 item 10)
+        try:
+            EvaluationRecordStore(args.dump_dir, create=False).read(args.repeat_of)
+        except Exception as exc:  # noqa: BLE001 - the reason is printed, the run refused
+            print(f"--repeat-of: {exc}")
+            return 2
     store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
     record_id = None
     elicitor_versions: dict[str, Any] = {}
     if store is not None:
-        if args.repeat_of is not None:
-            try:
-                store.read(args.repeat_of)
-            except Exception as exc:  # noqa: BLE001 - the reason is printed, the run refused
-                print(f"--repeat-of: {exc}")
-                return 2
         features_path = args.features or (ROOT / "eval" / "gold" / "benchmark_features.json")
         inputs = [
             file_ref("layer1_dump", paths["layer1_dump"]),
@@ -643,17 +645,16 @@ def main(argv: list[str] | None = None) -> int:
         if store is not None and record_id is not None:
             completed, _ = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
             models_now = harness.strategy_models(built, list(built)) or None
-            try:
-                store.finish(record_id, status="partial" if stopped else "failed",
-                             error=str(exc) if stopped or provider_refused or refused else exception_reason(exc),
-                             notes=notes + _resumed_only_notes(built, ran, resumes, bool(done)),
-                             completed_items=completed, usage=_own_usage(generator, judge),
-                             sampling=declared_sampling(generator, judge) if generator is not None else None,
-                             counts={"units_run": units_run},
-                             prompt_versions={**(models_now or {}), **elicitor_versions} or None,
-                             prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
-            except EvaluationRecordError:
-                pass  # the record already ended inside the try; the original error is what matters
+            # a record that already ended inside the try is left as it is; a refused finish ends it failed
+            end_failed(store, record_id,
+                       str(exc) if stopped or provider_refused or refused else exception_reason(exc),
+                       status="partial" if stopped else "failed",
+                       notes=notes + _resumed_only_notes(built, ran, resumes, bool(done)),
+                       completed_items=completed, usage=_own_usage(generator, judge),
+                       sampling=declared_sampling(generator, judge) if generator is not None else None,
+                       counts={"units_run": units_run},
+                       prompt_versions={**(models_now or {}), **elicitor_versions} or None,
+                       prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
         if stopped or provider_refused:
             print(f"stopped: {exc}", file=sys.stderr)
             if len(done) + units_run:

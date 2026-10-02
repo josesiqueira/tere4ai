@@ -171,9 +171,23 @@ def test_a_resumed_run_names_its_predecessor_or_says_none_does(runner, tmp_path)
     assert "resumed from a checkpoint no record names" in third["notes"]
 
 
+
+def test_a_failure_finish_refused_by_validation_still_ends_the_record_failed(runner, tmp_path, monkeypatch):
+    # B97 item 9 (Task 8): the record never stays running; the retry carries the error alone
+    runner._TEST_CALLS["raise"] = True
+    monkeypatch.setattr(runner, "_own_usage", lambda generator, judge: ["not", "an", "object"])
+    with pytest.raises(RuntimeError, match="provider refused"):
+        runner.main(_argv(tmp_path))
+    (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
+    assert rec["outcome"]["status"] == "failed" and rec["ended_at"]
+    assert rec["outcome"]["error"].startswith("RuntimeError: provider refused; the full failure record was refused: "
+                                              "refusing to finish: ")
+    assert "at usage" in rec["outcome"]["error"] and rec["usage"] is None
+
 def test_repeat_of_must_resolve_and_no_record_writes_nothing(runner, tmp_path, capsys):
     assert runner.main(_argv(tmp_path, "--repeat-of", "000000000000")) == 2
     assert "no evaluation record 000000000000" in capsys.readouterr().out
+    assert not (tmp_path / "evaluation_records").exists(), "a refused --repeat-of creates no store (B81 item 10)"
     assert runner.main(_argv(tmp_path, "--no-record")) == 0
     assert EvaluationRecordStore(tmp_path, create=False).list_records() == []
     assert runner.main(_argv(tmp_path, "--resume-unrecorded")) == 0
@@ -396,6 +410,32 @@ def test_a_sidecar_the_store_cannot_confirm_refuses_the_resume_and_records_nothi
                                      "no record names (--resume-unrecorded)"), "the way out (G2b)"
     assert len(store.list_records()) == 1, "no record written"
 
+
+
+@pytest.mark.parametrize("case", ["not_json", "bad_record_id", "other_checkpoint"])
+def test_a_sidecar_that_refuses_by_itself_refuses_the_resume_and_records_nothing(runner, tmp_path, capsys, case):
+    # B81 item 36: the two refusals that come from the sidecar itself, before any store lookup
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    assert runner.main(_argv(tmp_path)) == 0
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (first,) = store.list_records()
+    if case == "not_json":
+        _sidecar(ckpt).write_text("{not json")
+        why = f"its sidecar {ckpt.name}.record is not readable"
+    elif case == "bad_record_id":
+        _sidecar(ckpt).write_text(json.dumps({"record_id": "../x", "checkpoint_file": ckpt.name}))
+        why = f"its sidecar {ckpt.name}.record is not readable"
+    else:
+        _sidecar(ckpt).write_text(json.dumps({"record_id": first["record_id"], "checkpoint_file": "other.jsonl"}))
+        why = f"its sidecar {ckpt.name}.record names the checkpoint file other.jsonl"
+    capsys.readouterr()
+    for extra in ((), ("--resume-unrecorded",), ("--no-record",)):
+        assert runner.main(_argv(tmp_path, *extra)) == 2
+        out = capsys.readouterr().out
+        assert f"refusing to resume {ckpt}: {why}" in out
+        assert out.rstrip().endswith(f"remove the sidecar {ckpt.name}.record to resume it as a checkpoint "
+                                     "no record names (--resume-unrecorded)"), "the way out (G2b)"
+    assert len(store.list_records()) == 1, "no record written"
 
 def test_a_recorded_checkpoint_whose_sidecar_is_gone_is_resumed_only_with_the_flag(runner, tmp_path, capsys):
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"

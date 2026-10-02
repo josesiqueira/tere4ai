@@ -310,3 +310,22 @@ def test_offline_and_comparison_records_say_not_applicable_for_model_facts(tmp_p
     c = pe.present_evaluation(store.read(cmp_id), store, NOW)
     for key in ("models", "prompt_versions", "prompt_sha256", "sampling", "usage", "item_selection_sha256"):
         assert c["reasons"][key] == "not applicable: a comparison calls no model"
+
+
+@pytest.mark.parametrize("kind", ["sample", "labelling", "analysis"])
+def test_recorded_e1_acts_say_no_model_is_called(tmp_path, kind):
+    # B81 item 3: the three E1 acts call no model, so their model facts are not applicable, not "not recorded"
+    store = EvaluationRecordStore(tmp_path)
+    rid = store.begin(kind=kind, step="E1", command="sample_judge_decisions", argv=[], inputs=[], build=_build())
+    p = pe.present_evaluation(store.read(rid), store, NOW)
+    for key in ("models", "prompt_versions", "prompt_sha256", "sampling", "usage"):
+        assert p["provenance"][key] == "unavailable" and p["reasons"][key] == "not applicable: no model is called", key
+
+
+def test_the_legacy_sheet_keeps_its_own_models_reason(tmp_path):
+    root = _legacy_root(tmp_path)
+    (sheet,) = [r for r in pe.synthesise_legacy_evaluations(root, dated_digests=_dated(root))
+                if not r.get("unreadable") and r["kind"] == "sample"]
+    p = pe.present_evaluation(sheet, EvaluationRecordStore(tmp_path / "dumps"), NOW)
+    assert p["reasons"]["models"] == "derived: the one judge model every item of the sheet names"
+    assert p["reasons"]["prompt_versions"] == pe.NOT_RECORDED_LEGACY

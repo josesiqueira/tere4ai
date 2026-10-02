@@ -317,6 +317,43 @@
      },
      "origin": "legacy",
      "reason": null,
+     "record_id": "legacy-d22de09f132b",
+     "started_at": null,
+     "status": null,
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "unknown",
+     "build_kind": "unknown",
+     "command": "variance_report",
+     "counts": {},
+     "ended_at": null,
+     "kind": "comparison",
+     "models": null,
+     "origin": "legacy",
+     "reason": null,
+     "record_id": "legacy-db5d8af1be1e",
+     "started_at": null,
+     "status": null,
+     "step": "E6",
+     "unreadable": false
+    },
+    {
+     "build_key": "unknown",
+     "build_kind": "unknown",
+     "command": "run_ablations",
+     "counts": {
+      "items_total": 57
+     },
+     "ended_at": null,
+     "kind": "run",
+     "models": {
+      "generator_model": "gpt-5.2",
+      "judge_model": "claude-opus-4-8"
+     },
+     "origin": "legacy",
+     "reason": null,
      "record_id": "legacy-dc810e7c686e",
      "started_at": null,
      "status": null,

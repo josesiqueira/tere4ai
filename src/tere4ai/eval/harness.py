@@ -44,6 +44,7 @@ from tere4ai.eval.evaluation_record import (
     EvaluationRecordError,
     EvaluationRecordStore,
     code_version,
+    end_failed,
     file_ref,
     observe_publication,
     served_input_paths,
@@ -265,7 +266,9 @@ def results_artifact_name(build_id: str, strategy_names: list[str]) -> str:
 
 def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -> dict[str, str] | None:
     """The runtime grounding judge's prompt hash per prompt version, for every
-    graph_full condition in the set, else None (no runtime judge was called).
+    graph_full condition whose models report judge_prompt_version, else None
+    (no runtime judge was called). A graph_full strategy reports it when a
+    runtime judge is set; the name alone is no evidence (B81 item 23).
 
     Hashed the way tere4ai.judge.runtime_grounding does (load_prompt, then
     prompt_sha256), never reimplemented; the key is "runtime_grounding" for
@@ -274,10 +277,9 @@ def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -
 
     hashes: dict[str, str] = {}
     for name, models in models_by_strategy.items():
-        base, _, suffix = name.partition("@")
-        if base != "graph_full":
+        version = (models or {}).get("judge_prompt_version")
+        if name.partition("@")[0] != "graph_full" or not version:
             continue
-        version = (models or {}).get("judge_prompt_version") or suffix or "v1"
         key = "runtime_grounding" if version == "v1" else f"runtime_grounding@{version}"
         hashes[key] = prompt_sha256(load_prompt("runtime_grounding", version))
     return hashes or None
@@ -488,7 +490,12 @@ def run_eval(
                 # never lose paid bytes (G3b): the run's results land at the
                 # compatibility path whether or not the record's copy succeeded;
                 # a failed copy re-raises and the record ends failed (F3)
-                os.replace(tmp, out_path)
+                try:
+                    os.replace(tmp, out_path)
+                except OSError as exc:
+                    # the temp file is kept: it may be the only copy of the results (B81 item 35)
+                    raise OSError(f"{out_path.name} was not written ({exception_reason(exc)}): the results stay in "
+                                  f"{Path(tmp).name}; move it to {out_path.name}") from exc
         else:
             atomic_write_json(out_path, artifact)
         artifact["artifact_path"] = str(out_path)
@@ -512,13 +519,9 @@ def run_eval(
             done = [item["id"] for item in items
                     if all(n in results and item["id"] in results[n]["items"]
                            and not results[n]["items"][item["id"]].get("error") for n in strategy_names)]
-            try:
-                record_store.finish(record_id, status="failed", error=exception_reason(exc), notes=notes,
-                                    completed_items=done, usage=_own_usage(generator, judge),
-                                    sampling=_declared_sampling_or_none(generator, judge),
-                                    models=strategy_models(strategies, strategy_names) if live else None)
-            except EvaluationRecordError:
-                pass
+            end_failed(record_store, record_id, exception_reason(exc), notes=notes, completed_items=done,
+                       usage=_own_usage(generator, judge), sampling=_declared_sampling_or_none(generator, judge),
+                       models=strategy_models(strategies, strategy_names) if live else None)
         raise
     return artifact
 
@@ -576,13 +579,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.repeat_of is not None and args.no_record:
         print("--repeat-of: a --no-record run records no relation; drop one of the two flags")
         return 2
-    record_store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
-    if record_store is not None and args.repeat_of is not None:
+    if args.repeat_of is not None:
+        # resolved through a read-only store first: a refusal leaves no evaluation_records/ behind (B81 item 10)
         try:
-            record_store.read(args.repeat_of)
+            EvaluationRecordStore(args.dump_dir, create=False).read(args.repeat_of)
         except EvaluationRecordError as exc:
             print(f"--repeat-of: {exc}")
             return 2
+    record_store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
 
     names = [n.strip() for n in args.strategies.split(",") if n.strip()]
     items = load_gold_items(args.gold)

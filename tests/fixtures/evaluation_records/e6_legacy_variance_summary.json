@@ -1,0 +1,104 @@
+{
+ "argv": [],
+ "build": {
+  "base_build_id": null,
+  "publication": null,
+  "publication_reason": null
+ },
+ "command": "run_ablations",
+ "config": {
+  "strategies": [
+   "graph_full",
+   "plain_llm"
+  ]
+ },
+ "counts": {
+  "items_total": 57
+ },
+ "ended_at": null,
+ "inputs": [],
+ "item_selection_sha256": null,
+ "kind": "run",
+ "models": {
+  "generator_model": "gpt-5.2",
+  "judge_model": "claude-opus-4-8"
+ },
+ "notes": [],
+ "observed_at": "2026-09-26T00:00:00+00:00",
+ "origin": "legacy",
+ "outcome": null,
+ "outputs": [
+  {
+   "copy": null,
+   "copy_reason": "legacy: the file on disk is the record",
+   "copy_state": "not_kept",
+   "file": "ablation_variance_summary.json",
+   "role": "summary",
+   "sha256": "d22de09f132b06ebee67e7d432b95abb659c92221a0c1405b7b3572844260cd9"
+  },
+  {
+   "copy": null,
+   "copy_reason": "legacy: the file on disk is the record",
+   "copy_state": "not_kept",
+   "file": "ablation_variance_checkpoint.jsonl",
+   "role": "checkpoint",
+   "sha256": "33c319c41136fdcc3459a65374e36c127f4950ecaef2812c329f88d702db982f"
+  }
+ ],
+ "prompt_sha256": null,
+ "prompt_versions": null,
+ "provenance": {
+  "argv": "unavailable",
+  "build": "unavailable",
+  "command": "derived",
+  "config": "derived",
+  "counts": "derived",
+  "ended_at": "unavailable",
+  "inputs": "unavailable",
+  "item_selection_sha256": "unavailable",
+  "kind": "derived",
+  "models": "derived",
+  "notes": "unavailable",
+  "origin": "derived",
+  "outcome": "unavailable",
+  "outputs": "derived",
+  "prompt_sha256": "unavailable",
+  "prompt_versions": "unavailable",
+  "record_id": "derived",
+  "relations": "unavailable",
+  "sampling": "unavailable",
+  "schema_version": "derived",
+  "started_at": "unavailable",
+  "step": "derived",
+  "usage": "unavailable"
+ },
+ "reasons": {
+  "argv": "not recorded: the file states none",
+  "build": "not recorded: the summary and its checkpoint carry no build id",
+  "ended_at": "not recorded: the file states none",
+  "inputs": "not recorded: the file states none",
+  "item_selection_sha256": "not recorded: the file states none",
+  "notes": "not recorded: the file states none",
+  "outcome": "not recorded: the summary states no outcome",
+  "prompt_sha256": "not recorded: the ablation runner reads no prompt hash",
+  "prompt_versions": "not recorded: the file states none",
+  "relations": "not recorded: the summary names no other run",
+  "sampling": "not recorded: the file states none",
+  "started_at": "not recorded: no analysis file states a date for this summary",
+  "usage": "not recorded: the file states none"
+ },
+ "record_id": "legacy-d22de09f132b",
+ "relations": {
+  "compares": [],
+  "labelling_record_ids": [],
+  "repeat_of": null,
+  "resumes_record_id": null,
+  "sample_id": null
+ },
+ "sampling": null,
+ "schema_version": "evaluation_record.v1",
+ "started_at": null,
+ "step": "E6",
+ "synthesised": true,
+ "usage": null
+}
