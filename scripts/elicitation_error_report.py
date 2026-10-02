@@ -26,6 +26,11 @@ text) at runtime, and the expected items, triggers, predicted categories,
 and counterfactual outcomes are asserted against the artifacts; on any
 mismatch the script fails loudly and writes nothing, so the report can
 never drift from the data it claims to describe.
+
+The checkpoint was written before B118 (2026-10-02): pass --legacy-levels (or
+legacy_levels=True) to read its levels through the old-to-new table. Never
+inferred from the values found in the file; without the option a value is
+read as given.
 """
 
 from __future__ import annotations
@@ -245,6 +250,7 @@ def load_strategy_results(path: Path, strategy: str) -> dict[str, dict[str, Any]
 def find_over_classified(
     results: dict[str, dict[str, Any]],
     items: list[dict[str, Any]],
+    legacy_levels: bool = False,
 ) -> list[dict[str, Any]]:
     """Benchmark classification items matching the RUN2 over-classification
     patterns, each with gold, predicted, and the item dict."""
@@ -252,9 +258,12 @@ def find_over_classified(
     for item in items:
         if item.get("kind") != "classification":
             continue
-        # B118 (R6): the checkpoint is a July file with the old values.
-        gold = current_level((item.get("gold") or {}).get("risk_category"))
-        predicted = current_level((results.get(item["id"]) or {}).get("risk_category"))
+        gold = (item.get("gold") or {}).get("risk_category")
+        predicted = (results.get(item["id"]) or {}).get("risk_category")
+        if legacy_levels:
+            # B118 (R6): the checkpoint predates the rename; the gold is the
+            # current benchmark's and is not translated.
+            predicted = current_level(predicted)
         if (gold, predicted) in OVER_CLASSIFICATION_PATTERNS:
             found.append({"item": item, "gold": gold, "predicted": predicted})
     return found
@@ -292,6 +301,7 @@ def build_report(
     checkpoint_path: Path = CHECKPOINT_PATH,
     features_path: Path = FEATURES_PATH,
     layer1_path: Path = LAYER1_PATH,
+    legacy_levels: bool = False,
 ) -> str:
     """Assemble the report, verifying every claim against the artifacts.
 
@@ -300,7 +310,7 @@ def build_report(
     """
     results = load_strategy_results(checkpoint_path, STRATEGY)
     items = load_benchmark_items()
-    found = find_over_classified(results, items)
+    found = find_over_classified(results, items, legacy_levels)
 
     found_ids = sorted(e["item"]["id"] for e in found)
     if found_ids != sorted(ANALYSIS):
@@ -454,9 +464,14 @@ def build_report(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=OUT_PATH)
+    parser.add_argument(
+        "--legacy-levels", action="store_true",
+        help="the checkpoint was written before B118 (2026-10-02): read its "
+        "levels through the old-to-new table",
+    )
     args = parser.parse_args(argv)
     try:
-        report = build_report()
+        report = build_report(legacy_levels=args.legacy_levels)
     except (ValueError, FileNotFoundError) as exc:
         print(f"refusing to write the report: {exc}")
         return 1

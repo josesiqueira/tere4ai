@@ -82,7 +82,7 @@ ITEM_KINDS = ("classification", "retrieval", "qa")
 # REF-15 benchmark risk levels -> our closed risk-category vocabulary.
 # "limited" in the benchmark is the Article 50 transparency regime.
 # B118: the benchmark's "limited" is its own overall label, grounded by REF-15
-# in Articles 50 and 10; it is aligned here with the pyramid's limited_risk.
+# in Articles 50 and 10; it maps here to the pyramid's limited_risk.
 BENCHMARK_RISK_MAP = {
     "prohibited": "unacceptable_risk",
     "high-risk": "high_risk",

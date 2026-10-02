@@ -248,9 +248,10 @@ def elicitor_prompt(features_path: Path) -> dict[str, Any]:
 
 
 def is_abstained(prediction: str | None) -> bool:
-    """No prediction, or "undetermined" (B118; a July checkpoint's
-    "uncertain" is read through current_level), counts as an abstention."""
-    return metrics.current_level(prediction) in (None, "undetermined")
+    """No prediction, or "undetermined", counts as an abstention (B118).
+    An old value such as "uncertain" is not translated: a fresh answer is
+    scored as given."""
+    return prediction in (None, "undetermined")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -544,14 +545,14 @@ def main(argv: list[str] | None = None) -> int:
             gold_ok = sum(
                 1
                 for gi in seed_cls
-                if metrics.current_level(results.get(gi["id"], {}).get("risk_category"))
-                == metrics.current_level(gi["gold"].get("risk_category"))
+                if results.get(gi["id"], {}).get("risk_category")
+                == gi["gold"].get("risk_category")
             )
             bench_ok = sum(
                 1
                 for bi in bench_cls
-                if metrics.current_level(results.get(bi["id"], {}).get("risk_category"))
-                == metrics.current_level(bi["gold"].get("risk_category"))
+                if results.get(bi["id"], {}).get("risk_category")
+                == bi["gold"].get("risk_category")
             )
             # benchmark citation completeness at the benchmark's own granularity
             # (article level; predicted paragraph/point ids credit their article)

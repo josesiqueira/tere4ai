@@ -26,7 +26,11 @@ Usage:
       --run-a eval/results/ablation_full_checkpoint.jsonl \
       --run-b eval/results/ablation_variance_checkpoint.jsonl \
       --benchmark data/snapshots/benchmark/full_payload.json \
-      [--out docs/variance_study.md]
+      [--out docs/variance_study.md] [--legacy-levels]
+
+The files were written before B118 (2026-10-02): pass --legacy-levels to read
+their levels through the old-to-new table. Never inferred from the values
+found in the files; without the option a value is read as given.
 """
 
 from __future__ import annotations
@@ -65,10 +69,13 @@ DEFAULT_OUT = ROOT / "docs" / "variance_study.md"
 GRAPH_STRATEGIES = ("graph_no_judge", "graph_build_judge", "graph_full")
 
 
-def _label(result: dict[str, Any] | None) -> str:
+def _label(result: dict[str, Any] | None, legacy_levels: bool = False) -> str:
     if not result:
         return "no_prediction"
-    return current_level(result.get("risk_category")) or "no_prediction"
+    level = result.get("risk_category")
+    if legacy_levels:
+        level = current_level(level)
+    return level or "no_prediction"
 
 
 def _jaccard(a: set[str], b: set[str]) -> float:
@@ -81,13 +88,15 @@ def compare_strategy(
     run_a: dict[str, dict[str, Any]],
     run_b: dict[str, dict[str, Any]],
     gold: dict[str, str],
+    legacy_levels: bool = False,
 ) -> dict[str, Any]:
     common = sorted(set(run_a) & set(run_b))
     flips = []
     for item_id in common:
         if item_id not in gold:
             continue
-        la, lb = _label(run_a[item_id]), _label(run_b[item_id])
+        la = _label(run_a[item_id], legacy_levels)
+        lb = _label(run_b[item_id], legacy_levels)
         if la != lb:
             flips.append({"item": item_id, "run_a": la, "run_b": lb})
     labelled = [i for i in common if i in gold]
@@ -108,7 +117,8 @@ def compare_strategy(
         if (run_a[i].get("answer_text") or "") == (run_b[i].get("answer_text") or "")
     )
 
-    a, b = analyse_strategy(run_a, gold), analyse_strategy(run_b, gold)
+    a = analyse_strategy(run_a, gold, legacy_levels)
+    b = analyse_strategy(run_b, gold, legacy_levels)
     return {
         "common_items": len(common),
         "labelled_items": len(labelled),
@@ -199,6 +209,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps",
                         help="where layer1.json, norms_core.json and evaluation_records/ live")
+    parser.add_argument(
+        "--legacy-levels", action="store_true",
+        help="the files were written before B118 (2026-10-02): read their levels "
+        "through the old-to-new table",
+    )
     parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
     args = parser.parse_args(argv)
 
@@ -227,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         per_a, per_b = load_results(args.run_a), load_results(args.run_b)
         gold = gold_risk_by_item(args.benchmark)
-        comparisons = {name: compare_strategy(per_a[name], per_b[name], gold) for name in sorted(set(per_a) & set(per_b))}
+        comparisons = {name: compare_strategy(per_a[name], per_b[name], gold, args.legacy_levels) for name in sorted(set(per_a) & set(per_b))}
         text = render_markdown(args.run_a, args.run_b, comparisons)
         fd, tmp = tempfile.mkstemp(prefix="tmp", suffix=".md", dir=str(args.out.parent))
         try:

@@ -62,7 +62,9 @@ def current_level(value: str | None) -> str | None:
 
     Result files written before B118 (the July ablation checkpoints and
     summaries) carry the old values; this maps them to the new ones so the
-    numbers they reproduce do not change. A current value passes through.
+    numbers they reproduce do not change. A current value passes through. Used only by the readers of stored
+    files that are marked as written before B118, never on a live or fresh
+    answer.
     """
     if value is None:
         return None
@@ -87,11 +89,11 @@ def risk_classification_accuracy(
     for item in gold_items:
         if item.get("kind") != "classification":
             continue
-        gold_risk = current_level((item.get("gold") or {}).get("risk_category"))
+        gold_risk = (item.get("gold") or {}).get("risk_category")
         if gold_risk is None:
             continue
         total += 1
-        predicted = current_level((results.get(item["id"]) or {}).get("risk_category"))
+        predicted = (results.get(item["id"]) or {}).get("risk_category")
         if predicted == gold_risk:
             correct += 1
         else:

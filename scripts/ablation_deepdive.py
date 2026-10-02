@@ -21,7 +21,12 @@ and the full-benchmark artifact when task #27 runs.
 Usage:
   .venv/bin/python scripts/ablation_deepdive.py \
       [--results eval/results/ablation_checkpoint.jsonl] \
-      [--out docs/ablation_deepdive.md]
+      [--out docs/ablation_deepdive.md] [--legacy-levels]
+
+The file was written before B118 (2026-10-02): pass --legacy-levels (or
+legacy_levels=True) to read its levels through the old-to-new table. Never
+inferred from the values found in the file; without the option a value is
+read as given.
 """
 
 from __future__ import annotations
@@ -80,7 +85,9 @@ def gold_risk_by_item(benchmark_path: Path | None = None) -> dict[str, str]:
 
 
 def analyse_strategy(
-    results: dict[str, dict[str, Any]], gold: dict[str, str]
+    results: dict[str, dict[str, Any]],
+    gold: dict[str, str],
+    legacy_levels: bool = False,
 ) -> dict[str, Any]:
     matrix: dict[str, dict[str, int]] = {
         g: dict.fromkeys(PREDICTED_LABELS, 0) for g in RISK_CATEGORIES
@@ -90,9 +97,12 @@ def analyse_strategy(
         gold_label = gold.get(item_id)
         if gold_label is None:
             continue  # retrieval/qa items have no risk gold
-        # B118 (R6): July checkpoints carry the old values; read them in
-        # today's vocabulary so the numbers reproduce.
-        predicted = current_level(result.get("risk_category")) or NO_PREDICTION
+        predicted = result.get("risk_category")
+        if legacy_levels:
+            # B118 (R6): the file predates the rename; read it in today's
+            # vocabulary so its numbers reproduce.
+            predicted = current_level(predicted)
+        predicted = predicted or NO_PREDICTION
         if predicted not in PREDICTED_LABELS:
             predicted = NO_PREDICTION
         matrix[gold_label][predicted] += 1
@@ -182,6 +192,11 @@ def main(argv: list[str] | None = None) -> int:
         help="benchmark payload the run used (default: the frozen sample); "
         "must match --results or unmatched items are not scored",
     )
+    parser.add_argument(
+        "--legacy-levels", action="store_true",
+        help="the file was written before B118 (2026-10-02): read its levels "
+        "through the old-to-new table",
+    )
     args = parser.parse_args(argv)
 
     per_strategy = load_results(args.results)
@@ -190,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
     labelled = sum(1 for item_id in next(iter(per_strategy.values()), {}) if item_id in gold)
     print(f"result items per strategy: {scored}; with gold risk labels: {labelled}")
     analyses = {
-        name: analyse_strategy(results, gold)
+        name: analyse_strategy(results, gold, args.legacy_levels)
         for name, results in sorted(per_strategy.items())
     }
     args.out.write_text(render_markdown(args.results, analyses), encoding="utf-8")

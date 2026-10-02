@@ -189,3 +189,11 @@ def test_judge_error_rates_by_kind_reports_each_kind_and_the_pool():
     assert out["by_kind"]["alignment"]["counts"]["abstained"] == 1
     assert out["pooled"]["counts"]["scored"] == 4 and out["pooled"]["false_accept_rate"] == 0.5
     assert METRICS_VERSION == "metrics.v2"
+
+
+def test_accuracy_scores_an_old_value_as_wrong_never_translated():
+    # B118: the old-values table is for stored July files only; a fresh
+    # answer is scored as given
+    gold = [{"id": "i1", "kind": "classification", "gold": {"risk_category": "limited_risk"}}]
+    out = risk_classification_accuracy({"i1": {"risk_category": "transparency_only"}}, gold)
+    assert out["correct"] == 0 and out["total"] == 1

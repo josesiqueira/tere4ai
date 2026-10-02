@@ -422,7 +422,9 @@ def test_error_report_finds_exactly_the_three_run2_items(tmp_path: Path):
     results = report_mod.load_strategy_results(CHECKPOINT_PATH, report_mod.STRATEGY)
     from tere4ai.eval.harness import load_benchmark_items
 
-    found = report_mod.find_over_classified(results, load_benchmark_items())
+    found = report_mod.find_over_classified(
+        results, load_benchmark_items(), legacy_levels=True
+    )
     found_ids = sorted(e["item"]["id"] for e in found)
     assert found_ids == [
         "bench:scenario:159",
@@ -441,7 +443,7 @@ def test_error_report_finds_exactly_the_three_run2_items(tmp_path: Path):
     # The full report builds against the real artifacts: every verbatim
     # quote, trigger, and counterfactual is verified inside build_report.
     out = tmp_path / "ELICITATION_ERRORS.md"
-    rc = report_mod.main(["--out", str(out)])
+    rc = report_mod.main(["--out", str(out), "--legacy-levels"])
     assert rc == 0
     text = out.read_text(encoding="utf-8")
     for item_id in found_ids:

@@ -73,7 +73,7 @@ def test_reconciles_with_the_official_run2_summary():
     summary = json.loads(SUMMARY.read_text(encoding="utf-8"))
     for name, block in summary["strategies"].items():
         official = block["risk_accuracy_overall"]
-        computed = dd.analyse_strategy(per_strategy[name], gold)
+        computed = dd.analyse_strategy(per_strategy[name], gold, legacy_levels=True)
         assert computed["scored_items"] == official["total"], name
         assert computed["overall_accuracy"] == pytest.approx(official["accuracy"]), name
 
@@ -88,9 +88,21 @@ def test_july_checkpoint_values_are_read_through_the_translation_table():
         "i4": {"risk_category": "prohibited"},
     }
     gold = {"i1": "high_risk", "i2": "high_risk", "i3": "limited_risk", "i4": "unacceptable_risk"}
-    a = dd.analyse_strategy(old, gold)
+    a = dd.analyse_strategy(old, gold, legacy_levels=True)
     assert a["matrix"]["high_risk"]["undetermined"] == 1
     assert a["matrix"]["limited_risk"]["limited_risk"] == 1
     assert a["matrix"]["unacceptable_risk"]["unacceptable_risk"] == 1
     assert a["overall_accuracy"] == 3 / 4
     assert a["abstention"]["abstained"] == 1
+
+
+def test_without_the_legacy_option_an_old_value_is_read_as_given():
+    # never inferred from the values: an old value in a fresh result is not
+    # a label of today's vocabulary, so it is no prediction
+    old = {"i1": {"risk_category": "transparency_only"}, "i2": {"risk_category": "uncertain"}}
+    gold = {"i1": "limited_risk", "i2": "high_risk"}
+    a = dd.analyse_strategy(old, gold)
+    assert a["matrix"]["limited_risk"]["no_prediction"] == 1
+    assert a["matrix"]["limited_risk"]["limited_risk"] == 0
+    assert a["matrix"]["high_risk"]["no_prediction"] == 1
+    assert a["matrix"]["high_risk"]["undetermined"] == 0
