@@ -576,8 +576,9 @@ def _unknown_annex_iii_facts(flags: dict[str, Any]) -> dict[str, str]:
     In point order, from ANNEX_III_RULES (flags and subflags). A flag that
     is also an Article 5 one (real_time_remote_biometric_public) counts here
     too: its Annex III side is open whatever the Article 5 side says. Input
-    to the FRIA rule, which reads an unknown Annex III fact on a limited_risk
-    or minimal_risk answer (B125, DEC-14).
+    to the FRIA rule, which reads an unknown Annex III fact where the answer
+    would otherwise be does_not_apply for want of an Annex III area (B125,
+    DEC-14).
     """
     unknown: dict[str, str] = {}
     for rule in ANNEX_III_RULES:
@@ -1244,12 +1245,18 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     the Article 6(1) embedded-product route the system's separate Article
     6(2) membership is still checked (both routes can hold at once, and
     Article 27(1) covers the 6(2) side). The fria block is self-contained:
-    it never changes risk_category, envelope status, or confidence. On a
-    limited_risk or minimal_risk answer the block is unknown, not
-    does_not_apply, while an Annex III fact absent from the input could
-    still make the system high-risk under Article 6(2) and so bring
-    Article 27(1) in; each such fact is named in the block's missing_facts
-    only (the point 2 area, which Article 27(1) excepts, never is).
+    it never changes risk_category, envelope status, confidence, or the
+    envelope's missing_facts. The block is unknown, not does_not_apply,
+    while an Annex III fact absent from the input could still make the
+    system high-risk under Article 6(2) and the assessment apply (B125):
+    on a limited_risk or minimal_risk answer, and on a high_risk answer
+    through the Article 6(1) route only or in the point 2 area only once
+    the 5(b) and 5(c) facts are known false. Each such fact is named in
+    the block's missing_facts only. A fact that cannot change the outcome
+    is not named: a point 2 fact never is (Article 27(1) excepts that
+    area), and a fact of another area other than 5(b) and 5(c) is not
+    once the deployer is known to be neither a body governed by public
+    law nor a private entity providing public services.
     """
     envelope = _classify_core(features, dump)
     answer = envelope.get("answer")
@@ -1290,9 +1297,9 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         # An unsettled high-risk classification (requires_human_review) must
         # not carry a settled FRIA verdict (audit D6).
         classification_unsettled=(envelope.get("status") == "requires_human_review"),
-        # An unknown Annex III fact keeps a limited_risk or minimal_risk
-        # answer's FRIA block open when it could make Article 27(1) apply
-        # (B125); only the fria block reads it, never the level or status.
+        # An unknown Annex III fact keeps the FRIA block open when it could
+        # make Article 27(1) apply (B125); only the fria block reads it,
+        # never the level or status.
         unknown_annex_iii_facts=_unknown_annex_iii_facts(flags),
     )
     return envelope

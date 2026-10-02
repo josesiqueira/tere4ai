@@ -1358,3 +1358,154 @@ def test_unknown_annex_iii_facts_helper_is_in_point_order_and_skips_known():
     assert got["creditworthiness_evaluation"] == "eu-ai-act:annex-iii:point-5"
     nodes = list(got.values())
     assert nodes == sorted(nodes)
+
+
+def test_rtrb_absent_with_law_enforcement_unknown_is_named_by_the_fria_rule(
+    dump, node_ids
+):
+    """Final review M2: with law_enforcement_use absent the envelope names
+    real_time_remote_biometric_public under Article 5 only, so a fria block
+    that copied the ladder's Annex III list would miss it. The fria rule
+    names it as an Annex III fact."""
+    flags = _without(
+        all_false_flags(interacts_with_natural_persons=True),
+        "real_time_remote_biometric_public",
+        "law_enforcement_use",
+    )
+    envelope = classify_ai_system(
+        _chatbot(flags=flags, deployer={"body_governed_by_public_law": True}), dump
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    assert not any(
+        f.startswith("flags.real_time_remote_biometric_public is unknown (Annex III")
+        for f in envelope["missing_facts"]
+    ), "premise: the ladder names it under Article 5 here, not Annex III"
+    fria = envelope["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert (
+        "flags.real_time_remote_biometric_public is unknown (Annex III high-risk "
+        "relevant, Article 6(2)); if true the system is high-risk under Article "
+        "6(2), which Article 27(1) covers, so absence is not treated as false"
+    ) in fria["missing_facts"]
+
+
+# B125 Task 3 (R5): the Annex I route and point 2 branches through classify ----
+
+
+def _lift_door(deployer: dict) -> dict:
+    return {
+        "description": "Vision module that detects a jammed lift door.",
+        "domain": "other",
+        "flags": _without(
+            all_false_flags(
+                annex_i_covered_product=True,
+                third_party_conformity_assessment_required=True,
+            ),
+            "employment_decisions",
+        ),
+        "deployer": deployer,
+    }
+
+
+def test_lift_door_with_employment_unknown_and_a_public_law_deployer_has_an_unknown_fria(
+    dump, node_ids
+):
+    envelope = classify_ai_system(
+        _lift_door({"body_governed_by_public_law": True}), dump
+    )
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["answer"]["annex_iii_category"] is None
+    fria = envelope["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert fria["missing_facts"] == [
+        "flags.employment_decisions is unknown (Annex III high-risk relevant, "
+        "Article 6(2)); if true the system is high-risk under Article 6(2), which "
+        "Article 27(1) covers, so absence is not treated as false"
+    ]
+
+
+def test_lift_door_with_employment_unknown_and_deployer_known_neither_does_not_apply(dump):
+    envelope = classify_ai_system(
+        _lift_door(
+            {
+                "body_governed_by_public_law": False,
+                "private_entity_providing_public_services": False,
+            }
+        ),
+        dump,
+    )
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["answer"]["fria"]["applicability"] == "does_not_apply"
+    assert envelope["answer"]["fria"]["missing_facts"] == []
+
+
+def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_unknown_fria(
+    dump, node_ids
+):
+    features = {
+        "description": "Control system for a regional water network.",
+        "domain": "other",
+        "flags": _without(
+            all_false_flags(critical_infrastructure_safety=True),
+            "education_scoring_or_access",
+        ),
+        "deployer": {"body_governed_by_public_law": True},
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["answer"]["annex_iii_category"] == "eu-ai-act:annex-iii:point-2"
+    fria = envelope["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert fria["missing_facts"] == [
+        "flags.education_scoring_or_access is unknown (Annex III high-risk relevant, "
+        "Article 6(2)); if true the system is high-risk under Article 6(2), which "
+        "Article 27(1) covers, so absence is not treated as false"
+    ]
+
+
+# B125 final review D2: the fria block never changes the rest of the envelope ---
+
+
+@pytest.mark.parametrize(
+    "features",
+    [
+        _chatbot(
+            flags=_without(
+                all_false_flags(interacts_with_natural_persons=True),
+                *classify_module.ANNEX_III_RELEVANT_FLAGS,
+            )
+        ),
+        _chatbot(
+            flags=_without(
+                all_false_flags(interacts_with_natural_persons=True),
+                "real_time_remote_biometric_public",
+                "law_enforcement_use",
+            ),
+            deployer={"body_governed_by_public_law": True},
+        ),
+        _lift_door({"body_governed_by_public_law": True}),
+        {
+            "description": "Control system for a regional water network.",
+            "domain": "other",
+            "flags": _without(
+                all_false_flags(critical_infrastructure_safety=True),
+                "education_scoring_or_access",
+            ),
+            "deployer": {"body_governed_by_public_law": True},
+        },
+    ],
+    ids=["chatbot_annex_iii_absent", "rtrb_and_law_enforcement_absent", "lift_door", "point_2_only"],
+)
+def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, dump):
+    """The level, the status, the confidence and the envelope's missing_facts
+    are the ladder's: classify_ai_system only adds answer["fria"]."""
+    import copy
+
+    core = classify_module._classify_core(copy.deepcopy(features), dump)
+    full = classify_ai_system(copy.deepcopy(features), dump)
+    assert "fria" in full["answer"]
+    full["answer"].pop("fria")
+    core["generated_at"] = full["generated_at"] = "MASKED"
+    assert full == core

@@ -24,10 +24,12 @@ obligation applies. It does not generate or evaluate the assessment
 itself (the content elements of Article 27(1) points (a) to (f) and the
 Article 27(5) template are a separate, source-gated work item).
 
-On a limited_risk or minimal_risk answer an Annex III fact absent from the
-input is not read as false (B125): while it could make the system high-risk
-under Article 6(2), and so bring Article 27(1) in, the outcome is unknown and
-the fact is named. Only facts that could change the outcome are named.
+An Annex III fact absent from the input is not read as false (B125): on a
+limited_risk or minimal_risk answer, and on a high-risk answer through the
+Article 6(1) route only or in the point 2 area only, while the fact could
+make the system high-risk under Article 6(2) and the assessment apply, the
+outcome is unknown and the fact is named. Only facts that could change the
+outcome are named.
 
 The free-text deployer_actor field is never read here: it is an open
 vocabulary and cannot be mapped deterministically onto the Article 27(1)
@@ -122,6 +124,58 @@ def _block(
     }
 
 
+_UNKNOWN_ANNEX_III_NONE_CAN = (
+    "no unknown Annex III fact can make Article 27(1) apply: each is in "
+)
+_UNKNOWN_ANNEX_III_POINT_2_REASON = (
+    "the area listed in point 2 of Annex III, which Article 27(1) excepts"
+)
+_UNKNOWN_ANNEX_III_DEPLOYER_REASON = (
+    "an area whose trigger is the deployer, who is known to be neither a body "
+    "governed by public law nor a private entity providing public services"
+)
+
+
+def _read_unknown_annex_iii_facts(
+    unknown_facts: dict[str, str], deployer: dict[str, Any]
+) -> tuple[list[str], str | None]:
+    """Split the unknown Annex III facts by whether they could bring Article 27(1) in.
+
+    Returns the facts that could, in input order, and, when there are
+    unknown facts but none could, the rationale line that says why, built
+    from the reasons that hold: the point 2 area (excepted by Article
+    27(1)), the deployer known to be neither trigger category, or both.
+    A 5(b) or 5(c) fact always could (any deployer); a point 2 fact never
+    could; any other fact could unless every deployer trigger fact is known
+    false (R1).
+    """
+    deployer_known_neither = all(
+        deployer.get(k) is False for k in DEPLOYER_TRIGGER_FACTS
+    )
+    could_trigger = [
+        flag
+        for flag, node in unknown_facts.items()
+        if flag in SYSTEM_TRIGGER_FLAGS
+        or (node != ANNEX_III_POINT_2 and not deployer_known_neither)
+    ]
+    if could_trigger or not unknown_facts:
+        return could_trigger, None
+    reasons = []
+    if any(node == ANNEX_III_POINT_2 for node in unknown_facts.values()):
+        reasons.append(_UNKNOWN_ANNEX_III_POINT_2_REASON)
+    if any(node != ANNEX_III_POINT_2 for node in unknown_facts.values()):
+        reasons.append(_UNKNOWN_ANNEX_III_DEPLOYER_REASON)
+    return could_trigger, _UNKNOWN_ANNEX_III_NONE_CAN + ", or in ".join(reasons)
+
+
+def _unknown_annex_iii_line(flag: str) -> str:
+    return (
+        f"flags.{flag} is unknown (Annex III high-risk relevant, Article 6(2)); "
+        "if true the system is high-risk under Article 6(2), which Article "
+        "27(1) covers, so absence is not treated as false"
+    )
+
+
 def assess_fria_applicability(
     risk_category: str | None,
     annex_iii_category: str | None,
@@ -152,14 +206,19 @@ def assess_fria_applicability(
 
     unknown_annex_iii_facts maps each Annex III fact absent from the input to
     the Annex III point node it belongs to, in point order (the classifier
-    builds it; this module never imports classify). It is read only on a
-    limited_risk or minimal_risk answer: while an unknown fact could make
-    the system high-risk under Article 6(2) and so bring Article 27(1) in,
-    the block is unknown, not does_not_apply, and names that fact. Facts
-    that cannot change the outcome are not named: the point 2 area (excepted
-    by Article 27(1)), and, once the deployer is known to be neither a
+    builds it; this module never imports classify). It is read where the
+    answer would otherwise be does_not_apply for want of an Annex III
+    area: on a limited_risk or minimal_risk answer, and on a high_risk
+    answer with no Annex III point matched (the Article 6(1) route only)
+    or with only the point 2 area matched, there once the 5(b) and 5(c)
+    facts are known false. While an unknown fact could make the system
+    high-risk under Article 6(2) and the assessment apply, the block is
+    unknown, not does_not_apply, and names that fact. Facts that cannot
+    change the outcome are not named: the point 2 area (excepted by
+    Article 27(1)), and, once the deployer is known to be neither a
     public-law body nor a private entity providing public services, every
-    area except points 5(b) and 5(c), which trigger for any deployer.
+    area except points 5(b) and 5(c), which trigger for any deployer; the
+    does_not_apply rationale then says which of these two reasons holds.
     None or empty keeps the plain does_not_apply.
     """
     rationale: list[str] = []
@@ -182,17 +241,10 @@ def assess_fria_applicability(
         )
         return _block("does_not_apply", rationale, basis, missing)
 
+    unknown_facts = unknown_annex_iii_facts or {}
+
     if risk_category in ("minimal_risk", "limited_risk"):
-        unknown_facts = unknown_annex_iii_facts or {}
-        deployer_known_neither = all(
-            deployer.get(k) is False for k in DEPLOYER_TRIGGER_FACTS
-        )
-        could_trigger = [
-            flag
-            for flag, node in unknown_facts.items()
-            if flag in SYSTEM_TRIGGER_FLAGS
-            or (node != ANNEX_III_POINT_2 and not deployer_known_neither)
-        ]
+        could_trigger, none_can = _read_unknown_annex_iii_facts(unknown_facts, deployer)
         if could_trigger:
             rationale.append(
                 f"the system is classified {level_name(risk_category)} on the "
@@ -200,26 +252,14 @@ def assess_fria_applicability(
                 "high-risk under Article 6(2), which Article 27(1) covers, so "
                 "FRIA applicability cannot be settled yet"
             )
-            for flag in could_trigger:
-                missing.append(
-                    f"flags.{flag} is unknown (Annex III high-risk relevant, "
-                    "Article 6(2)); if true the system is high-risk under "
-                    "Article 6(2), which Article 27(1) covers, so absence is "
-                    "not treated as false"
-                )
+            missing.extend(_unknown_annex_iii_line(f) for f in could_trigger)
             return _block("unknown", rationale, basis, missing)
         rationale.append(
             f"the system is classified {level_name(risk_category)}; Article 27(1) "
             "applies only to high-risk AI systems referred to in Article 6(2)"
         )
-        if unknown_facts:
-            rationale.append(
-                "the unknown Annex III facts cannot make Article 27(1) apply: "
-                "they are only in the area listed in point 2 of Annex III, "
-                "which Article 27(1) excepts, or in areas whose trigger is the "
-                "deployer, who is known to be neither a body governed by "
-                "public law nor a private entity providing public services"
-            )
+        if none_can:
+            rationale.append(none_can)
         return _block("does_not_apply", rationale, basis, missing)
 
     # high_risk from here on. Resolve the matched Annex III points.
@@ -252,12 +292,27 @@ def assess_fria_applicability(
                 "cannot be settled yet"
             )
             return _block("unknown", rationale, basis, missing)
+        # The 5(b)/5(c) facts are known false. Another unknown Annex III fact
+        # could still place the system under Article 6(2) as well (B125, R5).
+        could_trigger, none_can = _read_unknown_annex_iii_facts(unknown_facts, deployer)
+        if could_trigger:
+            missing.extend(_unknown_annex_iii_line(f) for f in could_trigger)
+            rationale.append(
+                "the system is high-risk via the Article 6(1) embedded-product "
+                "route and no Annex III category matched the provided facts, "
+                "but an unknown Annex III fact could also place it under "
+                "Article 6(2), which Article 27(1) covers, so FRIA "
+                "applicability cannot be settled yet"
+            )
+            return _block("unknown", rationale, basis, missing)
         rationale.append(
             "the system is high-risk via the Article 6(1) embedded-product "
             "route only; Article 27(1) covers high-risk AI systems referred "
             "to in Article 6(2) (Annex III), and no Annex III category "
             "matched the provided facts"
         )
+        if none_can:
+            rationale.append(none_can)
         return _block("does_not_apply", rationale, basis, missing)
 
     if article_6_3_exception_candidate:
@@ -340,12 +395,27 @@ def assess_fria_applicability(
                 "applicability cannot be settled yet"
             )
             return _block("unknown", rationale, basis, missing)
+        # The 5(b)/5(c) facts are known false. Another unknown Annex III fact
+        # could still add an area Article 27(1) does not except (B125, R5).
+        could_trigger, none_can = _read_unknown_annex_iii_facts(unknown_facts, deployer)
+        if could_trigger:
+            missing.extend(_unknown_annex_iii_line(f) for f in could_trigger)
+            rationale.append(
+                "the only settled Annex III area is the area listed in point 2 "
+                "of Annex III (critical infrastructure, which Article 27(1) "
+                "excepts) and the point 5(b)/5(c) facts are known false, but an "
+                "unknown Annex III fact could add an area Article 27(1) does "
+                "not except, so FRIA applicability cannot be settled yet"
+            )
+            return _block("unknown", rationale, basis, missing)
         rationale.append(
             "the only Annex III area matched is the area listed in point 2 "
             "of Annex III (critical infrastructure), which Article 27(1) "
             "explicitly excepts from the FRIA obligation, and the point "
             "5(b)/5(c) facts are known false, so no trigger applies"
         )
+        if none_can:
+            rationale.append(none_can)
         return _block("does_not_apply", rationale, basis, missing)
 
     if deployer_trigger_hits:

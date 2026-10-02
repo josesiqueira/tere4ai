@@ -561,7 +561,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   area is excepted by Article 27(1); other areas whose trigger is the
   deployer count only until the deployer is known to be neither category;
   points 5(b) and 5(c) count for any deployer); the level, the status and
-  the envelope's missing_facts do not change.
+  the envelope's missing_facts do not change. Widened the same day (B125
+  final review, R5): the same reading holds on a high_risk answer through
+  the Article 6(1) route only or in the point 2 area only, once the point
+  5(b) and 5(c) facts are known false.
   verify: src/tere4ai/mcp_server/fria.py (no model imports); classify answers
   carry the fria block and get_applicable_requirements passes it through;
   tests/unit/test_fria.py.

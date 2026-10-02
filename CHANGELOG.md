@@ -16,6 +16,17 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   5(b) and 5(c) count for any deployer). The level, the status and the
   envelope's `missing_facts` do not change. The shopbot-transparency test
   session is re-recorded for its first answer.
+- The same reading on a `high_risk` answer with no Annex III point matched
+  (the Article 6(1) route only) or with only the point 2 area matched: once
+  the point 5(b) and 5(c) facts are known false, an unknown Annex III fact of
+  another area keeps the `fria` block `unknown` unless the deployer is known
+  to be neither category, and is named with the same line (final review,
+  R5).
+- When no unknown Annex III fact can make Article 27(1) apply, the
+  `does_not_apply` rationale says which reason holds: the point 2 area, the
+  deployer known to be neither category, or both (it said both every time).
+- The shopbot-transparency test session's second call is re-recorded with the
+  first call's new answer as its input.
 
 ### B118: the levels take the pyramid's names (2026-10-02)
 - Contract change: `classify_ai_system`'s `risk_category` is one of

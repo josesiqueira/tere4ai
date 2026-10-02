@@ -432,10 +432,10 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     obligation applies to the deployer (applies, does_not_apply, unknown),
     decided by the same deterministic rules from the flags and the optional
     deployer facts (deployer.body_governed_by_public_law,
-    deployer.private_entity_providing_public_services); on a Limited risk
-    or Minimal risk answer it is unknown, not does_not_apply, while an
-    unknown Annex III fact could still make Article 27(1) apply. Free, no
-    model calls."""
+    deployer.private_entity_providing_public_services); it is unknown, not
+    does_not_apply, while an unknown Annex III fact could still make the
+    system high-risk under Article 6(2) and the assessment apply, and it
+    names that fact. Free, no model calls."""
     loaded = _active()
     dump = loaded.dump
     if dump is None:
