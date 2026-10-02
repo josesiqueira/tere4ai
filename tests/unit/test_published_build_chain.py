@@ -122,3 +122,42 @@ def test_runtime_verify_rejects_a_tampered_dump(tmp_path):
     ok, detail = verify_dumps_against_chain(tmp_path)
     assert not ok
     assert "no recorded build chain" in detail
+
+
+def _small_dumps(directory: Path) -> dict:
+    from tere4ai.graph_store.build_chain import build_chain
+
+    (directory / "layer1.json").write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    (directory / "norms_core.json").write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": []}))
+    return build_chain(directory / "layer1.json", directory / "norms_core.json")
+
+
+@pytest.mark.parametrize(("content", "detail"), [
+    (b"\xff\xfe", "is unreadable"),
+    (b"[]", "is malformed: its root is not an object"),
+])
+def test_runtime_verify_refuses_a_publication_manifest_it_cannot_read(tmp_path, content, detail):
+    """B81 item 38 and B79 item 21: bytes that are not UTF-8 raised
+    UnicodeDecodeError and a list root raised AttributeError out of the
+    verifier; both are a refusal that names the manifest's path."""
+    from tere4ai.graph_store.build_chain import verify_dumps_against_chain
+
+    chain_id = _small_dumps(tmp_path)["chain_id"]
+    (tmp_path / "publications").mkdir()
+    (tmp_path / "publications" / f"{chain_id}.json").write_bytes(content)
+    ok, message = verify_dumps_against_chain(tmp_path, chain_id=chain_id)
+    assert not ok and f"publication manifest publications/{chain_id}.json {detail}" in message
+
+
+@pytest.mark.parametrize(("content", "detail"), [
+    (b"\xff\xfe", "is unreadable"),
+    (b"[]", "is malformed: its root is not an object"),
+])
+def test_runtime_verify_refuses_a_build_chain_record_it_cannot_read(tmp_path, content, detail):
+    """B81 item 38: the same two gaps at the legacy build chain record read."""
+    from tere4ai.graph_store.build_chain import verify_dumps_against_chain
+
+    chain_id = _small_dumps(tmp_path)["chain_id"]
+    (tmp_path / f"build_chain_{chain_id}.json").write_bytes(content)
+    ok, message = verify_dumps_against_chain(tmp_path)
+    assert not ok and f"build chain record build_chain_{chain_id}.json {detail}" in message

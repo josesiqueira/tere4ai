@@ -215,9 +215,16 @@ def _main(argv: list[str] | None = None) -> int:
     if missing:
         print(f"NOT published: freeze manifest not found: {', '.join(missing)}", file=sys.stderr)
         return 1
-    for m in args.manifest:
-        if m.resolve().parent != dump_dir.resolve():
-            print(f"NOT published: copy the freeze manifest {m.name} into {dump_dir} first; "
+    # Every input is recorded by its file name under the dump dir, so an input
+    # elsewhere gives a manifest that cannot be activated; it is refused here,
+    # before any record is resolved or anything is loaded (B79 item 7).
+    named_inputs = [("layer1 dump", args.dump), ("norms file", args.norms)]
+    if args.alignments:
+        named_inputs.append(("alignments file", args.alignments))
+    named_inputs += [("freeze manifest", m) for m in args.manifest]
+    for label, path in named_inputs:
+        if path.resolve().parent != dump_dir.resolve():
+            print(f"NOT published: copy the {label} {path.name} into {dump_dir} first; "
                   "publication names its inputs by file under that directory", file=sys.stderr)
             return 1
     layer1 = json.loads(args.dump.read_text(encoding="utf-8"))

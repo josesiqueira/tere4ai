@@ -797,9 +797,11 @@ def _check_dump_integrity_at_startup() -> None:
     a dumpless or structural-only checkout still starts; set
     TERE4AI_MCP_REQUIRE_DUMP_INTEGRITY=1 to hard-fail instead, which a
     production deployment should do. Absent dumps are handled by the
-    per-tool dump-missing envelopes, not here.
+    per-tool dump-missing envelopes, not here. An activation pointer is
+    checked even without a layer1.json, since the activated publication may
+    name its Layer 1 file otherwise (B79 item 23).
     """
-    if not DUMP_PATH.is_file():
+    if not DUMP_PATH.is_file() and not (DUMP_PATH.parent / ACTIVE_POINTER).is_file():
         return
     from tere4ai.graph_store.build_chain import verify_dumps_against_chain
 

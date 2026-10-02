@@ -25,7 +25,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from tere4ai.graph_store.build_record import atomic_write_json
-from tere4ai.review_queue.materialize import CAMPAIGN_TYPE_OF_KIND, _validator
+from tere4ai.review_queue.materialize import CAMPAIGN_TYPE_OF_KIND, schema_validator
 
 PUBLICATIONS_DIRNAME = "publications"
 TARGET_FILENAME = "NEO4J_TARGET.json"
@@ -56,7 +56,7 @@ def _read(path: Path) -> dict[str, Any] | None:
 
 def check_schema(definition: str, payload: dict[str, Any]) -> None:
     """Raise PublicationError when payload does not validate against the schema definition."""
-    errors = sorted(_validator(definition).iter_errors(payload), key=lambda e: list(e.path))
+    errors = sorted(schema_validator(definition).iter_errors(payload), key=lambda e: list(e.path))
     if errors:
         where = "/".join(str(p) for p in errors[0].path) or "the payload"
         raise PublicationError(f"{definition}: {errors[0].message} at {where}")

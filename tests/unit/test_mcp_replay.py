@@ -673,3 +673,28 @@ def test_the_server_starts_only_with_a_usable_window(monkeypatch):
     monkeypatch.setattr(server.mcp, "run", lambda **kwargs: pytest.fail("server started"))
     with pytest.raises(SystemExit, match="TERE4AI_MCP_REPLAY_WINDOW_SECONDS"):
         server.main()
+
+
+def test_the_startup_check_verifies_an_activated_publication_without_a_layer1_json(tmp_path, monkeypatch):
+    """B79 item 23: the check returned early when layer1.json was absent, so an
+    activated publication whose Layer 1 file has another name was never
+    verified at boot."""
+    from tere4ai.graph_store.build_chain import build_chain
+    from tere4ai.graph_store.publication import activate, write_publication_manifest
+
+    layer1 = tmp_path / "layer1.b74.json"
+    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    norms = tmp_path / "norms_core.b74.json"
+    norms.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": []}))
+    chain = build_chain(layer1, norms)
+    publication = {"chain_id": chain["chain_id"], "build_id": "build-b+chain-" + chain["chain_id"],
+                   "published_at": "t", "gating": {"layer2": "llm", "layer3": "absent"}, "label": None,
+                   "gates": [], "postload_gates": [], "manifests": []}
+    write_publication_manifest(tmp_path, publication, record_id="r", inputs=chain["inputs"],
+                               files={"layer1_dump": layer1.name, "norms": norms.name, "alignments": None})
+    activate(tmp_path, chain["chain_id"])
+    norms.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [1]}))
+    monkeypatch.setattr(server, "DUMP_PATH", tmp_path / "layer1.json")
+    monkeypatch.setenv("TERE4AI_MCP_REQUIRE_DUMP_INTEGRITY", "1")
+    with pytest.raises(RuntimeError, match="dump integrity check FAILED: norms file norms_core.b74.json differs"):
+        server._check_dump_integrity_at_startup()

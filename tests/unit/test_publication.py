@@ -24,6 +24,7 @@ from tere4ai.graph_store.publication import (
     whole_build_label,
     write_publication_manifest,
 )
+from tere4ai.review_queue.materialize import schema_validator
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -96,6 +97,15 @@ def test_target_state_round_trip(tmp_path):
     assert state["state"] == "unavailable" and state["reason"] == "P1 failed" and state["since"]
 
 
+@pytest.mark.parametrize(("state", "reason"), [("loading", None), ("available", None), ("unavailable", "P1 failed")])
+def test_each_target_state_validates_against_the_neo4j_target_schema(tmp_path, state, reason):
+    """B79 item 22: the three states the publish writes, as returned and as read back."""
+    payload = set_target_state(tmp_path, state=state, build_id="b", uri="bolt://x", reason=reason)
+    validator = schema_validator("neo4j_target")
+    assert not list(validator.iter_errors(payload))
+    assert not list(validator.iter_errors(read_target_state(tmp_path)))
+
+
 def test_target_state_records_no_credentials(tmp_path):
     set_target_state(tmp_path, state="loading", build_id="b", uri="neo4j+s://neo4j:hunter2@db.example:7687/x?y=1", reason=None)
     assert read_target_state(tmp_path)["uri"] == "neo4j+s://db.example:7687"
@@ -157,6 +167,19 @@ def test_load_active_prefers_the_pointer_and_falls_back_to_legacy(tmp_path):
     files["alignments"].write_text("{}")
     drifted = load_active(tmp_path)
     assert drifted.source == "manifest" and drifted.norms is None and "alignments" in drifted.error
+
+
+def test_load_active_refuses_an_unreadable_pointer_and_a_pointer_to_a_missing_manifest(tmp_path):
+    """B79 item 23: the two load_active branches that serve nothing."""
+    _dumps(tmp_path)
+    (tmp_path / ACTIVE_POINTER).write_text("{")
+    unreadable = load_active(tmp_path)
+    assert unreadable.source == "manifest" and unreadable.norms is None
+    assert unreadable.error == "the activation pointer is unreadable"
+    (tmp_path / ACTIVE_POINTER).write_text(json.dumps({"chain_id": "000000000000", "activated_at": "t"}))
+    missing = load_active(tmp_path)
+    assert missing.source == "manifest" and missing.norms is None
+    assert missing.error.startswith("no readable publication manifest for chain 000000000000")
 
 
 def test_facade_and_mcp_serve_the_activated_build_and_refuse_a_drifted_one(tmp_path, monkeypatch):
@@ -223,4 +246,17 @@ def test_activate_build_cli_refuses_an_unknown_or_drifted_chain_and_activates_a_
     files["norms"].write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [1]}))
     assert cli.main([chain_id, "--dump-dir", str(tmp_path)]) == 1
     assert "norms" in capsys.readouterr().err
+    assert not (tmp_path / ACTIVE_POINTER).exists()
+
+
+def test_activate_names_the_manifest_path_and_refuses_a_root_that_is_not_an_object(tmp_path):
+    """B79 item 21: the refusals name publications/<id>.json, and a manifest
+    whose JSON root is a list raised AttributeError in the activate path."""
+    files = _dumps(tmp_path)
+    chain_id = _publish_fixture(tmp_path, files)
+    with pytest.raises(ActivationError, match=r"publications/000000000000\.json"):
+        activate(tmp_path, "000000000000")
+    (tmp_path / "publications" / f"{chain_id}.json").write_text("[]")
+    with pytest.raises(ActivationError, match=rf"publications/{chain_id}\.json is malformed: its root is not an object"):
+        activate(tmp_path, chain_id)
     assert not (tmp_path / ACTIVE_POINTER).exists()

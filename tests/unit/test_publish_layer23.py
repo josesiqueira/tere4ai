@@ -68,7 +68,7 @@ def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=Fal
     class FakeStore:
         def load_dump(self, dump, driver):
             if seen is not None:
-                seen.append(("load", sorted(p.name for p in Path(dump["build"]["_dir"]).glob("build_chain_*.json")) if "_dir" in dump["build"] else None))
+                seen.append(("load", None))
             if capture is not None:
                 capture.append(dump)
             if load_raises:
@@ -708,3 +708,28 @@ def test_a_republish_does_not_land_in_a_descendant_holding_a_different_norms_ext
     assert f"continuing as descendant {child}" in out
     assert store.read(child)["publication"] is not None
     assert store.resolve("core") == child, "the alias now names the republish's own descendant"
+
+
+def test_an_input_outside_the_dump_dir_is_refused_before_any_load(tmp_path, monkeypatch, capsys):
+    """B79 item 7: publication names its inputs by file under the dump dir, so
+    a --dump, --norms or --alignments elsewhere gave a manifest that could not
+    be activated, and only after a full load. It is refused before the record
+    is resolved."""
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path)
+    executions_before = store.read(rid)["executions"]
+    (tmp_path / "other").mkdir()
+    for flag, inside in (("--dump", layer1), ("--alignments", alignments)):
+        outside = tmp_path / "other" / inside.name
+        outside.write_bytes(inside.read_bytes())
+        given = {"--dump": layer1, "--alignments": alignments, flag: outside}
+        seen: list = []
+        _fakes(monkeypatch, cli, seen=seen)
+        rc = cli.main(["--dump", str(given["--dump"]), "--norms", str(norms), "--alignments", str(given["--alignments"]),
+                       "--dump-dir", str(tmp_path)])
+        err = capsys.readouterr().err
+        assert rc == 1 and f"{outside.name} into {tmp_path} first" in err
+        assert "publication names its inputs by file under that directory" in err
+        assert seen == [], "the load never ran"
+        assert not list(tmp_path.glob("build_chain_*.json")) and not (tmp_path / "publications").exists()
+        assert store.read(rid)["executions"] == executions_before, "no execution was recorded"

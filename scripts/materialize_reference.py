@@ -36,14 +36,15 @@ SUFFIX = {"norms": ".reference", "alignments": ".adjudicated"}
 STEP = {"norms": ["L2.4"], "alignments": ["L3.5"]}
 
 
-def _source_build_id(args, store: BuildRecordStore, pristine_digest: str, base: str | None, kind: str) -> str | None:
+def _source_build_id(args, store: BuildRecordStore, rid: str | None, pristine_digest: str, base: str | None,
+                     kind: str) -> str | None:
     """The build the pristine file was served under, from evidence only: the
-    flag, the published record that produced it, the activated publication
-    when that publication's input of this role IS the pristine file, or
-    (no activation pointer) the legacy chain over the fixed core dumps."""
+    flag, the published record that produced it (rid, looked up once by the
+    caller), the activated publication when that publication's input of this
+    role IS the pristine file, or (no activation pointer) the legacy chain
+    over the fixed core dumps."""
     if args.source_build_id:
         return args.source_build_id
-    rid = store.find_by_output_digest(pristine_digest)
     if rid is not None:
         publication = store.read(rid)["publication"]
         if publication:
@@ -73,8 +74,22 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     raw_argv = list(sys.argv[1:] if argv is None else argv)
 
+    # Every input file is checked before any is read (B79 item 20), so a
+    # missing --pristine is a refusal, not a traceback.
+    for required in (args.pristine, args.decisions, args.manifest):
+        if not required.is_file():
+            print(f"not materialised: file not found: {required}", file=sys.stderr)
+            return 1
     pristine = json.loads(args.pristine.read_text(encoding="utf-8"))
-    kind = "norms" if "norms" in pristine else "alignments"
+    # The kind is read from the list the payload holds, never from a missing
+    # key (B79 item 20): a payload with neither list is refused.
+    if isinstance(pristine, dict) and isinstance(pristine.get("norms"), list):
+        kind = "norms"
+    elif isinstance(pristine, dict) and isinstance(pristine.get("assertions"), list):
+        kind = "alignments"
+    else:
+        print(f"not materialised: {args.pristine} holds neither a norms nor an assertions list", file=sys.stderr)
+        return 1
     slug = args.pristine.stem.removeprefix(f"{kind}_")
     out = args.out or args.pristine.with_name(f"{kind}_{slug}{SUFFIX[kind]}.json")
     for other in (args.pristine, args.decisions, args.manifest):
@@ -84,21 +99,17 @@ def main(argv: list[str] | None = None) -> int:
     if out.exists():
         print(f"not materialised: {out} exists; a reference file is never overwritten", file=sys.stderr)
         return 1
-    for required in (args.decisions, args.manifest):
-        if not required.is_file():
-            print(f"not materialised: file not found: {required}", file=sys.stderr)
-            return 1
 
     dump_dir = args.dump_dir or args.pristine.parent
     store = BuildRecordStore(dump_dir)
     digests = {"pristine": sha256_of_file(args.pristine), "decisions": sha256_of_file(args.decisions),
                "manifest": sha256_of_file(args.manifest)}
     base = pristine.get("build", {}).get("build_id")
-    source_build_id = _source_build_id(args, store, digests["pristine"], base, kind)
+    source_rid = store.find_by_output_digest(digests["pristine"])
+    source_build_id = _source_build_id(args, store, source_rid, digests["pristine"], base, kind)
     if source_build_id is None:
         print("not materialised: cannot establish the build this file was served under; pass --source-build-id", file=sys.stderr)
         return 1
-    source_rid = store.find_by_output_digest(digests["pristine"])
     alias = f"{slug}{SUFFIX[kind]}"
     if source_rid is not None and store.is_frozen(source_rid):
         record_id = store.create_record(alias, base, store.read(source_rid)["layer1_digest"], parent_record_id=source_rid)

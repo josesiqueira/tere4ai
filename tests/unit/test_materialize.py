@@ -233,3 +233,95 @@ def test_materialize_refuses_a_decision_naming_no_item_of_the_pristine_file(tmp_
     out = materialize("norms", pristine, other_kind, _manifest(d), source_sha256="s" * 64,
                       source_build_id="build-b+chain-000000000000", decisions_sha256=sha256_of_file(d))
     assert out["build"]["reference"]["decisions_applied"] == 1, "an assertion id is the other pass's (R16)"
+
+
+def test_cli_refuses_a_pristine_file_holding_neither_norms_nor_assertions(tmp_path, capsys):
+    """B79 item 20: the kind was read from the presence of a norms key, so a
+    payload with neither list was materialised as alignments."""
+    cli = _cli()
+    d = _decisions(tmp_path)
+    pristine = tmp_path / "norms_core.json"
+    pristine.write_text("{}")
+    m = tmp_path / "freeze.json"
+    m.write_text(json.dumps(_manifest(d)))
+    before = sorted(p.name for p in tmp_path.rglob("*"))
+    rc = cli.main(["--pristine", str(pristine), "--decisions", str(d), "--manifest", str(m),
+                   "--source-build-id", "build-b+chain-000000000000"])
+    assert rc == 1
+    assert f"not materialised: {pristine} holds neither a norms nor an assertions list" in capsys.readouterr().err
+    assert sorted(p.name for p in tmp_path.rglob("*")) == before, "nothing written, no record made"
+
+
+def test_cli_refuses_a_missing_pristine_file_without_a_traceback(tmp_path, capsys):
+    """B79 item 20: the pristine file was read before the file checks, so a
+    missing one raised FileNotFoundError."""
+    cli = _cli()
+    d = _decisions(tmp_path)
+    m = tmp_path / "freeze.json"
+    m.write_text(json.dumps(_manifest(d)))
+    missing = tmp_path / "norms_core.json"
+    before = sorted(p.name for p in tmp_path.rglob("*"))
+    rc = cli.main(["--pristine", str(missing), "--decisions", str(d), "--manifest", str(m),
+                   "--source-build-id", "build-b+chain-000000000000"])
+    assert rc == 1 and f"not materialised: file not found: {missing}" in capsys.readouterr().err
+    assert sorted(p.name for p in tmp_path.rglob("*")) == before
+
+
+def test_cli_materialises_an_alignments_file_under_step_l3_5(tmp_path):
+    """B79 item 20: the alignments kind through the command, its suffix,
+    step and output role."""
+    cli = _cli()
+    d = _decisions(tmp_path, {"align:x:1": {"decision": "reject", "rationale": "forced", "reviewer": "adj",
+                                            "decided_at": "2026-09-19T00:00:00+00:00"}})
+    pristine = tmp_path / "alignments_core.json"
+    pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "mapping_runs": [], "judge_runs": [],
+                                    "assertions": [{"id": "align:x:1", "judge_verdict": "accepted",
+                                                    "review_status": "needs_review"}]}))
+    m = tmp_path / "freeze.json"
+    m.write_text(json.dumps({"schema_version": "freeze_manifest.v1", "campaign_type": "hleg_alignment",
+                             "campaign_id": "c3", "freeze_id": "f3", "pinned_build_id": "build-b+chain-000000000000",
+                             "rows_included": ["r"], "verdicts_sha256": "v" * 64,
+                             "decisions_sha256": sha256_of_file(d), "frozen_at": "2026-09-19T00:00:00+00:00"}))
+    rc = cli.main(["--pristine", str(pristine), "--decisions", str(d), "--manifest", str(m),
+                   "--source-build-id", "build-b+chain-000000000000"])
+    assert rc == 0
+    out = tmp_path / "alignments_core.adjudicated.json"
+    written = json.loads(out.read_text())
+    assert written["build"]["reference"]["kind"] == "alignments" and written["build"]["reference"]["layer"] == 3
+    assert written["assertions"][0]["judge_verdict"] == "rejected"
+    store = BuildRecordStore(tmp_path)
+    ex = store.read(store.resolve("core.adjudicated"))["executions"][0]
+    assert ex["covers_steps"] == ["L3.5"] and ex["status"] == "done"
+    assert ex["outputs"] == [{"role": "alignments_reference", "file": out.name, "sha256": sha256_of_file(out)}]
+
+
+def test_cli_falls_back_to_the_served_build_of_the_core_dumps(tmp_path, monkeypatch):
+    """B79 item 20: with no flag, no record and no activation pointer, the
+    source build is the chain over the fixed core dumps in the dump dir; the
+    record that produced the pristine file is looked up once (each lookup
+    reads every record)."""
+    from tere4ai.graph_store.build_chain import build_chain, served_build_id
+
+    cli = _cli()
+    d = _decisions(tmp_path)
+    layer1 = tmp_path / "layer1.json"
+    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    pristine = tmp_path / "norms_core.json"
+    pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}))
+    alignments = tmp_path / "alignments_core.json"
+    alignments.write_text(json.dumps({"build": {"build_id": "build-b"}, "assertions": [], "mapping_runs": [],
+                                      "judge_runs": []}))
+    chain = build_chain(layer1, pristine, alignments)
+    (tmp_path / f"build_chain_{chain['chain_id']}.json").write_text(json.dumps(chain))
+    expected = served_build_id(tmp_path, "build-b")
+    assert expected == f"build-b+chain-{chain['chain_id']}"
+    m = tmp_path / "freeze.json"
+    m.write_text(json.dumps(_manifest(d, pinned_build_id=expected)))
+    lookups = []
+    find = BuildRecordStore.find_by_output_digest
+    monkeypatch.setattr(BuildRecordStore, "find_by_output_digest",
+                        lambda self, digest: lookups.append(digest) or find(self, digest))
+    rc = cli.main(["--pristine", str(pristine), "--decisions", str(d), "--manifest", str(m)])
+    assert rc == 0 and lookups == [sha256_of_file(pristine)]
+    written = json.loads((tmp_path / "norms_core.reference.json").read_text())
+    assert written["build"]["reference"]["source_build_id"] == expected

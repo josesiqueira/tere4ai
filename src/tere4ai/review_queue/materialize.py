@@ -40,7 +40,8 @@ class MaterializeError(ValueError):
 
 
 @lru_cache(maxsize=4)
-def _validator(definition: str) -> Draft202012Validator:
+def schema_validator(definition: str) -> Draft202012Validator:
+    """A validator for one definition of build_record.schema.json (cached)."""
     schema = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
     return Draft202012Validator({"$ref": f"#/$defs/{definition}", "$defs": schema["$defs"]})
 
@@ -50,7 +51,7 @@ def verify_freeze_manifest(manifest: dict[str, Any], decisions_path: Path | str 
     kind = manifest.get("campaign_type")
     if kind not in _TYPES:
         raise MaterializeError(f"freeze manifest campaign_type {kind!r} is not one of {sorted(_TYPES)}")
-    errors = sorted(_validator(_TYPES[kind]).iter_errors(manifest), key=lambda e: list(e.path))
+    errors = sorted(schema_validator(_TYPES[kind]).iter_errors(manifest), key=lambda e: list(e.path))
     if errors:
         first = errors[0]
         where = "/".join(str(p) for p in first.path) or "the manifest"

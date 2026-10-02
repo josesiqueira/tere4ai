@@ -128,25 +128,30 @@ def verify_dumps_against_chain(
     """
     directory = Path(dump_dir)
     if chain_id is not None:
-        manifest_path = directory / "publications" / f"{chain_id}.json"
+        # Every message names the manifest by its path under the dump dir
+        # (B79 item 21), so the operator knows which file to restore.
+        shown = f"publications/{chain_id}.json"
+        manifest_path = directory / shown
         if not manifest_path.is_file():
-            return False, f"no publication manifest for chain {chain_id}"
+            return False, f"no publication manifest {shown} for chain {chain_id}"
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            return False, f"publication manifest {chain_id} is unreadable: {exc}"
+        except (OSError, ValueError) as exc:  # ValueError covers bytes that are not UTF-8 (B81 item 38)
+            return False, f"publication manifest {shown} is unreadable: {exc}"
+        if not isinstance(manifest, dict):
+            return False, f"publication manifest {shown} is malformed: its root is not an object"
         inputs_raw = manifest.get("inputs")
         if not isinstance(inputs_raw, list):
-            return False, f"publication manifest {chain_id} is malformed: missing or invalid inputs"
+            return False, f"publication manifest {shown} is malformed: missing or invalid inputs"
         recorded: dict[tuple[str, str], str] = {}
         for entry in inputs_raw:
             if not isinstance(entry, dict):
-                return False, f"publication manifest {chain_id} is malformed: an inputs entry is not an object"
+                return False, f"publication manifest {shown} is malformed: an inputs entry is not an object"
             missing = [k for k in ("role", "file", "sha256") if entry.get(k) is None]
             if missing:
                 return (
                     False,
-                    f"publication manifest {chain_id} is malformed: "
+                    f"publication manifest {shown} is malformed: "
                     f"an inputs entry is missing {', '.join(missing)}",
                 )
             recorded[(entry["role"], entry["file"])] = entry["sha256"]
@@ -158,12 +163,12 @@ def verify_dumps_against_chain(
                 return False, f"{role} file {name} differs from the digest publication {chain_id} recorded"
         files = manifest.get("files")
         if not isinstance(files, dict):
-            return False, f"publication manifest {chain_id} is malformed: missing or invalid files"
+            return False, f"publication manifest {shown} is malformed: missing or invalid files"
         missing_files = [k for k in ("layer1_dump", "norms") if not files.get(k)]
         if missing_files:
             return (
                 False,
-                f"publication manifest {chain_id} is malformed: files is missing {', '.join(missing_files)}",
+                f"publication manifest {shown} is malformed: files is missing {', '.join(missing_files)}",
             )
         manifests = [directory / name for (role, name) in recorded if role == "freeze_manifest"]
         chain = build_chain(
@@ -198,8 +203,10 @@ def verify_dumps_against_chain(
     # 2026-07-21 defense-in-depth): every role in the record must match.
     try:
         recorded = json.loads(recorded_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return False, f"build chain record is unreadable: {exc}"
+    except (OSError, ValueError) as exc:  # ValueError covers bytes that are not UTF-8 (B81 item 38)
+        return False, f"build chain record {recorded_path.name} is unreadable: {exc}"
+    if not isinstance(recorded, dict):
+        return False, f"build chain record {recorded_path.name} is malformed: its root is not an object"
     live = {i["role"]: i["sha256"] for i in chain["inputs"]}
     for item in recorded.get("inputs", []):
         role, digest = item.get("role"), item.get("sha256")
