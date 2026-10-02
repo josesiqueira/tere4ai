@@ -84,7 +84,10 @@ assertions, not the eval items above. Assignment:
   requirement type, where the sheet shows it, is not one of these
   criteria and never decides `accept` or `reject` (DEC-19); the
   extraction judge's view of it is compared with the adjudicated human
-  type apart, as judge type agreement. Where the sheet shows the
+  type apart, as judge type agreement. The norm's target_system_category
+  is not a criterion either: a rule sets it from the norm's source Article
+  or Annex (DEC-21), so sheets drawn since B124 do not show it, and where
+  the 2026-07 sheet shows it, it decides nothing. Where the sheet shows the
   actor-inference source text, it is the text the judge received, there
   for the actor criterion.
 - The annotator never sees the judge verdict while labelling.

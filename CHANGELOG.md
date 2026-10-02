@@ -5,6 +5,40 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B124: each norm's target_system_category is set by rule from its Article (2026-10-03)
+- Contract change: `explain_requirement`'s `deontic` block carries
+  `target_system_category` as one of `any_ai_system`,
+  `prohibited_ai_practice`, `high_risk_ai_system`, `article_50_ai_system`:
+  the part of the Act's rules the norm belongs to, named by the category of
+  AI systems those rules govern (DEC-21), set by a rule from the norm's
+  source Article or Annex, never by a model. It was a free label the
+  extractor wrote (`high_risk`, `prohibited_practice`, `any` or null in the
+  build of 2026-07-08). A norm on a source unit outside the rule table
+  carries null. A build extracted before this change is not converted and
+  shows its stored label. The backlog generator and the runtime grounding
+  judge receive the value in their norm digests, as before.
+- `schema/json_schemas/norms.schema.json` enumerates the four values
+  (`$defs.targetSystemCategory`), null allowed; any other string fails
+  validation in the extraction pipeline and the review apply step, the two
+  places that validate norms.
+- Prompts extract_norms v3 and judge_norms v3 (one shared version, now the
+  default of `extract_norms` and `python -m tere4ai.extract_norms`, and the
+  version of record in `eval/config_evaluated.yaml`): extract_norms v3 no
+  longer asks for the field and the judge's candidate no longer carries it;
+  judge_norms v3 is v2 under a new version line. Under v1 and v2 the
+  extractor still writes a label, which the judge reads as before and the
+  norm does not keep.
+- The extraction stats and the execution record's counts carry
+  `without_target_system_category`, the norms on a source unit outside the
+  rule table.
+- The review apply step sets the rule value on a norm a person adds or
+  replaces and refuses one on a source unit outside the rule table, naming
+  the unit.
+- The judge label sheet (`scripts/sample_judge_decisions.py`) no longer
+  prints the field, which was never a judge criterion
+  (`eval/gold/ANNOTATION_PROTOCOL.md`); the sheet drawn in 2026-07 stays as
+  drawn.
+
 ### B125: the FRIA block reads the unknown Annex III facts (2026-10-02)
 - Contract change: on a `limited_risk` or `minimal_risk` answer the `fria`
   block is `unknown`, not `does_not_apply`, while an Annex III fact absent

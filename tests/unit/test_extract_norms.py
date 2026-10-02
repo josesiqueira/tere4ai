@@ -469,7 +469,6 @@ B4_DUMP = {
 
 
 def test_the_v2_prompts_carry_the_definitions_and_the_scope_verbatim():
-    assert DEFAULT_PROMPT_VERSION == "v2"
     extract = load_prompt("extract_norms", "v2")
     judge = load_prompt("judge_norms", "v2")
     assert extract.startswith("# extract_norms system prompt, version v2")
@@ -485,14 +484,14 @@ def test_the_v2_prompts_carry_the_definitions_and_the_scope_verbatim():
     assert "requirement_type" not in load_prompt("judge_norms", "v1")
 
 
-def test_extraction_defaults_to_the_v2_prompts(tmp_path):
+def test_extraction_defaults_to_the_v3_prompts(tmp_path):
     generator = FakeClient({PARA_ID: GENERATOR_ANSWER}, model="fake-generator")
     judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
     result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, log_path=tmp_path / "log.jsonl")
-    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v2")
-    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v2")
-    assert result["norms"][0]["extractor_prompt_version"] == "v2"
-    assert result["judge_runs"][0]["prompt_version"] == "v2"
+    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v3")
+    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v3")
+    assert result["norms"][0]["extractor_prompt_version"] == "v3"
+    assert result["judge_runs"][0]["prompt_version"] == "v3"
 
 
 def test_the_v2_judge_receives_the_actor_inference_source_text(tmp_path):
@@ -572,3 +571,39 @@ def test_a_unit_outside_the_rule_table_gets_null_and_is_counted(tmp_path):
     NORM_VALIDATOR.validate(norm)
     assert norm["target_system_category"] is None
     assert result["stats"]["without_target_system_category"] == 1
+
+
+def test_the_v3_prompts_drop_the_field_and_keep_everything_else():
+    """DEC-21 (B124, spec G D-G62): extract_norms v3 is v2 without the
+    field's example key and vocabulary line; judge_norms v3 is v2 under a new
+    version line (the two share one version); v3 is the default and the
+    version of record for B74."""
+    assert DEFAULT_PROMPT_VERSION == "v3"
+    extract, judge = load_prompt("extract_norms", "v3"), load_prompt("judge_norms", "v3")
+    assert extract == (
+        load_prompt("extract_norms", "v2")
+        .replace("# extract_norms system prompt, version v2", "# extract_norms system prompt, version v3", 1)
+        .replace('      "target_system_category": "high_risk",\n', "")
+        .replace('- target_system_category: a short label such as "high_risk", "gpai",\n'
+                 '  "prohibited_practice", "any", or null when the text does not scope it.\n', "")
+    )
+    assert judge == load_prompt("judge_norms", "v2").replace(
+        "# judge_norms system prompt, version v2", "# judge_norms system prompt, version v3", 1)
+    for prompt in (extract, judge):
+        assert "target_system_category" not in prompt
+        assert DEFINITIONS_TEXT in prompt and SCOPE_TEXT in prompt
+    record = (REPO_ROOT / "eval" / "config_evaluated.yaml").read_text(encoding="utf-8")
+    assert "  extract_norms: v3\n" in record and "  judge_norms: v3\n" in record
+
+
+def test_under_v3_the_judge_never_sees_the_field_and_the_norm_takes_the_rule_value(tmp_path):
+    """Review focus 1: a v3 extractor that writes a label unasked."""
+    stray = _generator_with(target_system_category="gpai")
+    generator = FakeClient({ARTICLE_16_PARA: stray}, model="fake-generator")
+    judge = FakeClient({ARTICLE_16_PARA: JUDGE_ACCEPT}, model="fake-judge")
+    result = extract_norms(B4_DUMP, [ARTICLE_16_PARA], generator, judge, prompt_version="v3",
+                           log_path=tmp_path / "log.jsonl")
+    assert "target_system_category" not in judge.calls[0][1]
+    norm = result["norms"][0]
+    NORM_VALIDATOR.validate(norm)
+    assert norm["target_system_category"] == "high_risk_ai_system"

@@ -2,6 +2,7 @@
 
 @implements: DEC-06 (partial: human review loop)
 @implements: DEC-19
+@implements: DEC-21
 @grounded_by: REF-24, REF-32
 
 The pipeline dumps are never edited in place. This module takes a pristine

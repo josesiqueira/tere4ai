@@ -1312,3 +1312,14 @@ def test_error_report_parser_reads_the_trigger_of_a_fresh_classify_answer():
         "flag:interacts_with_natural_persons",
         "domain:education",
     ]
+
+
+def test_the_sheet_never_shows_the_target_system_category():
+    """B124 (DEC-21, spec G D-G62): not a judge criterion, so the labeller
+    never sees it, whatever prompt version built the norm."""
+    norms, alignments, layer1 = _synthetic_payloads(extraction={"accepted": 4}, mapping={})
+    for norm in norms["norms"]:
+        norm["target_system_category"] = "high_risk"
+    sheet = sampling.build_sheet(norms, alignments, layer1, total=4, minimum=4)
+    assert all("target_system_category" not in item["judged_content"] for item in sheet["items"])
+    assert "target_system_category" not in sampling.render_sheet_md(sheet)

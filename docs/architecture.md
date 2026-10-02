@@ -80,6 +80,15 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   slot of the norm, one with no Institutional Grammar counterpart. The
   extraction judge records its view of the type without gating on it.
   grounded_by: ADD-54, ADD-55, ADD-56
+- Target system category (added 2026-10-03, DEC-21): target_system_category
+  names the part of the Act's rules the norm belongs to, by the category
+  of AI systems those rules govern: any_ai_system (Chapter I),
+  prohibited_ai_practice (Chapter II), high_risk_ai_system (Chapter III,
+  Annexes III and IV, Articles 72 and 73) or article_50_ai_system
+  (Chapter IV). It does not say which system a single paragraph talks
+  about; the addressee stays in the actor fields. A rule sets it from the
+  norm's source Article or Annex, never a model; null only for a source
+  unit outside the rule table. grounded_by: REF-01
 - Schema is grounded in Institutional Grammar (OVR-9): actor maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
   Aim. Pull the primary sources (REF-14c) before citing.
@@ -172,7 +181,10 @@ Three judges, kept separate:
   Since judge_norms v2 (2026-10-01, DEC-19) it also receives the verbatim
   text of an inferred actor's source unit (DEC-04), and it records whether it
   agrees with the norm's requirement type, and its own type when it does
-  not, without that record changing the verdict.
+  not, without that record changing the verdict. Since judge_norms v3
+  (2026-10-03, DEC-21) the candidate it receives no longer carries
+  target_system_category, which a rule sets after the verdict; its checks
+  and verdict values do not change.
 - Build-time mapping judge: before an alignment is accepted, scores it, may
   correct the relation type, and rejects any mapping whose rationale relies on
   concepts absent from both source spans.
@@ -976,6 +988,66 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   readers); tests/unit/test_classify.py
   (test_levels_are_the_pyramids_names), test_fria.py,
   test_get_requirements.py, test_report.py; CHANGELOG.md names the
+  contract change.
+
+- DEC-21: each norm's target_system_category names the part of the
+  Act's rules the norm belongs to, by the category of AI systems those
+  rules govern; a rule sets it from the norm's source Article or Annex,
+  never a model, under every prompt version (added 2026-10-03; thesis
+  task B124, brief sdd/2026-10-02-B124-target-system-category/brief.md
+  revision 2, its rulings file progress.md and spec G D-G62 in the
+  private research repository). Engineering decision (one closed set
+  named after the Act's own scope terms, REF-01; it replaces a label the
+  extractor wrote from examples, which grew to twelve values and null in
+  the aborted run of 2026-09-01).
+  The values: any_ai_system, "AI systems" as Chapter I, "GENERAL
+  PROVISIONS", addresses them (Article 4: "Providers and deployers of AI
+  systems shall take measures"); prohibited_ai_practice, Chapter II,
+  "PROHIBITED AI PRACTICES"; high_risk_ai_system, Chapter III,
+  "HIGH-RISK AI SYSTEMS", Annex III, "High-risk AI systems referred to in
+  Article 6(2)", Annex IV, "Technical documentation referred to in
+  Article 11(1)" with Article 11(1), Article 72 by its title and Article
+  73 by its paragraphs 1, 9 and 10; article_50_ai_system, Chapter IV,
+  "TRANSPARENCY OBLIGATIONS FOR PROVIDERS AND DEPLOYERS OF CERTAIN AI
+  SYSTEMS". The value does not say which system a single paragraph talks
+  about: Article 6(4) ("A provider who considers that an AI system
+  referred to in Annex III is not high-risk shall document its
+  assessment") is a high-risk classification rule, so its norms carry
+  high_risk_ai_system; the addressee stays in the actor fields. Article
+  3's definitions, those of general-purpose AI models included, are
+  general provisions and take any_ai_system.
+  The rule: one row per Article or Annex of the extraction scope
+  (data/graph_dumps/core_nodes.txt, 29 ids, 405 source units), each with
+  the Layer 1 wording that decides it; the value is read from the
+  Article or Annex segment of source_node_id, not from the Chapter
+  edges. The pipeline sets it when it assembles a norm, after the judge.
+  Under extract_norms v1 and v2 the extractor still writes a label, which
+  the judge reads as before and the norm does not keep; extract_norms v3
+  does not ask for it and the v3 judge's candidate does not carry it
+  (judge_norms v3 is v2 under a new version line; the two share one
+  version, and v3 is the default and the version of record in
+  eval/config_evaluated.yaml). A norm on a unit outside the table carries
+  null, counted as without_target_system_category in the extraction
+  stats and the execution record; extending the scope means adding rows.
+  The review apply step sets the rule value on a norm a person adds or
+  replaces and refuses one on a unit outside the table. The judge's
+  checks and verdict values do not change; the Layer 2 annotators never
+  see or set the field; the judge label sheet no longer prints it. Old
+  builds are not converted; readers pass the value through and nothing
+  branches on it.
+  Defense: a field a reader is shown needs a definition and a closed set;
+  the Act's own titles give both, and a rule over the source Article
+  gives every norm in the scope the same value on every run.
+  verify: src/tere4ai/extract_norms/target_system_category.py
+  (TARGET_SYSTEM_CATEGORIES, RULE_TABLE, category_for);
+  schema/json_schemas/norms.schema.json (targetSystemCategory);
+  prompts/extract_norms/v3.md, prompts/judge_norms/v3.md;
+  src/tere4ai/extract_norms/pipeline.py and __main__.py,
+  src/tere4ai/review_queue/apply.py, scripts/sample_judge_decisions.py;
+  tests/unit/test_target_system_category.py (every core unit of the
+  Layer 1 dump), test_extract_norms.py, test_extract_norms_cli.py (the
+  mock-model command line run), test_review_queue.py,
+  test_layer23_schemas.py, test_judge_sampling.py; CHANGELOG.md names the
   contract change.
 
 ## 17. Implementation-traceability convention

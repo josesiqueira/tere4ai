@@ -2,6 +2,7 @@
 
 @implements: DEC-03, DEC-06 (partial: extraction judge only), DEC-16 (partial: the L2.1 and L2.2 execution record)
 @implements: DEC-19
+@implements: DEC-21
 @grounded_by: REF-11, REF-12, REF-13, REF-16, REF-24, REF-27, ADD-20
 
 Runs the judged norm-extraction pipeline over the given Layer 1 node ids

@@ -73,11 +73,11 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[],
                                  inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
-                                 config={"prompt_version": "v2", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
+                                 config={"prompt_version": "v3", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
                                  expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
-                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v2"),
-                                                "judge": cli.prompt_sha256("judge_norms-v2")})
+                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v3"),
+                                                "judge": cli.prompt_sha256("judge_norms-v3")})
     # Changed by final review A1: a resume is refused while the run it resumes
     # is live, so the prior attempt ends failed here as an interrupted run does.
     store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
@@ -583,3 +583,120 @@ def test_the_groups_counts_of_norms_without_a_category_are_summed_into_the_paylo
     store = BuildRecordStore(tmp_path)
     assert store.read(store.resolve("test"))["executions"][0]["counts"]["without_target_system_category"] == 2
     assert "norms without a target_system_category (source unit outside the rule table): 2" in capsys.readouterr().out
+
+
+# B124 (DEC-21, spec G D-G62): the v3 pipeline through its command line with
+# scripted models (no network, no keys): the rule value on every norm, the
+# judge's input without the field, the build record's count and a
+# checkpoint resume. Nothing else runs extraction end to end before B74.
+
+V3_UNITS = {
+    "eu-ai-act:article-16:paragraph-1": "Providers of high-risk AI systems shall keep the logs.",
+    "eu-ai-act:article-50:paragraph-1": "Providers shall inform natural persons that they interact with an AI system.",
+    "eu-ai-act:article-99:paragraph-1": "Providers shall keep a register of the logs.",
+}
+V3_GENERATOR_ANSWER = json.dumps({"norms": [{
+    "deontic_type": "obligation", "modal": "shall", "actor_explicit": "providers",
+    "actor_inferred": None, "actor_inference_source_node_id": None,
+    "action": "keep", "object": "the logs", "conditions": [], "exceptions": [],
+    "lifecycle_phase_ids": ["operation_monitoring"], "requirement_type": "process",
+    # a model that writes the field unasked: v3 never keeps it (review focus 1)
+    "target_system_category": "gpai",
+}]})
+V3_JUDGE_ACCEPT = json.dumps({
+    "verdict": "accepted",
+    "scores": {"semantic_similarity": 0.9, "normative_relevance": 0.9, "operational_utility": 0.8,
+               "evidence_strength": 0.85, "judge_confidence": 0.9},
+    "rationale": "Supported verbatim.", "requirement_type_agrees": True,
+})
+
+
+def _v3_dump(tmp_path):
+    nodes = []
+    for unit_id, text in V3_UNITS.items():
+        article_id = unit_id.rsplit(":", 1)[0]
+        number = int(article_id.rsplit("-", 1)[1])
+        nodes.append({"id": article_id, "layer": 1, "type": "Article", "number": number,
+                      "title": f"Article {number}", "source_span": {"span_id": f"span:art_{number}"}})
+        nodes.append({"id": unit_id, "layer": 1, "type": "Paragraph", "index": 1, "text": text,
+                      "source_span": {"span_id": f"span:{number:03d}.001"}})
+    path = tmp_path / "layer1.json"
+    path.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": nodes, "edges": []}))
+    return path
+
+
+def _scripted_models(monkeypatch, cli, tmp_path):
+    from tere4ai.extract_norms import pipeline
+    from tere4ai.extract_norms.model_clients import FakeClient
+
+    class ScriptedModel(FakeClient):
+        sampling = temperature = "provider default (rejected by the model)"
+        effort = "xhigh"
+        json_mode = "sent"
+        usage: dict = {}
+
+    class FakeCfg:
+        def as_public_dict(self):
+            return {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"}
+
+    generator = ScriptedModel({unit: V3_GENERATOR_ANSWER for unit in V3_UNITS}, model="g")
+    judge = ScriptedModel({"Candidate norm (JSON)": V3_JUDGE_ACCEPT}, model="j")
+    monkeypatch.setattr(cli, "load_model_config", lambda: FakeCfg())
+    monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg, **kw: generator)
+    monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg, **kw: judge)
+    # the audit log goes to the test's directory, never data/review_queue
+    monkeypatch.setattr(pipeline, "DEFAULT_LOG_PATH", tmp_path / "extraction_log.jsonl")
+    return generator, judge
+
+
+def test_a_mock_model_run_of_the_v3_pipeline_sets_the_rule_value_counts_the_nulls_and_resumes(
+    tmp_path, monkeypatch, capsys
+):
+    import tere4ai.extract_norms.__main__ as cli
+    from tere4ai.extract_norms.model_clients import ProviderUnavailable
+
+    dump_path = _v3_dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    generator, judge = _scripted_models(monkeypatch, cli, tmp_path)
+    inner = cli.extract_norms
+
+    def stop_on_article_50(dump, node_ids, generator, judge, prompt_version="v1"):
+        if node_ids[0] == "eu-ai-act:article-50":
+            raise ProviderUnavailable(6, "HTTP 529")
+        return inner(dump, node_ids, generator, judge, prompt_version=prompt_version)
+
+    monkeypatch.setattr(cli, "extract_norms", stop_on_article_50)
+    # no --prompt-version: the run takes the default
+    argv = ["--nodes", "eu-ai-act:article-16,eu-ai-act:article-50,eu-ai-act:article-99",
+            "--dump", str(dump_path), "--out", str(out)]
+    assert cli.main(argv) == 3
+    ckpt = out.with_suffix(".checkpoint.jsonl")
+    (line,) = [json.loads(x) for x in ckpt.read_text().splitlines()]
+    assert line["group"] == "eu-ai-act:article-16"
+    assert line["result"]["norms"][0]["target_system_category"] == "high_risk_ai_system"
+
+    monkeypatch.setattr(cli, "extract_norms", inner)
+    assert cli.main([*argv, "--resume"]) == 0
+    payload = json.loads(out.read_text())
+    assert payload["build"]["prompt_version"] == "v3"
+    assert {n["source_node_id"]: n["target_system_category"] for n in payload["norms"]} == {
+        "eu-ai-act:article-16:paragraph-1": "high_risk_ai_system",
+        "eu-ai-act:article-50:paragraph-1": "article_50_ai_system",
+        "eu-ai-act:article-99:paragraph-1": None,
+    }
+    assert {n["extractor_prompt_version"] for n in payload["norms"]} == {"v3"}
+    assert payload["stats"]["without_target_system_category"] == 1
+    # the v3 extractor is not asked for the field and the judge never sees it
+    assert len(generator.calls) == 3 and len(judge.calls) == 3
+    for system, _user in generator.calls:
+        assert system.startswith("# extract_norms system prompt, version v3")
+        assert "target_system_category" not in system
+    for system, user in judge.calls:
+        assert system.startswith("# judge_norms system prompt, version v3")
+        assert "target_system_category" not in user
+    store = BuildRecordStore(tmp_path)
+    first, resumed = store.read(store.resolve("test"))["executions"]
+    assert first["status"] == "failed" and first["config"]["prompt_version"] == "v3"
+    assert resumed["status"] == "done" and resumed["inherited_keys"] == ["eu-ai-act:article-16"]
+    assert resumed["counts"]["without_target_system_category"] == 1
+    assert "norms without a target_system_category (source unit outside the rule table): 1" in capsys.readouterr().out

@@ -15,8 +15,8 @@ reply that omits it or gives an invalid value records null.
 
 The definitions, the reading rules and the scope have one source each,
 prompts/requirement_type/definitions.md and scope.md, read here into
-DEFINITIONS_TEXT and SCOPE_TEXT. The v2 prompts that name the type carry
-those bytes (tests check it), so each prompt's hash covers what the model
+DEFINITIONS_TEXT and SCOPE_TEXT. The v2 and v3 prompts that name the type
+carry those bytes (tests check it), so each prompt's hash covers what the model
 read, and the extractor, the extraction judge, the backlog generator and the
 runtime judge read the same words; the dashboard pins its copy for the
 specialists, the judge template and the annotation guideline against the

@@ -2,6 +2,7 @@
 
 @implements: DEC-11, DEC-17
 @implements: DEC-19
+@implements: DEC-21
 @grounded_by: REF-16
 
 Implements the judge false-accept / false-reject labelling step of
@@ -108,7 +109,9 @@ JUDGE_KINDS = ("extraction", "mapping")
 VERDICTS = ("accepted", "rejected", "needs_human_review")
 
 # Norm fields shown to the annotator (the judged content of an extraction
-# decision). Everything the extraction-judge criteria mention.
+# decision). Everything the extraction-judge criteria mention. B124 (DEC-21):
+# target_system_category is set by rule and is not a criterion, so no sheet
+# shows it, whatever prompt version built the norm.
 NORM_SHEET_FIELDS = (
     "norm_id",
     "source_node_id",
@@ -120,7 +123,6 @@ NORM_SHEET_FIELDS = (
     "actor_inference_source_node_id",
     "action",
     "object",
-    "target_system_category",
     "conditions",
     "exceptions",
     # DEC-19: the extractor's type, scoped (a null reads by the scope, ruling 53)

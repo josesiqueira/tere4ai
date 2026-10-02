@@ -64,7 +64,6 @@ GENERATOR_ANSWER = json.dumps(
                 "actor_inference_source_node_id": None,
                 "action": "keep",
                 "object": "a risk log",
-                "target_system_category": "high_risk",
                 "conditions": [],
                 "exceptions": [],
                 "lifecycle_phase_ids": ["operation_monitoring"],
@@ -110,8 +109,8 @@ def _run_extraction(tmp_path):
 
 def test_extraction_events_and_judgeruns_carry_the_real_prompt_hash(tmp_path):
     result, events = _run_extraction(tmp_path)
-    extract_hash = prompt_sha256(load_prompt("extract_norms", "v2"))
-    judge_hash = prompt_sha256(load_prompt("judge_norms", "v2"))
+    extract_hash = prompt_sha256(load_prompt("extract_norms", "v3"))
+    judge_hash = prompt_sha256(load_prompt("judge_norms", "v3"))
 
     gen_events = [e for e in events if e["direction"] == "generator"]
     judge_events = [e for e in events if e["direction"] == "judge"]
@@ -128,7 +127,7 @@ def test_extraction_events_and_judgeruns_carry_the_real_prompt_hash(tmp_path):
     for judge_run in result["judge_runs"]:
         assert judge_run["prompt_sha256"] == judge_hash
         # The hash is tied to the same version label, not a substitute for it.
-        assert judge_run["prompt_version"] == "v2"
+        assert judge_run["prompt_version"] == "v3"
 
 
 def test_prompt_hash_changes_when_the_prompt_text_changes():

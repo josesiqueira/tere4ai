@@ -2,6 +2,7 @@
 
 @implements: DEC-03, DEC-06 (partial: extraction judge only)
 @implements: DEC-19
+@implements: DEC-21
 @grounded_by: REF-11, REF-12, REF-13, REF-16, REF-24
 
 An Article is not one requirement: each extracted norm is a NormativeStatement
@@ -24,6 +25,8 @@ Section 7 before it may be accepted. Hard invariants enforced here:
   is assembled, after the judge, under every prompt version; a model's
   label is never kept. A norm on a unit outside the rule table carries
   null and is counted in stats["without_target_system_category"].
+- DEC-21, from prompt v3 on: the extractor is not asked for
+  target_system_category and the judge's candidate does not carry it.
 - Every generator and judge call is logged to
   data/review_queue/extraction_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
@@ -60,11 +63,16 @@ DEFAULT_DUMP_PATH = REPO_ROOT / "data" / "graph_dumps" / "layer1.json"
 EXTRACTION_METHOD = "llm_extract_v1"
 
 # The prompt version extract_norms and judge_norms share (DEC-19: v2 carries
-# the requirement type and thesis task B4's actor-inference source text).
-DEFAULT_PROMPT_VERSION = "v2"
+# the requirement type and thesis task B4's actor-inference source text;
+# DEC-21: v3 no longer asks the extractor for target_system_category).
+DEFAULT_PROMPT_VERSION = "v3"
 # B4: judge_norms v1 never received the actor-inference source text; a v1
 # run keeps the input v1 had, so the version names one instrument.
 _PROMPTS_WITHOUT_INFERENCE_TEXT = frozenset({"v1"})
+# DEC-21 (B124): the prompt versions whose extractor writes
+# target_system_category. Their judge keeps reading the candidate it always
+# read; the norm takes the rule's value under every version.
+_PROMPTS_WITH_MODEL_CATEGORY = frozenset({"v1", "v2"})
 
 # Node types that carry extractable operative text (Layer 1, Section 6).
 SOURCE_UNIT_TYPES = ("Paragraph", "Point", "AnnexItem")
@@ -79,6 +87,7 @@ _NORM_CANDIDATE_FIELDS = (
     "actor_inference_source_node_id",
     "action",
     "object",
+    # DEC-21: v1 and v2 only, read for the judge and never kept
     "target_system_category",
     "conditions",
     "exceptions",
@@ -365,8 +374,12 @@ def extract_norms(
     nodes = _index_nodes(dump)
     with_inference_text = prompt_version not in _PROMPTS_WITHOUT_INFERENCE_TEXT
     typed = types_for(prompt_version)  # B65 ruling 49
+    with_model_category = prompt_version in _PROMPTS_WITH_MODEL_CATEGORY
     candidate_fields = tuple(
-        key for key in _NORM_CANDIDATE_FIELDS if typed or key != "requirement_type"
+        key
+        for key in _NORM_CANDIDATE_FIELDS
+        if (typed or key != "requirement_type")
+        and (with_model_category or key != "target_system_category")
     )
 
     norms: list[dict[str, Any]] = []

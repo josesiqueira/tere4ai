@@ -1,5 +1,6 @@
 """The part of the Act's rules a norm belongs to: one closed slot, four values.
 
+@implements: DEC-21
 @grounded_by: REF-01
 
 Each norm's target_system_category names the part of the Act's rules the
