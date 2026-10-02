@@ -139,8 +139,10 @@ answers `logging/setLevel` with method not found; diagnostics go to stderr.
 Paid tools (`evaluate_project_evidence`, `evaluate_project_evidence_batch`,
 `generate_control_backlog`, `elicit_features`) are not charged twice for an
 identical call. A repeat with the same caller, arguments, build and model
-settings inside `TERE4AI_MCP_REPLAY_WINDOW_SECONDS` (default 600, 0 keeps
-nothing) gets the kept answer with a note in `legal_status_notes`. Refusals,
+settings inside `TERE4AI_MCP_REPLAY_WINDOW_SECONDS` (default 600, measured
+on a monotonic clock; 0 turns the replay off) gets the kept answer with a
+note in `legal_status_notes` and its usage counts set to 0, since no model
+was called; the first answer keeps its own counts. Refusals,
 degraded answers and failures are never kept. The kept answers live in the
 memory of one process (at most 256): two replicas behind a load balancer do
 not share them, so a retry that lands on the other replica pays again.
@@ -149,8 +151,8 @@ Tested here: the official MCP Python SDK client (mcp 2.2.0), modes legacy
 and 2026-07-28, over stdio and streamable HTTP
 (`tests/unit/test_mcp_protocol_revisions.py`). No other client is tested.
 
-Reported by the vendors' public sources on 2026-09-30 (research input, not
-tested here):
+As the 2026-09-30 research input reports them from the vendors' public
+sources (not checked or tested here):
 
 | Client | Reported status | Source |
 |---|---|---|

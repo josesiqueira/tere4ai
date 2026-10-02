@@ -32,6 +32,9 @@ dev = [
     "referencing>=0.35",
     "matplotlib>=3.9",
     "rdflib>=7.0",
+    # The protocol tests drive the server with this SDK's client (mode legacy
+    # and mode 2026-07-28); fastmcp alone allows any mcp below 3.
+    "mcp>=2.2,<2.3",
 ]
 
 [tool.setuptools.packages.find]

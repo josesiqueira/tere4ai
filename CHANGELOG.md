@@ -46,6 +46,20 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   client support as the vendors' public sources reported it on 2026-09-30
   (not tested here). REF-31 and architecture.md Section 8 state the dual era
   and SKILL.md no longer names a revision.
+- Final review fixes. A repeated paid answer sets every usage count under
+  answer.usage (and under each batch result's answer.usage) to 0 and its
+  note now ends "no new model call was made, so its usage counts are 0;
+  the first call's usage is in the answer it returned", so a client that
+  adds up usage counts the first call once. A window of 0 turns the replay
+  off (no store, no wait for an identical running call). The window is
+  aged by time.monotonic(); the UTC wall time only dates the note. The
+  protocol tests assert the logging/setLevel refusal over HTTP too, write
+  the HTTP server's stderr to a file whose tail is in every start failure,
+  count the server ready only once it says it listens on the port, and
+  start it once more on a new port when it exits with address in use. The
+  dev extras pin `mcp>=2.2,<2.3`, the SDK client the protocol tests use.
+  The README's client table is headed as the research input's report, not
+  checked or tested here.
 
 ### The elicitor quotes the Act from the graph and the description for every fact, and is an MCP tool (B10, DEC-13, DEC-18)
 - New module `tere4ai.elicit_features.provisions`: a prompt template names

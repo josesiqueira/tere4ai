@@ -96,6 +96,14 @@ def _assert_revision(seen: dict[str, object], mode: str) -> None:
     )
 
 
+async def _refuse_set_level(client: Client, seen: dict[str, object]) -> None:
+    """Ruling R4: logging/setLevel is not served (method not found). The SDK
+    marks the call itself deprecated, which is the point."""
+    with pytest.raises(MCPError) as refused, pytest.warns(MCPDeprecationWarning):
+        await client.set_logging_level("info")
+    seen["set_level_code"] = refused.value.code
+
+
 async def _stdio_session(mode: str) -> dict[str, object]:
     params = StdioServerParameters(
         command=sys.executable,
@@ -106,11 +114,7 @@ async def _stdio_session(mode: str) -> dict[str, object]:
     async with Client(params, mode=mode, read_timeout_seconds=_CALL_TIMEOUT_SECONDS) as client:
         seen = await _exercise(client, mode)
         if mode == _LEGACY:
-            # Ruling R4: logging/setLevel is not served (method not found).
-            # The SDK marks the call itself deprecated, which is the point.
-            with pytest.raises(MCPError) as refused, pytest.warns(MCPDeprecationWarning):
-                await client.set_logging_level("info")
-            seen["set_level_code"] = refused.value.code
+            await _refuse_set_level(client, seen)
         return seen
 
 
@@ -128,17 +132,88 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
-def _wait_for_port(port: int, process: subprocess.Popen) -> None:
+def _stderr_tail(path: Path, limit: int = 2000) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "(no stderr file)"
+    return text[-limit:] if text.strip() else "(stderr empty)"
+
+
+class _ServerExited(AssertionError):
+    """The HTTP server process ended before it accepted a connection."""
+
+
+def _wait_for_port(port: int, process: subprocess.Popen, stderr_path: Path) -> None:
+    """Wait until the server says on stderr that it listens on the port (so a
+    connection to another process that took the port is not mistaken for
+    it) and the port accepts a connection."""
+    listening = f"Uvicorn running on http://127.0.0.1:{port}"
     deadline = time.monotonic() + _PORT_WAIT_SECONDS
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            raise AssertionError(f"the HTTP server exited early with code {process.returncode}")
+            raise _ServerExited(
+                f"the HTTP server exited early with code {process.returncode}; "
+                f"stderr tail:\n{_stderr_tail(stderr_path)}"
+            )
+        if listening not in stderr_path.read_text(encoding="utf-8", errors="replace"):
+            time.sleep(0.1)
+            continue
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.5):
                 return
         except OSError:
             time.sleep(0.1)
-    raise AssertionError(f"the HTTP server did not accept connections on {port} in time")
+    raise AssertionError(
+        f"the HTTP server did not accept connections on {port} in time; "
+        f"stderr tail:\n{_stderr_tail(stderr_path)}"
+    )
+
+
+def _stop(process: subprocess.Popen) -> None:
+    process.terminate()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=10)
+
+
+_ADDRESS_IN_USE = re.compile(r"address already in use|errno 98|errno 48", re.IGNORECASE)
+
+
+def _start_http_server(
+    env: dict[str, str], log_dir: Path, pick_port=None
+) -> tuple[subprocess.Popen, int]:
+    """Start the server on a free port and wait until it accepts connections.
+
+    The port is free when picked but another process can take it before the
+    server binds it; when the server exits with an address-in-use error, it
+    is started once more on a newly picked port. Its stderr goes to a file
+    in log_dir, whose tail is in every failure message.
+    """
+    pick_port = pick_port or _free_port
+    for attempt in (1, 2):
+        port = pick_port()
+        stderr_path = log_dir / f"server-stderr-{attempt}.log"
+        with stderr_path.open("wb") as stderr_file:
+            process = subprocess.Popen(
+                [sys.executable, "-m", "tere4ai.mcp_server.server"],
+                cwd=str(_REPO_ROOT),
+                env={**env, "TERE4AI_MCP_PORT": str(port)},
+                stdout=subprocess.DEVNULL,
+                stderr=stderr_file,
+            )
+        try:
+            _wait_for_port(port, process, stderr_path)
+            return process, port
+        except _ServerExited:
+            if attempt == 2 or not _ADDRESS_IN_USE.search(_stderr_tail(stderr_path)):
+                raise
+        except BaseException:
+            _stop(process)
+            raise
+    raise AssertionError("unreachable")
 
 
 async def _http_session(url: str, key: str, mode: str) -> dict[str, object]:
@@ -149,7 +224,10 @@ async def _http_session(url: str, key: str, mode: str) -> dict[str, object]:
         async with Client(
             transport, mode=mode, read_timeout_seconds=_CALL_TIMEOUT_SECONDS
         ) as client:
-            return await _exercise(client, mode)
+            seen = await _exercise(client, mode)
+            if mode == _LEGACY:
+                await _refuse_set_level(client, seen)
+            return seen
 
 
 @pytest.fixture(scope="module")
@@ -160,33 +238,22 @@ def http_server(tmp_path_factory):
     keys_file = store_dir / "mcp_keys.json"
     usage_file = store_dir / "mcp_usage.jsonl"
     key, _record = create_key("c3-protocol-test", ["read_graph"], path=keys_file)
-    port = _free_port()
-    env = _server_env(
+    process, port = _start_http_server(_http_env(keys_file, usage_file), store_dir)
+    try:
+        yield {"url": f"http://127.0.0.1:{port}/mcp", "key": key, "usage_file": usage_file}
+    finally:
+        _stop(process)
+
+
+def _http_env(keys_file: Path, usage_file: Path) -> dict[str, str]:
+    return _server_env(
         {
             "TERE4AI_MCP_TRANSPORT": "http",
             "TERE4AI_MCP_HOST": "127.0.0.1",
-            "TERE4AI_MCP_PORT": str(port),
             "TERE4AI_MCP_KEYS": str(keys_file),
             "TERE4AI_MCP_USAGE": str(usage_file),
         }
     )
-    process = subprocess.Popen(
-        [sys.executable, "-m", "tere4ai.mcp_server.server"],
-        cwd=str(_REPO_ROOT),
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    try:
-        _wait_for_port(port, process)
-        yield {"url": f"http://127.0.0.1:{port}/mcp", "key": key, "usage_file": usage_file}
-    finally:
-        process.terminate()
-        try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=10)
 
 
 @pytest.mark.parametrize("mode", [_LEGACY, _MODERN])
@@ -196,6 +263,38 @@ def test_streamable_http_serves_both_revisions(mode, http_server):
     # The key middleware authenticated the call from the temporary store.
     usage = http_server["usage_file"].read_text(encoding="utf-8")
     assert '"tool": "coverage_report"' in usage and '"allowed": true' in usage
+    if mode == _LEGACY:
+        # C3: the logging/setLevel refusal is asserted over HTTP too (final review fix).
+        assert seen["set_level_code"] == METHOD_NOT_FOUND
+
+
+def test_the_http_server_start_retries_once_on_a_port_taken_meanwhile(tmp_path):
+    """A port picked free but taken before the server binds it: the server
+    exits with address in use and is started again on a new port."""
+    keys_file = tmp_path / "mcp_keys.json"
+    create_key("c3-port-race", ["read_graph"], path=keys_file)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        taken_port = taken.getsockname()[1]
+        ports = iter([taken_port, _free_port()])
+        process, port = _start_http_server(
+            _http_env(keys_file, tmp_path / "mcp_usage.jsonl"), tmp_path,
+            pick_port=lambda: next(ports),
+        )
+        try:
+            assert port != taken_port
+            first_stderr = (tmp_path / "server-stderr-1.log").read_text(encoding="utf-8")
+            assert _ADDRESS_IN_USE.search(first_stderr), first_stderr[-2000:]
+        finally:
+            _stop(process)
+
+
+def test_a_server_that_exits_early_names_its_stderr(tmp_path):
+    env = _server_env({"TERE4AI_MCP_TRANSPORT": "http", "TERE4AI_MCP_HOST": "127.0.0.1",
+                       "TERE4AI_MCP_REPLAY_WINDOW_SECONDS": "ten"})
+    with pytest.raises(AssertionError, match="TERE4AI_MCP_REPLAY_WINDOW_SECONDS"):
+        _start_http_server(env, tmp_path)
 
 
 # Calls that would send an MCP log message: a fastmcp Context log method,

@@ -14,10 +14,12 @@ import asyncio
 import json
 import re
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from tere4ai.extract_norms.model_clients import USAGE_KEYS
 from tere4ai.graph_store.publication import LoadedBuild
 from tere4ai.mcp_server import backlog as backlog_rules
 from tere4ai.mcp_server import elicit as elicit_rules
@@ -57,9 +59,11 @@ SCORES = {
     "judge_confidence": 0.9,
 }
 JUDGE_REPLY = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded."})
+# C3: the note says the repeated answer's usage counts are 0 (final review fix).
 NOTE_RE = re.compile(
     r"^this answer repeats the answer to an identical call made at "
-    r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ); no new model call was made$"
+    r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ); no new model call was made, so its usage "
+    r"counts are 0; the first call's usage is in the answer it returned$"
 )
 
 
@@ -101,16 +105,26 @@ class World:
 
     def __init__(self, monkeypatch, tmp_path):
         self._monkeypatch = monkeypatch
+        # C3: the window is aged by a monotonic clock; the wall clock only
+        # dates the note (final review fix). advance() moves both.
         self.now = datetime(2026, 10, 2, 12, 0, 0, tzinfo=UTC)
+        self.monotonic = 1000.0
         self.waiting = threading.Event()
         self.store = replay.ReplayStore(
-            window_seconds=600, clock=lambda: self.now, on_wait=self.waiting.set
+            window_seconds=600,
+            clock=lambda: self.monotonic,
+            wall_clock=lambda: self.now,
+            on_wait=self.waiting.set,
         )
         monkeypatch.setattr(server, "_REPLAY", self.store)
         monkeypatch.setattr(evidence_rules, "DEFAULT_LOG_PATH", tmp_path / "runtime_log.jsonl")
         self.parameters = "parameters-a"
         self.set_build("build-a")
         self.set_clients([GENERATOR_REPLY], [JUDGE_REPLY])
+
+    def advance(self, seconds):
+        self.monotonic += seconds
+        self.now += timedelta(seconds=seconds)
 
     def set_build(self, build_id):
         loaded = LoadedBuild(
@@ -150,7 +164,7 @@ def test_a_repeat_within_the_window_makes_no_model_call_and_carries_the_note(wor
     assert world.generator.calls == 1 and world.judge.calls == 1
     assert _replay_note(first) is None
 
-    world.now += timedelta(seconds=599)
+    world.advance(599)  # C3: both clocks move
     second = world.evaluate()
     assert world.generator.calls == 1 and world.judge.calls == 1, "no second model call"
     assert _replay_note(second) == "2026-10-02T12:00:00Z", "the first call's completion time"
@@ -206,21 +220,22 @@ def test_a_different_caller_pays_again(world):
 
 def test_the_window_expiring_pays_again(world):
     world.evaluate()
-    world.now += timedelta(seconds=600)
+    world.advance(600)  # C3: both clocks move
     again = world.evaluate()
     assert world.generator.calls == 2
     assert _replay_note(again) is None
 
 
 def test_the_window_comes_from_the_environment(world, monkeypatch):
-    store = replay.ReplayStore(clock=lambda: world.now)
+    # C3: the monotonic clock ages the window.
+    store = replay.ReplayStore(clock=lambda: world.monotonic, wall_clock=lambda: world.now)
     monkeypatch.setattr(server, "_REPLAY", store)
     monkeypatch.setenv("TERE4AI_MCP_REPLAY_WINDOW_SECONDS", "30")
     world.evaluate()
-    world.now += timedelta(seconds=29)
+    world.advance(29)  # C3: both clocks move
     world.evaluate()
     assert world.generator.calls == 1
-    world.now += timedelta(seconds=1)
+    world.advance(1)  # C3: both clocks move
     world.evaluate()
     assert world.generator.calls == 2
     monkeypatch.delenv("TERE4AI_MCP_REPLAY_WINDOW_SECONDS")
@@ -342,6 +357,119 @@ def test_the_store_keeps_at_most_256_answers_oldest_dropped():
     store.run(tool="t", arguments={"i": 0}, build="b", model_parameters_sha256="p",
               compute=answer(0))
     assert calls == [*range(257), 0], "the newest is kept, the oldest was dropped"
+
+
+def test_a_wall_clock_change_does_not_move_the_window(world):
+    world.evaluate()
+    world.now -= timedelta(hours=2)  # the wall clock is set back
+    world.monotonic += 1
+    repeated = world.evaluate()
+    assert world.generator.calls == 1, "one monotonic second later is inside the window"
+    assert _replay_note(repeated) == "2026-10-02T12:00:00Z", "the note keeps the wall time"
+    world.now += timedelta(days=1)  # the wall clock jumps ahead
+    world.evaluate()
+    assert world.generator.calls == 1, "a wall clock jump does not expire the answer"
+    world.monotonic += 599
+    world.evaluate()
+    assert world.generator.calls == 2, "600 monotonic seconds expire it"
+
+
+def test_the_default_clocks_are_monotonic_and_utc():
+    store = replay.ReplayStore(window_seconds=600)
+    assert store._clock is time.monotonic
+    assert store._wall_clock().tzinfo is UTC
+
+
+def _usage(calls, input_tokens, output_tokens):
+    usage = dict.fromkeys(USAGE_KEYS, 0)
+    usage.update(calls=calls, input_tokens=input_tokens, output_tokens=output_tokens,
+                 requests_sent=calls, replies_with_usage=calls)
+    return usage
+
+
+def _backlog_like_envelope():
+    """The shape generate_control_backlog's answer carries (backlog.py spend()):
+    answer.usage holds one usage record per role, or None for a client
+    without one; a batch result carries its own answer.usage the same way."""
+    return {
+        "answer": {
+            "tool": "generate_control_backlog",
+            "generator_model": "fake-generator",
+            "usage": {"generator": _usage(2, 1200, 340), "judge": _usage(1, 900, 80),
+                      "stub": None},
+            "results": [
+                {"judge_verdict": "accepted",
+                 "answer": {"assessment": "satisfied",
+                            "usage": {"generator": _usage(1, 50, 5), "judge": None}}},
+            ],
+        },
+        "judge_verdict": "accepted",
+        "legal_status_notes": [],
+    }
+
+
+def test_a_repeated_answer_reports_zero_usage_and_the_first_keeps_its_own():
+    store = replay.ReplayStore(window_seconds=600)
+
+    def run():
+        return store.run(tool="generate_control_backlog", arguments={"a": 1}, build="b",
+                         model_parameters_sha256="p", compute=_backlog_like_envelope)
+
+    first = run()
+    second = run()
+    assert first["answer"]["usage"]["generator"]["input_tokens"] == 1200
+    assert _replay_note(first) is None
+    usage = second["answer"]["usage"]
+    assert usage["generator"] == dict.fromkeys(USAGE_KEYS, 0)
+    assert usage["judge"] == dict.fromkeys(USAGE_KEYS, 0)
+    assert usage["stub"] is None, "a role without a usage record stays None"
+    batch_usage = second["answer"]["results"][0]["answer"]["usage"]
+    assert batch_usage == {"generator": dict.fromkeys(USAGE_KEYS, 0), "judge": None}
+    assert second["answer"]["generator_model"] == "fake-generator", "only counts change"
+    assert _replay_note(second) is not None
+    third = run()
+    assert third["answer"]["usage"] == usage, "the kept answer still holds the first counts"
+    assert store._kept[next(iter(store._kept))].envelope["answer"]["usage"]["judge"][
+        "output_tokens"] == 80
+
+
+def test_with_a_zero_window_an_identical_concurrent_call_does_not_wait():
+    waited = threading.Event()
+    store = replay.ReplayStore(window_seconds=0, on_wait=waited.set)
+    release = threading.Event()
+    entered = threading.Event()
+    calls = []
+
+    def held():
+        calls.append("first")
+        entered.set()
+        assert release.wait(10)
+        return {"answer": {"n": 1}, "judge_verdict": "accepted", "legal_status_notes": []}
+
+    def quick():
+        calls.append("second")
+        return {"answer": {"n": 2}, "judge_verdict": "accepted", "legal_status_notes": []}
+
+    def run(compute, results, name):
+        results[name] = store.run(tool="t", arguments={}, build="b",
+                                  model_parameters_sha256="p", compute=compute)
+
+    results = {}
+    first = threading.Thread(target=run, args=(held, results, "first"))
+    first.start()
+    try:
+        assert entered.wait(10)
+        second = threading.Thread(target=run, args=(quick, results, "second"))
+        second.start()
+        second.join(5)
+        assert not second.is_alive(), "the second call waited for the first"
+        assert not waited.is_set()
+        assert results["second"]["answer"] == {"n": 2}
+    finally:
+        release.set()
+        first.join(10)
+    assert calls == ["first", "second"]
+    assert len(store) == 0
 
 
 def test_the_key_hashes_canonical_arguments_and_never_carries_them():

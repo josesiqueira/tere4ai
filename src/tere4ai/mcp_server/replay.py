@@ -39,15 +39,22 @@ judge records when its reply cannot be read): the models answered and
 were paid.
 
 A kept answer is held in process memory for the window
-(TERE4AI_MCP_REPLAY_WINDOW_SECONDS, default 600; 0 keeps nothing). An
-identical call inside the window gets a copy of it with one line appended
-to legal_status_notes: "this answer repeats the answer to an identical
-call made at <UTC time>; no new model call was made", the time being the
-first call's completion in ISO 8601 to the second with a Z. An identical
-call while the first is running waits for it and gets its answer the same
-way; if the first fails, the waiting call makes its own model call, as a
-retry after a failure does. The store holds at most 256 answers (the
-oldest is dropped) and lives in one process: two replicas do not share it.
+(TERE4AI_MCP_REPLAY_WINDOW_SECONDS, default 600). The window is aged by a
+monotonic clock, so a change of the wall clock neither expires an answer
+nor keeps it longer; the wall clock only dates the note. An identical call
+inside the window gets a copy of it with one line appended to
+legal_status_notes: "this answer repeats the answer to an identical call
+made at <UTC time>; no new model call was made, so its usage counts are 0;
+the first call's usage is in the answer it returned", the time being the
+first call's completion in ISO 8601 to the second with a Z. In that copy
+every numeric count under answer.usage (and under each batch result's
+answer.usage) is 0, so a client that adds up usage counts the first call's
+tokens once. An identical call while the first is running waits for it
+and gets its answer the same way; if the first fails, the waiting call
+makes its own model call, as a retry after a failure does. A window of 0
+turns the guard off: every call runs its model call, keeps nothing and
+waits for nothing. The store holds at most 256 answers (the oldest is
+dropped) and lives in one process: two replicas do not share it.
 
 Threads: fastmcp 4.0.10 runs a synchronous tool in a worker thread
 (anyio.to_thread.run_sync, which copies the context, so CALLER set by the
@@ -65,6 +72,7 @@ import logging
 import math
 import os
 import threading
+import time
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -77,7 +85,8 @@ MAX_ENTRIES = 256
 LOCAL_CALLER = "local"
 NOTE = (
     "this answer repeats the answer to an identical call made at {time}; "
-    "no new model call was made"
+    "no new model call was made, so its usage counts are 0; "
+    "the first call's usage is in the answer it returned"
 )
 
 # Verdicts an envelope carries when no judged answer exists (evidence.py
@@ -162,18 +171,45 @@ def _utc_second(moment: datetime) -> str:
     return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _zero_counts(usage: Any) -> Any:
+    """usage with every number (not a bool) set to 0, nested dicts walked;
+    None and any other value stay as they are."""
+    if isinstance(usage, dict):
+        return {key: _zero_counts(value) for key, value in usage.items()}
+    if isinstance(usage, int | float) and not isinstance(usage, bool):
+        return 0
+    return usage
+
+
+def _zero_usage(answer: Any) -> None:
+    """Set the usage counts of an answer, and of each batch result's answer,
+    to 0 in place (backlog.py spend() puts them in answer.usage)."""
+    if not isinstance(answer, dict):
+        return
+    if "usage" in answer:
+        answer["usage"] = _zero_counts(answer["usage"])
+    results = answer.get("results")
+    if isinstance(results, list):
+        for result in results:
+            if isinstance(result, dict):
+                _zero_usage(result.get("answer"))
+
+
 @dataclass(frozen=True)
 class _Kept:
     envelope: dict[str, Any]
-    completed: datetime
+    completed_at: float  # the monotonic clock, for the window
+    completed: datetime  # the wall clock (UTC), for the note
 
 
 class ReplayStore:
     """The per-process store of kept answers and running calls.
 
     window_seconds None reads TERE4AI_MCP_REPLAY_WINDOW_SECONDS on every
-    call. clock returns the current time (UTC); on_wait is called when a
-    call starts waiting for an identical running one (tests use both).
+    call. clock returns monotonic seconds and ages the window (default
+    time.monotonic); wall_clock returns the current UTC time and only dates
+    the note; on_wait is called when a call starts waiting for an identical
+    running one (tests inject all three).
     """
 
     def __init__(
@@ -181,12 +217,14 @@ class ReplayStore:
         *,
         window_seconds: float | None = None,
         max_entries: int = MAX_ENTRIES,
-        clock: Callable[[], datetime] | None = None,
+        clock: Callable[[], float] | None = None,
+        wall_clock: Callable[[], datetime] | None = None,
         on_wait: Callable[[], None] | None = None,
     ) -> None:
         self._window = window_seconds
         self._max_entries = max_entries
-        self._clock = clock or (lambda: datetime.now(UTC))
+        self._clock = clock or time.monotonic
+        self._wall_clock = wall_clock or (lambda: datetime.now(UTC))
         self._on_wait = on_wait
         self._lock = threading.Lock()
         self._kept: OrderedDict[str, _Kept] = OrderedDict()
@@ -203,11 +241,11 @@ class ReplayStore:
     def _window_seconds(self) -> float:
         return window_seconds() if self._window is None else float(self._window)
 
-    def _fresh(self, key: str, now: datetime, window: float) -> _Kept | None:
+    def _fresh(self, key: str, now: float, window: float) -> _Kept | None:
         kept = self._kept.get(key)
         if kept is None:
             return None
-        if (now - kept.completed).total_seconds() < window:
+        if now - kept.completed_at < window:
             return kept
         del self._kept[key]
         return None
@@ -223,6 +261,8 @@ class ReplayStore:
     ) -> dict[str, Any]:
         """compute() unless an identical call's answer is kept or running."""
         window = self._window_seconds()
+        if window <= 0:
+            return compute()
         key = replay_key(
             caller=current_caller(),
             tool=tool,
@@ -244,10 +284,10 @@ class ReplayStore:
             running.wait()
         try:
             envelope = compute()
-            if window > 0 and is_kept_answer(envelope):
-                completed = self._clock()
+            if is_kept_answer(envelope):
+                completed_at, completed = self._clock(), self._wall_clock()
                 with self._lock:
-                    self._kept[key] = _Kept(copy.deepcopy(envelope), completed)
+                    self._kept[key] = _Kept(copy.deepcopy(envelope), completed_at, completed)
                     self._kept.move_to_end(key)
                     while len(self._kept) > self._max_entries:
                         self._kept.popitem(last=False)
@@ -260,6 +300,7 @@ class ReplayStore:
     @staticmethod
     def _repeat(tool: str, kept: _Kept) -> dict[str, Any]:
         envelope = copy.deepcopy(kept.envelope)
+        _zero_usage(envelope.get("answer"))
         notes = list(envelope.get("legal_status_notes") or [])
         notes.append(NOTE.format(time=_utc_second(kept.completed)))
         envelope["legal_status_notes"] = notes
