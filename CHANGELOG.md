@@ -5,6 +5,45 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B122: every fact of the features schema in the Act's words (2026-10-03)
+- The 25 flags of `schema/json_schemas/system_features.schema.json` that
+  had no description now have one, and the six that named a provision
+  without quoting it quote it: each names its provision, quotes the Act's
+  words and says how the classifier reads the fact, as DEC-18 did for the
+  newer facts. The two Digital Omnibus prohibitions keep their
+  descriptions, which cite the amending act (no node in the graph).
+- `tests/unit/test_features_schema_descriptions.py` fails on a flag with no
+  description or no provision, and on any quoted passage that is not the
+  text of a node of the Layer 1 dump.
+- The schema's digest changes; the elicitor reads the schema for flag
+  names and validation only, so its prompt does not change.
+
+### B121: the alignment run records its generator's effort (2026-10-03)
+- The HLEG alignment pipeline's MappingRun records `generator_effort` and
+  `generator_temperature` (spec F D-F22, D-F29), as its JudgeRun records
+  the judge's; `alignments.schema.json` declares both.
+- Contract change: `trace_alignment`'s `mapping_run` carries
+  `generator_effort` and `generator_temperature`, null for a dump made
+  before this change. The session report's mapping run line shows the
+  effort beside the model id.
+
+### B128: the hand-made test set gets two labels on every case (2026-10-03)
+- `eval/gold/ANNOTATION_PROTOCOL.md`: two annotators label every case
+  independently, agreement is computed before adjudication with a
+  chance-corrected statistic, and disagreements are adjudicated by a
+  person who did not produce them (spec G Sections 6 and 10.4, in the
+  private research repository). A label comes from the Act, never from the
+  classifier: the rule that seed classification labels agree with the
+  classifier, and its test, are removed.
+- `eval/gold/gold_seed.json`: `second_annotator` is replaced by `labels`
+  (empty until labelled) and `adjudication` (null); `gold` and
+  `gold_citations` stay the harness's fields.
+- `scripts/draft_gold_candidates.py`: drafts carry no label (classification
+  drafts no longer call the classifier, question drafts no longer take
+  their answer from the extracted norms), ids are numbered so they do not
+  name the answer, and the second-annotator draw and `--subset-seed` are
+  removed.
+
 ### B90: one public source explaining the MCP server (2026-10-03)
 - The web demo shows the non-legal-advice notice from one module,
   `web/src/lib/notice.ts`, which mirrors `NON_LEGAL_ADVICE_NOTICE` in
