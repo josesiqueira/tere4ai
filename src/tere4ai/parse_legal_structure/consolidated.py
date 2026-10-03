@@ -62,7 +62,6 @@ from tere4ai.parse_legal_structure.parser import (
 from tere4ai.parse_legal_structure.units import UnitTree, formex_text, read_text_units
 
 HTML_FILE = "eu_ai_act_32024R1689_eurlex_html_2026-07-08.html"
-HTML_FILE = "eu_ai_act_32024R1689_eurlex_html_2026-07-08.html"
 CONSOLIDATED_REL = "formex/CL2024R1689EN0010010.0001.xml"
 OMNIBUS_MAIN_REL = "formex/L_202601744EN.000101.fmx.xml"
 OMNIBUS_ANNEX_REL = "formex/L_202601744EN.003601.fmx.xml"
