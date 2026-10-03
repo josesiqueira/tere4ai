@@ -98,15 +98,30 @@ def resolve_span(
         raise SpanIntegrityError(
             f"span '{span_id}' carries invalid offsets start={start!r} end={end!r}"
         )
-    text = raw.decode("utf-8", errors="replace")[start:end]
-    return {
+    # Since B132 a span may list ranges left out of its text (the wording the
+    # Omnibus deleted, which the consolidated file keeps in place).
+    decoded = raw.decode("utf-8", errors="replace")
+    exclude = span.get("exclude") or []
+    pieces, pos = [], start
+    for cut in exclude:
+        cut_start = cut.get("start") if isinstance(cut, dict) else None
+        cut_end = cut.get("end") if isinstance(cut, dict) else None
+        if not (isinstance(cut_start, int) and isinstance(cut_end, int) and pos <= cut_start <= cut_end <= end):
+            raise SpanIntegrityError(f"span '{span_id}' carries an invalid exclude range {cut!r}")
+        pieces.append(decoded[pos:cut_start])
+        pos = cut_end
+    pieces.append(decoded[pos:end])
+    resolved = {
         "span_id": span_id,
         "snapshot_file": snapshot_file,
         "sha256": actual,
         "start": start,
         "end": end,
-        "text": text,
+        "text": "".join(pieces),
     }
+    if exclude:
+        resolved["exclude"] = [{"start": c["start"], "end": c["end"]} for c in exclude]
+    return resolved
 
 
 def resolve_span_envelope(
@@ -151,6 +166,7 @@ def resolve_span_envelope(
                 "snapshot_sha256": resolved["sha256"],
                 "start": resolved["start"],
                 "end": resolved["end"],
+                **({"exclude": resolved["exclude"]} if "exclude" in resolved else {}),
             }
         ],
     )

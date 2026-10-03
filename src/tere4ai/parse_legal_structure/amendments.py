@@ -585,3 +585,23 @@ def _rest_failure(unit_id: str, cons_text: str, start: int, end: int, exclude: l
     if old[pos:].strip() and not pending:
         return f"{unit_id}: its 2024 text ends with {old[pos:].strip()[:40]!r} where nothing was replaced"
     return None
+
+
+def is_deleted(node: dict[str, Any] | None) -> bool:
+    """A Layer 1 node the Omnibus deleted: it keeps its id and has no text or span."""
+    return isinstance(node, dict) and node.get("amendment") == "deleted"
+
+
+def deleted_note(node: dict[str, Any]) -> str:
+    """The answer for a deleted unit: Deleted by <act, point>, from 27 July 2026."""
+    return f"Deleted by {node['deleted_by']}, from 27 July 2026."
+
+
+def version_node_id(unit_id: str) -> str:
+    """The earlier version's node id; it never starts with eu-ai-act, so no prefix walk meets it."""
+    return f"version:{VERSION_DATE}:{unit_id}"
+
+
+def version_span_id(span_name: str) -> str:
+    """span:010.005 -> span:010.005@2024-07-12, never the id of an in-force span."""
+    return f"{span_name}@{VERSION_DATE}"

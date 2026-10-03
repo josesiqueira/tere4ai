@@ -7,7 +7,8 @@ Each point of Article 3, paragraph 1 (eu-ai-act:article-3:paragraph-1:point-N)
 defines exactly one term. In the Formex 4 manifestation the term sits between
 a QUOT.START and a QUOT.END marker at the start of the point (the typographic
 quotes of the OJ rendering), so the term is extracted from the frozen Formex
-main-body file at the point's own source span, never guessed. Each term
+file the point's own source span names (since B132 the consolidated text),
+never guessed. Each term
 becomes a Definition node (docs/architecture.md Section 1, Layer 1):
 
     eu-ai-act:definition:<slug-of-term>  {term, text, layer 1}
@@ -32,16 +33,12 @@ No LLM or model client is used anywhere in this module (DEC-01).
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
 
-from tere4ai.parse_legal_structure.formex import (
-    MAIN_BODY_FILE,
-    _load_formex_manifest,
-    _sha256,
-    _strip_text,
-)
+from tere4ai.parse_legal_structure.formex import _sha256, _strip_text
 from tere4ai.parse_legal_structure.labels import sort_key
 from tere4ai.parse_legal_structure.parser import (
     DEFAULT_MANIFEST_PATH,
@@ -104,26 +101,15 @@ def enrich_with_definitions(
     """Append Definition nodes, DEFINES_TERM edges, and CONTEXT_FOR usage
     edges to a Formex-enriched Layer 1 dump.
 
-    Verifies the frozen main-body member file against MANIFEST.json first
-    (frozen-source rule). Raises (never guesses) when an Article 3 point has
+    Verifies the Formex file of the defining points (the 2024 main body, or
+    since B132 the consolidated text) against MANIFEST.json (frozen-source
+    rule). Raises (never guesses) when an Article 3 point has
     no quoted term or two terms collide on the same slug.
     """
     manifest_path = Path(manifest_path)
     if formex_dir is None:
         formex_dir = manifest_path.parent / "formex"
     formex_dir = Path(formex_dir)
-
-    shas = _load_formex_manifest(manifest_path)
-    rel = f"formex/{MAIN_BODY_FILE}"
-    if rel not in shas:
-        raise ValueError(f"{rel} is not listed in {manifest_path}")
-    path = formex_dir / MAIN_BODY_FILE
-    sha256 = _sha256(path)
-    if sha256 != shas[rel]:
-        raise ValueError(
-            f"snapshot checksum mismatch for {rel}: manifest {shas[rel]}, file {sha256}"
-        )
-    text = path.read_text(encoding="utf-8")
 
     build_id = dump["build"]["build_id"]
     node_ids = {n["id"] for n in dump["nodes"]}
@@ -138,6 +124,23 @@ def enrich_with_definitions(
             "no Article 3 paragraph 1 points in the dump; run the Formex pass first"
         )
     points.sort(key=lambda n: sort_key(_DEFINITION_POINT_ID.match(n["id"]).group(1)))
+    # The defining points come from one Formex file (the 2024 main body, or
+    # since B132 the consolidated text); it is verified against MANIFEST.json.
+    files = {p["source_span"]["snapshot_file"] for p in points}
+    if len(files) != 1:
+        raise ValueError(f"the Article 3 points cite {len(files)} files, expected one: {sorted(files)}")
+    rel = files.pop()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    shas = {entry["file"]: entry["sha256"] for entry in manifest["snapshots"]}
+    if rel not in shas:
+        raise ValueError(f"{rel} is not listed in {manifest_path}")
+    path = formex_dir / rel.removeprefix("formex/")
+    sha256 = _sha256(path)
+    if sha256 != shas[rel]:
+        raise ValueError(
+            f"snapshot checksum mismatch for {rel}: manifest {shas[rel]}, file {sha256}"
+        )
+    text = path.read_text(encoding="utf-8")
 
     candidates = _usage_candidates(dump)
 
@@ -198,6 +201,7 @@ def enrich_with_definitions(
                 "text": point.get("text", ""),
                 "usage_count_total": len(matches),
                 "usage_count_linked": len(linked),
+                **{k: point[k] for k in ("enacted_by", "amendment") if k in point},
                 "source_span": def_span,
             }
         )
