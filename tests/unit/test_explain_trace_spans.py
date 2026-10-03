@@ -336,3 +336,22 @@ def test_explain_carries_the_type_only_when_the_norm_has_it(dump, norms_payload,
     }
     typed = explain_requirement(ACCEPTED_NORM_ID, dump, typed_payload, alignments_payload)
     assert typed["answer"]["deontic"]["requirement_type"] == "process"
+
+
+@pytest.mark.parametrize("shape", ["reversed", "outside", "overlapping"])
+def test_resolve_span_refuses_an_invalid_exclude_range(dump, shape):
+    """Final review M10: an exclude range out of order, outside the span or
+    overlapping the one before it is an integrity failure, never a wrong slice."""
+    import copy
+
+    edited = copy.deepcopy(dump)
+    node = next(n for n in edited["nodes"] if n["id"] == "eu-ai-act:article-10")
+    span = node["source_span"]
+    cut = span["exclude"][0]
+    span["exclude"] = {
+        "reversed": [{"start": cut["end"], "end": cut["start"]}],
+        "outside": [{"start": span["end"] + 1, "end": span["end"] + 9}],
+        "overlapping": [cut, {"start": cut["start"] + 1, "end": cut["end"]}],
+    }[shape]
+    with pytest.raises(SpanIntegrityError, match="invalid exclude range"):
+        resolve_span(span["span_id"], edited, SNAPSHOTS_DIR)

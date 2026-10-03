@@ -109,3 +109,20 @@ def test_coverage_report_reads_article_labels():
     assert answer["per_chapter_articles"]["III"][:3] == ["6", "7", "8"]
     assert answer["per_chapter_articles"]["XIII"][-1] == "113"
     assert answer["actual"]["deleted_units"] == 0
+
+
+def test_usage_links_read_a_letter_suffixed_article(monkeypatch):
+    """Final review M2: the usage scan reads the Article label of a node id, so an
+    Article such as 4a is matched like 5 (whether it is scanned is CORE_ARTICLES')."""
+    from tere4ai.parse_legal_structure import definitions
+
+    span = {"span_id": "span:x", "snapshot_file": "f", "snapshot_sha256": "0" * 64, "start": 0, "end": 1}
+    dump = {"nodes": [
+        {"id": "eu-ai-act:article-4a:paragraph-1", "type": "Paragraph", "text": "a text", "source_span": span},
+        {"id": "eu-ai-act:article-5:paragraph-1", "type": "Paragraph", "text": "a text", "source_span": span},
+        {"id": "eu-ai-act:article-4:paragraph-1", "type": "Paragraph", "text": "a text", "source_span": span},
+    ]}
+    assert [c[0] for c in definitions._usage_candidates(dump)] == ["eu-ai-act:article-5:paragraph-1"]
+    monkeypatch.setattr(definitions, "CORE_ARTICLES", definitions.CORE_ARTICLES | {"4a"})
+    assert [c[0] for c in definitions._usage_candidates(dump)] == [
+        "eu-ai-act:article-4a:paragraph-1", "eu-ai-act:article-5:paragraph-1"]

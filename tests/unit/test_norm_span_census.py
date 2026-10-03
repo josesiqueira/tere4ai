@@ -63,7 +63,7 @@ def census():
 
 def test_census_covers_every_published_accepted_norm(census):
     norms_payload, accepted, _, _ = census
-    on_deleted_units = 14  # Article 10(5) and its point (c), deleted by the Omnibus (B132)
+    on_deleted_units = 14  # Article 10, paragraph 5 and its points (c) to (f), deleted by the Omnibus (B132)
     assert len(accepted) + on_deleted_units == norms_payload["stats"]["verdicts"]["accepted"], (
         "accepted norms in the dump disagree with the dump's own stats block"
     )

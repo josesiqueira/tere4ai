@@ -70,8 +70,10 @@ def test_invalid_json_retries_then_none(dump):
 def test_default_prompt_carries_the_dump_verbatim_article_3_definitions():
     """Missing-context audit F3: the elicitor sets flags whose terms have
     binding Article 3 definitions; the default prompt embeds those definitions
-    VERBATIM from the graph dump. This guard fails if the prompt's definition
-    text ever drifts from the dump's."""
+    from the graph dump. The comparison ignores only the quotation marks
+    around the defined term, which the Formex text keeps and the prompt leaves
+    out. This guard fails if the prompt's definition text ever drifts from
+    the dump's."""
     import json
     from pathlib import Path
 

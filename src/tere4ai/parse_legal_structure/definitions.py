@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from tere4ai.parse_legal_structure.formex import _sha256, _strip_text
-from tere4ai.parse_legal_structure.labels import sort_key
+from tere4ai.parse_legal_structure.labels import LABEL_PATTERN, sort_key
 from tere4ai.parse_legal_structure.parser import (
     DEFAULT_MANIFEST_PATH,
     REGULATION_ID,
@@ -51,13 +51,14 @@ DEFINES_TERM_METHOD = "definition_quot_v1"
 USAGE_METHOD = "definition_usage_v1"
 USAGE_CAP = 30
 
-# The v2 high-risk core articles (docs/architecture.md Section 10).
-CORE_ARTICLES = frozenset(range(5, 28)) | {50, 72, 73}
+# The v2 high-risk core articles (docs/architecture.md Section 10), by the
+# Act's labels (labels.py), so a letter-suffixed Article is compared like any.
+CORE_ARTICLES = frozenset(str(n) for n in range(5, 28)) | {"50", "72", "73"}
 
 _DEFINITION_POINT_ID = re.compile(
     rf"^{REGULATION_ID}:article-3:paragraph-1:point-(\d+[a-z]?)$"
 )
-_ARTICLE_OF_ID = re.compile(rf"^{REGULATION_ID}:article-(\d+):")
+_ARTICLE_OF_ID = re.compile(rf"^{REGULATION_ID}:article-({LABEL_PATTERN}):")
 _ANNEX_ITEM_PREFIX = f"{REGULATION_ID}:annex-"
 # First quoted term of a Formex fragment: the OJ typographic quotes are
 # self-closing QUOT.START / QUOT.END elements around the defined term.
@@ -86,7 +87,7 @@ def _usage_candidates(dump: dict[str, Any]) -> list[tuple[str, str, str]]:
             continue
         if node_type in ("Paragraph", "Point", "Subparagraph"):
             match = _ARTICLE_OF_ID.match(node["id"])
-            if match and int(match.group(1)) in CORE_ARTICLES:
+            if match and match.group(1) in CORE_ARTICLES:
                 candidates.append((node["id"], text, span_id))
         elif node_type == "AnnexItem" and node["id"].startswith(_ANNEX_ITEM_PREFIX):
             candidates.append((node["id"], text, span_id))
@@ -150,10 +151,6 @@ def enrich_with_definitions(
 
     for point in points:
         span = point["source_span"]
-        if span["snapshot_file"] != rel:
-            raise ValueError(
-                f"{point['id']} span cites {span['snapshot_file']}, expected {rel}"
-            )
         fragment = text[span["start"] : span["end"]]
         match = _QUOT_TERM.search(fragment)
         if match is None:
