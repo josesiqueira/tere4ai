@@ -35,6 +35,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from tere4ai.parse_legal_structure.labels import label_of, sort_key
+
 REGULATION_ID = "eu-ai-act"
 REGULATION_TITLE = "Regulation (EU) 2024/1689 (Artificial Intelligence Act)"
 TERE4AI_VERSION = "2.0.0a0"
@@ -50,9 +52,9 @@ _RE_CHAPTER = re.compile(r"^cpt_([IVXLC]+)$")
 _RE_CHAPTER_TITLE = re.compile(r"^cpt_([IVXLC]+)\.tit_1$")
 _RE_SECTION = re.compile(r"^cpt_([IVXLC]+)\.sct_(\d+)$")
 _RE_SECTION_TITLE = re.compile(r"^cpt_([IVXLC]+)\.sct_(\d+)\.tit_1$")
-_RE_ARTICLE = re.compile(r"^art_(\d+)$")
-_RE_ARTICLE_TITLE = re.compile(r"^art_(\d+)\.tit_1$")
-_RE_PARAGRAPH = re.compile(r"^(\d{3})\.(\d{3})$")
+_RE_ARTICLE = re.compile(r"^art_(\d+[a-z]?)$")
+_RE_ARTICLE_TITLE = re.compile(r"^art_(\d+[a-z]?)\.tit_1$")
+_RE_PARAGRAPH = re.compile(r"^(\d{3}[a-z]?)\.(\d{3}[a-z]?)$")
 _RE_RECITAL = re.compile(r"^rct_(\d+)$")
 _RE_ANNEX = re.compile(r"^anx_([IVXLC]+)$")
 
@@ -142,8 +144,8 @@ def _collect_anchors(text: str) -> tuple[list[_Anchor], dict[str, int]]:
     titles: dict[str, int] = {}
     current_chapter: str | None = None
     current_section: int | None = None
-    current_article: int | None = None
-    seen_paragraph_ids: set[tuple[int, int]] = set()
+    current_article: str | None = None
+    seen_paragraph_ids: set[tuple[str, str]] = set()
 
     for match in _RE_ID_ATTR.finditer(text):
         anchor_id = match.group(1)
@@ -170,7 +172,7 @@ def _collect_anchors(text: str) -> tuple[list[_Anchor], dict[str, int]]:
             continue
         m = _RE_ARTICLE.match(anchor_id)
         if m:
-            current_article = int(m.group(1))
+            current_article = label_of(m.group(1))
             structural.append(
                 _Anchor(
                     "article",
@@ -184,7 +186,7 @@ def _collect_anchors(text: str) -> tuple[list[_Anchor], dict[str, int]]:
             continue
         m = _RE_PARAGRAPH.match(anchor_id)
         if m:
-            art_no, par_no = int(m.group(1)), int(m.group(2))
+            art_no, par_no = label_of(m.group(1)), label_of(m.group(2))
             # Accept only anchors whose article prefix matches the containing
             # article; mismatches are quoted text of amended acts (see module
             # docstring) and are not paragraphs of this Regulation.
@@ -314,6 +316,7 @@ def parse_snapshot(snapshot_path: Path) -> dict[str, Any]:
                     "layer": 1,
                     "type": "Article",
                     "number": anchor.number,
+                    "sort_key": sort_key(anchor.number),
                     "title": _title_from_div(text, title_pos) if title_pos is not None else "",
                     "source_span": span,
                 }
@@ -338,6 +341,7 @@ def parse_snapshot(snapshot_path: Path) -> dict[str, Any]:
                     "layer": 1,
                     "type": "Paragraph",
                     "index": anchor.number,
+                    "sort_key": sort_key(anchor.number),
                     "text": _strip_text(text[anchor.start : anchor.end]),
                     "source_span": span,
                 }
@@ -406,7 +410,8 @@ def parse_snapshot(snapshot_path: Path) -> dict[str, Any]:
                 "id": node_id,
                 "layer": 1,
                 "type": "Paragraph",
-                "index": 1,
+                "index": "1",
+                "sort_key": 100,
                 "text": _strip_text(text[body_start : anchor.end]),
                 "source_span": span,
             }

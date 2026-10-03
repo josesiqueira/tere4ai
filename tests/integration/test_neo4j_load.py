@@ -61,6 +61,6 @@ def test_constraints_and_load_round_trip(driver):
 def test_crossref_queryable(driver):
     with driver.session() as s:
         annexes = s.run(
-            "MATCH (:Article {number: 6})-[:REFERS_TO]->(x:Annex) RETURN collect(x.number) AS a"
+            "MATCH (:Article {number: '6'})-[:REFERS_TO]->(x:Annex) RETURN collect(x.number) AS a"
         ).single()["a"]
     assert set(annexes) >= {"I", "III"}

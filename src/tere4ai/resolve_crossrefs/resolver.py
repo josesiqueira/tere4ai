@@ -85,8 +85,9 @@ def _int_to_roman(number: int) -> str:
 # Mention grammars.
 # ---------------------------------------------------------------------------
 
-# An article number, optionally with a paragraph designator: 6, 6(2).
-_NUM = r"\d+(?:\(\d+\))?"
+# An article number, optionally with a paragraph designator: 6, 6(2), and
+# since B132 the letter-suffixed numbers the Omnibus inserted: 4a, 5(1a).
+_NUM = r"\d+[a-z]?(?:\(\d+[a-z]?\))?"
 # Connectors inside a list of numbers: ", " / " and " / " or " / " to ".
 _CONN = r"(?:\s*,\s*|\s+and\s+|\s+or\s+|\s+to\s+)"
 # A valid Roman numeral, not running into a longer word ("Annex Implementation").
@@ -127,7 +128,8 @@ _EXT_BEFORE = re.compile(
 
 _EXTERNAL_WINDOW = 60
 
-_PARAGRAPH_ID = re.compile(r"^(?P<article>.*:article-\d+):paragraph-\d+$")
+_PARAGRAPH_ID = re.compile(r"^(?P<article>.*:article-\d+[a-z]?):paragraph-\d+[a-z]?$")
+_LABEL = re.compile(r"\d+[a-z]?")
 _TOKEN_TO = re.compile(rf"{_NUM}|\bto\b")
 _TOKEN_ROMAN_TO = re.compile(rf"{_ROMAN_TOKEN}|\bto\b")
 
@@ -168,33 +170,50 @@ def _expand(tokens: list[str], to_int) -> list[int]:
     return numbers
 
 
+def _expand_labels(tokens: list[str]) -> list[str]:
+    """Article labels of a token list: ['8', 'to', '15'] gives 8 to 15; a range
+    with a letter-suffixed end (none in the Act) keeps only its two ends."""
+    labels: list[str] = []
+    prev: str | None = None
+    pending_range = False
+    for token in tokens:
+        if token == "to":
+            pending_range = prev is not None
+            continue
+        label = _LABEL.match(token).group(0)
+        if pending_range and prev is not None and prev.isdigit() and label.isdigit() and int(label) > int(prev):
+            labels.extend(str(n) for n in range(int(prev) + 1, int(label) + 1))
+        else:
+            labels.append(label)
+        prev = label
+        pending_range = False
+    return labels
+
+
 def _article_targets(citation: str) -> list[str]:
-    tokens = _TOKEN_TO.findall(citation)
-    numbers = _expand(tokens, lambda t: int(re.match(r"\d+", t).group(0)))
-    return [f"{NODE_ID_PREFIX}:article-{n}" for n in numbers]
+    return [f"{NODE_ID_PREFIX}:article-{label}" for label in _expand_labels(_TOKEN_TO.findall(citation))]
 
 
 def _precise_article_targets(citation: str, node_ids: set[str]) -> list[str]:
     """Article targets refined to paragraph level where determinable.
 
     A token like "6(2)" resolves to eu-ai-act:article-6:paragraph-2 when
-    that node exists in the dump; bare numbers and range expansions stay at
-    article level. Order and dedup follow first occurrence.
+    that node exists in the dump ("5(1a)" to paragraph-1a); bare numbers and
+    range expansions stay at article level. Order and dedup follow first
+    occurrence.
     """
     tokens = _TOKEN_TO.findall(citation)
-    coarse = _expand(tokens, lambda t: int(re.match(r"\d+", t).group(0)))
-    precise_by_article: dict[int, str] = {}
+    precise_by_article: dict[str, str] = {}
     for token in tokens:
-        match = re.match(r"(\d+)\((\d+)\)", token)
+        match = re.match(r"(\d+[a-z]?)\((\d+[a-z]?)\)", token)
         if not match:
             continue
-        article_no, paragraph_no = int(match.group(1)), int(match.group(2))
-        candidate = f"{NODE_ID_PREFIX}:article-{article_no}:paragraph-{paragraph_no}"
+        candidate = f"{NODE_ID_PREFIX}:article-{match.group(1)}:paragraph-{match.group(2)}"
         if candidate in node_ids:
-            precise_by_article[article_no] = candidate
+            precise_by_article[match.group(1)] = candidate
     targets: list[str] = []
-    for number in coarse:
-        target = precise_by_article.get(number, f"{NODE_ID_PREFIX}:article-{number}")
+    for label in _expand_labels(tokens):
+        target = precise_by_article.get(label, f"{NODE_ID_PREFIX}:article-{label}")
         if target not in targets:
             targets.append(target)
     return targets
@@ -239,7 +258,12 @@ def resolve(dump: dict) -> dict:
     build_id = dump.get("build", {}).get("build_id", "")
     nodes = dump.get("nodes", [])
     existing_edges = dump.get("edges", [])
-    node_ids = {n["id"] for n in nodes if "id" in n}
+    # A deleted unit or an earlier version is never a target (B132, D-G68 (3)):
+    # a mention of Article 10(5) resolves to Article 10.
+    node_ids = {
+        n["id"] for n in nodes
+        if "id" in n and n.get("amendment") != "deleted" and n.get("type") != "UnitVersion"
+    }
     has_paragraph_parents = {
         e["to"]: e["from"] for e in existing_edges if e.get("edge_type") == "HAS_PARAGRAPH"
     }

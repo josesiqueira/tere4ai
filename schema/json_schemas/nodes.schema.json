@@ -19,12 +19,43 @@
         "snapshot_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "start": { "type": "integer", "minimum": 0 },
         "end": { "type": "integer", "minimum": 0 },
-        "anchor": { "type": "string", "description": "The HTML anchor id this span was located by, e.g. art_9, rct_12, 009.001" }
+        "anchor": { "type": "string", "description": "The HTML anchor id this span was located by, e.g. art_9, rct_12, 009.001" },
+        "exclude": {
+          "type": "array",
+          "description": "Ranges inside [start, end) left out of the span's text: wording the Digital Omnibus deleted, which the consolidated file keeps in place (B132, spec G D-G68 (1)).",
+          "items": {
+            "type": "object",
+            "required": ["start", "end"],
+            "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     },
     "legalStatus": {
       "enum": ["in_force", "adopted_not_yet_applicable", "proposed", "draft", "non_binding", "superseded", "unknown_needs_review"]
+    },
+    "label": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*[a-z]?$",
+      "description": "The Act's own number of an Article or a paragraph, letter suffix included: 4, 4a, 1a (B132)"
+    },
+    "sortKey": {
+      "type": "integer",
+      "minimum": 100,
+      "description": "The Act's order of labels: the number times 100 plus the letter's place, 4 -> 400, 4a -> 401"
+    },
+    "amendment": {
+      "enum": ["unchanged", "replaced", "inserted", "composed", "deleted"],
+      "description": "What the Digital Omnibus did to the unit (spec G D-G68 (2)); a container whose children come from both acts is composed"
+    },
+    "spanOrDeleted": {
+      "description": "An in-force unit has a source span; a unit the Omnibus deleted has none and says by which point and from when (D-G68 (3))",
+      "anyOf": [
+        { "required": ["source_span"] },
+        { "required": ["amendment", "deleted_by", "deleted_from"], "properties": { "amendment": { "const": "deleted" } } }
+      ]
     },
     "baseNode": {
       "type": "object",
@@ -33,7 +64,11 @@
         "id": { "$ref": "#/$defs/nodeId" },
         "layer": { "type": "integer", "minimum": 0, "maximum": 4 },
         "type": { "type": "string" },
-        "source_span": { "$ref": "#/$defs/sourceSpan" }
+        "source_span": { "$ref": "#/$defs/sourceSpan" },
+        "enacted_by": { "type": "string", "description": "The act, and the Omnibus point, whose wording the unit is, or composed (B132)" },
+        "amendment": { "$ref": "#/$defs/amendment" },
+        "deleted_by": { "type": "string" },
+        "deleted_from": { "type": "string" }
       }
     }
   },
@@ -49,6 +84,8 @@
         "eli": { "type": "string" },
         "legal_status": { "$ref": "#/$defs/legalStatus" },
         "merged_into_base": { "type": "boolean" },
+        "merged_on": { "type": "string" },
+        "marker_list_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "notes": { "type": "string" }
       },
       "required": ["title", "legal_status"]
@@ -116,32 +153,34 @@
       "properties": {
         "type": { "const": "Article" },
         "layer": { "const": 1 },
-        "number": { "type": "integer", "minimum": 1, "maximum": 113 },
+        "number": { "$ref": "#/$defs/label" },
+        "sort_key": { "$ref": "#/$defs/sortKey" },
         "title": { "type": "string" }
       },
-      "required": ["number", "source_span"]
+      "required": ["number", "sort_key", "source_span"]
     },
     {
       "title": "Paragraph (Layer 1)",
-      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "allOf": [{ "$ref": "#/$defs/baseNode" }, { "$ref": "#/$defs/spanOrDeleted" }],
       "properties": {
         "type": { "const": "Paragraph" },
         "layer": { "const": 1 },
-        "index": { "type": "integer", "minimum": 1 },
+        "index": { "$ref": "#/$defs/label" },
+        "sort_key": { "$ref": "#/$defs/sortKey" },
         "text": { "type": "string" }
       },
-      "required": ["index", "source_span"]
+      "required": ["index", "sort_key"]
     },
     {
       "title": "Subparagraph (Layer 1; populated from Formex ALINEA)",
-      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "allOf": [{ "$ref": "#/$defs/baseNode" }, { "$ref": "#/$defs/spanOrDeleted" }],
       "properties": {
         "type": { "const": "Subparagraph" },
         "layer": { "const": 1 },
         "index": { "type": "integer", "minimum": 2, "description": "1-based ALINEA ordinal within the paragraph; the leading text block (ordinal 1) gets no node" },
         "text": { "type": "string" }
       },
-      "required": ["index", "source_span"]
+      "required": ["index"]
     },
     {
       "title": "CrossReference (Layer 1; reified citation occurrence)",
@@ -169,14 +208,14 @@
     },
     {
       "title": "Point (Layer 1; populated from Formex in M2)",
-      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "allOf": [{ "$ref": "#/$defs/baseNode" }, { "$ref": "#/$defs/spanOrDeleted" }],
       "properties": {
         "type": { "const": "Point" },
         "layer": { "const": 1 },
         "marker": { "type": "string" },
         "text": { "type": "string" }
       },
-      "required": ["marker", "source_span"]
+      "required": ["marker"]
     },
     {
       "title": "Recital (Layer 1)",
@@ -203,14 +242,31 @@
     },
     {
       "title": "AnnexItem (Layer 1; populated from Formex in M2)",
-      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "allOf": [{ "$ref": "#/$defs/baseNode" }, { "$ref": "#/$defs/spanOrDeleted" }],
       "properties": {
         "type": { "const": "AnnexItem" },
         "layer": { "const": 1 },
         "marker": { "type": "string" },
         "text": { "type": "string" }
       },
-      "required": ["marker", "source_span"]
+      "required": ["marker"]
+    },
+    {
+      "title": "UnitVersion (Layer 1; the 2024 wording of a unit the Digital Omnibus changed, B132)",
+      "allOf": [{ "$ref": "#/$defs/baseNode" }],
+      "properties": {
+        "type": { "const": "UnitVersion" },
+        "layer": { "const": 1 },
+        "unit_id": { "$ref": "#/$defs/nodeId" },
+        "unit_type": { "enum": ["Chapter", "Section", "Article", "Paragraph", "Subparagraph", "Point", "Annex", "AnnexItem"] },
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "version_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "valid_from": { "type": "string" },
+        "valid_to": { "type": "string" },
+        "legal_status": { "$ref": "#/$defs/legalStatus" }
+      },
+      "required": ["unit_id", "unit_type", "version_date", "valid_from", "valid_to", "legal_status", "source_span"]
     },
     {
       "title": "HLEGRequirementSubtopic (Layer 3; sliced deterministically from the frozen HLEG text)",

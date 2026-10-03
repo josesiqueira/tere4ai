@@ -275,7 +275,7 @@ VACUOUS_NOTE = ("zero checkable citations emitted; a 0.0 hallucination rate here
 
 
 def _article_prefix(cid: str) -> str:
-    m = re.match(r"(eu-ai-act:article-\d+)", cid)
+    m = re.match(r"(eu-ai-act:article-\d+[a-z]?)(?=:|$)", cid)
     return m.group(1) if m else cid
 
 

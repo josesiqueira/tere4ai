@@ -40,6 +40,9 @@ CREATE CONSTRAINT annex_id_unique IF NOT EXISTS FOR (n:Annex) REQUIRE n.id IS UN
 // Uniqueness of AnnexItem.id (Layer 1, populated from Formex in M2)
 CREATE CONSTRAINT annexitem_id_unique IF NOT EXISTS FOR (n:AnnexItem) REQUIRE n.id IS UNIQUE;
 
+// Uniqueness of UnitVersion.id (Layer 1, the 2024 wording of a changed unit, B132)
+CREATE CONSTRAINT unitversion_id_unique IF NOT EXISTS FOR (n:UnitVersion) REQUIRE n.id IS UNIQUE;
+
 CREATE CONSTRAINT crossreference_id_unique IF NOT EXISTS FOR (n:CrossReference) REQUIRE n.id IS UNIQUE;
 
 CREATE CONSTRAINT condition_id_unique IF NOT EXISTS FOR (n:Condition) REQUIRE n.id IS UNIQUE;
@@ -52,11 +55,17 @@ CREATE CONSTRAINT chapter_number_type IF NOT EXISTS FOR (n:Chapter) REQUIRE n.nu
 // Section.number is an integer per nodes.schema.json
 CREATE CONSTRAINT section_number_type IF NOT EXISTS FOR (n:Section) REQUIRE n.number IS :: INTEGER;
 
-// Article.number is an integer (1 to 113) per nodes.schema.json
-CREATE CONSTRAINT article_number_type IF NOT EXISTS FOR (n:Article) REQUIRE n.number IS :: INTEGER;
+// Article.number is the Act's label, a string such as "4a", per nodes.schema.json (B132)
+CREATE CONSTRAINT article_number_type IF NOT EXISTS FOR (n:Article) REQUIRE n.number IS :: STRING;
 
-// Paragraph.index is an integer per nodes.schema.json
-CREATE CONSTRAINT paragraph_index_type IF NOT EXISTS FOR (n:Paragraph) REQUIRE n.index IS :: INTEGER;
+// Article.sort_key is an integer (4a gives 401) per nodes.schema.json (B132)
+CREATE CONSTRAINT article_sort_key_type IF NOT EXISTS FOR (n:Article) REQUIRE n.sort_key IS :: INTEGER;
+
+// Paragraph.index is the Act's label, a string such as "1a", per nodes.schema.json (B132)
+CREATE CONSTRAINT paragraph_index_type IF NOT EXISTS FOR (n:Paragraph) REQUIRE n.index IS :: STRING;
+
+// Paragraph.sort_key is an integer (1a gives 101) per nodes.schema.json (B132)
+CREATE CONSTRAINT paragraph_sort_key_type IF NOT EXISTS FOR (n:Paragraph) REQUIRE n.sort_key IS :: INTEGER;
 
 // Recital.number is an integer (1 to 180) per nodes.schema.json
 CREATE CONSTRAINT recital_number_type IF NOT EXISTS FOR (n:Recital) REQUIRE n.number IS :: INTEGER;

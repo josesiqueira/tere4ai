@@ -42,6 +42,7 @@ from tere4ai.parse_legal_structure.formex import (
     _sha256,
     _strip_text,
 )
+from tere4ai.parse_legal_structure.labels import sort_key
 from tere4ai.parse_legal_structure.parser import (
     DEFAULT_MANIFEST_PATH,
     REGULATION_ID,
@@ -57,7 +58,7 @@ USAGE_CAP = 30
 CORE_ARTICLES = frozenset(range(5, 28)) | {50, 72, 73}
 
 _DEFINITION_POINT_ID = re.compile(
-    rf"^{REGULATION_ID}:article-3:paragraph-1:point-(\d+)$"
+    rf"^{REGULATION_ID}:article-3:paragraph-1:point-(\d+[a-z]?)$"
 )
 _ARTICLE_OF_ID = re.compile(rf"^{REGULATION_ID}:article-(\d+):")
 _ANNEX_ITEM_PREFIX = f"{REGULATION_ID}:annex-"
@@ -130,13 +131,13 @@ def enrich_with_definitions(
     points = [
         n
         for n in dump["nodes"]
-        if n.get("type") == "Point" and _DEFINITION_POINT_ID.match(n["id"])
+        if n.get("type") == "Point" and _DEFINITION_POINT_ID.match(n["id"]) and n.get("amendment") != "deleted"
     ]
     if not points:
         raise ValueError(
             "no Article 3 paragraph 1 points in the dump; run the Formex pass first"
         )
-    points.sort(key=lambda n: int(_DEFINITION_POINT_ID.match(n["id"]).group(1)))
+    points.sort(key=lambda n: sort_key(_DEFINITION_POINT_ID.match(n["id"]).group(1)))
 
     candidates = _usage_candidates(dump)
 

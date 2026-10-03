@@ -35,6 +35,7 @@ NODE_LABELS = frozenset(
         "Recital",
         "Annex",
         "AnnexItem",
+        "UnitVersion",
         "Definition",
         "CrossReference",
         "Condition",

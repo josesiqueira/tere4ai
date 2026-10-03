@@ -143,13 +143,27 @@ NON_LEGAL_ADVICE_NOTICE = (
 
 DETERMINISTIC_JUDGE_VERDICT = "not_applicable_deterministic"
 
-# Structural expectations for the M1 acceptance (docs/architecture.md Section 10).
+# Structural expectations for the M1 acceptance (docs/architecture.md Section 10):
+# the Act as enacted (113 articles, 13 annexes) and, since B132, the Act as
+# amended by the Digital Omnibus (119 articles, 14 annexes; spec G D-G68 (4)).
+# A dump whose Omnibus SourceDocument says merged_into_base true is the latter.
 EXPECTED_ARTICLES = 113
 EXPECTED_RECITALS = 180
 EXPECTED_ANNEXES = 13
+EXPECTED_ARTICLES_AMENDED = 119
+EXPECTED_ANNEXES_AMENDED = 14
 EXPECTED_CHAPTERS = (
     "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII",
 )
+
+
+def article_order(article: dict[str, Any]) -> int:
+    """An Article's place in the Act: its sort_key (4a gives 401), or for a dump
+    built before B132, whose numbers are integers, the number times 100."""
+    if isinstance(article.get("sort_key"), int):
+        return article["sort_key"]
+    number = article.get("number")
+    return number * 100 if isinstance(number, int) else 0
 
 # Section 10 high-risk core set: articles that must be structurally present.
 HIGH_RISK_CORE_ARTICLES = tuple(
@@ -282,13 +296,24 @@ def coverage_report(
     edges = dump.get("edges", [])
     graph_version = _graph_version(dump)
 
+    # A unit the Omnibus deleted is counted apart, never in the in-force
+    # counts (B132, D-G68 (4)); earlier versions are their own type.
     nodes_by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    deleted_units = 0
     for node in nodes:
+        if node.get("amendment") == "deleted":
+            deleted_units += 1
+            continue
         nodes_by_type[node.get("type", "unknown")].append(node)
+    amended = any(
+        n.get("type") == "SourceDocument" and n.get("merged_into_base") is True for n in nodes
+    )
+    expected_articles = EXPECTED_ARTICLES_AMENDED if amended else EXPECTED_ARTICLES
+    expected_annexes = EXPECTED_ANNEXES_AMENDED if amended else EXPECTED_ANNEXES
 
-    article_numbers = {
-        n.get("number") for n in nodes_by_type["Article"] if isinstance(n.get("number"), int)
-    }
+    # Article numbers are the Act's labels ("5", "4a"; integers in dumps
+    # built before B132); the core set is compared by label.
+    article_numbers = {str(n.get("number")) for n in nodes_by_type["Article"] if n.get("number") is not None}
     chapter_numbers = {n.get("number") for n in nodes_by_type["Chapter"]}
     recital_count = len(nodes_by_type["Recital"])
     annex_count = len(nodes_by_type["Annex"])
@@ -306,8 +331,8 @@ def coverage_report(
 
     check(
         "article_count",
-        len(nodes_by_type["Article"]) == EXPECTED_ARTICLES,
-        f"expected {EXPECTED_ARTICLES} Article nodes, found {len(nodes_by_type['Article'])}",
+        len(nodes_by_type["Article"]) == expected_articles,
+        f"expected {expected_articles} Article nodes, found {len(nodes_by_type['Article'])}",
     )
     check(
         "recital_count",
@@ -316,8 +341,8 @@ def coverage_report(
     )
     check(
         "annex_count",
-        annex_count == EXPECTED_ANNEXES,
-        f"expected {EXPECTED_ANNEXES} Annex nodes, found {annex_count}",
+        annex_count == expected_annexes,
+        f"expected {expected_annexes} Annex nodes, found {annex_count}",
     )
     missing_chapters = [c for c in EXPECTED_CHAPTERS if c not in chapter_numbers]
     check(
@@ -330,7 +355,7 @@ def coverage_report(
         paragraph_count > 0,
         f"expected a nonzero Paragraph count, found {paragraph_count}",
     )
-    missing_core = [a for a in HIGH_RISK_CORE_ARTICLES if a not in article_numbers]
+    missing_core = [a for a in HIGH_RISK_CORE_ARTICLES if str(a) not in article_numbers]
     check(
         "high_risk_core_present",
         not missing_core,
@@ -354,9 +379,11 @@ def coverage_report(
         )
         chapter = node_by_id.get(chapter_id or "", {})
         article = node_by_id.get(edge["to"], {})
-        if chapter.get("type") == "Chapter" and isinstance(article.get("number"), int):
-            per_chapter[str(chapter.get("number"))].append(article["number"])
-    per_chapter_articles = {k: sorted(v) for k, v in sorted(per_chapter.items())}
+        if chapter.get("type") == "Chapter" and article.get("number") is not None:
+            per_chapter[str(chapter.get("number"))].append(article)
+    per_chapter_articles = {
+        k: [a["number"] for a in sorted(v, key=article_order)] for k, v in sorted(per_chapter.items())
+    }
 
     edge_counts: dict[str, int] = defaultdict(int)
     for edge in edges:
@@ -364,9 +391,9 @@ def coverage_report(
 
     answer = {
         "expected": {
-            "articles": EXPECTED_ARTICLES,
+            "articles": expected_articles,
             "recitals": EXPECTED_RECITALS,
-            "annexes": EXPECTED_ANNEXES,
+            "annexes": expected_annexes,
             "chapters": list(EXPECTED_CHAPTERS),
         },
         "actual": {
@@ -375,11 +402,12 @@ def coverage_report(
             "annexes": annex_count,
             "chapters": sorted(chapter_numbers, key=str),
             "paragraphs": paragraph_count,
+            "deleted_units": deleted_units,
         },
         "per_chapter_articles": per_chapter_articles,
         "high_risk_core": {
             "expected_articles": list(HIGH_RISK_CORE_ARTICLES),
-            "present": [a for a in HIGH_RISK_CORE_ARTICLES if a in article_numbers],
+            "present": [a for a in HIGH_RISK_CORE_ARTICLES if str(a) in article_numbers],
             "missing": missing_core,
         },
         "layer2_nodes": _layer2_block(layer2_count, norms_payload),

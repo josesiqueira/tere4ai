@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.elicit_features.elicitor import schema_flag_names  # noqa: E402
-from tere4ai.mcp_server.tools import coverage_report  # noqa: E402
+from tere4ai.mcp_server.tools import article_order, coverage_report  # noqa: E402
 
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 OUT_PATH = ROOT / "web" / "public" / "ui_data.json"
@@ -42,6 +42,7 @@ def build_structure(dump: dict) -> dict:
         return {
             "id": aid,
             "number": a["number"],
+            "sort_key": article_order(a),
             "title": a.get("title", ""),
             "anchor": (a.get("source_span") or {}).get("anchor", ""),
         }
@@ -72,8 +73,8 @@ def build_structure(dump: dict) -> dict:
                 direct_articles.append(article_entry(kid))
         sections.sort(key=lambda s: s["number"])
         for s in sections:
-            s["articles"].sort(key=lambda a: a["number"])
-        direct_articles.sort(key=lambda a: a["number"])
+            s["articles"].sort(key=lambda a: a["sort_key"])
+        direct_articles.sort(key=lambda a: a["sort_key"])
         chapters.append(
             {
                 "id": cid,
