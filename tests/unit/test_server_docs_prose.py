@@ -196,3 +196,18 @@ def test_a_table_cell_is_its_own_sentence():
     text = "| Requires MCP 2.0 / 2026-07-28 | [x](https://x.org) |\n| ChatGPT tools-only connector | none |"
     assert _hits(text) == []
     assert prose.sentences("| a | b. c |") == ["a", "b.", "c"]
+
+
+def test_a_measure_is_not_a_count():
+    # B90 re-review N2: a version, a decimal or a number with its unit
+    # measures something; it does not count tools
+    for sentence in ("A paid call takes about 3 seconds.",
+                     "Each paid call costs about 2 cents.",
+                     "Free for the first 30 days.",
+                     "Use the tool with Python 3.12.",
+                     "A paid tool answers in 1.5 s."):
+        assert _hits(sentence) == [], sentence
+
+
+def test_a_dozen_is_a_count():
+    assert _hits("It serves a dozen tools.") == ["It serves a dozen tools."]

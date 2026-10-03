@@ -43,7 +43,7 @@ _JSX_TAG_START = re.compile(r"(?<![\w$.)\]])<(?=[A-Za-z/>])")
 _NUMBER_WORDS = frozenset(
     (
         "one two three four five six seven eight nine ten eleven twelve thirteen "
-        "fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+        "fourteen fifteen sixteen seventeen eighteen nineteen twenty dozen"
     ).split()
 )
 # A number after one of these words names a provision or a layer; it is not
@@ -54,6 +54,14 @@ _CITED_NUMBER = re.compile(
     re.IGNORECASE,
 )
 _YEAR_SLASH_NUMBER = re.compile(r"\b\d{4}/\d{4}\b")
+# A version, a decimal, or a number with its unit measures something
+# ("Python 3.12", "1.5 s", "3 seconds", "30 days"); it does not count tools.
+_MEASURE = re.compile(
+    r"\b\d+(?:\.\d+)+\b"
+    r"|\b\d+\s*(?:%|percent|ms|s|sec|seconds?|minutes?|hours?|days?|weeks?|months?"
+    r"|years?|cents?|euros?|dollars?|USD|EUR|tokens?|bytes?|KB|MB|GB)\b",
+    re.IGNORECASE,
+)
 _WORD = re.compile(r"\w+")
 _COUNTED_WORDS = frozenset({"tool", "tools", "free", "paid"})
 # How many words after a count may hold the counted word ("twelve tools",
@@ -163,6 +171,7 @@ def _is_count(word: str) -> bool:
 def _pairs_count_and_word(sentence: str) -> bool:
     rest = _YEAR_SLASH_NUMBER.sub(" ", sentence)
     rest = _CITED_NUMBER.sub(" ", rest)
+    rest = _MEASURE.sub(" ", rest)
     words = _WORD.findall(rest)
     for i, word in enumerate(words):
         if not _is_count(word):
@@ -181,7 +190,8 @@ def count_hits(sentence_list: list[str]) -> list[str]:
     "one", one of the four words before it. A count is an English number
     word one to twenty, or a digit run that is not part of NNNN/NNNN and
     does not follow Article, Section, Annex, Chapter, Regulation, point,
-    paragraph or Layer. A count that refers back to tools named in an
+    paragraph or Layer, and is not a version, a decimal or a number with
+    its unit ("Python 3.12", "3 seconds", "30 days"). A count that refers back to tools named in an
     earlier sentence ("All 12 run over stdio") is not found: the sentence
     holds no counted word."""
     return [s for s in sentence_list if _pairs_count_and_word(s)]

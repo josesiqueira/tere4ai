@@ -1086,8 +1086,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   instructions and SKILL.md; no backticked name, and no snake_case word
   written without backticks, in the prose of the source or SKILL.md is
   unknown to the code (one third-party flag is allowed, with its reason);
-  no sentence of prose holds a count (a number word one to twenty or a
-  digit run that does not cite a provision or a layer) with tool, tools,
+  no sentence of prose holds a count (a number word one to twenty or
+  "dozen", or a digit run that does not cite a provision or a layer and
+  is not a version, a decimal or a number with its unit) with tool, tools,
   free or paid within the four words after it, or, for every count but
   "one", the four words before it (a count that refers back to tools
   named in an earlier sentence, "All 12 run over stdio", is not found); the non-legal-advice notice is

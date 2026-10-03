@@ -447,3 +447,14 @@ def test_sessions_page_from_the_real_shape():
     assert "build-222222222222" not in page and "2026-10-03" not in page
     assert "current" not in page.lower()
     assert prose.link_problems(page) == []
+
+
+def test_no_code_calls_a_tool_around_the_guard():
+    # B90 re-review N1: guard_calls wraps Client.call_tool; a call through
+    # the client's session object would not pass through it
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    for path in [*sorted((root / "src" / "tere4ai" / "server_docs").glob("*.py")),
+                 root / "scripts" / "gen_server_docs.py"]:
+        assert ".session.call_tool" not in path.read_text(encoding="utf-8"), path
