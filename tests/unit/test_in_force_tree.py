@@ -74,6 +74,7 @@ def test_a_deleted_unit_keeps_its_id_and_says_who_deleted_it(by_id):
     assert amend.is_deleted(node)
     assert amend.deleted_note(node) == (
         "Deleted by Regulation (EU) 2026/1744, Article 1, point (9)(b), from 27 July 2026.")
+    assert amend.deleted_note({**node, "deleted_from": "2027-12-02"}).endswith(", from 2 December 2027.")  # M3
     for point in "abcdef":
         assert amend.is_deleted(by_id[f"eu-ai-act:article-10:paragraph-5:point-{point}"])
     assert by_id["eu-ai-act:annex-i:section-a:point-1"]["deleted_by"].endswith("point (41)(a)")

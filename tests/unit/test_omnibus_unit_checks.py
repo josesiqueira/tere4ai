@@ -40,14 +40,15 @@ def world():
     return sources, consolidated, baseline
 
 
-def _units(world, text=None, rows=None, omnibus=None):
+def _units(world, text=None, rows=None, quotations=None):
     sources, consolidated, baseline = world
     if text is not None:
         consolidated = read_text_units(text, CONSOLIDATED_REL)
     rows = rows if rows is not None else amend.load_exceptions()
     cons_text = consolidated.texts[CONSOLIDATED_REL]
     changes = amend.derive_changes(consolidated, baseline, amend.read_markers(cons_text), rows)
-    quotations = amend.read_quotations(omnibus if omnibus is not None else sources.read(OMNIBUS_MAIN_REL))
+    if quotations is None:
+        quotations = amend.read_quotations(sources.read(OMNIBUS_MAIN_REL))
     return amend.check_units(changes, consolidated, baseline, cons_text, quotations, rows)
 
 
@@ -169,3 +170,51 @@ def test_a_nested_marks_row_with_other_marks_is_not_used(world, tmp_path):
         checked_amendments(sources, consolidated, baseline, exceptions_path=exceptions)
     assert "exception row E9 (nested_quotation_marks) was not needed by any check: review it" in error.value.failures
     assert "eu-ai-act:article-5:paragraph-1:point-bb: not in the Omnibus quotation of point (7)(a)" in error.value.failures
+
+
+def _checked(world, text):
+    sources, _, baseline = world
+    return checked_amendments(sources, read_text_units(text, CONSOLIDATED_REL), baseline)
+
+
+def test_an_unmarked_deletion_beside_a_punctuation_replacement_stops_the_parse(world):
+    """Final review F1 (Codex P1): the full stop of Article 58(1)(c) became a
+    semicolon (row E2); that replacement must not let the unmarked words before
+    it disappear. Only the wording the marked range replaced may differ."""
+    mutated = _mutated(world, 'IDENTIFIER="058.001"', "the terms and conditions applicable to the participants",
+                       "the terms and conditions")
+    with pytest.raises(amend.AmendmentCheckError) as error:
+        _checked(world, mutated)
+    named = [f for f in error.value.failures if f.startswith("eu-ai-act:article-58:paragraph-1")]
+    assert any(f.startswith("eu-ai-act:article-58:paragraph-1: its unmarked text") for f in named), error.value.failures
+    assert any(f.startswith("eu-ai-act:article-58:paragraph-1:point-c: its unmarked text") for f in named)
+
+
+def test_an_unmarked_deletion_beside_a_replaced_point_stops_the_parse(world):
+    """The same for a structure replacement: Article 1(2), point (g) was replaced
+    (point (1)); the words of point (f) before it must stay the 2024 words."""
+    mutated = _mutated(world, '<ARTICLE IDENTIFIER="001">', "governance and enforcement;", "governance and")
+    with pytest.raises(amend.AmendmentCheckError) as error:
+        _checked(world, mutated)
+    assert any(f.startswith("eu-ai-act:article-1:paragraph-2: its unmarked text") for f in error.value.failures), \
+        error.value.failures
+
+
+def test_a_quotation_found_only_in_another_points_range_is_unapplied(world):
+    """Final review M4: the reverse check looks for a quotation in the ranges of its
+    own point. Point (6)'s quotation (Article 4a) filed under point (1) is in a
+    marked range, but not in one of point (1)'s, so it is reported unapplied."""
+    quotations = amend.read_quotations(world[0].read(OMNIBUS_MAIN_REL))
+    quotations["(1)"] = quotations["(1)"] + quotations.pop("(6)")
+    assert "the Omnibus quotation of point (1) is in no marked range (left unapplied?)" in _units(
+        world, quotations=quotations)
+
+
+def test_a_changed_heading_of_a_composed_article_stops_the_parse(world):
+    """Final review M8: Article 75 is composed and its heading was replaced by point
+    (31)(a); a heading the quotation does not hold fails, naming Article 75. (A heading
+    cut short is still inside the quotation; the reverse check finds that one.)"""
+    mutated = _mutated(world, '<ARTICLE IDENTIFIER="075">', "control of AI systems and mutual assistance",
+                       "control of AI systems and mutual aid")
+    assert "eu-ai-act:article-75: its title changed and no marker over the heading enacts it" in _units(
+        world, text=mutated)

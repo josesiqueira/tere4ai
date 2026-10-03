@@ -36,9 +36,11 @@ kind of change. Every unit is then checked against the Official Journal
 wording of the act that enacted it (check_units, D-G68 (1)): an unchanged
 unit equals the 2024 unit of the same id; a replaced or inserted unit is in
 the quotation of its point; a composed unit's marked parts are in the
-quotation and its unmarked rest equals its 2024 text; Annex XIV equals the
+quotation and its unmarked rest equals its 2024 text less the wording each
+replaced or deleted range stands for (the elements at the same places in
+the 2024 file, or the punctuation ending the same element); Annex XIV equals the
 Omnibus annex member file; every quotation of the Omnibus's Article 1 is
-in some marked range, so an amendment left unapplied is found; an
+in a marked range of its own point, so an amendment left unapplied is found; an
 unchanged or composed container's wording outside its units (an Article's
 number line, an annex's opening sentence, the Section headings inside an
 annex) equals its 2024 wording. Quotations the Omnibus nests inside its own
@@ -452,6 +454,7 @@ def marker_list(amendments: Amendments, rows: list[dict[str, Any]], consolidated
         },
     }
 
+
 def check_units(amendments: Amendments, consolidated: UnitTree, baseline: UnitTree, cons_text: str,
                 quotations: dict[str, list[str]], rows: list[dict[str, Any]]) -> list[str]:
     """D-G68 (1): every unit against the Official Journal wording that enacted it. Returns failures."""
@@ -460,6 +463,7 @@ def check_units(amendments: Amendments, consolidated: UnitTree, baseline: UnitTr
     quotes = {point: [normalise(q) for q in qs] for point, qs in quotations.items()}
     by_id = {m.marker_id: m for m in amendments.markers}
     member_markers = {r["marker_id"] for r in rows if r["kind"] == "annex_member"}
+    trees = _Trees(consolidated, baseline)
     for unit in consolidated.units:
         change = amendments.changes[unit.id]
         before = old.get(unit.id)
@@ -491,7 +495,8 @@ def check_units(amendments: Amendments, consolidated: UnitTree, baseline: UnitTr
         elif change.amendment == "composed":
             marks = [by_id[m] for m in change.marker_ids]
             if unit.type in TEXT_UNIT_TYPES:
-                failure = _composed_failure(unit, before, marks, cons_text)
+                failure = _rest_failure(unit, before, marks, trees, unit.file, list(unit.own_exclude),
+                                        list(before.own_exclude), "its unmarked text")
                 if failure:
                     failures.append(failure)
             elif (unit.title or "") != (before.title or ""):
@@ -504,12 +509,15 @@ def check_units(amendments: Amendments, consolidated: UnitTree, baseline: UnitTr
                         amendments.used_rows.add(row["id"])
                     else:
                         failures.append(f"{unit.id}: its title changed and no marker over the heading enacts it")
-    # the reverse check: every quotation is applied somewhere
-    marked = [normalise(formex_text(cons_text, m.inner_start, m.inner_end)) for m in amendments.markers]
+    # the reverse check: every quotation is applied in a range of its own point
+    marked: dict[str, list[str]] = {}
+    for m in amendments.markers:
+        marked.setdefault(amendments.points[m.marker_id], []).append(
+            normalise(formex_text(cons_text, m.inner_start, m.inner_end)))
     for point, qs in quotes.items():
         for quotation in qs:
             core = quotation.removeprefix(OPEN_QUOTE).removesuffix(CLOSE_QUOTE).strip()
-            if not _found(core, marked, rows, amendments):
+            if not _found(core, marked.get(point, []), rows, amendments):
                 failures.append(f"the Omnibus quotation of point {point} is in no marked range (left unapplied?)")
     # the containers' wording outside their units
     for unit in consolidated.units:
@@ -526,8 +534,8 @@ def check_units(amendments: Amendments, consolidated: UnitTree, baseline: UnitTr
             continue
         marks = [by_id[m] for m in change.marker_ids
                  if not any(s <= by_id[m].start and by_id[m].end <= e for s, e in ranges)]
-        failure = _rest_failure(unit.id, cons_text, unit.start, unit.end, ranges, marks, old_own,
-                                "its wording outside its units")
+        failure = _rest_failure(unit, before, marks, trees, unit.file, ranges,
+                                _outside_units(before, baseline), "its wording outside its units")
         if failure:
             failures.append(failure)
     return failures
@@ -550,41 +558,108 @@ def stale_rows(amendments: Amendments, rows: list[dict[str, Any]]) -> list[str]:
             for row in rows if row["id"] not in amendments.used_rows]
 
 
-def _composed_failure(unit: Unit, before: Unit, marks: list[Marker], cons_text: str) -> str | None:
-    """The unmarked rest of a partly amended unit equals its 2024 text."""
-    return _rest_failure(unit.id, cons_text, unit.start, unit.end, list(unit.own_exclude), marks,
-                         normalise(before.text or ""), "its unmarked text")
+class _Trees:
+    """The element trees of the consolidated file and the 2024 files, parsed once, on first use."""
+
+    def __init__(self, consolidated: UnitTree, baseline: UnitTree) -> None:
+        self.texts = {**baseline.texts, **consolidated.texts}
+        self._index: dict[str, dict[int, _El]] = {}
+        self._roots: dict[str, _El] = {}
+
+    def element(self, file: str, start: int, end: int) -> _El:
+        """The element a unit's span starts with, or, for a span that starts on no element (an
+        Article body without PARAG), the elements of its range under one unnamed element."""
+        if file not in self._roots:
+            self._roots[file] = _parse_xml(self.texts[file])
+            self._index[file] = {el.start: el for el in _walk(self._roots[file])}
+        found = self._index[file].get(start)
+        if found is not None and found.end == end:
+            return found
+        container = self._roots[file]
+        while True:
+            inner = next((c for c in container.children if c.start <= start and end <= c.end), None)
+            if inner is None:
+                break
+            container = inner
+        return _El("#unit", {}, start, end, [c for c in container.children if start <= c.start and c.end <= end])
 
 
-def _rest_failure(unit_id: str, cons_text: str, start: int, end: int, exclude: list[tuple[int, int]],
-                  marks: list[Marker], old: str, what: str) -> str | None:
-    """The unmarked pieces of cons_text[start:end] (exclude left out) appear in the
-    2024 text old in order, and 2024 text between them is allowed only where a
-    REPLACED or DELETED range sat."""
-    pos, pending = 0, False
-    segments: list[tuple[int, int] | Marker] = []
-    cursor = start
-    for mark in sorted(marks, key=lambda m: m.start):
-        segments.append((cursor, max(cursor, mark.start)))
-        segments.append(mark)
-        cursor = max(cursor, min(mark.end, end))
-    segments.append((cursor, end))
-    for segment in segments:
-        if isinstance(segment, Marker):
-            pending = pending or segment.action in ("REPLACED", "DELETED")
+def _inner_end(text: str, el: _El) -> int:
+    """The offset of an element's closing tag (its end for a self-closing one)."""
+    closing = f"</{el.tag}>"
+    return el.end - len(closing) if text.endswith(closing, 0, el.end) else el.end
+
+
+def _counterparts(mark: Marker, cons: _El, base: _El, inserted: list[Marker], cons_text: str,
+                  base_text: str) -> list[tuple[int, int]] | None:
+    """The 2024 wording a REPLACED or DELETED range of the consolidated unit cons stands for, as
+    ranges of base, the same unit in the 2024 file: the elements at the same places (counted
+    without the elements an insertion added and the 2024 annex files' bibliographic block); for a TEXT range, which the punctuation rows
+    describe as the punctuation ending its element, the punctuation ending the same element in
+    the 2024 file. None when the 2024 file has no element at one of those places."""
+    found: list[tuple[int, int]] = []
+    deepest: list[tuple[_El, _El]] = [(cons, base)]
+
+    def walk(c: _El, b: _El) -> bool:
+        kids = [k for k in c.children if k.tag != "BIB.INSTANCE"
+                and not any(i.inner_start <= k.start and k.end <= i.inner_end for i in inserted)]
+        twins = [k for k in b.children if k.tag != "BIB.INSTANCE"]
+        for position, kid in enumerate(kids):
+            if kid.end <= mark.inner_start or kid.start >= mark.inner_end:
+                continue
+            if position >= len(twins) or twins[position].tag != kid.tag:
+                return False
+            twin = twins[position]
+            if mark.inner_start <= kid.start and kid.end <= mark.inner_end:
+                found.append((twin.start, twin.end))
+            else:
+                if kid.start <= mark.start and mark.end <= kid.end:
+                    deepest.append((kid, twin))
+                if not walk(kid, twin):
+                    return False
+        return True
+
+    if not walk(cons, base):
+        return None
+    if mark.level != "TEXT":
+        return found
+    c, b = deepest[-1]
+    if found or formex_text(cons_text, mark.end, _inner_end(cons_text, c)):
+        return None  # the punctuation rows cover only the punctuation that ends an element
+    end = _inner_end(base_text, b)
+    start = end
+    while start > b.start and base_text[start - 1] in ".;:,":
+        start -= 1
+    return [(start, end)]
+
+
+def _rest_failure(unit: Unit, before: Unit, marks: list[Marker], trees: _Trees, cons_file: str,
+                  cons_exclude: list[tuple[int, int]], base_exclude: list[tuple[int, int]],
+                  what: str) -> str | None:
+    """The unmarked wording of a partly amended unit equals its 2024 wording: the consolidated
+    unit without its marked ranges against the 2024 unit without the wording each REPLACED or
+    DELETED range stands for (_counterparts); an INSERTED range stands for no 2024 wording.
+    Nothing else of the 2024 wording may be missing, so an unmarked deletion beside a
+    replacement is found (final review F1)."""
+    cons_text, base_text = trees.texts[cons_file], trees.texts[before.file]
+    cons_el = trees.element(cons_file, unit.start, unit.end)
+    base_el = trees.element(before.file, before.start, before.end)
+    inserted = [m for m in marks if m.action == "INSERTED"]
+    cut = list(base_exclude)
+    for mark in marks:
+        if mark.action == "INSERTED":
             continue
-        piece = normalise(formex_text(cons_text, segment[0], segment[1], exclude))
-        if not piece:
-            continue
-        found = old.find(piece, pos)
-        if found < 0:
-            return f"{unit_id}: {what} {piece[:50]!r} is not in its 2024 text"
-        if old[pos:found].strip() and not pending:
-            return f"{unit_id}: its 2024 text has {old[pos:found].strip()[:40]!r} where nothing was replaced"
-        pos, pending = found + len(piece), False
-    if old[pos:].strip() and not pending:
-        return f"{unit_id}: its 2024 text ends with {old[pos:].strip()[:40]!r} where nothing was replaced"
-    return None
+        ranges = _counterparts(mark, cons_el, base_el, inserted, cons_text, base_text)
+        if ranges is None:
+            return f"{unit.id}: the 2024 text has no wording at the place of marker {mark.marker_id}"
+        cut += ranges
+    rest = normalise(formex_text(cons_text, unit.start, unit.end, [*cons_exclude, *((m.start, m.end) for m in marks)]))
+    old = normalise(formex_text(base_text, before.start, before.end, cut))
+    if rest == old:
+        return None
+    at = next((i for i, (x, y) in enumerate(zip(rest, old, strict=False)) if x != y), min(len(rest), len(old)))
+    return (f"{unit.id}: {what} differs from its 2024 text at {rest[max(0, at - 20):at + 30]!r} "
+            f"(2024: {old[max(0, at - 20):at + 30]!r})")
 
 
 def is_deleted(node: dict[str, Any] | None) -> bool:
@@ -592,9 +667,14 @@ def is_deleted(node: dict[str, Any] | None) -> bool:
     return isinstance(node, dict) and node.get("amendment") == "deleted"
 
 
+_MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+           "November", "December")
+
+
 def deleted_note(node: dict[str, Any]) -> str:
-    """The answer for a deleted unit: Deleted by <act, point>, from 27 July 2026."""
-    return f"Deleted by {node['deleted_by']}, from 27 July 2026."
+    """The answer for a deleted unit: Deleted by <act, point>, from <its deleted_from date, 27 July 2026>."""
+    year, month, day = (int(part) for part in node["deleted_from"].split("-"))
+    return f"Deleted by {node['deleted_by']}, from {day} {_MONTHS[month - 1]} {year}."
 
 
 def version_node_id(unit_id: str) -> str:
