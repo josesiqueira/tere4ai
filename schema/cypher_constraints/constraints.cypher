@@ -55,14 +55,20 @@ CREATE CONSTRAINT chapter_number_type IF NOT EXISTS FOR (n:Chapter) REQUIRE n.nu
 // Section.number is an integer per nodes.schema.json
 CREATE CONSTRAINT section_number_type IF NOT EXISTS FOR (n:Section) REQUIRE n.number IS :: INTEGER;
 
-// Article.number is the Act's label, a string such as "4a", per nodes.schema.json (B132)
-CREATE CONSTRAINT article_number_type IF NOT EXISTS FOR (n:Article) REQUIRE n.number IS :: STRING;
+// Drop the INTEGER type constraint on Article.number of databases loaded before B132: CREATE ... IF NOT EXISTS would keep it under its old name and refuse the label "4a"
+DROP CONSTRAINT article_number_type IF EXISTS;
+
+// Article.number is the Act's label, a string such as "4a", per nodes.schema.json (B132); a new name, so a later run drops nothing
+CREATE CONSTRAINT article_number_label_type IF NOT EXISTS FOR (n:Article) REQUIRE n.number IS :: STRING;
 
 // Article.sort_key is an integer (4a gives 401) per nodes.schema.json (B132)
 CREATE CONSTRAINT article_sort_key_type IF NOT EXISTS FOR (n:Article) REQUIRE n.sort_key IS :: INTEGER;
 
-// Paragraph.index is the Act's label, a string such as "1a", per nodes.schema.json (B132)
-CREATE CONSTRAINT paragraph_index_type IF NOT EXISTS FOR (n:Paragraph) REQUIRE n.index IS :: STRING;
+// Drop the INTEGER type constraint on Paragraph.index of databases loaded before B132, for the same reason (the label "1a")
+DROP CONSTRAINT paragraph_index_type IF EXISTS;
+
+// Paragraph.index is the Act's label, a string such as "1a", per nodes.schema.json (B132); a new name, so a later run drops nothing
+CREATE CONSTRAINT paragraph_index_label_type IF NOT EXISTS FOR (n:Paragraph) REQUIRE n.index IS :: STRING;
 
 // Paragraph.sort_key is an integer (1a gives 101) per nodes.schema.json (B132)
 CREATE CONSTRAINT paragraph_sort_key_type IF NOT EXISTS FOR (n:Paragraph) REQUIRE n.sort_key IS :: INTEGER;

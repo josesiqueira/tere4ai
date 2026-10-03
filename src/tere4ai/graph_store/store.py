@@ -93,17 +93,30 @@ def _checked_identifier(value: str, allowed: frozenset[str], kind: str) -> str:
     return value
 
 
+# Every property a node's source_span becomes; a node the Omnibus deleted has none (F3).
+SPAN_PROPERTIES = ("span_id", "span_snapshot_file", "span_snapshot_sha256", "span_start", "span_end", "span_anchor",
+                   "span_exclude_starts", "span_exclude_ends")
+
+
 def flatten_node_properties(node: dict[str, Any]) -> dict[str, Any]:
     """Flatten a node dict to scalar Neo4j properties.
 
     The nested source_span object becomes span_* properties (span_id,
     span_snapshot_file, span_snapshot_sha256, span_start, span_end,
-    span_anchor). All other schema properties pass through unchanged.
+    span_anchor). Its exclude list ({start, end} ranges the span leaves out,
+    DEC-23) would be a list of maps, which Neo4j cannot store as a property,
+    so it becomes two integer lists of the same length, span_exclude_starts
+    and span_exclude_ends, range i being (starts[i], ends[i]); the dump keeps
+    its JSON shape. All other schema properties pass through unchanged.
     """
     props: dict[str, Any] = {}
     for key, value in node.items():
         if key == "source_span" and isinstance(value, dict):
             for span_key, span_value in value.items():
+                if span_key == "exclude":
+                    props["span_exclude_starts"] = [r["start"] for r in span_value]
+                    props["span_exclude_ends"] = [r["end"] for r in span_value]
+                    continue
                 flat_key = span_key if span_key.startswith("span_") else f"span_{span_key}"
                 props[flat_key] = span_value
         else:
@@ -123,7 +136,9 @@ class GraphStore:
         """Write all nodes and edges of the dump via the given neo4j driver.
 
         Idempotent: nodes MERGE on id, edges MERGE on edge_id, so re-loading
-        the same dump does not duplicate anything. Returns a summary of node
+        the same dump does not duplicate anything. A node the dump marks
+        deleted loses any text, title and span_* property an earlier load
+        stored. Returns a summary of node
         and edge counts submitted per label and relationship type.
         """
         nodes_by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -144,6 +159,13 @@ class GraphStore:
                 )
                 session.run(query, {"rows": rows})
                 summary[f"node:{label}"] = len(rows)
+                # SET += keeps what an earlier load stored: a unit the Omnibus deleted has no
+                # text and no span (DEC-23), so a reload over a 2024 database removes them.
+                deleted = [{"id": n["id"]} for n in nodes if n.get("amendment") == "deleted"]
+                if deleted:
+                    removed = ", ".join(f"n.{p}" for p in ("text", "title", *SPAN_PROPERTIES))
+                    session.run(f"UNWIND $rows AS row MATCH (n:{label} {{id: row.id}}) REMOVE {removed}",
+                                {"rows": deleted})
 
             for edge_type, edges in edges_by_type.items():
                 rel = _checked_identifier(edge_type, EDGE_TYPES, "edge type")
@@ -180,7 +202,12 @@ class GraphStore:
         Enterprise; on Community they fail with ConstraintCreationFailed and
         are skipped with a count, never silently: property types are already
         enforced upstream by the JSON schemas and Pydantic (architecture.md
-        Section 5). Uniqueness constraints failing is a hard error.
+        Section 5). Uniqueness constraints failing is a hard error. The file
+        first drops, by name, the INTEGER constraints of databases loaded
+        before B132 (Article.number, Paragraph.index); on such a database
+        the STRING constraint that replaces each is refused while the stored
+        values are still integers and is counted as skipped, and the next run
+        after the load creates it.
         Returns {"applied": n, "skipped_enterprise_only": m}.
         """
         statements = parse_constraint_statements(Path(constraints_path).read_text())

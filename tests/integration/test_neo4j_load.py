@@ -6,6 +6,7 @@ NEO4J_PASSWORD=... .venv/bin/python -m pytest tests/integration/test_neo4j_load.
 
 import json
 import os
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -46,16 +47,19 @@ def test_constraints_and_load_round_trip(driver):
     dump = json.loads(DUMP.read_text(encoding="utf-8"))
     store.load_dump(dump, driver)  # idempotent MERGE, safe to repeat
 
+    labels = ("Article", "Recital", "Annex", "Point", "AnnexItem")
     with driver.session() as s:
         counts = {
             label: s.run(f"MATCH (n:{label}) RETURN count(n) AS c").single()["c"]
-            for label in ("Article", "Recital", "Annex", "Point", "AnnexItem")
+            for label in labels
         }
-    assert counts["Article"] == 113
-    assert counts["Recital"] == 180
-    assert counts["Annex"] == 13
-    assert counts["Point"] == 467
-    assert counts["AnnexItem"] == 217
+    # The Act in force (DEC-23), the deleted units' nodes included: 119 Articles,
+    # 180 Recitals, 14 Annexes, 527 Points (521 in force, 6 deleted) and 250
+    # AnnexItems (247 in force, 3 deleted) in today's dump; counted from it.
+    expected = Counter(n["type"] for n in dump["nodes"] if n["type"] in labels)
+    assert counts == dict(expected)
+    in_force = Counter(n["type"] for n in dump["nodes"] if n.get("amendment") != "deleted")
+    assert (in_force["Article"], in_force["Recital"], in_force["Annex"]) == (119, 180, 14)
 
 
 def test_crossref_queryable(driver):
