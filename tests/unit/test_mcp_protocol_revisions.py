@@ -18,7 +18,6 @@ log messages.
 from __future__ import annotations
 
 import asyncio
-import os
 import re
 import socket
 import subprocess
@@ -33,6 +32,7 @@ from mcp.client.streamable_http import streamable_http_client
 from mcp.types import METHOD_NOT_FOUND, DiscoverResult
 
 from tere4ai.mcp_server.keys import TOOL_SCOPES, create_key
+from tere4ai.server_docs.session import server_env
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
@@ -44,17 +44,10 @@ _CALL_TIMEOUT_SECONDS = 60
 
 
 def _server_env(extra: dict[str, str] | None = None) -> dict[str, str]:
-    """A minimal environment for the server process: no model keys, no
-    network update check, no banner on stdout (stdio carries the protocol)."""
-    env = {
-        "PATH": os.environ.get("PATH", ""),
-        "HOME": os.environ.get("HOME", ""),
-        "PYTHONPATH": str(_SRC),
-        "FASTMCP_CHECK_FOR_UPDATES": "off",
-        "FASTMCP_SHOW_SERVER_BANNER": "false",
-    }
-    env.update(extra or {})
-    return env
+    """The server process's minimal environment, shared with the server docs
+    generator (tere4ai.server_docs.session): no model keys, no network update
+    check, no banner on stdout (stdio carries the protocol)."""
+    return server_env(extra, root=_REPO_ROOT)
 
 
 async def _exercise(client: Client, mode: str) -> dict[str, object]:

@@ -74,15 +74,25 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
 
 ## Read every response the same way
 
-Every envelope carries: `answer`, `status` (closed vocabulary:
-not_applicable, potentially_applicable, applicable_missing_evidence,
-partially_satisfied, satisfied_with_evidence, rejected_as_unsupported,
-requires_human_review), `source_nodes`, `source_spans`, `judge_verdict`,
-`missing_facts`, `graph_version`, `non_legal_advice_notice`.
+<!-- edit docs/server/index.md, then run scripts/gen_server_docs.py -->
+<!-- generated from docs/server/index.md: start -->
+Every answer is one envelope with these fields:
+
+<!-- generated: fields -->
+`answer`, `confidence`, `generated_at`, `graph_evidence_subgraph`, `graph_version`, `judge_verdict`, `legal_status_notes`, `missing_facts`, `non_legal_advice_notice`, `source_nodes`, `source_spans`, `status`.
+<!-- end generated: fields -->
+
+`status` is always one of these words, and no other:
+
+<!-- generated: statuses -->
+`not_applicable`, `potentially_applicable`, `applicable_missing_evidence`, `partially_satisfied`, `satisfied_with_evidence`, `rejected_as_unsupported`, `requires_human_review`.
+<!-- end generated: statuses -->
 
 Rules for consuming agents:
+
 - Treat `requires_human_review` as a stop: surface it to the human, do not
   proceed as if it were an approval.
 - Never paraphrase a status upward (partially_satisfied is not satisfied).
 - Fill `missing_facts` and re-ask instead of guessing.
 - Cite `source_nodes` ids verbatim when relaying legal grounding.
+<!-- generated from docs/server/index.md: end -->

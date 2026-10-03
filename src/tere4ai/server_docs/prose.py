@@ -7,7 +7,10 @@ text, so class names, constants, comments and code never join a sentence.
 Two rules read that prose: count_hits finds a sentence that pairs a count
 with tools, free or paid (a count drifts the day a tool is added), and
 code_names lists the backticked names a test compares with what the code
-knows.
+knows. A third rule, link_problems, reads the whole Markdown text of a
+docs/server page: a relative link may only name one of the site's own pages
+and only outside the README part, every image is an absolute URL, and
+nothing names the private research repository.
 
 @implements: DEC-22
 @grounded_by: REF-31
@@ -55,6 +58,20 @@ _COUNTED_WORDS = frozenset({"tool", "tools", "free", "paid"})
 # How many words after a count may hold the counted word: "twelve tools",
 # "two generative tools", "Eight are free", "eight of them are free".
 _WINDOW = 4
+
+_MD_LINK = re.compile(r"(!?)\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+_SITE_PAGE = re.compile(r"^(?:tools\.md|sessions\.md|sessions/[a-z0-9_-]+\.html)$")
+_ABSOLUTE = ("https://", "http://")
+_README_START = "<!-- readme: start -->"
+_README_END = "<!-- readme: end -->"
+# A spec decision id, a card id, the private repository's folder and its
+# plan folders.
+_PRIVATE = (
+    re.compile(r"D-[A-Z]+\d+"),
+    re.compile(r"\bB\d{2,3}\b"),
+    re.compile(r"\.\./thesis"),
+    re.compile(r"\bsdd/"),
+)
 
 _IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]*$")
 _CALL = re.compile(r"^([a-z_][a-z0-9_]*)\((.*)\)$")
@@ -172,3 +189,27 @@ def code_names(markdown: str) -> set[str]:
             names.add(call.group(1))
             names.update(t for t in _TOKEN.findall(call.group(2)) if _IDENTIFIER.match(t))
     return names
+
+
+def link_problems(markdown: str) -> list[str]:
+    """What breaks the link rule in a docs/server Markdown page: a relative
+    link to anything but tools.md, sessions.md or sessions/<key>.html, a
+    relative link inside the README part (the README is read on GitHub,
+    where the site's pages do not exist), an image that is not an absolute
+    URL, and any name from the private research repository."""
+    problems: list[str] = []
+    start = markdown.find(_README_START)
+    end = markdown.find(_README_END)
+    for match in _MD_LINK.finditer(markdown):
+        image, target = match.group(1) == "!", match.group(2)
+        if target.startswith(_ABSOLUTE):
+            continue
+        if image:
+            problems.append(f"image {target} is not an absolute URL")
+        elif not _SITE_PAGE.match(target):
+            problems.append(f"relative link {target} is not one of the site's pages")
+        elif start != -1 and start < match.start() < end:
+            problems.append(f"relative link {target} is inside the README part")
+    for pattern in _PRIVATE:
+        problems += [f"{m.group(0)} names the private repository" for m in pattern.finditer(markdown)]
+    return problems

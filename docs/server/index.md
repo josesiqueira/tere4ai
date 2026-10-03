@@ -16,6 +16,7 @@ quotes and the person who confirms them.
 ![Recorded MCP sessions, one per risk level, answers exactly as the server returned them](https://raw.githubusercontent.com/josesiqueira/tere4ai/main/docs/screenshots/readme-mcp-demo.png)
 
 <!-- generated: notice -->
+TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.
 <!-- end generated: notice -->
 
 ## Who it is for
@@ -83,6 +84,37 @@ checksum, and the start and end of the span in code points), the id of the
 graph build that answered, and the notice above.
 
 <!-- generated: example -->
+```json
+{
+  "answer": {
+    "risk_category": "high_risk",
+    "unacceptable_risk": null,
+    "annex_iii_category": "eu-ai-act:annex-iii:point-5",
+    "rationale": [
+      "rule high_risk: flag essential_services_access matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)",
+      "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk"
+    ],
+    "fria": {
+      "applicability": "unknown",
+      "basis_nodes": [
+        "eu-ai-act:article-27:paragraph-1"
+      ]
+    }
+  },
+  "status": "requires_human_review",
+  "confidence": 0.5,
+  "judge_verdict": "not_applicable_deterministic",
+  "missing_facts": [
+    "flags.subliminal_or_manipulative is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+    "flags.exploits_vulnerabilities is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+    "..."
+  ],
+  "source_nodes": [
+    "eu-ai-act:annex-iii:point-5",
+    "eu-ai-act:article-6:paragraph-2"
+  ]
+}
+```
 <!-- end generated: example -->
 
 Supply the missing Article 5 facts and the same call settles to
@@ -97,6 +129,22 @@ deterministic and calls no model; a paid tool makes model calls and says
 so in its description (PAID) and in its annotations (openWorldHint).
 
 <!-- generated: tools -->
+| Tool | What it does | Cost |
+|---|---|---|
+| `classify_ai_system` | Deterministic EU AI Act risk classification of a described AI system. | free |
+| `coverage_report` | Structural coverage of the Act's graph and its judged layers, against the frozen source. | free |
+| `elicit_features` | Propose the system_features facts of a plain-text system description, for the person to confirm before classify_ai_system runs. | paid |
+| `evaluate_project_evidence` | Evaluate ONE untrusted project evidence artifact against ONE judge-accepted norm from the graph. | paid |
+| `evaluate_project_evidence_batch` | Evaluate ONE untrusted evidence artifact against EVERY judge-accepted norm of one article, in a single envelope with per-norm results. | paid |
+| `explain_requirement` | Explain one judged requirement (a normative statement) in depth. | free |
+| `generate_control_backlog` | Generate a judged engineering control backlog from judge-accepted norms. | paid |
+| `get_applicable_requirements` | Judge-accepted engineering requirements applicable to a classified system, grouped by source article. | free |
+| `resolve_span` | Resolve a SourceSpan id to its checksum-verified snapshot slice: snapshot file, sha256, start, end, and the exact text. | free |
+| `source_trace` | Trace a graph node to its frozen source snapshot: file, sha256, span start/end, HTML anchor, and a text excerpt. | free |
+| `trace_alignment` | All reified EU-to-HLEG alignment chains for a norm_id (assertions from that norm) or an HLEG requirement id (assertions targeting it). | free |
+| `trace_implementation` | Requirement-to-code traceability matrix for a classified system. | free |
+
+12 tools: 8 free and 4 paid.
 <!-- end generated: tools -->
 
 Paid tools need `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` in `.env` (see
@@ -126,11 +174,13 @@ and clients, and every tool's full description:
 Every answer is one envelope with these fields:
 
 <!-- generated: fields -->
+`answer`, `confidence`, `generated_at`, `graph_evidence_subgraph`, `graph_version`, `judge_verdict`, `legal_status_notes`, `missing_facts`, `non_legal_advice_notice`, `source_nodes`, `source_spans`, `status`.
 <!-- end generated: fields -->
 
 `status` is always one of these words, and no other:
 
 <!-- generated: statuses -->
+`not_applicable`, `potentially_applicable`, `applicable_missing_evidence`, `partially_satisfied`, `satisfied_with_evidence`, `rejected_as_unsupported`, `requires_human_review`.
 <!-- end generated: statuses -->
 
 Rules for consuming agents:
@@ -212,6 +262,9 @@ job applicants, is classified as the second, high risk, on both surfaces
 A client receives this text when it connects:
 
 <!-- generated: instructions -->
+```text
+TERE4AI v2 tools over the EU AI Act graph: M1 structural tools (coverage_report, source_trace) plus explanation and trace tools (explain_requirement, trace_alignment, resolve_span) plus M3 runtime tools (classify_ai_system, get_applicable_requirements, trace_implementation, evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog) plus elicit_features, which proposes the facts classify_ai_system reads from a plain-text description. Read-only; evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog and elicit_features perform paid model calls. TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.
+```
 <!-- end generated: instructions -->
 
 ## The tool reference

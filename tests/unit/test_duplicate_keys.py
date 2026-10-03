@@ -12,7 +12,6 @@ refuses the request.
 from __future__ import annotations
 
 import json
-import os
 import select
 import subprocess
 import sys
@@ -23,6 +22,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import tere4ai.http_facade.app as facade
+from tere4ai.server_docs.session import server_env
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "schema" / "json_schemas" / "system_features.schema.json"
@@ -67,18 +67,6 @@ def test_facade_reads_the_last_of_a_repeated_key():
     assert envelope["missing_facts"] == []
 
 
-def _server_env() -> dict[str, str]:
-    """The environment of the protocol tests (test_mcp_protocol_revisions):
-    no model keys, no update check, no banner on stdout."""
-    return {
-        "PATH": os.environ.get("PATH", ""),
-        "HOME": os.environ.get("HOME", ""),
-        "PYTHONPATH": str(ROOT / "src"),
-        "FASTMCP_CHECK_FOR_UPDATES": "off",
-        "FASTMCP_SHOW_SERVER_BANNER": "false",
-    }
-
-
 def _send(process: subprocess.Popen, line: str) -> None:
     assert process.stdin is not None
     process.stdin.write((line + "\n").encode("utf-8"))
@@ -107,7 +95,7 @@ def test_mcp_server_reads_the_last_of_a_repeated_key():
     process = subprocess.Popen(
         [sys.executable, "-m", "tere4ai.mcp_server.server"],
         cwd=str(ROOT),
-        env=_server_env(),
+        env=server_env(root=ROOT),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,

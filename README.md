@@ -1,3 +1,5 @@
+<!-- edit docs/server/index.md, then run scripts/gen_server_docs.py -->
+<!-- generated from docs/server/index.md: start -->
 # TERE4AI
 
 **The EU AI Act, as a knowledge graph your coding agent can call.**
@@ -7,13 +9,16 @@ Regulation (EU) 2024/1689. A coding agent describes the system it is
 building and gets back a deterministic risk classification, engineering
 requirements traced to byte-exact legal text, judged alignments to the AI
 HLEG Trustworthy AI principles, and requirement-to-code traceability.
-Models propose; independent judges gate; a fixed rule ladder alone decides.
+The rule ladder alone decides the level. A model's proposal is served only
+after a check: an independent judge for norms, alignments, evidence and
+backlog items, and for the elicitor's proposed facts a code check of their
+quotes and the person who confirms them.
 
-TERE4AI provides engineering and documentation support. It does not certify
-EU AI Act compliance and does not replace legal review, conformity
-assessment, or competent-authority interpretation.
+![Recorded MCP sessions, one per risk level, answers exactly as the server returned them](https://raw.githubusercontent.com/josesiqueira/tere4ai/main/docs/screenshots/readme-mcp-demo.png)
 
-![Five recorded MCP sessions, one per risk tier, answers exactly as the server returned them](docs/screenshots/readme-mcp-demo.png)
+<!-- generated: notice -->
+TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.
+<!-- end generated: notice -->
 
 ## Who it is for
 
@@ -22,15 +27,15 @@ assessment, or competent-authority interpretation.
   that implements each requirement.
 - **Requirements engineers and compliance leads** who need every generated
   requirement to cite the exact legal span it came from, and who need the
-  tool to say "unknown" when the facts are not there.
+  server to say "unknown" when the facts are not there.
 - **Researchers** studying evidence-gated generation over legal text: the
   judged graph, the provenance model and the evaluation harness are all here.
 
 ## Wire it into your agent
 
-Two commands, then one config block. No database, no API keys: the graph
-ships as versioned dumps in `data/graph_dumps/` and every free tool reads
-them offline.
+Clone, install, then add one config block. No database, no API keys: the
+graph ships as versioned dumps in `data/graph_dumps/` and every free tool
+reads them offline.
 
 ```bash
 git clone https://github.com/josesiqueira/tere4ai.git && cd tere4ai
@@ -57,6 +62,7 @@ The agent describes the system as structured facts. Unknown is never
 treated as false: a fact it does not state stays unknown, and the server
 says so.
 
+<!-- example request: start -->
 ```json
 {
   "features": {
@@ -71,11 +77,14 @@ says so.
   }
 }
 ```
+<!-- example request: end -->
 
-`classify_ai_system` answers (trimmed to the fields that matter; every
-answer also carries the byte offsets of its source spans in the frozen
-legal snapshot, the graph build id, and the notice above):
+`classify_ai_system` answers as below, trimmed to the fields that matter.
+Every answer also carries its source spans (the snapshot file, its
+checksum, and the start and end of the span in code points), the id of the
+graph build that answered, and the notice above.
 
+<!-- generated: example -->
 ```json
 {
   "answer": {
@@ -86,91 +95,62 @@ legal snapshot, the graph build id, and the notice above):
       "rule high_risk: flag essential_services_access matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)",
       "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk"
     ],
-    "fria": { "applicability": "unknown", "basis_nodes": ["eu-ai-act:article-27:paragraph-1"] }
+    "fria": {
+      "applicability": "unknown",
+      "basis_nodes": [
+        "eu-ai-act:article-27:paragraph-1"
+      ]
+    }
   },
   "status": "requires_human_review",
   "confidence": 0.5,
   "judge_verdict": "not_applicable_deterministic",
   "missing_facts": [
     "flags.subliminal_or_manipulative is unknown (prohibition-relevant, Article 5); absence is not treated as false",
+    "flags.exploits_vulnerabilities is unknown (prohibition-relevant, Article 5); absence is not treated as false",
     "..."
   ],
-  "source_nodes": ["eu-ai-act:annex-iii:point-5", "eu-ai-act:article-6:paragraph-2"],
-  "graph_version": "build-3b753e5e9297"
+  "source_nodes": [
+    "eu-ai-act:annex-iii:point-5",
+    "eu-ai-act:article-6:paragraph-2"
+  ]
 }
 ```
+<!-- end generated: example -->
 
 Supply the missing Article 5 facts and the same call settles to
 `potentially_applicable`; `get_applicable_requirements` then returns the
-judge-accepted norms for that tier, grouped by article, each with its
+judge-accepted norms for that level, grouped by article, each with its
 source span.
 
 ## The tools
 
-All twelve run over stdio from the offline dumps. Eight are free and
-deterministic; four make paid model calls and say so in their metadata.
+Every tool runs over stdio from the offline dumps. A free tool is
+deterministic and calls no model; a paid tool makes model calls and says
+so in its description (PAID) and in its annotations (openWorldHint).
 
+<!-- generated: tools -->
 | Tool | What it does | Cost |
 |---|---|---|
-| `classify_ai_system` | Risk tier plus Article 27 FRIA applicability from structured facts, by rule ladder | free |
-| `get_applicable_requirements` | Judge-accepted norms for a classification, grouped by article, span-cited | free |
-| `explain_requirement` | One norm: actor, modal, action, object, conditions; full source text; Article 3 definitions; accepted HLEG alignments | free |
-| `trace_alignment` | Every alignment assertion for a norm or an HLEG requirement: relation, scores, judge verdict and rationale, model runs | free |
-| `resolve_span` | A span id to its byte-exact text in the frozen snapshot | free |
-| `source_trace` | A graph node to its frozen snapshot: file, sha256, span offsets, anchor, excerpt | free |
-| `coverage_report` | Structural coverage of the Act and the judged layers, against the frozen source | free |
-| `trace_implementation` | Which requirements the `@implements` tags in a codebase claim to cover, and which claims the server refuses | free |
-| `evaluate_project_evidence` (+ `_batch`) | Judge whether pasted project evidence satisfies a requirement | paid |
-| `generate_control_backlog` | Engineering controls for a set of requirements, judge-gated | paid |
-| `elicit_features` | Proposes the facts `classify_ai_system` reads from a plain-text system description, each with the words of the description it rests on, for a person to confirm; never a risk category | paid |
+| `classify_ai_system` | Deterministic EU AI Act risk classification of a described AI system. | free |
+| `coverage_report` | Structural coverage of the Act's graph and its judged layers, against the frozen source. | free |
+| `elicit_features` | Propose the system_features facts of a plain-text system description, for the person to confirm before classify_ai_system runs. | paid |
+| `evaluate_project_evidence` | Evaluate ONE untrusted project evidence artifact against ONE judge-accepted norm from the graph. | paid |
+| `evaluate_project_evidence_batch` | Evaluate ONE untrusted evidence artifact against EVERY judge-accepted norm of one article, in a single envelope with per-norm results. | paid |
+| `explain_requirement` | Explain one judged requirement (a normative statement) in depth. | free |
+| `generate_control_backlog` | Generate a judged engineering control backlog from judge-accepted norms. | paid |
+| `get_applicable_requirements` | Judge-accepted engineering requirements applicable to a classified system, grouped by source article. | free |
+| `resolve_span` | Resolve a SourceSpan id to its checksum-verified snapshot slice: snapshot file, sha256, start, end, and the exact text. | free |
+| `source_trace` | Trace a graph node to its frozen source snapshot: file, sha256, span start/end, HTML anchor, and a text excerpt. | free |
+| `trace_alignment` | All reified EU-to-HLEG alignment chains for a norm_id (assertions from that norm) or an HLEG requirement id (assertions targeting it). | free |
+| `trace_implementation` | Requirement-to-code traceability matrix for a classified system. | free |
+
+12 tools: 8 free and 4 paid.
+<!-- end generated: tools -->
 
 Paid tools need `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` in `.env` (see
 `.env.example`). Without keys they return a `requires_human_review`
 envelope that names the missing configuration; they never guess.
-
-## MCP revisions and clients
-
-The server answers MCP revision 2026-07-28 (the stateless one, with the
-version in each request) and legacy clients that start with `initialize`
-(2025-11-25 and the earlier revisions the official MCP Python SDK
-negotiates), from one process, over stdio and over streamable HTTP
-(`TERE4AI_MCP_TRANSPORT=http`). It advertises no MCP logging capability and
-answers `logging/setLevel` with method not found; diagnostics go to stderr.
-
-Paid tools (`evaluate_project_evidence`, `evaluate_project_evidence_batch`,
-`generate_control_backlog`, `elicit_features`) are not charged twice for an
-identical call. A repeat with the same caller, arguments, build and model
-settings inside `TERE4AI_MCP_REPLAY_WINDOW_SECONDS` (default 600, measured
-on a monotonic clock; 0 turns the replay off) gets the kept answer with a
-note in `legal_status_notes` and its usage counts set to 0, since no model
-was called; the first answer keeps its own counts. Refusals,
-degraded answers and failures are never kept. The kept answers live in the
-memory of one process (at most 256): two replicas behind a load balancer do
-not share them, so a retry that lands on the other replica pays again.
-
-Tested here: the official MCP Python SDK client (mcp 2.2.0), modes legacy
-and 2026-07-28, over stdio and streamable HTTP
-(`tests/unit/test_mcp_protocol_revisions.py`). No other client is tested.
-
-As the 2026-09-30 research input reports them from the vendors' public
-sources (not checked or tested here):
-
-| Client | Reported status | Source |
-|---|---|---|
-| Claude Code, direct HTTP | Uses the v2 MCP client and 2026 negotiation by default | [release notes](https://github.com/anthropics/claude-code/releases) |
-| Claude Code, stdio | No explicit Anthropic statement found about strict 2026-only stdio | none found |
-| Claude Desktop | Modern support in some remote connector paths; one open report of 2026 body metadata with a 2025 HTTP header | [issue 93290](https://github.com/anthropics/claude-code/issues/93290) |
-| OpenAI Codex CLI | 2026 support in code, behind the `mcp_2026_07_28` feature | [features source](https://github.com/openai/codex/blob/main/codex-rs/features/src/lib.rs) |
-| Codex CLI, stdio | Public request still open; experimental flag mentioned in a September comment | [issue 33952](https://github.com/openai/codex/issues/33952) |
-| ChatGPT MCP Events | Requires MCP 2.0 / 2026-07-28 | [MCP Events](https://developers.openai.com/plugins/build/mcp-events) |
-| ChatGPT tools-only connector | No primary page found stating its revision | none found |
-| Cursor | Speaks 2025-11-25 and earlier; no timeline for 2026 (staff, 21 and 25 September) | [forum thread](https://forum.cursor.com/t/mcp-client-cannot-connect-to-modern-only-2026-07-28-streamable-http-servers-legacy-initialize-rejected/172536) |
-| VS Code / GitHub Copilot | Source still sets `LATEST_PROTOCOL_VERSION = "2025-11-25"` | [source](https://github.com/microsoft/vscode/blob/main/extensions/copilot/src/extension/common/modelContextProtocol.ts) |
-| Windsurf | No primary source found for its supported revision | none found |
-| MCP Inspector | Inspector v2 supports legacy and modern negotiation | [docs](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/docs/2026-07-28/tools/inspector.mdx) |
-
-This is why legacy support stays: Cursor and VS Code are reported to speak
-only the earlier revisions.
 
 ## What it is not
 
@@ -183,6 +163,11 @@ only the earlier revisions.
 - Not a substitute for the facts: when a prohibition-relevant fact is
   unknown the status drops to `requires_human_review` and the answer names
   the fact.
+
+How to read every answer, paid calls and the replay window, MCP revisions
+and clients, and every tool's full description:
+[the full explanation of the server](https://github.com/josesiqueira/tere4ai/blob/main/docs/server/index.md).
+<!-- generated from docs/server/index.md: end -->
 
 ## Documents
 

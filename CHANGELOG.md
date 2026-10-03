@@ -5,6 +5,43 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B90 task 4: the server docs generator reads the running server (2026-10-03)
+- New `scripts/gen_server_docs.py` and `src/tere4ai/server_docs/session.py`
+  and `render.py` (DEC-22): the script reads the example request from
+  docs/server/index.md, starts the MCP server over stdio with the official
+  MCP Python SDK client (dev extra, mcp 2.2) and no model keys, reads the
+  instructions and the tool list, calls only coverage_report and
+  classify_ai_system, and writes the source's six regions, the tool
+  reference `docs/server/tools.md` (each tool's whole served description,
+  annotations and input fields), the README part into README.md and the
+  reading part into SKILL.md. `--sessions` writes docs/server/sessions.md
+  from the recorded sessions (each with the build and day of its first
+  line); `--check` writes nothing and exits 1 naming each file that would
+  change. It refuses to run when a tool's openWorldHint, the word PAID in
+  its description and its scope in TOOL_SCOPES disagree. Nothing that
+  depends on the served build is written (no graph_version, no count, no
+  time).
+- README.md's first screen and SKILL.md's section on reading every answer
+  are now generated from docs/server/index.md: edit the source, then run
+  the script. The README shows the tool table from the served descriptions
+  with its computed count line, the example answer without a build id,
+  and no longer says "byte offsets"; the replay window and the MCP
+  revisions and clients moved to the full text, linked from the README.
+  SKILL.md lists all twelve answer fields.
+- CI's python job runs `python scripts/gen_server_docs.py --check` after
+  the traceability diff.
+- `prose.link_problems`: in docs/server pages a relative link may only
+  name tools.md, sessions.md or sessions/<key>.html, and only outside the
+  README part; images are absolute URLs; nothing names the private
+  research repository.
+- The protocol and duplicate-key tests take the server environment from
+  `tere4ai.server_docs.session.server_env`.
+- Tests: test_server_docs.py (the generated files current, the calls made,
+  free or paid agreement, SKILL.md names every tool, backticked names
+  known, no counts in prose, the notice, the link rule, nothing build
+  specific, `--check` on an edited region, a changed surface and a
+  changed request, the sessions page).
+
 ### B90 task 3: the one source, docs/server/index.md (2026-10-03)
 - New `docs/server/index.md` (DEC-22): the explanation of the MCP server
   in one text. Its README part (definition, who it is for, wiring, one
