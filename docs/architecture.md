@@ -283,7 +283,10 @@ grounded_by: REF-31, REF-32
   window (mcp_server/replay.py): an identical call inside the window gets the
   kept answer and no second model call, so a client retry is not charged
   twice; the kept answers are per process, so two replicas do not share them.
-  Client support as reported by the vendors is listed in the README.
+  Client support as reported by the vendors is listed in
+  docs/server/index.md.
+- The public explanation of the server is docs/server/index.md, its
+  drift-prone parts generated from the running server (DEC-22).
 
 ## 9. Deployment and data sovereignty
 

@@ -5,20 +5,59 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
-### B90 task 5: the Pages site builds from docs/server, not deployed (2026-10-03)
-- New `mkdocs.yml` and `scripts/build_site.sh` (DEC-22): Material for
-  MkDocs 9.7.7 (ruling R3, pinned in the new `docs` extra) builds the site
-  from docs/server alone into `_site/` in strict mode, so a relative link
-  to a missing page fails the build. No nav: the pages are found from the
-  folder, and the sessions page joins the site only once
-  docs/server/sessions.md exists (the script then copies the recorded
-  sessions from web/public/mcp-demo/ beside it).
-- CI's new `docs` job installs only mkdocs-material and builds the site on
-  every push and pull request. Nothing is published: there is no deploy
-  step and no pages permission.
-- `.gitignore` keeps the built site and the copied sessions out of git.
-
-### B90 task 4: the server docs generator reads the running server (2026-10-03)
+### B90: one public source explaining the MCP server (2026-10-03)
+- The web demo shows the non-legal-advice notice from one module,
+  `web/src/lib/notice.ts`, which mirrors `NON_LEGAL_ADVICE_NOTICE` in
+  `src/tere4ai/mcp_server/tools.py` (a test keeps them equal). The
+  landing page, the demo layout (sidebar and mobile footer), /assess and
+  /how-it-works import it; the demo layout's shorter mobile header line
+  is removed, so the notice has one wording. /how-it-works says
+  alignments, states which proposals an independent judge checks (norms,
+  alignments, evidence, backlog items) and that the elicitor's proposed
+  facts are checked by code and confirmed by a person. The landing page
+  says "Keys unlock the paid tools." with no count.
+- The facade's /llms.txt header and /.well-known/tere4ai.json serve
+  `NON_LEGAL_ADVICE_NOTICE` (the header said "Not legal advice; never
+  claims compliance."). SKILL.md carries the notice word for word.
+- The resolve_span and source_trace descriptions state that start and end
+  count Unicode code points in the snapshot decoded as UTF-8, not bytes,
+  and that sha256 is over the file's bytes; trace_alignment's says
+  alignment runs and alignments. spans.py, docs/DESIGN.md and
+  docs/trustworthiness_strategies.md say code point offsets.
+- USER.md describes the MCP server a coding agent calls; a prohibited
+  system gets only the Article 5 prohibition citation and a message.
+- New `src/tere4ai/server_docs/prose.py` (DEC-22): the prose of a Markdown
+  or .tsx file, sentences, the count rule (a count with tool, tools, free
+  or paid within four words after it) and the backticked-name rule.
+- Tests: test_server_docs_prose.py, test_notice_one_source.py,
+  test_span_offsets.py.
+- Duplicate keys in one JSON object are measured, not changed: the server
+  reads the last of a repeated key and refuses nothing, over MCP (stdio,
+  the tool arguments) and on the facade (the body of POST /api/classify);
+  docs/server/index.md says so. Test: test_duplicate_keys.py.
+- New `docs/server/index.md` (DEC-22): the explanation of the MCP server
+  in one text. Its README part (definition, who it is for, wiring, one
+  call, the tools, what it is not) is generated into the README's first
+  screen (below); after it come how to read every answer, paid calls and
+  the replay window, MCP revisions and clients, span offsets (code points
+  of the decoded snapshot, checksum over the bytes), duplicate keys (the
+  last of a repeated key is read on both surfaces, nothing is refused),
+  the instructions the server sends and a link to the tool reference.
+  Six regions (notice, example, tools, fields, statuses, instructions) are
+  written empty, for the generator to fill from the running server. The
+  example request is written once, in the source.
+- The definition no longer says that judges gate every proposal: the rule
+  ladder alone decides the level, and the elicitor's proposed facts are
+  checked by code and confirmed by a person, not by a judge. PRODUCT.md
+  takes the same sentence.
+- README Status and PRODUCT.md's proof points carry no judged-layer count,
+  test count or tool count (coverage_report serves the counts of the
+  served build); PRODUCT.md drops the pre-B74 label-flip result.
+- SKILL.md names trace_implementation, with its guidance.
+- coverage_report's and explain_requirement's served descriptions open
+  with one plain sentence, which the generated tool table shows (ruling
+  R1); the rest of each description is unchanged.
+- Test: test_server_docs_source.py (sections, regions, the request block).
 - New `scripts/gen_server_docs.py` and `src/tere4ai/server_docs/session.py`
   and `render.py` (DEC-22): the script reads the example request from
   docs/server/index.md, starts the MCP server over stdio with the official
@@ -54,58 +93,20 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   known, no counts in prose, the notice, the link rule, nothing build
   specific, `--check` on an edited region, a changed surface and a
   changed request, the sessions page).
-
-### B90 task 3: the one source, docs/server/index.md (2026-10-03)
-- New `docs/server/index.md` (DEC-22): the explanation of the MCP server
-  in one text. Its README part (definition, who it is for, wiring, one
-  call, the tools, what it is not) becomes the README's first screen in
-  the next change; after it come how to read every answer, paid calls and
-  the replay window, MCP revisions and clients, span offsets (code points
-  of the decoded snapshot, checksum over the bytes), duplicate keys (the
-  last of a repeated key is read on both surfaces, nothing is refused),
-  the instructions the server sends and a link to the tool reference.
-  Six regions (notice, example, tools, fields, statuses, instructions) are
-  written empty, for the generator to fill from the running server. The
-  example request is written once, in the source.
-- The definition no longer says that judges gate every proposal: the rule
-  ladder alone decides the level, and the elicitor's proposed facts are
-  checked by code and confirmed by a person, not by a judge. PRODUCT.md
-  takes the same sentence.
-- README Status and PRODUCT.md's proof points carry no judged-layer count,
-  test count or tool count (coverage_report serves the counts of the
-  served build); PRODUCT.md drops the pre-B74 label-flip result.
-- SKILL.md names trace_implementation, with its guidance.
-- coverage_report's and explain_requirement's served descriptions open
-  with one plain sentence, which the generated tool table shows (ruling
-  R1); the rest of each description is unchanged.
-- Test: test_server_docs_source.py (sections, regions, the request block).
-
-### B90 task 1: one notice, the span offset unit, USER.md restated, the prose rules (2026-10-03)
-- The web demo shows the non-legal-advice notice from one module,
-  `web/src/lib/notice.ts`, which mirrors `NON_LEGAL_ADVICE_NOTICE` in
-  `src/tere4ai/mcp_server/tools.py` (a test keeps them equal). The
-  landing page, the demo layout (sidebar and mobile footer), /assess and
-  /how-it-works import it; the demo layout's shorter mobile header line
-  is removed, so the notice has one wording. /how-it-works says
-  alignments, states which proposals an independent judge checks (norms,
-  alignments, evidence, backlog items) and that the elicitor's proposed
-  facts are checked by code and confirmed by a person. The landing page
-  says "Keys unlock the paid tools." with no count.
-- The facade's /llms.txt header and /.well-known/tere4ai.json serve
-  `NON_LEGAL_ADVICE_NOTICE` (the header said "Not legal advice; never
-  claims compliance."). SKILL.md carries the notice word for word.
-- The resolve_span and source_trace descriptions state that start and end
-  count Unicode code points in the snapshot decoded as UTF-8, not bytes,
-  and that sha256 is over the file's bytes; trace_alignment's says
-  alignment runs and alignments. spans.py, docs/DESIGN.md and
-  docs/trustworthiness_strategies.md say code point offsets.
-- USER.md describes the MCP server a coding agent calls; a prohibited
-  system gets only the Article 5 prohibition citation and a message.
-- New `src/tere4ai/server_docs/prose.py` (DEC-22): the prose of a Markdown
-  or .tsx file, sentences, the count rule (a count with tool, tools, free
-  or paid within four words after it) and the backticked-name rule.
-- Tests: test_server_docs_prose.py, test_notice_one_source.py,
-  test_span_offsets.py.
+- New `mkdocs.yml` and `scripts/build_site.sh` (DEC-22): Material for
+  MkDocs 9.7.7 (ruling R3, pinned in the new `docs` extra) builds the site
+  from docs/server alone into `_site/` in strict mode, so a relative link
+  to a missing page fails the build. No nav: the pages are found from the
+  folder, and the sessions page joins the site only once
+  docs/server/sessions.md exists (the script then copies the recorded
+  sessions from web/public/mcp-demo/ beside it).
+- CI's new `docs` job installs only mkdocs-material and builds the site on
+  every push and pull request. Nothing is published: there is no deploy
+  step and no pages permission.
+- `.gitignore` keeps the built site and the copied sessions out of git.
+- docs/architecture.md Section 8 names docs/server/index.md as the public
+  explanation of the server (DEC-22), and the client support list as kept
+  there, no longer in the README.
 
 ### B126: the ablation's sixth condition and the measures for each answer key apart (2026-10-03)
 - New strategy `graph_runtime_judge`, appended last to `STRATEGY_NAMES`
