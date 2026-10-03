@@ -3,7 +3,7 @@
 @implements: DEC-11, DEC-17
 @grounded_by: REF-15, REF-16, REF-17
 
-Runs the five-condition ablation ladder over the gold seed plus the frozen
+Runs the six-condition ablation ladder over the gold seed plus the frozen
 REF-15 benchmark sample, in checkpointed (strategy, item-batch) units, so a
 crash never loses more than one batch (the lesson of the lost extraction run).
 Resume by re-running: completed units are skipped; the sidecar
@@ -14,7 +14,8 @@ to --summary, by default eval/results/runs/<record id>/ablation_summary.json.
 
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
-(items x strategies) generator calls plus items judge calls for graph_full.
+(items x strategies) generator calls plus items judge calls for each of the
+two conditions that call the runtime judge (graph_full, graph_runtime_judge).
 """
 
 from __future__ import annotations

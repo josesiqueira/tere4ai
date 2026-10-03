@@ -370,7 +370,8 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
 OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
 
 - Ablation ladder: plain LLM, vector RAG over Act chunks, graph without judge,
-  graph plus build judge, graph plus build and runtime judge.
+  graph plus build judge, graph plus build and runtime judge, graph plus
+  runtime judge only (six conditions; the sixth added by B126).
 - Primary dataset: the open AI Act Evaluation Benchmark (REF-15), covering
   classification, article retrieval, obligation generation, and QA. Verify its
   coverage against the high-risk core first.

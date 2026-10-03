@@ -1,4 +1,4 @@
-"""M4 ablation strategies: the five conditions of the Section 12 ladder.
+"""M4 ablation strategies: the six conditions of the Section 12 ladder.
 
 @implements: DEC-11
 @grounded_by: REF-15, REF-16, REF-17
@@ -21,6 +21,10 @@ run any subset over the same items. The ladder (architecture.md Section 12):
 5. graph_full       graph_build_judge plus the runtime grounding judge
                     gating the generated answer (unverifiable citations are
                     withheld and the verdict is attached).
+6. graph_runtime_judge  graph_no_judge plus the runtime grounding judge of
+                    graph_full: the runtime judge without the build judge
+                    (B104 decision 4, B126). Appended last so the five keep
+                    their recorded order.
 
 Model access is injected: every strategy takes constructed clients
 (tere4ai.extract_norms.model_clients.ModelClient), so unit tests use
@@ -51,7 +55,18 @@ STRATEGY_NAMES = (
     "graph_no_judge",
     "graph_build_judge",
     "graph_full",
+    "graph_runtime_judge",
 )
+
+# The conditions that call the runtime grounding judge (B126 ruling R2):
+# every caller asks uses_runtime_judge, never compares a name with one of these.
+_RUNTIME_JUDGE_STRATEGIES = frozenset({"graph_full", "graph_runtime_judge"})
+
+
+def uses_runtime_judge(name: str) -> bool:
+    """Whether the named condition calls the runtime grounding judge; a
+    "@vN" prompt-version suffix is ignored (graph_full@v2 calls it too)."""
+    return name.partition("@")[0] in _RUNTIME_JUDGE_STRATEGIES
 
 # Node types whose text feeds the naive vector_rag index. Recitals are
 # included on purpose: a naive baseline does not know recitals are context
@@ -234,13 +249,14 @@ class VectorRag:
 
 
 class GraphStrategy:
-    """Conditions 3 to 5: deterministic classify plus norm-graph context.
+    """Conditions 3 to 6: deterministic classify plus norm-graph context.
 
     judged_only=False ignores the build judge (ALL extracted norms offered,
     accepted, rejected, and needs_human_review alike): condition 3.
     judged_only=True offers judge-accepted norms only: condition 4.
-    runtime_judge set: condition 5, the runtime grounding judge gates the
-    generated answer and unverifiable citations are withheld.
+    runtime_judge set: the runtime grounding judge gates the generated
+    answer and unverifiable citations are withheld; with judged_only=True
+    that is condition 5, with judged_only=False condition 6.
     """
 
     def __init__(
@@ -473,7 +489,7 @@ class GraphStrategy:
         if self._runtime_judge is None:
             return result
 
-        # Condition 5 only: the runtime grounding gate. Citations that do
+        # Conditions 5 and 6 only: the runtime grounding gate. Citations that do
         # not resolve in the graph dump are withheld (mirroring the
         # _Citations discipline of the deterministic tools), and the
         # grounding judge verdict is attached; any verdict other than
@@ -524,14 +540,15 @@ def build_strategy(
     if name == "graph_build_judge":
         return GraphStrategy(name, generator, dump, norms_payload, judged_only=True)
     base, _, prompt_version = name.partition("@")
-    if base == "graph_full":
+    if uses_runtime_judge(name):
         if judge is None:
-            raise ValueError("graph_full needs a judge client (runtime grounding judge)")
+            raise ValueError(f"{base} needs a judge client (runtime grounding judge)")
         # "graph_full@vB" runs the same condition with the runtime grounding
         # judge prompt at version vB: prompt A/B as a first-class ablation
-        # condition, recorded in the strategy's models dict (#39).
+        # condition, recorded in the strategy's models dict (#39). The sixth
+        # condition takes the same suffix (B126 ruling R1).
         return GraphStrategy(
-            name, generator, dump, norms_payload, judged_only=True,
+            name, generator, dump, norms_payload, judged_only=base == "graph_full",
             runtime_judge=judge, judge_log_path=judge_log_path,
             judge_prompt_version=prompt_version or "v1",
         )

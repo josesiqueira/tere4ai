@@ -5,6 +5,26 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B126: the ablation's sixth condition (2026-10-03)
+- New strategy `graph_runtime_judge`, appended last to `STRATEGY_NAMES`
+  (the five keep their order): condition 3 (`graph_no_judge`, every
+  extracted norm offered, the build judge ignored) plus the runtime
+  grounding judge of `graph_full` (unverifiable citations withheld,
+  verdict attached, a non-accepted answer degraded to
+  requires_human_review). It takes the `@vN` prompt-version suffix and
+  refuses to build without a judge client, as `graph_full` does.
+- `strategies.uses_runtime_judge(name)` is the one answer to whether a
+  condition calls the runtime judge. The harness builds the judge, and
+  the evaluation record keeps the runtime judge's prompt hash, for every
+  such condition, no longer only for a name equal to `graph_full`.
+- `scripts/variance_report.py` checks the sixth condition's labels for
+  determinism with the other graph conditions;
+  `scripts/make_paper_artifacts.py` labels it "graph + runtime judge only"
+  and draws a row only for a condition the summary holds, so the July
+  figures and tables are unchanged; `scripts/estimate_benchmark_cost.py`
+  counts its output with the observed answer sizes of `graph_no_judge`,
+  since run 2 did not run it, and says so in the report.
+
 ### B124: each norm's target_system_category is set by rule from its Article (2026-10-03)
 - Contract change: `explain_requirement`'s `deontic` block carries
   `target_system_category` as one of `any_ai_system`,

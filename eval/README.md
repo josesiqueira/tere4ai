@@ -73,7 +73,7 @@ not the sample:
 
 ## The ablation ladder (Section 12)
 
-Five conditions, uniform interface, in `src/tere4ai/eval/strategies.py`:
+Six conditions, uniform interface, in `src/tere4ai/eval/strategies.py`:
 
 1. `plain_llm`: generator only; the prompt holds the question only.
 2. `vector_rag`: naive in-process TF-IDF retrieval over Layer 1 node texts
@@ -89,6 +89,11 @@ Five conditions, uniform interface, in `src/tere4ai/eval/strategies.py`:
 5. `graph_full`: as 4, plus the runtime grounding judge gating every
    generated answer (unverifiable citations withheld, verdict attached,
    non-accepted answers degraded to requires_human_review).
+6. `graph_runtime_judge`: as 3 (every extracted norm offered, the build
+   judge ignored), plus the runtime grounding judge of 5: the runtime judge
+   without the build judge (B126). It takes the `@vN` prompt-version suffix
+   `graph_full` takes. Whether a condition calls the runtime judge is
+   answered by `strategies.uses_runtime_judge`, never by its name.
 
 Metrics (`src/tere4ai/eval/metrics.py`): risk classification accuracy,
 citation completeness, hallucinated citation rate, judge false-accept and
@@ -122,9 +127,10 @@ A live run requires ALL of:
 
     TERE4AI_LIVE_TESTS=1 .venv/bin/python -m tere4ai.eval.harness --live
 
-Cost note: one full ladder over the 10 seed items is roughly 10 items x 5
-strategies = 50 generator calls plus 10 runtime-judge calls; over the
-benchmark sample add 47 x 5 more. Budget accordingly and prefer strategy
+Cost note: one full ladder over the 10 seed items is roughly 10 items x 6
+strategies = 60 generator calls plus 10 x 2 runtime-judge calls (graph_full
+and graph_runtime_judge); over the benchmark sample add 47 x 6 generator
+and 47 x 2 judge calls more. Budget accordingly and prefer strategy
 subsets while iterating.
 
 ## Honesty rules for this directory

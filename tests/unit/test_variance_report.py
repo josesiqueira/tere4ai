@@ -72,6 +72,13 @@ def test_determinism_check_flags_graph_flips():
     assert "graph_full" in text
 
 
+def test_determinism_check_covers_the_sixth_condition():
+    # B126: graph_runtime_judge classifies with the same deterministic rules
+    comparisons = {"graph_runtime_judge": vr.compare_strategy(RUN_A, RUN_B, GOLD)}
+    text = vr.render_markdown(Path("a.jsonl"), Path("b.jsonl"), comparisons)
+    assert "flipped labels in: graph_runtime_judge" in text
+
+
 def test_determinism_check_passes_on_identical_graph_runs():
     comparisons = {"graph_full": vr.compare_strategy(RUN_A, RUN_A, GOLD)}
     text = vr.render_markdown(Path("a.jsonl"), Path("b.jsonl"), comparisons)

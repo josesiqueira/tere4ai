@@ -68,7 +68,8 @@ read_level = _dd.read_level
 LegacyLevelError = _dd.LegacyLevelError
 
 DEFAULT_OUT = ROOT / "docs" / "variance_study.md"
-GRAPH_STRATEGIES = ("graph_no_judge", "graph_build_judge", "graph_full")
+# the conditions that classify with the deterministic rules (B126: the sixth too)
+GRAPH_STRATEGIES = ("graph_no_judge", "graph_build_judge", "graph_full", "graph_runtime_judge")
 
 
 def _label(result: dict[str, Any] | None, legacy_levels: bool = False) -> str:

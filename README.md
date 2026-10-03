@@ -457,7 +457,7 @@ and docs/traceability.md, which is generated from code tags):
   generate_control_backlog gated by the runtime grounding judge; the
   twelve tools on the MCP server; HTTP facade plus the /assess demo flow,
   the recorded-session /mcp-demo page and the agent replay.
-- M4: evaluation harness with the five-condition ablation ladder, Section 12
+- M4: evaluation harness with the six-condition ablation ladder, Section 12
   metrics, a 10-item seed gold set, and the located REF-15 benchmark. Live
   ablation runs and the full 60-80 item gold set are pending research work
   (cost-gated; see eval/README.md).

@@ -51,7 +51,7 @@ from tere4ai.eval.evaluation_record import (
     served_input_paths,
 )
 from tere4ai.eval.metrics import METRICS_VERSION, current_level  # noqa: F401
-from tere4ai.eval.strategies import STRATEGY_NAMES, build_strategy
+from tere4ai.eval.strategies import STRATEGY_NAMES, build_strategy, uses_runtime_judge
 from tere4ai.extract_norms.model_clients import ModelClient, declared_sampling
 from tere4ai.graph_store.build_record import atomic_write_json
 from tere4ai.graph_store.present import exception_reason
@@ -269,9 +269,11 @@ def results_artifact_name(build_id: str, strategy_names: list[str]) -> str:
 
 def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -> dict[str, str] | None:
     """The runtime grounding judge's prompt hash per prompt version, for every
-    graph_full condition whose models report judge_prompt_version, else None
-    (no runtime judge was called). A graph_full strategy reports it when a
-    runtime judge is set; the name alone is no evidence (B81 item 23).
+    condition that calls the runtime judge (graph_full and, since B126,
+    graph_runtime_judge; strategies.uses_runtime_judge) whose models report
+    judge_prompt_version, else None (no runtime judge was called). Such a
+    strategy reports it when a runtime judge is set; the name alone is no
+    evidence (B81 item 23).
 
     Hashed the way tere4ai.judge.runtime_grounding does (load_prompt, then
     prompt_sha256), never reimplemented; the key is "runtime_grounding" for
@@ -281,7 +283,7 @@ def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -
     hashes: dict[str, str] = {}
     for name, models in models_by_strategy.items():
         version = (models or {}).get("judge_prompt_version")
-        if name.partition("@")[0] != "graph_full" or not version:
+        if not uses_runtime_judge(name) or not version:
             continue
         key = "runtime_grounding" if version == "v1" else f"runtime_grounding@{version}"
         hashes[key] = prompt_sha256(load_prompt("runtime_grounding", version))
@@ -339,7 +341,8 @@ def run_eval(
 
     strategies is either a mapping name -> already constructed callable, or
     a list of names from STRATEGY_NAMES, in which case generator_factory
-    (and judge_factory for graph_full) are called once each and the
+    (and judge_factory for a condition that calls the runtime judge, see
+    strategies.uses_runtime_judge) are called once each and the
     strategies are built over dump and norms_payload (defaulting to the
     published graph dumps on disk).
 
@@ -381,9 +384,10 @@ def run_eval(
             read_paths["norms"] = served["norms"]
         generator = generator_factory()
         judge = None
-        if "graph_full" in strategies:
+        judged = [name for name in strategies if uses_runtime_judge(name)]
+        if judged:
             if judge_factory is None:
-                raise ValueError("graph_full was requested but no judge_factory")
+                raise ValueError(f"{', '.join(judged)} was requested but no judge_factory")
             judge = judge_factory()
         strategies = {
             name: build_strategy(

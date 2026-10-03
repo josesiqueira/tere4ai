@@ -48,7 +48,7 @@ def test_all_expected_outputs_exist(generated):
 def test_table_numbers_match_source_artifacts(generated):
     run2 = json.loads((ROOT / "eval/results/ablation_summary.json").read_text())
     tex = (generated / "tab_ablation.tex").read_text()
-    for name in mpa.STRATEGY_LABELS:
+    for name in mpa._conditions(run2):  # the five the July summary holds
         bench = run2["strategies"][name]["benchmark_freetext_classification"]
         assert f"& {bench['correct']} &" in tex
     norms = json.loads((ROOT / "data/graph_dumps/norms_core.json").read_text())
@@ -80,3 +80,16 @@ def test_tex_outputs_are_deterministic(generated, tmp_path):
         names.append("tab_ablation_full.tex")
     for name in names:
         assert (tmp_path / name).read_text() == (generated / name).read_text()
+
+
+def test_the_sixth_condition_has_a_label_and_a_summary_without_it_still_renders():
+    # B126: the July summaries hold five conditions; a summary without a
+    # labelled condition gets no row for it, never a KeyError
+    assert mpa.STRATEGY_LABELS["graph_runtime_judge"] == "graph + runtime judge only"
+    assert mpa.STRATEGY_LABELS["graph_full"] == "graph + both judges"
+    run = json.loads((ROOT / "eval/results/ablation_summary.json").read_text())
+    assert "graph_runtime_judge" not in run["strategies"]
+    tex = mpa.tab_ablation_single(run, "run 2")
+    assert "runtime judge only" not in tex and "graph + both judges" in tex
+    six = {**run, "strategies": {**run["strategies"], "graph_runtime_judge": run["strategies"]["graph_full"]}}
+    assert "graph + runtime judge only" in mpa.tab_ablation_single(six, "six")

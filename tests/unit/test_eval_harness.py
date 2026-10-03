@@ -236,6 +236,43 @@ def test_graph_full_requires_a_judge_client():
         build_strategy("graph_full", make_generator(), MINI_DUMP, MINI_NORMS)
 
 
+def test_graph_runtime_judge_offers_every_norm_and_gates_with_the_runtime_judge(tmp_path):
+    # B126: condition 3 (every extracted norm offered, the build judge
+    # ignored) plus the runtime grounding judge of graph_full
+    strategies = build_all_strategies(tmp_path)
+    answered = strategies["graph_runtime_judge"](GOLD_3[2])
+    assert "norm:t2" in answered["offered_norm_ids"]  # rejected norm still offered
+    assert answered["offered_norm_ids"] == strategies["graph_no_judge"](GOLD_3[2])["offered_norm_ids"]
+    assert answered["judge_verdict"] == "accepted"
+    gated = strategies["graph_runtime_judge"](GOLD_3[1])
+    assert "test:fabricated-node" not in gated["citations"]
+    assert gated["citations"] == ["test:annex-x:point-1"]
+    assert gated["judge_verdict"] == "accepted"
+    assert strategies["graph_runtime_judge"].models["judge"] == "fake-judge"
+
+
+def test_graph_runtime_judge_requires_a_judge_client():
+    with pytest.raises(ValueError, match="graph_runtime_judge needs a judge"):
+        build_strategy("graph_runtime_judge", make_generator(), MINI_DUMP, MINI_NORMS)
+
+
+def test_graph_runtime_judge_takes_a_prompt_version_suffix(tmp_path):
+    strategy = build_strategy("graph_runtime_judge@v2", make_generator(), MINI_DUMP, MINI_NORMS,
+                              judge=make_judge(), judge_log_path=tmp_path / "judge_log.jsonl")
+    assert strategy.name == "graph_runtime_judge@v2"
+    assert strategy.models["judge_prompt_version"] == "v2"
+    assert build_strategy("graph_runtime_judge", make_generator(), MINI_DUMP, MINI_NORMS,
+                          judge=make_judge()).models["judge_prompt_version"] == "v1"
+
+
+def test_uses_runtime_judge_names_the_two_judged_conditions():
+    from tere4ai.eval.strategies import uses_runtime_judge
+    assert STRATEGY_NAMES[-1] == "graph_runtime_judge"
+    assert [n for n in STRATEGY_NAMES if uses_runtime_judge(n)] == ["graph_full", "graph_runtime_judge"]
+    assert uses_runtime_judge("graph_full@v2") and uses_runtime_judge("graph_runtime_judge@v2")
+    assert not uses_runtime_judge("graph_no_judge@v2") and not uses_runtime_judge("graph_fullish")
+
+
 def test_unknown_strategy_name_rejected():
     with pytest.raises(ValueError, match="unknown strategy"):
         build_strategy("graph_maximal", make_generator(), MINI_DUMP, MINI_NORMS)
@@ -862,6 +899,34 @@ def test_the_runtime_judge_prompt_is_hashed_only_when_the_strategy_reports_its_v
     out = run_eval(list(GOLD_3)[:1], {"graph_full": lambda item: {"answer_text": "a", "citations": []}},
                    results_dir=tmp_path / "r", record_store=store)
     assert store.read(out["record_id"])["prompt_sha256"] is None
+
+
+def test_the_harness_asks_for_a_judge_when_only_graph_runtime_judge_is_requested(tmp_path):
+    # B126 (ruling R2): the judge is built for every condition that calls it, not only graph_full
+    with pytest.raises(ValueError, match="graph_runtime_judge was requested but no judge_factory"):
+        run_eval(list(GOLD_3)[:1], ["graph_runtime_judge"], generator_factory=make_generator,
+                 dump=MINI_DUMP, norms_payload=MINI_NORMS, results_dir=tmp_path / "r")
+    built = []
+    artifact = run_eval(list(GOLD_3)[:1], ["graph_runtime_judge"], generator_factory=make_generator,
+                        judge_factory=lambda: built.append(1) or make_judge(), dump=MINI_DUMP,
+                        norms_payload=MINI_NORMS, results_dir=tmp_path / "r",
+                        judge_log_path=tmp_path / "judge_log.jsonl")
+    assert built == [1]
+    assert artifact["strategies"] == ["graph_runtime_judge"]
+
+
+def test_an_offline_run_with_graph_runtime_judge_records_the_runtime_judge_prompt_hash(tmp_path):
+    from tere4ai.eval import harness as h
+    from tere4ai.judge.runtime_grounding import load_prompt, prompt_sha256
+    expected = {"runtime_grounding": prompt_sha256(load_prompt("runtime_grounding", "v1"))}
+    assert h.runtime_judge_prompt_sha256({"graph_runtime_judge": {"judge_prompt_version": "v1"}}) == expected
+    assert h.runtime_judge_prompt_sha256({"graph_runtime_judge": {}}) is None
+    _write_legacy_dumps(tmp_path)
+    store = EvaluationRecordStore(tmp_path)
+    out = run_eval(list(GOLD_3)[:1], ["graph_runtime_judge"], generator_factory=h.OfflineStubClient,
+                   judge_factory=h.OfflineStubClient, record_store=store, dump_dir=tmp_path,
+                   judge_log_path=tmp_path / "judge_log.jsonl", results_dir=tmp_path / "r")
+    assert store.read(out["record_id"])["prompt_sha256"] == expected
 
 
 def test_a_failure_finish_refused_by_validation_still_ends_the_record_failed(tmp_path, monkeypatch):

@@ -159,6 +159,25 @@ def verify_full_benchmark() -> Path:
     return tmp
 
 
+# A condition the run-2 checkpoint does not hold takes the observed answer
+# sizes of the condition whose generator prompt it shares (B126: the sixth
+# condition offers the norms graph_no_judge offers; its judge adds no
+# generator output).
+OUTPUT_SIZE_PROXY = {"graph_runtime_judge": "graph_no_judge"}
+
+
+def output_chars_for(out_chars: dict[str, dict[str, float]],
+                     name: str) -> tuple[dict[str, float], str | None]:
+    """The observed answer sizes per kind for one condition, and the proxy
+    condition they were read from (None when the condition's own)."""
+    if name in out_chars:
+        return out_chars[name], None
+    proxy = OUTPUT_SIZE_PROXY.get(name)
+    if proxy is not None and proxy in out_chars:
+        return out_chars[proxy], proxy
+    return {}, None
+
+
 def observed_output_chars() -> dict[str, dict[str, float]]:
     """Mean answer payload chars per (strategy, kind) from the run-2 checkpoint."""
     by_key: dict[tuple[str, str], list[int]] = {}
@@ -217,8 +236,12 @@ def main() -> int:
     gen_reply = {"answer_text": "dry-run stub", "citations": [], "risk_category": None}
     judge_reply = {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"}
     per_strategy: dict[str, dict[str, Any]] = {}
+    proxied: dict[str, str] = {}
     with tempfile.TemporaryDirectory() as tmp:
         for name in STRATEGY_NAMES:
+            sizes, proxy = output_chars_for(out_chars, name)
+            if proxy is not None:
+                proxied[name] = proxy
             totals = {
                 "gen_calls": 0, "gen_in": 0, "gen_out": 0,
                 "judge_calls": 0, "judge_in": 0, "judge_out": 0,
@@ -235,7 +258,7 @@ def main() -> int:
                     results_dir=Path(tmp),
                     judge_log_path=Path(tmp) / "judge_log.jsonl",
                 )
-                mean_out = out_chars.get(name, {}).get(kind, 0)
+                mean_out = sizes.get(kind, 0)
                 totals["gen_calls"] += gen.calls
                 totals["gen_in"] += tokens(gen.prompt_chars)
                 totals["gen_out"] += tokens(gen.calls * mean_out)
@@ -301,6 +324,9 @@ def main() -> int:
     ]
     if elicit_out_note:
         lines += [elicit_out_note, ""]
+    for name, proxy in proxied.items():
+        lines += [f"{name} was not run in run 2: its output tokens use the observed "
+                  f"answer sizes of {proxy}.", ""]
     lines += [
         "## Totals",
         "",
@@ -333,8 +359,9 @@ def main() -> int:
         "",
         "## Cost-gate notes for task #27",
         "",
-        "- Only graph_full calls the runtime judge; the other four conditions",
-        "  are generator-only. Dropping graph_full halves nothing else.",
+        "- Only graph_full and graph_runtime_judge call the runtime judge; the",
+        "  other four conditions are generator-only. Dropping either removes",
+        "  only its own judge calls and changes nothing else.",
         "- Batch APIs (both providers) typically price at 50 percent; the run",
         "  is embarrassingly parallel and latency-insensitive, so batching is",
         "  the first lever if the total is over budget.",

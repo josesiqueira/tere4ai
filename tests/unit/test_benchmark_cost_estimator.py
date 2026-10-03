@@ -109,3 +109,13 @@ def test_elicitation_output_counts_features_only_and_says_so_without_quotes():
     mean, note = est.elicitation_output_chars({"features_by_item": feats})
     assert mean == sum(len(json.dumps(v)) for v in feats.values()) / 2
     assert note is not None and "features only" in note and "no quotes" in note
+
+
+def test_a_condition_the_july_checkpoint_lacks_takes_its_proxy_output_size():
+    # B126: graph_runtime_judge was not run in July; its generator sees the
+    # prompt of graph_no_judge, so it takes that condition's observed sizes
+    # instead of a silent 0
+    out = {"graph_no_judge": {"qa": 120.0, "classification": 80.0}}
+    assert est.output_chars_for(out, "graph_runtime_judge") == (out["graph_no_judge"], "graph_no_judge")
+    assert est.output_chars_for(out, "graph_no_judge") == (out["graph_no_judge"], None)
+    assert est.output_chars_for(out, "plain_llm") == ({}, None)
