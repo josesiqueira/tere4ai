@@ -24,6 +24,7 @@ from tere4ai.mcp_server.tools import (
     STATUS_VOCABULARY,
     strip_verbatim_quote_fields,
 )
+from tere4ai.parse_legal_structure import amendments as amend
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -121,8 +122,11 @@ def test_high_risk_returns_only_accepted_norms_grouped(dump, norms_payload, node
 
     from tere4ai.mcp_server.requirements import _is_requirement_group
 
+    deleted_units = {x["id"] for x in dump["nodes"] if amend.is_deleted(x)}
+
     def _in_req_scope(n):
-        return _is_requirement_group(_group(n["source_node_id"]))
+        # F7: a norm on a unit the Omnibus deleted is no requirement of the Act in force
+        return _is_requirement_group(_group(n["source_node_id"])) and n["source_node_id"] not in deleted_units
 
     verdict_by_norm = {n["norm_id"]: n["judge_verdict"] for n in norms_payload["norms"]}
     # Audit W3: a high-risk system's requirements are the obligation regime,
@@ -206,6 +210,7 @@ def test_high_risk_entries_carry_conditions_when_present(dump, norms_payload):
         if n["judge_verdict"] == "accepted"
         and n.get("conditions")
         and _is_requirement_group(_group(n["source_node_id"]))
+        and n["source_node_id"] not in {x["id"] for x in dump["nodes"] if amend.is_deleted(x)}
     ]
     assert len(with_conditions) == len(conditioned_accepted)
 
@@ -540,3 +545,26 @@ def test_the_pre_dec_19_norms_build_serves_no_type(dump, norms_payload):
     entries = [e for rows in envelope["answer"]["requirements_by_article"].values() for e in rows]
     assert entries
     assert all("requirement_type" not in e for e in entries)
+
+
+def test_a_norm_on_a_unit_the_omnibus_deleted_is_not_a_requirement(dump, norms_payload):
+    """Final review F7 (brief D3: requirement selection skips deleted units). The dev
+    norms were extracted from the 2024 text; the 14 accepted ones on Article 10(5)
+    and its points cite a unit the Omnibus deleted, whose span no longer resolves."""
+    deleted = [n for n in norms_payload["norms"] if n.get("judge_verdict") == "accepted"
+               and n["source_node_id"].startswith("eu-ai-act:article-10:paragraph-5")]
+    assert deleted, "the dev norms still hold norms on Article 10(5)"
+    answer = get_applicable_requirements({"risk_category": "high_risk"}, norms_payload, dump)["answer"]
+    entries = [e for group in answer["requirements_by_article"].values() for e in group]
+    assert entries
+    assert not [e for e in entries if e["source_node_id"].startswith("eu-ai-act:article-10:paragraph-5")]
+    assert answer["summary"]["deleted_source_skipped"] >= len(deleted)
+
+
+def test_groups_follow_the_acts_order_with_letter_suffixed_articles():
+    """Final review F10: article-4a sorts between article-4 and article-5."""
+    from tere4ai.mcp_server.requirements import _group_sort_key
+
+    groups = ["article-50", "annex-iii", "article-5", "article-4a", "article-3", "article-4"]
+    assert sorted(groups, key=_group_sort_key) == [
+        "article-3", "article-4", "article-4a", "article-5", "article-50", "annex-iii"]

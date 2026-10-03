@@ -161,7 +161,7 @@ export default function LandingPage() {
             <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
               <h3 className="font-semibold">What it is</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                A knowledge graph of the EU AI Act (113 articles, 180 recitals, 13 annexes,
+                A knowledge graph of the EU AI Act in force (119 articles, 180 recitals, 14 annexes,
                 parsed deterministically from checksummed official sources) served through the
                 Model Context Protocol, so AI coding assistants can query the law the way they
                 query a database.

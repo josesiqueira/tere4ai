@@ -389,3 +389,44 @@ def test_server_module_wraps_tools():
     assert degraded["status"] == "requires_human_review"
     assert degraded["confidence"] == 0.0
     assert degraded["graph_version"] == "unavailable"
+
+
+@pytest.mark.skipif(
+    _REAL_DUMP_MISSING,
+    reason="published graph dump/snapshots not present (build artifact, gitignored)",
+)
+def test_source_trace_of_a_deleted_unit_says_who_deleted_it():
+    """Final review F8 (brief D3: a reference to a deleted unit resolves to "deleted
+    by ..."). Article 10(5) has no span because the Omnibus deleted it, which is a
+    resolved answer, not a trace that cannot be verified."""
+    from tere4ai.parse_legal_structure.amendments import deleted_note
+
+    dump = json.loads(_REAL_DUMP_PATH.read_text(encoding="utf-8"))
+    node = next(n for n in dump["nodes"] if n["id"] == "eu-ai-act:article-10:paragraph-5")
+    envelope = source_trace(dump, "eu-ai-act:article-10:paragraph-5", snapshots_dir=_REAL_SNAPSHOTS_DIR)
+    note = deleted_note(node)
+    assert note == "Deleted by Regulation (EU) 2026/1744, Article 1, point (9)(b), from 27 July 2026."
+    assert envelope["status"] == "satisfied_with_evidence"
+    assert envelope["answer"]["deleted"] is True
+    assert envelope["answer"]["deleted_note"] == note
+    assert envelope["answer"]["earlier_version"] == "version:2024-07-12:eu-ai-act:article-10:paragraph-5"
+    assert note in envelope["legal_status_notes"]
+    assert not envelope["missing_facts"]
+    assert not any("cannot be verified" in f for f in envelope["missing_facts"])
+
+
+def test_the_coverage_report_descriptions_name_the_act_in_force():
+    """Final review F9: the tool description, the function's docstring and the demo
+    home page state the counts the served dump answers (119 articles, 14 annexes)."""
+    import ast
+
+    from tere4ai.mcp_server import tools
+
+    server = ast.parse((_REPO_ROOT / "src" / "tere4ai" / "mcp_server" / "server.py").read_text(encoding="utf-8"))
+    served = next(ast.get_docstring(f) for f in ast.walk(server)
+                  if isinstance(f, ast.FunctionDef) and f.name == "coverage_report")
+    page = (_REPO_ROOT / "web" / "src" / "app" / "page.tsx").read_text(encoding="utf-8")
+    for text in (" ".join(served.split()), " ".join(tools.coverage_report.__doc__.split()), page):
+        assert f"{tools.EXPECTED_ARTICLES_AMENDED} articles" in text
+        assert f"{tools.EXPECTED_ANNEXES_AMENDED} annexes" in text
+    assert "113 articles" not in " ".join(served.split()) and "113 articles" not in page

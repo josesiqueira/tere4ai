@@ -18,6 +18,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from tere4ai.parse_legal_structure.amendments import deleted_note, is_deleted, version_node_id
+
 # DEC-08: calibrated vocabulary. Never compliant, certified, or legally approved.
 STATUS_VOCABULARY = (
     "not_applicable",
@@ -282,7 +284,8 @@ def coverage_report(
 ) -> dict[str, Any]:
     """Structural coverage of the Layer 0+1 dump against the M1 acceptance.
 
-    Checks the expected counts (113 articles, 180 recitals, 13 annexes,
+    Checks the expected counts (for the Act in force 119 articles and 14
+    annexes, for a build of the Act as enacted 113 and 13; 180 recitals,
     chapters I to XIII, a nonzero paragraph count), lists articles per
     chapter, reports layer 2 and layer 3 node counts, and verifies structural
     presence of the Section 10 high-risk core article set.
@@ -369,7 +372,7 @@ def coverage_report(
     for edge in edges:
         if edge.get("edge_type") == "HAS_SECTION":
             section_to_chapter[edge["to"]] = edge["from"]
-    per_chapter: dict[str, list[int]] = defaultdict(list)
+    per_chapter: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for edge in edges:
         if edge.get("edge_type") != "HAS_ARTICLE":
             continue
@@ -436,7 +439,10 @@ def source_trace(
 
     Returns the snapshot file, its sha256, the span start and end offsets,
     the HTML anchor, and a text excerpt. An unknown node_id returns status
-    not_applicable with missing_facts populated, never an exception.
+    not_applicable with missing_facts populated, never an exception. A unit
+    the Omnibus deleted has no span: its answer says deleted, by which act
+    and point and from when (amendments.deleted_note), and names its earlier
+    version, the 2024 wording.
 
     The excerpt is capped at _EXCERPT_MAX_CHARS (500) characters for payload
     discipline: a long provision (Article 5(1) is over 13,000 characters)
@@ -471,6 +477,36 @@ def source_trace(
             missing_facts=[
                 f"node_id '{node_id}' is not present in graph dump build {graph_version}"
             ],
+        )
+
+    if is_deleted(node):
+        # A unit the Omnibus deleted keeps its id and has no span (DEC-23): the
+        # trace resolves to who deleted it and from when, with its 2024 wording
+        # as the earlier version when the dump holds it. The status vocabulary
+        # has no word for "deleted", so the answer and the note say it.
+        note = deleted_note(node)
+        version_id = version_node_id(node_id)
+        has_version = any(n.get("id") == version_id for n in nodes)
+        return make_envelope(
+            answer={
+                "node_id": node_id,
+                "found": True,
+                "type": node.get("type"),
+                "layer": node.get("layer"),
+                "deleted": True,
+                "deleted_by": node.get("deleted_by"),
+                "deleted_from": node.get("deleted_from"),
+                "deleted_note": note,
+                "earlier_version": version_id if has_version else None,
+            },
+            status="satisfied_with_evidence",
+            graph_version=graph_version,
+            source_nodes=[node_id],
+            graph_evidence_subgraph={
+                "nodes": [node_id, version_id] if has_version else [node_id],
+                "edges": [{"from": node_id, "to": version_id, "edge_type": "HAS_VERSION"}] if has_version else [],
+            },
+            legal_status_notes=[*_legal_status_notes(nodes), note],
         )
 
     span = node.get("source_span")

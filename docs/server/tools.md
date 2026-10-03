@@ -49,9 +49,9 @@ Free. Annotations: destructiveHint false, openWorldHint false, readOnlyHint true
 ```text
 Structural coverage of the Act's graph and its judged layers, against
 the frozen source. The Layer 0+1 graph is checked against what the Act
-holds (113 articles, 180 recitals, 13 annexes, chapters I to XIII, the
-high-risk core present), with per-chapter article listing and layer 2/3
-status. Deterministic and free.
+in force holds (119 articles, 180 recitals, 14 annexes, chapters I to
+XIII, the high-risk core present), with per-chapter article listing and
+layer 2/3 status. Deterministic and free.
 ```
 
 No input.

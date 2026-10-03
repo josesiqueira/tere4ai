@@ -20,11 +20,14 @@ judged data.
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from tere4ai.mcp_server.tools import make_envelope
+from tere4ai.parse_legal_structure.amendments import is_deleted
+from tere4ai.parse_legal_structure.labels import LABEL_PATTERN, sort_key
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 NORMS_SCHEMA_PATH = _REPO_ROOT / "schema" / "json_schemas" / "norms.schema.json"
@@ -128,11 +131,14 @@ def _source_group(source_node_id: str) -> str:
     return parts[1] if len(parts) > 1 else source_node_id
 
 
+_ARTICLE_GROUP = re.compile(rf"^article-({LABEL_PATTERN})$")
+
+
 def _group_sort_key(group: str) -> tuple[int, Any]:
-    if group.startswith("article-"):
-        suffix = group.removeprefix("article-")
-        if suffix.isdigit():
-            return (0, int(suffix))
+    """Articles in the Act's order (4, 4a, 5: labels.sort_key), then the other groups by name."""
+    match = _ARTICLE_GROUP.match(group)
+    if match:
+        return (0, sort_key(match.group(1)))
     return (1, group)
 
 
@@ -336,6 +342,12 @@ def get_applicable_requirements(
             n for n in norms if _is_requirement_group(_source_group(str(n.get("source_node_id", ""))))
         ]
 
+    # A norm on a unit the Omnibus deleted is no requirement of the Act in force
+    # (DEC-23; the dev norms were extracted from the 2024 text): skipped and
+    # counted. A norm whose unit is missing from the dump is handled as before.
+    deleted_source = [n for n in in_scope if is_deleted(node_index.get(str(n.get("source_node_id", ""))))]
+    in_scope = [n for n in in_scope if not is_deleted(node_index.get(str(n.get("source_node_id", ""))))]
+
     accepted = [n for n in in_scope if n.get("judge_verdict") == "accepted"]
     needs_review = [n for n in in_scope if n.get("judge_verdict") == "needs_human_review"]
 
@@ -385,6 +397,11 @@ def get_applicable_requirements(
             "the review queue but are never returned as requirements"
         ),
         "per_article": per_article,
+        "deleted_source_skipped": len(deleted_source),
+        "deleted_source_note": (
+            "norms whose source unit the Digital Omnibus deleted are not requirements "
+            "of the Act in force and are never returned"
+        ),
         "norms_build_id": str(norms_payload.get("build", {}).get("build_id", "unknown")),
     }
 
