@@ -12,7 +12,8 @@ Architecture.md Section 13. Gates implemented here:
   G5 no recital treated as binding (recitals never norm sources, never point parents)
   G6 no amendment silently replacing the in-force source: the Omnibus is either kept
      apart (merged_into_base False, no unit changed) or merged with every marker read
-     and checked and every unit checked (spec G D-G68)
+     and checked and every unit checked (spec G D-G68); a dump that reads as amended
+     without the Omnibus SourceDocument is refused
   G2 also refuses a span id carried by an in-force node and an earlier version (B132)
 
 validate_build returns a report; the build entry point refuses to publish on
@@ -23,6 +24,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+
+from tere4ai.parse_legal_structure.amendments import OMNIBUS_ACT
 
 HIERARCHY_EDGES = {
     "HAS_CHAPTER",
@@ -152,6 +155,16 @@ def validate_build(
     if base is None or base.get("legal_status") != "in_force":
         report.failures.append("G6 base act missing or not marked in_force")
     changed = [i for i, n in nodes.items() if n.get("amendment") not in (None, "unchanged")]
+    # A dump that reads as amended (a unit with an amendment field, an earlier
+    # version, wording enacted by the Omnibus) needs the Omnibus SourceDocument
+    # and the build's record of the checks (final review F5).
+    amended = any(n.get("amendment") is not None or n.get("type") == "UnitVersion"
+                  or OMNIBUS_ACT in str(n.get("enacted_by") or "") for n in dump["nodes"])
+    if omnibus is None and amended:
+        report.failures.append(
+            "G6 the dump holds amended units but no Omnibus SourceDocument: silent replacement forbidden")
+        if not dump["build"].get("amendments"):
+            report.failures.append("G6 the dump holds amended units but the build records no amendment checks")
     if omnibus is not None:
         if not any(e["edge_type"] == "AMENDS" and e["from"] == omnibus["id"] for e in edges):
             report.failures.append("G6 amending instrument without an AMENDS edge")

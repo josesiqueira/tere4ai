@@ -68,6 +68,9 @@ def test_the_omnibus_is_merged_with_the_marker_lists_digest(built):
         "marker_list": "data/amendments/omnibus_markers.json", "marker_list_sha256": digest,
         "markers_read": 77, "markers_checked": 77, "units_checked": 1603, "units_failed": 0,
         "exception_rows": [f"E{i}" for i in range(1, 10)],
+        # final review M1: the exception list and the inventory the checks read, by digest
+        "exceptions_sha256": hashlib.sha256(amend.DEFAULT_EXCEPTIONS_PATH.read_bytes()).hexdigest(),
+        "inventory_sha256": hashlib.sha256(amend.DEFAULT_INVENTORY_PATH.read_bytes()).hexdigest(),
     }
     consolidated = next(n for n in built["nodes"] if n["id"] == CONSOLIDATED_ID)
     assert consolidated["legal_status"] == "non_binding"
@@ -103,6 +106,37 @@ def test_g6_refuses_changed_units_under_an_omnibus_kept_apart(built):
     dump = copy.deepcopy(built)
     _omnibus(dump)["merged_into_base"] = False
     assert any("G6" in f and "merged_into_base is False" in f for f in validate_build(dump).failures)
+
+
+def test_g6_refuses_an_amended_dump_without_the_omnibus(built):
+    """Final review F5 (Codex P2): with the Omnibus SourceDocument, its edges and the
+    build's amendment record removed, the units it changed are still in the dump."""
+    dump = copy.deepcopy(built)
+    dump["nodes"] = [n for n in dump["nodes"] if n["id"] != OMNIBUS_ID]
+    dump["edges"] = [e for e in dump["edges"] if OMNIBUS_ID not in (e["from"], e["to"])]
+    dump["build"].pop("amendments")
+    failures = validate_build(dump).failures
+    assert any("G6" in f and "no Omnibus SourceDocument" in f for f in failures), failures
+    assert any("G6" in f and "no amendment checks" in f for f in failures)
+
+
+@pytest.mark.parametrize("change", ["missing", "binding"])
+def test_g6_refuses_a_merge_without_the_non_binding_consolidated_text(built, change):
+    """Final review M11: the consolidated text must be a SourceDocument marked non_binding."""
+    dump = copy.deepcopy(built)
+    if change == "missing":
+        dump["nodes"] = [n for n in dump["nodes"] if n["id"] != CONSOLIDATED_ID]
+    else:
+        next(n for n in dump["nodes"] if n["id"] == CONSOLIDATED_ID)["legal_status"] = "in_force"
+    assert any("G6 the consolidated text is missing or not marked non_binding" in f
+               for f in validate_build(dump).failures)
+
+
+def test_g6_refuses_an_omnibus_that_does_not_say_whether_it_is_merged(built):
+    """Final review M11: an Omnibus SourceDocument without merged_into_base."""
+    dump = copy.deepcopy(built)
+    _omnibus(dump).pop("merged_into_base")
+    assert any("G6" in f and "does not say whether it is merged" in f for f in validate_build(dump).failures)
 
 
 def test_g1_reaches_the_earlier_versions_through_has_version(built):
