@@ -1,7 +1,7 @@
 {
  "build": {
   "build_id": "build-bab25bf2e5d6",
-  "built_at": "2026-10-03T22:06:20+00:00",
+  "built_at": "2026-10-03T22:44:26+00:00",
   "tere4ai_version": "2.0.0a0",
   "snapshots": [
    {
@@ -98,7 +98,9 @@
     "E7",
     "E8",
     "E9"
-   ]
+   ],
+   "exceptions_sha256": "a9b672d0dd76b43097548f48874933f59f7eeb13d31f2fb55c333270f26d9308",
+   "inventory_sha256": "1338ad850dc086380d3d157f2f91b45f85f8b47a7eedb31be92b21f3fbd10fee"
   }
  },
  "nodes": [
