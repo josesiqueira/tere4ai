@@ -119,3 +119,28 @@ def test_a_condition_the_july_checkpoint_lacks_takes_its_proxy_output_size():
     assert est.output_chars_for(out, "graph_runtime_judge") == (out["graph_no_judge"], "graph_no_judge")
     assert est.output_chars_for(out, "graph_no_judge") == (out["graph_no_judge"], None)
     assert est.output_chars_for(out, "plain_llm") == ({}, None)
+
+
+def test_main_charges_the_sixth_condition_the_proxy_output_size(tmp_path, monkeypatch):
+    # B126 final review M2: the estimate itself, not only the helper, gives
+    # graph_runtime_judge graph_no_judge's observed answer size
+    def fake_run_eval(subset, names, generator_factory, judge_factory, **_kwargs):
+        gen = generator_factory()
+        for _item in subset:
+            gen.complete("system", "user")
+
+    monkeypatch.setattr(est, "ROOT", tmp_path)
+    monkeypatch.setattr(est, "OUT_PATH", tmp_path / "estimate.md")
+    monkeypatch.setattr(est, "verify_full_benchmark", lambda: tmp_path / "bench.json")
+    monkeypatch.setattr(est, "load_benchmark_items",
+                        lambda _p: [{"id": "bench:qa:1", "kind": "qa", "question": "q"}])
+    monkeypatch.setattr(est, "observed_output_chars", lambda: {"graph_no_judge": {"qa": 4000.0}})
+    monkeypatch.setattr(est, "observed_judge_reply_chars", lambda: 700.0)
+    monkeypatch.setattr(est, "elicitation_output_chars", lambda _facts: (100.0, None))
+    monkeypatch.setattr(est, "STRATEGY_NAMES", ("graph_no_judge", "graph_runtime_judge"))
+    monkeypatch.setattr(est, "run_eval", fake_run_eval)
+    assert est.main() == 0
+    rows = {line.split("|")[1].strip(): [c.strip() for c in line.split("|")[2:-1]]
+            for line in (tmp_path / "estimate.md").read_text(encoding="utf-8").splitlines()
+            if line.startswith("| graph_")}
+    assert rows["graph_runtime_judge"][2] == rows["graph_no_judge"][2] != "0"

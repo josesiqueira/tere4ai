@@ -28,8 +28,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   summary: every measure for the hand-made legal test set (`hand_made`,
   items `gold:`) and the published benchmark (`benchmark`, items `bench:`)
   apart: classification correct, total, accuracy (null when the key has
-  no labelled classification item) and abstained; citation completeness
-  by exact node id; the hallucinated citation rate over that key's answers
+  no labelled classification item) and abstained (no answer, or
+  undetermined where the label is a level: on a case labelled
+  undetermined it is the right answer, ruling R4); citation completeness
+  by exact node id (null when the key has nothing to cite, spec G D-G33);
+  the hallucinated citation rate over that key's answers
   with the citations emitted and the vacuous note at zero; and, for the
   benchmark, the article-level citation completeness. A case without an
   answer counts as wrong. The pooled keys are unchanged, kept for the

@@ -111,3 +111,25 @@ def test_an_empty_key_has_no_accuracy_and_zero_citations_carry_the_vacuous_note(
     for key in ("hand_made", "benchmark"):
         assert blocks[key]["citations_emitted"] == 0
         assert "vacuous" in blocks[key]["hallucination_note"]
+
+
+def test_a_correct_undetermined_answer_is_not_an_abstention():
+    # the hand-made set labels some cases undetermined (gold:cls-06, facts
+    # missing): answering undetermined there is the right answer, not a
+    # refusal; undetermined on a case labelled with a level still abstains
+    mod = _load()
+    items = [_cls("gold:cls-u", "undetermined"), _cls("gold:cls-h", "high_risk"),
+             _cls("gold:cls-m", "minimal_risk")]
+    results = {"gold:cls-u": {"risk_category": "undetermined", "citations": []},
+               "gold:cls-h": {"risk_category": "undetermined", "citations": []}}
+    block = mod.answer_key_blocks(results, items, set())["hand_made"]["classification"]
+    assert block == {"correct": 1, "total": 3, "accuracy": 1 / 3, "abstained": 2}
+
+
+def test_a_key_with_nothing_to_cite_has_no_completeness():
+    # spec G D-G33: a rate with an empty denominator is None, never 0.0
+    mod = _load()
+    blocks = mod.answer_key_blocks({}, [_cls("gold:cls-1", "high_risk")], set())
+    completeness = blocks["hand_made"]["citation_completeness"]
+    assert completeness["macro_completeness"] is None
+    assert completeness["micro"]["completeness"] is None

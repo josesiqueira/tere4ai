@@ -302,11 +302,23 @@ def article_level_completeness(results: dict, bench_items: list[dict]) -> dict:
     }
 
 
+def _completeness_or_none(completeness: dict) -> dict:
+    """metrics.citation_completeness reads 0.0 when nothing is required (the
+    pooled July keys keep that); a key with nothing to cite reads None."""
+    if completeness["micro"]["required"] == 0:
+        completeness["macro_completeness"] = None
+        completeness["micro"]["completeness"] = None
+    return completeness
+
+
 def answer_key_blocks(results: dict, items: list[dict], valid_node_ids: set[str]) -> dict:
     """Every measure for each answer key apart (B126, ruling R3). An item
     without an answer, or whose answer carries no risk_category, counts as
-    wrong and as abstained; accuracy is None when the key has no labelled
-    classification item."""
+    wrong and as abstained; "undetermined" counts as abstained only where
+    the label is a level, since on a case labelled undetermined it is the
+    right answer (ruling R4). Accuracy is None when the key has no labelled
+    classification item, and citation completeness is None when the key has
+    nothing to cite (spec G D-G33: an empty denominator is None)."""
     blocks: dict[str, dict] = {}
     for key, prefix in ANSWER_KEYS.items():
         key_items = [i for i in items if i["id"].startswith(prefix)]
@@ -321,9 +333,10 @@ def answer_key_blocks(results: dict, items: list[dict], valid_node_ids: set[str]
                 "correct": correct,
                 "total": len(labelled),
                 "accuracy": correct / len(labelled) if labelled else None,
-                "abstained": sum(1 for p in predicted if is_abstained(p)),
+                "abstained": sum(1 for i, p in zip(labelled, predicted)
+                                 if is_abstained(p) and p != i["gold"]["risk_category"]),
             },
-            "citation_completeness": metrics.citation_completeness(results, key_items),
+            "citation_completeness": _completeness_or_none(metrics.citation_completeness(results, key_items)),
             "hallucinated_citation_rate": metrics.hallucinated_citation_rate(key_results, valid_node_ids),
             "citations_emitted": emitted,
         }
