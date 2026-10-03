@@ -295,6 +295,9 @@ def _main(argv: list[str] | None = None) -> int:
                 "extraction_sampling": {"generator": generator_sampling["generator"],
                                        "judge": generator_sampling["judge"]},
                 "extraction_effort": {"generator": _effort_of(generator), "judge": _effort_of(judge)},
+                # Spec F D-F22, D-F29: the declared temperatures beside the efforts
+                "extraction_temperature": {"generator": generator_sampling["generator_temperature"],
+                                           "judge": generator_sampling["judge_temperature"]},
                 "extraction_usage": usage(),
                 "extracted_at": _now_iso(),
                 "prompt_version": args.prompt_version,

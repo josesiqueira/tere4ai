@@ -83,6 +83,7 @@ from tere4ai.eval.present_evaluation import (
 )
 from tere4ai.eval.present_evaluation import summary_of as evaluation_summary_of
 from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+from tere4ai.extract_norms.recorded import extraction_generator_settings
 from tere4ai.extract_norms.requirement_type import JUDGE_VIEW_FIELDS, carried
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import (
@@ -693,6 +694,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             # DEC-19: the type when the norm carries it (a build before DEC-19
             # has none, and no reader invents a null for it).
             candidate.update(carried(norm, ("requirement_type",)))
+            # Spec F D-F22, D-F29: the extractor named with its effort and
+            # temperature, from the dump's build block; null when unrecorded.
+            candidate["extractor_effort"], candidate["extractor_temperature"] = extraction_generator_settings(norms_payload, norm)
             candidate["judge"] = {
                 "run_id": norm.get("judge_run_id"),
                 "model": run.get("judge_model"),

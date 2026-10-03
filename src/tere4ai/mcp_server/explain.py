@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from tere4ai.extract_norms.recorded import extraction_generator_settings
 from tere4ai.mcp_server.tools import make_envelope
 
 ARTICLE_3_PREFIX = "eu-ai-act:article-3:"
@@ -203,6 +204,7 @@ def explain_requirement(
         )
     )
 
+    extractor_effort, extractor_temperature = extraction_generator_settings(norms_payload, norm)
     answer = {
         "norm_id": norm_id,
         "found": True,
@@ -242,6 +244,10 @@ def explain_requirement(
         "extraction": {
             "extraction_method": norm.get("extraction_method"),
             "extractor_model": norm.get("extractor_model"),
+            # Spec F D-F22, D-F29: the effort and temperature beside the model
+            # id, from the dump's build block; null when unrecorded.
+            "extractor_effort": extractor_effort,
+            "extractor_temperature": extractor_temperature,
             "extractor_prompt_version": norm.get("extractor_prompt_version"),
             "confidence": norm.get("confidence"),
         },

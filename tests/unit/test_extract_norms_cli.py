@@ -133,6 +133,10 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     payload = json.loads(out.read_text())
     assert payload["build"]["extraction_usage"]["judge"]["requests_sent"] == 3
     assert payload["build"]["extraction_effort"] == {"generator": "xhigh", "judge": "xhigh"}
+    # Spec F D-F22, D-F29: the declared temperatures beside the efforts, so a
+    # reader of a norm can name the extraction generator's settings
+    assert payload["build"]["extraction_temperature"] == {"generator": "provider default (rejected by the model)",
+                                                          "judge": "provider default (rejected by the model)"}
     assert payload["build"]["extraction_models"]["judge_effort"] == "xhigh"
     assert ex["counts"]["candidates"] == 2 and ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0}
     assert ex["outputs"][0]["file"] == "norms_test.json" and seen[0]["run_id"] == ex["run_id"]

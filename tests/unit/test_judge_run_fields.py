@@ -48,6 +48,10 @@ def _dumps(tmp_path, with_hash, with_effort=False, with_temperature=False):
                        "parent_id": "eu-ai-act:article-9"}],
             "edges": []}
     norms = {"build": {"build_id": "build-b"}, "norms": [norm], "judge_runs": [run], "stats": {}}
+    if with_effort:
+        # Spec F D-F22, D-F29: the extraction generator's settings, recorded once in the dump's build block
+        norms["build"]["extraction_effort"] = {"generator": "high", "judge": "xhigh"}
+        norms["build"]["extraction_temperature"] = {"generator": "0", "judge": "N/A"}
     alignments = {"build": {"build_id": "build-b"}, "assertions": [assertion], "mapping_runs": [mapping_run],
                   "judge_runs": [judge_run_3], "stats": {}}
     (tmp_path / "layer1.json").write_text(json.dumps(dump))
@@ -178,3 +182,32 @@ def test_a_judge_run_absent_from_the_dump_gives_its_own_reason(tmp_path):
     judge = trace_tool.trace_alignment("n1", alignments, dump)["answer"]["assertions"][0]["judge_run"]
     assert judge["prompt_sha256"] is None
     assert judge["prompt_sha256_reason"] == "the dump holds no judge run for this item"
+
+
+def test_units_and_explain_carry_the_extraction_generator_settings(tmp_path):
+    """Spec F D-F22, D-F29: the extraction generator is named with the effort
+    and temperature the dump's build block records, on the /api/units
+    candidate and in explain_requirement's extraction block."""
+    from tere4ai.mcp_server.explain import explain_requirement
+
+    dump, alignments = _dumps(tmp_path, with_hash=False, with_effort=True)
+    norms = json.loads((tmp_path / "norms_core.json").read_text())
+    extraction = explain_requirement("n1", dump, norms, alignments)["answer"]["extraction"]
+    assert (extraction["extractor_effort"], extraction["extractor_temperature"]) == ("high", "0")
+    with TestClient(facade.create_app(tmp_path)) as client:
+        candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
+        assert (candidate["extractor_effort"], candidate["extractor_temperature"]) == ("high", "0")
+
+
+def test_extraction_generator_settings_are_null_when_not_recorded_or_written_by_a_person(tmp_path):
+    """A dump made before the settings were recorded gives null, never
+    invented; a norm a person wrote (extractor_model human:<name>) was made
+    by no model, so it gives null whatever the build block records."""
+    from tere4ai.extract_norms.recorded import extraction_generator_settings
+
+    dump, _ = _dumps(tmp_path, with_hash=False, with_effort=False)
+    norms = json.loads((tmp_path / "norms_core.json").read_text())
+    assert extraction_generator_settings(norms, norms["norms"][0]) == (None, None)
+    build = {"extraction_effort": {"generator": "high"}, "extraction_temperature": {"generator": "0"}}
+    assert extraction_generator_settings({"build": build}, {"extractor_model": "g"}) == ("high", "0")
+    assert extraction_generator_settings({"build": build}, {"extractor_model": "human:ada"}) == (None, None)
