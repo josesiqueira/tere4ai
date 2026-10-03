@@ -750,9 +750,10 @@ et al. (40 authors), Advances in Neural Information Processing Systems 36
 10.52202/075280-1915 (527 citations on Semantic Scholar, 2026-10-02; 83 on
 Crossref, 2026-10-03). VERIFIED 2026-10-03. SUPPORTING. Grounds: a legal
 benchmark built where "domain experts take an active and participatory role
-in the crafting of evaluation tasks" (Section 1, p. 2): precedent for people
-with legal expertise labelling the ablation's hand-made test set, two on
-every case (B104 decision 2); not a rule on the number of annotators.
+in the crafting of evaluation tasks" (Section 1, p. 2): precedent for domain
+experts building a legal answer key, here the ablation's hand-made test set,
+labelled by two people on every case (B104 decision 2); not a rule on who or
+how many.
 
 **[ADD-76]** STD. ACM SIGSOFT Empirical Standards, Benchmarking (of Software
 Systems), Ralph et al., github.com/acmsigsoft/EmpiricalStandards,
