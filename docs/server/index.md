@@ -166,7 +166,7 @@ envelope that names the missing configuration; they never guess.
 
 How to read every answer, paid calls and the replay window, MCP revisions
 and clients, and every tool's full description:
-[the full explanation of the server](https://github.com/josesiqueira/tere4ai/blob/main/docs/server/index.md).
+[the full explanation of the server](https://josesiqueira.github.io/tere4ai/).
 <!-- readme: end -->
 
 ## How to read every answer
