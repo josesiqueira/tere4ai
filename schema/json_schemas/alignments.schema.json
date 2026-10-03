@@ -82,6 +82,8 @@
         "type": { "const": "MappingRun" },
         "layer": { "const": 3 },
         "generator_model": { "type": "string", "description": "exact model id" },
+        "generator_effort": { "type": "string", "description": "the generator's effort (spec F D-F22); absent from a run recorded before B121" },
+        "generator_temperature": { "type": "string", "description": "the generator's declared temperature (spec F D-F29); absent from a run recorded before B121" },
         "prompt_version": { "type": "string" },
         "started_at": { "type": "string" },
         "completed_at": { "type": "string" },

@@ -215,6 +215,10 @@ def align_norms(
         "type": "MappingRun",
         "layer": 3,
         "generator_model": generator.model,
+        # B121 (spec F D-F22, D-F29): the effort and the declared temperature
+        # beside the model id, as the judge run records its own
+        "generator_effort": getattr(generator, "effort", "not configured"),
+        "generator_temperature": getattr(generator, "temperature", "not configured"),
         "prompt_version": prompt_version,
         "prompt_sha256": align_prompt_sha256,
         "started_at": _now(),

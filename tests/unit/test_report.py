@@ -416,6 +416,39 @@ def test_the_alignment_judge_run_line_shows_the_judge_effort(tmp_path: Path) -> 
     assert "judge_effort" not in without_effort
 
 
+def test_the_alignment_mapping_run_line_shows_the_generator_effort(tmp_path: Path) -> None:
+    """B121 (spec F D-F22): the mapping run line prints the generator's
+    effort beside its model id; a mapping run recorded before B121 has no
+    effort key and shows no effort part."""
+    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
+    classify = next(x for x in lines if x["tool"] == "classify_ai_system")
+
+    def alignment(seq: int, norm_id: str, mapping_run: dict) -> dict:
+        assertion = {"source_norm_id": norm_id, "relation_type": "supports", "target_id": "hleg:req:1",
+                     "judge_verdict": "accepted", "mapping_run": mapping_run}
+        return {
+            "seq": seq, "ts": classify["ts"], "tool": "trace_alignment", "repo_ref": classify["repo_ref"],
+            "request": {"id": norm_id},
+            "envelope": {
+                **{k: v for k, v in classify["envelope"].items() if k != "answer"},
+                "answer": {"tool": "trace_alignment", "id": norm_id, "assertions": [assertion]},
+            },
+        }
+
+    run = {"id": "mr-1", "generator_model": "g", "prompt_version": "v1"}
+    exchanges = [alignment(3, "norm:a:n1", {**run, "generator_effort": "high"}), alignment(4, "norm:b:n1", run)]
+    path = tmp_path / "with_alignment.jsonl"
+    path.write_text("".join(json.dumps(x) + "\n" for x in [*lines, *exchanges]), encoding="utf-8")
+    html = _section_body(render_report_from_paths([path]), "alignment")
+    with_effort, without_effort = html.split('data-section="alignment_trace"')[1:]
+    assert (
+        'data-envelope-field="generator_model">g</span> · effort '
+        '<span class="field" data-envelope-field="generator_effort">high<'
+    ) in with_effort
+    assert 'data-envelope-field="generator_model">g</span> · prompt ' in without_effort
+    assert "generator_effort" not in without_effort
+
+
 def test_old_session_renders_as_not_classified() -> None:
     """B118 (ruling R9): a session recorded before the rename, whose
     classify answer carries an old level, renders as not classified,

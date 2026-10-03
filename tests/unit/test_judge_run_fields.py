@@ -32,6 +32,10 @@ def _dumps(tmp_path, with_hash, with_effort=False, with_temperature=False):
             "review_status": "accepted", "judge_run_id": "jr-1"}
     mapping_run = {"id": "mr-1", "type": "MappingRun", "layer": 3, "generator_model": "g", "prompt_version": "v1",
                    "started_at": "2026-09-01T00:00:00+00:00", "completed_at": "2026-09-01T00:00:02+00:00", "build_id": "build-b"}
+    if with_effort:
+        # B121 (spec F D-F22): the MappingRun carries its generator's effort.
+        mapping_run["generator_effort"] = "high"
+        mapping_run["generator_temperature"] = "0"
     judge_run_3 = {**run, "id": "jr-3", "judge_kind": "mapping", "layer": 3, "corrected_relation_type": None,
                    "review_status": "accepted"}
     assertion = {"id": "a1", "source_norm_id": "n1", "target_id": "hleg:req-1", "relation_type": "ALIGNS_WITH",
@@ -93,6 +97,8 @@ def test_units_and_trace_carry_a_null_judge_effort_when_absent(tmp_path):
     rendered = trace_tool.trace_alignment("n1", alignments, dump)
     chain = rendered["answer"]["assertions"][0]
     assert chain["judge_run"]["judge_effort"] is None
+    assert chain["mapping_run"]["generator_effort"] is None  # B121: a pre-B121 mapping run
+    assert chain["mapping_run"]["generator_temperature"] is None
     with TestClient(facade.create_app(tmp_path)) as client:
         candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
         assert candidate["judge"]["effort"] is None
@@ -105,6 +111,8 @@ def test_units_and_trace_carry_the_judge_effort_when_the_dump_records_it(tmp_pat
     rendered = trace_tool.trace_alignment("n1", alignments, dump)
     chain = rendered["answer"]["assertions"][0]
     assert chain["judge_run"]["judge_effort"] == "xhigh"
+    assert chain["mapping_run"]["generator_effort"] == "high"  # B121
+    assert chain["mapping_run"]["generator_temperature"] == "0"
     with TestClient(facade.create_app(tmp_path)) as client:
         candidate = [u for u in client.get("/api/units").json()["units"] if u["candidates"]][0]["candidates"][0]
         assert candidate["judge"]["effort"] == "xhigh"

@@ -1573,6 +1573,12 @@ def _render_hleg(
                     + emit_field("id", mapping_run.get("id"))
                     + " · generator "
                     + emit_field("generator_model", mapping_run.get("generator_model"))
+                    + (
+                        " · effort "
+                        + emit_field("generator_effort", mapping_run.get("generator_effort"))
+                        if "generator_effort" in mapping_run
+                        else ""
+                    )
                     + " · prompt "
                     + emit_field("prompt_version", mapping_run.get("prompt_version"))
                     + "</p>"

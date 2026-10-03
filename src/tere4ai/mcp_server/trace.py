@@ -84,6 +84,10 @@ def _render_assertion(
         "mapping_run": {
             "id": (mapping_run or {}).get("id", assertion.get("mapping_run_id")),
             "generator_model": (mapping_run or {}).get("generator_model"),
+            # B121 (spec F D-F22, D-F29): the generator's effort and declared
+            # temperature, null for a pre-B121 dump, never invented.
+            "generator_effort": (mapping_run or {}).get("generator_effort"),
+            "generator_temperature": (mapping_run or {}).get("generator_temperature"),
             "prompt_version": (mapping_run or {}).get("prompt_version"),
             # D-G39: the lineage hop names the judge run's time and, where
             # the dump records it (since B74), its prompt hash; null

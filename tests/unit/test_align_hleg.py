@@ -178,6 +178,9 @@ def test_one_mapping_run_per_invocation_referenced_by_assertions(tmp_path):
     ALIGNMENTS_VALIDATOR.validate(run)
     assert run["type"] == "MappingRun"
     assert run["generator_model"] == "fake-generator"
+    # B121 (spec F D-F22): the generator's effort beside its model id
+    assert run["generator_effort"] == "not configured"  # FakeClient declares no effort
+    assert run["generator_temperature"] == "not configured"
     assert run["prompt_version"] == "v1"
     assert run["build_id"] == "build-test"
     assert result["assertions"][0]["mapping_run_id"] == run["id"]
