@@ -706,6 +706,68 @@ the method of assessment, and the annotator combination", and annotators
 "identified multiple valid interpretations" (p. 191); spec G Section 6
 reports agreement per task and stage and keeps the spread of verdicts.
 
+**[ADD-72]** PEER. "Factorials Experiments, Covering Arrays, and
+Combinatorial Testing", Kacker, Kuhn, Lei, Simos, Mathematics in Computer
+Science 15(4):715-739, 2021, DOI 10.1007/s11786-021-00502-7 (6 citations on
+Crossref, 11 on Semantic Scholar, 2026-10-02; passes the bar by peer
+review). Held as Springer's typeset file posted on NIST's site (issue pages
+not printed; pages cited by PDF page). VERIFIED 2026-10-03. CORE. Grounds:
+a factor's effect is measured "while the values of the other factors are
+fixed", and an interaction is "the difference in the conditional main
+effects" (Section 2, PDF p. 3): each step of the ablation ladder is a
+conditional effect (thesis sdd/2026-10-03-B104-ablation-design, R1), and the
+sixth condition, the runtime judge without the build judge, reports each
+judge's contribution on its own (B104 decision 4).
+
+**[ADD-73]** PEER. "The Hitchhiker's Guide to Testing Statistical
+Significance in Natural Language Processing", Dror, Baumer, Shlomov,
+Reichart, Proceedings of the 56th Annual Meeting of the ACL (Volume 1),
+2018, pp. 1383-1392, DOI 10.18653/v1/P18-1128 (557 citations on Semantic
+Scholar, 173 on Crossref, 2026-10-02). VERIFIED 2026-10-03. CORE. Grounds:
+McNemar's test is "designed for paired nominal observations (binary
+labels)" (p. 1387), and testing several hypotheses raises "the probability
+of making one or more false claims" (p. 1389): the ablation's analysis uses
+McNemar on one paired set of correctness outcomes and a predeclared family
+of primary contrasts with a multiplicity correction (B104 R7).
+
+**[ADD-74]** PEER. "Approximate Statistical Tests for Comparing Supervised
+Classification Learning Algorithms", Dietterich, Neural Computation
+10(7):1895-1923, 1998, DOI 10.1162/089976698300017197 (4180 citations on
+Semantic Scholar, 2907 on Crossref, 2026-10-02). VoR paywalled; the author
+copy (manuscript of 1997-12-30) is held as _PREPRINT; quote only from the
+VoR once obtained, its pages replacing the author copy's. VERIFIED
+2026-10-03 (metadata; quotes read in the author copy). SUPPORTING. Grounds:
+McNemar's test concerns only "whether an example is classified correctly or
+incorrectly", whatever the number of classes (Section 2, author copy p. 6),
+and "does not directly measure variability due to the choice of the
+training set or the internal randomness" (Section 3.1, author copy p. 7):
+the ablation's result is worded for the one frozen build (B104 R2, R7).
+
+**[ADD-75]** PEER. "LegalBench: A Collaboratively Built Benchmark for
+Measuring Legal Reasoning in Large Language Models", Guha, Nyarko, Ho, Ré,
+et al. (40 authors), Advances in Neural Information Processing Systems 36
+(NeurIPS 2023), Datasets and Benchmarks Track, pp. 44123-44279, DOI
+10.52202/075280-1915 (527 citations on Semantic Scholar, 2026-10-02; 83 on
+Crossref, 2026-10-03). VERIFIED 2026-10-03. SUPPORTING. Grounds: a legal
+benchmark built where "domain experts take an active and participatory role
+in the crafting of evaluation tasks" (Section 1, p. 2): precedent for people
+with legal expertise labelling the ablation's hand-made test set, two on
+every case (B104 decision 2); not a rule on the number of annotators.
+
+**[ADD-76]** STD. ACM SIGSOFT Empirical Standards, Benchmarking (of Software
+Systems), Ralph et al., github.com/acmsigsoft/EmpiricalStandards,
+docs/standards/Benchmarking.md, commit 554118c (2026-09-17). Community
+standard of ACM SIGSOFT, not a formal standards body. VERIFIED 2026-10-03.
+CORE. Grounds: a benchmark study "discusses the construct validity of the
+benchmark" (line 40), "Tailoring the benchmark for a specific method,
+technique or tool, which is evaluated with the benchmark" is an antipattern
+(line 80), and stability is assessed with "sufficient experiment
+repetitions" (line 36): the published REF-15 benchmark is reported as
+agreement with its own labels, its 88 disagreements are reported and not
+relabelled, and the repetitions are fixed by a pilot (B104 decisions 1 and
+3, R5). The closer fit for an automated tool evaluation than ADD-48, whose
+scope is experiments with human participants.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
