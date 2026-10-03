@@ -1,4 +1,4 @@
-"""One unit reader for the 2024 Formex and the consolidated Formex (B132).
+"""One unit reader for the 2024 Formex and the consolidated Formex (B132, DEC-23).
 
 Spec G D-G68 (1): Layer 1 is parsed from EUR-Lex's consolidated text in
 Formex and every unit is compared with the 2024 act in Formex, so both are

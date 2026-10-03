@@ -1,4 +1,4 @@
-"""Every unit checked against the Official Journal wording of the act that enacted it (B132).
+"""Every unit checked against the Official Journal wording of the act that enacted it (B132, DEC-23).
 
 Spec G D-G68 (1): the consolidated text has no legal effect, so before the
 parse completes an unchanged unit equals the 2024 unit, Formex against

@@ -1,4 +1,4 @@
-"""The build of the Act in force: build id, Layer 0 merge record and gates G1, G2, G6 (B132).
+"""The build of the Act in force: build id, Layer 0 merge record and gates G1, G2, G6 (B132, DEC-23).
 
 Spec G D-G68 (5): the build id is a digest over every frozen legal source
 the parse reads; the Omnibus SourceDocument says merged_into_base true with

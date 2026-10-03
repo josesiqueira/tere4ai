@@ -1,4 +1,4 @@
-"""Layer 1 acceptance on the Act in force (B132, spec G D-G68 (4)).
+"""Layer 1 acceptance on the Act in force (B132, DEC-23, spec G D-G68 (4)).
 
 The published layer1.json is the AI Act as amended by the Digital Omnibus.
 Its counts follow from the parsed units: 119 articles and 14 annexes, the

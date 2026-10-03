@@ -1,4 +1,4 @@
-"""The Omnibus's changes read from the consolidated text's markers and checked three ways (B132).
+"""The Omnibus's changes read from the consolidated text's markers and checked three ways (B132, DEC-23).
 
 Spec G D-G68 (2): 77 markers at 72 points, read per Layer 1 unit, written
 as a reviewed file, each checked against the Omnibus text, the 2024 tree

@@ -1,6 +1,7 @@
 """One reader for the units of a Formex text: the 2024 act and the consolidated text.
 
 @implements: DEC-01 (partial: the Formex unit reader)
+@implements: DEC-23
 @grounded_by: REF-01, REF-05, REF-08
 
 Since B132 Layer 1 is parsed from EUR-Lex's consolidated text of 27 July

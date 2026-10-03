@@ -1,4 +1,4 @@
-"""The Layer 1 nodes of the Act in force, deleted units and earlier versions (B132).
+"""The Layer 1 nodes of the Act in force, deleted units and earlier versions (B132, DEC-23).
 
 Spec G D-G68 (1) and (3): an in-force span leaves out the wording the
 Omnibus deleted; a deleted unit keeps its id with no text and no span; each

@@ -1,4 +1,4 @@
-"""Letter-suffixed numbers through the parse, the resolver and the readers (B132).
+"""Letter-suffixed numbers through the parse, the resolver and the readers (B132, DEC-23).
 
 Spec G D-G68 (3): the Omnibus inserts Article 4a, Article 6(1a) to (1c),
 Article 5(1), first subparagraph, point (ba) and Annex XIV. Before B132 the

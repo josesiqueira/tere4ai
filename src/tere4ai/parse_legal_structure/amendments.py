@@ -1,7 +1,7 @@
 """The Digital Omnibus's changes, read from the consolidated text's markers and checked.
 
 @implements: DEC-01 (partial: the change markers and their checks)
-@implements: DEC-12
+@implements: DEC-12, DEC-23
 @grounded_by: REF-02, REF-03, REF-04, REF-05
 
 EUR-Lex's consolidated text of 27 July 2026 (CELEX 02024R1689-20260727)

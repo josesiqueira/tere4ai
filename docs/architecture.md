@@ -35,7 +35,7 @@ Explicit layers in one physical store; every node and edge carries a layer and
 provenance fields.
 
 - Layer 0 Source corpus: SourceDocument, SourceVersion, SourceFile, SourceSpan, BuildRun.
-- Layer 1 Legal structure: Regulation, Chapter, Section, Article, Paragraph, Subparagraph, Point, Annex, AnnexItem, Recital, Definition, CrossReference.
+- Layer 1 Legal structure: Regulation, Chapter, Section, Article, Paragraph, Subparagraph, Point, Annex, AnnexItem, Recital, Definition, CrossReference, and UnitVersion (the 2024 wording of a unit the Digital Omnibus changed, DEC-23).
 - Layer 2 Normative/compliance: NormativeStatement, Obligation, Prohibition, Permission, Right, Condition, Exception, ActorRole, LifecyclePhase, RequiredArtifact, RequiredProcess, EvidenceExpectation, RiskCategory, ApplicabilityRule, ComplianceControl.
 - Layer 3 Ethics and alignment: HLEGRequirement, ALTAIQuestion, EthicalPrinciple, AlignmentAssertion, MappingEvidence, MappingRun, JudgeRun, StandardRequirement, OntologyConcept.
 - Layer 4 Runtime project evidence: Project, AISystem, SystemPurpose, DeploymentContext, Provider, Deployer, UserGroup, AffectedPerson, Dataset, Model, TechnicalDocumentation, RiskAssessment, TestReport, LogMechanism, HumanOversightMeasure, MonitoringPlan, IncidentReport, CodeArtifact, EvaluationFinding, BacklogItem.
@@ -335,10 +335,12 @@ grounded_by: REF-31, REF-32
 ## 10. Scope for v2
 OVR-1. grounded_by: REF-17, REF-15
 
-- Layer 1 structural mirror: FULL Act. All chapters and sections, Articles 1 to
-  113, Recitals 1 to 180, Annexes I to XIII, with hierarchy and explicit
-  cross-references. Deterministic, cheap, and this is the whole picture.
-  Acceptance: 113 articles, 180 recitals, 13 annexes; Chapter III Section 2
+- Layer 1 structural mirror: FULL Act in force (DEC-23). All chapters and
+  sections, the 119 Articles (1 to 113, 4a, 60a and 75a to 75d), Recitals 1
+  to 180, Annexes I to XIV, with hierarchy and explicit cross-references.
+  Deterministic, cheap, and this is the whole picture. Acceptance: 119
+  articles, 180 recitals, 14 annexes (113, 180 and 13 for the Act as
+  enacted); Chapter III Section 2
   holds Articles 8 to 15; Article 6 links Annexes I and III; Article 11 links
   Annex IV; Annex III use cases and Annex IV items individually addressable.
 - Layers 2 and 3 deep extraction (v2 core, high-risk build journey only):
@@ -361,34 +363,66 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   draft, non_binding, superseded, unknown_needs_review.
 - The Digital Omnibus on AI (REF-02) is in force (Regulation (EU) 2026/1744,
   OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026) and changes the base
-  text and the high-risk dates (standalone Annex III high-risk to at the latest 2
-  December 2027; embedded Annex I to 2 August 2028), and softens Article 4 AI
-  literacy among others. Model it as a distinct SourceDocument linked to the base
-  Act by AMENDS and HAS_VERSION edges. The graph must answer a provision "as
-  enacted" versus "as amended", with dates.
-- VERSION PIN (decided for M1, labelling updated 2026-09-02): pin Regulation
-  (EU) 2024/1689 as the base with legal_status in_force. Model the Omnibus
-  (Regulation (EU) 2026/1744, formerly COM(2025) 836) as a separate source
-  with legal_status in_force and an explicit merged_into_base false marker,
-  carrying the deadlines above. Published identity, entry into force
-  (27.7.2026) and both deadlines were verified against the OJ text on
-  2026-09-02 (REF-02); legal_status stopped working as the merge marker the
-  day the Omnibus entered into force, so gate G6 now checks merged_into_base
-  instead. Do not merge Omnibus edits into the base
-  text; keep them as an overlay so both versions are answerable.
-- AMENDMENT INVENTORY AND INTERIM SURFACING (B59, 2026-09-02): the Omnibus
-  text is a frozen checksummed snapshot in data/snapshots/, and
-  docs/omnibus_amendments.md is the verified article-by-article inventory of
-  what it does to 2024/1689 (every quote re-found in the snapshot). The two
-  new Article 5(1) prohibitions, points (ba) NCII and (bb) CSAM, applying
-  from 2 December 2026, are surfaced by classify_ai_system as first-class
-  fail-closed flags; hits cite the Omnibus SourceDocument because no
-  base-text point node exists pre-merge, and the application date travels
-  in legal_status_notes as data. The Article 6(1) route carries a note about
-  the Omnibus safety-component narrowing. DEFERRED, by decision: parsing the
-  full amendment set into overlay nodes/edges with spans, and an as-amended
-  answer mode for get_applicable_requirements (Chapter III obligations were
-  amended; the norms served are as-enacted and say so via REF-02).
+  text and the high-risk dates (standalone Annex III high-risk to at the
+  latest 2 December 2027; embedded Annex I to 2 August 2028). It is a
+  distinct SourceDocument linked to the base Act by AMENDS and HAS_VERSION
+  edges.
+- THE ACT IN FORCE (B132, 2026-10-03, DEC-23; it replaces the version pin
+  of M1 and the overlay of B59): every build is made from Regulation (EU)
+  2024/1689 as amended by Regulation (EU) 2026/1744.
+  (1) Layer 1 parses the in-force tree from EUR-Lex's consolidated text of
+  27 July 2026 in Formex (CELEX 02024R1689-20260727, Section 6 (c)), one
+  file in which every unit, container or leaf, has one span. The file keeps
+  deleted wording in place, so an in-force span lists the deleted ranges
+  under exclude, and the node's text and resolve_span's answer leave them
+  out. Text is taken the same way from every Formex file
+  (parse_legal_structure/units.py): quotation marks kept, inline elements
+  add no space, footnotes left out. The recitals still come from the 2024
+  act's HTML, as consolidated texts leave the preamble out.
+  (2) The consolidated text "is meant purely as a documentation tool and
+  has no legal effect" (EUR-Lex), so every unit is checked before the parse
+  completes (parse_legal_structure/amendments.py): an unchanged unit equals
+  the 2024 unit of the same id, Formex against Formex; a replaced or
+  inserted unit is in the Omnibus quotation of the point that enacted it; a
+  partly amended unit is checked as composed (its marked parts in the
+  quotation, the rest equal to its 2024 text); Annex XIV equals the Omnibus
+  annex member file; every quotation of the Omnibus's Article 1 is in some
+  marked range; an unchanged or composed container's wording outside its
+  units (an annex's opening sentence, the Section headings inside an annex)
+  equals its 2024 wording. The consolidated text's 77 change markers (72 Omnibus
+  points) are read per unit, written to the reviewed file
+  data/amendments/omnibus_markers.json and each checked against the Omnibus
+  text, the 2024 tree and the verified inventory docs/omnibus_amendments.md.
+  Any other difference stops the parse unless a row of the reviewed
+  exception list data/amendments/omnibus_exceptions.json covers it, and a
+  row no check needs stops it too. Where a marker and the Omnibus disagree
+  the Omnibus decides, through such a row.
+  (3) Unchanged and replaced units keep their ids; inserted units take the
+  Act's numbers (eu-ai-act:article-4a, eu-ai-act:article-6:paragraph-1a,
+  eu-ai-act:article-5:paragraph-1:point-ba, eu-ai-act:annex-xiv); an Article
+  number or paragraph index is the Act's label with a sort key. A deleted
+  unit stays as a node marked deleted, with every unit inside it, and has no
+  text and no span; extraction and cross-reference resolution skip it. Each
+  replaced or deleted unit and each composed container keeps its 2024
+  wording as a UnitVersion node, its span named with the version date
+  (span:010.005@2024-07-12), linked by HAS_VERSION; nothing that walks the
+  unit types meets it.
+  (4) Layer 0 freezes the Omnibus and the consolidated text in Formex, the
+  consolidated text with legal_status non_binding. The Omnibus
+  SourceDocument says merged_into_base true with the date and the marker
+  list's sha256. The checks run in the parse, which raises on any failure,
+  so no dump is written; gate G6 does not run them again: it verifies that a
+  merged Omnibus comes with the build's record of the checks and the same
+  marker list digest, which catches a record that is missing or edited. The
+  build id is a digest over every frozen legal
+  source the parse reads, so a build with the Omnibus and one without it
+  never share an id.
+  (5) Still following the text as enacted until the second B132 plan: the
+  classifier's Annex I route and its application dates, the Article 5(1)
+  points (ba) and (bb), which classify_ai_system still cites through the
+  Omnibus SourceDocument although they are now graph nodes, the elicitor
+  prompt, the extraction scope (Article 4a joins it) and the dev norms and
+  alignments, extracted from the 2024 text and served beside this graph.
 
 ## 12. Evaluation
 OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
@@ -508,7 +542,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   reproducibility, no-silent-degradation, Section 13); corroborated by REF-27, REF-08.
   Defense: the authoritative structure must be deterministic and reproducible;
   LLMs also hallucinate legal hierarchy, so no model touches Layer 1.
-  verify: src/parse_legal_structure/ has no model calls; tests assert 113/180/13.
+  verify: src/parse_legal_structure/ has no model calls; tests assert 119/180/14
+  for the Act in force (tests/integration/test_acceptance_in_force.py) and
+  113/180/13 for the 2024 parse (tests/integration/test_acceptance_m1.py).
 - DEC-02: cross-references resolved by rule first. Engineering MUST (determinism);
   corroborated by REF-26, REF-29.
   Defense: references are exact pointers, so rule resolution is deterministic;
@@ -559,7 +595,13 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   vector-RAG and no-judge baseline conditions.
 - DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02, REF-04.
   Defense: it is adopted and changes the in-force text and the dates.
-  verify: SourceDocument for COM(2025)836 with AMENDS/HAS_VERSION; versioning test.
+  Amended 2026-10-03 (B132, DEC-23): the Omnibus is no longer kept apart
+  from the base text. Layer 1 is the Act as amended, and the Omnibus
+  SourceDocument records the merge (merged_into_base true, merged_on,
+  marker_list_sha256); the parse enforces the checks and gate G6 verifies
+  the build's record of them.
+  verify: SourceDocument for COM(2025)836 with AMENDS/HAS_VERSION;
+  tests/unit/test_sources.py, tests/unit/test_in_force_build.py.
 - DEC-13: feature elicitation splits fact extraction from decision (added
   2026-07-09). Engineering MUST (the trust split of Section 0: the LLM never
   decides classification); corroborated by REF-17, REF-16.
@@ -1144,6 +1186,78 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   the generator's calls, `--check`), test_server_docs_prose.py,
   test_notice_one_source.py, test_span_offsets.py,
   test_duplicate_keys.py; CHANGELOG.md names the change.
+
+- DEC-23: Layer 1 is the AI Act in force, parsed from EUR-Lex's
+  consolidated text in Formex and checked unit by unit against the Official
+  Journal wording of the act that enacted it, the 2024 wording kept as each
+  changed unit's earlier version (added 2026-10-03; thesis task B132, brief
+  sdd/2026-10-03-B132-omnibus/brief.md revision 3, its rulings file
+  progress.md and spec G D-G68 in the private research repository).
+  Engineering decision (determinism, traceability, no silent degradation,
+  Section 13) on the legal sources: REF-01 and REF-02 for the texts, REF-04
+  (ELI) for naming a version by its date, REF-03 (Akoma Ntoso) for keeping a
+  repealed provision's number and a provision's versions, REF-05 for the
+  Formex markup.
+  The text: one file, in which every unit, container or leaf, has one span;
+  the deleted ranges it keeps are excluded from in-force spans and text; one
+  text rule for every Formex file; the recitals from the 2024 HTML.
+  The checks: an unchanged unit equals the 2024 unit, Formex against
+  Formex; a replaced or inserted unit is in the Omnibus quotation of its
+  point; a partly amended unit's marked parts are in the quotation and its
+  unmarked rest equals its 2024 text; Annex XIV equals the Omnibus annex
+  member file; every Omnibus quotation is in some marked range; a container's
+  wording outside its units equals its 2024 wording; every marker
+  is checked against the Omnibus, the 2024 tree and
+  docs/omnibus_amendments.md; any other difference, and any exception row
+  no check needs, stops the parse. Where a marker and the Omnibus disagree
+  the Omnibus decides through a reviewed row (the Article 3(14a) and (14b)
+  insertion is marked as point (14)(b); the Omnibus enacts it in point
+  (4)(b)); nine rows (data/amendments/omnibus_exceptions.json), among them
+  the double marks the Omnibus prints inside its own quotations, which the
+  comparison reads as the Act's single marks only through that row and only
+  where a comparison needs it.
+  The ids: unchanged and replaced units keep theirs; inserted units take the
+  Act's numbers (eu-ai-act:article-4a, eu-ai-act:article-6:paragraph-1a,
+  eu-ai-act:article-5:paragraph-1:point-ba, eu-ai-act:annex-xiv,
+  eu-ai-act:annex-i:section-b:point-21); an Article number or paragraph
+  index is the Act's label, a string, with an integer sort_key; span names
+  keep their scheme (span:005.001, span:004a.001). A unit the Omnibus
+  deleted (Article 10(5) and its six points, Annex I Section A point 1,
+  Annex VIII Section B points 7 and 9, and Article 56(6)'s second
+  subparagraph, which the replacing wording no longer has) stays as a node
+  with amendment deleted, deleted_by and deleted_from, no text and no span;
+  norm extraction and cross-reference resolution skip it.
+  The versions: each replaced or deleted unit and each composed container
+  keeps its 2024 wording as a UnitVersion node (id
+  version:2024-07-12:<unit id>, span <name>@2024-07-12 in the 2024 Formex,
+  valid 2024-08-01 to 2026-07-26, legal_status superseded), linked by
+  HAS_VERSION, which gate G1 follows; gate G2 refuses a span id carried by
+  an in-force node and a version node.
+  The build: Layer 0 freezes the Omnibus and the consolidated text in
+  Formex (the consolidated text non_binding); the build id is a digest over
+  every frozen legal source the parse reads. The checks are enforced by the
+  parse itself (build_in_force_dump raises AmendmentCheckError, so no dump is
+  written); gate G6 does not re-check the units: it accepts the Omnibus as
+  merged only when the dump carries the build's record of the checks and the
+  reviewed marker list's digest, so a dump whose record is missing or edited
+  is refused. Counts: 119 articles, 571 paragraphs, 91 subparagraphs,
+  521 points, 14 annexes, 247 annex items, 180 recitals, 70 definitions,
+  515 cross-references; 11 deleted units and 130 earlier versions counted
+  apart.
+  Defense: the reader is quoted one file whose every unit was proved equal
+  to the Official Journal wording that enacted it; composing amended units
+  from Omnibus fragments over the 2024 tree cannot give a partly amended
+  container one source, and the consolidated text unchecked would rest on a
+  documentation tool, one of whose 77 markers is mislabelled.
+  verify: src/tere4ai/parse_legal_structure/labels.py, units.py,
+  amendments.py, consolidated.py and parser.py (build_layer1);
+  src/tere4ai/ingest/sources.py; src/tere4ai/validate_graph/gates.py (G1,
+  G2, G6); src/tere4ai/mcp_server/spans.py (exclude);
+  data/amendments/omnibus_markers.json, omnibus_exceptions.json;
+  tests/unit/test_labels.py, test_letter_suffixed_numbers.py,
+  test_formex_units.py, test_omnibus_markers.py,
+  test_omnibus_unit_checks.py, test_in_force_tree.py,
+  test_in_force_build.py, tests/integration/test_acceptance_in_force.py.
 
 ## 17. Implementation-traceability convention
 

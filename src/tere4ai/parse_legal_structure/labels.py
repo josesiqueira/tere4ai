@@ -1,6 +1,7 @@
 """The Act's own numbers for Articles and paragraphs, letter suffixes included.
 
 @implements: DEC-01 (partial: Article and paragraph labels)
+@implements: DEC-23
 @grounded_by: REF-01, REF-02, REF-04
 
 The Digital Omnibus (Regulation (EU) 2026/1744) inserts units numbered the

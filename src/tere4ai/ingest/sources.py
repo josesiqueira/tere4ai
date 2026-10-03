@@ -1,6 +1,6 @@
 """Layer 0 source registry: the version pin for M1.
 
-@implements: DEC-12
+@implements: DEC-12, DEC-23
 @grounded_by: REF-01, REF-02, REF-04
 
 Emits the SourceDocument nodes and versioning edges required by

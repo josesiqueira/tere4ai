@@ -1,4 +1,4 @@
-"""The Act's own Article and paragraph numbers, letter suffixes included (B132).
+"""The Act's own Article and paragraph numbers, letter suffixes included (B132, DEC-23).
 
 Spec G D-G68 (3): inserted units take the Act's numbers (Article 4a,
 Article 6(1a)); the node schema reads an Article or paragraph number as the
