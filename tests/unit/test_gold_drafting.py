@@ -1,9 +1,10 @@
-"""Gold-set drafting CLI tests (#26): deterministic, verified, protocol-true."""
+"""Gold-set drafting CLI tests (#26, B128): deterministic, verified, protocol-true."""
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -35,12 +36,13 @@ def test_target_size_and_kind_mix(payload):
     assert kinds == {"classification", "retrieval", "qa"}
 
 
-def test_every_citation_resolves_in_the_dump(payload):
+def test_every_draft_source_resolves_in_the_dump(payload):
     dump = json.loads(draft_mod.DUMP_PATH.read_text(encoding="utf-8"))
     node_ids = {n["id"] for n in dump["nodes"]}
     for item in payload["items"]:
-        for cited in item["gold_citations"]:
-            assert cited in node_ids, f"{item['id']} cites unknown {cited}"
+        node_id = item["drafted_from"].get("node_id")
+        if node_id is not None:
+            assert node_id in node_ids, f"{item['id']} is drafted from unknown {node_id}"
 
 
 def test_drafts_are_marked_and_pass_harness_validation(payload):
@@ -51,12 +53,26 @@ def test_drafts_are_marked_and_pass_harness_validation(payload):
         _validated_item(item, Path("draft_candidates.json"))
 
 
-def test_second_annotator_share_is_stratified_20_to_30_percent(payload):
-    items = payload["items"]
-    for kind in ("classification", "retrieval", "qa"):
-        kind_items = [i for i in items if i["kind"] == kind]
-        share = sum(1 for i in kind_items if i["second_annotator"]) / len(kind_items)
-        assert 0.15 <= share <= 0.35, f"{kind}: share {share}"
+def test_no_draft_carries_a_label(payload):
+    # B128: two annotators label every case from the Act's text; a label
+    # drafted from the classifier or the extracted norms would agree by
+    # construction with the system the ablation scores.
+    for item in payload["items"]:
+        assert item["gold"] is None, item["id"]
+        assert item["gold_citations"] == [], item["id"]
+        assert item["labels"] == [], item["id"]
+        assert item["adjudication"] is None, item["id"]
+
+
+def test_ids_do_not_name_the_answer(payload):
+    # An annotator reads the id; a slug such as "prohibited-social-scoring"
+    # or an Annex point would show the case writer's intended answer.
+    for item in payload["items"]:
+        assert re.fullmatch(r"draft:(cls|ret|qa)-\d{2}", item["id"]), item["id"]
+
+
+def test_drafting_never_calls_the_classifier():
+    assert not hasattr(draft_mod, "classify_ai_system")
 
 
 def test_drafting_is_deterministic(tmp_path):
@@ -66,12 +82,12 @@ def test_drafting_is_deterministic(tmp_path):
     assert out_a.read_text() == out_b.read_text()
 
 
-def test_retrieval_gold_is_leaf_precise(payload):
-    ids = {i["gold"]["node_id"] for i in payload["items"] if i["kind"] == "retrieval"}
+def test_retrieval_drafts_come_from_leaf_items(payload):
+    ids = {i["drafted_from"]["node_id"] for i in payload["items"] if i["kind"] == "retrieval"}
     for node_id in ids:
         assert not any(
             other != node_id and other.startswith(node_id + ":") for other in ids
-        ), f"{node_id} has a more precise child in the gold set"
+        ), f"{node_id} has a more precise child among the drafts"
 
 
 def test_agreement_subcommand_computes_kappa(tmp_path, capsys):

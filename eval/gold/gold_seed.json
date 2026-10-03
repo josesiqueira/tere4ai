@@ -29,7 +29,8 @@
         "eu-ai-act:article-5:paragraph-1:point-a"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Canonical scenario A (tests/unit/test_classify.py). Article 5(1)(a) manipulative technique."
     },
     {
@@ -78,7 +79,8 @@
         "eu-ai-act:article-6:paragraph-2"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Canonical scenario B with prohibition flags known false: settled high risk under Annex III point 5."
     },
     {
@@ -127,7 +129,8 @@
         "eu-ai-act:article-50:paragraph-1"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Canonical scenario C: Article 50(1) transparency only."
     },
     {
@@ -174,7 +177,8 @@
       },
       "gold_citations": [],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Canonical scenario D: minimal risk; no citation is required, so this item is excluded from citation completeness."
     },
     {
@@ -227,7 +231,8 @@
         "eu-ai-act:article-6:paragraph-3"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Edge case: Article 6(3) derogation candidate; stays high_risk pending human legal review, never auto-downgraded."
     },
     {
@@ -241,7 +246,8 @@
       },
       "gold_citations": [],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Edge case: unknown flags; absence is never treated as false, so the outcome is uncertain and needs human review."
     },
     {
@@ -255,7 +261,8 @@
         "eu-ai-act:annex-iii:point-4"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Annex III point 4 (employment, workers management and access to self-employment)."
     },
     {
@@ -269,7 +276,8 @@
         "eu-ai-act:annex-iii:point-5:a"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Annex III point 5(a); the parent item eu-ai-act:annex-iii:point-5 is an acceptable coarser citation but the gold id is the precise one."
     },
     {
@@ -284,7 +292,8 @@
         "eu-ai-act:article-9"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Answerable verbatim from eu-ai-act:article-9:paragraph-1 text; the article node is the gold citation."
     },
     {
@@ -299,7 +308,8 @@
         "eu-ai-act:article-14"
       ],
       "author": "seed",
-      "second_annotator": null,
+      "labels": [],
+      "adjudication": null,
       "note": "Answerable verbatim from eu-ai-act:article-14:paragraph-1 text; the article node is the gold citation."
     }
   ]

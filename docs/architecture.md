@@ -378,9 +378,12 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
 - Primary dataset: the open AI Act Evaluation Benchmark (REF-15), covering
   classification, article retrieval, obligation generation, and QA. Verify its
   coverage against the high-risk core first.
-- Hand-built gold set: around 60 to 80 items on the high-risk core, with a
-  second annotator on a 20 to 30 percent subset for inter-rater agreement; report
-  the agreement statistic.
+- Hand-built gold set: around 60 to 80 items on the high-risk core, each
+  labelled by two annotators independently and their disagreements
+  adjudicated by a person who did not produce them (spec G Sections 6 and
+  10.4); report the agreement before adjudication with a chance-corrected
+  statistic. A label comes from the Act, never from the classifier, whose
+  answer is what the ablation scores.
 - Baselines to beat and position against: XTRAREG-style extraction without a
   graph or judge (REF-16), and the requirement-to-verification mapping of
   REF-17.

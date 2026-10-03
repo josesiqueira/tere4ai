@@ -4,16 +4,17 @@
 
 Implements the drafting half of eval/gold/ANNOTATION_PROTOCOL.md toward the
 60-80 item gold set (architecture.md Section 12): candidate items are
-DRAFTS, never gold. Every draft is mechanically verified against the
-published dump (citations resolve; classification drafts agree with the
-deterministic ladder, which the protocol requires of seed items too), and
-the human annotator confirms or rewrites each one per the protocol. The
-second-annotator subset is a deterministic, stratified draw over item id
-hashes with the seed recorded in the output.
+DRAFTS, never gold: a draft is a case input and what it was drafted from,
+with no label. Two annotators label every case independently from the
+Act's text and a third person adjudicates their disagreements (spec G
+Sections 6 and 10.4; the protocol). No draft carries a label from the
+classifier or from the extracted norms, because those are what the
+ablation scores and a label shown to an annotator anchors them. Every
+node a draft was drafted from is verified to exist in the published dump.
 
 Usage:
   .venv/bin/python scripts/draft_gold_candidates.py draft
-      [--out eval/gold/draft_candidates.json] [--subset-seed tere4ai-gold-v1]
+      [--out eval/gold/draft_candidates.json]
   .venv/bin/python scripts/draft_gold_candidates.py agreement A.json B.json
       (each file maps item_id -> label; kappa and raw agreement per file pair)
 """
@@ -21,7 +22,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -31,14 +31,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.eval.agreement import cohen_kappa, raw_agreement  # noqa: E402
-from tere4ai.mcp_server.classify import classify_ai_system  # noqa: E402
 
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 NORMS_PATH = ROOT / "data" / "graph_dumps" / "norms_core.json"
 DEFAULT_OUT = ROOT / "eval" / "gold" / "draft_candidates.json"
 
 # Classification variant templates over the ladder's own rule tables; the
-# description is a draft for the annotator to rewrite in scenario language.
+# description is a draft for the case writer to rewrite in scenario
+# language. The slug names the template, so it stays in drafted_from and
+# never in the id an annotator reads.
 CLASSIFICATION_VARIANTS: tuple[dict[str, Any], ...] = (
     {
         "slug": "prohibited-social-scoring",
@@ -143,9 +144,14 @@ def _all_false(overrides: dict[str, Any]) -> dict[str, Any]:
     return flags
 
 
-def draft_classification(dump: dict[str, Any]) -> list[dict[str, Any]]:
+def _unlabelled() -> dict[str, Any]:
+    """The label fields of a draft: empty until two annotators label it."""
+    return {"gold": None, "gold_citations": [], "labels": [], "adjudication": None}
+
+
+def draft_classification() -> list[dict[str, Any]]:
     items = []
-    for variant in CLASSIFICATION_VARIANTS:
+    for number, variant in enumerate(CLASSIFICATION_VARIANTS, start=1):
         features: dict[str, Any] = {"description": variant["description"]}
         if variant.get("autonomy"):
             features["autonomy"] = variant["autonomy"]
@@ -153,25 +159,17 @@ def draft_classification(dump: dict[str, Any]) -> list[dict[str, Any]]:
             features["flags"] = {}
         else:
             features["flags"] = _all_false(variant["flags"])
-        envelope = classify_ai_system(features, dump)
-        answer = envelope["answer"]
         items.append(
             {
-                "id": f"draft:cls-{variant['slug']}",
+                "id": f"draft:cls-{number:02d}",
                 "kind": "classification",
                 "system_features": features,
-                "gold": {
-                    "risk_category": answer["risk_category"],
-                    "article_6_3_exception_candidate": answer[
-                        "article_6_3_exception_candidate"
-                    ],
-                },
-                "gold_citations": envelope["source_nodes"],
+                **_unlabelled(),
+                "drafted_from": {"template": variant["slug"]},
                 "status": "draft",
                 "note": (
-                    "gold drafted FROM the deterministic ladder (mechanical "
-                    "agreement holds by construction); annotator must confirm "
-                    "the label against the source text, not against the tool"
+                    "annotators label the risk level and its provisions from "
+                    "the Act's text; the classifier's answer is never shown"
                 ),
                 "source": "drafted from ladder rule tables",
             }
@@ -180,7 +178,7 @@ def draft_classification(dump: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def draft_retrieval(dump: dict[str, Any], limit: int = 28) -> list[dict[str, Any]]:
-    """One draft per Annex III leaf AnnexItem, most precise node id as gold."""
+    """One draft per Annex III leaf AnnexItem; the leaf is what it was drafted from."""
     nodes = [n for n in dump["nodes"] if n.get("type") == "AnnexItem" and n.get("text")]
     annex_iii = sorted(
         (n for n in nodes if n["id"].startswith("eu-ai-act:annex-iii:")),
@@ -191,18 +189,18 @@ def draft_retrieval(dump: dict[str, Any], limit: int = 28) -> list[dict[str, Any
         other != n["id"] and other.startswith(n["id"] + ":") for other in ids
     )]
     items = []
-    for node in leaves[:limit]:
+    for number, node in enumerate(leaves[:limit], start=1):
         text = " ".join(node["text"].split())
         items.append(
             {
-                "id": f"draft:ret-{node['id'].removeprefix('eu-ai-act:annex-iii:')}",
+                "id": f"draft:ret-{number:02d}",
                 "kind": "retrieval",
                 "question": (
                     "DRAFT (rewrite as a situation, not the provision text): "
                     f"Which Annex III item covers: {text[:220]}"
                 ),
-                "gold": {"node_id": node["id"]},
-                "gold_citations": [node["id"]],
+                **_unlabelled(),
+                "drafted_from": {"node_id": node["id"]},
                 "status": "draft",
                 "note": "question must be rewritten so it does not quote the provision verbatim",
                 "source": "drafted from Annex III leaf items",
@@ -230,7 +228,7 @@ def draft_qa(dump: dict[str, Any], norms_payload: dict[str, Any], limit: int = 3
         paragraph_key = ":".join(source.split(":")[:3])
         by_paragraph.setdefault(paragraph_key, norm)
     items = []
-    for paragraph_key in sorted(by_paragraph)[:limit]:
+    for number, paragraph_key in enumerate(sorted(by_paragraph)[:limit], start=1):
         norm = by_paragraph[paragraph_key]
         source = norm["source_node_id"]
         parts = source.split(":")
@@ -240,42 +238,21 @@ def draft_qa(dump: dict[str, Any], norms_payload: dict[str, Any], limit: int = 3
         actor = norm.get("actor_explicit") or norm.get("actor_inferred") or "the provider"
         items.append(
             {
-                "id": f"draft:qa-{source.removeprefix('eu-ai-act:')}",
+                "id": f"draft:qa-{number:02d}",
                 "kind": "qa",
                 "question": (
                     f"DRAFT: Under Article {article_no}({paragraph_no}) of the EU "
                     f"AI Act, what must {actor} do regarding "
                     f"{norm.get('object') or 'this obligation'}?"
                 ),
-                "gold": {
-                    "answer_text": (
-                        f"DRAFT (rewrite from the source text): {actor} must "
-                        f"{norm.get('action')} {norm.get('object')}"
-                    )
-                },
-                "gold_citations": [article_id],
+                **_unlabelled(),
+                "drafted_from": {"node_id": article_id, "norm_id": norm["norm_id"]},
                 "status": "draft",
-                "note": f"drafted from {norm['norm_id']} (span {norm.get('source_span_id')}); answer must be rewritten from the article text",
+                "note": "annotators write the answer from the article text; the norm it was drafted from is never shown",
                 "source": "drafted from judge-accepted norms",
             }
         )
     return items
-
-
-def assign_second_annotator(items: list[dict[str, Any]], seed: str, share: float = 0.25) -> None:
-    """Deterministic stratified draw: lowest sha256(seed + id) per kind."""
-    by_kind: dict[str, list[dict[str, Any]]] = {}
-    for item in items:
-        by_kind.setdefault(item["kind"], []).append(item)
-    for kind_items in by_kind.values():
-        ranked = sorted(
-            kind_items,
-            key=lambda i: hashlib.sha256(f"{seed}:{i['id']}".encode()).hexdigest(),
-        )
-        take = max(1, round(len(ranked) * share))
-        chosen = {i["id"] for i in ranked[:take]}
-        for item in kind_items:
-            item["second_annotator"] = item["id"] in chosen
 
 
 def cmd_draft(args: argparse.Namespace) -> int:
@@ -284,21 +261,20 @@ def cmd_draft(args: argparse.Namespace) -> int:
     node_ids = {n["id"] for n in dump["nodes"]}
 
     items = (
-        draft_classification(dump)
+        draft_classification()
         + draft_retrieval(dump)
         + draft_qa(dump, norms_payload)
     )
     unresolved = [
-        (item["id"], cited)
+        (item["id"], item["drafted_from"]["node_id"])
         for item in items
-        for cited in item["gold_citations"]
-        if cited not in node_ids
+        if "node_id" in item["drafted_from"]
+        and item["drafted_from"]["node_id"] not in node_ids
     ]
     if unresolved:
         for item_id, cited in unresolved:
-            print(f"refusing: {item_id} cites {cited}, not in the dump", file=sys.stderr)
+            print(f"refusing: {item_id} is drafted from {cited}, not in the dump", file=sys.stderr)
         return 1
-    assign_second_annotator(items, args.subset_seed)
 
     counts = {k: sum(1 for i in items if i["kind"] == k) for k in ("classification", "retrieval", "qa")}
     payload = {
@@ -306,20 +282,15 @@ def cmd_draft(args: argparse.Namespace) -> int:
             "generated_by": "scripts/draft_gold_candidates.py",
             "build_id": dump["build"]["build_id"],
             "protocol": "eval/gold/ANNOTATION_PROTOCOL.md",
-            "second_annotator_seed": args.subset_seed,
             "counts": counts,
-            "status": "DRAFTS ONLY: no item is gold until a human confirms it per the protocol",
+            "status": "DRAFTS ONLY: no item has a label until two annotators label it per the protocol",
         },
         "items": items,
     }
     out = Path(args.out)
     out.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    second = sum(1 for i in items if i["second_annotator"])
     shown = out.relative_to(ROOT) if out.is_relative_to(ROOT) else out
-    print(
-        f"wrote {shown}: {len(items)} drafts "
-        f"({counts}), {second} assigned to the second annotator"
-    )
+    print(f"wrote {shown}: {len(items)} drafts ({counts}), none labelled")
     return 0
 
 
@@ -343,7 +314,6 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     draft = sub.add_parser("draft", help="draft candidate items from the graph")
     draft.add_argument("--out", default=str(DEFAULT_OUT))
-    draft.add_argument("--subset-seed", default="tere4ai-gold-v1")
     agree = sub.add_parser("agreement", help="kappa between two label files")
     agree.add_argument("file_a")
     agree.add_argument("file_b")

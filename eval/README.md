@@ -16,12 +16,14 @@ sentence break.
 - `gold/gold_seed.json`: 10 hand-authored seed items on the high-risk core
   (6 classification including the Article 6(3) candidate and the
   unknown-flags edge case, 2 retrieval, 2 QA). Every `gold_citations` id
-  was verified to exist in `data/graph_dumps/layer1.json` and every
-  classification item was verified against the deterministic
-  `classify_ai_system` before the file was written.
+  was verified to exist in `data/graph_dumps/layer1.json` before the file
+  was written. Each item's `gold` is one annotator's label until two
+  annotators have labelled it under the protocol (`labels` is empty).
 - `gold/ANNOTATION_PROTOCOL.md`: how the seed grows to the 60 to 80 item
-  gold set, the second-annotator procedure (20 to 30 percent subset,
-  agreement statistic), and how judge FA/FR gold labels are assigned.
+  gold set, the two independent labels on every case and the adjudication
+  of their disagreements (agreement statistic before adjudication), and
+  how judge FA/FR gold labels are assigned. A label comes from the Act,
+  never from the classifier the ablation scores.
 - `gold/benchmark_sample.json`: a frozen 47-item sample of the REF-15
   benchmark (see below), with full provenance.
 - `results/`: results artifacts written by the harness. Names are

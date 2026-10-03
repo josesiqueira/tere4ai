@@ -11,15 +11,25 @@ break.
   50, 72 to 73, plus the seven HLEG requirements).
 - The 10 items in `gold_seed.json` are the seed; they were authored by one
   annotator ("seed") and verified mechanically (every cited node id exists
-  in the published Layer 1 dump; every classification item agrees with the
-  deterministic classifier). They still need the second-annotator pass
-  below before any agreement statistic is reported.
+  in the published Layer 1 dump). Their `gold` is that one annotator's
+  label: they still need the two independent labels and the adjudication
+  below before any of them enters the answer key.
+- A label comes from the Act's text, never from TERE4AI: the classifier's
+  answer, the extracted norms and every condition's output are what the
+  ablation scores (spec G Section 10.4), so a label that had to agree with
+  them would agree by construction with the system it scores. A case a
+  careful reader labels high risk and the classifier limited risk is a
+  finding, and it stays in the test set.
 
 ## Item kinds and label definitions
 
-Every item carries: `id`, `kind`, the task input, `gold`, `gold_citations`
-(node ids that MUST exist in `data/graph_dumps/layer1.json`), `author`,
-`second_annotator` (null until annotated).
+Every item carries: `id`, `kind`, the task input, `author` (who wrote the
+case), `labels` (the two independent labels, each with `annotator`, `gold`,
+`gold_citations` and `note`; empty until labelled), `adjudication` (null
+when the two labels agree, otherwise the `adjudicator`, the chosen label
+and the `rationale`), and `gold` and `gold_citations`, the reference the
+harness scores against: the agreed label, or the adjudicated one. Every
+cited node id MUST exist in `data/graph_dumps/layer1.json`.
 
 1. `classification`: input is a structured `system_features` object
    (schema/json_schemas/system_features.schema.json). Gold label is
@@ -45,25 +55,33 @@ Every item carries: `id`, `kind`, the task input, `gold`, `gold_citations`
    `answer_text` written from the source text, plus the article node id as
    the gold citation.
 
-## Second annotator and agreement
+## Two labels on every case, then adjudication
 
-- A second annotator independently labels a randomly selected 20 to 30
-  percent subset (at 60 to 80 items: 15 to 24 items), stratified by kind.
-  Selection is by seeded random draw over item ids so it is reproducible;
-  record the seed in this file when drawn.
-- The second annotator sees the task input only, never the first
-  annotator's gold or notes.
-- Agreement is computed per kind and reported in the paper:
+Spec G Section 10.4 (B104, decision 2) and Section 6, steps 4 and 5.
+
+- Two annotators label every case independently. Each sees the task input
+  only: never the other annotator's label, never the case writer's
+  intended answer, never TERE4AI's answer or any condition's output.
+- Agreement is computed per kind on the two independent labels, before
+  any adjudication, and reported with a chance-corrected statistic beside
+  the raw agreement, because raw agreement on its own cannot be compared
+  across studies (ADD-59):
   - classification: Cohen's kappa over the five risk categories.
   - retrieval: exact node-id agreement rate (plus agreement at article
     level as a secondary number).
-  - qa: citation agreement (exact node id) and answer agreement judged by
-    a third pass discussion; free-text answers are reconciled, not scored
-    by string match.
-- Disagreements are resolved by discussion against the frozen source text;
-  the resolution and rationale are recorded in the item's `note`. Items
-  that stay contested are marked `contested: true` and excluded from
-  headline metrics (reported separately).
+  - qa: citation agreement (exact node id); free-text answers are not
+    scored by string match, and their differences go to adjudication.
+- Disagreements are adjudicated by a person who did not produce the
+  disagreeing labels, blind to who chose what, against the frozen source
+  text, with the rationale recorded in the item's `adjudication`. There is
+  no discussion between the two annotators and no majority vote. Items
+  the adjudicator cannot settle against the source text are marked
+  `contested: true` and excluded from headline metrics (reported
+  separately).
+- Who the two annotators and the adjudicator are is decided in B77.O1
+  (spec G D-G-open-1); spec G Section 10.5 lists the designs for each
+  number of helpers and the claim and limitation of each. Until then the
+  roles are undecided.
 
 ## Judge false-accept / false-reject gold labels
 
@@ -95,5 +113,6 @@ assertions, not the eval items above. Assignment:
   rejected, gold says accept. A judge `needs_human_review` verdict is an
   abstention: it is counted and reported but is neither FA nor FR,
   because routing to a human is the designed degradation path.
-- The same second-annotator subset and agreement reporting apply to these
-  labels.
+- These labels are E1's, made by the owner blind to the verdict (spec G
+  Section 10.1); the two-label rule above binds the test set's cases, not
+  these labels.

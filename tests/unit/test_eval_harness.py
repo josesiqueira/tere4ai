@@ -35,7 +35,6 @@ from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
 from tere4ai.judge import config as config_module
 from tere4ai.judge.config import ModelConfig
-from tere4ai.mcp_server.classify import classify_ai_system
 
 ROOT = Path(__file__).resolve().parents[2]
 LAYER1_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -428,7 +427,10 @@ def test_load_gold_seed_items():
     assert len(set(ids)) == 10
     for item in items:
         assert item["author"] == "seed"
-        assert item["second_annotator"] is None
+        # B128: one annotator's label each; the two independent labels and
+        # the adjudication come with the protocol, never from the classifier.
+        assert item["labels"] == []
+        assert item["adjudication"] is None
 
 
 def test_load_benchmark_sample_parses_real_format():
@@ -475,18 +477,6 @@ def test_every_gold_citation_exists_in_layer1_dump():
     for item in load_gold_items():
         for cite in item["gold_citations"]:
             assert cite in node_ids, f"{item['id']}: gold citation {cite} not in dump"
-
-
-@pytest.mark.skipif(not LAYER1_PATH.is_file(), reason="layer1.json dump not built")
-def test_gold_classification_items_agree_with_deterministic_classifier():
-    dump = json.loads(LAYER1_PATH.read_text(encoding="utf-8"))
-    for item in load_gold_items():
-        if item["kind"] != "classification":
-            continue
-        envelope = classify_ai_system(item["system_features"], dump)
-        assert envelope["answer"]["risk_category"] == item["gold"]["risk_category"], item["id"]
-        if item["gold_citations"]:
-            assert set(item["gold_citations"]) <= set(envelope["source_nodes"]), item["id"]
 
 
 # AnnexItem-level retrieval (#55) ----------------------------------------------
