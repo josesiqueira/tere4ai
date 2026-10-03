@@ -164,6 +164,27 @@ by checksum:
     annex-item markup is confirmed present: Article 5(1) points (a) to (d) with
     nested romanettes, and Annex III point 5(a), both individually addressable.
     The package is frozen under data/snapshots/formex/ with per-file checksums.
+(c) Since B132 (2026-10-03), the AI Act in force: EUR-Lex's consolidated text
+    of 27 July 2026 in Formex 4 (CELEX 02024R1689-20260727, CELLAR work
+    b1730fb2-8f1c-11f1-9262-01aa75ed71a1), from which Layer 1 is parsed, and
+    the Formex 4 of the Digital Omnibus, Regulation (EU) 2026/1744 (CELEX
+    32026R1744, CELLAR work b459c07f-86fb-11f1-bf5e-01aa75ed71a1), against
+    which every unit it amended is checked (Section 11). Retrieval (verified
+    2026-10-03): the CELLAR SPARQL endpoint gives each work's fmx4
+    manifestation and its item (cdm:resource_legal_id_celex for the CELEX,
+    then cdm:expression_belongs_to_work, cdm:expression_uses_language ENG,
+    cdm:manifestation_manifests_expression, cdm:manifestation_type and
+    cdm:item_belongs_to_manifestation); GET the items
+    `http://publications.europa.eu/resource/cellar/b1730fb2-8f1c-11f1-9262-01aa75ed71a1.0001.01/DOC_1`
+    and
+    `http://publications.europa.eu/resource/cellar/b459c07f-86fb-11f1-bf5e-01aa75ed71a1.0006.02/DOC_1`
+    (two zips); the consolidated text's XHTML, kept for EUR-Lex's sentence
+    that it "is meant purely as a documentation tool and has no legal
+    effect", comes from GET of the consolidated work URI with headers
+    `Accept: application/xhtml+xml` and `Accept-Language: eng`. The zips,
+    their members and the XHTML are frozen under data/snapshots/ with
+    per-file checksums. As for the 2024 files, no fetch script exists: the
+    freeze is done once.
 Node IDs are derived deterministically by the parser from this structure
 (Section 2); this Regulation carries no eId attributes to lift. HTML and PDF
 renderings are also kept for human verification. Do not plan to download clean

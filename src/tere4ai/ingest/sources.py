@@ -10,6 +10,9 @@ docs/architecture.md Section 11:
     in_force, linked to the base Act by AMENDS and HAS_VERSION edges,
     carrying the deferred high-risk deadlines and an explicit
     merged_into_base=False marker
+  - EUR-Lex's consolidated text of 27 July 2026 (B132), legal_status
+    non_binding: it has no legal effect, and Layer 1 checks every unit
+    of it against the Official Journal wording (architecture.md Section 11)
   - the frozen SourceFile snapshot(s) from data/snapshots/MANIFEST.json
 
 Omnibus edits are never merged into the base text (Section 11 version pin);
@@ -26,6 +29,12 @@ from typing import Any
 
 BASE_ACT_ID = "src:eu-ai-act:oj-2024-07-12"
 OMNIBUS_ID = "src:omnibus-com-2025-836"
+CONSOLIDATED_ID = "src:eu-ai-act:consolidated-2026-07-27"
+CONSOLIDATED_NOTE = (
+    "EUR-Lex consolidated text, CELEX 02024R1689-20260727, START.DATE 20260727. EUR-Lex: \"This text is meant "
+    "purely as a documentation tool and has no legal effect.\" Layer 1 is parsed from it and every unit is "
+    "checked against the Official Journal wording of the act that enacted it (architecture.md Section 11)."
+)
 
 # Deferred application dates introduced by the Omnibus (architecture.md S11).
 OMNIBUS_DEFERRED_DEADLINES = {
@@ -95,6 +104,16 @@ def layer0(build_id: str, manifest_path: str | Path) -> tuple[list[dict], list[d
                 "base text: merged_into_base stays False."
             ),
         },
+        {
+            "id": CONSOLIDATED_ID,
+            "layer": 0,
+            "type": "SourceDocument",
+            "title": "Regulation (EU) 2024/1689, consolidated text of 27 July 2026 (EUR-Lex)",
+            "celex": "02024R1689-20260727",
+            "eli": "http://data.europa.eu/eli/reg/2024/1689/2026-07-27",
+            "legal_status": "non_binding",
+            "notes": CONSOLIDATED_NOTE,
+        },
     ]
 
     edges: list[dict] = [
@@ -119,7 +138,7 @@ def layer0(build_id: str, manifest_path: str | Path) -> tuple[list[dict], list[d
     # Which SourceDocument a snapshot manifests. Everything not named here
     # keeps the historical base-act linkage (including the HLEG snapshots,
     # whose own SourceDocument only exists at Layer 3 publication).
-    source_ids = {"omnibus": OMNIBUS_ID}
+    source_ids = {"omnibus": OMNIBUS_ID, "eu-ai-act-consolidated": CONSOLIDATED_ID}
     for snap in manifest["snapshots"]:
         file_id = f"srcfile:{snap['file']}"
         source_id = source_ids.get(snap.get("source_document", ""), BASE_ACT_ID)
