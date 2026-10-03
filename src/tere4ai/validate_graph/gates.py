@@ -9,7 +9,10 @@ Architecture.md Section 13. Gates implemented here:
   G3 no norm without a source span
   G4 no accepted alignment without evidence spans on both sides
   G5 no recital treated as binding (recitals never norm sources, never point parents)
-  G6 no proposed amendment silently replacing the in-force source (version pin intact)
+  G6 no amendment silently replacing the in-force source: the Omnibus is either kept
+     apart (merged_into_base False, no unit changed) or merged with every marker read
+     and checked and every unit checked (spec G D-G68)
+  G2 also refuses a span id carried by an in-force node and an earlier version (B132)
 
 validate_build returns a report; the build entry point refuses to publish on
 failure (no silent degradation).
@@ -40,7 +43,10 @@ HIERARCHY_EDGES = {
 # HAS_RECITAL (recitals are context only, architecture.md Section 1).
 # HAS_CROSS_REFERENCE is likewise containment: a reified CrossReference
 # node belongs to the paragraph whose text carries the citation (#44).
-REACHABILITY_EDGES = HIERARCHY_EDGES | {"DEFINES_TERM", "HAS_CROSS_REFERENCE"}
+# HAS_VERSION links a changed unit to its 2024 wording (B132, D-G68 (3)).
+REACHABILITY_EDGES = HIERARCHY_EDGES | {"DEFINES_TERM", "HAS_CROSS_REFERENCE", "HAS_VERSION"}
+UNIT_TYPES = ("Chapter", "Section", "Article", "Paragraph", "Subparagraph", "Point", "Annex", "AnnexItem")
+CONSOLIDATED_ID = "src:eu-ai-act:consolidated-2026-07-27"
 
 
 @dataclass
@@ -96,6 +102,14 @@ def validate_build(
                     f"G2 node {n['id']} cites a snapshot not in the build inputs"
                 )
     report.stats["nodes_with_unlisted_snapshot"] = bad_span
+    # G2, span ids: an earlier version's span never shares an id with an
+    # in-force span, because span lookup returns the first match (B132).
+    version_spans = {n["source_span"]["span_id"] for n in dump["nodes"]
+                     if n.get("type") == "UnitVersion" and n.get("source_span")}
+    in_force_spans = {n["source_span"]["span_id"] for n in dump["nodes"]
+                      if n.get("type") != "UnitVersion" and n.get("source_span")}
+    for span_id in sorted(version_spans & in_force_spans)[:5]:
+        report.failures.append(f"G2 span id {span_id} is carried by an in-force node and a version node")
 
     # G3: no norm without a source span
     recital_ids = {i for i, n in nodes.items() if n.get("type") == "Recital"}
@@ -123,34 +137,49 @@ def validate_build(
         if e["from"] in recital_ids and e["edge_type"] in HIERARCHY_EDGES - {"HAS_RECITAL"}:
             report.failures.append(f"G5 recital with operative child: {e['edge_id']}")
 
-    # G6: version pin intact (base in force; amendment distinct, never merged).
-    # Since Regulation (EU) 2026/1744 entered into force on 2026-07-27 the
-    # amending instrument is legitimately in_force, so legal_status can no
-    # longer double as the merge marker; the explicit merged_into_base field
-    # carries that invariant. An in-force amending instrument that does not
-    # explicitly say merged_into_base False is treated as silent replacement.
+    # G6: no silent replacement. Since B132 the Omnibus is merged into the
+    # base text: Layer 1 is the Act as amended. The checks themselves run in
+    # the parse (consolidated.build_in_force_dump raises on any failure); G6
+    # verifies their record on the dump (every marker read and checked, every
+    # unit checked, the reviewed marker list's digest equal on the Omnibus
+    # SourceDocument and in the build), so a dump whose record is missing or
+    # edited is refused. Kept apart (merged_into_base False), no unit may
+    # carry a change.
     sources = {n["id"]: n for n in dump["nodes"] if n.get("type") == "SourceDocument"}
     base = sources.get("src:eu-ai-act:oj-2024-07-12")
     omnibus = sources.get("src:omnibus-com-2025-836")
     if base is None or base.get("legal_status") != "in_force":
         report.failures.append("G6 base act missing or not marked in_force")
+    changed = [i for i, n in nodes.items() if n.get("amendment") not in (None, "unchanged")]
     if omnibus is not None:
-        if omnibus.get("merged_into_base") is True:
-            report.failures.append(
-                "G6 amending instrument merged into the base text: "
-                "silent replacement forbidden"
-            )
-        if (
-            omnibus.get("legal_status") == "in_force"
-            and omnibus.get("merged_into_base") is not False
-        ):
-            report.failures.append(
-                "G6 amending instrument marked in_force: silent replacement forbidden"
-            )
-        amends = any(
-            e["edge_type"] == "AMENDS" and e["from"] == omnibus["id"] for e in edges
-        )
-        if not amends:
+        if not any(e["edge_type"] == "AMENDS" and e["from"] == omnibus["id"] for e in edges):
             report.failures.append("G6 amending instrument without an AMENDS edge")
-
+        merged = omnibus.get("merged_into_base")
+        if merged is True:
+            record = dump["build"].get("amendments") or {}
+            units = sum(1 for n in dump["nodes"] if n.get("type") in UNIT_TYPES)
+            if not record:
+                report.failures.append(
+                    "G6 the Omnibus is merged but the build records no amendment checks: "
+                    "silent replacement forbidden")
+            else:
+                if record.get("marker_list_sha256") != omnibus.get("marker_list_sha256"):
+                    report.failures.append("G6 the build's marker list is not the one the Omnibus SourceDocument names")
+                if not record.get("markers_read") or record.get("markers_checked") != record.get("markers_read"):
+                    report.failures.append("G6 not every change marker was read and checked")
+                if record.get("units_failed") != 0 or record.get("units_checked") != units:
+                    report.failures.append(
+                        f"G6 {record.get('units_checked')} units checked of {units} in the dump, "
+                        f"{record.get('units_failed')} failed")
+            consolidated = sources.get(CONSOLIDATED_ID)
+            if consolidated is None or consolidated.get("legal_status") != "non_binding":
+                report.failures.append("G6 the consolidated text is missing or not marked non_binding")
+        elif merged is False:
+            for unit_id in changed[:5]:
+                report.failures.append(f"G6 {unit_id} carries an Omnibus change while merged_into_base is False")
+        else:
+            report.failures.append(
+                "G6 the amending instrument does not say whether it is merged into the base: "
+                "silent replacement forbidden")
+    report.stats["units_changed"] = len(changed)
     return report

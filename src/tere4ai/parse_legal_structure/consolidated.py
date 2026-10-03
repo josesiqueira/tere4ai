@@ -1,21 +1,40 @@
-"""The AI Act in force, read from EUR-Lex's consolidated text in Formex: sources and checks.
+"""Layer 1 of the AI Act in force: the consolidated Formex, checked, with the 2024 wording kept.
 
 @implements: DEC-01 (partial: the in-force parse)
 @implements: DEC-12
 @grounded_by: REF-01, REF-02, REF-03, REF-04, REF-05
 
 Spec G D-G68: every build is made from Regulation (EU) 2024/1689 as amended
-by Regulation (EU) 2026/1744. read_sources gives the frozen files listed in
-data/snapshots/MANIFEST.json, each read only after its sha256 is checked;
-read_trees reads the units of the consolidated text and of the 2024 Formex
-(units.py); checked_amendments derives every change from the markers and
-runs the checks of amendments.py (a failure raises AmendmentCheckError).
-The command regenerates or checks the reviewed marker list:
+by Regulation (EU) 2026/1744. build_in_force_dump reads the frozen sources
+listed in data/snapshots/MANIFEST.json (each checked against its sha256),
+reads the units of the consolidated text and of the 2024 Formex
+(units.py), derives and checks every change (amendments.py; a failure
+stops the parse with AmendmentCheckError) and returns the Layer 0 and
+Layer 1 nodes and edges before definitions, cross-references and recital
+links are added:
 
-    python -m tere4ai.parse_legal_structure.consolidated --write-marker-list
-    python -m tere4ai.parse_legal_structure.consolidated --check
+- every unit of the consolidated text as a node with its id, its span in
+  the consolidated file (span names as before: span:005.001), its text or
+  title, enacted_by ("Regulation (EU) 2024/1689", "Regulation (EU)
+  2026/1744, Article 1, point (9)(a)" or "composed" for a container whose
+  children come from both acts) and amendment (unchanged, replaced,
+  inserted, composed). A span over wording the Omnibus deleted, which the
+  consolidated file keeps in place, lists that range under exclude, and
+  the node's text leaves it out (Article 10 without paragraph 5);
+- a deleted unit (and every unit inside its range) as a node with its id
+  and number, amendment "deleted", deleted_by and deleted_from, no text
+  and no span; its hierarchy edge carries a derivation id;
+- the 180 recitals from the 2024 act's EUR-Lex HTML, unchanged (the
+  consolidated text leaves the preamble out);
+- for each replaced or deleted unit and each composed container, its 2024
+  wording as a UnitVersion node (id version:2024-07-12:<unit id>, span
+  span:<name>@2024-07-12 in the 2024 Formex file), linked by HAS_VERSION;
+  UnitVersion is not a unit type, so nothing that walks the unit types
+  meets it.
 
-Deterministic, no model calls (DEC-01).
+The build id is build-<12 hex> of a sha256 over every frozen legal source
+the parse reads (legal_sources_digest), so a build with the Omnibus and one
+without it never share an id. Deterministic, no model calls (DEC-01).
 """
 
 from __future__ import annotations
@@ -26,6 +45,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -35,10 +55,14 @@ from tere4ai.parse_legal_structure.parser import (
     DEFAULT_MANIFEST_PATH,
     REGULATION_ID,
     REGULATION_TITLE,
+    TERE4AI_VERSION,
     _hierarchy_edge,
+    parse_snapshot,
 )
 from tere4ai.parse_legal_structure.units import UnitTree, formex_text, read_text_units
 
+HTML_FILE = "eu_ai_act_32024R1689_eurlex_html_2026-07-08.html"
+HTML_FILE = "eu_ai_act_32024R1689_eurlex_html_2026-07-08.html"
 CONSOLIDATED_REL = "formex/CL2024R1689EN0010010.0001.xml"
 OMNIBUS_MAIN_REL = "formex/L_202601744EN.000101.fmx.xml"
 OMNIBUS_ANNEX_REL = "formex/L_202601744EN.003601.fmx.xml"
@@ -67,6 +91,11 @@ def read_sources(manifest_path: Path | str = DEFAULT_MANIFEST_PATH) -> Sources:
     manifest_path = Path(manifest_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     return Sources(manifest_path.parent, {e["file"]: e["sha256"] for e in manifest["snapshots"]})
+
+
+def legal_sources_digest(files: list[tuple[str, str]]) -> str:
+    """sha256 over "<file> <sha256>" lines, sorted: the base of the build id (D-G68 (5))."""
+    return hashlib.sha256("\n".join(f"{f} {s}" for f, s in sorted(files)).encode("utf-8")).hexdigest()
 
 
 def read_trees(sources: Sources) -> tuple[UnitTree, UnitTree, list[str]]:
@@ -201,6 +230,54 @@ def layer1_nodes(consolidated: UnitTree, baseline: UnitTree, changes: amend.Amen
             "method": VERSION_METHOD, "confidence": 1.0, "review_status": "auto_accepted", "build_id": build_id,
         })
     return nodes, edges
+
+
+def build_in_force_dump(manifest_path: Path | str = DEFAULT_MANIFEST_PATH,
+                        marker_list_path: Path | str = amend.DEFAULT_MARKER_LIST_PATH,
+                        exceptions_path: Path | str = amend.DEFAULT_EXCEPTIONS_PATH,
+                        inventory_path: Path | str = amend.DEFAULT_INVENTORY_PATH) -> dict[str, Any]:
+    """Layer 0 and Layer 1 of the Act in force (module docstring), every check passed."""
+    from tere4ai.ingest.sources import layer0
+
+    sources = read_sources(manifest_path)
+    consolidated, baseline, formex_files = read_trees(sources)
+    changes, rows = checked_amendments(sources, consolidated, baseline, exceptions_path, inventory_path)
+    expected = marker_list_bytes(current_marker_list(sources, changes, rows))
+    marker_list_path = Path(marker_list_path)
+    if not marker_list_path.is_file() or marker_list_path.read_bytes() != expected:
+        raise amend.AmendmentCheckError([
+            f"{marker_list_path.name} differs from the markers of the consolidated text; review the "
+            "difference, then regenerate it with: python -m tere4ai.parse_legal_structure.consolidated "
+            "--write-marker-list"])
+    sources.read(HTML_FILE)  # checked like every other source
+    read_files = [HTML_FILE, *formex_files, CONSOLIDATED_REL, OMNIBUS_MAIN_REL, OMNIBUS_ANNEX_REL]
+    files = [(f, sources.shas[f]) for f in read_files]
+    build_id = f"build-{legal_sources_digest(files)[:12]}"
+    l0_nodes, l0_edges = layer0(build_id, manifest_path, marker_list_path)
+    nodes, edges = layer1_nodes(consolidated, baseline, changes, sources.shas, build_id)
+    html = parse_snapshot(sources.snapshots_dir / HTML_FILE)
+    nodes += [{**n, "enacted_by": amend.BASE_ACT, "amendment": "unchanged"}
+              for n in html["nodes"] if n["type"] == "Recital"]
+    edges += [{**e, "build_id": build_id} for e in html["edges"] if e["edge_type"] == "HAS_RECITAL"]
+    return {
+        "build": {
+            "build_id": build_id,
+            "built_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "tere4ai_version": TERE4AI_VERSION,
+            "snapshots": [{"file": f, "sha256": s} for f, s in files],
+            "amendments": {
+                "marker_list": "data/amendments/omnibus_markers.json",
+                "marker_list_sha256": hashlib.sha256(expected).hexdigest(),
+                "markers_read": len(changes.markers),
+                "markers_checked": len(changes.markers),
+                "units_checked": len(changes.changes),
+                "units_failed": 0,
+                "exception_rows": sorted(changes.used_rows),
+            },
+        },
+        "nodes": l0_nodes + nodes,
+        "edges": l0_edges + edges,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

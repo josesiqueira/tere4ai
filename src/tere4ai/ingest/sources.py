@@ -8,21 +8,26 @@ docs/architecture.md Section 11:
   - base Act (Regulation (EU) 2024/1689), legal_status in_force
   - Digital Omnibus on AI (Regulation (EU) 2026/1744), legal_status
     in_force, linked to the base Act by AMENDS and HAS_VERSION edges,
-    carrying the deferred high-risk deadlines and an explicit
-    merged_into_base=False marker
+    carrying the deferred high-risk deadlines; since B132 merged into the
+    base text (merged_into_base True, the date and the reviewed marker
+    list's sha256) when layer0 is given the marker list
   - EUR-Lex's consolidated text of 27 July 2026 (B132), legal_status
     non_binding: it has no legal effect, and Layer 1 checks every unit
     of it against the Official Journal wording (architecture.md Section 11)
   - the frozen SourceFile snapshot(s) from data/snapshots/MANIFEST.json
 
-Omnibus edits are never merged into the base text (Section 11 version pin);
-now that the Omnibus is in force, merged_into_base states that explicitly.
+Since B132 (spec G D-G68) Layer 1 is the Act as amended: the Omnibus's
+changes are read from the consolidated text's markers and checked against
+the Official Journal wording, so the Omnibus is merged into the base text,
+and gate G6 lets that through only with the record of the checks. Without
+a marker list (the Act as enacted) merged_into_base stays False.
 Published identity verified on EUR-Lex 2026-09-02: Regulation (EU) 2026/1744,
 OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026 (REF-02).
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -65,7 +70,9 @@ def _edge(
     }
 
 
-def layer0(build_id: str, manifest_path: str | Path) -> tuple[list[dict], list[dict]]:
+def layer0(
+    build_id: str, manifest_path: str | Path, marker_list_path: str | Path | None = None
+) -> tuple[list[dict], list[dict]]:
     """Return (nodes, edges) for Layer 0: source documents, files, versioning.
 
     manifest_path points at data/snapshots/MANIFEST.json; every listed
@@ -115,6 +122,22 @@ def layer0(build_id: str, manifest_path: str | Path) -> tuple[list[dict], list[d
             "notes": CONSOLIDATED_NOTE,
         },
     ]
+    if marker_list_path is not None:
+        # B132: the Omnibus is merged into the base text; the reviewed marker
+        # list's digest ties the merge to the checks gate G6 verifies.
+        omnibus = next(n for n in nodes if n["id"] == OMNIBUS_ID)
+        omnibus.update({
+            "merged_into_base": True,
+            "merged_on": "2026-07-27",
+            "marker_list_sha256": hashlib.sha256(Path(marker_list_path).read_bytes()).hexdigest(),
+            "notes": (
+                "Amending instrument, OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026; adopted from "
+                "COM(2025) 836 final, procedure 2025/0359(COD), which the stable node id still names. Merged "
+                "into the base text since B132: Layer 1 is the Act as amended, each change read from the "
+                "consolidated text's markers and checked against this instrument (marker list "
+                "data/amendments/omnibus_markers.json, its sha256 in marker_list_sha256)."
+            ),
+        })
 
     edges: list[dict] = [
         _edge(

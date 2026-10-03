@@ -443,48 +443,22 @@ def build_layer1(
     out_path: Path | str = DEFAULT_OUT_PATH,
     manifest_path: Path | str = DEFAULT_MANIFEST_PATH,
 ) -> dict[str, Any]:
-    """Build the merged Layer 0 + Layer 1 dump and write it to out_path.
+    """Build the merged Layer 0 + Layer 1 dump of the Act in force and write it to out_path.
 
-    Reads the snapshot listed in MANIFEST.json, verifies its checksum against
-    the manifest (frozen-source rule, docs/architecture.md Section 6), merges
-    the Layer 0 source registry from tere4ai.ingest.sources.layer0, and writes
-    the dump JSON. Returns the dump dict.
+    Since B132 (spec G D-G68) Layer 1 is parsed from EUR-Lex's consolidated
+    text in Formex and every unit is checked against the Official Journal
+    wording that enacted it (consolidated.build_in_force_dump; a failed check
+    raises AmendmentCheckError and nothing is written). parse_snapshot above
+    still parses the 2024 HTML, which gives the recitals. Then the Article 3
+    Definition nodes and the recital context links are added (deterministic,
+    no LLM, DEC-01). Returns the dump dict.
     """
-    from tere4ai.ingest.sources import layer0
-
-    manifest_path = Path(manifest_path)
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    snap_entry = manifest["snapshots"][0]
-    snapshot_path = manifest_path.parent / snap_entry["file"]
-
-    actual_sha = hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
-    if actual_sha != snap_entry["sha256"]:
-        raise ValueError(
-            f"snapshot checksum mismatch for {snap_entry['file']}: "
-            f"manifest {snap_entry['sha256']}, file {actual_sha}"
-        )
-
-    dump = parse_snapshot(snapshot_path)
-    build_id = dump["build"]["build_id"]
-    l0_nodes, l0_edges = layer0(build_id, manifest_path)
-    dump["nodes"] = l0_nodes + dump["nodes"]
-    dump["edges"] = l0_edges + dump["edges"]
-
-    # Formex 4 pass: Point and AnnexItem depth from the frozen fmx4 member
-    # files (docs/architecture.md Section 6, route b). Deterministic, no LLM.
-    from tere4ai.parse_legal_structure.formex import enrich_with_formex
-
-    dump = enrich_with_formex(dump, manifest_path.parent / "formex", manifest_path)
-
-    # Graph-depth enrichments on top of the Formex pass (all deterministic,
-    # no LLM, DEC-01): Subparagraph nodes from ALINEA, Definition nodes from
-    # the Article 3 quoted terms plus their high-risk-core usage links, and
-    # recital -> article CONTEXT_FOR context edges.
+    from tere4ai.parse_legal_structure.consolidated import build_in_force_dump
     from tere4ai.parse_legal_structure.definitions import enrich_with_definitions
     from tere4ai.parse_legal_structure.recital_links import add_recital_context
-    from tere4ai.parse_legal_structure.subparagraphs import enrich_with_subparagraphs
 
-    dump = enrich_with_subparagraphs(dump, manifest_path.parent / "formex", manifest_path)
+    manifest_path = Path(manifest_path)
+    dump = build_in_force_dump(manifest_path)
     dump = enrich_with_definitions(dump, manifest_path.parent / "formex", manifest_path)
     dump = add_recital_context(dump)
 
