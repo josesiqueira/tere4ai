@@ -99,6 +99,18 @@ Metrics (`src/tere4ai/eval/metrics.py`): risk classification accuracy,
 citation completeness, hallucinated citation rate, judge false-accept and
 false-reject rates, P/R/F1 helpers.
 
+`scripts/run_ablations.py` reports every measure for each answer key apart,
+under `by_answer_key` in each strategy's summary (B126): `hand_made` (the
+hand-made legal test set, items `gold:`) and `benchmark` (the published
+benchmark, items `bench:`, agreement with its own labels only). Each block
+holds classification (correct, total, accuracy, abstained), citation
+completeness by exact node id, the hallucinated citation rate over that
+key's answers with the citations emitted, and for the benchmark the
+article-level citation completeness. The pooled keys
+(`risk_accuracy_overall`, `citation_completeness`,
+`hallucinated_citation_rate`, `citations_emitted_total` and the per-set
+blocks) are kept for the readers of the July summaries.
+
 ## Running offline (default, no model calls)
 
 Offline is the default everywhere; no code path calls a model unless both

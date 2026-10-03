@@ -12,6 +12,17 @@ resume under another model declaration is refused (spec F D-F29). After the
 sweep, computes the Section 12 metrics per strategy and writes the summary
 to --summary, by default eval/results/runs/<record id>/ablation_summary.json.
 
+What the summary reports per strategy (B126, ruling R3): by_answer_key holds
+every measure for each answer key apart, "hand_made" (the hand-made legal
+test set, items "gold:") and "benchmark" (the published benchmark, items
+"bench:", agreement with its own labels only): classification correct,
+total, accuracy and abstained; citation completeness by exact node id;
+the hallucinated citation rate over that key's answers, with the citations
+emitted; and for the benchmark the article-level citation completeness. A
+case without an answer counts as wrong. The pooled keys (risk_accuracy_overall,
+citation_completeness, hallucinated_citation_rate, citations_emitted_total
+and the per-set blocks) are kept for the readers of the July summaries.
+
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
 (items x strategies) generator calls plus items judge calls for each of the
@@ -23,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import sys
 import tempfile
@@ -253,6 +265,74 @@ def is_abstained(prediction: str | None) -> bool:
     An old value such as "uncertain" is not translated: a fresh answer is
     scored as given."""
     return prediction in (None, "undetermined")
+
+
+# the answer keys by item id prefix (loader convention): the hand-made legal
+# test set and the published benchmark (B126)
+ANSWER_KEYS = {"hand_made": "gold:", "benchmark": "bench:"}
+VACUOUS_NOTE = ("zero checkable citations emitted; a 0.0 hallucination rate here "
+                "is vacuous, not a quality signal")
+
+
+def _article_prefix(cid: str) -> str:
+    m = re.match(r"(eu-ai-act:article-\d+)", cid)
+    return m.group(1) if m else cid
+
+
+def article_level_completeness(results: dict, bench_items: list[dict]) -> dict:
+    """Benchmark citation completeness at the benchmark's own granularity:
+    the gold cites articles, so a predicted paragraph or point id credits
+    its parent article."""
+    found = required = 0
+    for bi in bench_items:
+        gold_cites = set(bi.get("gold_citations") or [])
+        if not gold_cites:
+            continue
+        predicted = {_article_prefix(c) for c in (results.get(bi["id"], {}).get("citations") or [])}
+        required += len(gold_cites)
+        found += len(gold_cites & predicted)
+    return {
+        "found": found,
+        "required": required,
+        "completeness": (found / required) if required else None,
+        "note": (
+            "benchmark gold cites at article granularity; predicted "
+            "paragraph/point ids credit their parent article here"
+        ),
+    }
+
+
+def answer_key_blocks(results: dict, items: list[dict], valid_node_ids: set[str]) -> dict:
+    """Every measure for each answer key apart (B126, ruling R3). An item
+    without an answer, or whose answer carries no risk_category, counts as
+    wrong and as abstained; accuracy is None when the key has no labelled
+    classification item."""
+    blocks: dict[str, dict] = {}
+    for key, prefix in ANSWER_KEYS.items():
+        key_items = [i for i in items if i["id"].startswith(prefix)]
+        key_results = {item_id: r for item_id, r in results.items() if item_id.startswith(prefix)}
+        labelled = [i for i in key_items if i.get("kind") == "classification"
+                    and (i.get("gold") or {}).get("risk_category") is not None]
+        predicted = [(results.get(i["id"]) or {}).get("risk_category") for i in labelled]
+        correct = sum(1 for i, p in zip(labelled, predicted) if p == i["gold"]["risk_category"])
+        emitted = sum(len(r.get("citations") or []) for r in key_results.values())
+        block: dict = {
+            "classification": {
+                "correct": correct,
+                "total": len(labelled),
+                "accuracy": correct / len(labelled) if labelled else None,
+                "abstained": sum(1 for p in predicted if is_abstained(p)),
+            },
+            "citation_completeness": metrics.citation_completeness(results, key_items),
+            "hallucinated_citation_rate": metrics.hallucinated_citation_rate(key_results, valid_node_ids),
+            "citations_emitted": emitted,
+        }
+        if key == "benchmark":
+            block["citation_completeness_article_level"] = article_level_completeness(results, key_items)
+        if emitted == 0:
+            block["hallucination_note"] = VACUOUS_NOTE
+        blocks[key] = block
+    return blocks
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -529,12 +609,6 @@ def main(argv: list[str] | None = None) -> int:
             },
             "strategies": {},
         }
-        import re
-
-        def article_prefix(cid: str) -> str:
-            m = re.match(r"(eu-ai-act:article-\d+)", cid)
-            return m.group(1) if m else cid
-
         # seed items are id-prefixed gold:, benchmark items bench: (loader convention)
         seed_cls = [
             i for i in gold_items
@@ -555,19 +629,6 @@ def main(argv: list[str] | None = None) -> int:
                 if results.get(bi["id"], {}).get("risk_category")
                 == bi["gold"].get("risk_category")
             )
-            # benchmark citation completeness at the benchmark's own granularity
-            # (article level; predicted paragraph/point ids credit their article)
-            found = required = 0
-            for bi in bench_items:
-                gold_cites = set(bi.get("gold_citations") or [])
-                if not gold_cites:
-                    continue
-                predicted = {
-                    article_prefix(c)
-                    for c in (results.get(bi["id"], {}).get("citations") or [])
-                }
-                required += len(gold_cites)
-                found += len(gold_cites & predicted)
             s = {
                 "risk_accuracy_overall": metrics.risk_classification_accuracy(
                     results, gold_items
@@ -593,15 +654,9 @@ def main(argv: list[str] | None = None) -> int:
                         "eval/gold/ANNOTATION_PROTOCOL.md supersede elicited ones."
                     ),
                 },
-                "benchmark_citation_completeness_article_level": {
-                    "found": found,
-                    "required": required,
-                    "completeness": (found / required) if required else None,
-                    "note": (
-                        "benchmark gold cites at article granularity; predicted "
-                        "paragraph/point ids credit their parent article here"
-                    ),
-                },
+                "benchmark_citation_completeness_article_level": article_level_completeness(
+                    results, bench_items
+                ),
                 "citations_emitted_total": sum(
                     len(r.get("citations") or []) for r in results.values()
                 ),
@@ -610,12 +665,11 @@ def main(argv: list[str] | None = None) -> int:
                     results, valid_node_ids
                 ),
                 "errors": sum(1 for r in results.values() if "error" in r),
+                # what the thesis reports (B126, ruling R3); the keys above are pooled
+                "by_answer_key": answer_key_blocks(results, items, valid_node_ids),
             }
             if s["citations_emitted_total"] == 0:
-                s["hallucination_note"] = (
-                    "zero checkable citations emitted; a 0.0 hallucination rate here "
-                    "is vacuous, not a quality signal"
-                )
+                s["hallucination_note"] = VACUOUS_NOTE
             summary["strategies"][strategy_name] = s
 
         summary_path.parent.mkdir(parents=True, exist_ok=True)
