@@ -1051,6 +1051,61 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   test_layer23_schemas.py, test_judge_sampling.py; CHANGELOG.md names the
   contract change.
 
+- DEC-22: the public explanation of the MCP server has one source,
+  docs/server/index.md, and its drift-prone parts are generated from the
+  running server (added 2026-10-03; thesis task B90, brief
+  sdd/2026-10-03-B90-public-source/brief.md revision 2 and spec G D-G65
+  in the private research repository). Engineering decision (one text
+  for every reader, kept equal to what a client is served; it needs no
+  literature grounding, AGENTS.md grounding bar). What a client sees
+  is read by starting the server over stdio with the official MCP Python
+  SDK client, with no model keys: the connect-time instructions, the
+  tool list (names, descriptions, annotations, input fields), and the
+  answers of two free, deterministic calls, coverage_report (the notice
+  and the answer fields) and classify_ai_system (the example call, made
+  with the request the source itself shows). These
+  fill marked regions of the source and the tool reference
+  docs/server/tools.md; nothing that depends on which build is served
+  (a build id, a count, a time) is written. README.md's first screen is
+  generated from the marked README part of the source, and SKILL.md's
+  section on reading every answer from the matching part; the Pages site
+  is built from docs/server/ alone, so no page holds a sentence that is
+  neither the source nor generated. Free or paid is the served openWorldHint, and the generator
+  refuses to run when it, the word PAID in the served description and a
+  paid scope in keys.py TOOL_SCOPES disagree for any tool. Tests cover
+  the sentences the regions cannot: every served tool name appears in the
+  instructions and SKILL.md; no backticked name in the prose of the
+  source or SKILL.md is unknown to the code; no sentence of prose pairs a
+  count with tools, free or paid; the non-legal-advice notice is
+  NON_LEGAL_ADVICE_NOTICE word for word wherever it is shown, /llms.txt
+  and /.well-known/tere4ai.json included; the source links outside the
+  site's own pages by absolute URL only, and holds nothing from the
+  private repository. Span
+  start and end are stated as code points in the snapshot decoded as
+  UTF-8, not bytes. Considered and not taken: hand-written tool sentences
+  checked only for names (a second copy the checks cannot compare); a
+  `_meta` key for cost (no client reads it, and TOOL_SCOPES already
+  records which tools spend money); the in-process tool list alone (it
+  skips the transport and the start-up a client goes through); GitHub
+  Pages' own Jekyll build from docs/ (it would publish every file there).
+  Defense: on 2026-09-26 the instructions named 9 of 11 tools and no
+  check noticed, because the check read the tool list and not the
+  sentence; a text generated from what is served, with tests on the
+  sentences around it, cannot drift that way. Cost if wrong: the
+  generator is one script and its regions are comments in Markdown;
+  removing it leaves the text as last generated.
+  verify: src/tere4ai/server_docs/ (reading the served surface over
+  stdio, rendering the regions), scripts/gen_server_docs.py (`--check` in
+  CI next to the traceability diff), docs/server/index.md, docs/server/tools.md,
+  README.md and SKILL.md (the generated regions), mkdocs.yml and the CI
+  docs job (strict build), src/tere4ai/mcp_server/tools.py
+  (NON_LEGAL_ADVICE_NOTICE), web/src/lib/notice.ts;
+  src/tere4ai/server_docs/prose.py (the names and counts rules on
+  prose); tests/unit/test_server_docs.py (names, counts, notice, links,
+  the generator's calls, `--check`), test_server_docs_prose.py,
+  test_notice_one_source.py, test_span_offsets.py,
+  test_duplicate_keys.py; CHANGELOG.md names the change.
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)
