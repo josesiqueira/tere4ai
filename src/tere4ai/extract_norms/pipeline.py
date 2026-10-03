@@ -201,8 +201,8 @@ def expand_source_units(dump: dict[str, Any], node_ids: list[str]) -> list[dict[
     seen: set[str] = set()
     for node in dump["nodes"]:
         node_id = node["id"]
-        if node.get("type") not in SOURCE_UNIT_TYPES:
-            continue
+        if node.get("type") not in SOURCE_UNIT_TYPES or node.get("amendment") == "deleted":
+            continue  # a unit the Omnibus deleted has no text to extract from (B132)
         in_scope = node_id in direct_ids or any(
             node_id.startswith(prefix + ":") for prefix in prefixes
         )

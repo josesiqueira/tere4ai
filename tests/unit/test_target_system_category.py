@@ -97,12 +97,14 @@ def test_the_table_has_one_row_per_core_id():
 
 @needs_layer1
 def test_every_core_unit_of_the_layer1_dump_resolves_to_a_value(layer1):
-    """Acceptance 2: all 405 source units B74 extracts get a value by the rule."""
+    """Acceptance 2: every source unit B74 extracts gets a value by the rule:
+    414 on the Act as amended (B132; 405 on the 2024 text), before plan B
+    adds Article 4a."""
     units = expand_source_units(layer1, _core_ids())
-    assert len(units) == 405
+    assert len(units) == 414
     values = Counter(category_for(unit["node_id"]) for unit in units)
     assert values == {
-        HIGH_RISK_AI_SYSTEM: 295, ANY_AI_SYSTEM: 80, PROHIBITED_AI_PRACTICE: 23, ARTICLE_50_AI_SYSTEM: 7,
+        HIGH_RISK_AI_SYSTEM: 294, ANY_AI_SYSTEM: 82, PROHIBITED_AI_PRACTICE: 31, ARTICLE_50_AI_SYSTEM: 7,
     }
 
 

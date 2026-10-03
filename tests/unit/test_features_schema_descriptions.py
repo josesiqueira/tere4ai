@@ -39,6 +39,13 @@ def _flags() -> dict[str, dict]:
 
 
 def _normalised(text: str) -> str:
+    """Whitespace collapsed and the single quotation marks around a quoted term
+    dropped: the Formex text keeps them ('real-time' remote biometric
+    identification, B132), the descriptions' quotes leave them out. An
+    apostrophe (a lone right mark) stays."""
+    text = re.sub(
+        "\N{LEFT SINGLE QUOTATION MARK}([^\N{LEFT SINGLE QUOTATION MARK}\N{RIGHT SINGLE QUOTATION MARK}]*)"
+        "\N{RIGHT SINGLE QUOTATION MARK}", r"\1", text)
     return " ".join(text.split())
 
 
@@ -59,7 +66,8 @@ def test_every_flag_outside_the_omnibus_quotes_the_act():
 @pytest.mark.skipif(not LAYER1_PATH.is_file(), reason="layer1.json dump not built")
 def test_every_quoted_passage_is_the_text_of_a_node():
     dump = json.loads(LAYER1_PATH.read_text(encoding="utf-8"))
-    texts = [_normalised(node.get("text") or "") for node in dump["nodes"]]
+    # In-force text only: an earlier version (UnitVersion) is not the Act in force.
+    texts = [_normalised(node.get("text") or "") for node in dump["nodes"] if node.get("type") != "UnitVersion"]
     for name, spec in _flags().items():
         if name in OMNIBUS_FLAGS:
             continue

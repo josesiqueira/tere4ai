@@ -244,16 +244,15 @@ def test_trace_unknown_id_is_clean(dump, alignments_payload, node_ids):
 
 
 def test_resolve_span_returns_checksum_verified_slice(dump):
+    # B132: Layer 1 spans point into the consolidated Formex text.
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    html_entry = next(
-        s
-        for s in manifest["snapshots"]
-        if s["file"].startswith("eu_ai_act_") and s["file"].endswith(".html")
+    consolidated = next(
+        s for s in manifest["snapshots"] if s["file"] == "formex/CL2024R1689EN0010010.0001.xml"
     )
     resolved = resolve_span(KNOWN_SPAN_ID, dump, SNAPSHOTS_DIR)
     assert resolved["span_id"] == KNOWN_SPAN_ID
-    assert resolved["snapshot_file"] == html_entry["file"]
-    assert resolved["sha256"] == html_entry["sha256"]
+    assert resolved["snapshot_file"] == consolidated["file"]
+    assert resolved["sha256"] == consolidated["sha256"]
     assert "risk management system" in resolved["text"]
     assert resolved["end"] - resolved["start"] == len(resolved["text"])
 
@@ -283,6 +282,7 @@ def test_resolve_span_checksum_drift_raises_integrity_error(dump, tmp_path):
         and n["source_span"].get("span_id") == KNOWN_SPAN_ID
     )
     drifted = tmp_path / node["source_span"]["snapshot_file"]
+    drifted.parent.mkdir(parents=True, exist_ok=True)
     drifted.write_text("not the frozen snapshot", encoding="utf-8")
     with pytest.raises(SpanIntegrityError, match="checksum mismatch"):
         resolve_span(KNOWN_SPAN_ID, dump, tmp_path)

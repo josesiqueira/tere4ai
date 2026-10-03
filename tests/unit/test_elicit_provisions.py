@@ -263,6 +263,11 @@ def test_v6_renders_against_the_repository_dump(dump: dict) -> None:
     for node_id in rendered_ids:
         node = _node(dump, node_id)
         assert node.get("type") not in {"Article", "Annex"}, node_id
+        if node.get("amendment") == "deleted":
+            # B132: v6 still names Annex I Section A point 1, which the
+            # Omnibus deleted; the rendered prompt says so.
+            assert f"[{node_id}] Deleted by {node['deleted_by']}, from 27 July 2026." in rendered
+            continue
         assert f"[{node_id}] {node['text']}" in rendered
 
 

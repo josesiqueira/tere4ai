@@ -80,8 +80,11 @@ def test_default_prompt_carries_the_dump_verbatim_article_3_definitions():
     if not dump_path.is_file():
         pytest.skip("layer1.json dump not built")
     dump = json.loads(dump_path.read_text(encoding="utf-8"))
-    defs = {n["id"]: n for n in dump["nodes"] if n.get("type") == "Definition"}
-    # DEC-18: v5 is the default; it keeps every v4 definition verbatim.
+    by_id = {n["id"]: n for n in dump["nodes"]}
+    # v5 (B36.2) quotes the definitions as enacted, without the quotation
+    # marks around the defined term that the Formex text keeps (B132); the
+    # one the Omnibus replaced, Article 3(14), is compared with its earlier
+    # version, the 2024 wording.
     prompt = (root / "prompts" / "elicit_features" / "v5.md").read_text(
         encoding="utf-8"
     )
@@ -90,12 +93,22 @@ def test_default_prompt_carries_the_dump_verbatim_article_3_definitions():
         "eu-ai-act:definition:real-time-remote-biometric-identification-system",
         "eu-ai-act:definition:biometric-categorisation-system",
         "eu-ai-act:definition:emotion-recognition-system",
-        "eu-ai-act:definition:safety-component",
         "eu-ai-act:definition:profiling",
     ):
-        assert defs[node_id]["text"].strip() in prompt, (
+        assert _without_term_quotes(by_id[node_id]["text"]).strip() in prompt, (
             f"v5 prompt lost or drifted the verbatim definition {node_id}"
         )
+    enacted = by_id["version:2024-07-12:eu-ai-act:article-3:paragraph-1:point-14"]["text"]
+    assert _without_term_quotes(enacted).strip() in prompt, "v5 prompt lost the 2024 safety component definition"
+
+
+def _without_term_quotes(text: str) -> str:
+    """The text without the single quotation marks around a quoted term
+    ('biometric identification' means ...), which the Formex text keeps (B132)
+    and the hand-quoted prompts and schema descriptions leave out."""
+    return re.sub(
+        "\N{LEFT SINGLE QUOTATION MARK}([^\N{RIGHT SINGLE QUOTATION MARK}]*)\N{RIGHT SINGLE QUOTATION MARK}",
+        r"\1", text)
 
 
 def test_v4_prompt_carries_the_article_5_exculpating_facts():
@@ -191,7 +204,7 @@ def _act_nodes() -> dict:
         pytest.skip("layer1.json dump not built")
     nodes = {n["id"]: n for n in json.loads(dump_path.read_text(encoding="utf-8"))["nodes"]}
     for node_id, passage in ACT_PASSAGES.items():
-        assert passage in nodes[node_id]["text"], node_id
+        assert passage in _without_term_quotes(nodes[node_id]["text"]), node_id
     assert POINT_G_EXCEPTION in nodes["eu-ai-act:article-5:paragraph-1:point-g"]["text"]
     return nodes
 

@@ -1025,9 +1025,12 @@ def test_health_build_ids_carry_the_publication_chain_of_the_served_dumps(client
         _DUMP_DIR / "alignments_core.json",
     )
     base = json.loads((_DUMP_DIR / "norms_core.json").read_text(encoding="utf-8"))["build"]["build_id"]
-    expected = chained_build_id(base, chain)
-    assert body["norms_build"] == expected
-    assert body["graph_version"] == expected
+    # Each legacy file is stamped from its own build: since B132 the graph is
+    # the Act as amended, while the dev norms were extracted on the 2024
+    # build, until B74 extracts them again on this one.
+    graph_base = json.loads((_DUMP_DIR / "layer1.json").read_text(encoding="utf-8"))["build"]["build_id"]
+    assert body["norms_build"] == chained_build_id(base, chain)
+    assert body["graph_version"] == chained_build_id(graph_base, chain)
     assert body["graph_version"].count("+chain-") == 1
 
 
@@ -1041,7 +1044,7 @@ def test_units_serves_every_core_unit_with_all_candidates(client):
     assert body["graph_version"].startswith("build-")
     assert isinstance(body["core_nodes"], list) and body["core_nodes"]
     units = body["units"]
-    assert len(units) == 405
+    assert len(units) == 414  # the core source units of the Act as amended (B132)
     first = units[0]
     for key in ("id", "type", "span_id", "article_id", "text", "candidates"):
         assert key in first

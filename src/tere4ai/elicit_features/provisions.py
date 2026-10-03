@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from tere4ai.mcp_server.spans import SpanResolutionError, resolve_span
+from tere4ai.parse_legal_structure.amendments import deleted_note, is_deleted
 
 PLACEHOLDER_RE = re.compile(r"\{\{provision:([^{}\s]+)\}\}")
 FACTS_SECTION_HEADING = "## Facts and their provisions"
@@ -70,6 +71,10 @@ def provision_text(
     )
     if node is None:
         raise _unresolved(node_id, dump, "unknown node")
+    if is_deleted(node):
+        # The Omnibus deleted it (B132): the prompt says so instead of quoting
+        # wording no longer in force; it has no span to verify.
+        return {"node_id": node_id, "span_id": "", "text": deleted_note(node)}
     text = node.get("text")
     if not isinstance(text, str) or not text.strip():
         raise _unresolved(node_id, dump, "node has no text")

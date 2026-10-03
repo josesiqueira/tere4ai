@@ -142,8 +142,18 @@ def test_mixed_graph_versions_banner(tmp_path: Path) -> None:
 
 
 def test_single_version_no_banner() -> None:
-    html = render_report_from_paths([SHOPBOT])
+    # A classify-only session cites one build. Since B132 a requirements
+    # session cites two (the graph of the Act as amended and the dev norms
+    # extracted on the 2024 build) until B74 extracts the norms again.
+    html = render_report_from_paths([SESSIONS_DIR / "spamguard-classify.jsonl"])
     assert "MIXED GRAPH VERSIONS" not in html
+
+
+def test_a_requirements_session_shows_the_two_builds_until_b74() -> None:
+    """B132: the requirements answer cites the graph of the Act as amended and
+    the dev norms of the 2024 build; the report says so until B74."""
+    html = render_report_from_paths([SHOPBOT])
+    assert "MIXED GRAPH VERSIONS" in html
 
 
 def test_prohibited_full_stop_banner() -> None:

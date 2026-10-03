@@ -59,10 +59,12 @@ def test_accepted_alignment_needs_two_sided_evidence():
 
 
 def test_version_pin_gate():
+    # B132: the published build merges the Omnibus, with the record of its
+    # checks; without that record the merge is a silent replacement.
     dump = _real_dump()
-    for n in dump["nodes"]:
-        if n["id"] == "src:omnibus-com-2025-836":
-            n["merged_into_base"] = True
+    omnibus = next(n for n in dump["nodes"] if n["id"] == "src:omnibus-com-2025-836")
+    assert omnibus["merged_into_base"] is True
+    dump["build"].pop("amendments")
     report = validate_build(dump)
     assert any("G6" in f and "silent replacement" in f for f in report.failures)
 
