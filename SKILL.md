@@ -3,8 +3,9 @@
 Use TERE4AI when a project needs EU AI Act engineering requirements: risk
 classification, applicable obligations with legal citations, evidence
 evaluation, or a compliance-support backlog. TERE4AI provides engineering and
-documentation support; it does not certify compliance and does not replace
-legal review.
+documentation support. It does not certify EU AI Act compliance and does not
+replace legal review, conformity assessment, or competent-authority
+interpretation.
 
 ## Connect
 
@@ -47,7 +48,7 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
    source span, Article 3 definitions in play, and its HLEG alignments.
    Free, deterministic.
 5. `trace_alignment(id)`: the reified ethics alignments for a norm or
-   article, with judge scores and evidence spans. The EU-to-HLEG mappings
+   article, with judge scores and evidence spans. The EU-to-HLEG alignments
    are LLM-generated and not expert-validated; the envelope says so. Free,
    deterministic.
 6. `evaluate_project_evidence(norm_id, artifact_type, content)` (PAID):

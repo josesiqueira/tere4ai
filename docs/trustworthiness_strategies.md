@@ -164,7 +164,8 @@ merit, this document says so explicitly instead of inventing a citation.
   (src/tere4ai/mcp_server/spans.py:88-92).
 - Tests: tests/unit/test_mcp_tools.py:211, :226; the census
   tests/unit/test_norm_span_census.py resolves EVERY accepted norm's span.
-- See it: any envelope's source_spans carries snapshot_sha256 plus byte offsets.
+- See it: any envelope's source_spans carries snapshot_sha256 plus code point
+  offsets (into the snapshot decoded as UTF-8, not bytes).
 
 ### 11. Provenance class on every edge
 - Grounding: REF-32 (PROJ, the provenance edge-tag pattern donor), ADD-20.

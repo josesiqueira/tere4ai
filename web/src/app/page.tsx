@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { NOTICE } from "@/lib/notice";
 
 /* The landing page: the front door of the system. Full-bleed (outside the
    (demo) route group), clinical-blueprint system per docs/DESIGN.md. Every
@@ -7,11 +8,6 @@ import Image from "next/image";
    the landing explains, the demo shows. */
 
 const GITHUB = "https://github.com/josesiqueira/tere4ai";
-
-const NOTICE =
-  "TERE4AI provides engineering and documentation support. It does not " +
-  "certify EU AI Act compliance and does not replace legal review, " +
-  "conformity assessment, or competent-authority interpretation.";
 
 function ChainLink({ level, value, meta }: { level: string; value: string; meta?: string }) {
   return (
@@ -339,8 +335,8 @@ export default function LandingPage() {
           </h2>
           <p className="mt-3 max-w-[62ch] text-muted-foreground">
             Classification, requirements, explanations, ethics traces, and the traceability
-            matrix are deterministic and free: no API key needed. Keys unlock the two
-            generative tools, both gated by an independent judge.
+            matrix are deterministic and free: no API key needed. Keys unlock the paid
+            tools.
           </p>
           <pre className="mt-5 overflow-x-auto rounded-lg bg-primary p-5 font-mono text-[13px] leading-relaxed text-primary-foreground/85">
 {`// .mcp.json in your project

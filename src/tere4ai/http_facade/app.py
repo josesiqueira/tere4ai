@@ -458,8 +458,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             "Evidence-gated EU AI Act engineering support. Deterministic risk "
             "classification (with Article 27(1) FRIA applicability in "
             "answer.fria), judged requirements with span-level citations, "
-            "evidence evaluation behind a runtime grounding judge. Not legal "
-            "advice; never claims compliance.\n\n"
+            "evidence evaluation behind a runtime grounding judge. "
+            + NON_LEGAL_ADVICE_NOTICE
+            + "\n\n"
             "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
             "/api/trace, /api/trace/batch, /api/report and GET /api/span/{span_id}, "
             "/api/coverage, /api/alignments, /api/schema/system_features, "
@@ -531,12 +532,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                     "health": {"method": "GET", "path": "/api/health", "paid": False},
                 },
                 "skill": "/llms.txt",
-                "non_legal_advice_notice": (
-                    "TERE4AI provides engineering and documentation support. It "
-                    "does not certify EU AI Act compliance and does not replace "
-                    "legal review, conformity assessment, or competent-authority "
-                    "interpretation."
-                ),
+                "non_legal_advice_notice": NON_LEGAL_ADVICE_NOTICE,
             }
         )
 

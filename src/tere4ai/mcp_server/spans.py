@@ -1,10 +1,10 @@
 """Span helper: resolve a SourceSpan id to its checksum-verified snapshot text.
 
 Every span in the graph carries the frozen snapshot file, its sha256, and
-exact character offsets. This module resolves a span_id to the literal
-snapshot slice, verifying the file checksum first so a drifted snapshot can
-never silently masquerade as the frozen source (architecture.md Sections 6
-and 13). Spans may point into subpaths of the snapshots directory, for
+exact code point offsets (into the snapshot decoded as UTF-8, not bytes).
+This module resolves a span_id to the literal snapshot slice, verifying the
+file checksum first so a drifted snapshot can never silently masquerade as
+the frozen source (architecture.md Sections 6 and 13). Spans may point into subpaths of the snapshots directory, for
 example data/snapshots/formex/. Deterministic, no model calls.
 
 @implements: DEC-01 (partial: span rendering)

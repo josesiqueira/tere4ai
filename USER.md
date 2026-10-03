@@ -6,7 +6,7 @@
 
 ## What this project is
 
-**TERE4AI2**, a rebuild of TERE4AI. It takes a plain-English description of an AI system and returns legally-grounded software requirements, each traceable to specific **EU AI Act (Regulation 2024/1689)** articles and **AI HLEG Trustworthy AI** principles, with a risk classification (unacceptable, high, limited, minimal).
+**TERE4AI2**, a rebuild of TERE4AI: an open-source MCP server for teams building AI systems under the **EU AI Act (Regulation 2024/1689)**. A coding agent describes the system it is building and gets back a deterministic risk classification (unacceptable, high, limited, minimal), engineering requirements traced to byte-exact legal text, judged alignments to the **AI HLEG Trustworthy AI** principles, and requirement-to-code traceability.
 
 The whole value rests on **traceability and correctness of citations**. A wrong or unverifiable citation is worse than a missing one.
 
@@ -21,8 +21,8 @@ The whole value rests on **traceability and correctness of citations**. A wrong 
 
 - The EU AI Act risk tiers and the 7 HLEG principles are **closed, canonical sets**. Do not invent tiers, categories, or principle IDs.
 - The LLM must **never override the deterministic risk classification**. That separation is the basis of the trustworthiness argument.
-- Prohibited (unacceptable) systems produce **zero requirements**, only the prohibition citation and violated principles.
-- The EU-to-HLEG semantic mappings are **LLM-generated and not expert-validated**. Always surface that caveat when presenting them.
+- Prohibited (unacceptable) systems get **only the Article 5 prohibition citation and a message, never requirements**.
+- The EU-to-HLEG alignments are **LLM-generated and not expert-validated**. Always surface that caveat when presenting them.
 
 ## Writing style (hard rule, all output including code, comments, commits, docs)
 

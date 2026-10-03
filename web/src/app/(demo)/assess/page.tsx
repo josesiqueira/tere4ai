@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { levelName } from "@/lib/levels";
+import { NOTICE } from "@/lib/notice";
 import { Loader2 } from "lucide-react";
 
 import { FACADE_URL } from "@/lib/facade";
@@ -207,11 +208,6 @@ type EvidenceUiState = {
   result: Envelope<EvidenceAnswer> | null;
   error: string | null;
 };
-
-const NOTICE =
-  "TERE4AI provides engineering and documentation support. It does not " +
-  "certify EU AI Act compliance and does not replace legal review, " +
-  "conformity assessment, or competent-authority interpretation.";
 
 /* The seven HLEG Trustworthy AI requirements are a closed canonical set
    (USER.md domain guardrails). Ids and labels below are exactly those of

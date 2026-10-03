@@ -5,6 +5,33 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B90 task 1: one notice, the span offset unit, USER.md restated, the prose rules (2026-10-03)
+- The web demo shows the non-legal-advice notice from one module,
+  `web/src/lib/notice.ts`, which mirrors `NON_LEGAL_ADVICE_NOTICE` in
+  `src/tere4ai/mcp_server/tools.py` (a test keeps them equal). The
+  landing page, the demo layout (sidebar and mobile footer), /assess and
+  /how-it-works import it; the demo layout's shorter mobile header line
+  is removed, so the notice has one wording. /how-it-works says
+  alignments, states which proposals an independent judge checks (norms,
+  alignments, evidence, backlog items) and that the elicitor's proposed
+  facts are checked by code and confirmed by a person. The landing page
+  says "Keys unlock the paid tools." with no count.
+- The facade's /llms.txt header and /.well-known/tere4ai.json serve
+  `NON_LEGAL_ADVICE_NOTICE` (the header said "Not legal advice; never
+  claims compliance."). SKILL.md carries the notice word for word.
+- The resolve_span and source_trace descriptions state that start and end
+  count Unicode code points in the snapshot decoded as UTF-8, not bytes,
+  and that sha256 is over the file's bytes; trace_alignment's says
+  alignment runs and alignments. spans.py, docs/DESIGN.md and
+  docs/trustworthiness_strategies.md say code point offsets.
+- USER.md describes the MCP server a coding agent calls; a prohibited
+  system gets only the Article 5 prohibition citation and a message.
+- New `src/tere4ai/server_docs/prose.py` (DEC-22): the prose of a Markdown
+  or .tsx file, sentences, the count rule (a count with tool, tools, free
+  or paid within four words after it) and the backticked-name rule.
+- Tests: test_server_docs_prose.py, test_notice_one_source.py,
+  test_span_offsets.py.
+
 ### B126: the ablation's sixth condition and the measures for each answer key apart (2026-10-03)
 - New strategy `graph_runtime_judge`, appended last to `STRATEGY_NAMES`
   (the five keep their order): condition 3 (`graph_no_judge`, every

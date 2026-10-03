@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 
 import { FACADE_URL } from "@/lib/facade";
+import { NOTICE } from "@/lib/notice";
 import { VOCAB_SUBTITLES } from "@/lib/vocab";
 
 type WellKnown = {
@@ -53,8 +54,11 @@ export default function HowItWorksPage() {
             TERE4AI answers questions about the EU AI Act with evidence, not
             opinions. A deterministic parser mirrors the frozen legal text
             into a knowledge graph; language models only propose norms,
-            mappings, and facts; independent judges gate every proposal; and
-            a fixed rule ladder alone decides risk classification. No model
+            alignments, and facts; a model&apos;s proposal is served only after
+            a check, an independent judge for norms, alignments, evidence and
+            backlog items, and for the elicitor&apos;s proposed facts a code
+            check of their quotes and the person who confirms them; and a
+            fixed rule ladder alone decides risk classification. No model
             ever overrides the rules.
           </p>
         </header>
@@ -115,10 +119,8 @@ export default function HowItWorksPage() {
         </section>
 
         <footer className="border-t pt-4 text-xs text-muted-foreground">
-          TERE4AI provides engineering and documentation support. It does not
-          certify anything and does not replace legal review, conformity
-          assessment, or competent-authority interpretation. EU to HLEG
-          mappings are LLM-generated and not expert-validated.
+          {NOTICE} EU to HLEG alignments are LLM-generated and not
+          expert-validated.
         </footer>
       </div>
     </div>

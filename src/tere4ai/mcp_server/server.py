@@ -330,7 +330,9 @@ def coverage_report() -> dict[str, Any]:
 @mcp.tool(annotations=_READ_ONLY)
 def source_trace(node_id: str) -> dict[str, Any]:
     """Trace a graph node to its frozen source snapshot: file, sha256, span
-    start/end, HTML anchor, and a text excerpt. The excerpt is capped at 500
+    start/end, HTML anchor, and a text excerpt. Start and end count Unicode
+    code points in the snapshot decoded as UTF-8, not bytes; sha256 is over
+    the file's bytes. The excerpt is capped at 500
     characters for payload size; when it is shorter than the full provision,
     answer.excerpt_truncated is true and answer.excerpt_chars /
     answer.span_chars report exactly how much of the text was returned, so a
@@ -370,8 +372,8 @@ def trace_alignment(id: str) -> dict[str, Any]:
     """All reified EU-to-HLEG alignment chains for a norm_id (assertions
     from that norm) or an HLEG requirement id (assertions targeting it).
     Every assertion is rendered with relation type, scores, judge verdict
-    and rationale, mapping and judge runs (models, prompt versions), and
-    evidence span ids on both sides; never a bare edge. The mappings are
+    and rationale, alignment and judge runs (models, prompt versions), and
+    evidence span ids on both sides; never a bare edge. The alignments are
     LLM-generated and not expert-validated. Deterministic and free."""
     loaded = _active()
     dump = loaded.dump
@@ -386,9 +388,11 @@ def trace_alignment(id: str) -> dict[str, Any]:
 @mcp.tool(annotations=_READ_ONLY)
 def resolve_span(span_id: str) -> dict[str, Any]:
     """Resolve a SourceSpan id to its checksum-verified snapshot slice:
-    snapshot file, sha256, start, end, and the exact text. Unknown span ids
-    and checksum drift come back as clean degraded envelopes, never an
-    exception. Deterministic and free."""
+    snapshot file, sha256, start, end, and the exact text. Start and end
+    count Unicode code points in the snapshot decoded as UTF-8, not bytes;
+    sha256 is over the file's bytes. Unknown span ids and checksum drift
+    come back as clean degraded envelopes, never an exception.
+    Deterministic and free."""
     loaded = _active()
     dump = loaded.dump
     if dump is None:

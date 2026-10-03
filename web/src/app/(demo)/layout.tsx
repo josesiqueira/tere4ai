@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NOTICE } from "@/lib/notice";
 import { NavLinks } from "../nav-links";
 
 /* The demo shell: left sidebar on desktop, top bar on mobile. Wraps every
@@ -31,11 +32,7 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
         <NavLinks />
         <footer className="mt-auto px-4 py-4 text-xs text-muted-foreground space-y-3">
           <p>thin read-only demo</p>
-          <p>
-            TERE4AI provides engineering and documentation support. It does not
-            certify EU AI Act compliance and does not replace legal review,
-            conformity assessment, or competent-authority interpretation.
-          </p>
+          <p>{NOTICE}</p>
         </footer>
       </aside>
 
@@ -44,9 +41,6 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
           <LogoMark compact />
         </div>
         <NavLinks />
-        <p className="border-t border-sidebar-border px-4 py-2 text-xs text-muted-foreground">
-          Engineering support, not legal advice or certification.
-        </p>
       </div>
 
       <main id="main-content" className="flex-1 min-w-0">
@@ -54,11 +48,7 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
       </main>
 
       <footer className="md:hidden border-t border-border px-4 py-4 text-xs text-muted-foreground">
-        <p>
-          TERE4AI provides engineering and documentation support. It does not
-          certify EU AI Act compliance and does not replace legal review,
-          conformity assessment, or competent-authority interpretation.
-        </p>
+        <p>{NOTICE}</p>
       </footer>
     </div>
   );

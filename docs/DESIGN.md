@@ -195,9 +195,9 @@ These are load-bearing and survive every redesign:
 - The seven-value calibrated status vocabulary rendered as states, never
   grades: one badge style, no icons, no color coding.
 - Judge verdicts with model and run id on generated content.
-- Span ids, snapshot files, byte offsets, and checksums as the traceability
-  credentials; byte-exact quotes visually marked as quotes (serif in the
-  report).
+- Span ids, snapshot files, code point offsets, and checksums as the
+  traceability credentials; byte-exact quotes visually marked as quotes
+  (serif in the report).
 - The trace-is-a-claim sentence inside every traceability matrix rendering.
 
 ## Report documents (src/tere4ai/report/)
