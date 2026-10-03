@@ -69,3 +69,7 @@ data/graph_dumps/*.writing.json
 data/graph_dumps/*.building.json
 data/graph_dumps/ACTIVE_MANIFEST.json
 data/graph_dumps/NEO4J_TARGET.json
+
+# the Pages site (DEC-22): built by scripts/build_site.sh, never tracked
+/_site/
+/docs/server/sessions/

@@ -37,6 +37,20 @@ jobs:
       - name: Server docs are current
         run: python scripts/gen_server_docs.py --check
 
+  docs:
+    # The Pages site (DEC-22) is built from docs/server in strict mode on
+    # every push and pull request; it is not deployed from here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install MkDocs (Material, pinned; not the package)
+        run: python -m pip install "mkdocs-material==9.7.7"
+      - name: Build the site (strict)
+        run: bash scripts/build_site.sh
+
   web:
     runs-on: ubuntu-latest
     steps:

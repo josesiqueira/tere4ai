@@ -1,0 +1,15 @@
+# The public site of the MCP server (DEC-22): built from docs/server alone,
+# so every page is the one source or a page generated from the running
+# server. No nav: pages are found from the folder, so sessions.md joins the
+# site only once it exists. Build with scripts/build_site.sh.
+site_name: TERE4AI
+site_url: https://josesiqueira.github.io/tere4ai/
+repo_url: https://github.com/josesiqueira/tere4ai
+docs_dir: docs/server
+site_dir: _site
+strict: true
+theme:
+  name: material
+markdown_extensions:
+  - tables
+  - fenced_code

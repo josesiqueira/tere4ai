@@ -36,6 +36,11 @@ dev = [
     # and mode 2026-07-28); fastmcp alone allows any mcp below 3.
     "mcp>=2.2,<2.3",
 ]
+# The Pages site (DEC-22): Material for MkDocs pinned; it requires
+# mkdocs>=1.6,<2. CI's docs job installs only this, not the package.
+docs = [
+    "mkdocs-material==9.7.7",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

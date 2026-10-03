@@ -5,6 +5,19 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B90 task 5: the Pages site builds from docs/server, not deployed (2026-10-03)
+- New `mkdocs.yml` and `scripts/build_site.sh` (DEC-22): Material for
+  MkDocs 9.7.7 (ruling R3, pinned in the new `docs` extra) builds the site
+  from docs/server alone into `_site/` in strict mode, so a relative link
+  to a missing page fails the build. No nav: the pages are found from the
+  folder, and the sessions page joins the site only once
+  docs/server/sessions.md exists (the script then copies the recorded
+  sessions from web/public/mcp-demo/ beside it).
+- CI's new `docs` job installs only mkdocs-material and builds the site on
+  every push and pull request. Nothing is published: there is no deploy
+  step and no pages permission.
+- `.gitignore` keeps the built site and the copied sessions out of git.
+
 ### B90 task 4: the server docs generator reads the running server (2026-10-03)
 - New `scripts/gen_server_docs.py` and `src/tere4ai/server_docs/session.py`
   and `render.py` (DEC-22): the script reads the example request from
