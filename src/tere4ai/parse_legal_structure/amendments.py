@@ -451,3 +451,137 @@ def marker_list(amendments: Amendments, rows: list[dict[str, Any]], consolidated
             for kind in ("replaced", "inserted", "deleted", "composed")
         },
     }
+
+def check_units(amendments: Amendments, consolidated: UnitTree, baseline: UnitTree, cons_text: str,
+                quotations: dict[str, list[str]], rows: list[dict[str, Any]]) -> list[str]:
+    """D-G68 (1): every unit against the Official Journal wording that enacted it. Returns failures."""
+    failures: list[str] = []
+    old = baseline.by_id()
+    quotes = {point: [normalise(q) for q in qs] for point, qs in quotations.items()}
+    by_id = {m.marker_id: m for m in amendments.markers}
+    member_markers = {r["marker_id"] for r in rows if r["kind"] == "annex_member"}
+    for unit in consolidated.units:
+        change = amendments.changes[unit.id]
+        before = old.get(unit.id)
+        if before is None and change.amendment in ("unchanged", "composed"):
+            failures.append(f"{unit.id}: {change.amendment} by the markers, but the 2024 text has no unit with this id")
+            continue
+        if change.amendment == "unchanged":
+            if (unit.text or "") != (before.text or ""):
+                failures.append(f"{unit.id}: no marker touches it and its text differs from the 2024 text")
+            if (unit.title or "") != (before.title or ""):
+                row = next(iter(_rows(rows, "unmarked_title", unit_id=unit.id)), None)
+                if row and row.get("baseline") == before.title and row.get("consolidated") == unit.title:
+                    amendments.used_rows.add(row["id"])
+                else:
+                    failures.append(f"{unit.id}: no marker touches it and its title differs from the 2024 title")
+        elif change.amendment in ("replaced", "inserted"):
+            if change.marker_ids[0] in member_markers:
+                continue  # Annex XIV: compared whole with the annex member file (check_markers)
+            for wording in (unit.text, unit.title):
+                if not wording:
+                    continue
+                cut = normalise(wording)
+                trailing = next(iter(_rows(rows, "trailing_punctuation", marker_id=change.marker_ids[0])), None)
+                if trailing and cut.endswith(trailing["trailing"]) and not _found(cut, quotes.get(change.point, []),
+                                                                                  rows, amendments):
+                    cut = cut[: -len(trailing["trailing"])].rstrip()
+                if not _found(cut, quotes.get(change.point, []), rows, amendments):
+                    failures.append(f"{unit.id}: not in the Omnibus quotation of point {change.point}")
+        elif change.amendment == "composed":
+            marks = [by_id[m] for m in change.marker_ids]
+            if unit.type in TEXT_UNIT_TYPES:
+                failure = _composed_failure(unit, before, marks, cons_text)
+                if failure:
+                    failures.append(failure)
+            elif (unit.title or "") != (before.title or ""):
+                heading = [m for m in marks if unit.title_range and m.inner_start <= unit.title_range[0]
+                           and unit.title_range[1] <= m.inner_end]
+                if not heading or not _found(normalise(unit.title),
+                                             quotes.get(amendments.points[heading[0].marker_id], []), rows, amendments):
+                    row = next(iter(_rows(rows, "unmarked_title", unit_id=unit.id)), None)
+                    if row and row.get("baseline") == before.title and row.get("consolidated") == unit.title:
+                        amendments.used_rows.add(row["id"])
+                    else:
+                        failures.append(f"{unit.id}: its title changed and no marker over the heading enacts it")
+    # the reverse check: every quotation is applied somewhere
+    marked = [normalise(formex_text(cons_text, m.inner_start, m.inner_end)) for m in amendments.markers]
+    for point, qs in quotes.items():
+        for quotation in qs:
+            core = quotation.removeprefix(OPEN_QUOTE).removesuffix(CLOSE_QUOTE).strip()
+            if not _found(core, marked, rows, amendments):
+                failures.append(f"the Omnibus quotation of point {point} is in no marked range (left unapplied?)")
+    # the containers' wording outside their units
+    for unit in consolidated.units:
+        change = amendments.changes[unit.id]
+        if unit.type in TEXT_UNIT_TYPES or change.amendment not in ("unchanged", "composed"):
+            continue
+        before = old[unit.id]
+        old_own = normalise(formex_text(baseline.texts[before.file], before.start, before.end,
+                                        _outside_units(before, baseline)))
+        ranges = _outside_units(unit, consolidated)
+        if change.amendment == "unchanged":
+            if normalise(formex_text(cons_text, unit.start, unit.end, ranges)) != old_own:
+                failures.append(f"{unit.id}: its wording outside its units differs from the 2024 text")
+            continue
+        marks = [by_id[m] for m in change.marker_ids
+                 if not any(s <= by_id[m].start and by_id[m].end <= e for s, e in ranges)]
+        failure = _rest_failure(unit.id, cons_text, unit.start, unit.end, ranges, marks, old_own,
+                                "its wording outside its units")
+        if failure:
+            failures.append(failure)
+    return failures
+
+
+def _outside_units(unit: Unit, tree: UnitTree) -> list[tuple[int, int]]:
+    """What a container's own wording leaves out: its child units, its title (compared on
+    its own) and the file's bibliographic block (the 2024 annex member files carry one)."""
+    text = tree.texts[unit.file]
+    ranges = [(c.start, c.end) for c in tree.units if c.parent == unit.id and c.file == unit.file]
+    if unit.title_range:
+        ranges.append(unit.title_range)
+    ranges += [(m.start(), m.end()) for m in _METADATA.finditer(text, unit.start, unit.end)]
+    return ranges
+
+
+def stale_rows(amendments: Amendments, rows: list[dict[str, Any]]) -> list[str]:
+    """After check_markers and check_units: a row no check needed is a failure too."""
+    return [f"exception row {row['id']} ({row['kind']}) was not needed by any check: review it"
+            for row in rows if row["id"] not in amendments.used_rows]
+
+
+def _composed_failure(unit: Unit, before: Unit, marks: list[Marker], cons_text: str) -> str | None:
+    """The unmarked rest of a partly amended unit equals its 2024 text."""
+    return _rest_failure(unit.id, cons_text, unit.start, unit.end, list(unit.own_exclude), marks,
+                         normalise(before.text or ""), "its unmarked text")
+
+
+def _rest_failure(unit_id: str, cons_text: str, start: int, end: int, exclude: list[tuple[int, int]],
+                  marks: list[Marker], old: str, what: str) -> str | None:
+    """The unmarked pieces of cons_text[start:end] (exclude left out) appear in the
+    2024 text old in order, and 2024 text between them is allowed only where a
+    REPLACED or DELETED range sat."""
+    pos, pending = 0, False
+    segments: list[tuple[int, int] | Marker] = []
+    cursor = start
+    for mark in sorted(marks, key=lambda m: m.start):
+        segments.append((cursor, max(cursor, mark.start)))
+        segments.append(mark)
+        cursor = max(cursor, min(mark.end, end))
+    segments.append((cursor, end))
+    for segment in segments:
+        if isinstance(segment, Marker):
+            pending = pending or segment.action in ("REPLACED", "DELETED")
+            continue
+        piece = normalise(formex_text(cons_text, segment[0], segment[1], exclude))
+        if not piece:
+            continue
+        found = old.find(piece, pos)
+        if found < 0:
+            return f"{unit_id}: {what} {piece[:50]!r} is not in its 2024 text"
+        if old[pos:found].strip() and not pending:
+            return f"{unit_id}: its 2024 text has {old[pos:found].strip()[:40]!r} where nothing was replaced"
+        pos, pending = found + len(piece), False
+    if old[pos:].strip() and not pending:
+        return f"{unit_id}: its 2024 text ends with {old[pos:].strip()[:40]!r} where nothing was replaced"
+    return None

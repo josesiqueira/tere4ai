@@ -74,7 +74,7 @@ def read_trees(sources: Sources) -> tuple[UnitTree, UnitTree, list[str]]:
 def checked_amendments(sources: Sources, consolidated: UnitTree, baseline: UnitTree,
                        exceptions_path: Path | str = amend.DEFAULT_EXCEPTIONS_PATH,
                        inventory_path: Path | str = amend.DEFAULT_INVENTORY_PATH) -> tuple[amend.Amendments, list]:
-    """Derive every change and check every marker; raises AmendmentCheckError on any failure."""
+    """Derive every change and run every check; raises AmendmentCheckError on any failure."""
     rows = amend.load_exceptions(exceptions_path)
     cons_text = consolidated.texts[CONSOLIDATED_REL]
     changes = amend.derive_changes(consolidated, baseline, amend.read_markers(cons_text), rows)
@@ -82,6 +82,8 @@ def checked_amendments(sources: Sources, consolidated: UnitTree, baseline: UnitT
     inventory = amend.read_inventory(Path(inventory_path).read_text(encoding="utf-8"))
     failures = amend.check_markers(changes, consolidated, baseline, cons_text, quotations, inventory, rows,
                                    sources.read(OMNIBUS_ANNEX_REL))
+    failures += amend.check_units(changes, consolidated, baseline, cons_text, quotations, rows)
+    failures += amend.stale_rows(changes, rows)
     if failures:
         raise amend.AmendmentCheckError(failures)
     return changes, rows
