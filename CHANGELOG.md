@@ -26,6 +26,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   `generator_effort` and `generator_temperature`, null for a dump made
   before this change. The session report's mapping run line shows the
   effort beside the model id.
+- The same for the extraction generator: a norms dump's build block
+  records `extraction_temperature` beside `extraction_effort`, and
+  contract change, `/api/units` candidates and `explain_requirement`'s
+  `extraction` block carry `extractor_effort` and `extractor_temperature`
+  (null for a dump made before this change and for a norm a person wrote).
 
 ### B128: the hand-made test set gets two labels on every case (2026-10-03)
 - `eval/gold/ANNOTATION_PROTOCOL.md`: two annotators label every case
