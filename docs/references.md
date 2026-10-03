@@ -769,6 +769,84 @@ relabelled, and the repetitions are fixed by a pilot (B104 decisions 1 and
 3, R5). The closer fit for an automated tool evaluation than ADD-48, whose
 scope is experiments with human participants.
 
+**[ADD-77]** PEER. "Analyzing Dataset Annotation Quality Management in the
+Wild", Klie, Eckart de Castilho, Gurevych, Computational Linguistics
+50(3):817-866, 2024, DOI 10.1162/coli_a_00516 (open access; 99 citations on
+Semantic Scholar, 41 on Crossref, 2026-10-03; passes the bar by peer
+review). VERIFIED 2026-10-03. CORE. Grounds: the authors' own annotation was
+"only annotated by a single author but inspected several times to guarantee
+correctness and consistency" (Section 4.4, p. 838), the precedent for the
+staffing design with no helpers (thesis sdd/2026-10-01-B107-resourcing,
+decision brief revision 3), a literature annotation, not a legal one; and
+"at least ≈ 500 instances" for plus or minus 0.05 at an agreement of 0.8,
+with no confidence interval for agreement found in the papers analysed
+(Section 5.9, p. 848): the reliability set of 100 is a resource-limited
+audit reported with its interval.
+
+**[ADD-78]** PEER. "Question Answering for Privacy Policies: Combining
+Computational and Legal Perspectives" (PrivacyQA), Ravichander, Black,
+Wilson, Norton, Sadeh, Proceedings of EMNLP-IJCNLP 2019, pp. 4947-4958, DOI
+10.18653/v1/D19-1500 (Crossref gives pp. 4946-4957, off by one; 166
+citations on Semantic Scholar, 65 on Crossref, 2026-10-03). VERIFIED
+2026-10-03. SUPPORTING. Grounds: "seven experts with legal training"
+answer questions that crowdworkers wrote (Section 3.2, p. 4950), "every
+question in the test set is answered by at least two additional experts"
+(Section 3.3, p. 4950), and the question writers were not shown the
+policies "to avoid inadvertent biases" (Section 3.1, p. 4949): precedent
+for separating who writes the hand-made test cases from who answers them
+(B107 decision brief revision 3, two and three helpers); an adaptation.
+
+**[ADD-79]** PEER. "Interrater Disagreement Resolution: A Systematic
+Procedure to Reach Consensus in Annotation Tasks", Oortwijn, Ossenkoppele,
+Betti, Proceedings of the Workshop on Human Evaluation of NLP Systems
+(HumEval), 2021, pp. 131-141, aclanthology.org/2021.humeval-1.15 (no DOI;
+25 citations on Semantic Scholar, 2026-10-03; peer-reviewed workshop).
+VERIFIED 2026-10-03. CORE. Grounds: consensus "should be striven for,
+through a systematic procedure for disagreement resolution" (abstract,
+p. 131), with "explicit decisions from raters after deliberation" that make
+"the conditions of dataset creation clear" (Section 2, p. 133), and a
+pre-appointed person or "majority rule" for what stays unresolved
+(Section 4.2, p. 136): the adjudication column of the B107 decision brief
+revision 3, the initial labels kept and each adjudicated decision recorded
+with its reason.
+
+**[ADD-80]** PEER. "Don't Blame the Annotator: Bias Already Starts in the
+Annotation Instructions", Parmar, Mishra, Geva, Baral, Proceedings of EACL
+2023, pp. 1779-1789, DOI 10.18653/v1/2023.eacl-main.130 (76 citations on
+Semantic Scholar, 21 on Crossref, 2026-10-03). VERIFIED 2026-10-03.
+SUPPORTING. Grounds: "instruction bias widely exists in NLU benchmarks,
+often leading to an overestimation of model performance" (Section 1,
+p. 1780); for T5-base on QUOREF, F1 86.7 on the test questions that follow
+the instruction patterns against 73.1 on those that do not, a 13.6 point
+gap (Table 4, p. 1782, read from the rendered page; three random seeds):
+a measured nearby effect in the B107 decision brief's paragraph on the
+builder's bias, not a measure of a tool builder's bias.
+
+**[ADD-81]** PEER. "Preregistering NLP research", van Miltenburg, van der
+Lee, Krahmer, Proceedings of NAACL-HLT 2021, pp. 613-623, DOI
+10.18653/v1/2021.naacl-main.51 (36 citations on Semantic Scholar, 9 on
+Crossref, 2026-10-03). VERIFIED 2026-10-03. SUPPORTING. Grounds:
+preregistration sites "provide a time stamp; evidence that you indeed made
+all the relevant decisions before carrying out the study" (Section 2,
+p. 614): the B107 decision brief's mitigation of preregistering the plan,
+the staffing branches and the analysis; method support, not a measured
+reduction of the builder's bias.
+
+**[ADD-82]** PEER. "Adjudicating LLMs as PropBank Annotators" (title as
+printed on p. 112; the Anthology metadata reads "Adjudicators"), Bonn,
+Tayyar Madabushi, Hwang, Bonial, Proceedings of the Fifth International
+Workshop on Designing Meaning Representations (DMR 2024) at LREC-COLING
+2024, pp. 112-123, aclanthology.org/2024.dmr-1.12 (no DOI; 0 citations on
+OpenAlex, 2026-10-03; peer-reviewed workshop). VERIFIED 2026-10-03.
+SUPPORTING. Grounds: the paper tests models as annotators, not as
+adjudicators: it evaluates "the ability of large language models (LLMs) to
+provide PropBank semantic role label annotations" (abstract, p. 112), with
+"a best result of 48.6% numbered-arg matches overall" on 35 sentences
+(pp. 115 and 118) against "the reported PropBank human average of 88.3%"
+(p. 113). The B107 decision brief cites it only for this; the rule that a
+model never decides a reference label rests on the brief's reasoning and on
+ADD-16, not on this paper.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
