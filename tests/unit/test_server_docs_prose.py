@@ -22,8 +22,29 @@ def _tsx_hits(tsx: str) -> list[str]:
     return found
 
 
+def test_the_plans_mock_sentence():
+    # The plan's form. "Eight are free" is a hit. "All twelve run over
+    # stdio" refers back to tools named in an earlier sentence and holds no
+    # counted word itself, so the rule does not find it: a known limit.
+    assert _hits("All twelve run over stdio. Eight are free") == ["Eight are free"]
+
+
 def test_a_count_of_tools_and_a_count_of_free_ones_are_two_hits():
     assert len(_hits("All twelve tools run over stdio. Eight are free")) == 2
+
+
+def test_a_count_after_its_noun_is_a_hit():
+    for sentence in (
+        "The tool count is 12.",
+        "The paid tools number four.",
+        "Tools: twelve.",
+        "See the tool count (12) above.",
+    ):
+        assert _hits(sentence) == [sentence], sentence
+
+
+def test_one_is_not_read_backwards():
+    assert _hits("The paid tool assesses one artifact.") == []
 
 
 def test_a_section_number_beside_paid_is_not_a_count():
@@ -92,6 +113,14 @@ def test_a_call_gives_its_name_and_its_arguments():
 def test_a_bare_identifier_is_a_name_and_other_spans_are_skipped():
     text = "Read `status`, `TOOL_SCOPES`, `a/b`, `x=1`, `two words`, `.env`."
     assert prose.code_names(text) == {"status"}
+
+
+def test_prose_names_are_the_snake_case_words_outside_code():
+    text = (
+        "resolve_span and source_trace answer; `kept_name` is code.\n"
+        "See [the docs](https://x.org/some_path) and Article 27(1). Plain words.\n"
+    )
+    assert prose.prose_names(text) == {"resolve_span", "source_trace"}
 
 
 def test_code_names_skip_fences_and_generated_regions():

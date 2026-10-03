@@ -75,9 +75,9 @@ _READ_ONLY_PAID = {"readOnlyHint": True, "destructiveHint": False, "openWorldHin
 mcp = FastMCP(
     name="tere4ai",
     instructions=(
-        "TERE4AI v2 tools over the EU AI Act graph: M1 structural tools "
+        "TERE4AI v2 tools over the EU AI Act graph: structural tools "
         "(coverage_report, source_trace) plus explanation and trace tools "
-        "(explain_requirement, trace_alignment, resolve_span) plus M3 "
+        "(explain_requirement, trace_alignment, resolve_span) plus "
         "runtime tools (classify_ai_system, get_applicable_requirements, "
         "trace_implementation, evaluate_project_evidence, "
         "evaluate_project_evidence_batch, generate_control_backlog) plus "
@@ -309,9 +309,9 @@ def _paid_clients_or_envelope() -> PaidClients | dict[str, Any]:
 @mcp.tool(annotations=_READ_ONLY)
 def coverage_report() -> dict[str, Any]:
     """Structural coverage of the Act's graph and its judged layers, against
-    the frozen source. The Layer 0+1 graph is checked against the M1
-    acceptance (113 articles, 180 recitals, 13 annexes, chapters I to XIII,
-    high-risk core presence), with per-chapter article listing and layer 2/3
+    the frozen source. The Layer 0+1 graph is checked against what the Act
+    holds (113 articles, 180 recitals, 13 annexes, chapters I to XIII, the
+    high-risk core present), with per-chapter article listing and layer 2/3
     status. Deterministic and free."""
     loaded = _active()
     dump = loaded.dump
@@ -371,8 +371,9 @@ def explain_requirement(norm_id: str) -> dict[str, Any]:
 
 @mcp.tool(annotations=_READ_ONLY)
 def trace_alignment(id: str) -> dict[str, Any]:
-    """All reified EU-to-HLEG alignment chains for a norm_id (assertions
-    from that norm) or an HLEG requirement id (assertions targeting it).
+    """Every EU-to-HLEG alignment for a norm or an HLEG requirement, with
+    its judge verdict and evidence. Given a norm_id, the assertions from
+    that norm; given an HLEG requirement id, the assertions targeting it.
     Every assertion is rendered with relation type, scores, judge verdict
     and rationale, alignment and judge runs (models, prompt versions), and
     evidence span ids on both sides; never a bare edge. The alignments are
@@ -389,8 +390,9 @@ def trace_alignment(id: str) -> dict[str, Any]:
 
 @mcp.tool(annotations=_READ_ONLY)
 def resolve_span(span_id: str) -> dict[str, Any]:
-    """Resolve a SourceSpan id to its checksum-verified snapshot slice:
-    snapshot file, sha256, start, end, and the exact text. Start and end
+    """The exact source text behind a span id, checked against the
+    snapshot's checksum: snapshot file, sha256, start, end, and the text.
+    Start and end
     count Unicode code points in the snapshot decoded as UTF-8, not bytes;
     sha256 is over the file's bytes. Unknown span ids and checksum drift
     come back as clean degraded envelopes, never an exception.

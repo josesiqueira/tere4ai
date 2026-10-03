@@ -28,7 +28,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   system gets only the Article 5 prohibition citation and a message.
 - New `src/tere4ai/server_docs/prose.py` (DEC-22): the prose of a Markdown
   or .tsx file, sentences, the count rule (a count with tool, tools, free
-  or paid within four words after it) and the backticked-name rule.
+  or paid within four words after it, or before it for every count but
+  "one") and the names rule (backticked names and snake_case words of the
+  plain prose).
 - Tests: test_server_docs_prose.py, test_notice_one_source.py,
   test_span_offsets.py.
 - Duplicate keys in one JSON object are measured, not changed: the server
@@ -107,6 +109,21 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - docs/architecture.md Section 8 names docs/server/index.md as the public
   explanation of the server (DEC-22), and the client support list as kept
   there, no longer in the README.
+- Final review fixes: the generator refuses, before sending, any call to
+  a tool that is not coverage_report or classify_ai_system or is not
+  served with openWorldHint false (`session.guard_calls`; a paid tool
+  would read .env, so the keys left out of the server's environment are
+  not the guard). SKILL.md's sentence naming the paid tools is generated
+  from the served openWorldHint, and its tool list carries no hand-written
+  cost mark. The count rule also reads the four words before a count
+  (not for "one"); the names rule also reads snake_case words written
+  without backticks. The resolve_span, trace_alignment and coverage_report
+  descriptions and the server's instructions drop "SourceSpan", "reified"
+  and the milestone labels M1 and M3. The README says which clients take
+  the config block and that only the official MCP Python SDK client is
+  tested; its maintainer sections name no id of the private research
+  repository. CI's docs job reads the mkdocs-material pin from the `docs`
+  extra.
 
 ### B126: the ablation's sixth condition and the measures for each answer key apart (2026-10-03)
 - New strategy `graph_runtime_judge`, appended last to `STRATEGY_NAMES`

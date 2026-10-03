@@ -5,10 +5,11 @@
 @grounded_by: REF-31
 
 Reads the example request from docs/server/index.md, starts the server over
-stdio with no model keys, reads what it serves (instructions, tool list,
-the answers of coverage_report and classify_ai_system) and writes the
-source's generated regions, docs/server/tools.md, the README part into
-README.md and the reading part into SKILL.md. Refuses to run when a tool's
+stdio, reads what it serves (instructions, tool list, the answers of
+coverage_report and classify_ai_system; any other call is refused before it
+is sent) and writes the source's generated regions, docs/server/tools.md,
+the README part into README.md, the reading part and the sentence naming
+the paid tools into SKILL.md. Refuses to run when a tool's
 openWorldHint, the word PAID in its description and its scope in
 TOOL_SCOPES disagree.
 

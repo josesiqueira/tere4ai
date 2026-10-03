@@ -22,7 +22,12 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
 
 ## Tools, in the order a build journey uses them
 
-1. `elicit_features(description)` (PAID): proposes the facts
+<!-- generated from the served tool list by scripts/gen_server_docs.py -->
+<!-- generated: cost -->
+Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence`, `evaluate_project_evidence_batch`, `generate_control_backlog`. Every other tool is free and calls no model.
+<!-- end generated: cost -->
+
+1. `elicit_features(description)`: proposes the facts
    `classify_ai_system` reads from a plain-text description (at least 30
    characters), never a risk category. The prompt quotes the Act's provisions
    from the served build. Each kept fact carries the words of your description
@@ -46,18 +51,18 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
    each with its source node and span ids.
 4. `explain_requirement(norm_id)`: one norm in depth: deontic reading,
    source span, Article 3 definitions in play, and its HLEG alignments.
-   Free, deterministic.
-5. `trace_alignment(id)`: the reified ethics alignments for a norm or
-   article, with judge scores and evidence spans. The EU-to-HLEG alignments
-   are LLM-generated and not expert-validated; the envelope says so. Free,
-   deterministic.
-6. `evaluate_project_evidence(norm_id, artifact_type, content)` (PAID):
-   assesses one artifact against one norm; quotes are mechanically verified
-   against your text; a runtime grounding judge gates every answer.
-7. `generate_control_backlog(norm_ids, system_context)` (PAID): engineering
+   Deterministic.
+5. `trace_alignment(id)`: the EU-to-HLEG ethics alignments for a norm id
+   or an HLEG requirement id, with judge scores and evidence spans. The
+   alignments are LLM-generated and not expert-validated; the envelope says
+   so. Deterministic.
+6. `evaluate_project_evidence(norm_id, artifact_type, content)`: assesses
+   one artifact against one norm; quotes are mechanically verified against
+   your text; a runtime grounding judge gates every answer.
+7. `generate_control_backlog(norm_ids, system_context)`: engineering
    backlog items citing only the provided norms.
-8. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`
-   (PAID): one artifact against every judge-accepted norm of one article, in a
+8. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`:
+   one artifact against every judge-accepted norm of one article, in a
    single envelope with per-norm results and worst-case aggregation.
 9. `trace_implementation(classification, tags, actor?)`: the
    requirement-to-code traceability matrix. Scan your own project for
@@ -67,7 +72,7 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
    traced or untraced, with the code locations that claim it; a tag citing
    an unknown or non-accepted norm id is listed apart and never counts. A
    trace is a developer claim, not evidence: use evaluate_project_evidence
-   for evidence. Free, deterministic.
+   for evidence. Deterministic.
 10. `coverage_report()`, `source_trace(node_id)`, and `resolve_span(span_id)`:
     graph coverage, span-level provenance for any node id, and the
     checksum-verified exact source text behind any span id.

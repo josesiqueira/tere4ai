@@ -3,7 +3,8 @@
 Pure functions from a Surface (session.py) and the files' text to the
 generated text: the six regions of docs/server/index.md, the tool reference
 docs/server/tools.md, the README part copied into README.md, the reading
-part copied into SKILL.md, and the recorded sessions page. Nothing that
+part copied into SKILL.md and SKILL.md's sentence on which tools are paid,
+and the recorded sessions page. Nothing that
 depends on which build is served is written: no graph_version, no count
 from coverage_report, no time, and a build id inside a served sentence is
 replaced by "<build id>". read_sessions and check are the only functions
@@ -178,16 +179,31 @@ def regions(surface: Surface) -> dict[str, str]:
     }
 
 
+def _fill(text: str, name: str, content: str, where: str) -> str:
+    pattern = re.compile(
+        rf"(<!-- generated: {name} -->\n).*?(<!-- end generated: {name} -->)", re.DOTALL
+    )
+    if len(pattern.findall(text)) != 1:
+        raise ValueError(f"{where} must hold one region {name}")
+    return pattern.sub(lambda m: m.group(1) + content + "\n" + m.group(2), text)
+
+
 def fill_regions(source: str, surface: Surface) -> str:
     """The source with every generated region rewritten from the surface."""
     for name, content in regions(surface).items():
-        pattern = re.compile(
-            rf"(<!-- generated: {name} -->\n).*?(<!-- end generated: {name} -->)", re.DOTALL
-        )
-        if len(pattern.findall(source)) != 1:
-            raise ValueError(f"the source must hold one region {name}")
-        source = pattern.sub(lambda m, c=content: m.group(1) + c + "\n" + m.group(2), source)
+        source = _fill(source, name, content, "the source")
     return source
+
+
+def cost_region(tools: list[ServedTool]) -> str:
+    """SKILL.md's sentence on which tools are paid, from the served
+    openWorldHint, so the tool guide carries no hand-written cost mark."""
+    paid = [f"`{tool.name}`" for tool in tools if is_paid(tool)]
+    return (
+        "Paid, each call makes model calls: "
+        + ", ".join(paid)
+        + ". Every other tool is free and calls no model."
+    )
 
 
 def _type(schema: dict[str, Any]) -> str:
@@ -299,7 +315,12 @@ def render_files(
         SOURCE: source,
         TOOLS_PAGE: tools_page(surface.tools),
         README: splice(texts[README], readme_part(source), README),
-        SKILL: splice(texts[SKILL], reading_part(source), SKILL),
+        SKILL: _fill(
+            splice(texts[SKILL], reading_part(source), SKILL),
+            "cost",
+            cost_region(surface.tools),
+            SKILL,
+        ),
     }
     if sessions is not None:
         out[SESSIONS_PAGE] = sessions_page(*sessions)

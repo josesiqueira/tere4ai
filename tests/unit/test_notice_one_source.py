@@ -21,9 +21,16 @@ def test_web_notice_equals_the_python_notice():
 
 def test_no_other_web_file_words_a_notice():
     words = ("documentation support", "legal advice", "certif")
+    sources = [
+        p
+        for pattern in ("*.ts", "*.tsx")
+        for p in (ROOT / "web" / "src").rglob(pattern)
+        if p != NOTICE_TS
+    ]
+    assert sources
     found = [
         p.relative_to(ROOT).as_posix()
-        for p in (ROOT / "web" / "src").rglob("*.tsx")
+        for p in sources
         if any(w in p.read_text(encoding="utf-8").lower() for w in words)
     ]
     assert found == []
@@ -34,6 +41,10 @@ def test_llms_txt_and_well_known_serve_the_constant():
     with TestClient(facade.create_app()) as client:
         llms = client.get("/llms.txt").text
         well_known = client.get("/.well-known/tere4ai.json").json()
-    assert NON_LEGAL_ADVICE_NOTICE in llms
+    # The header is the text before SKILL.md, which carries the notice too.
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    header, _, rest = llms.partition(skill.splitlines()[0])
+    assert rest, "/llms.txt must serve SKILL.md after its header"
+    assert NON_LEGAL_ADVICE_NOTICE in header
     assert "never claims compliance" not in llms
     assert well_known["non_legal_advice_notice"] == NON_LEGAL_ADVICE_NOTICE

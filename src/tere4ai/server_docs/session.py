@@ -2,10 +2,14 @@
 
 Starts the server as a subprocess over stdio, as a client launches it, and
 connects with the official MCP Python SDK client in legacy mode, whose
-initialize result carries the instructions. The environment holds no model
-keys, so the server cannot pay even if a paid tool were called; only the
-two free, deterministic tools in CALLED_TOOLS are called, through a wrapper
-that records each name sent.
+initialize result carries the instructions. The environment passed to the
+server holds no model keys, but that alone does not stop a paid call: a
+paid tool loads the repository's .env when it runs. The guard is the
+client: after the tool list is read and before any call is sent,
+guard_calls replaces the client's call_tool, so every call is recorded and
+any name that is not in CALLED_TOOLS, or whose served openWorldHint is not
+false, is refused before it is sent. Only the two free, deterministic
+tools in CALLED_TOOLS are called.
 
 The SDK client comes with the dev extra (pyproject.toml); it is imported
 inside read_surface, so the package never imports it at load time.
@@ -34,7 +38,8 @@ _CALL_TIMEOUT_SECONDS = 60
 
 
 def server_env(extra: dict[str, str] | None = None, root: Path = ROOT) -> dict[str, str]:
-    """A minimal environment for the server process: no model keys, no
+    """A minimal environment for the server process: no model keys passed
+    (a paid tool would still read .env; guard_calls is what refuses it), no
     network update check, no banner on stdout (stdio carries the protocol)."""
     env = {
         "PATH": os.environ.get("PATH", ""),
@@ -85,6 +90,41 @@ def _sdk_client():
     return Client, StdioServerParameters
 
 
+class RefusedCall(RuntimeError):
+    """A call the generator must not send: a tool not in CALLED_TOOLS, or
+    one the server does not serve with openWorldHint false."""
+
+
+def guard_calls(client: Any, tools: list[ServedTool], called: list[str]) -> None:
+    """Replace client.call_tool on the instance, so every call goes through
+    here: the name is recorded, then refused before it is sent unless it is
+    in CALLED_TOOLS and served with openWorldHint false."""
+    free = {
+        tool.name
+        for tool in tools
+        if tool.name in CALLED_TOOLS and tool.annotations.get("openWorldHint") is False
+    }
+    send = client.call_tool
+
+    async def call_tool(name: str, arguments: dict[str, Any] | None = None, *args, **kwargs):
+        called.append(name)
+        if name not in free:
+            raise RefusedCall(
+                f"refused to call {name}: only {', '.join(CALLED_TOOLS)} may be called, "
+                "each served with openWorldHint false"
+            )
+        return await send(name, arguments, *args, **kwargs)
+
+    client.call_tool = call_tool
+
+
+async def _answer(client: Any, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    result = await client.call_tool(name, arguments)
+    if result.is_error or not isinstance(result.structured_content, dict):
+        raise RuntimeError(f"{name} gave no answer: {result!r}")
+    return result.structured_content
+
+
 async def _read(features: dict[str, Any], root: Path) -> Surface:
     client_class, parameters = _sdk_client()
     params = parameters(
@@ -97,15 +137,6 @@ async def _read(features: dict[str, Any], root: Path) -> Surface:
     async with client_class(
         params, mode="legacy", read_timeout_seconds=_CALL_TIMEOUT_SECONDS
     ) as client:
-        send = client.call_tool
-
-        async def call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-            called.append(name)
-            result = await send(name, arguments)
-            if result.is_error or not isinstance(result.structured_content, dict):
-                raise RuntimeError(f"{name} gave no answer: {result!r}")
-            return result.structured_content
-
         listed = await client.list_tools()
         tools = [
             ServedTool(
@@ -120,8 +151,9 @@ async def _read(features: dict[str, Any], root: Path) -> Surface:
             )
             for tool in listed.tools
         ]
-        coverage = await call(CALLED_TOOLS[0], {})
-        classification = await call(CALLED_TOOLS[1], {"features": features})
+        guard_calls(client, tools, called)
+        coverage = await _answer(client, CALLED_TOOLS[0], {})
+        classification = await _answer(client, CALLED_TOOLS[1], {"features": features})
         instructions = client.instructions or ""
     return Surface(
         instructions=instructions,

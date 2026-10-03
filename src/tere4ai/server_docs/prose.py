@@ -5,9 +5,10 @@ fenced code blocks, inline code spans, HTML comments and the generated
 regions; the prose of a .tsx file is its JSX text children, each run its own
 text, so class names, constants, comments and code never join a sentence.
 Two rules read that prose: count_hits finds a sentence that pairs a count
-with tools, free or paid (a count drifts the day a tool is added), and
-code_names lists the backticked names a test compares with what the code
-knows. A third rule, link_problems, reads the whole Markdown text of a
+with tool, tools, free or paid within four words of it (a count drifts the
+day a tool is added), and code_names lists the backticked names, and the
+tool-shaped names of the plain prose, that a test compares with what the
+code knows. A third rule, link_problems, reads the whole Markdown text of a
 docs/server page: a relative link may only name one of the site's own pages
 and only outside the README part, every image is an absolute URL, and
 nothing names the private research repository.
@@ -55,9 +56,13 @@ _CITED_NUMBER = re.compile(
 _YEAR_SLASH_NUMBER = re.compile(r"\b\d{4}/\d{4}\b")
 _WORD = re.compile(r"\w+")
 _COUNTED_WORDS = frozenset({"tool", "tools", "free", "paid"})
-# How many words after a count may hold the counted word: "twelve tools",
-# "two generative tools", "Eight are free", "eight of them are free".
+# How many words after a count may hold the counted word ("twelve tools",
+# "two generative tools", "Eight are free", "eight of them are free") and
+# how many before it ("The tool count is 12", "The paid tools number four",
+# "Tools: twelve"). The words before are not read for "one", which most
+# often counts another noun ("assesses one artifact against one norm").
 _WINDOW = 4
+_NOT_LOOKED_BACK = frozenset({"one"})
 
 _MD_LINK = re.compile(r"(!?)\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 _SITE_PAGE = re.compile(r"^(?:tools\.md|sessions\.md|sessions/[a-z0-9_-]+\.html)$")
@@ -76,6 +81,8 @@ _PRIVATE = (
 _IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]*$")
 _CALL = re.compile(r"^([a-z_][a-z0-9_]*)\((.*)\)$")
 _TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# A tool-shaped name in plain prose: lower-case words joined by underscores.
+_SNAKE = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
 
 
 def _without_code_and_regions(text: str) -> str:
@@ -158,19 +165,25 @@ def _pairs_count_and_word(sentence: str) -> bool:
     rest = _CITED_NUMBER.sub(" ", rest)
     words = _WORD.findall(rest)
     for i, word in enumerate(words):
-        if _is_count(word):
-            following = words[i + 1 : i + 1 + _WINDOW]
-            if any(w.lower() in _COUNTED_WORDS for w in following):
-                return True
+        if not _is_count(word):
+            continue
+        near = words[i + 1 : i + 1 + _WINDOW]
+        if word.lower() not in _NOT_LOOKED_BACK:
+            near = words[max(i - _WINDOW, 0) : i] + near
+        if any(w.lower() in _COUNTED_WORDS for w in near):
+            return True
     return False
 
 
 def count_hits(sentence_list: list[str]) -> list[str]:
     """The sentences that pair a count with tool, tools, free or paid: the
-    word is one of the four words after the count. A count is an English
-    number word one to twenty, or a digit run that is not part of NNNN/NNNN
-    and does not follow Article, Section, Annex, Chapter, Regulation, point,
-    paragraph or Layer."""
+    word is one of the four words after the count, or, for every count but
+    "one", one of the four words before it. A count is an English number
+    word one to twenty, or a digit run that is not part of NNNN/NNNN and
+    does not follow Article, Section, Annex, Chapter, Regulation, point,
+    paragraph or Layer. A count that refers back to tools named in an
+    earlier sentence ("All 12 run over stdio") is not found: the sentence
+    holds no counted word."""
     return [s for s in sentence_list if _pairs_count_and_word(s)]
 
 
@@ -189,6 +202,13 @@ def code_names(markdown: str) -> set[str]:
             names.add(call.group(1))
             names.update(t for t in _TOKEN.findall(call.group(2)) if _IDENTIFIER.match(t))
     return names
+
+
+def prose_names(markdown: str) -> set[str]:
+    """The names written without backticks in a Markdown text's prose: every
+    lower-case snake_case word that holds an underscore ("resolve_span and
+    source_trace answer ..."). Link targets and URLs are not prose."""
+    return set(_SNAKE.findall(prose_of_markdown(markdown)))
 
 
 def link_problems(markdown: str) -> list[str]:

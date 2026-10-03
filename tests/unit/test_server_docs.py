@@ -1,14 +1,16 @@
 """The server docs generator and the checks on the public texts (DEC-22, B90).
 
-Tests 2 to 6 read the served surface once from the real server (started
-over stdio with the official MCP Python SDK client, no model keys, only
-the two free tools called). Tests 7 to 13 use mock surfaces and temporary
-copies of the files, no server. Test 1 runs the generator's --check.
+Test 1 runs the generator's --check. The tests taking `served` read the
+surface once from the real server (started over stdio with the official
+MCP Python SDK client, only the two free tools called); the others use mock
+surfaces, a mock client and temporary copies of the files, no server.
 """
 
 from __future__ import annotations
 
+import asyncio
 import copy
+import importlib.util
 import json
 import re
 import shutil
@@ -18,6 +20,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.mcp_server.fria import FRIA_APPLICABILITY_VOCABULARY
 from tere4ai.mcp_server.keys import TOOL_SCOPES
 from tere4ai.mcp_server.tools import (
     NON_LEGAL_ADVICE_NOTICE,
@@ -58,7 +61,7 @@ def test_generated_files_are_current():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-# 2 to 6: the real served surface.
+# The real served surface, and the guard on the calls.
 
 
 def test_generator_calls_only_free_tools(served):
@@ -69,6 +72,38 @@ def test_generator_calls_only_free_tools(served):
         assert by_name[name].annotations.get("openWorldHint") is False, name
 
 
+def test_the_guard_refuses_a_paid_or_unknown_tool_before_sending():
+    sent: list[str] = []
+
+    class Client:
+        async def call_tool(self, name, arguments=None):
+            sent.append(name)
+            return f"answer of {name}"
+
+    tools = [
+        _tool("coverage_report", "Coverage.", False),
+        _tool("classify_ai_system", "Classify.", False),
+        _tool("evaluate_project_evidence", "PAID: evidence.", True),
+    ]
+    client, called = Client(), []
+    session.guard_calls(client, tools, called)
+    for name in ("evaluate_project_evidence", "no_such_tool"):
+        with pytest.raises(session.RefusedCall):
+            asyncio.run(client.call_tool(name, {}))
+    assert sent == []
+    assert asyncio.run(client.call_tool("coverage_report", {})) == "answer of coverage_report"
+    assert sent == ["coverage_report"]
+    assert called == ["evaluate_project_evidence", "no_such_tool", "coverage_report"]
+
+    # A name in CALLED_TOOLS that the server serves as paid is refused too.
+    sent.clear()
+    client = Client()
+    session.guard_calls(client, [_tool("coverage_report", "PAID: x.", True)], [])
+    with pytest.raises(session.RefusedCall):
+        asyncio.run(client.call_tool("coverage_report", {}))
+    assert sent == []
+
+
 def test_paid_markers_agree(served):
     assert {tool.name for tool in served.tools} == set(TOOL_SCOPES)
     for tool in served.tools:
@@ -77,6 +112,17 @@ def test_paid_markers_agree(served):
         paid_scope = TOOL_SCOPES[tool.name].endswith("_paid")
         assert open_world == says_paid == paid_scope, tool.name
     assert render.paid_disagreements(served.tools) == []
+
+
+def test_skill_cost_marks_come_from_the_served_hint(served):
+    skill = _text("SKILL.md")
+    region = render.cost_region(served.tools)
+    assert f"<!-- generated: cost -->\n{region}\n<!-- end generated: cost -->" in skill
+    for tool in served.tools:
+        assert (f"`{tool.name}`" in region) == render.is_paid(tool), tool.name
+    # No hand-written cost mark outside the generated region.
+    prose_text = prose.prose_of_markdown(skill)
+    assert not re.search(r"\bPAID\b|\bFree\b|\bfree,", prose_text)
 
 
 def test_skill_names_every_tool(served):
@@ -113,18 +159,41 @@ def _schema_properties(schema: object) -> set[str]:
     return found
 
 
-def test_backticked_names_are_known(served):
-    known: set[str] = set()
+# Names the texts may write that the code does not know, each with its reason.
+ALLOWED_NAMES = {
+    # A feature flag of the OpenAI Codex CLI, quoted in the client table.
+    "mcp_2026_07_28",
+}
+
+
+def _schema_enums(schema: object) -> set[str]:
+    """Every string enum value of a JSON schema, at any depth."""
+    found: set[str] = set()
+    if isinstance(schema, dict):
+        found |= {v for v in schema.get("enum", []) if isinstance(v, str)}
+        for item in schema.values():
+            found |= _schema_enums(item)
+    elif isinstance(schema, list):
+        for item in schema:
+            found |= _schema_enums(item)
+    return found
+
+
+def test_names_in_the_prose_are_known(served):
+    known: set[str] = set(ALLOWED_NAMES)
     for tool in served.tools:
         known.add(tool.name)
         known |= set(tool.input_schema.get("properties", {}))
     known |= set(TOOL_SCOPES.values())
     known |= set(SECTION_8_ENVELOPE_FIELDS)
     known |= set(STATUS_VOCABULARY)
-    known |= _schema_properties(json.loads(FEATURES_SCHEMA.read_text(encoding="utf-8")))
+    features_schema = json.loads(FEATURES_SCHEMA.read_text(encoding="utf-8"))
+    known |= _schema_properties(features_schema) | _schema_enums(features_schema)
+    known |= set(FRIA_APPLICABILITY_VOCABULARY)
     known |= _keys(served.coverage) | _keys(served.classification)
     for relative in ("docs/server/index.md", "SKILL.md"):
-        unknown = prose.code_names(_text(relative)) - known
+        text = _text(relative)
+        unknown = (prose.code_names(text) | prose.prose_names(text)) - known
         assert unknown == set(), f"{relative}: {sorted(unknown)}"
 
 
@@ -141,7 +210,7 @@ def test_no_counts_in_prose(served):
     assert hits == []
 
 
-# 7 to 13: mock surfaces and temporary copies, no server.
+# Mock surfaces and temporary copies, no server.
 
 
 def _normalised(text: str) -> str:
@@ -250,6 +319,35 @@ def test_renders_nothing_build_specific():
     assert shown["missing_facts"] == ["fact one", "fact two", "..."]
 
 
+def _disagreeing_surface() -> Surface:
+    """A mock surface in which coverage_report is served with openWorldHint
+    true but has no PAID in its description and a free scope."""
+    surface = _mock_surface()
+    surface.tools = [
+        ServedTool(t.name, t.description, {**t.annotations, "openWorldHint": True}, t.input_schema)
+        if t.name == "coverage_report"
+        else t
+        for t in surface.tools
+    ]
+    return surface
+
+
+def test_a_disagreeing_surface_is_refused(monkeypatch, capsys):
+    surface = _disagreeing_surface()
+    problems = render.paid_disagreements(surface.tools)
+    assert len(problems) == 1 and problems[0].startswith("coverage_report:")
+    assert render.paid_disagreements(_mock_surface().tools) == []
+    with pytest.raises(ValueError, match="coverage_report"):
+        render.render_files(_texts(), surface)
+
+    spec = importlib.util.spec_from_file_location("gen_server_docs", GENERATOR)
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    monkeypatch.setattr(generator.session, "read_surface", lambda features, root: surface)
+    assert generator.main(["--check"]) == 2
+    assert "refused: free or paid disagrees for coverage_report" in capsys.readouterr().err
+
+
 def _copy_tree(tmp_path: Path) -> Path:
     for name in ("README.md", "SKILL.md"):
         shutil.copy(ROOT / name, tmp_path / name)
@@ -275,6 +373,18 @@ def test_check_fails_on_an_edited_region(tmp_path):
     assert edited != region
     source.write_text(text.replace(region, edited), encoding="utf-8")
     assert render.check(root, surface) == ["docs/server/index.md"]
+
+
+def test_check_fails_on_an_edited_cost_region(tmp_path):
+    root = _copy_tree(tmp_path)
+    surface = _mock_surface()
+    _write_current(root, surface)
+    skill = root / "SKILL.md"
+    text = skill.read_text(encoding="utf-8")
+    edited = text.replace("Paid, each call makes model calls: ", "Paid: `coverage_report`, ", 1)
+    assert edited != text
+    skill.write_text(edited, encoding="utf-8")
+    assert render.check(root, surface) == ["SKILL.md"]
 
 
 def test_check_fails_on_a_changed_surface(tmp_path):

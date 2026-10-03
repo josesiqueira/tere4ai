@@ -53,8 +53,9 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 }
 ```
 
-That block works as-is in Claude Code (`.mcp.json`), Claude Desktop, Cursor
-and any other client that launches stdio MCP servers.
+Claude Code (`.mcp.json`), Claude Desktop, Cursor and other clients that
+launch stdio MCP servers take this block; only the official MCP Python SDK
+client is tested here.
 
 ## What a call looks like
 
@@ -140,9 +141,9 @@ so in its description (PAID) and in its annotations (openWorldHint).
 | `explain_requirement` | Explain one judged requirement (a normative statement) in depth. | free |
 | `generate_control_backlog` | Generate a judged engineering control backlog from judge-accepted norms. | paid |
 | `get_applicable_requirements` | Judge-accepted engineering requirements applicable to a classified system, grouped by source article. | free |
-| `resolve_span` | Resolve a SourceSpan id to its checksum-verified snapshot slice: snapshot file, sha256, start, end, and the exact text. | free |
+| `resolve_span` | The exact source text behind a span id, checked against the snapshot's checksum: snapshot file, sha256, start, end, and the text. | free |
 | `source_trace` | Trace a graph node to its frozen source snapshot: file, sha256, span start/end, HTML anchor, and a text excerpt. | free |
-| `trace_alignment` | All reified EU-to-HLEG alignment chains for a norm_id (assertions from that norm) or an HLEG requirement id (assertions targeting it). | free |
+| `trace_alignment` | Every EU-to-HLEG alignment for a norm or an HLEG requirement, with its judge verdict and evidence. | free |
 | `trace_implementation` | Requirement-to-code traceability matrix for a classified system. | free |
 
 12 tools: 8 free and 4 paid.
@@ -222,8 +223,7 @@ drifts from the activated publication refuses service. Without a pointer
 both serve the three fixed dump files as before.
 
 Each publication gets a build number, 1, 2, 3 in the order the publications
-of one dump directory were recorded (spec G D-G50 in the research
-repository): publish prints `published Build N: <build id>, ...` and
+of one dump directory were recorded: publish prints `published Build N: <build id>, ...` and
 activate prints `activated Build N (<build id>)`. The number is written into
 `build_chain_<id>.json`, the frozen build record and `publications/<id>.json`;
 commit the first and the last with the build, because `build_records/` is
@@ -233,9 +233,9 @@ as Build N`), `.venv/bin/python scripts/write_publication_manifest.py
 <chain_id> --pointer` writes the missing publication manifest and pointer
 from the chain record and the frozen record, with the same number; never
 remove the chain record, since the same inputs would then be refused, not
-renumbered. Until the B74
-re-run nothing is published into `data/graph_dumps/`: a rehearsal publishes
-into a temporary `--dump-dir`, since a number is never reused.
+renumbered. Until the evaluated graph is rebuilt from Layer 0, nothing is
+published into `data/graph_dumps/`: a rehearsal publishes into a temporary
+`--dump-dir`, since a number is never reused.
 
 ```bash
 
@@ -306,10 +306,10 @@ pauses (10, 30, 90, 270 and 600 s, longer when the provider asks for it,
 never above 600 s) the command prints one alert line on standard error;
 when the sixth attempt fails it records the execution failed with "provider
 unavailable after 6 attempts: <status or error>", keeps the checkpoint,
-prints the command that resumes it and exits with code 3 (spec F D-F30). A
+prints the command that resumes it and exits with code 3. A
 declared parameter that the provider refuses stops the run the same way
 with a configuration error and exit code 4: correct the row of
-`config/model_parameters.json` and start again (spec F D-F29). A resume
+`config/model_parameters.json` and start again. A resume
 under a changed row is refused, so when the checkpoint holds finished
 units, move it away before starting again under the corrected row. A
 published record is frozen: further work on the same alias continues as a
@@ -354,8 +354,8 @@ are a pinned July 2026 summary or checkpoint, `--no-record` or not.
 Without `--checkpoint` and `--summary` the runner writes both under
 `eval/results/runs/<record id>/`, a fresh directory per run; a resume passes
 `--checkpoint` explicitly, and a `--no-record` run must pass both.
-A provider overload is waited out with five pauses and an alert line each
-(spec F D-F30); when the sixth attempt fails the runner ends its record
+A provider overload is waited out with five pauses and an alert line each;
+when the sixth attempt fails the runner ends its record
 partial with "provider unavailable after 6 attempts: <status or error>",
 keeps the checkpoint, prints the command that resumes it and exits 3; the
 unit in flight is run again on the resume, and a stop before any unit was
@@ -364,7 +364,7 @@ checkpointed starts a new record that names none. A failure no retry fixes
 record failed with "provider refused the request: <status or error> (item
 <item id>)" and exits 5; the item is fixed before the next run, never
 skipped. A refused declared parameter ends the record failed with the
-configuration error and exits 4 (spec F D-F29); an evaluation harness run
+configuration error and exits 4; an evaluation harness run
 that meets one ends its record failed after that item and raises it. A
 resume under another declaration (an edited row of
 `config/model_parameters.json`) is refused and exits 2, naming
@@ -376,7 +376,7 @@ and, on a stop (exit 3) or a refusal naming the item (exit 5), keeps its
 checkpoint and prints the command whose rerun resumes it; a refused
 declared parameter exits 4. Its checkpoint entries and output name the
 declaration (`models`), and a rerun over entries of another declaration is
-refused (exit 2). Since B10 it elicits over the build `load_active` serves,
+refused (exit 2). It elicits over the build `load_active` serves,
 and each entry also carries the quotes, the dropped facts and the prompt
 record (version, template and rendered hashes, provisions, build); the
 output names that prompt once beside `quotes_by_item` and

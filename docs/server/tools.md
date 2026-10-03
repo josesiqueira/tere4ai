@@ -48,9 +48,9 @@ Free. Annotations: destructiveHint false, openWorldHint false, readOnlyHint true
 
 ```text
 Structural coverage of the Act's graph and its judged layers, against
-the frozen source. The Layer 0+1 graph is checked against the M1
-acceptance (113 articles, 180 recitals, 13 annexes, chapters I to XIII,
-high-risk core presence), with per-chapter article listing and layer 2/3
+the frozen source. The Layer 0+1 graph is checked against what the Act
+holds (113 articles, 180 recitals, 13 annexes, chapters I to XIII, the
+high-risk core present), with per-chapter article listing and layer 2/3
 status. Deterministic and free.
 ```
 
@@ -204,8 +204,9 @@ calls.
 Free. Annotations: destructiveHint false, openWorldHint false, readOnlyHint true.
 
 ```text
-Resolve a SourceSpan id to its checksum-verified snapshot slice:
-snapshot file, sha256, start, end, and the exact text. Start and end
+The exact source text behind a span id, checked against the
+snapshot's checksum: snapshot file, sha256, start, end, and the text.
+Start and end
 count Unicode code points in the snapshot decoded as UTF-8, not bytes;
 sha256 is over the file's bytes. Unknown span ids and checksum drift
 come back as clean degraded envelopes, never an exception.
@@ -242,8 +243,9 @@ verbatim text via resolve_span on the same span_id (or GET
 Free. Annotations: destructiveHint false, openWorldHint false, readOnlyHint true.
 
 ```text
-All reified EU-to-HLEG alignment chains for a norm_id (assertions
-from that norm) or an HLEG requirement id (assertions targeting it).
+Every EU-to-HLEG alignment for a norm or an HLEG requirement, with
+its judge verdict and evidence. Given a norm_id, the assertions from
+that norm; given an HLEG requirement id, the assertions targeting it.
 Every assertion is rendered with relation type, scores, judge verdict
 and rationale, alignment and judge runs (models, prompt versions), and
 evidence span ids on both sides; never a bare edge. The alignments are

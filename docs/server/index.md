@@ -52,8 +52,9 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 }
 ```
 
-That block works as-is in Claude Code (`.mcp.json`), Claude Desktop, Cursor
-and any other client that launches stdio MCP servers.
+Claude Code (`.mcp.json`), Claude Desktop, Cursor and other clients that
+launch stdio MCP servers take this block; only the official MCP Python SDK
+client is tested here.
 
 ## What a call looks like
 
@@ -139,9 +140,9 @@ so in its description (PAID) and in its annotations (openWorldHint).
 | `explain_requirement` | Explain one judged requirement (a normative statement) in depth. | free |
 | `generate_control_backlog` | Generate a judged engineering control backlog from judge-accepted norms. | paid |
 | `get_applicable_requirements` | Judge-accepted engineering requirements applicable to a classified system, grouped by source article. | free |
-| `resolve_span` | Resolve a SourceSpan id to its checksum-verified snapshot slice: snapshot file, sha256, start, end, and the exact text. | free |
+| `resolve_span` | The exact source text behind a span id, checked against the snapshot's checksum: snapshot file, sha256, start, end, and the text. | free |
 | `source_trace` | Trace a graph node to its frozen source snapshot: file, sha256, span start/end, HTML anchor, and a text excerpt. | free |
-| `trace_alignment` | All reified EU-to-HLEG alignment chains for a norm_id (assertions from that norm) or an HLEG requirement id (assertions targeting it). | free |
+| `trace_alignment` | Every EU-to-HLEG alignment for a norm or an HLEG requirement, with its judge verdict and evidence. | free |
 | `trace_implementation` | Requirement-to-code traceability matrix for a classified system. | free |
 
 12 tools: 8 free and 4 paid.
@@ -225,7 +226,7 @@ checked or tested here):
 | Claude Code, direct HTTP | Uses the v2 MCP client and 2026 negotiation by default | [release notes](https://github.com/anthropics/claude-code/releases) |
 | Claude Code, stdio | No explicit Anthropic statement found about strict 2026-only stdio | none found |
 | Claude Desktop | Modern support in some remote connector paths; one open report of 2026 body metadata with a 2025 HTTP header | [issue 93290](https://github.com/anthropics/claude-code/issues/93290) |
-| OpenAI Codex CLI | 2026 support in code, behind the mcp_2026_07_28 feature | [features source](https://github.com/openai/codex/blob/main/codex-rs/features/src/lib.rs) |
+| OpenAI Codex CLI | 2026 support in code, behind the `mcp_2026_07_28` feature | [features source](https://github.com/openai/codex/blob/main/codex-rs/features/src/lib.rs) |
 | Codex CLI, stdio | Public request still open; experimental flag mentioned in a September comment | [issue 33952](https://github.com/openai/codex/issues/33952) |
 | ChatGPT MCP Events | Requires MCP 2.0 / 2026-07-28 | [MCP Events](https://developers.openai.com/plugins/build/mcp-events) |
 | ChatGPT tools-only connector | No primary page found stating its revision | none found |
@@ -263,7 +264,7 @@ A client receives this text when it connects:
 
 <!-- generated: instructions -->
 ```text
-TERE4AI v2 tools over the EU AI Act graph: M1 structural tools (coverage_report, source_trace) plus explanation and trace tools (explain_requirement, trace_alignment, resolve_span) plus M3 runtime tools (classify_ai_system, get_applicable_requirements, trace_implementation, evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog) plus elicit_features, which proposes the facts classify_ai_system reads from a plain-text description. Read-only; evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog and elicit_features perform paid model calls. TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.
+TERE4AI v2 tools over the EU AI Act graph: structural tools (coverage_report, source_trace) plus explanation and trace tools (explain_requirement, trace_alignment, resolve_span) plus runtime tools (classify_ai_system, get_applicable_requirements, trace_implementation, evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog) plus elicit_features, which proposes the facts classify_ai_system reads from a plain-text description. Read-only; evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog and elicit_features perform paid model calls. TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.
 ```
 <!-- end generated: instructions -->
 

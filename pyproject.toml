@@ -37,7 +37,8 @@ dev = [
     "mcp>=2.2,<2.3",
 ]
 # The Pages site (DEC-22): Material for MkDocs pinned; it requires
-# mkdocs>=1.6,<2. CI's docs job installs only this, not the package.
+# mkdocs>=1.6,<2. CI's docs job reads this list and installs only it, not
+# the package; this is the one place the pin is written.
 docs = [
     "mkdocs-material==9.7.7",
 ]

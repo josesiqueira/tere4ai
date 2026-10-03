@@ -1062,24 +1062,35 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   for every reader, kept equal to what a client is served; it needs no
   literature grounding, AGENTS.md grounding bar). What a client sees
   is read by starting the server over stdio with the official MCP Python
-  SDK client, with no model keys: the connect-time instructions, the
-  tool list (names, descriptions, annotations, input fields), and the
-  answers of two free, deterministic calls, coverage_report (the notice
-  and the answer fields) and classify_ai_system (the example call, made
-  with the request the source itself shows). These
+  SDK client: the connect-time instructions, the tool list (names,
+  descriptions, annotations, input fields), and the answers of two free,
+  deterministic calls, coverage_report (the notice and the answer
+  fields) and classify_ai_system (the example call, made with the
+  request the source itself shows). No model keys are passed in the
+  server's environment, but a paid tool would read the repository's .env
+  when called, so the guard is the client: after the tool list is read,
+  every call goes through a wrapper that records it and refuses, before
+  sending, any tool that is not one of those two or is not served with
+  openWorldHint false. These
   fill marked regions of the source and the tool reference
   docs/server/tools.md; nothing that depends on which build is served
   (a build id, a count, a time) is written. README.md's first screen is
-  generated from the marked README part of the source, and SKILL.md's
-  section on reading every answer from the matching part; the Pages site
+  generated from the marked README part of the source, SKILL.md's
+  section on reading every answer from the matching part, and SKILL.md's
+  sentence naming the paid tools from the served openWorldHint; the Pages site
   is built from docs/server/ alone, so no page holds a sentence that is
   neither the source nor generated. Free or paid is the served openWorldHint, and the generator
   refuses to run when it, the word PAID in the served description and a
   paid scope in keys.py TOOL_SCOPES disagree for any tool. Tests cover
   the sentences the regions cannot: every served tool name appears in the
-  instructions and SKILL.md; no backticked name in the prose of the
-  source or SKILL.md is unknown to the code; no sentence of prose pairs a
-  count with tools, free or paid; the non-legal-advice notice is
+  instructions and SKILL.md; no backticked name, and no snake_case word
+  written without backticks, in the prose of the source or SKILL.md is
+  unknown to the code (one third-party flag is allowed, with its reason);
+  no sentence of prose holds a count (a number word one to twenty or a
+  digit run that does not cite a provision or a layer) with tool, tools,
+  free or paid within the four words after it, or, for every count but
+  "one", the four words before it (a count that refers back to tools
+  named in an earlier sentence, "All 12 run over stdio", is not found); the non-legal-advice notice is
   NON_LEGAL_ADVICE_NOTICE word for word wherever it is shown, /llms.txt
   and /.well-known/tere4ai.json included; the source links outside the
   site's own pages by absolute URL only, and holds nothing from the
