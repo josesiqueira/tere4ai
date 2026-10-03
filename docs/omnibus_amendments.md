@@ -11,6 +11,15 @@ Structure: Article 1 of the Omnibus amends Regulation (EU) 2024/1689 in 43 numbe
 
 Operation counts across the 43 points, counted at the lettered sub-operation level (a point without letters counts as one operation): 44 replacements, 25 insertions or additions, 3 deletions, 72 operations total.
 
+## Article 1 and Article 2 (subject matter and scope)
+
+Added 2026-10-03 for B132: these four points had only a "Related" line; the consolidated text's change markers carry them (`data/amendments/omnibus_markers.json`). Quotes re-found in the frozen Formex of the Omnibus (`data/snapshots/formex/L_202601744EN.000101.fmx.xml`).
+
+- Point (1): Article 1(2), point (g) replaced. The subject-matter list now reads "(g) measures to support innovation, with a particular focus on small mid-cap enterprises (SMCs) and small and medium-sized enterprises (SMEs), including start-ups."
+- Point (2)(a): Article 2(2) replaced. For high-risk AI systems related to products covered by the legislation listed in Section B of Annex I, "only Article 6(1), Article 60a and Articles 102 to 112 shall apply. Articles 57, 58 and 59 shall apply only in so far as the requirements for high-risk AI systems under this Regulation have been integrated in that Union harmonisation legislation."
+- Point (2)(b): Article 2(7) replaced. Union data protection law applies to personal data processed in connection with the rights and obligations of the Regulation; "Without prejudice to Articles 4a and 59 of this Regulation, this Regulation shall not affect Regulation (EU) 2016/679 or (EU) 2018/1725, or Directive 2002/58/EC or (EU) 2016/680."
+- Point (3): Article 2, paragraph 13 added. For high-risk AI systems referred to in Article 6(1), "the application of specific requirements or obligations laid down in Articles 9 to 15 and 17 to 25 may be limited", where the Section A legislation gives an equivalent or higher level of protection and the limitation does not reduce the overall level of protection; the Commission adopts the delegated acts by 2 August 2027.
+
 ## Article 3 definitions
 
 - Point (4)(a): Article 3, point (14) replaced (the text says "amended as follows" and supplies full new wording). "Safety component" definition now adds a clarifying sentence: a component fulfils a safety function where its intended purpose is to prevent or mitigate risks to health and safety of persons or property. This narrows the reading that fed Article 6(1) classification.
@@ -70,7 +79,7 @@ No existing Article 5(1) prohibition (points (a) to (h) as enacted) is reworded 
 - Point (43): new Annex XIV added: list of codes, categories and corresponding types of AI systems that scope the designation of notified bodies under Article 30 (product codes AIP, biometric codes AIB, technology codes AIH including generative AI and "Agentic AI").
 - Annex III itself (the list of high-risk areas) is NOT amended by any point.
 
-Related scope changes recorded under "Other": Article 2(2) replaced (Section B systems: only Article 6(1), Article 60a and Articles 102 to 112 apply) and new Article 2(13) (delegated acts may limit Articles 9 to 15 and 17 to 25 requirements where Section A legislation gives equivalent protection, to be adopted by 2 August 2027).
+Related scope changes, with their own entries under "Article 1 and Article 2" above: Article 2(2) replaced (Section B systems: only Article 6(1), Article 60a and Articles 102 to 112 apply) and new Article 2(13) (delegated acts may limit Articles 9 to 15 and 17 to 25 requirements where Section A legislation gives equivalent protection, to be adopted by 2 August 2027).
 
 ## Chapter III obligations (Articles 8 to 49)
 
