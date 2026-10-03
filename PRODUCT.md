@@ -13,8 +13,10 @@ graph. An agent building an AI system asks what the law requires of it and
 gets back a deterministic risk classification, scoped engineering
 requirements traced to byte-exact source spans, judged HLEG ethics
 alignments, requirement-to-code traceability, and generated audit-grade
-reports. A deterministic rule ladder decides classification; models only
-propose, and independent judges gate every proposal.
+reports. The rule ladder alone decides the level. A model's proposal is
+served only after a check: an independent judge for norms, alignments,
+evidence and backlog items, and for the elicitor's proposed facts a code
+check of their quotes and the person who confirms them.
 
 ## Register and platform
 
@@ -42,8 +44,6 @@ generator. The non-legal-advice notice is load-bearing on every surface.
 
 ## Proof points (verified, citable)
 
-113 articles / 180 recitals / 13 annexes mirrored deterministically; 434
-norms judged (339 accepted, 54 rejected, 41 in human review); 620 HLEG
-alignments judged (475 accepted, 145 rejected); 0/345 label flips across
-repeat runs vs 43 (plain LLM) and 51 (vector RAG); 645 tests; AGPL-3.0
-code, CC BY 4.0 graph metadata; built at Tampere University.
+113 articles / 180 recitals / 13 annexes mirrored deterministically
+(Layer 1); AGPL-3.0 code, CC BY 4.0 graph metadata; built at Tampere
+University.

@@ -59,9 +59,18 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
 8. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`
    (PAID): one artifact against every judge-accepted norm of one article, in a
    single envelope with per-norm results and worst-case aggregation.
-9. `coverage_report()`, `source_trace(node_id)`, and `resolve_span(span_id)`:
-   graph coverage, span-level provenance for any node id, and the
-   checksum-verified exact source text behind any span id.
+9. `trace_implementation(classification, tags, actor?)`: the
+   requirement-to-code traceability matrix. Scan your own project for
+   `@implements: <norm-id>` tags (reference scanner:
+   `python -m tere4ai.trace_scan <dir>`) and pass them in; the server never
+   reads your filesystem. Each applicable judge-accepted norm comes back
+   traced or untraced, with the code locations that claim it; a tag citing
+   an unknown or non-accepted norm id is listed apart and never counts. A
+   trace is a developer claim, not evidence: use evaluate_project_evidence
+   for evidence. Free, deterministic.
+10. `coverage_report()`, `source_trace(node_id)`, and `resolve_span(span_id)`:
+    graph coverage, span-level provenance for any node id, and the
+    checksum-verified exact source text behind any span id.
 
 ## Read every response the same way
 

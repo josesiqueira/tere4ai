@@ -277,7 +277,7 @@ cd web && npm run build && npx next start -p 3111
 /api/classify and /api/requirements are deterministic and free.
 /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
 plus Anthropic runtime grounding judge; keys in .env, see .env.example), and
-/api/elicit one PAID generator call (fact elicitation, no judge); all three
+/api/elicit a PAID generator call (fact elicitation, no judge); all three
 mark their responses with the X-TERE4AI-Paid-Call header.
 
 ## Build records, materialisation, publication and activation
@@ -447,15 +447,16 @@ and docs/traceability.md, which is generated from code tags):
   recitals, 13 annexes, 467 points, 217 annex items), version pin (base Act
   in force, Digital Omnibus as an amending source), crossrefs, coverage and
   trace tools, traceability gate.
-- M2: judged Layer 2/3 over the high-risk core. 434 extracted norms (339
-  judge-accepted), 620 reified HLEG alignment assertions (475 accepted),
-  independent judge family (OpenAI generator, Anthropic judges), all in
-  Neo4j with per-edge provenance and full audit logs.
+- M2: judged Layer 2/3 over the high-risk core: extracted norms and reified
+  HLEG alignment assertions, each checked by an independent judge family
+  (OpenAI generator, Anthropic judges), all in Neo4j with per-edge
+  provenance and full audit logs. coverage_report serves the counts of the
+  served build.
 - M3: runtime tools. Deterministic classify_ai_system (rules over real
   Article 5 and Annex III nodes, never an LLM) and
   get_applicable_requirements; judged evaluate_project_evidence and
-  generate_control_backlog gated by the runtime grounding judge; the
-  twelve tools on the MCP server; HTTP facade plus the /assess demo flow,
+  generate_control_backlog gated by the runtime grounding judge; every
+  tool on the MCP server; HTTP facade plus the /assess demo flow,
   the recorded-session /mcp-demo page and the agent replay.
 - M4: evaluation harness with the six-condition ablation ladder, Section 12
   metrics, a 10-item seed gold set, and the located REF-15 benchmark. Live

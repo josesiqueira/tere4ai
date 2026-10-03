@@ -5,6 +5,31 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B90 task 3: the one source, docs/server/index.md (2026-10-03)
+- New `docs/server/index.md` (DEC-22): the explanation of the MCP server
+  in one text. Its README part (definition, who it is for, wiring, one
+  call, the tools, what it is not) becomes the README's first screen in
+  the next change; after it come how to read every answer, paid calls and
+  the replay window, MCP revisions and clients, span offsets (code points
+  of the decoded snapshot, checksum over the bytes), duplicate keys (the
+  last of a repeated key is read on both surfaces, nothing is refused),
+  the instructions the server sends and a link to the tool reference.
+  Six regions (notice, example, tools, fields, statuses, instructions) are
+  written empty, for the generator to fill from the running server. The
+  example request is written once, in the source.
+- The definition no longer says that judges gate every proposal: the rule
+  ladder alone decides the level, and the elicitor's proposed facts are
+  checked by code and confirmed by a person, not by a judge. PRODUCT.md
+  takes the same sentence.
+- README Status and PRODUCT.md's proof points carry no judged-layer count,
+  test count or tool count (coverage_report serves the counts of the
+  served build); PRODUCT.md drops the pre-B74 label-flip result.
+- SKILL.md names trace_implementation, with its guidance.
+- coverage_report's and explain_requirement's served descriptions open
+  with one plain sentence, which the generated tool table shows (ruling
+  R1); the rest of each description is unchanged.
+- Test: test_server_docs_source.py (sections, regions, the request block).
+
 ### B90 task 1: one notice, the span offset unit, USER.md restated, the prose rules (2026-10-03)
 - The web demo shows the non-legal-advice notice from one module,
   `web/src/lib/notice.ts`, which mirrors `NON_LEGAL_ADVICE_NOTICE` in

@@ -308,10 +308,11 @@ def _paid_clients_or_envelope() -> PaidClients | dict[str, Any]:
 
 @mcp.tool(annotations=_READ_ONLY)
 def coverage_report() -> dict[str, Any]:
-    """Structural coverage of the Layer 0+1 graph against the M1 acceptance
-    (113 articles, 180 recitals, 13 annexes, chapters I to XIII, high-risk
-    core presence), with per-chapter article listing and layer 2/3 status.
-    Deterministic and free."""
+    """Structural coverage of the Act's graph and its judged layers, against
+    the frozen source. The Layer 0+1 graph is checked against the M1
+    acceptance (113 articles, 180 recitals, 13 annexes, chapters I to XIII,
+    high-risk core presence), with per-chapter article listing and layer 2/3
+    status. Deterministic and free."""
     loaded = _active()
     dump = loaded.dump
     if dump is None:
@@ -348,12 +349,13 @@ def source_trace(node_id: str) -> dict[str, Any]:
 
 @mcp.tool(annotations=_READ_ONLY)
 def explain_requirement(norm_id: str) -> dict[str, Any]:
-    """Explain ONE judged NormativeStatement: deontic decomposition (actor,
-    modal, action, object, conditions, exceptions), full source unit text,
-    Article 3 definitions occurring in its action/object, accepted HLEG
-    alignment targets with relation types and final scores, and a span
-    trace. Non-accepted norms are explained too, with their review status
-    stated prominently. Deterministic and free."""
+    """Explain one judged requirement (a normative statement) in depth. The
+    answer holds its deontic decomposition (actor, modal, action, object,
+    conditions, exceptions), full source unit text, Article 3 definitions
+    occurring in its action/object, accepted HLEG alignment targets with
+    relation types and final scores, and a span trace. Non-accepted norms
+    are explained too, with their review status stated prominently.
+    Deterministic and free."""
     loaded = _active()
     dump = loaded.dump
     if dump is None:
