@@ -56,8 +56,13 @@ class ModelClient(Protocol):
 # invoice checked). It is a subset of requests_refused, and each such attempt stays in
 # requests_sent. The name spells the class out so it is never read as
 # requests_refused; the dashboard pins its own copy of the seven (spend.ts).
+# B133: an eighth and ninth count, reasoning_tokens and replies_with_reasoning,
+# record the reasoning part the provider reports inside the output figure
+# (never added to output_tokens); replies_with_reasoning counts the replies that
+# reported it with a complete usage block, so it is at most replies_with_usage.
 USAGE_KEYS = ("calls", "input_tokens", "output_tokens", "requests_sent", "replies_with_usage",
-              "requests_refused", "requests_rejected_before_processing")
+              "requests_refused", "requests_rejected_before_processing",
+              "reasoning_tokens", "replies_with_reasoning")
 REJECTED_BEFORE_PROCESSING_STATUSES = (400, 401, 403, 404, 413, 422, 429)
 
 
@@ -337,10 +342,14 @@ class _SamplingRecord:
                 key = "requests_rejected_before_processing"
                 self.usage[key] = self.usage.get(key, 0) + 1
 
-    def _count_reply(self, reported: object, input_field: str, output_field: str) -> None:
+    def _count_reply(self, reported: object, input_field: str, output_field: str,
+                     reasoning_path: tuple[str, str] | None = None) -> None:
         """One reply received: add the provider's token figures; count the reply as
         reporting usage only when both figures are integers (a partial block is
-        not a complete report)."""
+        not a complete report). reasoning_path names the details attribute and
+        the field holding the reasoning part of the output figure (B133); a
+        reply counts as reporting reasoning only when that figure is an integer
+        and the usage block is complete."""
         self.usage["calls"] += 1
         if reported is None:
             return
@@ -352,6 +361,12 @@ class _SamplingRecord:
             self.usage["output_tokens"] += output_tokens
         if isinstance(input_tokens, int) and isinstance(output_tokens, int):
             self.usage["replies_with_usage"] = self.usage.get("replies_with_usage", 0) + 1
+            if reasoning_path is not None:
+                details = getattr(reported, reasoning_path[0], None)
+                reasoning = getattr(details, reasoning_path[1], None)
+                if isinstance(reasoning, int):
+                    self.usage["reasoning_tokens"] = self.usage.get("reasoning_tokens", 0) + reasoning
+                    self.usage["replies_with_reasoning"] = self.usage.get("replies_with_reasoning", 0) + 1
 
     def _alert(self, exc: BaseException, failed_attempt: int, attempts: int, pause: float) -> None:
         """Spec F D-F30: one line on standard error before each pause, in the
@@ -423,7 +438,9 @@ class OpenAIGenerator(_SamplingRecord):
     of one is DeclaredParameterRefused, never learned. .usage accumulates
     provider-reported token counts plus requests_sent, replies_with_usage,
     requests_refused (spec F D-F26 (g)) and requests_rejected_before_processing
-    (spec F D-F32). The SDK's own retries are off
+    (spec F D-F32). B133: it also records the reasoning part of
+    completion_tokens (completion_tokens_details.reasoning_tokens) as
+    reasoning_tokens and replies_with_reasoning. The SDK's own retries are off
     (max_retries=0); the retry policy is the caller's (spec F D-F30).
     """
 
@@ -466,7 +483,8 @@ class OpenAIGenerator(_SamplingRecord):
         ])
         response = self._send(lambda: self._client.chat.completions.create(**kwargs),
                               lambda exc: self._parameter_named(exc, kwargs))
-        self._count_reply(getattr(response, "usage", None), "prompt_tokens", "completion_tokens")
+        self._count_reply(getattr(response, "usage", None), "prompt_tokens", "completion_tokens",
+                          ("completion_tokens_details", "reasoning_tokens"))
         return response.choices[0].message.content or ""
 
 
@@ -484,7 +502,9 @@ class AnthropicJudge(_SamplingRecord):
     requests_refused (spec F D-F26 (g)) and requests_rejected_before_processing
     (spec F D-F32); a response without a complete
     usage block adds to calls and requests_sent only (thinking tokens are
-    inside output_tokens). The SDK's own retries are off (max_retries=0);
+    inside output_tokens; B133: the reported figure, output_tokens_details.
+    thinking_tokens, is recorded too as reasoning_tokens and
+    replies_with_reasoning, never added to output_tokens). The SDK's own retries are off (max_retries=0);
     the retry policy is the caller's (spec F D-F30).
     """
 
@@ -533,7 +553,8 @@ class AnthropicJudge(_SamplingRecord):
         kwargs = self._request_kwargs(system, user)
         response = self._send(lambda: self._client.messages.create(**kwargs),
                               lambda exc: self._parameter_named(exc, kwargs))
-        self._count_reply(getattr(response, "usage", None), "input_tokens", "output_tokens")
+        self._count_reply(getattr(response, "usage", None), "input_tokens", "output_tokens",
+                          ("output_tokens_details", "thinking_tokens"))
         return "".join(
             block.text for block in response.content if getattr(block, "type", "") == "text"
         )

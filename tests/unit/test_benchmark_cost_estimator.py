@@ -533,3 +533,67 @@ def test_the_report_labels_the_rationale_substitution_as_a_proxy(mock_report):
     assert "Sensitivity calculation" in mock_report
     section = mock_report.split("## Alignment rationale")[1].split("## Reference")[0]
     assert "errs high" not in section and "inside the stated band" not in section
+
+
+# B133: a measured reasoning share replaces the declared band for its role.
+
+
+def _declared_pair():
+    class _M:
+        def __init__(self, model_id):
+            self.model_id = model_id
+    return {"generator": _M("gen-x"), "judge": _M("judge-y")}
+
+
+def _usage(reasoning, output, replies=2, with_usage=2):
+    return {"calls": replies, "input_tokens": 10, "output_tokens": output, "replies_with_usage": with_usage,
+            "reasoning_tokens": reasoning, "replies_with_reasoning": replies}
+
+
+def _record(tmp_path, executions, name="rec.json"):
+    path = tmp_path / name
+    path.write_text(json.dumps({"executions": executions}), encoding="utf-8")
+    return path
+
+
+def test_a_measured_share_replaces_the_declared_band_for_its_role_only(tmp_path):
+    path = _record(tmp_path, [
+        {"models": {"generator_model": "gen-x", "judge_model": "judge-y"},
+         "usage": {"generator": _usage(30, 100), "judge": None}},
+        {"models": {"generator_model": "other", "judge_model": "judge-y"},
+         "usage": {"generator": _usage(90, 100)}},
+    ])
+    measured = est.measured_reasoning([path], _declared_pair())
+    assert set(measured) == {"generator"}
+    assert measured["generator"]["share"] == 0.3 and measured["generator"]["replies"] == 2
+    bands = est.reasoning_bands({"generator": 0.1, "judge": 0.2}, measured)
+    assert bands["generator"] == {"low": 0.3, "central": 0.3, "high": 0.3}
+    assert bands["judge"]["low"] == 0.2 and bands["judge"]["high"] == est.ratio("reasoning_share_high")
+    lines = est._reasoning_share_lines({"bands": bands, "measured": measured}, {"generator": "g", "judge": "j"})
+    assert "measured 0.300" in lines[0] and "2 replies" in lines[0] and "30 reasoning tokens of 100" in lines[0]
+    assert lines[1].startswith("- judge: low 0.200 (j)")
+
+
+def test_an_incomplete_execution_is_ignored(tmp_path):
+    models = {"generator_model": "gen-x", "judge_model": "judge-y"}
+    no_keys = {"calls": 2, "input_tokens": 1, "output_tokens": 50, "replies_with_usage": 2}
+    partial = _usage(5, 50, replies=1, with_usage=2)
+    path = _record(tmp_path, [{"models": models, "usage": {"generator": no_keys, "judge": partial}}])
+    assert est.measured_reasoning([path], _declared_pair()) == {}
+
+
+def test_a_measured_path_that_is_missing_or_not_a_record_is_refused_by_name(tmp_path):
+    with pytest.raises(SystemExit, match="nope.json"):
+        est.measured_reasoning([tmp_path / "nope.json"], _declared_pair())
+    bad = tmp_path / "bad.json"
+    bad.write_text("not json", encoding="utf-8")
+    with pytest.raises(SystemExit, match="bad.json"):
+        est.measured_reasoning([bad], _declared_pair())
+    empty = _record(tmp_path, "x", name="noexec.json")
+    with pytest.raises(SystemExit, match="noexec.json"):
+        est.measured_reasoning([empty], _declared_pair())
+
+
+def test_without_measured_usage_the_bands_are_the_declared_ones():
+    assert est.reasoning_bands({"generator": 0.1}) == est.reasoning_bands({"generator": 0.1}, {})
+    assert est.reasoning_bands({"generator": 0.1})["generator"]["low"] == 0.1

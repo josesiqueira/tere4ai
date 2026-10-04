@@ -433,9 +433,11 @@ def test_backlog_answer_names_the_generator_and_both_roles_usage(tmp_path):
     # the seventh, requests_rejected_before_processing (none here)
     assert answer["usage"] == {
         "generator": {"calls": 1, "input_tokens": 100, "output_tokens": 20, "requests_sent": 1,
-                      "replies_with_usage": 1, "requests_refused": 0, "requests_rejected_before_processing": 0},
+                      "replies_with_usage": 1, "requests_refused": 0, "requests_rejected_before_processing": 0,
+                      "reasoning_tokens": 0, "replies_with_reasoning": 0},
         "judge": {"calls": 1, "input_tokens": 40, "output_tokens": 8, "requests_sent": 1,
-                  "replies_with_usage": 1, "requests_refused": 0, "requests_rejected_before_processing": 0},
+                  "replies_with_usage": 1, "requests_refused": 0, "requests_rejected_before_processing": 0,
+                      "reasoning_tokens": 0, "replies_with_reasoning": 0},
     }
 
 

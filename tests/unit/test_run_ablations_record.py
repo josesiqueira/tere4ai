@@ -42,12 +42,15 @@ class _Client:
         self.reply, self.sampling = reply, sampling
         self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "requests_sent": 0,
                       "replies_with_usage": 0, "requests_refused": 0,
-                      "requests_rejected_before_processing": 0}
+                      "requests_rejected_before_processing": 0,
+                      "reasoning_tokens": 0, "replies_with_reasoning": 0}  # B133
 
     def complete(self, *args, **kwargs):
         self.usage["requests_sent"] += 1
         self.usage["calls"] += 1
         self.usage["replies_with_usage"] += 1
+        self.usage["replies_with_reasoning"] += 1
+        self.usage["reasoning_tokens"] += 2
         self.usage["input_tokens"] += 3
         self.usage["output_tokens"] += 1
         return self.reply
@@ -688,6 +691,29 @@ def test_the_summary_sums_the_rejected_count_and_drops_only_it_when_a_unit_lacks
     by_role = json.loads((tmp_path / "results" / "a3_summary.json").read_text())["usage_provider_reported"]["by_role"]
     assert "requests_rejected_before_processing" not in by_role["generator"]
     assert by_role["generator"]["requests_refused"] == 0 and by_role["generator"]["requests_sent"] == 2
+
+
+def test_the_summary_sums_the_reasoning_counts_and_drops_both_when_a_unit_lacks_them(runner, monkeypatch, tmp_path):
+    """B133: complete units sum reasoning_tokens and replies_with_reasoning; a unit
+    checkpointed before them leaves both unknown for its role, the other counts stay."""
+    monkeypatch.setattr(runner, "BATCH_SIZE", 1)
+    assert runner.main(_argv(tmp_path)) == 0
+    summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
+    generator = summary["usage_provider_reported"]["by_role"]["generator"]
+    assert generator["replies_with_reasoning"] == generator["replies_with_usage"] > 0
+    assert generator["reasoning_tokens"] == 2 * generator["replies_with_reasoning"]
+    ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
+    lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
+    for key in ("reasoning_tokens", "replies_with_reasoning"):
+        lines[0]["usage"]["generator"].pop(key)
+    older = tmp_path / "results" / "b133_checkpoint.jsonl"
+    older.write_text("".join(json.dumps(e) + "\n" for e in lines))
+    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
+                        str(tmp_path / "results" / "b133_summary.json"), "--resume-unrecorded"]) == 0
+    by_role = json.loads((tmp_path / "results" / "b133_summary.json").read_text())["usage_provider_reported"]["by_role"]
+    assert "reasoning_tokens" not in by_role["generator"] and "replies_with_reasoning" not in by_role["generator"]
+    assert by_role["generator"]["requests_sent"] == 2
+    assert "reasoning_tokens" in by_role["judge"]  # its units are complete
 
 
 # Review I3 (Codex review of 73b8baa..782f26a, the sibling writer): the models

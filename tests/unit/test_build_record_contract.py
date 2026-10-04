@@ -95,7 +95,8 @@ def test_the_usage_of_a_role_documents_the_two_completeness_counts():
     # D-F32 a seventh, requests_rejected_before_processing
     assert set(role["properties"]) == {"calls", "input_tokens", "output_tokens", "requests_sent",
                                        "replies_with_usage", "requests_refused",
-                                       "requests_rejected_before_processing"}
+                                       "requests_rejected_before_processing",
+                                       "reasoning_tokens", "replies_with_reasoning"}  # B133
     assert list(validator_for("usage_by_role").iter_errors({"generator": {"requests_refused": -1}}))
     assert list(validator_for("usage_by_role").iter_errors(
         {"generator": {"requests_rejected_before_processing": -1}}))

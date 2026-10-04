@@ -30,12 +30,14 @@ from tere4ai.extract_norms.model_clients import (
 from tere4ai.judge.config import ConfigurationError, DeclaredParameterRefused
 
 
-def _openai_response(content: str, prompt_tokens=None, completion_tokens=None):
+def _openai_response(content: str, prompt_tokens=None, completion_tokens=None, reasoning_tokens=None):
     usage = None
-    if prompt_tokens is not None:
+    if prompt_tokens is not None or reasoning_tokens is not None:
         usage = SimpleNamespace(
             prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
         )
+        if reasoning_tokens is not None:
+            usage.completion_tokens_details = SimpleNamespace(reasoning_tokens=reasoning_tokens)
     return SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
         usage=usage,
@@ -66,7 +68,8 @@ def test_generator_accumulates_provider_counts():
     # seventh, requests_rejected_before_processing (none here)
     assert gen.usage == {"calls": 2, "input_tokens": 150, "output_tokens": 25,
                          "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0,
-                         "requests_rejected_before_processing": 0}
+                         "requests_rejected_before_processing": 0,
+                         "reasoning_tokens": 0, "replies_with_reasoning": 0}
 
 
 def test_generator_without_usage_block_counts_only_the_call():
@@ -78,7 +81,8 @@ def test_generator_without_usage_block_counts_only_the_call():
     # seventh, requests_rejected_before_processing (none here)
     assert gen.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
                          "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0,
-                         "requests_rejected_before_processing": 0}
+                         "requests_rejected_before_processing": 0,
+                         "reasoning_tokens": 0, "replies_with_reasoning": 0}
 
 
 def _anthropic_response(text: str, input_tokens=None, output_tokens=None):
@@ -113,7 +117,8 @@ def test_judge_accumulates_provider_counts():
     # seventh, requests_rejected_before_processing (none here)
     assert judge.usage == {"calls": 2, "input_tokens": 210, "output_tokens": 41,
                            "requests_sent": 2, "replies_with_usage": 2, "requests_refused": 0,
-                           "requests_rejected_before_processing": 0}
+                           "requests_rejected_before_processing": 0,
+                         "reasoning_tokens": 0, "replies_with_reasoning": 0}
 
 
 def test_judge_without_usage_block_counts_only_the_call():
@@ -125,7 +130,8 @@ def test_judge_without_usage_block_counts_only_the_call():
     # seventh, requests_rejected_before_processing (none here)
     assert judge.usage == {"calls": 1, "input_tokens": 0, "output_tokens": 0,
                            "requests_sent": 1, "replies_with_usage": 0, "requests_refused": 0,
-                           "requests_rejected_before_processing": 0}
+                           "requests_rejected_before_processing": 0,
+                         "reasoning_tokens": 0, "replies_with_reasoning": 0}
 
 
 class _Rejecting:
@@ -388,7 +394,8 @@ def test_usage_since_is_the_difference_and_none_without_a_record():
     # seventh, requests_rejected_before_processing (none here)
     assert usage_since(gen, before) == {"calls": 1, "input_tokens": 50, "output_tokens": 5,
                                         "requests_sent": 1, "replies_with_usage": 1, "requests_refused": 0,
-                                        "requests_rejected_before_processing": 0}
+                                        "requests_rejected_before_processing": 0,
+                         "reasoning_tokens": 0, "replies_with_reasoning": 0}
     assert usage_snapshot(object()) is None and usage_since(object(), None) is None
 
 
@@ -679,7 +686,8 @@ def test_a_connection_error_or_an_interrupt_is_not_refused():
 
 def test_the_seven_statuses_rejected_before_processing():
     assert REJECTED_BEFORE_PROCESSING_STATUSES == (400, 401, 403, 404, 413, 422, 429)
-    assert USAGE_KEYS[-1] == "requests_rejected_before_processing"
+    assert USAGE_KEYS[6] == "requests_rejected_before_processing"
+    assert USAGE_KEYS[-2:] == ("reasoning_tokens", "replies_with_reasoning")
 
 
 @pytest.mark.parametrize("status, rejected", [
@@ -986,3 +994,71 @@ def test_only_the_four_terminal_commands_choose_the_terminal_policy():
                                         "src/tere4ai/extract_norms/model_clients.py"]
     assert users("ProviderRefused") == ["scripts/elicit_benchmark_features.py", "scripts/run_ablations.py",
                                         "src/tere4ai/extract_norms/model_clients.py"]
+
+
+# B133: the reasoning part of the output figure, recorded beside the input and
+# output tokens (never added to output_tokens).
+
+
+def _anthropic_with_thinking(text: str, input_tokens=None, output_tokens=None, thinking_tokens=None):
+    usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
+    if thinking_tokens is not None:
+        usage.output_tokens_details = SimpleNamespace(thinking_tokens=thinking_tokens)
+    return SimpleNamespace(content=[SimpleNamespace(type="text", text=text)], usage=usage)
+
+
+def test_openai_reply_with_reasoning_counts_both_new_keys():
+    gen = _generator_with([_openai_response("a", 100, 20, reasoning_tokens=12),
+                           _openai_response("b", 50, 5, reasoning_tokens=3)])
+    gen.complete("s", "u")
+    gen.complete("s", "u")
+    assert gen.usage["reasoning_tokens"] == 15 and gen.usage["replies_with_reasoning"] == 2
+    assert gen.usage["output_tokens"] == 25  # the reasoning is a part of it, never added
+
+
+def test_openai_reply_without_details_counts_neither_new_key():
+    gen = _generator_with([_openai_response("a", 100, 20)])
+    gen.complete("s", "u")
+    assert gen.usage["reasoning_tokens"] == 0 and gen.usage["replies_with_reasoning"] == 0
+    assert gen.usage["replies_with_usage"] == 1
+
+
+def test_openai_reasoning_without_a_complete_usage_block_is_not_counted_as_a_reply():
+    gen = _generator_with([_openai_response("a", None, 20, reasoning_tokens=12)])
+    gen.complete("s", "u")
+    assert gen.usage["replies_with_usage"] == 0 and gen.usage["replies_with_reasoning"] == 0
+    assert gen.usage["reasoning_tokens"] == 0
+
+
+def test_anthropic_reply_with_thinking_counts_both_new_keys():
+    judge = _judge_with([_anthropic_with_thinking("v", 100, 30, 21), _anthropic_with_thinking("w", 10, 4, 1)])
+    judge.complete("s", "u")
+    judge.complete("s", "u")
+    assert judge.usage["reasoning_tokens"] == 22 and judge.usage["replies_with_reasoning"] == 2
+    assert judge.usage["output_tokens"] == 34
+
+
+def test_anthropic_reply_without_details_counts_neither_new_key():
+    judge = _judge_with([_anthropic_with_thinking("v", 100, 30)])
+    judge.complete("s", "u")
+    assert judge.usage["reasoning_tokens"] == 0 and judge.usage["replies_with_reasoning"] == 0
+    assert judge.usage["replies_with_usage"] == 1
+
+
+def test_anthropic_thinking_without_a_complete_usage_block_is_not_counted_as_a_reply():
+    judge = _judge_with([_anthropic_with_thinking("v", None, 30, 21)])
+    judge.complete("s", "u")
+    assert judge.usage["replies_with_usage"] == 0 and judge.usage["replies_with_reasoning"] == 0
+    assert judge.usage["reasoning_tokens"] == 0
+
+
+def test_usage_since_covers_the_reasoning_keys():
+    from tere4ai.extract_norms.model_clients import usage_since, usage_snapshot
+
+    gen = _generator_with([_openai_response("a", 100, 20, reasoning_tokens=12),
+                           _openai_response("b", 50, 5, reasoning_tokens=3)])
+    gen.complete("s", "u")
+    before = usage_snapshot(gen)
+    gen.complete("s", "u")
+    delta = usage_since(gen, before)
+    assert delta["reasoning_tokens"] == 3 and delta["replies_with_reasoning"] == 1

@@ -38,12 +38,13 @@ Pricing (B120, spec F D-F29 discipline):
   both, or a model the environment names without a row, is refused by name.
   No API key is read and no network is touched.
 
-Usage: .venv/bin/python scripts/estimate_benchmark_cost.py
+Usage: .venv/bin/python scripts/estimate_benchmark_cost.py [--measured-usage PATH ...]
 Writes: docs/benchmark_cost_estimate.md
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import statistics
@@ -437,6 +438,9 @@ def backlog_lines(
     gen = CountingClient("generator", {"items": [item]})
     judge = CountingClient("judge", {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"})
     generate_control_backlog(norms, system_context, gen, judge, log_path=tmp_dir / "backlog_log.jsonl")
+    # B133: this turns one historical billed figure into visible characters and
+    # keeps the central share on purpose; a measured share (--measured-usage)
+    # applies to the priced steps only
     visible_tokens = (ratio("backlog_generator_billed_tokens")
                       * (1 - ratio("reasoning_share_central")))
     return {
@@ -725,10 +729,58 @@ def elicitation_line(items: list[dict[str, Any]], system_chars: int, out_chars_m
             "max_chars": system_chars + max(user, default=0)}
 
 
-def reasoning_bands(low: dict[str, float]) -> dict[str, dict[str, float]]:
-    """The reasoning share of billed output per role at each level (R7)."""
-    return {role: {"low": value, "central": ratio("reasoning_share_central"),
-                   "high": ratio("reasoning_share_high")} for role, value in low.items()}
+def reasoning_bands(low: dict[str, float],
+                    measured: dict[str, dict[str, Any]] | None = None) -> dict[str, dict[str, float]]:
+    """The reasoning share of billed output per role at each level (R7). A role
+    with a measured share (B133) has it at all three levels, in place of the
+    declared band."""
+    bands = {role: {"low": value, "central": ratio("reasoning_share_central"),
+                    "high": ratio("reasoning_share_high")} for role, value in low.items()}
+    for role, found in (measured or {}).items():
+        bands[role] = {level: found["share"] for level in LEVELS}
+    return bands
+
+
+def _complete_reasoning(usage: Any) -> bool:
+    """A role's usage counts every reply's reasoning figure: both counts are
+    present and replies_with_reasoning equals replies_with_usage, above zero."""
+    if not isinstance(usage, dict):
+        return False
+    if not {"reasoning_tokens", "replies_with_reasoning", "output_tokens"} <= set(usage):
+        return False
+    return usage["replies_with_reasoning"] == usage.get("replies_with_usage") and usage["replies_with_reasoning"] > 0
+
+
+def measured_reasoning(paths: list[Path], declared: dict[str, ModelParameters]) -> dict[str, dict[str, Any]]:
+    """B133: per declared role, the measured reasoning share of output over the
+    build records at paths: executions run under the declared model id whose
+    usage for the role is complete. A role with no such execution is absent."""
+    sums = {role: {"reasoning": 0, "output": 0, "replies": 0, "files": []} for role in declared}
+    for path in paths:
+        try:
+            record = json.loads(Path(path).read_text(encoding="utf-8"))
+            executions = record["executions"]
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise SystemExit(f"--measured-usage {path}: not a build record with executions ({exc})") from exc
+        if not isinstance(executions, list):
+            raise SystemExit(f"--measured-usage {path}: not a build record with executions (not a list)")
+        shown = str(Path(path).resolve().relative_to(ROOT)) if Path(path).resolve().is_relative_to(ROOT) else str(path)
+        for execution in executions:
+            models = execution.get("models") or {}
+            usage = execution.get("usage") or {}
+            for role, model in declared.items():
+                counts = usage.get(role)
+                if models.get(f"{role}_model") != model.model_id or not _complete_reasoning(counts):
+                    continue
+                bucket = sums[role]
+                bucket["reasoning"] += counts["reasoning_tokens"]
+                bucket["output"] += counts["output_tokens"]
+                bucket["replies"] += counts["replies_with_reasoning"]
+                if shown not in bucket["files"]:
+                    bucket["files"].append(shown)
+    return {role: {"share": b["reasoning"] / b["output"], "reasoning": b["reasoning"],
+                   "output": b["output"], "replies": b["replies"], "files": b["files"]}
+            for role, b in sums.items() if b["replies"] and b["output"]}
 
 
 def price_line(
@@ -786,7 +838,7 @@ def compute(
     n_repetitions: int = ABLATION_REPETITIONS,
 ) -> dict[str, Any]:
     """Every dry run and every price: the data the report prints."""
-    bands = reasoning_bands(inputs["reasoning_low"])
+    bands = reasoning_bands(inputs["reasoning_low"], inputs.get("measured"))
     extraction, candidates = extraction_lines(
         inputs["dump"], inputs["node_ids"], inputs["july_norms"], inputs["july_judge_runs"], tmp_dir)
     norms = [dict(n) for n in inputs["july_norms"]]
@@ -824,7 +876,7 @@ def compute(
     n_rows = [scaled(r, n_repetitions, f"E6 ablation, {n_repetitions} repetitions") for r in one_rep]
     total_rows = build_rows + n_rows
     result: dict[str, Any] = {
-        "declared": declared, "rows": rows, "bands": bands, "n": n_repetitions,
+        "declared": declared, "rows": rows, "bands": bands, "measured": inputs.get("measured") or {}, "n": n_repetitions,
         "candidates": candidates, "accepted": accepted,
         "build_rows": build_rows, "one_rep": one_rep, "n_rows": n_rows,
         "total": sum_cost(total_rows), "batch_total": sum_cost(total_rows, "batch_cost"),
@@ -873,6 +925,21 @@ STEP_HEADER = [
 ]
 
 
+def _reasoning_share_lines(res: dict[str, Any], low_sources: dict[str, str]) -> list[str]:
+    lines = []
+    for role in ("generator", "judge"):
+        b = res["bands"][role]
+        found = res.get("measured", {}).get(role)
+        if found:
+            lines.append(f"- {role}: measured {found['share']:.3f} at every level (B133, {', '.join(found['files'])}; "
+                         f"{found['replies']} replies; {found['reasoning']:,} reasoning tokens of "
+                         f"{found['output']:,} output tokens).")
+        else:
+            lines.append(f"- {role}: low {b['low']:.3f} ({low_sources[role]}), central {b['central']:.2f} "
+                         f"(reasoning_share_central above), high {b['high']:.2f} (reasoning_share_high above).")
+    return lines
+
+
 def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
     declared, rows, n = res["declared"], res["rows"], res["n"]
     lines = [
@@ -909,10 +976,7 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
     for name, r in RATIOS.items():
         lines.append(f"- {name} = {r['value']}: {r['source']}")
     lines += ["", "Reasoning share of billed output, r (billed output = visible reply / (1 - r)):", ""]
-    for role in ("generator", "judge"):
-        b = res["bands"][role]
-        lines.append(f"- {role}: low {b['low']:.3f} ({low_sources[role]}), central {b['central']:.2f} "
-                     f"(reasoning_share_central above), high {b['high']:.2f} (reasoning_share_high above).")
+    lines += _reasoning_share_lines(res, low_sources)
     lines += [
         "- The backlog generator's central output is the one measured call, see backlog_generator_billed_tokens.",
         "",
@@ -1007,6 +1071,8 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "",
         "The band takes the low input and the low reasoning share at its low end, and the high input and "
         f"the high reasoning share at its high end. It includes the ablation at N = {n}.",
+        *(["A measured role's reasoning share is the same at both ends of the band."]
+          if res.get("measured") else []),
         "",
     ]
     return "\n".join(lines)
@@ -1056,11 +1122,17 @@ LOW_SOURCE = ("measured at the provider default in the aborted B74 extraction: b
               "against the visible reply the stored norms and verdicts give, default_reasoning_shares")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--measured-usage", action="append", default=[], metavar="PATH",
+                        help="a build record JSON whose usage carries reasoning_tokens (B133); repeatable")
+    args = parser.parse_args([] if argv is None else argv)
     load_dotenv_once()
     declared = declared_models(os.environ)
     rows = price_rows(load_model_prices(), declared)
+    measured = measured_reasoning([Path(p) for p in args.measured_usage], declared)
     inputs = load_inputs()
+    inputs["measured"] = measured
     with tempfile.TemporaryDirectory() as tmp:
         result = compute(inputs, declared, rows, Path(tmp))
     report = render_report(result, {"generator": LOW_SOURCE, "judge": LOW_SOURCE})
@@ -1071,4 +1143,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
