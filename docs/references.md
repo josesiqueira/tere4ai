@@ -846,6 +846,20 @@ provide PropBank semantic role label annotations" (abstract, p. 112), with
 (p. 113). The B107 decision brief cites it only for this; the rule that a
 model never decides a reference label rests on the brief's reasoning and on
 ADD-16, not on this paper.
+ADD-16, not on this paper.
+
+**[ADD-83]** OFF. Council Regulation (EU) No 216/2013 of 7 March 2013 on the
+electronic publication of the Official Journal of the European Union, OJ L 69,
+13.3.2013, pp. 1 to 3. CELEX 32013R0216, ELI
+http://data.europa.eu/eli/reg/2013/216/oj (the English PDF/A of the Official
+Journal, from CELLAR). VERIFIED 2026-10-04. SUPPORTING. Grounds: only the
+electronic edition of the Official Journal is authentic, so the consolidated
+text of 27.7.2026, which is not an Official Journal publication, is not the
+legal text and every Layer 1 unit is checked against the Official Journal
+wording (B132, spec G D-G68, architecture.md DEC-23): "Without prejudice to
+Article 3, only the Official Journal published in electronic form (hereinafter
+'the electronic edition of the Official Journal') shall be authentic and shall
+produce legal effects." (Article 1(2), printed page L 69/2).
 
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 

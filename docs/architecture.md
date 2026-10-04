@@ -386,8 +386,10 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   add no space, footnotes left out. The recitals still come from the 2024
   act's HTML, as consolidated texts leave the preamble out.
   (2) The consolidated text "is meant purely as a documentation tool and
-  has no legal effect" (EUR-Lex), so every unit is checked before the parse
-  completes (parse_legal_structure/amendments.py): an unchanged unit equals
+  has no legal effect" (EUR-Lex), and only the electronic edition of the
+  Official Journal is authentic and produces legal effects (ADD-83,
+  Regulation (EU) No 216/2013, Article 1(2)), so every unit is checked
+  before the parse completes (parse_legal_structure/amendments.py): an unchanged unit equals
   the 2024 unit of the same id, Formex against Formex; a replaced or
   inserted unit is in the Omnibus quotation of the point that enacted it; a
   partly amended unit is checked as composed (its marked parts in the

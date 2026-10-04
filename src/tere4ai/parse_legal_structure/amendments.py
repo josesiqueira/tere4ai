@@ -27,7 +27,8 @@ are used (replaced, inserted, deleted); Akoma Ntoso (REF-03) calls them
 substitution, insertion and repeal.
 
 The consolidated text has no legal effect (EUR-Lex: "This text is meant
-purely as a documentation tool and has no legal effect"), so every marker
+purely as a documentation tool and has no legal effect", and only the
+electronic edition of the Official Journal is authentic, ADD-83), so every marker
 is checked three ways (check_markers, spec G D-G68 (2)): its wording is in
 the Omnibus quotation of its point; the units it replaces or deletes exist
 in the 2024 text and the units it inserts do not; docs/omnibus_amendments.md
