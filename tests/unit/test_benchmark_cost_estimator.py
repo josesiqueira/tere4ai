@@ -528,5 +528,8 @@ def test_the_alignment_rationale_is_a_labelled_proxy_with_its_bound(tmp_path):
 
 
 def test_the_report_labels_the_rationale_substitution_as_a_proxy(mock_report):
-    assert "proxy" in mock_report and "judge's rationale" in mock_report
-    assert "without the rationale" in mock_report
+    assert "a proxy, and the cost without it" in mock_report and "judge's rationale" in mock_report
+    assert "direction of the proxy's error is unknown" in mock_report
+    assert "Sensitivity calculation" in mock_report
+    section = mock_report.split("## Alignment rationale")[1].split("## Reference")[0]
+    assert "errs high" not in section and "inside the stated band" not in section

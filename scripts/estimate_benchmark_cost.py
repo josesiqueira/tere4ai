@@ -829,8 +829,9 @@ def compute(
         "build_rows": build_rows, "one_rep": one_rep, "n_rows": n_rows,
         "total": sum_cost(total_rows), "batch_total": sum_cost(total_rows, "batch_cost"),
         "one_rep_cost": sum_cost(one_rep), "per_strategy": per_strategy, "proxied": proxied,
-        "rationale_bound": {level: sum_cost(proxy_rows)[level] - sum_cost(bare_rows)[level]
-                            for level in LEVELS},
+        "rationale_bound": {"total_without": {
+            level: sum_cost(total_rows)[level] - sum_cost(proxy_rows)[level] + sum_cost(bare_rows)[level]
+            for level in LEVELS}},
         "elicit_note": inputs.get("elicit_note"), "full": None, "full_note": inputs.get("full_note"),
         "max_request_tokens": max(r["max_request_tokens"] for r in total_rows),
     }
@@ -959,16 +960,18 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         lines += [f"{name} was not run in run 2: its output uses the observed answer sizes of {proxy}.", ""]
     rb = res["rationale_bound"]
     lines += [
-        "## Alignment rationale: a proxy, with its bound",
+        "## Alignment rationale: a proxy, and the cost without it",
         "",
         "- A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the "
         "judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes "
         "only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, "
-        "in the generator's output and in the judge's input. Priced without the rationale in both, the "
-        f"alignment step is {_usd(rb['central'])} USD cheaper at the central level "
-        f"({_usd(rb['low'])} low, {_usd(rb['high'])} high), against a total band of "
-        f"{_usd(res['total']['low'])} to {_usd(res['total']['high'])}: the substitution is bounded "
-        "inside the stated band and errs high.",
+        "in the generator's output and in the judge's input. The direction of the proxy's error is "
+        "unknown, because the generator's rationale is not recorded: it may be shorter or longer.",
+        "- Sensitivity calculation, not a bound: the total without the rationale in both places is "
+        f"{_usd(rb['total_without']['central'])} USD central ({_usd(rb['total_without']['low'])} low, "
+        f"{_usd(rb['total_without']['high'])} high), against the stated total of "
+        f"{_usd(res['total']['central'])} ({_usd(res['total']['low'])} low, "
+        f"{_usd(res['total']['high'])} high).",
         "",
         "## Reference outside the total",
         "",

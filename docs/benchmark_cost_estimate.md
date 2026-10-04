@@ -76,9 +76,10 @@ The elicitation output size counts features only: the facts file (eval/gold/benc
 
 graph_runtime_judge was not run in run 2: its output uses the observed answer sizes of graph_no_judge.
 
-## Alignment rationale: a proxy, with its bound
+## Alignment rationale: a proxy, and the cost without it
 
-- A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, in the generator's output and in the judge's input. Priced without the rationale in both, the alignment step is 44.16 USD cheaper at the central level (11.84 low, 79.09 high), against a total band of 146.71 to 542.55: the substitution is bounded inside the stated band and errs high.
+- A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, in the generator's output and in the judge's input. The direction of the proxy's error is unknown, because the generator's rationale is not recorded: it may be shorter or longer.
+- Sensitivity calculation, not a bound: the total without the rationale in both places is 290.82 USD central (134.87 low, 463.46 high), against the stated total of 334.98 (146.71 low, 542.55 high).
 
 ## Reference outside the total
 
