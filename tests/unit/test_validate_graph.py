@@ -120,6 +120,12 @@ def test_the_published_dev_norms_keep_no_clause_of_a_dropped_norm():
     assert sorted(conditions - referenced_conditions) == []
     assert sorted(exceptions - referenced_exceptions) == []
     assert referenced_conditions <= conditions and referenced_exceptions <= exceptions
+    # The counts the file states are those of the records it holds.
+    assert norms["canonicalization"]["condition_nodes"] == len(norms["conditions"])
+    assert norms["canonicalization"]["exception_nodes"] == len(norms["exceptions"])
+    dropped = norms["stats"]["b132_dropped"]
+    assert dropped["conditions"] + len(norms["conditions"]) == 364
+    assert dropped["exceptions"] + len(norms["exceptions"]) == 27
 
 def test_a_test_set_item_citing_a_deleted_unit_is_named():
     from tere4ai.eval.harness import load_gold_items

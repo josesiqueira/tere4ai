@@ -20985,7 +20985,9 @@
   "b132_dropped": {
    "norms": 60,
    "judge_runs": 60,
-   "reason": "B132 (spec G D-G68 (7), ruling R9): norms whose source unit the Digital Omnibus deleted, replaced or inserted, or a container whose content changed, were extracted from wording no longer in force; they are dropped with their judge runs and their alignments. Pre-B74 data, disposable; B74 replaces it."
+   "conditions": 42,
+   "exceptions": 3,
+   "reason": "B132 (spec G D-G68 (7), ruling R9): norms whose source unit the Digital Omnibus deleted, replaced or inserted, or a container whose content changed, were extracted from wording no longer in force; they are dropped with their judge runs and their alignments. Pre-B74 data, disposable; B74 replaces it. The Condition and Exception records that only the dropped norms referenced are dropped too."
   }
  },
  "conditions": [
@@ -23469,7 +23471,7 @@
    "those rules": 1,
    "unspecified_needs_review": 144
   },
-  "condition_nodes": 364,
-  "exception_nodes": 27
+  "condition_nodes": 322,
+  "exception_nodes": 24
  }
 }

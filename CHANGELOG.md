@@ -108,7 +108,7 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - The pre-B74 dev dumps drop the 60 norms on units the Omnibus changed,
   their judge runs and the 98 alignments of those norms (stats
   `b132_dropped`) and the 45 Condition and Exception records only those
-  norms referenced; republished as chain 89db919fab52; the demo sessions are
+  norms referenced; republished as chain ee5342da0e00; the demo sessions are
   re-recorded on it by the new `scripts/rerecord_demo_sessions.py`.
 - The modules that implement these answers carry `@implements: DEC-23`
   (classify, requirements, explain, backlog, fria, server, the facade, the
