@@ -5,6 +5,115 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B132: the graph and the answers follow the AI Act as amended by the Digital Omnibus (2026-10-04)
+- Layer 1 is Regulation (EU) 2024/1689 as amended by Regulation (EU)
+  2026/1744, parsed from EUR-Lex's consolidated text of 27 July 2026 in
+  Formex and checked unit by unit against the Official Journal wording
+  (DEC-23; architecture.md Sections 6 and 11): 119 articles, 571
+  paragraphs, 91 subparagraphs, 521 points, 14 annexes, 247 annex items,
+  180 recitals, 70 definitions, 515 cross-references; 11 deleted units and
+  130 earlier versions counted apart. Layer 0 freezes the Omnibus and the
+  consolidated text in Formex (the consolidated text non_binding).
+- Node contract (nodes.schema.json): an Article `number` and a paragraph
+  `index` are the Act's label, a string ("4a"), with an integer `sort_key`
+  (4a gives 401); every unit carries `enacted_by` ("Regulation (EU)
+  2024/1689", an Omnibus point, or "composed") and `amendment` (unchanged,
+  replaced, inserted, composed or deleted); a deleted unit keeps its id
+  with `deleted_by` and `deleted_from`, no text and no span; each changed
+  unit's 2024 wording is a `UnitVersion` node (id
+  `version:2024-07-12:<unit id>`, span `<name>@2024-07-12`) linked by
+  `HAS_VERSION`. An in-force span may list deleted ranges under `exclude`,
+  which `resolve_span` leaves out of its text. The build id is a digest
+  over every frozen legal source the parse reads.
+- coverage_report expects the counts of the Act in force when the Omnibus
+  is merged (119 articles, 14 annexes) and reports `actual.deleted_units`;
+  source_trace answers a deleted unit with the note naming the Omnibus
+  point that deleted it; the elicitor renders a deleted provision as that
+  note.
+- get_applicable_requirements skips a norm whose source unit is deleted;
+  its summary gains `deleted_source_skipped` and `deleted_source_note`.
+- classify_ai_system: Article 5(1) points (ba) and (bb) are cited as their
+  nodes with Article 5(1a) and (1b) (`ARTICLE_5_SCOPING_PARAGRAPHS`);
+  `OMNIBUS_SOURCE_ID`, `OMNIBUS_ARTICLE_5_APPLIES_FROM` and
+  `OMNIBUS_ARTICLE_5_POINT_BY_FLAG` are removed. A new fact,
+  `annex_i_section_b_legislation`, names the Annex I section of an
+  Article 6(1) system's product legislation; the answer gains
+  `annex_i_section` ("A", "B", "unknown", or null off that route),
+  `high_risk_routes` (every high-risk route that holds, "article_6_1" and
+  "article_6_2", so a system on both routes is dated by both points of
+  Article 113(c) even when the Article 6(1) route decided),
+  `application_dates` (one entry per cited provision: date, meaning,
+  source, basis node, verbatim wording, notes) and `legal_text`. The note
+  that the amending text is not yet modelled and the Article 6(1) Omnibus
+  note are removed. A Section B system cites Article 2(2) and lists no
+  Article 50 duty (Article 2(2) applies none of Article 50); a Section B
+  product whose facts also match an Annex III category takes the Annex III
+  route (annex_iii_category set, annex_i_section "B", the FRIA and Article
+  50 as for an Annex III system), and the answer says the product's
+  Section B legislation also classifies it under Article 6(1); a Section B
+  system whose Annex III facts are unknown requires human review. The
+  unknown-section note and the missing fact `annex_i_section_b_legislation`
+  appear only when the Article 6(1) route alone holds, never beside an
+  Annex III match (R44).
+- New `src/tere4ai/mcp_server/application_dates.py`: the reviewed table of
+  Article 113 as amended, provision by provision (an Annex dated through
+  the Article that brings it into application, Annex I through Article
+  6(1), Annex III through Article 6(2), Annex IV through Article 11(1),
+  each entry naming it in `applies_through`; a wording the Omnibus inserted
+  or replaced applies no earlier than 27 July 2026; Article 111(4) a note
+  on Article 50(2)); the FRIA block's `applies_from` is Article 27's row of
+  it (point (c)(i)), its source text changed.
+- get_applicable_requirements: a Section B system with no Annex III match
+  is served no Chapter III requirement and no Article 50 obligation; the
+  answer cites what Article 2(2) applies (`article_2_2`,
+  its condition on Articles 57 to 59 with `condition_decided` false) with
+  `application_dates` keyed by provision; while its Annex III facts are
+  unknown the answer names them, says the Chapter III requirements do not
+  apply unless an Annex III point applies, and requires human review. The
+  provisional note of a Section B product on the Annex III route says an
+  Article 6(3) derogation would bring the Article 2(2) answer back, and
+  its Chapter III requirement groups carry only point (c)(i)'s date,
+  because Article 2(2) excludes Chapter III on the Article 6(1) route for a
+  Section B product (R43). While the section is unknown and the Article
+  6(1) route alone holds (no Annex III match), the Chapter III requirements
+  are served, the fact is named in missing_facts and Article 2(2) in
+  legal_status_notes (R44). Every served group carries its
+  dates in `application_dates` (keyed by group); every answer carries
+  `legal_text`.
+- `schema/json_schemas/system_features.schema.json`: the new flag; the
+  descriptions of medical_or_safety_component, annex_i_covered_product and
+  third_party_conformity_assessment_required quote Article 6(1a) to (1c)
+  and the replaced Article 3(14); points (ba) and (bb) quote their nodes.
+- Prompt `prompts/elicit_features/v7.md`, the default and the version of
+  record for B74: the amended Annex I points (Section A 2 to 12, Section B
+  13 to 21), points (ba) and (bb) with Article 5(1a) and (1b) as nodes,
+  Article 6(1a) to (1c), and the Annex I section fact; v6 is kept for the
+  records that name it.
+- explain_requirement takes `earlier_version` (MCP tool and POST
+  /api/explain): the source unit's 2024 wording, or why it has none
+  (`reason`: inserted, unchanged or source_unavailable); a norm on a deleted unit is explained with the deleted
+  note and requires human review. generate_control_backlog refuses a norm
+  on a deleted unit before any model call (MCP: not_applicable with
+  `refused_norm_ids`; POST /api/backlog: 422).
+- Gates G3 and G4 refuse a norm, and an alignment of a norm, whose source
+  unit is deleted; the evaluation harness refuses a test-set item that
+  cites one (`deleted_unit_citations`). The hand-made test set cites no
+  changed unit.
+- The extraction scope (`data/graph_dumps/core_nodes.txt`) gains
+  eu-ai-act:article-4a, with Chapter I's target_system_category: 424 core
+  source units (405 on the 2024 text).
+- The pre-B74 dev dumps drop the 60 norms on units the Omnibus changed,
+  their judge runs and the 98 alignments of those norms (stats
+  `b132_dropped`); republished as chain d7e23bbe62e3; the demo sessions are
+  re-recorded on it by the new `scripts/rerecord_demo_sessions.py`.
+- The modules that implement these answers carry `@implements: DEC-23`
+  (classify, requirements, explain, backlog, fria, server, the facade, the
+  harness, the elicitor, target_system_category), so docs/traceability.md
+  lists them under DEC-23.
+- The web demo's flag panel and presets carry the new fact, and its
+  backlog grouping keeps Article 4a apart from Article 4
+  (`web/src/lib/articleGroups.ts`).
+
 ### B122: every fact of the features schema in the Act's words (2026-10-03)
 - The 25 flags of `schema/json_schemas/system_features.schema.json` that
   had no description now have one, and the six that named a provision

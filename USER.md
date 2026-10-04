@@ -6,7 +6,7 @@
 
 ## What this project is
 
-**TERE4AI2**, a rebuild of TERE4AI: an open-source MCP server for teams building AI systems under the **EU AI Act (Regulation 2024/1689)**. A coding agent describes the system it is building and gets back a deterministic risk classification (unacceptable, high, limited, minimal), engineering requirements traced to byte-exact legal text, judged alignments to the **AI HLEG Trustworthy AI** principles, and requirement-to-code traceability.
+**TERE4AI2**, a rebuild of TERE4AI: an open-source MCP server for teams building AI systems under the **EU AI Act (Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744, the Digital Omnibus)**. A coding agent describes the system it is building and gets back a deterministic risk classification (unacceptable, high, limited, minimal), engineering requirements traced to byte-exact legal text, judged alignments to the **AI HLEG Trustworthy AI** principles, and requirement-to-code traceability.
 
 The whole value rests on **traceability and correctness of citations**. A wrong or unverifiable citation is worse than a missing one.
 

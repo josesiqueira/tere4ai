@@ -5,7 +5,8 @@
 **The EU AI Act, as a knowledge graph your coding agent can call.**
 
 TERE4AI is an open-source MCP server for teams building AI systems under
-Regulation (EU) 2024/1689. A coding agent describes the system it is
+Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744 (the
+Digital Omnibus), the AI Act in force. A coding agent describes the system it is
 building and gets back a deterministic risk classification, engineering
 requirements traced to byte-exact legal text, judged alignments to the AI
 HLEG Trustworthy AI principles, and requirement-to-code traceability.
@@ -428,10 +429,12 @@ the checkpoint one no record names.
 M1 to M3 implemented, M4 harness ready (see docs/architecture.md Section 14
 and docs/traceability.md, which is generated from code tags):
 
-- M1: deterministic Layer 1 mirror of the full Act (113 articles, 180
-  recitals, 13 annexes, 467 points, 217 annex items), version pin (base Act
-  in force, Digital Omnibus as an amending source), crossrefs, coverage and
-  trace tools, traceability gate.
+- M1: deterministic Layer 1 mirror of the full Act in force, Regulation (EU)
+  2024/1689 as amended by Regulation (EU) 2026/1744 (119 articles, 180
+  recitals, 14 annexes, 521 points, 247 annex items), parsed from EUR-Lex's
+  consolidated text and checked unit by unit against the Official Journal
+  wording, each changed unit keeping its 2024 wording as an earlier version
+  (DEC-23); crossrefs, coverage and trace tools, traceability gate.
 - M2: judged Layer 2/3 over the high-risk core: extracted norms and reified
   HLEG alignment assertions, each checked by an independent judge family
   (OpenAI generator, Anthropic judges), all in Neo4j with per-edge

@@ -423,12 +423,37 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   build id is a digest over every frozen legal
   source the parse reads, so a build with the Omnibus and one without it
   never share an id.
-  (5) Still following the text as enacted until the second B132 plan: the
-  classifier's Annex I route and its application dates, the Article 5(1)
-  points (ba) and (bb), which classify_ai_system still cites through the
-  Omnibus SourceDocument although they are now graph nodes, the elicitor
-  prompt, the extraction scope (Article 4a joins it) and the dev norms and
-  alignments, extracted from the 2024 text and served beside this graph.
+  (5) The answers follow the same text (B132's second plan, 2026-10-04):
+  classify_ai_system cites Article 5(1) points (ba) and (bb) as their nodes,
+  with Article 5(1a) and (1b); a third fact of the Article 6(1) route,
+  annex_i_section_b_legislation, names the Annex I section of the product's
+  legislation (answer field annex_i_section: A, B or unknown). For Section
+  B, Article 2(2) applies to the Article 6(1) classification only Article
+  6(1), Article 60a and Articles 102 to 112 (and Articles 57 to 59 on the
+  condition it states and the answer does not decide): with no Annex III
+  match no Chapter III requirement and no Article 50 duty is served, and
+  the provisions are cited without norms; Article 2(2) limits only what
+  that classification brings, so the Annex III rules are still checked and
+  a match decides the route, the FRIA and the Article 50 duties; while its
+  Annex III facts are unknown the answer requires human review and names
+  them. While the section is unknown and the Article 6(1) route alone
+  holds, the Chapter III requirements are served and the fact is named.
+  Every high_risk answer names the routes that hold (high_risk_routes:
+  Article 6(1) with Annex I, Article 6(2) with Annex III), and every
+  classification and every served requirement group carries the dates its
+  provisions apply from, by those routes (both points of Article 113(c)
+  when both hold; the requirement groups of a Section B product on the
+  Annex III route carry point (c)(i) only, because Article 2(2) excludes
+  Chapter III on the Article 6(1) route), from the reviewed table of
+  Article 113 as amended (mcp_server/application_dates.py: an Annex dated
+  through the Article that brings it into application, a wording the
+  Omnibus inserted or replaced no earlier than 27 July 2026, Article 111(4)
+  a note on Article 50(2)), as data; every answer names the text it
+  follows. The elicitor prompt is v7, the extraction scope holds Article 4a
+  (424 core source units), the dev norms and alignments keep only those on
+  units unchanged in force, and gates G3 and G4 refuse a norm or alignment
+  on a deleted unit, as the evaluation harness refuses a test-set item
+  citing one.
 
 ## 12. Evaluation
 OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
@@ -641,8 +666,11 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   assessment's content (scope decision 2026-07-20: TERE4AI will not generate
   FRIA content), and unsettled facts yield "unknown" with each missing fact
   named, including a pending Article 6(3) derogation candidacy. The
-  Omnibus-postponed application date rides on the block as data
-  (applies_from), never as control flow, per the Section 11 overlay pattern.
+  application date rides on the block as data (applies_from), never as
+  control flow. Amended 2026-10-04 (B132): the date is Article 27's row of
+  the reviewed table of Article 113 as amended (application_dates.py,
+  point (c)(i)), the table every classification and requirement group
+  reads.
   Added 2026-10-02 (B125): on a limited_risk or minimal_risk answer, an
   unknown Annex III fact that could make Article 27(1) apply keeps the
   answer unknown and is named in the block's missing_facts (the point 2
@@ -1093,7 +1121,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   3's definitions, those of general-purpose AI models included, are
   general provisions and take any_ai_system.
   The rule: one row per Article or Annex of the extraction scope
-  (data/graph_dumps/core_nodes.txt, 29 ids, 405 source units), each with
+  (data/graph_dumps/core_nodes.txt, 30 ids, 424 source units of the Act
+  as amended; 405 on the 2024 text; Article 4a joined with Chapter I's
+  value under this rule, B132, 2026-10-04), each with
   the Layer 1 wording that decides it; the value is read from the
   Article or Annex segment of source_node_id, not from the Chapter
   edges. The pipeline sets it when it assembles a norm, after the judge.
@@ -1255,15 +1285,42 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   from Omnibus fragments over the 2024 tree cannot give a partly amended
   container one source, and the consolidated text unchecked would rest on a
   documentation tool, one of whose 77 markers is mislabelled.
+  Amended 2026-10-04 (B132's second plan; spec G D-G68 (6) and (7)): the
+  answers follow the same text. The classifier cites Article 5(1) points
+  (ba) and (bb) as their nodes with Article 5(1a) and (1b); a third fact of
+  the Article 6(1) route names the Annex I section of the product's
+  legislation, the level unchanged under either section; for Section B
+  without an Annex III match the requirements are what Article 2(2)
+  applies, cited without norms, its condition on Articles 57 to 59 stated
+  and not decided, and no Article 50 duty is listed; with an Annex III
+  match the Annex III route decides, and while its Annex III facts are
+  unknown the answer requires human review; an unknown section on the
+  Article 6(1) route alone serves the Chapter III requirements and names
+  the fact. Every high_risk answer names the routes that hold, and
+  application dates are data by provision, by those routes, from a
+  reviewed table quoting Article 113 as amended (an Annex through the
+  Article that brings it into application; a wording the Omnibus inserted
+  or replaced no earlier than 27 July 2026; Article 111(4) a note on
+  Article 50(2)); every answer names the text it follows.
+  explain_requirement shows the source unit's earlier version on request,
+  or why it has none. The elicitor prompt is v7, the version of record for
+  B74; the extraction scope gains Article 4a; gates G3 and G4 refuse a norm
+  or alignment whose source unit is deleted, and the evaluation harness a
+  test-set item that cites one; the pre-B74 dev norms and alignments on
+  changed units are dropped.
   verify: src/tere4ai/parse_legal_structure/labels.py, units.py,
   amendments.py, consolidated.py and parser.py (build_layer1);
   src/tere4ai/ingest/sources.py; src/tere4ai/validate_graph/gates.py (G1,
-  G2, G6); src/tere4ai/mcp_server/spans.py (exclude);
+  G2, G3, G4, G6); src/tere4ai/mcp_server/spans.py (exclude);
+  src/tere4ai/mcp_server/application_dates.py, classify.py, requirements.py,
+  explain.py, backlog.py; prompts/elicit_features/v7.md;
   data/amendments/omnibus_markers.json, omnibus_exceptions.json;
   tests/unit/test_labels.py, test_letter_suffixed_numbers.py,
   test_formex_units.py, test_omnibus_markers.py,
   test_omnibus_unit_checks.py, test_in_force_tree.py,
-  test_in_force_build.py, tests/integration/test_acceptance_in_force.py.
+  test_in_force_build.py, test_application_dates.py, test_classify.py,
+  test_get_requirements.py, test_validate_graph.py,
+  tests/integration/test_acceptance_in_force.py.
 
 ## 17. Implementation-traceability convention
 

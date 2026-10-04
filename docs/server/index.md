@@ -4,7 +4,8 @@
 **The EU AI Act, as a knowledge graph your coding agent can call.**
 
 TERE4AI is an open-source MCP server for teams building AI systems under
-Regulation (EU) 2024/1689. A coding agent describes the system it is
+Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744 (the
+Digital Omnibus), the AI Act in force. A coding agent describes the system it is
 building and gets back a deterministic risk classification, engineering
 requirements traced to byte-exact legal text, judged alignments to the AI
 HLEG Trustworthy AI principles, and requirement-to-code traceability.
