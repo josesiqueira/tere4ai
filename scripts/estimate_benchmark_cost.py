@@ -51,10 +51,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.align_hleg import pipeline as align_pipeline  # noqa: E402
 from tere4ai.elicit_features import render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
 from tere4ai.eval.harness import load_benchmark_items, run_eval  # noqa: E402
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
+from tere4ai.extract_norms import pipeline as extract_pipeline  # noqa: E402
 from tere4ai.judge.config import (  # noqa: E402
     _ISO_DAY,
     ConfigurationError,
@@ -63,6 +65,7 @@ from tere4ai.judge.config import (  # noqa: E402
     load_dotenv_once,
     load_model_parameters,
 )
+from tere4ai.mcp_server.backlog import generate_control_backlog  # noqa: E402
 
 BENCH_DIR = ROOT / "data" / "snapshots" / "benchmark"
 SAMPLE_PATH = ROOT / "eval" / "gold" / "benchmark_sample.json"
@@ -178,18 +181,316 @@ def tokens(chars: int | float) -> int:
 
 
 class CountingClient:
-    """ModelClient stand-in: records prompt sizes, returns a parseable stub."""
+    """ModelClient stand-in: records prompt and reply sizes, returns a
+    parseable stub. reply is one dict sent on every call, or a function of
+    (system, user) giving the dict for that call."""
 
-    def __init__(self, model: str, reply: dict[str, Any]):
+    def __init__(self, model: str, reply: Any):
         self.model = model
-        self._reply = json.dumps(reply)
+        self._reply = reply
         self.calls = 0
         self.prompt_chars = 0
+        self.out_chars = 0
+        self.last_user = ""
 
     def complete(self, system: str, user: str) -> str:
         self.calls += 1
         self.prompt_chars += len(system) + len(user)
-        return self._reply
+        self.last_user = user
+        reply = json.dumps(self._reply(system, user) if callable(self._reply) else self._reply)
+        self.out_chars += len(reply)
+        return reply
+
+
+# ------------------------------------------------------------------ B120
+# The ratios the token model uses. Each carries its source, printed in the
+# report beside the figure (ruling R7). Nothing here is a price.
+RATIOS: dict[str, dict[str, Any]] = {
+    "chars_per_token_openai": {
+        "value": 4.12,
+        "source": (
+            "recomputed 2026-10-04 from the aborted B74 extraction (data/graph_dumps/"
+            "norms_core.b74.json build.extraction_usage, 2026-09-16): extract_norms v1's prompt "
+            "rendered over the 405 source units that run saw, divided by its 475,017 measured "
+            "generator input tokens; the plan's 4.22 divided the characters of 414 units by the "
+            "tokens of 405 calls"
+        ),
+    },
+    "chars_per_token_anthropic": {
+        "value": 2.92,
+        "source": (
+            "recomputed 2026-10-04 from the same run: judge_norms v1 rendered over its 505 "
+            "candidates, divided by the 905,340 measured judge input tokens (the Claude API "
+            "skill states Opus 5.5 keeps Opus 5's tokenizer); this replaced chars/4, which "
+            "under-counted the judge by 1.81 times in July (HISTORY 2026-07-11)"
+        ),
+    },
+    "input_band": {
+        "value": 0.10,
+        "source": "declared: plus or minus 10 percent on every input token count",
+    },
+    "candidates_per_unit": {
+        "value": 1.247,
+        "source": "the aborted B74 extraction: 505 candidates over 405 source units (the run's generator)",
+    },
+    "accepted_share": {
+        "value": 0.885,
+        "source": "the aborted B74 extraction: 447 accepted over 505 judged candidates",
+    },
+    "align_judge_per_accepted": {
+        "value": 1.15,
+        "source": "the aborted B74 alignment checkpoint: 302 judge calls over 262 generator calls",
+    },
+    "reasoning_share_central": {
+        "value": 0.82,
+        "source": (
+            "the only xhigh measurement, the luna model of the GPT-6 family in the dashboard's B88 run (2026-09-26): "
+            "310 of 379 output tokens were reasoning; applied to both declared models"
+        ),
+    },
+    "reasoning_share_high": {
+        "value": 0.90,
+        "source": "declared: reasoning ten times the visible output",
+    },
+    "backlog_generator_billed_tokens": {
+        "value": 1510.0,
+        "source": (
+            "the one measured xhigh backlog call of the declared generator (dashboard project_events 111209, "
+            "2026-09-27, Article 8): 1,510 billed output tokens, reasoning not separable; read as "
+            "carrying the central reasoning share"
+        ),
+    },
+}
+
+B74_NORMS = ROOT / "data" / "graph_dumps" / "norms_core.b74.json"
+JULY_NORMS = ROOT / "data" / "graph_dumps" / "norms_core.json"
+JULY_ALIGNMENTS = ROOT / "data" / "graph_dumps" / "alignments_core.json"
+CORE_NODES = ROOT / "data" / "graph_dumps" / "core_nodes.txt"
+# Mock data for the backlog step, copied from tere4ai-dashboard scripts/seed.ts
+# (the CredScore demo project, line 114): the description a real backlog call
+# for Article 25 would send as the system context.
+CREDSCORE_DESCRIPTION = (
+    "CredScore is a machine learning service that evaluates the creditworthiness of natural "
+    "persons applying for consumer loans, producing a score and a recommendation that loan "
+    "officers use in their decisions and can override. It is not a fraud detection tool, and is "
+    "deployed by a private company under EU jurisdiction as a private entity providing an "
+    "essential private service (consumer credit)."
+)
+BACKLOG_ARTICLE = "eu-ai-act:article-25"
+
+
+def ratio(name: str) -> float:
+    return float(RATIOS[name]["value"])
+
+
+def core_node_ids(path: Path | None = None) -> list[str]:
+    """The ids of the core slice (core_nodes.txt, one comma-separated line)."""
+    text = (path or CORE_NODES).read_text(encoding="utf-8")
+    return [node_id.strip() for node_id in text.split(",") if node_id.strip()]
+
+
+def _mean(values: list[float], default: float = 0.0) -> float:
+    return statistics.mean(values) if values else default
+
+
+def _judge_reply_chars(run: dict[str, Any], keys: tuple[str, ...]) -> int:
+    return len(json.dumps({key: run.get(key) for key in keys if key in run}, ensure_ascii=False))
+
+
+def _norm_reply(norms: list[dict[str, Any]]) -> dict[str, Any]:
+    """The reply the extractor sent for one unit: the candidate fields of its norms."""
+    fields = [key for key in extract_pipeline._NORM_CANDIDATE_FIELDS if key != "target_system_category"]
+    return {"norms": [{key: norm[key] for key in fields if key in norm} for norm in norms]}
+
+
+def extraction_lines(
+    dump: dict[str, Any],
+    node_ids: list[str],
+    july_norms: list[dict[str, Any]],
+    july_judge_runs: list[dict[str, Any]],
+    tmp_dir: Path,
+) -> tuple[dict[str, dict[str, Any]], float]:
+    """Layer 2 dry run: extract_norms() with counting clients, the generator
+    scripted to reply each unit's July norms (an empty list for a unit with
+    none), the judge a stub verdict. One generator call per unit, the real
+    prompt; the judge's input is the pipeline's own _judge_user_message over
+    each candidate. Judge calls are units x candidates per unit, at the mean
+    judge input of the dry run. Returns ({"generator", "judge"} lines,
+    estimated candidates)."""
+    by_unit: dict[str, list[dict[str, Any]]] = {}
+    for norm in july_norms:
+        by_unit.setdefault(norm["source_node_id"], []).append(norm)
+
+    def reply(_system: str, user: str) -> dict[str, Any]:
+        node_id = user.split("\n", 1)[0].removeprefix("Source unit node id: ")
+        return _norm_reply(by_unit.get(node_id, []))
+
+    judge_stub = {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"}
+    gen = CountingClient("generator", reply)
+    judge = CountingClient("judge", judge_stub)
+    result = extract_pipeline.extract_norms(
+        dump, node_ids, gen, judge, log_path=tmp_dir / "extraction_log.jsonl")
+    units = result["stats"]["source_units"]
+    if judge.calls == 0:
+        raise SystemExit("the extraction dry run reached the judge zero times: no candidate to size")
+    candidates = units * ratio("candidates_per_unit")
+    judge_calls = round(candidates)
+    judge_out = _mean([_judge_reply_chars(run, ("verdict", "scores", "rationale"))
+                       for run in july_judge_runs], judge.out_chars / judge.calls)
+    return {
+        "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars, "out_chars": gen.out_chars},
+        "judge": {"calls": judge_calls, "in_chars": judge_calls * judge.prompt_chars / judge.calls,
+                  "out_chars": judge_calls * judge_out},
+    }, candidates
+
+
+def alignment_lines(
+    norms: list[dict[str, Any]],
+    hleg_nodes: list[dict[str, Any]],
+    assertions: list[dict[str, Any]],
+    judge_runs: list[dict[str, Any]],
+    accepted_norms: float,
+    tmp_dir: Path,
+) -> dict[str, Any]:
+    """Layer 3 dry run: align_norms() over the accepted norms (source_text
+    attached) with a generator replying no candidates, so the generator's
+    input is the pipeline's own. Generator calls are accepted_norms (the
+    extraction's candidates x the accepted share); its output is the size of
+    the July reply per norm. The judge's input is align's own
+    _judge_user_message over the July assertions; judge calls are
+    accepted_norms x alignment judge calls per accepted norm."""
+    gen = CountingClient("generator", {"alignments": []})
+    judge = CountingClient("judge", {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"})
+    align_pipeline.align_norms(
+        norms, hleg_nodes, gen, judge, log_path=tmp_dir / "alignment_log.jsonl")
+    if gen.calls == 0:
+        raise SystemExit("the alignment dry run made no generator call: no accepted norm")
+    accepted = {n["norm_id"]: n for n in norms if n.get("judge_verdict") == "accepted"}
+    hleg_by_id = {node["id"]: node for node in hleg_nodes}
+    judge_system = align_pipeline.load_prompt("judge_alignment", "v1")
+    keys = ("target_id", "relation_type", "source_quote", "target_quote", "rationale")
+    per_norm: dict[str, list[dict[str, Any]]] = {norm_id: [] for norm_id in accepted}
+    judge_in: list[int] = []
+    for a in assertions:
+        norm = accepted.get(a["source_norm_id"])
+        target = hleg_by_id.get(a["target_id"])
+        if norm is None or target is None:
+            continue
+        candidate = {key: a.get(key) for key in keys}
+        per_norm[norm["norm_id"]].append(candidate)
+        judge_in.append(len(judge_system) + len(align_pipeline._judge_user_message(norm, target, candidate)))
+    gen_out = _mean([len(json.dumps({"alignments": c}, ensure_ascii=False)) for c in per_norm.values()])
+    mapping = [run for run in judge_runs
+               if run.get("judge_kind", "mapping") == "mapping"
+               and run.get("judge_model") != align_pipeline.MECHANICAL_JUDGE_MODEL]
+    judge_out = _mean([_judge_reply_chars(run, ("verdict", "scores", "rationale", "corrected_relation_type"))
+                       for run in mapping])
+    judge_calls = round(accepted_norms * ratio("align_judge_per_accepted"))
+    return {
+        "dry_generator_calls": gen.calls,
+        "generator": {"calls": round(accepted_norms),
+                      "in_chars": round(accepted_norms) * gen.prompt_chars / gen.calls,
+                      "out_chars": round(accepted_norms) * gen_out},
+        "judge": {"calls": judge_calls, "in_chars": judge_calls * _mean(judge_in),
+                  "out_chars": judge_calls * judge_out},
+    }
+
+
+def backlog_lines(
+    norms: list[dict[str, Any]],
+    system_context: str,
+    tmp_dir: Path,
+) -> dict[str, dict[str, Any]]:
+    """Backlog dry run: generate_control_backlog() with counting clients over
+    the accepted norms and the system description. One generator call and one
+    runtime-judge call. The generator's output is the one measured call's
+    billed tokens, turned back into visible characters at the central
+    reasoning share (the report prices it at every share from that)."""
+    norm_ids = [norm["norm_id"] for norm in norms]
+    item = {"title": "Dry-run control", "description": "Dry-run stub.", "norm_ids": norm_ids,
+            "suggested_evidence": ["dry-run evidence"], "priority": "must", "requirement_type": None}
+    gen = CountingClient("generator", {"items": [item]})
+    judge = CountingClient("judge", {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"})
+    generate_control_backlog(norms, system_context, gen, judge, log_path=tmp_dir / "backlog_log.jsonl")
+    visible_tokens = (ratio("backlog_generator_billed_tokens")
+                      * (1 - ratio("reasoning_share_central")))
+    return {
+        "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars,
+                      "out_chars": visible_tokens * ratio("chars_per_token_openai")},
+        "judge": {"calls": judge.calls, "in_chars": judge.prompt_chars,
+                  "out_chars": observed_judge_reply_chars()},
+    }
+
+
+def _b74_source_units(dump: dict[str, Any], node_ids: list[str]) -> list[dict[str, Any]]:
+    """The 405 source units the aborted B74 extraction saw: the core slice's
+    units as they stand in the dump, the deleted ones included (the dump now
+    holds the Omnibus units that run could not see, and the extraction no
+    longer expands the deleted ones), the inserted ones left out."""
+    nodes = extract_pipeline._index_nodes(dump)
+    units = []
+    for node in dump["nodes"]:
+        in_scope = any(node["id"] == i or node["id"].startswith(i + ":") for i in node_ids)
+        if node.get("type") in extract_pipeline.SOURCE_UNIT_TYPES and in_scope \
+                and node.get("amendment") != "inserted":
+            units.append({"node_id": node["id"], "text": node.get("text", ""),
+                          "article_context": extract_pipeline._article_context_title(node["id"], nodes)})
+    return units
+
+
+def recompute_chars_per_token(
+    b74_path: Path | None = None, dump_path: Path | None = None,
+) -> dict[str, float]:
+    """The two characters-per-token ratios, recomputed offline from the
+    aborted B74 extraction: its v1 prompts rendered over the units and
+    candidates it saw, divided by the input tokens it measured."""
+    b74 = json.loads((b74_path or B74_NORMS).read_text(encoding="utf-8"))
+    dump = json.loads((dump_path or ELICIT_DUMP).read_text(encoding="utf-8"))
+    usage = b74["build"]["extraction_usage"]
+    version = b74["build"]["prompt_version"]
+    units = _b74_source_units(dump, core_node_ids())
+    system = extract_pipeline.load_prompt("extract_norms", version)
+    gen_chars = sum(len(system) + len(extract_pipeline._generator_user_message(u)) for u in units)
+
+    nodes = extract_pipeline._index_nodes(dump)
+    judge_system = extract_pipeline.load_prompt("judge_norms", version)
+    fields = [k for k in extract_pipeline._NORM_CANDIDATE_FIELDS if k != "requirement_type"]
+    with_inference = version not in extract_pipeline._PROMPTS_WITHOUT_INFERENCE_TEXT
+    judge_chars = 0
+    for norm in b74["norms"]:
+        node = nodes[norm["source_node_id"]]
+        unit = {"node_id": node["id"], "text": node.get("text", "")}
+        candidate = {key: norm.get(key) for key in fields if key in norm}
+        block = extract_pipeline._inference_source_block(dump, nodes, unit, candidate) if with_inference else None
+        judge_chars += len(judge_system) + len(extract_pipeline._judge_user_message(unit, candidate, block))
+    return {"openai": gen_chars / usage["generator"]["input_tokens"],
+            "anthropic": judge_chars / usage["judge"]["input_tokens"]}
+
+
+def default_reasoning_shares(payload: dict[str, Any]) -> dict[str, float]:
+    """The share of billed output that was reasoning at the provider default
+    (the low end of the declared band): 1 minus the visible reply's tokens
+    over the billed output tokens per call, from the aborted B74 extraction.
+    The generator's visible reply is the candidate fields of the norms of
+    its unit (an empty list for a unit with none); the judge's is its
+    verdict, scores and rationale."""
+    usage = payload["build"]["extraction_usage"]
+    fields = [k for k in extract_pipeline._NORM_CANDIDATE_FIELDS if k != "requirement_type"]
+    by_unit: dict[str, list[dict[str, Any]]] = {}
+    for norm in payload["norms"]:
+        by_unit.setdefault(norm["source_node_id"], []).append(
+            {key: norm[key] for key in fields if key in norm})
+    units = payload["stats"]["source_units"]
+    gen_chars = sum(len(json.dumps({"norms": v}, ensure_ascii=False)) for v in by_unit.values())
+    gen_chars += (units - len(by_unit)) * len(json.dumps({"norms": []}))
+    judge_chars = sum(_judge_reply_chars(run, ("verdict", "scores", "rationale"))
+                      for run in payload["judge_runs"])
+    gen_visible = gen_chars / usage["generator"]["calls"] / ratio("chars_per_token_openai")
+    judge_visible = judge_chars / usage["judge"]["calls"] / ratio("chars_per_token_anthropic")
+    gen_billed = usage["generator"]["output_tokens"] / usage["generator"]["calls"]
+    judge_billed = usage["judge"]["output_tokens"] / usage["judge"]["calls"]
+    return {"generator": 1 - gen_visible / gen_billed, "judge": 1 - judge_visible / judge_billed}
+
 
 
 def elicit_system_prompt() -> str:

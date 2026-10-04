@@ -238,3 +238,169 @@ def test_the_repository_price_file_loads_and_both_rows_read_2026_10_04():
         assert row["pricing"]["url"].startswith("https://")
     assert (prices["claude-opus-5-5"]["input"], prices["claude-opus-5-5"]["output"]) == (4.0, 20.0)
     assert (prices["gpt-6-astra"]["input"], prices["gpt-6-astra"]["output"]) == (10.0, 50.0)
+
+
+# ---------------------------------------------------------------- B120 task 2
+# dry runs of the build steps: counting clients, the real pipelines, mock data
+
+from tere4ai.extract_norms import pipeline as extract_pipeline  # noqa: E402
+
+DUMPS = ROOT / "data" / "graph_dumps"
+B74_NORMS = DUMPS / "norms_core.b74.json"
+
+
+def _unit_node(node_id, text, span):
+    return {"id": node_id, "layer": 1, "type": "Paragraph", "text": text, "amendment": "unchanged",
+            "source_span": {"span_id": span}}
+
+
+def _mock_dump():
+    """Mock data: one Article holding two paragraphs."""
+    return {
+        "build": {"build_id": "build-mock"},
+        "nodes": [
+            {"id": "eu-ai-act:article-9", "layer": 1, "type": "Article", "number": "9",
+             "title": "Mock article"},
+            _unit_node("eu-ai-act:article-9:paragraph-1",
+                       "1. A risk management system shall be established.", "span:009.001"),
+            _unit_node("eu-ai-act:article-9:paragraph-2",
+                       "2. The risk management system shall be documented.", "span:009.002"),
+        ],
+        "edges": [],
+    }
+
+
+def _mock_norm(node_id, n=1, verdict="accepted"):
+    return {
+        "norm_id": f"norm:{node_id}:n{n}", "layer": 2, "type": "NormativeStatement",
+        "source_node_id": node_id, "source_span_id": "span:009.001",
+        "deontic_type": "obligation", "modal": "shall", "actor_explicit": None,
+        "actor_inferred": "provider", "actor_inference_source_node_id": node_id,
+        "action": "establish", "object": "a risk management system",
+        "target_system_category": None, "conditions": [], "exceptions": [],
+        "lifecycle_phase_ids": [], "judge_verdict": verdict,
+        "source_text": "1. A risk management system shall be established.",
+    }
+
+
+def _mock_judge_run(norm):
+    return {"id": norm["judge_run_id"], "verdict": "accepted",
+            "scores": {"semantic_similarity": 0.9}, "rationale": "mock rationale"}
+
+
+def test_every_ratio_has_a_value_and_a_source():
+    assert est.RATIOS
+    for name, ratio in est.RATIOS.items():
+        assert isinstance(ratio["value"], float) and ratio["value"] > 0, name
+        assert isinstance(ratio["source"], str) and ratio["source"].strip(), name
+
+
+def test_the_counting_client_scripts_a_reply_per_call_and_counts_its_characters():
+    client = est.CountingClient("mock", lambda system, user: {"echo": user})
+    client.complete("s", "abc")
+    client.complete("s", "defg")
+    assert client.calls == 2 and client.last_user == "defg"
+    assert client.out_chars == len(json.dumps({"echo": "abc"})) + len(json.dumps({"echo": "defg"}))
+
+
+def test_the_extraction_dry_run_calls_the_generator_once_per_unit_with_the_real_prompt(tmp_path):
+    dump = _mock_dump()
+    ids = ["eu-ai-act:article-9"]
+    norm = _mock_norm("eu-ai-act:article-9:paragraph-1")
+    lines, candidates = est.extraction_lines(dump, ids, [norm], [], tmp_path)
+    units = extract_pipeline.expand_source_units(dump, ids)
+    system = extract_pipeline.load_prompt("extract_norms", extract_pipeline.DEFAULT_PROMPT_VERSION)
+    gen = lines["generator"]
+    assert gen["calls"] == len(units) == 2
+    assert gen["in_chars"] == sum(
+        len(system) + len(extract_pipeline._generator_user_message(u)) for u in units)
+    # the scripted July reply for the unit with a norm, an empty list for the other
+    assert gen["out_chars"] > 2 * len('{"norms": []}')
+
+
+def test_the_extraction_dry_run_counts_judge_input_from_the_pipelines_own_message(tmp_path):
+    dump = _mock_dump()
+    ids = ["eu-ai-act:article-9"]
+    norm = _mock_norm("eu-ai-act:article-9:paragraph-1")
+    lines, candidates = est.extraction_lines(dump, ids, [norm], [], tmp_path)
+    judge_system = extract_pipeline.load_prompt("judge_norms", extract_pipeline.DEFAULT_PROMPT_VERSION)
+    unit = extract_pipeline.expand_source_units(dump, ids)[0]
+    nodes = extract_pipeline._index_nodes(dump)
+    candidate = {k: norm[k] for k in ("deontic_type", "modal", "actor_explicit", "actor_inferred",
+                                      "actor_inference_source_node_id", "action", "object",
+                                      "conditions", "exceptions") if k in norm}
+    candidate["requirement_type"] = None
+    one = len(judge_system) + len(extract_pipeline._judge_user_message(
+        unit, candidate, extract_pipeline._inference_source_block(dump, nodes, unit, candidate)))
+    judge = lines["judge"]
+    # one candidate in the mock: judge calls = units x candidates per unit, at the mean input
+    assert candidates == pytest.approx(2 * est.RATIOS["candidates_per_unit"]["value"])
+    assert judge["calls"] == round(candidates)
+    assert judge["in_chars"] == pytest.approx(judge["calls"] * one, rel=0.02)
+
+
+def test_the_alignment_dry_run_calls_the_generator_once_per_accepted_norm(tmp_path):
+    accepted = [_mock_norm("eu-ai-act:article-9:paragraph-1"),
+                _mock_norm("eu-ai-act:article-9:paragraph-2")]
+    rejected = _mock_norm("eu-ai-act:article-9:paragraph-2", n=2, verdict="rejected")
+    hleg = [{"id": "hleg:transparency", "name": "Transparency",
+             "description": "Mock description of transparency.",
+             "source_span": {"span_id": "span:hleg:req4"}}]
+    assertions = [{"source_norm_id": accepted[0]["norm_id"], "target_id": "hleg:transparency",
+                   "relation_type": "supports", "source_quote": "risk management system",
+                   "target_quote": "transparency", "rationale": "mock", "judge_run_id": "j1"}]
+    judge_runs = [{"id": "j1", "judge_kind": "mapping", "verdict": "accepted",
+                   "scores": {"semantic_similarity": 0.9}, "rationale": "mock rationale",
+                   "corrected_relation_type": None}]
+    lines = est.alignment_lines(accepted + [rejected], hleg, assertions, judge_runs,
+                                accepted_norms=10, tmp_dir=tmp_path)
+    gen = lines["generator"]
+    assert gen["calls"] == 10  # scaled from the dry run's 2 accepted norms
+    assert lines["dry_generator_calls"] == 2
+    assert gen["out_chars"] > 0
+    assert lines["judge"]["calls"] == round(10 * est.RATIOS["align_judge_per_accepted"]["value"])
+    assert lines["judge"]["in_chars"] > 0 and lines["judge"]["out_chars"] > 0
+
+
+def test_the_backlog_dry_run_makes_one_call_per_role(tmp_path):
+    norms = [_mock_norm("eu-ai-act:article-25:paragraph-1")]
+    norms[0]["norm_id"] = "norm:eu-ai-act:article-25:paragraph-1:n1"
+    lines = est.backlog_lines(norms, "Mock system description.", tmp_path)
+    assert lines["generator"]["calls"] == 1 and lines["judge"]["calls"] == 1
+    assert lines["generator"]["in_chars"] > 0 and lines["judge"]["in_chars"] > 0
+
+
+@pytest.mark.skipif(not est.ELICIT_DUMP.is_file(), reason="layer1.json dump not built")
+def test_the_extraction_dry_run_expands_core_nodes_to_424_units():
+    dump = json.loads(est.ELICIT_DUMP.read_text(encoding="utf-8"))
+    ids = est.core_node_ids()
+    assert len(ids) == 30
+    assert len(extract_pipeline.expand_source_units(dump, ids)) == 424
+
+
+@pytest.mark.skipif(not (B74_NORMS.is_file() and est.ELICIT_DUMP.is_file()),
+                    reason="the aborted extraction's dump is not on disk")
+def test_the_characters_per_token_ratios_recompute_from_the_aborted_run():
+    measured = est.recompute_chars_per_token()
+    for provider in ("openai", "anthropic"):
+        assert measured[provider] == pytest.approx(est.RATIOS[f"chars_per_token_{provider}"]["value"],
+                                                   rel=0.01)
+
+
+def test_the_default_reasoning_share_is_billed_output_against_the_visible_reply():
+    gen_norms = [{"source_node_id": f"u{i}", "deontic_type": "obligation"} for i in range(2)]
+    payload = {
+        "build": {"extraction_usage": {"generator": {"calls": 4, "output_tokens": 4 * 100},
+                                       "judge": {"calls": 2, "output_tokens": 2 * 200}},
+                  "prompt_version": "v1"},
+        "stats": {"source_units": 4},
+        "norms": gen_norms,
+        "judge_runs": [{"verdict": "accepted", "scores": {}, "rationale": "r" * 100},
+                       {"verdict": "accepted", "scores": {}, "rationale": "r" * 100}],
+    }
+    shares = est.default_reasoning_shares(payload)
+    assert 0 < shares["generator"] < 1 and 0 < shares["judge"] < 1
+    visible = sum(len(json.dumps({"norms": [{"deontic_type": "obligation"}]})) for _ in range(2))
+    visible += 2 * len(json.dumps({"norms": []}))
+    expected = 1 - (visible / 4 / est.RATIOS["chars_per_token_openai"]["value"]) / 100
+    assert shares["generator"] == pytest.approx(expected)
