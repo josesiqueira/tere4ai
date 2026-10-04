@@ -50,8 +50,10 @@ def test_counting_client_records_and_replies():
     assert client.prompt_chars == len("system prompt") + len("user text")
 
 
-def test_tokens_uses_chars_per_token():
-    assert est.tokens(400) == int(round(400 / est.CHARS_PER_TOKEN))
+def test_tokens_use_the_providers_own_ratio_not_four():
+    assert est.tokens(412, "openai") == 100
+    assert est.tokens(292, "anthropic") == 100
+    assert est.tokens(400, "openai") != int(round(400 / 4.0))
 
 
 @pytest.mark.skipif(not FULL_FILES_PRESENT, reason="full benchmark files not downloaded")
@@ -114,34 +116,6 @@ def test_a_condition_the_july_checkpoint_lacks_takes_its_proxy_output_size():
     assert est.output_chars_for(out, "graph_runtime_judge") == (out["graph_no_judge"], "graph_no_judge")
     assert est.output_chars_for(out, "graph_no_judge") == (out["graph_no_judge"], None)
     assert est.output_chars_for(out, "plain_llm") == ({}, None)
-
-
-def test_main_charges_the_sixth_condition_the_proxy_output_size(tmp_path, monkeypatch):
-    # B126 final review M2: the estimate itself, not only the helper, gives
-    # graph_runtime_judge graph_no_judge's observed answer size
-    def fake_run_eval(subset, names, generator_factory, judge_factory, **_kwargs):
-        gen = generator_factory()
-        for _item in subset:
-            gen.complete("system", "user")
-
-    monkeypatch.setenv("TERE4AI_GENERATOR_MODEL", "gpt-6-astra")
-    monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-opus-5-5")
-    monkeypatch.setattr(est, "load_dotenv_once", lambda: None)
-    monkeypatch.setattr(est, "ROOT", tmp_path)
-    monkeypatch.setattr(est, "OUT_PATH", tmp_path / "estimate.md")
-    monkeypatch.setattr(est, "verify_full_benchmark", lambda: tmp_path / "bench.json")
-    monkeypatch.setattr(est, "load_benchmark_items",
-                        lambda _p: [{"id": "bench:qa:1", "kind": "qa", "question": "q"}])
-    monkeypatch.setattr(est, "observed_output_chars", lambda: {"graph_no_judge": {"qa": 4000.0}})
-    monkeypatch.setattr(est, "observed_judge_reply_chars", lambda: 700.0)
-    monkeypatch.setattr(est, "elicitation_output_chars", lambda _facts: (100.0, None))
-    monkeypatch.setattr(est, "STRATEGY_NAMES", ("graph_no_judge", "graph_runtime_judge"))
-    monkeypatch.setattr(est, "run_eval", fake_run_eval)
-    assert est.main() == 0
-    rows = {line.split("|")[1].strip(): [c.strip() for c in line.split("|")[2:-1]]
-            for line in (tmp_path / "estimate.md").read_text(encoding="utf-8").splitlines()
-            if line.startswith("| graph_")}
-    assert rows["graph_runtime_judge"][2] == rows["graph_no_judge"][2] != "0"
 
 
 # ---------------------------------------------------------------- B120 task 1
@@ -404,3 +378,123 @@ def test_the_default_reasoning_share_is_billed_output_against_the_visible_reply(
     visible += 2 * len(json.dumps({"norms": []}))
     expected = 1 - (visible / 4 / est.RATIOS["chars_per_token_openai"]["value"]) / 100
     assert shares["generator"] == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------- B120 task 3
+# the token model, the report, the regeneration (mock data throughout)
+
+N_MOCK_ITEMS = [
+    {"id": "bench:scenario:0", "kind": "classification", "system_text": "x" * 400,
+     "system_features": None},
+    {"id": "bench:qa:1", "kind": "qa", "question": "q"},
+]
+
+
+def _fake_run_eval(subset, names, generator_factory, judge_factory, **_kwargs):
+    gen = generator_factory()
+    for _item in subset:
+        gen.complete("system", "user")
+    judge = judge_factory()
+    if "graph_runtime_judge" in names:
+        for _item in subset:
+            judge.complete("system", "user")
+
+
+def _mock_inputs():
+    norm = _mock_norm("eu-ai-act:article-9:paragraph-1")
+    norm["judge_run_id"] = "judgerun:mock"
+    return {
+        "dump": _mock_dump(),
+        "node_ids": ["eu-ai-act:article-9"],
+        "july_norms": [norm],
+        "july_judge_runs": [_mock_judge_run(norm)],
+        "assertions": [{"source_norm_id": norm["norm_id"], "target_id": "hleg:transparency",
+                        "relation_type": "supports", "source_quote": "risk management system",
+                        "target_quote": "transparency", "rationale": "mock", "judge_run_id": "j1"}],
+        "alignment_judge_runs": [{"id": "j1", "judge_kind": "mapping", "verdict": "accepted",
+                                  "scores": {}, "rationale": "mock", "corrected_relation_type": None}],
+        "hleg_nodes": [{"id": "hleg:transparency", "name": "Transparency",
+                        "description": "Mock description of transparency.",
+                        "source_span": {"span_id": "span:hleg:req4"}}],
+        "reasoning_low": {"generator": 0.3, "judge": 0.4},
+        "ablation_items": N_MOCK_ITEMS,
+        "full_items": N_MOCK_ITEMS * 3,
+        "full_note": None,
+        "out_chars": {"graph_no_judge": {"qa": 4000.0, "classification": 800.0},
+                      "plain_llm": {"qa": 900.0, "classification": 300.0}},
+        "judge_reply_chars": 700.0,
+        "elicit_system_chars": 20000,
+        "elicit_out_chars": 300.0,
+        "elicit_note": None,
+        "backlog_norms": [dict(_mock_norm("eu-ai-act:article-25:paragraph-1"),
+                               norm_id="norm:eu-ai-act:article-25:paragraph-1:n1")],
+    }
+
+
+@pytest.fixture
+def mock_report(tmp_path, monkeypatch):
+    monkeypatch.setenv("TERE4AI_GENERATOR_MODEL", "gpt-6-astra")
+    monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-opus-5-5")
+    monkeypatch.setattr(est, "load_dotenv_once", lambda: None)
+    monkeypatch.setattr(est, "OUT_PATH", tmp_path / "estimate.md")
+    monkeypatch.setattr(est, "load_inputs", _mock_inputs)
+    monkeypatch.setattr(est, "STRATEGY_NAMES", ("plain_llm", "graph_no_judge", "graph_runtime_judge"))
+    monkeypatch.setattr(est, "run_eval", _fake_run_eval)
+    assert est.main() == 0
+    return (tmp_path / "estimate.md").read_text(encoding="utf-8")
+
+
+def test_the_report_names_both_models_with_effort_and_each_price_with_its_page_and_day(mock_report):
+    for text in ("gpt-6-astra", "claude-opus-5-5", "effort xhigh",
+                 "https://developers.openai.com/api/docs/pricing",
+                 "https://platform.claude.com/docs/en/about-claude/pricing",
+                 "read 2026-10-04"):
+        assert text in mock_report
+    assert "10.00 USD in" in mock_report and "20.00 USD out" in mock_report
+
+
+def test_the_report_has_one_row_per_step_and_role(mock_report):
+    for step in ("Layer 2 extraction", "Layer 3 alignment", "Control backlog",
+                 "E6 elicitation", "E6 ablation, one repetition"):
+        assert step in mock_report
+    row = next(line for line in mock_report.splitlines() if line.startswith("| Layer 2 extraction | generator"))
+    assert len(row.split("|")) == 11  # step, role, calls, in, visible, billed, low, central, high
+
+
+def test_the_report_prices_the_ablation_per_repetition_and_at_n(mock_report):
+    assert "E6 ablation, one repetition" in mock_report
+    assert "E6 ablation, 10 repetitions" in mock_report
+    assert "one repetition costs" in mock_report
+
+
+def test_the_report_states_the_campaigns_cost_nothing_and_excludes_the_calibration_runs(mock_report):
+    assert "Campaigns: 0 USD" in mock_report
+    assert "calibration judge runs" in mock_report and "excluded" in mock_report
+    assert "D-F17" in mock_report and "B68" in mock_report
+
+
+def test_the_report_has_a_batch_line_and_names_each_ratio_with_its_source(mock_report):
+    assert "Batch" in mock_report and "not in the total" in mock_report
+    for name, ratio in est.RATIOS.items():
+        assert ratio["source"] in mock_report, name
+    assert "reasoning share" in mock_report
+
+
+def test_the_report_ends_with_the_total_and_its_band(mock_report):
+    import re
+
+    match = re.search(r"Total for the B74 sequence: ([\d.,]+) USD \(band ([\d.,]+) to ([\d.,]+)\)", mock_report)
+    assert match
+    total, low, high = (float(g.replace(",", "")) for g in match.groups())
+    assert low < total < high
+
+
+def test_the_report_counts_tokens_with_the_provider_ratio(mock_report):
+    # the elicitation row: 1 call, 20000 + 400 characters in, at the generator's ratio
+    row = next(line for line in mock_report.splitlines() if line.startswith("| E6 elicitation"))
+    in_tokens = int(row.split("|")[4].strip().replace(",", ""))
+    assert in_tokens == round(20400 / est.RATIOS["chars_per_token_openai"]["value"])
+
+
+def test_the_report_has_no_dash_sentence_breaks(mock_report):
+    assert "\u2014" not in mock_report and "\u2013" not in mock_report

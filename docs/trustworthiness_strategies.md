@@ -369,11 +369,14 @@ merit, this document says so explicitly instead of inventing a citation.
 ### 33. Cost gating before paid runs
 - Grounding: engineering merit (spend control, honest token accounting);
   REF-15 tagged.
-- Implementation: scripts/estimate_benchmark_cost.py:73-118 (dry run through
-  the real strategy code; prices only from env, never invented).
+- Implementation: scripts/estimate_benchmark_cost.py (B120: a dry run through
+  the real pipeline and strategy code with counting clients; the prices are
+  data in config/model_prices.json, each row with its pricing page and the day
+  it was read, and the script names no model).
 - Tests: tests/unit/test_benchmark_cost_estimator.py.
-- See it: docs/benchmark_cost_estimate.md, including the recorded
-  estimate-vs-actual miss (5.33 quoted, 9.63 measured) kept as a lesson.
+- See it: docs/benchmark_cost_estimate.md (the total for the B74 sequence with
+  its band); the July estimate-vs-actual miss (5.33 quoted, 9.63 measured) is
+  recorded in eval/results/FULL_RUN_ANALYSIS.md and kept as a lesson.
 
 ## The author's own lineage (SELF papers)
 

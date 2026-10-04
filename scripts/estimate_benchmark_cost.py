@@ -1,29 +1,33 @@
-"""Full-benchmark cost estimator: dry-run the ladder, count tokens, price it.
+"""Cost estimator for the B74 sequence: dry-run every step, count tokens, price it.
 
-@implements: DEC-11 (partial: cost gate for the full-benchmark ablation, dry run only)
+@implements: DEC-11 (partial: cost estimate for the B74 sequence, dry run only)
 @grounded_by: REF-15
 
-The full REF-15 benchmark (339 scenarios + 137 QA pairs) is frozen under
-data/snapshots/benchmark/ with sha256 checksums matching the provenance
-recorded in eval/gold/benchmark_sample.json. This script runs the REAL
-strategy code (src/tere4ai/eval/strategies.py) over ALL items with a
-counting stand-in client, so every prompt is the exact prompt a live run
-would send; no model is called and no network is touched.
+The sequence is Layer 2 extraction, Layer 3 alignment, the control backlog,
+the benchmark elicitation and the E6 ablation (spec G Section 10.4, repeated
+N times); campaigns cost nothing and the calibration judge runs are not in
+it. Every step runs the REAL pipeline code (extract_norms, align_norms,
+generate_control_backlog, the ablation strategies) with counting stand-in
+clients, so every prompt is the exact prompt a live run would send; no model
+is called and no network is touched. The full REF-15 benchmark (339
+scenarios + 137 QA pairs, frozen under data/snapshots/benchmark/ with the
+sha256 of eval/gold/benchmark_sample.json) is priced as one reference line,
+outside the total.
 
 Token model, stated plainly so nobody mistakes this for a measurement:
-- Input tokens are estimated as prompt characters / 4 (a standard rough
-  heuristic; the true OpenAI and Anthropic tokenizers are not available
-  offline). The report carries a +/-25 percent band.
-- The elicitation system prompt is the default prompt rendered over the
-  repository's dump (data/graph_dumps/layer1.json, spans verified against
-  data/snapshots), the text a live call sends (B10: the default elicitor
-  prompt prints each provision from the graph), not the template with its
-  placeholders.
-- Output tokens come from observed run-2 answer lengths per strategy
-  (eval/results/ablation_checkpoint.jsonl) and observed elicitation
-  payloads (eval/gold/benchmark_features.json), same chars/4 mapping; an
-  elicitation payload is its features plus its quotes when the file holds
-  quotes, otherwise features only and the report says so.
+- Input tokens are prompt characters divided by a per-provider ratio
+  measured offline on the aborted B74 extraction (RATIOS, each with its
+  source), with a declared band of plus or minus 10 percent.
+- Output is priced with reasoning included, since both providers bill
+  reasoning as output: billed = visible reply / (1 - r), where r is the
+  reasoning share, a declared band (low: measured at the provider default in
+  the aborted extraction; central: the only xhigh measurement; high:
+  declared). Nothing is measured at xhigh for either declared model.
+- The visible reply sizes come from stored replies: July norms and
+  alignments (tracked dumps), the run-2 ablation checkpoint, the runtime
+  log and eval/gold/benchmark_features.json.
+- Input is priced uncached: the clients send no cache_control and record no
+  cached tokens; automatic caching can only lower the figure.
 
 Pricing (B120, spec F D-F29 discipline):
 - The two models are the ones the environment names (TERE4AI_GENERATOR_MODEL
@@ -52,9 +56,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.align_hleg import pipeline as align_pipeline  # noqa: E402
+from tere4ai.align_hleg.__main__ import _attach_source_text  # noqa: E402
+from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes  # noqa: E402
 from tere4ai.elicit_features import render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
-from tere4ai.eval.harness import load_benchmark_items, run_eval  # noqa: E402
+from tere4ai.eval.harness import load_benchmark_items, load_gold_items, run_eval  # noqa: E402
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
 from tere4ai.extract_norms import pipeline as extract_pipeline  # noqa: E402
 from tere4ai.judge.config import (  # noqa: E402
@@ -76,9 +82,6 @@ ELICIT_PROMPT = ROOT / "prompts" / "elicit_features" / f"{DEFAULT_PROMPT_VERSION
 ELICIT_DUMP = ROOT / "data" / "graph_dumps" / "layer1.json"
 SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
 OUT_PATH = ROOT / "docs" / "benchmark_cost_estimate.md"
-
-CHARS_PER_TOKEN = 4.0
-BAND = 0.25  # +/- band on the chars/4 heuristic
 
 PRICES_PATH = ROOT / "config" / "model_prices.json"
 PRICES_FILE = "config/model_prices.json"
@@ -176,8 +179,9 @@ def price_rows(prices: dict[str, dict[str, Any]],
     return rows
 
 
-def tokens(chars: int | float) -> int:
-    return int(round(chars / CHARS_PER_TOKEN))
+def tokens(chars: int | float, provider: str) -> int:
+    """Tokens of chars characters at the provider's own measured ratio."""
+    return int(round(chars / ratio(f"chars_per_token_{provider}")))
 
 
 class CountingClient:
@@ -191,11 +195,13 @@ class CountingClient:
         self.calls = 0
         self.prompt_chars = 0
         self.out_chars = 0
+        self.max_prompt_chars = 0
         self.last_user = ""
 
     def complete(self, system: str, user: str) -> str:
         self.calls += 1
         self.prompt_chars += len(system) + len(user)
+        self.max_prompt_chars = max(self.max_prompt_chars, len(system) + len(user))
         self.last_user = user
         reply = json.dumps(self._reply(system, user) if callable(self._reply) else self._reply)
         self.out_chars += len(reply)
@@ -338,9 +344,10 @@ def extraction_lines(
     judge_out = _mean([_judge_reply_chars(run, ("verdict", "scores", "rationale"))
                        for run in july_judge_runs], judge.out_chars / judge.calls)
     return {
-        "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars, "out_chars": gen.out_chars},
+        "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars, "out_chars": gen.out_chars,
+                      "max_chars": gen.max_prompt_chars},
         "judge": {"calls": judge_calls, "in_chars": judge_calls * judge.prompt_chars / judge.calls,
-                  "out_chars": judge_calls * judge_out},
+                  "out_chars": judge_calls * judge_out, "max_chars": judge.max_prompt_chars},
     }, candidates
 
 
@@ -390,9 +397,9 @@ def alignment_lines(
         "dry_generator_calls": gen.calls,
         "generator": {"calls": round(accepted_norms),
                       "in_chars": round(accepted_norms) * gen.prompt_chars / gen.calls,
-                      "out_chars": round(accepted_norms) * gen_out},
+                      "out_chars": round(accepted_norms) * gen_out, "max_chars": gen.max_prompt_chars},
         "judge": {"calls": judge_calls, "in_chars": judge_calls * _mean(judge_in),
-                  "out_chars": judge_calls * judge_out},
+                  "out_chars": judge_calls * judge_out, "max_chars": max(judge_in, default=0)},
     }
 
 
@@ -400,6 +407,7 @@ def backlog_lines(
     norms: list[dict[str, Any]],
     system_context: str,
     tmp_dir: Path,
+    judge_reply_chars: float | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Backlog dry run: generate_control_backlog() with counting clients over
     the accepted norms and the system description. One generator call and one
@@ -416,9 +424,12 @@ def backlog_lines(
                       * (1 - ratio("reasoning_share_central")))
     return {
         "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars,
-                      "out_chars": visible_tokens * ratio("chars_per_token_openai")},
+                      "out_chars": visible_tokens * ratio("chars_per_token_openai"),
+                      "max_chars": gen.max_prompt_chars},
         "judge": {"calls": judge.calls, "in_chars": judge.prompt_chars,
-                  "out_chars": observed_judge_reply_chars()},
+                  "out_chars": (observed_judge_reply_chars() if judge_reply_chars is None
+                                else judge_reply_chars),
+                  "max_chars": judge.max_prompt_chars},
     }
 
 
@@ -615,156 +626,401 @@ def observed_judge_reply_chars() -> float:
     return statistics.mean(sizes) if sizes else 700.0
 
 
-def main() -> int:
-    load_dotenv_once()
-    declared = declared_models(os.environ)
-    rows = price_rows(load_model_prices(), declared)
-    gen_id, judge_id = declared["generator"].model_id, declared["judge"].model_id
-    payload_path = verify_full_benchmark()
-    items = load_benchmark_items(payload_path)
+
+
+# ------------------------------------------------------------------ B120 token model
+ABLATION_REPETITIONS = 10  # R5, provisional (awaiting Jose): B104 R5's provisional ten
+CONTEXT_LIMIT_TOKENS = 272_000  # the short-context limit of the declared generator's price row
+LEVELS = ("low", "central", "high")
+
+
+def ablation_dry_run(
+    items: list[dict[str, Any]],
+    out_chars: dict[str, dict[str, float]],
+    judge_reply_chars: float,
+    tmp_dir: Path,
+) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    """Dry-run every ladder strategy over the items with counting clients, split
+    by item kind so output is charged only for kinds whose answers the
+    generator produced (graph strategies classify deterministically and only
+    call the generator on QA items). LLM-free strategy internals (deterministic
+    classify, TF-IDF retrieval) run for real; only the model boundary is
+    stubbed. Returns per strategy {gen_calls, gen_in, gen_out, judge_calls,
+    judge_in, judge_out, max_chars} in characters, and the proxied conditions."""
     cls_items = [i for i in items if i["kind"] == "classification"]
     qa_items = [i for i in items if i["kind"] != "classification"]
-    n_cls, n_qa = len(cls_items), len(qa_items)
-    print(f"full benchmark loaded: {n_cls} scenarios + {n_qa} qa = {len(items)} items")
-
-    out_chars = observed_output_chars()
-    judge_reply_chars = observed_judge_reply_chars()
-
-    # Dry-run every ladder strategy over every item with counting clients,
-    # split by item kind so output-token estimates only charge kinds whose
-    # answers the generator actually produced (graph strategies classify
-    # deterministically and only call the generator on QA items).
-    # LLM-free strategy internals (deterministic classify, TF-IDF retrieval)
-    # run for real; only the model boundary is stubbed.
     gen_reply = {"answer_text": "dry-run stub", "citations": [], "risk_category": None}
     judge_reply = {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"}
     per_strategy: dict[str, dict[str, Any]] = {}
     proxied: dict[str, str] = {}
-    with tempfile.TemporaryDirectory() as tmp:
-        for name in STRATEGY_NAMES:
-            sizes, proxy = output_chars_for(out_chars, name)
-            if proxy is not None:
-                proxied[name] = proxy
-            totals = {
-                "gen_calls": 0, "gen_in": 0, "gen_out": 0,
-                "judge_calls": 0, "judge_in": 0, "judge_out": 0,
-            }
-            for kind, subset in (("classification", cls_items), ("qa", qa_items)):
-                gen = CountingClient(gen_id, gen_reply)
-                judge = CountingClient(judge_id, judge_reply)
-                run_eval(
-                    subset,
-                    [name],
-                    generator_factory=lambda g=gen: g,
-                    judge_factory=lambda j=judge: j,
-                    live=False,
-                    results_dir=Path(tmp),
-                    judge_log_path=Path(tmp) / "judge_log.jsonl",
-                )
-                mean_out = sizes.get(kind, 0)
-                totals["gen_calls"] += gen.calls
-                totals["gen_in"] += tokens(gen.prompt_chars)
-                totals["gen_out"] += tokens(gen.calls * mean_out)
-                totals["judge_calls"] += judge.calls
-                totals["judge_in"] += tokens(judge.prompt_chars)
-                totals["judge_out"] += tokens(judge.calls * judge_reply_chars)
-            per_strategy[name] = totals
-            print(
-                f"{name}: {totals['gen_calls']} generator calls "
-                f"({totals['gen_in']} in-tok), {totals['judge_calls']} judge calls "
-                f"({totals['judge_in']} in-tok)"
+    for name in STRATEGY_NAMES:
+        sizes, proxy = output_chars_for(out_chars, name)
+        if proxy is not None:
+            proxied[name] = proxy
+        totals = {"gen_calls": 0, "gen_in": 0, "gen_out": 0.0,
+                  "judge_calls": 0, "judge_in": 0, "judge_out": 0.0, "max_chars": 0}
+        for kind, subset in (("classification", cls_items), ("qa", qa_items)):
+            if not subset:
+                continue
+            gen = CountingClient("generator", gen_reply)
+            judge = CountingClient("judge", judge_reply)
+            run_eval(
+                subset,
+                [name],
+                generator_factory=lambda g=gen: g,
+                judge_factory=lambda j=judge: j,
+                live=False,
+                results_dir=tmp_dir,
+                judge_log_path=tmp_dir / "judge_log.jsonl",
             )
+            totals["gen_calls"] += gen.calls
+            totals["gen_in"] += gen.prompt_chars
+            totals["gen_out"] += gen.calls * sizes.get(kind, 0)
+            totals["judge_calls"] += judge.calls
+            totals["judge_in"] += judge.prompt_chars
+            totals["judge_out"] += judge.calls * judge_reply_chars
+            totals["max_chars"] = max(totals["max_chars"], gen.max_prompt_chars, judge.max_prompt_chars)
+        per_strategy[name] = totals
+    return per_strategy, proxied
 
-    # Elicitation: one generator call per scenario (DEC-13); prompt is the
-    # elicitor system prompt rendered over the dump plus the scenario free
-    # text, output size from the 32 observed elicitations.
-    elicit_system = len(elicit_system_prompt())
-    elicit_user = sum(len(i["system_text"]) for i in items if i["kind"] == "classification")
-    elicit_out_mean, elicit_out_note = elicitation_output_chars(
-        json.loads(FEATURES.read_text(encoding="utf-8"))
-    )
-    elicitation = {
-        "calls": n_cls,
-        "gen_in": tokens(n_cls * elicit_system + elicit_user),
-        "gen_out": tokens(n_cls * elicit_out_mean),
+
+def ablation_lines(per_strategy: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """The two role lines of one ablation run: the strategies summed."""
+    def total(key: str) -> float:
+        return sum(s[key] for s in per_strategy.values())
+    biggest = max((s["max_chars"] for s in per_strategy.values()), default=0)
+    return {
+        "generator": {"calls": total("gen_calls"), "in_chars": total("gen_in"),
+                      "out_chars": total("gen_out"), "max_chars": biggest},
+        "judge": {"calls": total("judge_calls"), "in_chars": total("judge_in"),
+                  "out_chars": total("judge_out"), "max_chars": biggest},
     }
 
-    gen_in = sum(s["gen_in"] for s in per_strategy.values()) + elicitation["gen_in"]
-    gen_out = sum(s["gen_out"] for s in per_strategy.values()) + elicitation["gen_out"]
-    judge_in = sum(s["judge_in"] for s in per_strategy.values())
-    judge_out = sum(s["judge_out"] for s in per_strategy.values())
 
-    gen_row, judge_row = rows["generator"], rows["judge"]
-    judge_cost = judge_in / 1e6 * judge_row["input"] + judge_out / 1e6 * judge_row["output"]
-    gen_cost = gen_in / 1e6 * gen_row["input"] + gen_out / 1e6 * gen_row["output"]
+def elicitation_line(items: list[dict[str, Any]], system_chars: int, out_chars_mean: float) -> dict[str, Any]:
+    """One generator call per scenario still without features (DEC-13): the
+    elicitor's system prompt rendered over the dump plus the scenario text."""
+    scenarios = [i for i in items if i["kind"] == "classification" and not i.get("system_features")]
+    user = [len(i["system_text"]) for i in scenarios]
+    return {"calls": len(scenarios),
+            "in_chars": len(scenarios) * system_chars + sum(user),
+            "out_chars": len(scenarios) * out_chars_mean,
+            "max_chars": system_chars + max(user, default=0)}
 
+
+def reasoning_bands(low: dict[str, float]) -> dict[str, dict[str, float]]:
+    """The reasoning share of billed output per role at each level (R7)."""
+    return {role: {"low": value, "central": ratio("reasoning_share_central"),
+                   "high": ratio("reasoning_share_high")} for role, value in low.items()}
+
+
+def price_line(
+    step: str,
+    role: str,
+    line: dict[str, Any],
+    declared: dict[str, ModelParameters],
+    rows: dict[str, dict[str, Any]],
+    bands: dict[str, dict[str, float]],
+) -> dict[str, Any]:
+    """Tokens and cost of one role line at the provider's ratio: input plus or
+    minus the declared band, billed output = visible / (1 - r) at r low,
+    central and high, priced at the row's standard and Batch prices."""
+    provider = declared[role].provider
+    cpt = ratio(f"chars_per_token_{provider}")
+    band = ratio("input_band")
+    in_tokens = line["in_chars"] / cpt
+    visible = line["out_chars"] / cpt
+    billed = {level: visible / (1 - bands[role][level]) for level in LEVELS}
+    in_scale = {"low": 1 - band, "central": 1.0, "high": 1 + band}
+    row = rows[role]
+
+    def usd(prefix: str) -> dict[str, float]:
+        return {level: (in_tokens * in_scale[level] * row[prefix + "input"]
+                        + billed[level] * row[prefix + "output"]) / 1e6 for level in LEVELS}
+
+    max_tokens = line.get("max_chars", 0) / cpt
+    if max_tokens >= CONTEXT_LIMIT_TOKENS:
+        raise SystemExit(f"{step} ({role}): a request of {max_tokens:,.0f} tokens passes the "
+                         f"{CONTEXT_LIMIT_TOKENS:,} token short-context limit the price row assumes")
+    return {"step": step, "role": role, "model": declared[role].model_id, "calls": line["calls"],
+            "in_tokens": in_tokens, "visible_tokens": visible, "billed": billed,
+            "cost": usd(""), "batch_cost": usd("batch_"), "max_request_tokens": max_tokens}
+
+
+def scaled(row: dict[str, Any], factor: int, step: str) -> dict[str, Any]:
+    """The same row for factor repetitions."""
+    out = dict(row, step=step, calls=row["calls"] * factor,
+               in_tokens=row["in_tokens"] * factor, visible_tokens=row["visible_tokens"] * factor)
+    out["billed"] = {k: v * factor for k, v in row["billed"].items()}
+    out["cost"] = {k: v * factor for k, v in row["cost"].items()}
+    out["batch_cost"] = {k: v * factor for k, v in row["batch_cost"].items()}
+    return out
+
+
+def sum_cost(rows: list[dict[str, Any]], key: str = "cost") -> dict[str, float]:
+    return {level: sum(r[key][level] for r in rows) for level in LEVELS}
+
+
+def compute(
+    inputs: dict[str, Any],
+    declared: dict[str, ModelParameters],
+    rows: dict[str, dict[str, Any]],
+    tmp_dir: Path,
+    n_repetitions: int = ABLATION_REPETITIONS,
+) -> dict[str, Any]:
+    """Every dry run and every price: the data the report prints."""
+    bands = reasoning_bands(inputs["reasoning_low"])
+    extraction, candidates = extraction_lines(
+        inputs["dump"], inputs["node_ids"], inputs["july_norms"], inputs["july_judge_runs"], tmp_dir)
+    norms = [dict(n) for n in inputs["july_norms"]]
+    _attach_source_text(norms, inputs["dump"])
+    accepted = candidates * ratio("accepted_share")
+    alignment = alignment_lines(norms, inputs["hleg_nodes"], inputs["assertions"],
+                                inputs["alignment_judge_runs"], accepted, tmp_dir)
+    backlog = backlog_lines(inputs["backlog_norms"], CREDSCORE_DESCRIPTION, tmp_dir,
+                            judge_reply_chars=inputs["judge_reply_chars"])
+    elicitation = elicitation_line(inputs["ablation_items"], inputs["elicit_system_chars"],
+                                   inputs["elicit_out_chars"])
+    per_strategy, proxied = ablation_dry_run(
+        inputs["ablation_items"], inputs["out_chars"], inputs["judge_reply_chars"], tmp_dir)
+    ablation = ablation_lines(per_strategy)
+
+    def price(step: str, lines: dict[str, Any], roles: tuple[str, ...] = ("generator", "judge")):
+        return [price_line(step, role, lines[role], declared, rows, bands) for role in roles]
+
+    one_rep = price("E6 ablation, one repetition", ablation)
+    build_rows = (
+        price("Layer 2 extraction", extraction)
+        + price("Layer 3 alignment", alignment)
+        + price("Control backlog", backlog)
+        + price("E6 elicitation", {"generator": elicitation}, ("generator",))
+    )
+    n_rows = [scaled(r, n_repetitions, f"E6 ablation, {n_repetitions} repetitions") for r in one_rep]
+    total_rows = build_rows + n_rows
+    result: dict[str, Any] = {
+        "declared": declared, "rows": rows, "bands": bands, "n": n_repetitions,
+        "candidates": candidates, "accepted": accepted,
+        "build_rows": build_rows, "one_rep": one_rep, "n_rows": n_rows,
+        "total": sum_cost(total_rows), "batch_total": sum_cost(total_rows, "batch_cost"),
+        "one_rep_cost": sum_cost(one_rep), "per_strategy": per_strategy, "proxied": proxied,
+        "elicit_note": inputs.get("elicit_note"), "full": None, "full_note": inputs.get("full_note"),
+        "max_request_tokens": max(r["max_request_tokens"] for r in total_rows),
+    }
+    if inputs.get("full_items"):
+        full_strategy, _ = ablation_dry_run(
+            inputs["full_items"], inputs["out_chars"], inputs["judge_reply_chars"], tmp_dir)
+        full_ablation = price("Full benchmark ablation, one run", ablation_lines(full_strategy))
+        full_elicitation = price("Full benchmark elicitation", {"generator": elicitation_line(
+            inputs["full_items"], inputs["elicit_system_chars"], inputs["elicit_out_chars"])},
+            ("generator",))
+        result["full"] = {
+            "items": len(inputs["full_items"]),
+            "scenarios": sum(1 for i in inputs["full_items"] if i["kind"] == "classification"),
+            "ablation": sum_cost(full_ablation), "elicitation": sum_cost(full_elicitation),
+        }
+    return result
+
+
+def _usd(value: float) -> str:
+    return f"{value:,.2f}"
+
+
+def _band(cost: dict[str, float]) -> str:
+    return f"{_usd(cost['central'])} USD (band {_usd(cost['low'])} to {_usd(cost['high'])})"
+
+
+def _step_row(row: dict[str, Any]) -> str:
+    billed = row["billed"]
+    return (f"| {row['step']} | {row['role']} ({row['model']}) | {round(row['calls']):,} "
+            f"| {round(row['in_tokens']):,} | {round(row['visible_tokens']):,} "
+            f"| {round(billed['central']):,} ({round(billed['low']):,} to {round(billed['high']):,}) "
+            f"| {_usd(row['cost']['low'])} | {_usd(row['cost']['central'])} | {_usd(row['cost']['high'])} |")
+
+
+STEP_HEADER = [
+    "| Step | Role (model) | Calls | Input tokens | Visible output tokens "
+    "| Billed output tokens, central (low to high) | Low USD | Central USD | High USD |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+]
+
+
+def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
+    declared, rows, n = res["declared"], res["rows"], res["n"]
     lines = [
-        "# Full-benchmark ablation cost estimate (dry run)",
+        "# Cost estimate for the B74 sequence (dry run)",
         "",
-        "> Generated by scripts/estimate_benchmark_cost.py. No model was called.",
-        "> The dry run executed the real strategy code over the FULL frozen",
-        f"> benchmark ({n_cls} scenarios + {n_qa} QA pairs, sha256-verified against",
-        "> the provenance in eval/gold/benchmark_sample.json). Token counts use",
-        "> a chars/4 heuristic with a +/-25 percent band; output sizes come from",
-        "> observed run-2 payloads. This is an estimate, not a measurement.",
+        "> Generated by scripts/estimate_benchmark_cost.py (B120). No model was called,",
+        "> no API key was read and no network was touched. Every step ran the real",
+        "> pipeline code with counting clients, so every prompt is the one a live run",
+        "> sends. Token counts are characters over a measured per-provider ratio, and",
+        "> output carries a declared reasoning band. This is an estimate, not a measurement.",
         "",
-        "## Per-strategy dry-run counts (full ladder, all items)",
+        "## Models and prices",
         "",
-        "| Strategy | Generator calls | Gen in-tokens | Gen out-tokens (obs.) | Judge calls | Judge in-tokens | Judge out-tokens (est.) |",
+    ]
+    for role in ("generator", "judge"):
+        model, row = declared[role], rows[role]
+        lines.append(
+            f"- The {role} is {model.model_id} ({model.provider}, effort {model.effort}): "
+            f"{row['input']:.2f} USD in / {row['output']:.2f} USD out per MTok, Batch "
+            f"{row['batch_input']:.2f} / {row['batch_output']:.2f}; "
+            f"{row['pricing']['url']}, read {row['pricing']['read_on']}.")
+    lines += [
+        "",
+        "Both ids come from the environment (TERE4AI_GENERATOR_MODEL and TERE4AI_JUDGE_MODEL),",
+        "checked against config/model_parameters.json; the prices are in config/model_prices.json.",
+        "Input is priced uncached: the clients send no cache_control (Anthropic caches nothing)",
+        "and record no cached tokens; automatic caching on the OpenAI side can only lower the figure.",
+        f"Every request stays under {CONTEXT_LIMIT_TOKENS:,} input tokens (asserted; the largest is "
+        f"{round(res['max_request_tokens']):,}), so the short-context prices apply. Standard tier.",
+        "",
+        "## Ratios and their sources",
+        "",
+    ]
+    for name, r in RATIOS.items():
+        lines.append(f"- {name} = {r['value']}: {r['source']}")
+    lines += ["", "Reasoning share of billed output, r (billed output = visible reply / (1 - r)):", ""]
+    for role in ("generator", "judge"):
+        b = res["bands"][role]
+        lines.append(f"- {role}: low {b['low']:.3f} ({low_sources[role]}), central {b['central']:.2f} "
+                     f"(reasoning_share_central above), high {b['high']:.2f} (reasoning_share_high above).")
+    lines += [
+        "- The backlog generator's central output is the one measured call, see backlog_generator_billed_tokens.",
+        "",
+        "## Steps, with the ablation at N = " + str(n),
+        "",
+        *STEP_HEADER,
+    ]
+    for row in res["build_rows"] + res["n_rows"]:
+        lines.append(_step_row(row))
+    lines += [
+        "| Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |",
+        "",
+        "Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.",
+        "",
+        "## E6 ablation, one repetition",
+        "",
+        *STEP_HEADER,
+    ]
+    for row in res["one_rep"]:
+        lines.append(_step_row(row))
+    cost1 = res["one_rep_cost"]
+    lines += [
+        "",
+        f"Per repetition (one repetition costs {_band(cost1)}). The total prices N = {n} "
+        "repetitions, the research answer's provisional ten (B104 R5; ruling R5 of B120, "
+        "provisional, awaiting Jose), so the figure errs high. At the pilot's N, take the total "
+        f"and add (N minus {n}) times the one-repetition cost.",
+        "",
+        "Per-strategy dry-run counts of one repetition (visible output at the provider ratio):",
+        "",
+        "| Strategy | Generator calls | Gen in-tokens | Gen out-tokens (visible) | Judge calls "
+        "| Judge in-tokens | Judge out-tokens (visible) |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for name in STRATEGY_NAMES:
-        s = per_strategy[name]
+        s = res["per_strategy"][name]
         lines.append(
-            f"| {name} | {s['gen_calls']} | {s['gen_in']:,} | {s['gen_out']:,} "
-            f"| {s['judge_calls']} | {s['judge_in']:,} | {s['judge_out']:,} |"
-        )
+            f"| {name} | {s['gen_calls']} | {tokens(s['gen_in'], 'openai'):,} "
+            f"| {tokens(s['gen_out'], 'openai'):,} | {s['judge_calls']} "
+            f"| {tokens(s['judge_in'], 'anthropic'):,} | {tokens(s['judge_out'], 'anthropic'):,} |")
+    lines.append("")
+    if res["elicit_note"]:
+        lines += [res["elicit_note"], ""]
+    for name, proxy in res["proxied"].items():
+        lines += [f"{name} was not run in run 2: its output uses the observed answer sizes of {proxy}.", ""]
+    lines += ["## Reference outside the total", ""]
+    if res["full"]:
+        f = res["full"]
+        lines.append(
+            f"- Full benchmark ({f['items']} items), one ablation run: {_band(f['ablation'])}; "
+            f"its elicitation of {f['scenarios']} scenarios: {_band(f['elicitation'])}. "
+            "Outside the total (ruling R4): E6 is priced as spec G Section 10.4 states it, over the "
+            "hand-made test set and the frozen sample.")
+    else:
+        lines.append(f"- Full benchmark: not computed ({res['full_note'] or 'no items'}).")
     lines += [
-        f"| elicitation (DEC-13, once per scenario) | {elicitation['calls']} "
-        f"| {elicitation['gen_in']:,} | {elicitation['gen_out']:,} | 0 | 0 | 0 |",
+        "",
+        "## Excluded",
+        "",
+        "- The calibration judge runs of spec F (ten instruments) are excluded: they run after the human "
+        "grading (spec F D-F17 and D-F18; card B74's acceptance ends at \"both campaigns created and "
+        "pinned\"), they price from the dashboard's own table (tere4ai-dashboard "
+        "src/lib/experiment/prices.json) and they are a B68 cost.",
+        "",
+        "## Batch",
+        "",
+        f"- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both providers) "
+        f"would cost {_band(res['batch_total'])}. It is a lever and not in the total: the clients call "
+        "the synchronous APIs.",
+        "",
+        "## Total",
+        "",
+        f"Total for the B74 sequence: {_usd(res['total']['central'])} USD "
+        f"(band {_usd(res['total']['low'])} to {_usd(res['total']['high'])})",
+        "",
+        "The band takes the low input and the low reasoning share at its low end, and the high input and "
+        f"the high reasoning share at its high end. It includes the ablation at N = {n}.",
         "",
     ]
-    if elicit_out_note:
-        lines += [elicit_out_note, ""]
-    for name, proxy in proxied.items():
-        lines += [f"{name} was not run in run 2: its output tokens use the observed "
-                  f"answer sizes of {proxy}.", ""]
-    lines += [
-        "## Totals",
-        "",
-        f"- Generator ({gen_id}, effort {declared['generator'].effort}): {gen_in:,} input + "
-        f"{gen_out:,} output tokens",
-        f"  (band: {int(gen_in * (1 - BAND)):,} to {int(gen_in * (1 + BAND)):,} input).",
-        f"- Judge ({judge_id}, effort {declared['judge'].effort}): {judge_in:,} input + "
-        f"{judge_out:,} output tokens.",
-        "",
-        "## Cost",
-        "",
-        f"- Judge cost at {judge_row['input']:.2f}/{judge_row['output']:.2f} USD per MTok "
-        f"({judge_row['pricing']['url']}, read {judge_row['pricing']['read_on']}): "
-        f"**{judge_cost:.2f} USD** "
-        f"(band {judge_cost * (1 - BAND):.2f} to {judge_cost * (1 + BAND):.2f}).",
-        f"- Generator cost at {gen_row['input']:.2f}/{gen_row['output']:.2f} USD per MTok "
-        f"({gen_row['pricing']['url']}, read {gen_row['pricing']['read_on']}): "
-        f"**{gen_cost:.2f} USD**.",
-        f"- **Estimated total: {gen_cost + judge_cost:.2f} USD** "
-        f"(band {(gen_cost + judge_cost) * (1 - BAND):.2f} to {(gen_cost + judge_cost) * (1 + BAND):.2f}).",
-        "",
-        "## Cost-gate notes for task #27",
-        "",
-        "- Only graph_full and graph_runtime_judge call the runtime judge; the",
-        "  other four conditions are generator-only. Dropping either removes",
-        "  only its own judge calls and changes nothing else.",
-        "- Batch APIs (both providers) typically price at 50 percent; the run",
-        "  is embarrassingly parallel and latency-insensitive, so batching is",
-        "  the first lever if the total is over budget.",
-        "- Second lever: run the ladder on all 339 scenarios but a stratified",
-        "  half of the 137 QA pairs; classification is the headline task.",
-        "",
-    ]
-    OUT_PATH.write_text("\n".join(lines), encoding="utf-8")
-    payload_path.unlink(missing_ok=True)
-    print(f"wrote {OUT_PATH.relative_to(ROOT)}")
+    return "\n".join(lines)
+
+
+def load_inputs() -> dict[str, Any]:
+    """Everything the estimate reads from the repository (no model, no key)."""
+    dump = json.loads(ELICIT_DUMP.read_text(encoding="utf-8"))
+    july_norms = json.loads(JULY_NORMS.read_text(encoding="utf-8"))
+    july_alignments = json.loads(JULY_ALIGNMENTS.read_text(encoding="utf-8"))
+    b74 = json.loads(B74_NORMS.read_text(encoding="utf-8"))
+    norms = [dict(n) for n in july_norms["norms"]]
+    _attach_source_text(norms, dump)
+    elicit_out, elicit_note = elicitation_output_chars(json.loads(FEATURES.read_text(encoding="utf-8")))
+    full_items, full_note = None, None
+    if (BENCH_DIR / "scenarios.json").exists() and (BENCH_DIR / "qa_pairs.json").exists():
+        payload_path = verify_full_benchmark()
+        try:
+            full_items = load_benchmark_items(payload_path)
+        finally:
+            payload_path.unlink(missing_ok=True)
+    else:
+        full_note = f"the full benchmark files are not in {BENCH_DIR.relative_to(ROOT)}"
+    return {
+        "dump": dump,
+        "node_ids": core_node_ids(),
+        "july_norms": july_norms["norms"],
+        "july_judge_runs": july_norms["judge_runs"],
+        "assertions": july_alignments["assertions"],
+        "alignment_judge_runs": july_alignments["judge_runs"],
+        "hleg_nodes": build_hleg_nodes(),
+        "reasoning_low": default_reasoning_shares(b74),
+        "ablation_items": load_gold_items() + load_benchmark_items(SAMPLE_PATH),
+        "full_items": full_items,
+        "full_note": full_note,
+        "out_chars": observed_output_chars(),
+        "judge_reply_chars": observed_judge_reply_chars(),
+        "elicit_system_chars": len(elicit_system_prompt()),
+        "elicit_out_chars": elicit_out,
+        "elicit_note": elicit_note,
+        "backlog_norms": [n for n in norms if n.get("judge_verdict") == "accepted"
+                          and n["source_node_id"].startswith(BACKLOG_ARTICLE + ":")],
+    }
+
+
+LOW_SOURCE = ("measured at the provider default in the aborted B74 extraction: billed output per call "
+              "against the visible reply the stored norms and verdicts give, default_reasoning_shares")
+
+
+def main() -> int:
+    load_dotenv_once()
+    declared = declared_models(os.environ)
+    rows = price_rows(load_model_prices(), declared)
+    inputs = load_inputs()
+    with tempfile.TemporaryDirectory() as tmp:
+        result = compute(inputs, declared, rows, Path(tmp))
+    report = render_report(result, {"generator": LOW_SOURCE, "judge": LOW_SOURCE})
+    OUT_PATH.write_text(report, encoding="utf-8")
+    print(f"Total for the B74 sequence: {_band(result['total'])}")
+    print(f"wrote {OUT_PATH.relative_to(ROOT) if OUT_PATH.is_relative_to(ROOT) else OUT_PATH}")
     return 0
 
 
