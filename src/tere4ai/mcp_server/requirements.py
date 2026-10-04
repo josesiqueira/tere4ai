@@ -14,6 +14,7 @@ judged data.
 @implements: DEC-18
 @implements: DEC-19
 @implements: DEC-20
+@implements: DEC-23
 @grounded_by: REF-17, REF-16
 """
 
@@ -25,6 +26,21 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from tere4ai.mcp_server.application_dates import (
+    ROUTE_ANNEX_I,
+    legal_text,
+    provision_dates,
+)
+from tere4ai.mcp_server.classify import (
+    ANNEX_I_SECTION_UNKNOWN_FACT,
+    ANNEX_III_UNKNOWN_TAG,
+    ARTICLE_2_2_CONDITION,
+    ARTICLE_2_2_CONDITIONAL_PROVISIONS,
+    ARTICLE_2_2_PROVISIONS,
+    ARTICLE_2_2_WORDING,
+    ARTICLE_2_PARAGRAPH_2,
+    route_of,
+)
 from tere4ai.mcp_server.tools import make_envelope
 from tere4ai.parse_legal_structure.amendments import is_deleted
 from tere4ai.parse_legal_structure.labels import LABEL_PATTERN, sort_key
@@ -80,6 +96,48 @@ UNCERTAIN_HIGH_RISK_MESSAGE = (
     "high-risk are unknown "
     "(see the missing facts). No requirements are returned until the missing "
     "facts are provided or a human reviewer settles the classification."
+)
+
+
+# B132 (spec G D-G68 (6), rulings R6, R14, R26 and R36): Article 2(2) for a
+# system high-risk under Article 6(1) whose product legislation is listed in
+# Annex I Section B and which matches no Annex III category (a match makes
+# the classification take the Annex III route, R26). Its provisions are
+# cited, never served as norms: they are outside the extraction scope (most
+# address Member States or amend other acts), and the condition on Articles
+# 57 to 59 is stated, never decided.
+SECTION_B_MESSAGE = (
+    "The product's legislation is listed in Annex I Section B. Under Article 2(2) only Article 6(1), "
+    "Article 60a and Articles 102 to 112 apply to this system, and Articles 57, 58 and 59 only in so far "
+    "as the requirements for high-risk AI systems have been integrated in that Union harmonisation "
+    "legislation, which this answer does not decide. The Chapter III requirements and the Article 50 "
+    "transparency obligations do not apply, so no requirement is served; the provisions are cited, "
+    "without norms."
+)
+# R39: a Section B system whose Annex III facts are unknown: an Annex III
+# match would put it on the Annex III route (R26), so the Article 2(2)
+# answer is not settled.
+SECTION_B_ANNEX_III_UNKNOWN_MESSAGE = (
+    "The product's legislation is listed in Annex I Section B. Under Article 2(2) only Article 6(1), "
+    "Article 60a and Articles 102 to 112 apply to this system, and Articles 57, 58 and 59 only in so far "
+    "as the requirements for high-risk AI systems have been integrated in that Union harmonisation "
+    "legislation, which this answer does not decide. The Chapter III requirements and the Article 50 "
+    "transparency obligations do not apply unless an Annex III point applies, and facts that decide "
+    "whether one does are unknown (see the missing facts); the provisions are cited, without norms, "
+    "until they are known."
+)
+# R26 path: what an Article 6(3) derogation candidate can change for a
+# Section B product on the Annex III route.
+SECTION_B_DEROGATION_NOTE = (
+    " For this product, whose legislation is listed in Annex I Section B, an Article 6(3) derogation "
+    "that applies would end the Annex III route, and the answer would become the Article 2(2) one, "
+    "which serves no Chapter III requirement and no Article 50 obligation."
+)
+SECTION_UNKNOWN_NOTE = (
+    f"{ARTICLE_2_PARAGRAPH_2}: the Annex I section of the product's legislation is unknown; the Chapter "
+    "III requirements below are served as for a Section A product, but for a Section B product only "
+    "Article 2(2)'s provisions apply (Article 6(1), Article 60a and Articles 102 to 112, and Articles 57 "
+    "to 59 on its condition)"
 )
 
 
@@ -199,6 +257,7 @@ def get_applicable_requirements(
     filter uses the canonical actor vocabulary of norms.schema.json.
     """
     graph_version = _graph_version(dump)
+    text = legal_text(dump)
     answer_in, classification_nodes, upstream = _unwrap_classification(classification_answer)
     risk_category = answer_in.get("risk_category")
     node_index = {n["id"]: n for n in dump.get("nodes", []) if isinstance(n, dict) and "id" in n}
@@ -223,7 +282,7 @@ def get_applicable_requirements(
 
     if actor is not None and actor not in _canonical_actor_roles():
         return make_envelope(
-            answer={"risk_category": risk_category, "requirements_by_article": {}, "summary": {}},
+            answer={"risk_category": risk_category, "requirements_by_article": {}, "summary": {}, "legal_text": text},
             status="not_applicable",
             graph_version=graph_version,
             confidence=0.0,
@@ -251,6 +310,7 @@ def get_applicable_requirements(
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
                 "message": PROHIBITED_MESSAGE,
+                "legal_text": text,
             },
             status="not_applicable",
             graph_version=graph_version,
@@ -276,6 +336,7 @@ def get_applicable_requirements(
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
                 "message": MINIMAL_MESSAGE,
+                "legal_text": text,
             },
             status="not_applicable",
             graph_version=graph_version,
@@ -293,6 +354,7 @@ def get_applicable_requirements(
                     if answer_in.get("unacceptable_risk") is False
                     else UNCERTAIN_MESSAGE
                 ),
+                "legal_text": text,
             },
             status="requires_human_review",
             graph_version=graph_version,
@@ -306,7 +368,7 @@ def get_applicable_requirements(
 
     if risk_category not in ("high_risk", "limited_risk"):
         return make_envelope(
-            answer={"risk_category": risk_category, "requirements_by_article": {}, "summary": {}},
+            answer={"risk_category": risk_category, "requirements_by_article": {}, "summary": {}, "legal_text": text},
             status="not_applicable",
             graph_version=graph_version,
             confidence=0.0,
@@ -317,6 +379,48 @@ def get_applicable_requirements(
             ],
         )
 
+    # R37: the dates follow every high-risk route that holds (route_of
+    # reads high_risk_routes); the Section B answer is for a system on the
+    # Article 6(1) route only.
+    route = route_of(answer_in)
+    section = answer_in.get("annex_i_section")
+    if risk_category == "high_risk" and section == "B" and route == ROUTE_ANNEX_I:
+        provisions = [*ARTICLE_2_2_PROVISIONS, *ARTICLE_2_2_CONDITIONAL_PROVISIONS]
+        cited = [n for n in (ARTICLE_2_PARAGRAPH_2, *provisions) if n in node_index]
+        # R39: the classifier names unknown Annex III facts among its missing facts.
+        annex_iii_unknown = [m for m in upstream_missing if ANNEX_III_UNKNOWN_TAG in m]
+        section_b_message = SECTION_B_ANNEX_III_UNKNOWN_MESSAGE if annex_iii_unknown else SECTION_B_MESSAGE
+        section_b_missing = [f"provision '{n}' named by Article 2(2) is not present in the graph dump"
+                             for n in provisions if n not in node_index]
+        return make_envelope(
+            answer={
+                "risk_category": "high_risk",
+                "annex_i_section": "B",
+                "requirements_by_article": {},
+                "summary": {"returned": 0},
+                "message": section_b_message,
+                "article_2_2": {
+                    "node": ARTICLE_2_PARAGRAPH_2,
+                    "wording": f"{ARTICLE_2_2_WORDING} {ARTICLE_2_2_CONDITION}",
+                    "provisions": list(ARTICLE_2_2_PROVISIONS),
+                    "conditional_provisions": list(ARTICLE_2_2_CONDITIONAL_PROVISIONS),
+                    "condition": ARTICLE_2_2_CONDITION,
+                    "condition_decided": False,
+                },
+                "application_dates": {n: provision_dates(n, dump, route) for n in provisions},
+                "legal_text": text,
+            },
+            status="requires_human_review" if unsettled or annex_iii_unknown else "potentially_applicable",
+            graph_version=graph_version,
+            confidence=(upstream_confidence if upstream_confidence is not None else 0.5)
+            if unsettled or annex_iii_unknown else 1.0,
+            source_nodes=cited,
+            source_spans=[node_index[n]["source_span"] for n in cited
+                          if isinstance(node_index[n].get("source_span"), dict)],
+            legal_status_notes=[section_b_message],
+            missing_facts=(upstream_missing if unsettled else annex_iii_unknown) + section_b_missing,
+        )
+
     norms = norms_payload.get("norms")
     if not isinstance(norms, list) or not norms:
         return make_envelope(
@@ -324,6 +428,7 @@ def get_applicable_requirements(
                 "risk_category": risk_category,
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
+                "legal_text": text,
             },
             status="requires_human_review",
             graph_version=graph_version,
@@ -416,7 +521,19 @@ def get_applicable_requirements(
         "risk_category": risk_category,
         "requirements_by_article": grouped,
         "summary": summary,
+        # B132 (D-G68 (6)): each served group's application dates from the
+        # table of Article 113 as amended, by the classification's route, as data.
+        "application_dates": {g: provision_dates(f"eu-ai-act:{g}", dump, route) for g in grouped},
+        "legal_text": text,
     }
+    legal_status_notes: list[str] = []
+    if risk_category == "high_risk" and section == "unknown":
+        answer_out["annex_i_section"] = "unknown"
+        legal_status_notes.append(SECTION_UNKNOWN_NOTE)
+        if ANNEX_I_SECTION_UNKNOWN_FACT not in missing_facts:
+            missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
+    elif section is not None:
+        answer_out["annex_i_section"] = section
     # Pass the classification's deterministic FRIA block (fria.py, DEC-14)
     # through verbatim, so the Article 27(1) applicability answer sits next
     # to the article-27 obligations it governs. Never recomputed here.
@@ -452,6 +569,8 @@ def get_applicable_requirements(
             "tentative and could change, for example to Unacceptable risk, "
             "which yields zero requirements."
         )
+        if section == "B" and answer_in.get("annex_iii_category"):
+            answer_out["provisional_note"] += SECTION_B_DEROGATION_NOTE
 
     return make_envelope(
         answer=answer_out,
@@ -460,5 +579,6 @@ def get_applicable_requirements(
         confidence=confidence,
         source_nodes=source_nodes,
         source_spans=source_spans,
+        legal_status_notes=legal_status_notes,
         missing_facts=missing_facts,
     )

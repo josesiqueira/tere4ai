@@ -568,3 +568,162 @@ def test_groups_follow_the_acts_order_with_letter_suffixed_articles():
     groups = ["article-50", "annex-iii", "article-5", "article-4a", "article-3", "article-4"]
     assert sorted(groups, key=_group_sort_key) == [
         "article-3", "article-4", "article-4a", "article-5", "article-50", "annex-iii"]
+
+
+# B132 (spec G D-G68 (6), rulings R6, R7, R14, R26, R36, R37, R39): the Annex I section, the
+# application dates of the served groups, and the text every answer follows.
+
+AMENDED = "Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744"
+
+
+def _annex_i(section: bool | None, **facts: bool) -> dict:
+    flags = {name: False for name in classify_module.PROHIBITION_RELEVANT_FLAGS}
+    flags.update({name: False for name in classify_module.ANNEX_III_RELEVANT_FLAGS})
+    flags.update(annex_i_covered_product=True, third_party_conformity_assessment_required=True, **facts)
+    if section is not None:
+        flags[classify_module.ANNEX_I_SECTION_FACT] = section
+    return {"description": "AI safety component of a machine.", "flags": flags}
+
+
+def test_a_section_b_system_is_served_article_2_2_not_chapter_iii(dump, norms_payload, node_ids):
+    """R6: no Chapter III obligation and no norm; Article 2(2)'s provisions
+    cited, its condition on Articles 57 to 59 stated and not decided."""
+    classification = classify_ai_system(_annex_i(True), dump)
+    assert classification["answer"]["annex_i_section"] == "B"
+    envelope = get_applicable_requirements(classification, norms_payload, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["requirements_by_article"] == {}
+    assert answer["summary"]["returned"] == 0
+    assert answer["article_2_2"]["condition_decided"] is False
+    assert "Articles 57, 58 and 59 shall apply only in so far as" in answer["article_2_2"]["condition"]
+    for node in ("eu-ai-act:article-2:paragraph-2", "eu-ai-act:article-6:paragraph-1", "eu-ai-act:article-60a",
+                 "eu-ai-act:article-102", "eu-ai-act:article-112", "eu-ai-act:article-57"):
+        assert node in envelope["source_nodes"], node
+    assert envelope["status"] == "potentially_applicable"
+    dates = {p: [e["date"] for e in entries] for p, entries in answer["application_dates"].items()}
+    assert dates["eu-ai-act:article-6:paragraph-1"] == ["2028-08-02"]
+    assert dates["eu-ai-act:article-102"] == ["2026-07-27"]
+    assert dates["eu-ai-act:article-111"] == ["2026-08-02"]
+    assert answer["legal_text"] == AMENDED
+
+
+def test_an_unknown_section_serves_chapter_iii_and_names_the_fact(dump, norms_payload, node_ids):
+    """R14: while the section is unknown the Chapter III requirements are
+    served as for Section A, the fact is named and Article 2(2) is said."""
+    section_a = get_applicable_requirements(classify_ai_system(_annex_i(False), dump), norms_payload, dump)
+    unknown = get_applicable_requirements(classify_ai_system(_annex_i(None), dump), norms_payload, dump)
+    assert_envelope_invariants(unknown, node_ids)
+    assert unknown["answer"]["requirements_by_article"] == section_a["answer"]["requirements_by_article"]
+    assert unknown["status"] == section_a["status"]
+    assert unknown["answer"]["annex_i_section"] == "unknown"
+    assert classify_module.ANNEX_I_SECTION_UNKNOWN_FACT in unknown["missing_facts"]
+    assert any("Article 2(2)" in n for n in unknown["legal_status_notes"])
+    assert section_a["answer"]["annex_i_section"] == "A"
+    assert classify_module.ANNEX_I_SECTION_UNKNOWN_FACT not in section_a["missing_facts"]
+
+
+def test_each_served_group_carries_its_dates_by_route(dump, norms_payload):
+    """R7: Chapter III by the classification's route; Article 50 from the
+    general date with Article 111(4) as a note."""
+    annex_iii = classify_ai_system(
+        {"description": "CV screening tool.",
+         "flags": {**{f: False for f in classify_module.PROHIBITION_RELEVANT_FLAGS}, "employment_decisions": True}},
+        dump,
+    )
+    dates = get_applicable_requirements(annex_iii, norms_payload, dump)["answer"]["application_dates"]
+    assert [e["date"] for e in dates["article-9"]] == ["2027-12-02"]
+    annex_i = get_applicable_requirements(classify_ai_system(_annex_i(False), dump), norms_payload, dump)
+    assert [e["date"] for e in annex_i["answer"]["application_dates"]["article-9"]] == ["2028-08-02"]
+    limited = get_applicable_requirements({"risk_category": "limited_risk"}, norms_payload, dump)["answer"]
+    [article_50] = limited["application_dates"]["article-50"]
+    assert article_50["date"] == "2026-08-02"
+    assert any("Article 111(4)" in n for n in article_50["notes"])
+    assert set(limited["application_dates"]) == set(limited["requirements_by_article"])
+
+
+def test_every_requirements_answer_names_the_text_it_follows(dump, norms_payload):
+    for category in ("unacceptable_risk", "minimal_risk", "undetermined", "high_risk", "limited_risk"):
+        answer = get_applicable_requirements({"risk_category": category}, norms_payload, dump)["answer"]
+        assert answer["legal_text"] == AMENDED, category
+
+
+def test_a_section_b_system_with_an_article_50_trigger_is_served_no_article_50_norm(dump, norms_payload):
+    """R36: Article 2(2) applies none of Article 50 to a Section B system
+    high-risk only under Article 6(1); the answer says so."""
+    classification = classify_ai_system(_annex_i(True, interacts_with_natural_persons=True), dump)
+    assert classification["answer"]["transparency_duties"] == []
+    answer = get_applicable_requirements(classification, norms_payload, dump)["answer"]
+    assert answer["requirements_by_article"] == {}
+    assert "Article 50 transparency obligations do not apply" in answer["message"]
+
+
+def test_a_section_b_system_matching_annex_iii_gets_one_consistent_answer(dump, norms_payload, node_ids):
+    """R26 reversed (Codex plan review P1 3): with Section B legislation, an
+    Annex III match and a public-law deployer, the classification, its FRIA
+    block and the requirements all follow the Annex III route."""
+    features = {**_annex_i(True, employment_decisions=True), "deployer": {"body_governed_by_public_law": True}}
+    classification = classify_ai_system(features, dump)
+    assert classification["answer"]["annex_iii_category"] == "eu-ai-act:annex-iii:point-4"
+    assert classification["answer"]["annex_i_section"] == "B"
+    assert classification["answer"]["fria"]["applicability"] == "applies"
+    envelope = get_applicable_requirements(classification, norms_payload, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert "article_2_2" not in answer
+    assert answer["annex_i_section"] == "B"
+    assert "article-9" in answer["requirements_by_article"] and "article-27" in answer["requirements_by_article"]
+    # R37: both routes hold, so Chapter III carries both points of Article 113(c).
+    assert [e["date"] for e in answer["application_dates"]["article-9"]] == ["2027-12-02", "2028-08-02"]
+    assert answer["fria"]["applicability"] == "applies"
+    assert envelope["status"] == "applicable_missing_evidence"
+
+
+def test_a_system_on_both_routes_dates_its_requirements_by_both_and_agrees_with_its_fria(dump, norms_payload):
+    """R37, the opus re-check's reproduced case: Section A, an Annex III point
+    and a public deployer. The FRIA applies from 2027-12-02, so article-27
+    and article-9 carry that date as well as 2 August 2028."""
+    features = {**_annex_i(False, employment_decisions=True), "deployer": {"body_governed_by_public_law": True}}
+    classification = classify_ai_system(features, dump)
+    assert classification["answer"]["high_risk_routes"] == ["article_6_1", "article_6_2"]
+    fria_date = classification["answer"]["fria"]["applies_from"]["date"]
+    answer = get_applicable_requirements(classification, norms_payload, dump)["answer"]
+    for group in ("article-27", "article-9"):
+        dates = [e["date"] for e in answer["application_dates"][group]]
+        assert dates == ["2027-12-02", "2028-08-02"], group
+        assert fria_date in dates, group
+    assert answer["fria"]["applicability"] == "applies"
+
+
+def test_a_section_b_system_with_unknown_annex_iii_facts_is_not_settled(dump, norms_payload, node_ids):
+    """R39: the requirements answer names the unknown Annex III facts, says
+    the Chapter III requirements do not apply unless an Annex III point
+    applies, and requires human review, as the classification does."""
+    flags = {k: v for k, v in _annex_i(True)["flags"].items() if k not in classify_module.ANNEX_III_RELEVANT_FLAGS}
+    classification = classify_ai_system({"description": "AI safety component of a machine.", "flags": flags}, dump)
+    assert classification["status"] == "requires_human_review"
+    envelope = get_applicable_requirements(classification, norms_payload, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["requirements_by_article"] == {} and "article_2_2" in answer
+    assert "do not apply unless an Annex III point applies" in answer["message"]
+    assert envelope["status"] == "requires_human_review"
+    assert any(m.startswith("flags.employment_decisions is unknown (Annex III high-risk relevant")
+               for m in envelope["missing_facts"])
+
+
+def test_a_section_b_derogation_candidate_on_the_annex_iii_route_says_what_can_change(dump, norms_payload):
+    """The re-check's note on the provisional note: an Article 6(3) derogation
+    candidate on the R26 path could take the answer back to Article 2(2)."""
+    features = _annex_i(True, employment_decisions=True, improves_previous_human_activity=True)
+    classification = classify_ai_system(features, dump)
+    assert classification["answer"]["article_6_3_exception_candidate"] is True
+    answer = get_applicable_requirements(classification, norms_payload, dump)["answer"]
+    assert answer["provisional"] is True
+    assert "the answer would become the Article 2(2) one" in answer["provisional_note"]
+    annex_iii_only = {**_annex_i(None, employment_decisions=True, improves_previous_human_activity=True)}
+    annex_iii_only["flags"]["annex_i_covered_product"] = False
+    plain = get_applicable_requirements(classify_ai_system(annex_iii_only, dump), norms_payload, dump)
+    assert plain["answer"]["provisional"] is True
+    assert "Article 2(2)" not in plain["answer"]["provisional_note"]
