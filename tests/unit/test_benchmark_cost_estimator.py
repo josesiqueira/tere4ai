@@ -498,3 +498,35 @@ def test_the_report_counts_tokens_with_the_provider_ratio(mock_report):
 
 def test_the_report_has_no_dash_sentence_breaks(mock_report):
     assert "\u2014" not in mock_report and "\u2013" not in mock_report
+
+
+# ---------------------------------------------------------------- B120 final review fixes
+
+def test_the_extraction_output_scales_the_candidate_payload_to_the_projected_count(tmp_path):
+    """The mock has 2 units and 1 historical candidate; the projection is 2 x 1.247
+    candidates. The per-call JSON overhead stays one per unit."""
+    dump = _mock_dump()
+    norm = _mock_norm("eu-ai-act:article-9:paragraph-1")
+    lines, candidates = est.extraction_lines(dump, ["eu-ai-act:article-9"], [norm], [], tmp_path)
+    overhead = len(json.dumps({"norms": []}))
+    one = len(json.dumps(est._norm_reply([norm]))) - overhead
+    assert candidates != 1
+    assert lines["generator"]["out_chars"] == pytest.approx(2 * overhead + candidates * one)
+
+
+def test_the_alignment_rationale_is_a_labelled_proxy_with_its_bound(tmp_path):
+    accepted = [_mock_norm("eu-ai-act:article-9:paragraph-1")]
+    hleg = [{"id": "hleg:transparency", "name": "Transparency", "description": "Mock transparency.",
+             "source_span": {"span_id": "span:hleg:req4"}}]
+    assertions = [{"source_norm_id": accepted[0]["norm_id"], "target_id": "hleg:transparency",
+                   "relation_type": "supports", "source_quote": "risk management system",
+                   "target_quote": "transparency", "rationale": "r" * 500}]
+    lines = est.alignment_lines(accepted, hleg, assertions, [], accepted_norms=1, tmp_dir=tmp_path)
+    proxy = lines["rationale_proxy"]
+    assert proxy["gen_out_chars"] == pytest.approx(500 * lines["generator"]["calls"] / 1)
+    assert proxy["judge_in_chars"] == pytest.approx(500 * lines["judge"]["calls"])
+
+
+def test_the_report_labels_the_rationale_substitution_as_a_proxy(mock_report):
+    assert "proxy" in mock_report and "judge's rationale" in mock_report
+    assert "without the rationale" in mock_report

@@ -343,8 +343,14 @@ def extraction_lines(
     judge_calls = round(candidates)
     judge_out = _mean([_judge_reply_chars(run, ("verdict", "scores", "rationale"))
                        for run in july_judge_runs], judge.out_chars / judge.calls)
+    # the scripted replies hold the historical candidates (judge.calls of them);
+    # the downstream counts use the projected ones, so the candidate payload is
+    # scaled to the projection and the per-call JSON overhead stays one per unit
+    overhead = len(json.dumps({"norms": []}))
+    payload = max(gen.out_chars - gen.calls * overhead, 0) / judge.calls
+    gen_out = gen.calls * overhead + candidates * payload
     return {
-        "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars, "out_chars": gen.out_chars,
+        "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars, "out_chars": gen_out,
                       "max_chars": gen.max_prompt_chars},
         "judge": {"calls": judge_calls, "in_chars": judge_calls * judge.prompt_chars / judge.calls,
                   "out_chars": judge_calls * judge_out, "max_chars": judge.max_prompt_chars},
@@ -378,6 +384,7 @@ def alignment_lines(
     keys = ("target_id", "relation_type", "source_quote", "target_quote", "rationale")
     per_norm: dict[str, list[dict[str, Any]]] = {norm_id: [] for norm_id in accepted}
     judge_in: list[int] = []
+    rationale_chars: list[int] = []
     for a in assertions:
         norm = accepted.get(a["source_norm_id"])
         target = hleg_by_id.get(a["target_id"])
@@ -385,6 +392,7 @@ def alignment_lines(
             continue
         candidate = {key: a.get(key) for key in keys}
         per_norm[norm["norm_id"]].append(candidate)
+        rationale_chars.append(len(str(candidate.get("rationale") or "")))
         judge_in.append(len(judge_system) + len(align_pipeline._judge_user_message(norm, target, candidate)))
     gen_out = _mean([len(json.dumps({"alignments": c}, ensure_ascii=False)) for c in per_norm.values()])
     mapping = [run for run in judge_runs
@@ -393,7 +401,16 @@ def alignment_lines(
     judge_out = _mean([_judge_reply_chars(run, ("verdict", "scores", "rationale", "corrected_relation_type"))
                        for run in mapping])
     judge_calls = round(accepted_norms * ratio("align_judge_per_accepted"))
+    # PROXY: a stored assertion's rationale is the judge's (align_hleg/pipeline.py
+    # keeps the judge's rationale on the assertion); no record holds the
+    # generator's own reply (the logs keep hashes only). The judge's rationale
+    # stands in for the generator's, and these are the characters it adds, so
+    # the report can price the estimate without it (the lower bound).
+    gen_rationale = _mean([sum(len(str(c.get("rationale") or "")) for c in cs)
+                           for cs in per_norm.values()])
     return {
+        "rationale_proxy": {"gen_out_chars": round(accepted_norms) * gen_rationale,
+                            "judge_in_chars": judge_calls * _mean(rationale_chars)},
         "dry_generator_calls": gen.calls,
         "generator": {"calls": round(accepted_norms),
                       "in_chars": round(accepted_norms) * gen.prompt_chars / gen.calls,
@@ -777,6 +794,13 @@ def compute(
     accepted = candidates * ratio("accepted_share")
     alignment = alignment_lines(norms, inputs["hleg_nodes"], inputs["assertions"],
                                 inputs["alignment_judge_runs"], accepted, tmp_dir)
+    proxy = alignment["rationale_proxy"]
+    without = {
+        "generator": dict(alignment["generator"],
+                          out_chars=alignment["generator"]["out_chars"] - proxy["gen_out_chars"]),
+        "judge": dict(alignment["judge"],
+                      in_chars=alignment["judge"]["in_chars"] - proxy["judge_in_chars"]),
+    }
     backlog = backlog_lines(inputs["backlog_norms"], CREDSCORE_DESCRIPTION, tmp_dir,
                             judge_reply_chars=inputs["judge_reply_chars"])
     elicitation = elicitation_line(inputs["ablation_items"], inputs["elicit_system_chars"],
@@ -788,6 +812,8 @@ def compute(
     def price(step: str, lines: dict[str, Any], roles: tuple[str, ...] = ("generator", "judge")):
         return [price_line(step, role, lines[role], declared, rows, bands) for role in roles]
 
+    proxy_rows = price("Layer 3 alignment", alignment)
+    bare_rows = price("Layer 3 alignment", without)
     one_rep = price("E6 ablation, one repetition", ablation)
     build_rows = (
         price("Layer 2 extraction", extraction)
@@ -803,6 +829,8 @@ def compute(
         "build_rows": build_rows, "one_rep": one_rep, "n_rows": n_rows,
         "total": sum_cost(total_rows), "batch_total": sum_cost(total_rows, "batch_cost"),
         "one_rep_cost": sum_cost(one_rep), "per_strategy": per_strategy, "proxied": proxied,
+        "rationale_bound": {level: sum_cost(proxy_rows)[level] - sum_cost(bare_rows)[level]
+                            for level in LEVELS},
         "elicit_note": inputs.get("elicit_note"), "full": None, "full_note": inputs.get("full_note"),
         "max_request_tokens": max(r["max_request_tokens"] for r in total_rows),
     }
@@ -929,7 +957,22 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         lines += [res["elicit_note"], ""]
     for name, proxy in res["proxied"].items():
         lines += [f"{name} was not run in run 2: its output uses the observed answer sizes of {proxy}.", ""]
-    lines += ["## Reference outside the total", ""]
+    rb = res["rationale_bound"]
+    lines += [
+        "## Alignment rationale: a proxy, with its bound",
+        "",
+        "- A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the "
+        "judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes "
+        "only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, "
+        "in the generator's output and in the judge's input. Priced without the rationale in both, the "
+        f"alignment step is {_usd(rb['central'])} USD cheaper at the central level "
+        f"({_usd(rb['low'])} low, {_usd(rb['high'])} high), against a total band of "
+        f"{_usd(res['total']['low'])} to {_usd(res['total']['high'])}: the substitution is bounded "
+        "inside the stated band and errs high.",
+        "",
+        "## Reference outside the total",
+        "",
+    ]
     if res["full"]:
         f = res["full"]
         lines.append(

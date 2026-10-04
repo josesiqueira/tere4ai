@@ -39,7 +39,7 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 
 | Step | Role (model) | Calls | Input tokens | Visible output tokens | Billed output tokens, central (low to high) | Low USD | Central USD | High USD |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Layer 2 extraction | generator (gpt-6-astra) | 424 | 990,503 | 49,351 | 274,173 (71,307 to 493,512) | 12.48 | 23.61 | 35.57 |
+| Layer 2 extraction | generator (gpt-6-astra) | 424 | 990,503 | 69,215 | 384,527 (100,008 to 692,149) | 13.91 | 29.13 | 45.50 |
 | Layer 2 extraction | judge (claude-opus-5-5) | 529 | 2,010,800 | 173,672 | 964,845 (313,587 to 1,736,721) | 13.51 | 27.34 | 43.58 |
 | Layer 3 alignment | generator (gpt-6-astra) | 468 | 2,210,473 | 252,264 | 1,401,464 (364,493 to 2,522,635) | 38.12 | 92.18 | 150.45 |
 | Layer 3 alignment | judge (claude-opus-5-5) | 538 | 1,411,409 | 182,433 | 1,013,519 (329,406 to 1,824,334) | 11.67 | 25.92 | 42.70 |
@@ -76,6 +76,10 @@ The elicitation output size counts features only: the facts file (eval/gold/benc
 
 graph_runtime_judge was not run in run 2: its output uses the observed answer sizes of graph_no_judge.
 
+## Alignment rationale: a proxy, with its bound
+
+- A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, in the generator's output and in the judge's input. Priced without the rationale in both, the alignment step is 44.16 USD cheaper at the central level (11.84 low, 79.09 high), against a total band of 146.71 to 542.55: the substitution is bounded inside the stated band and errs high.
+
 ## Reference outside the total
 
 - Full benchmark (476 items), one ablation run: 105.79 USD (band 45.70 to 172.17); its elicitation of 339 scenarios: 51.73 USD (band 36.78 to 67.59). Outside the total (ruling R4): E6 is priced as spec G Section 10.4 states it, over the hand-made test set and the frozen sample.
@@ -86,10 +90,10 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 
 ## Batch
 
-- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both providers) would cost 164.73 USD (band 72.64 to 266.31). It is a lever and not in the total: the clients call the synchronous APIs.
+- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both providers) would cost 167.49 USD (band 73.36 to 271.27). It is a lever and not in the total: the clients call the synchronous APIs.
 
 ## Total
 
-Total for the B74 sequence: 329.46 USD (band 145.28 to 532.62)
+Total for the B74 sequence: 334.98 USD (band 146.71 to 542.55)
 
 The band takes the low input and the low reasoning share at its low end, and the high input and the high reasoning share at its high end. It includes the ablation at N = 10.
