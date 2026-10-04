@@ -1,6 +1,7 @@
 """Feature elicitation: free-text system description to system_features.
 
 @implements: DEC-13, DEC-18
+@implements: DEC-23
 @grounded_by: REF-17, REF-16
 
 The trust split of USER.md holds: the LLM extracts FACTS from the given
@@ -48,7 +49,10 @@ SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
 PROMPT_NAME = "elicit_features"
 # DEC-18: the one default prompt version; the facade's elicit_envelope and
 # scripts/elicit_benchmark_features.py import it rather than repeat it.
-DEFAULT_PROMPT_VERSION = "v6"
+# B132 (spec G D-G68 (6)): v7 follows the Act as amended (the amended Annex I
+# points, points (ba) and (bb) as Article 5 nodes, the Annex I section fact),
+# the version of record for B74.
+DEFAULT_PROMPT_VERSION = "v7"
 MIN_QUOTE_WORDS = 3
 # Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
 NESTED_FACT_FIELDS = ("flags", "deployer")

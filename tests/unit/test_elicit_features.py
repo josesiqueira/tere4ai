@@ -137,21 +137,22 @@ def test_v4_prompt_carries_the_article_5_exculpating_facts():
         assert flag in prompt, f"v4 prompt omits the fact {flag}"
 
 
-def test_default_prompt_version_is_v6():
+def test_default_prompt_version_is_v7():
     """DEC-18: the elicitor and the facade share one default."""
     import inspect
 
     from tere4ai.elicit_features.elicitor import elicit, render_prompt
     from tere4ai.mcp_server.elicit import elicit_envelope
 
-    # B10: the default moves from v5 to v6, which quotes every flag's
-    # provisions from the graph and asks for a quote per fact.
-    assert DEFAULT_PROMPT_VERSION == "v6"
+    # B10: the default moved from v5 to v6, which quotes every flag's
+    # provisions from the graph and asks for a quote per fact; B132: to v7,
+    # which follows the Act as amended.
+    assert DEFAULT_PROMPT_VERSION == "v7"
     # B10: the elicit_features wrapper is deleted (Task 5); render_prompt,
     # which the benchmark script calls, shares the default.
     for function in (elicit, render_prompt, elicit_envelope):
         signature = inspect.signature(function)
-        assert signature.parameters["prompt_version"].default == "v6"
+        assert signature.parameters["prompt_version"].default == "v7"
 
 
 # DEC-18, B36.2: the three biometric facts and the point (d) and (g)
@@ -346,7 +347,7 @@ from tere4ai.elicit_features.provisions import PLACEHOLDER_RE, ProvisionUnresolv
 
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
-V6_PATH = ROOT / "prompts" / "elicit_features" / "v6.md"
+V7_PATH = ROOT / "prompts" / "elicit_features" / "v7.md"
 BANK = (
     "A chatbot on our bank's website answers customers' questions about opening "
     "hours and card fees. It does not make or support any decision about credit."
@@ -540,11 +541,11 @@ def test_prompt_record_names_the_template_the_render_and_the_build(dump):
     result, gen = _run(
         {"features": {}, "quotes": {}}, dump,
     )
-    template = V6_PATH.read_bytes()
+    template = V7_PATH.read_bytes()
     ids = list(dict.fromkeys(PLACEHOLDER_RE.findall(template.decode("utf-8"))))
     assert result.prompt == {
         "prompt": "elicit_features",
-        "version": "v6",
+        "version": "v7",
         "template_sha256": hashlib.sha256(template).hexdigest(),
         "rendered_sha256": hashlib.sha256(gen.systems[0].encode("utf-8")).hexdigest(),
         "provisions": ids,
@@ -555,7 +556,7 @@ def test_prompt_record_names_the_template_the_render_and_the_build(dump):
 
 def test_provision_failure_makes_no_generator_call(dump):
     broken = copy.deepcopy(dump)
-    first = PLACEHOLDER_RE.findall(V6_PATH.read_text(encoding="utf-8"))[0]
+    first = PLACEHOLDER_RE.findall(V7_PATH.read_text(encoding="utf-8"))[0]
     broken["nodes"] = [n for n in broken["nodes"] if n.get("id") != first]
     gen = Scripted({"features": {}, "quotes": {}})
     result, gen = _run(gen, broken)
@@ -619,7 +620,7 @@ def test_render_prompt_is_the_system_prompt_elicit_sends_and_its_record(dump):
     )
     assert gen.systems == [system]
     assert prompt == result.prompt
-    assert prompt["version"] == "v6" and prompt["graph_version"] == dump["build"]["build_id"]
+    assert prompt["version"] == "v7" and prompt["graph_version"] == dump["build"]["build_id"]
 
 
 def test_render_prompt_raises_when_a_provision_does_not_resolve(dump):

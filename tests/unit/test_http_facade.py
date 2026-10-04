@@ -442,7 +442,7 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
         {"path": "flags.social_scoring", "reason": "quote not in the description"}
     ]
     assert "social_scoring" not in answer["features"]["flags"]
-    assert answer["prompt"]["version"] == "v6"
+    assert answer["prompt"]["version"] == "v7"
     assert re.fullmatch(r"[0-9a-f]{64}", answer["prompt"]["template_sha256"])
     served = client.app.state.dump["build"]["build_id"]
     assert answer["prompt"]["graph_version"] == served == env["graph_version"]

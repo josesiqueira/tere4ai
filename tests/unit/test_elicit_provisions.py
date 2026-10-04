@@ -302,3 +302,66 @@ def test_v6_has_no_em_or_en_dash() -> None:
     text = _v6_text()
     assert chr(0x2014) not in text
     assert chr(0x2013) not in text
+
+
+# Prompt v7 (B132, spec G D-G68 (6)): the Act as amended. Every flag quotes
+# its provisions from the graph, points (ba) and (bb) as Article 5 nodes, the
+# amended Annex I points (Section A 2 to 12, Section B 13 to 21) and the
+# Annex I section fact; nothing is quoted from the amending act any more.
+
+V7_PATH = ROOT / "prompts" / "elicit_features" / "v7.md"
+
+
+def _v7_text() -> str:
+    return V7_PATH.read_text(encoding="utf-8")
+
+
+def _v7_table() -> dict[str, list[str]]:
+    return fact_provisions(_v7_text())
+
+
+def test_v7_every_schema_flag_has_a_provision() -> None:
+    from tere4ai.elicit_features.elicitor import schema_flag_names
+
+    table = _v7_table()
+    assert [name for name in schema_flag_names() if not table.get(f"flags.{name}")] == []
+
+
+def test_v7_article_5_flags_quote_the_classifiers_nodes_points_ba_and_bb_included() -> None:
+    from tere4ai.mcp_server.classify import ARTICLE_5_POINT_BY_FLAG, ARTICLE_5_SCOPING_PARAGRAPHS
+
+    table = _v7_table()
+    for flag, (node_id, _fragment) in ARTICLE_5_POINT_BY_FLAG.items():
+        assert node_id in table.get(f"flags.{flag}", []), flag
+    for flag, paragraphs in ARTICLE_5_SCOPING_PARAGRAPHS.items():
+        for paragraph in paragraphs:
+            assert paragraph in table[f"flags.{flag}"], (flag, paragraph)
+
+
+def test_v7_quotes_the_amended_annex_i_and_article_6() -> None:
+    table = _v7_table()
+    section_a = [f"eu-ai-act:annex-i:section-a:point-{n}" for n in range(2, 13)]
+    section_b = [f"eu-ai-act:annex-i:section-b:point-{n}" for n in range(13, 22)]
+    for fact in ("flags.annex_i_covered_product", "flags.annex_i_section_b_legislation"):
+        assert [n for n in table[fact] if n.startswith("eu-ai-act:annex-i:")] == section_a + section_b, fact
+    assert "{{provision:eu-ai-act:annex-i:section-a:point-1}}" not in _v7_text()
+    assert "eu-ai-act:article-2:paragraph-2" in table["flags.annex_i_section_b_legislation"]
+    for fact in ("flags.medical_or_safety_component", "flags.annex_i_covered_product"):
+        assert {"eu-ai-act:article-6:paragraph-1a", "eu-ai-act:article-6:paragraph-1b"} <= set(table[fact]), fact
+    assert "eu-ai-act:article-6:paragraph-1c" in table["flags.third_party_conformity_assessment_required"]
+
+
+def test_v7_renders_on_the_published_graph_with_no_deleted_provision(dump) -> None:
+    rendered, provisions = render_template(_v7_text(), dump, SNAPSHOTS_DIR)
+    assert "{{provision:" not in rendered
+    assert "Deleted by" not in rendered
+    assert "verbatim from the amending act" not in rendered
+    assert {p["node_id"] for p in provisions} >= {"eu-ai-act:article-5:paragraph-1:point-ba",
+                                                  "eu-ai-act:annex-i:section-b:point-21"}
+
+
+def test_v7_keeps_v6s_role_rules_and_output() -> None:
+    v6, v7 = _v6_text(), _v7_text()
+    assert v7.startswith(v6[: v6.index('- "flags": an object of booleans')])
+    for part in ("Rules, all binding:", "## Output"):
+        assert v6[v6.index(part):].split("\n## ")[0] == v7[v7.index(part):].split("\n## ")[0], part

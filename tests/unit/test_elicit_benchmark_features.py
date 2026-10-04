@@ -36,7 +36,7 @@ ITEMS = [{"id": "bench:1", "kind": "classification", "system_text": "a scoring s
 
 
 DUMP = {"build": {"build_id": "build-x"}, "nodes": []}
-PROMPT = {"prompt": "elicit_features", "version": "v6", "template_sha256": "a" * 64,
+PROMPT = {"prompt": "elicit_features", "version": "v7", "template_sha256": "a" * 64,
           "rendered_sha256": "b" * 64, "provisions": ["eu-ai-act:definition:profiling"],
           "graph_version": "build-x"}
 QUOTES = {"flags.flag": {"text": "a scoring system", "start": 0, "end": 16}}
@@ -163,9 +163,10 @@ def test_the_default_prompt_version_is_the_elicitors(tmp_path, monkeypatch):
     monkeypatch.setattr(mod, "elicit", elicit)
     assert mod.main(["--out", str(out)]) == 0
     assert seen == [DEFAULT_PROMPT_VERSION, DEFAULT_PROMPT_VERSION]
-    # B10: the elicitor's default moved from v5 to v6 (quotes per fact).
-    assert DEFAULT_PROMPT_VERSION == "v6"
-    assert json.loads(out.read_text())["prompt_version"] == "v6"
+    # B10: the elicitor's default moved from v5 to v6 (quotes per fact);
+    # B132: to v7 (the Act as amended).
+    assert DEFAULT_PROMPT_VERSION == "v7"
+    assert json.loads(out.read_text())["prompt_version"] == "v7"
 
 
 def test_the_entries_and_the_output_carry_quotes_dropped_facts_and_the_prompt(tmp_path, monkeypatch):
@@ -269,7 +270,7 @@ def test_the_prompt_record_is_the_rendered_v6_over_the_repositorys_build(tmp_pat
     out = tmp_path / "features.json"
     assert mod.main(["--out", str(out)]) == 0
     prompt = json.loads(out.read_text())["prompt"]
-    v6 = (ROOT / "prompts" / "elicit_features" / "v6.md").read_bytes()
-    assert prompt["version"] == "v6" and prompt["template_sha256"] == hashlib.sha256(v6).hexdigest()
+    v7 = (ROOT / "prompts" / "elicit_features" / "v7.md").read_bytes()
+    assert prompt["version"] == "v7" and prompt["template_sha256"] == hashlib.sha256(v7).hexdigest()
     assert prompt["graph_version"] == mod.load_active(mod.DUMP_DIR).build_id
     assert len(prompt["rendered_sha256"]) == 64 and prompt["provisions"]
