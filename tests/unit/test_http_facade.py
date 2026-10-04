@@ -1044,7 +1044,7 @@ def test_units_serves_every_core_unit_with_all_candidates(client):
     assert body["graph_version"].startswith("build-")
     assert isinstance(body["core_nodes"], list) and body["core_nodes"]
     units = body["units"]
-    assert len(units) == 414  # the core source units of the Act as amended (B132)
+    assert len(units) == 424  # the core source units of the Act as amended, Article 4a in scope (B132)
     first = units[0]
     for key in ("id", "type", "span_id", "article_id", "text", "candidates"):
         assert key in first

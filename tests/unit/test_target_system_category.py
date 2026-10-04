@@ -92,20 +92,23 @@ def test_category_for_never_raises_on_a_malformed_id():
 @needs_layer1
 def test_the_table_has_one_row_per_core_id():
     assert sorted(RULE_TABLE) == sorted(_core_ids())
-    assert len(RULE_TABLE) == 29
+    assert len(RULE_TABLE) == 30
 
 
 @needs_layer1
 def test_every_core_unit_of_the_layer1_dump_resolves_to_a_value(layer1):
     """Acceptance 2: every source unit B74 extracts gets a value by the rule:
-    414 on the Act as amended (B132; 405 on the 2024 text), before plan B
-    adds Article 4a."""
+    424 on the Act as amended with Article 4a in scope (B132, D-G68 (7):
+    414 without it, 405 on the 2024 text); Article 4a's ten units carry
+    Chapter I's value."""
     units = expand_source_units(layer1, _core_ids())
-    assert len(units) == 414
+    assert len(units) == 424
     values = Counter(category_for(unit["node_id"]) for unit in units)
     assert values == {
-        HIGH_RISK_AI_SYSTEM: 294, ANY_AI_SYSTEM: 82, PROHIBITED_AI_PRACTICE: 31, ARTICLE_50_AI_SYSTEM: 7,
+        HIGH_RISK_AI_SYSTEM: 294, ANY_AI_SYSTEM: 92, PROHIBITED_AI_PRACTICE: 31, ARTICLE_50_AI_SYSTEM: 7,
     }
+    assert sum(1 for unit in units if unit["node_id"].startswith("eu-ai-act:article-4a:")) == 10
+    assert category_for("eu-ai-act:article-4a:paragraph-1:point-a") == ANY_AI_SYSTEM
 
 
 @needs_layer1
@@ -137,4 +140,4 @@ def test_a_row_decided_by_a_chapter_title_names_the_chapter_that_holds_its_artic
             if nodes[node_id]["type"] == "Chapter":
                 assert chapter_of(container) == node_id, container
                 checked += 1
-    assert checked == 25  # Articles 3, 5, 6 to 27 and 50
+    assert checked == 26  # Articles 3, 4a, 5, 6 to 27 and 50

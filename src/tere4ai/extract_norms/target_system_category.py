@@ -1,6 +1,7 @@
 """The part of the Act's rules a norm belongs to: one closed slot, four values.
 
 @implements: DEC-21
+@implements: DEC-23
 @grounded_by: REF-01
 
 Each norm's target_system_category names the part of the Act's rules the
@@ -57,12 +58,19 @@ class Row:
 _CHAPTER_III = (("eu-ai-act:chapter-iii", "HIGH-RISK AI SYSTEMS"),)
 
 RULE_TABLE: dict[str, Row] = {
-    # Chapter I, the general provisions, addresses "AI systems" (Article 4);
-    # Article 3's definitions, general-purpose AI models included, are
-    # general provisions.
+    # Chapter I, the general provisions, addresses "AI systems" (Article 4,
+    # whose paragraph 1 as replaced by Regulation (EU) 2026/1744 keeps these
+    # words); Article 3's definitions, general-purpose AI models included,
+    # are general provisions.
     "eu-ai-act:article-3": Row(ANY_AI_SYSTEM, (
         ("eu-ai-act:chapter-i", "GENERAL PROVISIONS"),
         ("eu-ai-act:article-4:paragraph-1", "Providers and deployers of AI systems shall take measures"),
+    )),
+    # Article 4a, inserted by Regulation (EU) 2026/1744 in Chapter I, holds
+    # the rule Article 10(5) held (B132, spec G D-G68 (7)); under D-G62's rule
+    # the part of the Act decides, so it takes Chapter I's value, Article 3's.
+    "eu-ai-act:article-4a": Row(ANY_AI_SYSTEM, (
+        ("eu-ai-act:chapter-i", "GENERAL PROVISIONS"),
     )),
     # Chapter II; Article 5(2) to 5(7), the conditions on the permitted use
     # of real-time remote biometric identification, stay in its rules.

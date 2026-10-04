@@ -344,7 +344,10 @@ OVR-1. grounded_by: REF-17, REF-15
   holds Articles 8 to 15; Article 6 links Annexes I and III; Article 11 links
   Annex IV; Annex III use cases and Annex IV items individually addressable.
 - Layers 2 and 3 deep extraction (v2 core, high-risk build journey only):
-  Article 3 (definitions used by classification), Article 5 (prohibited),
+  Article 3 (definitions used by classification), Article 4a (the
+  processing of special categories of personal data for bias detection and
+  correction, inserted by the Digital Omnibus with the rule Article 10(5)
+  held; B132, data/graph_dumps/core_nodes.txt), Article 5 (prohibited),
   Articles 6 to 7 plus Annex III (classification), Articles 8 to 15 plus Annex
   IV (requirements), Articles 16 to 27 including the Article 27 fundamental-
   rights impact assessment (provider and deployer obligations), Article 50
@@ -352,7 +355,10 @@ OVR-1. grounded_by: REF-17, REF-15
   HLEG requirements, and ALTAI items where license allows (ethics-layer source:
   REF-33).
 - Structural only in v2, deep extraction deferred to v2.1+: Articles 1 to 2 and
-  4, 28 to 49, 51 to 71, 74 to 113, and the remaining annexes.
+  4, 28 to 49, 51 to 71 (60a included), 74 to 113 (75a to 75d included), and
+  the remaining annexes (Annex XIV included). Units the Omnibus deleted are
+  never extracted. The core holds 424 source units of the Act as amended
+  (30 Articles and Annexes; 405 on the 2024 text).
 - Deep-extraction acceptance applies only to the v2 core set above, not the
   whole Act.
 
