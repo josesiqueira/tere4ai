@@ -316,7 +316,7 @@ const CATEGORY_FLAGS: [string, string][] = [
   ],
   [
     "annex_i_section_b_legislation",
-    "Product legislation listed in Annex I Section B (Art. 2(2): no Chapter III requirements)",
+    "Product legislation listed in Annex I Section B (Art. 2(2): no Chapter III requirements unless an Annex III point applies)",
   ],
 ];
 

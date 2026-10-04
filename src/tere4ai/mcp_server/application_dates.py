@@ -25,7 +25,11 @@ the general date.
 
 ROWS is the reviewed table: each row quotes the words of the Layer 1 node
 that holds its point, verbatim (tests/unit/test_application_dates.py
-checks every quotation against layer1.json). A wording the Omnibus
+checks every quotation against layer1.json). The table quotes the Act as
+amended and assumes a dump with the Omnibus merged into the base (as
+layer1.json is): its rows, sources and dates are those of the amended
+text whatever dump is passed. A unit the Omnibus deleted no longer
+applies and gets no date. A wording the Omnibus
 inserted or replaced applies no earlier than the Omnibus's entry into
 force, 27 July 2026 (its Article 4, quoted in OMNIBUS_ENTRY_INTO_FORCE),
 so such a node carries the later of the two dates. Article 111(4) is a
@@ -41,7 +45,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from tere4ai.parse_legal_structure.amendments import OMNIBUS_ACT, OMNIBUS_IN_FORCE
+from tere4ai.parse_legal_structure.amendments import OMNIBUS_ACT, OMNIBUS_IN_FORCE, is_deleted
 
 BASE_ACT = "Regulation (EU) 2024/1689"
 LEGAL_TEXT_AMENDED = f"{BASE_ACT} as amended by {OMNIBUS_ACT}"
@@ -169,6 +173,11 @@ _C_SECTIONS = frozenset({f"eu-ai-act:chapter-iii:section-{n}" for n in (1, 2, 3)
 _B_SECTION = "eu-ai-act:chapter-iii:section-4"
 
 
+def _source(row: Row) -> str:
+    """The point as the Act cites it, with the Official Journal reference."""
+    return f"{row.cited_as}, of {LEGAL_TEXT_AMENDED} ({OJ_CITATION})"
+
+
 def legal_text(dump: dict[str, Any]) -> str:
     """The text an answer on this dump follows: the Act as amended when the
     Omnibus SourceDocument is merged into the base (B132), else as enacted."""
@@ -251,9 +260,11 @@ def provision_dates(node_id: str, dump: dict[str, Any], route: str | None = None
     provision, applies_through (the Article an Annex follows, else None),
     date, meaning, legal_status, source (the point as the Act cites it, with
     the Official Journal reference), basis_node, wording (verbatim from
-    basis_node), notes.
+    basis_node), notes. A unit the Omnibus deleted gets no entry.
     """
     node = next((n for n in dump.get("nodes", []) if n.get("id") == node_id), None)
+    if is_deleted(node):
+        return []
     amendment = (node or {}).get("amendment")
     through = _annex_through(node_id)
     dated_as, dated_route = node_id, route
@@ -278,7 +289,7 @@ def provision_dates(node_id: str, dump: dict[str, Any], route: str | None = None
             "date": date,
             "meaning": row.meaning,
             "legal_status": "in_force",
-            "source": f"{row.cited_as}, of {LEGAL_TEXT_AMENDED} ({OJ_CITATION})",
+            "source": _source(row),
             "basis_node": row.basis_node,
             "wording": row.wording,
             "notes": notes,
@@ -302,5 +313,5 @@ def fria_applies_from() -> dict[str, str]:
         "date": row.applies_from,
         "meaning": row.meaning + "; Article 27 is in Chapter III, Section 3",
         "legal_status": "in_force",
-        "source": f"{row.cited_as}, of {LEGAL_TEXT_AMENDED} ({OJ_CITATION})",
+        "source": _source(row),
     }

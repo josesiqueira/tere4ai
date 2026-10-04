@@ -906,3 +906,35 @@ def test_deleted_source_refusals_name_each_norm_on_a_deleted_unit():
     refusals = deleted_source_refusals(norms, dump)
     assert list(refusals) == ["norm:eu-ai-act:article-10:paragraph-5:n1"]
     assert "Deleted by Regulation (EU) 2026/1744, Article 1, point (9)" in refusals["norm:eu-ai-act:article-10:paragraph-5:n1"]
+
+
+def test_the_mcp_backlog_refuses_a_norm_on_a_deleted_unit_before_any_client(monkeypatch):
+    """B132 (D-G68 (3)), final review M9: the MCP tool answers not_applicable
+    with refused_norm_ids for a norm on a unit the Omnibus deleted, and no
+    paid client is built."""
+    from pathlib import Path
+
+    from tere4ai.graph_store.publication import LoadedBuild
+    from tere4ai.mcp_server import server
+
+    dump = json.loads((Path(__file__).resolve().parents[2] / "data" / "graph_dumps" / "layer1.json")
+                      .read_text(encoding="utf-8"))
+    moved = make_norm(10, 9, source_node_id="eu-ai-act:article-10:paragraph-5",
+                      norm_id="norm:eu-ai-act:article-10:paragraph-5:n9")
+    monkeypatch.setattr(
+        server, "_active",
+        lambda: LoadedBuild(dump, {"norms": [NORM_A, moved]}, {"assertions": []},
+                            dump["build"]["build_id"], "legacy", None),
+    )
+
+    def no_paid_clients():
+        raise AssertionError("a paid client was built")
+
+    monkeypatch.setattr(server, "_paid_clients_or_envelope", no_paid_clients)
+    envelope = server.generate_control_backlog([NORM_A["norm_id"], moved["norm_id"]], "A triage system.")
+    assert envelope["status"] == "not_applicable"
+    assert envelope["answer"] == {"refused_norm_ids": [moved["norm_id"]]}
+    assert envelope["confidence"] == 0.0
+    assert any("eu-ai-act:article-10:paragraph-5" in m and "Deleted by Regulation (EU) 2026/1744" in m
+               for m in envelope["missing_facts"])
+    assert "no backlog was generated and no model call was made" in envelope["missing_facts"]

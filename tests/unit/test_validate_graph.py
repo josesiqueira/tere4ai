@@ -108,6 +108,19 @@ def test_the_published_dev_norms_and_alignments_stand_on_no_deleted_unit():
     assert {units[n["source_node_id"]] for n in norms} == {"unchanged"}
 
 
+def test_the_published_dev_norms_keep_no_clause_of_a_dropped_norm():
+    """Final review (opus Minor 4): every Condition and Exception record in the
+    dev norms dump is the clause of a kept norm; the clauses of the norms D9
+    dropped go with them."""
+    norms = json.loads((DUMP.parent / "norms_core.json").read_text(encoding="utf-8"))
+    referenced_conditions = {c for n in norms["norms"] for c in n["condition_ids"]}
+    referenced_exceptions = {e for n in norms["norms"] for e in n["exception_ids"]}
+    conditions = {c["id"] for c in norms["conditions"]}
+    exceptions = {e["id"] for e in norms["exceptions"]}
+    assert sorted(conditions - referenced_conditions) == []
+    assert sorted(exceptions - referenced_exceptions) == []
+    assert referenced_conditions <= conditions and referenced_exceptions <= exceptions
+
 def test_a_test_set_item_citing_a_deleted_unit_is_named():
     from tere4ai.eval.harness import load_gold_items
     from tere4ai.validate_graph.gates import deleted_unit_citations

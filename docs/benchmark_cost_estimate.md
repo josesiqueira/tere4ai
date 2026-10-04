@@ -18,7 +18,7 @@
 | graph_full | 137 | 265,151 | 21,473 | 476 | 753,839 | 75,765 |
 | elicitation (DEC-13, once per scenario) | 339 | 3,475,257 | 56,629 | 0 | 0 | 0 |
 
-The elicitation output size counts features only: the facts file (eval/gold/benchmark_features.json) holds no quotes, so a v6 reply's quotes are not in the figure.
+The elicitation output size counts features only: the facts file (eval/gold/benchmark_features.json) holds no quotes, so the quotes of a reply to the default elicitor prompt are not in the figure.
 
 ## Totals
 

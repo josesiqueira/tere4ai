@@ -253,8 +253,9 @@ def test_v5_prompt_names_every_schema_flag():
     assert missing == []
 
 
-# The Omnibus points are not in the base-text dump (REF-02, DEC-12): their
-# words come from the verified inventory docs/omnibus_amendments.md.
+# v5 and v6 quoted the Omnibus points from the amending act, in the words of
+# the verified inventory docs/omnibus_amendments.md, since the base-text dump
+# then had no node for them (REF-02, DEC-12); they are graph nodes now (B132).
 OMNIBUS_PASSAGES = (
     "(ba) the placing on the market, the putting into service or the use of an AI "
     "system that generates or manipulates realistic images, videos, audio or similar "

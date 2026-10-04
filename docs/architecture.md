@@ -428,9 +428,9 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   with Article 5(1a) and (1b); a third fact of the Article 6(1) route,
   annex_i_section_b_legislation, names the Annex I section of the product's
   legislation (answer field annex_i_section: A, B or unknown). For Section
-  B, Article 2(2) applies to the Article 6(1) classification only Article
-  6(1), Article 60a and Articles 102 to 112 (and Articles 57 to 59 on the
-  condition it states and the answer does not decide): with no Annex III
+  B, under Article 2(2), only Article 6(1), Article 60a and Articles 102 to
+  112 shall apply (and Articles 57 to 59 on the condition it states and the
+  answer does not decide): with no Annex III
   match no Chapter III requirement and no Article 50 duty is served, and
   the provisions are cited without norms; Article 2(2) limits only what
   that classification brings, so the Annex III rules are still checked and
@@ -443,8 +443,9 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   classification and every served requirement group carries the dates its
   provisions apply from, by those routes (both points of Article 113(c)
   when both hold; the requirement groups of a Section B product on the
-  Annex III route carry point (c)(i) only, because Article 2(2) excludes
-  Chapter III on the Article 6(1) route), from the reviewed table of
+  Annex III route, and every provision its classification cites but
+  Article 6(1) and Annex I, carry point (c)(i) only, because Article 2(2)
+  excludes Chapter III on the Article 6(1) route), from the reviewed table of
   Article 113 as amended (mcp_server/application_dates.py: an Annex dated
   through the Article that brings it into application, a wording the
   Omnibus inserted or replaced no earlier than 27 July 2026, Article 111(4)

@@ -21116,24 +21116,10 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:0993fb6cb263",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in any event",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:09983e2e7dc2",
    "type": "Condition",
    "layer": 2,
    "text": "to ai systems used for biometric categorisation and emotion recognition",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:0a505177a21c",
-   "type": "Condition",
-   "layer": 2,
-   "text": "if it deems the code is not adequate",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21165,20 +21151,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:0cb5da55e61e",
-   "type": "Condition",
-   "layer": 2,
-   "text": "which is already based on objective and verifiable facts directly linked to a criminal activity",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:0cf41d14712f",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to AI systems used to support the human assessment of the involvement of a person in a criminal activity",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:0d205495785b",
    "type": "Condition",
    "layer": 2,
@@ -21204,13 +21176,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "in order to ensure a level of traceability of the functioning of a high-risk AI system that is appropriate to the intended purpose of the system",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:0f701bdd0377",
-   "type": "Condition",
-   "layer": 2,
-   "text": "it shall contain, at a minimum, the elements set out in Annex IV",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21281,13 +21246,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "high-risk AI systems that continue to learn after being placed on the market or put into service",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:1869f8673eec",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to the size of the provider’s organisation",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21389,13 +21347,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:27172aac14e4",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to third parties making accessible to the public tools, services, processes, or components, other than general-purpose ai models, under a free and open-source licence",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:28afc4e68bf6",
    "type": "Condition",
    "layer": 2,
@@ -21428,20 +21379,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "that may emerge when a high-risk AI system is used in accordance with its intended purpose or under conditions of reasonably foreseeable misuse",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:2c5cfb08162d",
-   "type": "Condition",
-   "layer": 2,
-   "text": "based solely on the profiling of a natural person or on assessing their personality traits and characteristics",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:2c626925ad98",
-   "type": "Condition",
-   "layer": 2,
-   "text": "the records of processing activities pursuant to Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21501,13 +21438,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:3476c23feb9d",
-   "type": "Condition",
-   "layer": 2,
-   "text": "by 2 February 2026",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:34b219b52a3f",
    "type": "Condition",
    "layer": 2,
@@ -21526,13 +21456,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "to comply with their obligation to carry out a data protection impact assessment under Article 35 of Regulation (EU) 2016/679 or Article 27 of Directive (EU) 2016/680",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:3557c2552964",
-   "type": "Condition",
-   "layer": 2,
-   "text": "for the development of high-risk AI systems not using techniques involving the training of AI models",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21606,24 +21529,10 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:3cb3dae089cc",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to avoid misuse",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:3cfdabc51b4d",
    "type": "Condition",
    "layer": 2,
    "text": "where there is concrete and reliable evidence that this is necessary to maintain the level of protection of health, safety and fundamental rights provided for by this Regulation",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:3d443fa5a2ef",
-   "type": "Condition",
-   "layer": 2,
-   "text": "the special categories of personal data",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21704,13 +21613,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:420149da0495",
-   "type": "Condition",
-   "layer": 2,
-   "text": "based on the generally acknowledged state of the art",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:4273492c6935",
    "type": "Condition",
    "layer": 2,
@@ -21743,13 +21645,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "for the purposes set out in that point only to confirm the identity of the specifically targeted individual",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:46598e86ba17",
-   "type": "Condition",
-   "layer": 2,
-   "text": "where an SME, including a start-up, opts to provide the information required in Annex IV in a simplified manner",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21792,13 +21687,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "any amendment to the conditions laid down in paragraph 3, second subparagraph, adopted in accordance with paragraphs 6 and 7 of this Article",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:4e5535579080",
-   "type": "Condition",
-   "layer": 2,
-   "text": "if any of the obligations laid down in this Article is already met through the data protection impact assessment conducted pursuant to Article 35 of Regulation (EU) 2016/679 or Article 27 of Directive (EU) 2016/680",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -21914,13 +21802,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:59e6a6bbb9a4",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to provide national competent authorities and notified bodies with the necessary information in a clear and comprehensive form to assess the compliance of the AI system with those requirements",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:59ed01965b0e",
    "type": "Condition",
    "layer": 2,
@@ -21974,13 +21855,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "in a clear and distinguishable manner",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:5f07678eebb8",
-   "type": "Condition",
-   "layer": 2,
-   "text": "where the circumstances referred to in paragraph 1 occur",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -22068,13 +21942,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:6913f8a598b1",
-   "type": "Condition",
-   "layer": 2,
-   "text": "once the bias has been corrected or the personal data has reached the end of its retention period, whichever comes first",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:696ada46d061",
    "type": "Condition",
    "layer": 2,
@@ -22121,13 +21988,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "in particular",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:6dd92d05d6ca",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to the extent that it is strictly necessary for the purpose of ensuring bias detection and correction in relation to the high-risk AI systems in accordance with paragraph (2), points (f) and (g) of this Article",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -22348,13 +22208,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:867d050678ff",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in accordance with the examination procedure laid down in article 98(2)",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:86e3f74eca67",
    "type": "Condition",
    "layer": 2,
@@ -22411,13 +22264,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:8a990453575f",
-   "type": "Condition",
-   "layer": 2,
-   "text": "by written agreement",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:8b9c2fcffd80",
    "type": "Condition",
    "layer": 2,
@@ -22453,13 +22299,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:8f727126a983",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in accordance with the procedure laid down in article 56 (6)",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:8fc980411fc0",
    "type": "Condition",
    "layer": 2,
@@ -22471,13 +22310,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "only where it is satisfied, on the basis of objective evidence or clear indications presented to it, that the use of the ‘real-time’ remote biometric identification system concerned is necessary for, and proportionate to, achieving one of the objectives specified in paragraph 1, first subparagraph, point (h), as identified in the request",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:907352e090d9",
-   "type": "Condition",
-   "layer": 2,
-   "text": "when developing those voluntary model terms",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -22586,13 +22418,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:9f487ba9ad5e",
-   "type": "Condition",
-   "layer": 2,
-   "text": "subject to appropriate safeguards for the fundamental rights and freedoms of natural persons",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:9fe9bc0a856a",
    "type": "Condition",
    "layer": 2,
@@ -22635,13 +22460,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:a27aff9d1df0",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in order to enable the provider of the high-risk ai system to fully comply with the obligations set out in this Regulation",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:a2cdda6983f6",
    "type": "Condition",
    "layer": 2,
@@ -22649,24 +22467,10 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:a3f72d612414",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in addition to the provisions set out in Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:a44f711d785f",
    "type": "Condition",
    "layer": 2,
    "text": "the product whose safety component pursuant to point (a) is the AI system, or the AI system itself as a product, is required to undergo a third-party conformity assessment, with a view to the placing on the market or the putting into service of that product pursuant to the Union harmonisation legislation listed in Annex I",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:a4509004885b",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to facilitate the effective implementation of the obligations regarding the detection and labelling of artificially generated or manipulated content",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -22695,13 +22499,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "to the extent such logs are under the control of the provider",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:a5d77e2295c2",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in an easily usable electronic format",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -22908,13 +22705,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:ba6bfc1e5672",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in such a way as to demonstrate that the high-risk AI system complies with the requirements set out in this Section",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:baef3fefee53",
    "type": "Condition",
    "layer": 2,
@@ -22954,13 +22744,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "as applicable",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:be1d8aed1e06",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in order for such processing to occur",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -23055,13 +22838,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:cc1623018e0b",
-   "type": "Condition",
-   "layer": 2,
-   "text": "whenever such data sets are used",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:cc5db1bb9e9e",
    "type": "Condition",
    "layer": 2,
@@ -23139,20 +22915,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:d1c36e6f36dc",
-   "type": "Condition",
-   "layer": 2,
-   "text": "including through an automated tool",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:d41ee830d805",
-   "type": "Condition",
-   "layer": 2,
-   "text": "high-risk AI systems which make use of techniques involving the training of AI models with data",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:d4e572a22cfe",
    "type": "Condition",
    "layer": 2,
@@ -23195,13 +22957,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:da9ea088cd1c",
-   "type": "Condition",
-   "layer": 2,
-   "text": "to facilitate deployers in complying with their obligations under this Article in a simplified manner",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:dafd5b23b701",
    "type": "Condition",
    "layer": 2,
@@ -23241,13 +22996,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "of at least six months",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:e2c21c974ea6",
-   "type": "Condition",
-   "layer": 2,
-   "text": "the fundamental rights impact assessment referred to in paragraph 1 of this Article",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -23328,13 +23076,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:f45fde2622cc",
-   "type": "Condition",
-   "layer": 2,
-   "text": "all the following conditions must be met in order for such processing to occur",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:f4fd9f45f270",
    "type": "Condition",
    "layer": 2,
@@ -23353,20 +23094,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "at the latest 30 days following the adoption thereof",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:f72d1c1ca1ca",
-   "type": "Condition",
-   "layer": 2,
-   "text": "that are required for the fulfilment of the obligations set out in this Regulation",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:f783c18a835c",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in accordance with the examination procedure referred to in Article 98(2)",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -23398,13 +23125,6 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "cond:f85ecd0a7970",
-   "type": "Condition",
-   "layer": 2,
-   "text": "in particular regarding the compliance with the conformity assessment of high-risk AI systems",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "cond:f8e2077176d8",
    "type": "Condition",
    "layer": 2,
@@ -23416,13 +23136,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "where a distributor considers or has reason to consider, on the basis of the information in its possession, that a high-risk AI system is not in conformity with the requirements set out in Section 2",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:f91e0c5b9e2b",
-   "type": "Condition",
-   "layer": 2,
-   "text": "free of charge",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -23472,13 +23185,6 @@
    "type": "Condition",
    "layer": 2,
    "text": "in order to ensure consistency, avoid duplication and minimise additional burdens",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "cond:fce137dedbd4",
-   "type": "Condition",
-   "layer": 2,
-   "text": "for the purposes of the conformity assessment",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -23673,24 +23379,10 @@
    "method": "canonicalize_rule_v1"
   },
   {
-   "id": "exc:be5506e4de36",
-   "type": "Exception",
-   "layer": 2,
-   "text": "this prohibition does not cover any labelling or filtering of lawfully acquired biometric datasets, such as images, based on biometric data or categorizing of biometric data in the area of law enforcement",
-   "method": "canonicalize_rule_v1"
-  },
-  {
    "id": "exc:d73f6ac6f7b0",
    "type": "Exception",
    "layer": 2,
    "text": "this obligation shall not apply where the use is authorised by law to detect, prevent, investigate or prosecute criminal offence",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "exc:dcb0e7d672d8",
-   "type": "Exception",
-   "layer": 2,
-   "text": "this paragraph shall not apply in cases where the initial provider has clearly specified that its ai system is not to be changed into a high-risk ai system and therefore does not fall under the obligation to hand over the documentation",
    "method": "canonicalize_rule_v1"
   },
   {
@@ -23705,13 +23397,6 @@
    "type": "Exception",
    "layer": 2,
    "text": "with the exception of high-risk ai systems intended to be used in the area listed in point 2 of annex iii",
-   "method": "canonicalize_rule_v1"
-  },
-  {
-   "id": "exc:eeae43816e98",
-   "type": "Exception",
-   "layer": 2,
-   "text": "this paragraph shall not apply to third parties making accessible to the public tools, services, processes, or components, other than general-purpose ai models, under a free and open-source licence",
    "method": "canonicalize_rule_v1"
   },
   {

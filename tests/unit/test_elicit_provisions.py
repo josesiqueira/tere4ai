@@ -173,8 +173,9 @@ def _v6_table() -> dict[str, list[str]]:
 
 
 def test_v6_every_schema_flag_but_the_two_omnibus_facts_has_a_provision() -> None:
-    """Each flag's list is not empty; the Omnibus points have no node in the
-    pinned base graph, so they carry none."""
+    """Each flag's list is not empty but the two Omnibus facts': v6 quoted
+    the Omnibus points from the amending act (the graph had no node for them
+    then; they are graph nodes now, cited by v7), so they carry none."""
     from tere4ai.elicit_features.elicitor import schema_flag_names
 
     table = _v6_table()

@@ -1225,3 +1225,22 @@ def test_a_run_refuses_a_test_set_item_on_a_deleted_unit(tmp_path):
     with pytest.raises(ValueError, match="cites a unit the Omnibus deleted"):
         run_eval([item], {"s": lambda i: ran.append(i) or {}}, dump=dump, results_dir=tmp_path)
     assert ran == []
+
+
+def test_the_deleted_unit_refusal_comes_before_any_client_is_built(tmp_path):
+    """Final review (M7): with strategy names the refusal comes as soon as the
+    dump is resolved, before generator_factory() or judge_factory() builds a
+    client (a live client would be paid for)."""
+    dump = json.loads(LAYER1_PATH.read_text(encoding="utf-8"))
+    item = {"id": "gold:x", "kind": "retrieval", "question": "q", "gold": {"node_id": "eu-ai-act:article-10:paragraph-5"},
+            "gold_citations": ["eu-ai-act:article-10:paragraph-5"]}
+    built = []
+
+    def factory():
+        built.append("client")
+        raise AssertionError("a client was built before the refusal")
+
+    with pytest.raises(ValueError, match="cites a unit the Omnibus deleted"):
+        run_eval([item], ["graph_runtime_judge"], generator_factory=factory, judge_factory=factory,
+                 dump=dump, results_dir=tmp_path)
+    assert built == []

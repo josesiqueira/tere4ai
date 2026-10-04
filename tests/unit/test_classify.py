@@ -952,11 +952,13 @@ def test_a_section_b_system_matching_annex_iii_takes_the_annex_iii_route(dump, n
                  "eu-ai-act:article-6:paragraph-2", "eu-ai-act:annex-iii:point-4"):
         assert node in envelope["source_nodes"], node
     assert any("also high-risk under Article 6(1)" in n for n in envelope["legal_status_notes"])
-    # R37: both routes hold, so a Chapter III Sections 1 to 3 provision carries
-    # both points of Article 113(c); an Annex keeps its Article's point (R24).
+    # R37: both routes hold, so the Article 6(1) node carries both points of
+    # Article 113(c); R45: for a Section B product Article 2(2) excludes
+    # Article 6(2) on the product route, so it carries point (c)(i) only; an
+    # Annex keeps its Article's point (R24).
     assert answer["high_risk_routes"] == ["article_6_1", "article_6_2"]
     dates = _dates_by_provision(answer)
-    assert dates["eu-ai-act:article-6:paragraph-2"] == ["2027-12-02", "2028-08-02"]
+    assert dates["eu-ai-act:article-6:paragraph-2"] == ["2027-12-02"]
     assert dates["eu-ai-act:article-6:paragraph-1"] == ["2027-12-02", "2028-08-02"]
     assert dates["eu-ai-act:annex-iii:point-4"] == ["2027-12-02"]
     assert dates["eu-ai-act:annex-i"] == ["2028-08-02"]
@@ -969,6 +971,31 @@ def _dates_by_provision(answer: dict) -> dict[str, list[str]]:
     for entry in answer["application_dates"]:
         dates.setdefault(entry["provision"], []).append(entry["date"])
     return dates
+
+
+def test_a_section_b_product_on_the_annex_iii_route_dates_its_citations_by_point_c_i(dump, node_ids):
+    """R45 (plan B final review: Codex P2, opus Minor 1): for a Section B
+    product on the Annex III route Article 2(2) excludes Article 6(2), Article
+    6(3) and the rest of Chapter III on the product route, so every cited
+    provision but the Article 6(1) node and Annex I carries point (c)(i)
+    only; the Article 6(1) node keeps both points (R43)."""
+    for extra in ({}, {"improves_previous_human_activity": True}):
+        envelope = classify_ai_system(
+            _section_b(annex_i_section_b_legislation=True, employment_decisions=True, **extra), dump)
+        assert_envelope_invariants(envelope, node_ids)
+        answer = envelope["answer"]
+        assert answer["annex_i_section"] == "B"
+        assert answer["high_risk_routes"] == ["article_6_1", "article_6_2"]
+        dates = _dates_by_provision(answer)
+        assert dates["eu-ai-act:article-6:paragraph-2"] == ["2027-12-02"]
+        assert dates["eu-ai-act:article-6:paragraph-1"] == ["2027-12-02", "2028-08-02"]
+        assert dates["eu-ai-act:annex-i"] == ["2028-08-02"]
+        assert dates["eu-ai-act:annex-iii:point-4"] == ["2027-12-02"]
+        article_6_3 = [p for p in dates if p.startswith("eu-ai-act:article-6:paragraph-3")]
+        if extra:
+            assert article_6_3, "the Article 6(3) candidacy cites Article 6(3)"
+        for provision in article_6_3:
+            assert dates[provision] == ["2027-12-02"], provision
 
 
 def test_a_system_on_both_routes_names_both_and_carries_both_dates(dump, node_ids):

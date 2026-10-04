@@ -16,8 +16,9 @@ Token model, stated plainly so nobody mistakes this for a measurement:
   offline). The report carries a +/-25 percent band.
 - The elicitation system prompt is the default prompt rendered over the
   repository's dump (data/graph_dumps/layer1.json, spans verified against
-  data/snapshots), the text a live call sends (B10: v6 prints each
-  provision from the graph), not the template with its placeholders.
+  data/snapshots), the text a live call sends (B10: the default elicitor
+  prompt prints each provision from the graph), not the template with its
+  placeholders.
 - Output tokens come from observed run-2 answer lengths per strategy
   (eval/results/ablation_checkpoint.jsonl) and observed elicitation
   payloads (eval/gold/benchmark_features.json), same chars/4 mapping; an
@@ -105,19 +106,20 @@ def elicit_system_prompt() -> str:
 
 def elicitation_output_chars(facts: dict[str, Any]) -> tuple[float, str | None]:
     """Mean characters of one elicitation reply, and a note for the report
-    when the figure is partial. A v6 reply carries "features" and "quotes"
-    (B10), so when the facts file has quotes_by_item each item counts its
-    features plus its quotes as the reply sends them ({path: text}; the
-    offsets are added by the code). A file without quotes gives the
-    features-only figure and the note says so."""
+    when the figure is partial. A reply to the default elicitor prompt
+    carries "features" and "quotes" (B10), so when the facts file has
+    quotes_by_item each item counts its features plus its quotes as the
+    reply sends them ({path: text}; the offsets are added by the code). A
+    file without quotes gives the features-only figure and the note says
+    so."""
     feats = facts["features_by_item"]
     quotes = facts.get("quotes_by_item")
     if not isinstance(quotes, dict):
         mean = statistics.mean(len(json.dumps(v)) for v in feats.values())
         return mean, (
             "The elicitation output size counts features only: the facts file "
-            f"({FEATURES.relative_to(ROOT)}) holds no quotes, so a v6 reply's "
-            "quotes are not in the figure."
+            f"({FEATURES.relative_to(ROOT)}) holds no quotes, so the quotes of a reply "
+            "to the default elicitor prompt are not in the figure."
         )
     sizes = []
     for item, features in feats.items():

@@ -1,0 +1,21 @@
+{
+  "build_id": "build-bab25bf2e5d6+chain-89db919fab52",
+  "chain_id": "89db919fab52",
+  "inputs": [
+    {
+      "role": "layer1_dump",
+      "file": "layer1.json",
+      "sha256": "b7e68f3927e9112eaf5e341c43f958f9208eb4e217fd3265ce00bc88e2317f44"
+    },
+    {
+      "role": "norms",
+      "file": "norms_core.json",
+      "sha256": "2f2da5f4084f742812b92178cb85af76139876e41853a16bd3b174b1e2403302"
+    },
+    {
+      "role": "alignments",
+      "file": "alignments_core.json",
+      "sha256": "6cff8f0672344b5f2622f8697000be77e8808dd7378652edcfa4f3e5f73f27e9"
+    }
+  ]
+}

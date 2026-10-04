@@ -41,7 +41,7 @@ export type ScenarioPreset = {
   flags: Record<string, TriState>;
 };
 
-/* All 38 flags defined in schema/json_schemas/system_features.schema.json,
+/* All 39 flags defined in schema/json_schemas/system_features.schema.json,
    matching schema_flag_names() in src/tere4ai/elicit_features/elicitor.py
    (alphabetically sorted; the drift gate in
    tests/unit/test_web_copy_honesty.py::test_presets_cover_every_schema_flag

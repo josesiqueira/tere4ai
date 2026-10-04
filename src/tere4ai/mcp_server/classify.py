@@ -1471,6 +1471,22 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         if holds
     ] if answer.get("risk_category") == "high_risk" else []
     route = route_of(answer)
-    answer["application_dates"] = dates_for(list(envelope.get("source_nodes") or []), dump, route)
+    cited = list(envelope.get("source_nodes") or [])
+    if answer.get("annex_i_section") == "B" and HIGH_RISK_ROUTE_ARTICLE_6_2 in answer["high_risk_routes"]:
+        # R45: Article 2(2) excludes Article 6(2), Article 6(3) and the rest
+        # of Chapter III on the product route, so for a Section B product on
+        # the Annex III route every cited provision but the Article 6(1)
+        # node and Annex I is dated by point (c)(i) only; those two keep
+        # their dates as built (R43).
+        product_route = (ARTICLE_6_PARAGRAPH_1, ANNEX_I)
+        answer["application_dates"] = [
+            entry
+            for node_id in dict.fromkeys(cited)
+            for entry in dates_for(
+                [node_id], dump, route if node_id in product_route else ROUTE_ANNEX_III
+            )
+        ]
+    else:
+        answer["application_dates"] = dates_for(cited, dump, route)
     answer["legal_text"] = legal_text(dump)
     return envelope

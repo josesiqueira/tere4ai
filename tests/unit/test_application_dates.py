@@ -149,3 +149,47 @@ def test_legal_text_names_the_act_as_amended_only_when_the_omnibus_is_merged(dum
     assert legal_text(dump) == "Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744"
     kept_apart = {"nodes": [{"id": "src:omnibus-com-2025-836", "merged_into_base": False}]}
     assert legal_text(kept_apart) == "Regulation (EU) 2024/1689"
+
+
+def test_a_deleted_unit_has_no_application_date(dump):
+    """A unit the Omnibus deleted no longer applies, so it is dated by no point
+    of Article 113 (final review, opus Minor 3)."""
+    deleted = next(n for n in dump["nodes"] if n["id"] == "eu-ai-act:article-10:paragraph-5")
+    assert deleted["amendment"] == "deleted"
+    assert provision_dates("eu-ai-act:article-10:paragraph-5", dump) == []
+    assert provision_dates("eu-ai-act:article-10:paragraph-5", dump, ROUTE_ANNEX_III) == []
+    assert dates_for(["eu-ai-act:article-10:paragraph-5", "eu-ai-act:article-10:paragraph-4"], dump) == (
+        provision_dates("eu-ai-act:article-10:paragraph-4", dump))
+
+
+_NODE_ID = re.compile(r"^eu-ai-act:[a-z0-9:-]+$")
+
+
+def _named_ids(value, found: set[str]) -> None:
+    if isinstance(value, str):
+        if _NODE_ID.match(value):
+            found.add(value)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _named_ids(key, found)
+            _named_ids(item, found)
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        for item in value:
+            _named_ids(item, found)
+
+
+def test_no_rule_table_names_a_deleted_unit(dump):
+    """Every node id the classifier's rule tables and the requirements' Article
+    2(2) constants name is a Layer 1 node the Omnibus did not delete, so no
+    rule cites a unit that no longer applies (final review, opus Minor 3)."""
+    from tere4ai.mcp_server import classify, requirements
+
+    nodes = {n["id"]: n for n in dump["nodes"]}
+    found: set[str] = set()
+    for module in (classify, requirements):
+        for name, value in vars(module).items():
+            if name.isupper():
+                _named_ids(value, found)
+    assert "eu-ai-act:article-60a" in found and "eu-ai-act:article-6:paragraph-1" in found
+    assert sorted(i for i in found if i not in nodes) == []
+    assert sorted(i for i in found if nodes[i].get("amendment") == "deleted") == []

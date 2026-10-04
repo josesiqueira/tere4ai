@@ -322,6 +322,15 @@ def _declared_sampling_or_none(generator: Any, judge: Any) -> dict[str, str | No
     return None if set(sampling.values()) <= {"unknown", None} else sampling
 
 
+def _refuse_deleted_unit_items(dump: dict[str, Any], items: list[dict[str, Any]]) -> None:
+    """B132 (D-G68 (3)): a test-set item citing a unit the Omnibus deleted is
+    refused (ValueError naming each) before any strategy runs or any client
+    is built; the answer key is corrected instead."""
+    refused = deleted_unit_citations(dump, items)
+    if refused:
+        raise ValueError("; ".join(refused))
+
+
 def run_eval(
     items: list[dict[str, Any]],
     strategies: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] | list[str],
@@ -381,6 +390,8 @@ def run_eval(
         if dump is None:
             dump = json.loads(served["layer1_dump"].read_text(encoding="utf-8"))
             read_paths["layer1_dump"] = served["layer1_dump"]
+        # Refused before generator_factory() or judge_factory() builds a client.
+        _refuse_deleted_unit_items(dump, items)
         if norms_payload is None:
             norms_payload = json.loads(served["norms"].read_text(encoding="utf-8"))
             read_paths["norms"] = served["norms"]
@@ -398,13 +409,9 @@ def run_eval(
             )
             for name in strategies
         }
-
-    # B132 (D-G68 (3)): a test-set item citing a unit the Omnibus deleted is
-    # refused before any strategy runs; the answer key is corrected instead.
-    if dump is not None:
-        refused = deleted_unit_citations(dump, items)
-        if refused:
-            raise ValueError("; ".join(refused))
+    elif dump is not None:
+        # Prebuilt strategies: refused before any of them runs.
+        _refuse_deleted_unit_items(dump, items)
 
     build_id = str((dump or {}).get("build", {}).get("build_id", "unknown-build"))
     strategy_names = sorted(strategies)

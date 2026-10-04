@@ -50,8 +50,11 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   product whose facts also match an Annex III category takes the Annex III
   route (annex_iii_category set, annex_i_section "B", the FRIA and Article
   50 as for an Annex III system), and the answer says the product's
-  Section B legislation also classifies it under Article 6(1); a Section B
-  system whose Annex III facts are unknown requires human review. The
+  Section B legislation also classifies it under Article 6(1), and every
+  provision it cites but Article 6(1) and Annex I is dated by point (c)(i)
+  only (Article 2(2) excludes the rest of Chapter III on the product route,
+  R45); a Section B system whose Annex III facts are unknown requires human
+  review. The
   unknown-section note and the missing fact `annex_i_section_b_legislation`
   appear only when the Article 6(1) route alone holds, never beside an
   Annex III match (R44).
@@ -61,7 +64,7 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   6(1), Annex III through Article 6(2), Annex IV through Article 11(1),
   each entry naming it in `applies_through`; a wording the Omnibus inserted
   or replaced applies no earlier than 27 July 2026; Article 111(4) a note
-  on Article 50(2)); the FRIA block's `applies_from` is Article 27's row of
+  on Article 50(2); a unit the Omnibus deleted gets no date); the FRIA block's `applies_from` is Article 27's row of
   it (point (c)(i)), its source text changed.
 - get_applicable_requirements: a Section B system with no Annex III match
   is served no Chapter III requirement and no Article 50 obligation; the
@@ -104,7 +107,8 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
   source units (405 on the 2024 text).
 - The pre-B74 dev dumps drop the 60 norms on units the Omnibus changed,
   their judge runs and the 98 alignments of those norms (stats
-  `b132_dropped`); republished as chain d7e23bbe62e3; the demo sessions are
+  `b132_dropped`) and the 45 Condition and Exception records only those
+  norms referenced; republished as chain 89db919fab52; the demo sessions are
   re-recorded on it by the new `scripts/rerecord_demo_sessions.py`.
 - The modules that implement these answers carry `@implements: DEC-23`
   (classify, requirements, explain, backlog, fria, server, the facade, the
