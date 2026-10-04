@@ -386,8 +386,8 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   inserted unit is in the Omnibus quotation of the point that enacted it; a
   partly amended unit is checked as composed (its marked parts in the
   quotation, the rest equal to its 2024 text); Annex XIV equals the Omnibus
-  annex member file; every quotation of the Omnibus's Article 1 is in some
-  marked range; an unchanged or composed container's wording outside its
+  annex member file; every quotation of the Omnibus's Article 1 is in a
+  marked range of its own point; an unchanged or composed container's wording outside its
   units (an annex's opening sentence, the Section headings inside an annex)
   equals its 2024 wording. The consolidated text's 77 change markers (72 Omnibus
   points) are read per unit, written to the reviewed file
@@ -1205,7 +1205,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Formex; a replaced or inserted unit is in the Omnibus quotation of its
   point; a partly amended unit's marked parts are in the quotation and its
   unmarked rest equals its 2024 text; Annex XIV equals the Omnibus annex
-  member file; every Omnibus quotation is in some marked range; a container's
+  member file; every quotation in the Omnibus's Article 1 is in a marked range of its own point; a container's
   wording outside its units equals its 2024 wording; every marker
   is checked against the Omnibus, the 2024 tree and
   docs/omnibus_amendments.md; any other difference, and any exception row
