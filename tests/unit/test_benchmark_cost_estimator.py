@@ -54,11 +54,6 @@ def test_tokens_uses_chars_per_token():
     assert est.tokens(400) == int(round(400 / est.CHARS_PER_TOKEN))
 
 
-def test_judge_price_matches_documented_source():
-    # Anthropic published pricing for claude-opus-4-8 (cached 2026-06).
-    assert (est.JUDGE_PRICE_IN, est.JUDGE_PRICE_OUT) == (5.00, 25.00)
-
-
 @pytest.mark.skipif(not FULL_FILES_PRESENT, reason="full benchmark files not downloaded")
 def test_full_benchmark_verifies_and_loads_all_items():
     from tere4ai.eval.harness import load_benchmark_items
@@ -129,6 +124,9 @@ def test_main_charges_the_sixth_condition_the_proxy_output_size(tmp_path, monkey
         for _item in subset:
             gen.complete("system", "user")
 
+    monkeypatch.setenv("TERE4AI_GENERATOR_MODEL", "gpt-6-astra")
+    monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-opus-5-5")
+    monkeypatch.setattr(est, "load_dotenv_once", lambda: None)
     monkeypatch.setattr(est, "ROOT", tmp_path)
     monkeypatch.setattr(est, "OUT_PATH", tmp_path / "estimate.md")
     monkeypatch.setattr(est, "verify_full_benchmark", lambda: tmp_path / "bench.json")
@@ -144,3 +142,99 @@ def test_main_charges_the_sixth_condition_the_proxy_output_size(tmp_path, monkey
             for line in (tmp_path / "estimate.md").read_text(encoding="utf-8").splitlines()
             if line.startswith("| graph_")}
     assert rows["graph_runtime_judge"][2] == rows["graph_no_judge"][2] != "0"
+
+
+# ---------------------------------------------------------------- B120 task 1
+# the price table and the declared models (spec F D-F29 discipline)
+
+PRICES_PATH = ROOT / "config" / "model_prices.json"
+
+
+def _price_row(**over):
+    row = {
+        "provider": "openai", "currency": "USD",
+        "input": "1.00", "output": "2.00", "batch_input": "0.50", "batch_output": "1.00",
+        "pricing": {"url": "https://example.com/pricing", "read_on": "2026-10-04"},
+        "quote": "mock line",
+    }
+    row.update(over)
+    return row
+
+
+def _write_prices(tmp_path, models):
+    path = tmp_path / "prices.json"
+    path.write_text(json.dumps({"schema_version": 1, "models": models}), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("pricing", [
+    {"read_on": "2026-10-04"},
+    {"url": "https://example.com/p"},
+    {"url": "http://example.com/p", "read_on": "2026-10-04"},
+    {"url": "https://example.com/p", "read_on": "2026-W40-1"},
+    {"url": "https://example.com/p", "read_on": "2026-13-45"},
+])
+def test_a_price_row_without_a_page_or_a_day_is_refused_by_name(tmp_path, pricing):
+    path = _write_prices(tmp_path, {"mock-model": _price_row(pricing=pricing)})
+    with pytest.raises(est.ConfigurationError, match="mock-model"):
+        est.load_model_prices(path)
+
+
+def test_a_price_row_missing_a_price_is_refused_by_name(tmp_path):
+    row = _price_row()
+    del row["batch_output"]
+    path = _write_prices(tmp_path, {"mock-model": row})
+    with pytest.raises(est.ConfigurationError, match="mock-model"):
+        est.load_model_prices(path)
+
+
+def test_a_valid_price_row_loads_as_decimals(tmp_path):
+    prices = est.load_model_prices(_write_prices(tmp_path, {"mock-model": _price_row()}))
+    assert prices["mock-model"]["input"] == 1.0 and prices["mock-model"]["batch_output"] == 1.0
+    assert prices["mock-model"]["pricing"]["read_on"] == "2026-10-04"
+
+
+def test_a_model_the_environment_names_without_a_price_row_is_refused(tmp_path):
+    prices = est.load_model_prices(_write_prices(tmp_path, {"mock-model": _price_row()}))
+    env = {"TERE4AI_GENERATOR_MODEL": "gpt-6-astra", "TERE4AI_JUDGE_MODEL": "claude-opus-5-5"}
+    declared = est.declared_models(env)
+    with pytest.raises(est.ConfigurationError, match="gpt-6-astra"):
+        est.price_rows(prices, declared)
+
+
+def test_declared_models_reads_the_two_ids_with_their_declared_rows():
+    declared = est.declared_models(
+        {"TERE4AI_GENERATOR_MODEL": "gpt-6-astra", "TERE4AI_JUDGE_MODEL": "claude-opus-5-5"})
+    assert declared["generator"].model_id == "gpt-6-astra"
+    assert declared["generator"].provider == "openai" and declared["generator"].effort == "xhigh"
+    assert declared["judge"].model_id == "claude-opus-5-5"
+    assert declared["judge"].provider == "anthropic" and declared["judge"].effort == "xhigh"
+
+
+@pytest.mark.parametrize("missing", ["TERE4AI_GENERATOR_MODEL", "TERE4AI_JUDGE_MODEL"])
+def test_declared_models_refuses_an_unset_model(missing):
+    env = {"TERE4AI_GENERATOR_MODEL": "gpt-6-astra", "TERE4AI_JUDGE_MODEL": "claude-opus-5-5"}
+    del env[missing]
+    with pytest.raises(est.ConfigurationError, match=missing):
+        est.declared_models(env)
+
+
+def test_declared_models_refuses_a_model_without_a_declaration_row():
+    with pytest.raises(est.ConfigurationError, match="no-such-model"):
+        est.declared_models({"TERE4AI_GENERATOR_MODEL": "no-such-model",
+                             "TERE4AI_JUDGE_MODEL": "claude-opus-5-5"})
+
+
+def test_the_script_names_no_model():
+    source = (ROOT / "scripts" / "estimate_benchmark_cost.py").read_text(encoding="utf-8")
+    assert "gpt-" not in source and "claude-" not in source
+
+
+def test_the_repository_price_file_loads_and_both_rows_read_2026_10_04():
+    prices = est.load_model_prices(PRICES_PATH)
+    assert set(prices) == {"claude-opus-5-5", "gpt-6-astra"}
+    for row in prices.values():
+        assert row["pricing"]["read_on"] == "2026-10-04"
+        assert row["pricing"]["url"].startswith("https://")
+    assert (prices["claude-opus-5-5"]["input"], prices["claude-opus-5-5"]["output"]) == (4.0, 20.0)
+    assert (prices["gpt-6-astra"]["input"], prices["gpt-6-astra"]["output"]) == (10.0, 50.0)

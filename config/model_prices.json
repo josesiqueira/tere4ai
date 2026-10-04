@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "about": "Published prices per model id, USD per million tokens, as decimal strings (the discipline of config/model_parameters.json, spec F D-F29). The table selects nothing: .env names the models. pricing.url is the provider page the row was read from (https) and pricing.read_on the day it was read (YYYY-MM-DD); a row without both is refused, and so is a model the environment names without a row. batch_input and batch_output are the Batch API prices. quote holds the provider's own lines the figures were copied from.",
+  "models": {
+    "claude-opus-5-5": {
+      "provider": "anthropic",
+      "currency": "USD",
+      "input": "4.00",
+      "output": "20.00",
+      "batch_input": "2.00",
+      "batch_output": "10.00",
+      "pricing": {"url": "https://platform.claude.com/docs/en/about-claude/pricing", "read_on": "2026-10-04"},
+      "quote": "Model pricing row: \"Claude Opus 5.5 | $4 / MTok | $5 / MTok | $8 / MTok | $0.20 / MTok<sup>2</sup> | $20 / MTok\" (base input, 5m cache writes, 1h cache writes, cache hits, output). Batch: \"The Batch API allows asynchronous processing of large volumes of requests with a 50% discount on both input and output tokens.\"; row \"Claude Opus 5.5 | $2 / MTok | $10 / MTok\". Long context: \"Claude 4.6 and later models ... include the full 1M token context window at standard pricing.\" Thinking, https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost, read 2026-10-04: \"Tokens Claude uses while thinking (billed as output tokens)\" and \"`output_tokens` remains the inclusive, authoritative total used for billing.\""
+    },
+    "gpt-6-astra": {
+      "provider": "openai",
+      "currency": "USD",
+      "input": "10.00",
+      "output": "50.00",
+      "batch_input": "5.00",
+      "batch_output": "25.00",
+      "pricing": {"url": "https://developers.openai.com/api/docs/pricing", "read_on": "2026-10-04"},
+      "quote": "Standard: \"Short context input $10.00 | Short context cached input $1.00 | Short context output $50.00\"; \"Long context input $20.00 | Long context cached input $2.00 | Long context output $75.00\"; Batch: \"Short context input $5.00 | Short context cached input $0.50 | Short context output $25.00\"; \"Short context: ≤272K input tokens. Long context: >272K input tokens.\" Reasoning, https://developers.openai.com/api/docs/guides/reasoning, read 2026-10-04: \"While reasoning tokens are not visible via the API, they still occupy space in the model's context window and are billed as output tokens.\""
+    }
+  }
+}

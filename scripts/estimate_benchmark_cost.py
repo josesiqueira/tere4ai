@@ -25,13 +25,14 @@ Token model, stated plainly so nobody mistakes this for a measurement:
   elicitation payload is its features plus its quotes when the file holds
   quotes, otherwise features only and the report says so.
 
-Pricing:
-- Judge (claude-opus-4-8): 5.00 USD in / 25.00 USD out per million tokens
-  (Anthropic published pricing, cached 2026-06; verify before spending).
-- Generator (gpt-5.2): no price is recorded in this repo and none is
-  invented here. Set TERE4AI_PRICE_GPT52_IN / TERE4AI_PRICE_GPT52_OUT
-  (USD per million tokens) to get a priced total; otherwise the report
-  gives token totals and the cost formula.
+Pricing (B120, spec F D-F29 discipline):
+- The two models are the ones the environment names (TERE4AI_GENERATOR_MODEL
+  and TERE4AI_JUDGE_MODEL), checked against their rows in
+  config/model_parameters.json; this script names no model.
+- Prices are data in config/model_prices.json: one row per model id with the
+  provider's pricing page (https) and the day it was read. A row without
+  both, or a model the environment names without a row, is refused by name.
+  No API key is read and no network is touched.
 
 Usage: .venv/bin/python scripts/estimate_benchmark_cost.py
 Writes: docs/benchmark_cost_estimate.md
@@ -54,6 +55,14 @@ from tere4ai.elicit_features import render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
 from tere4ai.eval.harness import load_benchmark_items, run_eval  # noqa: E402
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
+from tere4ai.judge.config import (  # noqa: E402
+    _ISO_DAY,
+    ConfigurationError,
+    ModelParameters,
+    declaration_for,
+    load_dotenv_once,
+    load_model_parameters,
+)
 
 BENCH_DIR = ROOT / "data" / "snapshots" / "benchmark"
 SAMPLE_PATH = ROOT / "eval" / "gold" / "benchmark_sample.json"
@@ -68,13 +77,100 @@ OUT_PATH = ROOT / "docs" / "benchmark_cost_estimate.md"
 CHARS_PER_TOKEN = 4.0
 BAND = 0.25  # +/- band on the chars/4 heuristic
 
-# Anthropic published pricing for claude-opus-4-8, USD per 1M tokens
-# (cached 2026-06; confirm on the pricing page before the live run).
-JUDGE_PRICE_IN = 5.00
-JUDGE_PRICE_OUT = 25.00
+PRICES_PATH = ROOT / "config" / "model_prices.json"
+PRICES_FILE = "config/model_prices.json"
+GENERATOR_VARIABLE = "TERE4AI_GENERATOR_MODEL"
+JUDGE_VARIABLE = "TERE4AI_JUDGE_MODEL"
+# the provider each role's client talks to (architecture.md Section 7)
+ROLE_PROVIDERS = {"generator": "openai", "judge": "anthropic"}
+_PRICE_KEYS = ("input", "output", "batch_input", "batch_output")
 
-GEN_PRICE_IN = os.environ.get("TERE4AI_PRICE_GPT52_IN")
-GEN_PRICE_OUT = os.environ.get("TERE4AI_PRICE_GPT52_OUT")
+
+def _price_problem(row: Any) -> str | None:
+    """What is wrong with one price row, or None. The page and the day are
+    checked as declaration_for checks the declaration's own (https page,
+    YYYY-MM-DD day)."""
+    from datetime import date
+    from urllib.parse import urlsplit
+
+    if not isinstance(row, dict):
+        return "the row is not an object"
+    if row.get("provider") not in ("openai", "anthropic"):
+        return "provider must be openai or anthropic"
+    for key in _PRICE_KEYS:
+        try:
+            if float(row[key]) < 0:
+                return f"{key} is negative"
+        except (KeyError, TypeError, ValueError):
+            return f"{key} is missing or is not a decimal string"
+    pricing = row.get("pricing")
+    if not isinstance(pricing, dict):
+        return "no pricing page (https) and no day it was read (YYYY-MM-DD)"
+    url, read_on = pricing.get("url"), pricing.get("read_on")
+    try:
+        read_day = (date.fromisoformat(read_on)
+                    if isinstance(read_on, str) and _ISO_DAY.fullmatch(read_on) else None)
+    except ValueError:
+        read_day = None
+    try:
+        page = urlsplit(url) if isinstance(url, str) else None
+    except ValueError:
+        page = None
+    if page is None or page.scheme != "https" or not page.hostname or read_day is None:
+        return "names no pricing page (https) or no day it was read (YYYY-MM-DD)"
+    return None
+
+
+def load_model_prices(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """The price rows keyed by model id, every row checked; the four prices
+    come back as floats (USD per million tokens). Raises ConfigurationError
+    naming every refused row."""
+    path = path or PRICES_PATH
+    where = PRICES_FILE if path == PRICES_PATH else path.name
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ConfigurationError(f"configuration error: {where} is missing") from None
+    except (OSError, ValueError) as exc:
+        raise ConfigurationError(
+            f"configuration error: {where} cannot be read ({type(exc).__name__})") from None
+    if (not isinstance(data, dict) or data.get("schema_version") != 1
+            or not isinstance(data.get("models"), dict)):
+        raise ConfigurationError(
+            f"configuration error: {where} must hold schema_version 1 and a models object keyed by model id")
+    problems = [f"{model_id}: {problem}" for model_id, row in data["models"].items()
+                if (problem := _price_problem(row)) is not None]
+    if problems:
+        raise ConfigurationError(f"configuration error: {where} has refused rows: " + "; ".join(problems))
+    return {model_id: {**row, **{key: float(row[key]) for key in _PRICE_KEYS}}
+            for model_id, row in data["models"].items()}
+
+
+def declared_models(env: Any, parameters_path: Path | None = None) -> dict[str, ModelParameters]:
+    """The generator and the judge the environment names, each with its row of
+    config/model_parameters.json (provider, effort, documentation). Refused
+    when a variable is unset or a model has no declaration row."""
+    models = load_model_parameters(parameters_path)
+    declared: dict[str, ModelParameters] = {}
+    for role, variable in (("generator", GENERATOR_VARIABLE), ("judge", JUDGE_VARIABLE)):
+        model_id = env.get(variable)
+        if not model_id:
+            raise ConfigurationError(f"configuration error: {variable} is not set")
+        declared[role] = declaration_for(models, model_id, ROLE_PROVIDERS[role])
+    return declared
+
+
+def price_rows(prices: dict[str, dict[str, Any]],
+               declared: dict[str, ModelParameters]) -> dict[str, dict[str, Any]]:
+    """The price row of each declared model; refused by name when a model has none."""
+    rows = {}
+    for role, model in declared.items():
+        if model.model_id not in prices:
+            raise ConfigurationError(
+                f"configuration error: {PRICES_FILE} has no row for model {model.model_id!r} "
+                f"(the {role}); add one with its prices, the pricing page and the day it was read")
+        rows[role] = prices[model.model_id]
+    return rows
 
 
 def tokens(chars: int | float) -> int:
@@ -219,6 +315,10 @@ def observed_judge_reply_chars() -> float:
 
 
 def main() -> int:
+    load_dotenv_once()
+    declared = declared_models(os.environ)
+    rows = price_rows(load_model_prices(), declared)
+    gen_id, judge_id = declared["generator"].model_id, declared["judge"].model_id
     payload_path = verify_full_benchmark()
     items = load_benchmark_items(payload_path)
     cls_items = [i for i in items if i["kind"] == "classification"]
@@ -249,8 +349,8 @@ def main() -> int:
                 "judge_calls": 0, "judge_in": 0, "judge_out": 0,
             }
             for kind, subset in (("classification", cls_items), ("qa", qa_items)):
-                gen = CountingClient("gpt-5.2", gen_reply)
-                judge = CountingClient("claude-opus-4-8", judge_reply)
+                gen = CountingClient(gen_id, gen_reply)
+                judge = CountingClient(judge_id, judge_reply)
                 run_eval(
                     subset,
                     [name],
@@ -293,10 +393,9 @@ def main() -> int:
     judge_in = sum(s["judge_in"] for s in per_strategy.values())
     judge_out = sum(s["judge_out"] for s in per_strategy.values())
 
-    judge_cost = judge_in / 1e6 * JUDGE_PRICE_IN + judge_out / 1e6 * JUDGE_PRICE_OUT
-    gen_cost = None
-    if GEN_PRICE_IN and GEN_PRICE_OUT:
-        gen_cost = gen_in / 1e6 * float(GEN_PRICE_IN) + gen_out / 1e6 * float(GEN_PRICE_OUT)
+    gen_row, judge_row = rows["generator"], rows["judge"]
+    judge_cost = judge_in / 1e6 * judge_row["input"] + judge_out / 1e6 * judge_row["output"]
+    gen_cost = gen_in / 1e6 * gen_row["input"] + gen_out / 1e6 * gen_row["output"]
 
     lines = [
         "# Full-benchmark ablation cost estimate (dry run)",
@@ -332,32 +431,23 @@ def main() -> int:
     lines += [
         "## Totals",
         "",
-        f"- Generator (gpt-5.2): {gen_in:,} input + {gen_out:,} output tokens",
+        f"- Generator ({gen_id}, effort {declared['generator'].effort}): {gen_in:,} input + "
+        f"{gen_out:,} output tokens",
         f"  (band: {int(gen_in * (1 - BAND)):,} to {int(gen_in * (1 + BAND)):,} input).",
-        f"- Judge (claude-opus-4-8): {judge_in:,} input + {judge_out:,} output tokens.",
+        f"- Judge ({judge_id}, effort {declared['judge'].effort}): {judge_in:,} input + "
+        f"{judge_out:,} output tokens.",
         "",
         "## Cost",
         "",
-        f"- Judge cost at 5.00/25.00 USD per MTok (Anthropic pricing, cached "
-        f"2026-06): **{judge_cost:.2f} USD** "
+        f"- Judge cost at {judge_row['input']:.2f}/{judge_row['output']:.2f} USD per MTok "
+        f"({judge_row['pricing']['url']}, read {judge_row['pricing']['read_on']}): "
+        f"**{judge_cost:.2f} USD** "
         f"(band {judge_cost * (1 - BAND):.2f} to {judge_cost * (1 + BAND):.2f}).",
-    ]
-    if gen_cost is not None:
-        total = gen_cost + judge_cost
-        lines += [
-            f"- Generator cost at {GEN_PRICE_IN}/{GEN_PRICE_OUT} USD per MTok "
-            f"(operator-provided): **{gen_cost:.2f} USD**.",
-            f"- **Estimated total: {total:.2f} USD** "
-            f"(band {total * (1 - BAND):.2f} to {total * (1 + BAND):.2f}).",
-        ]
-    else:
-        lines += [
-            "- Generator (gpt-5.2) price is NOT recorded in this repo and is not",
-            "  invented here. Cost formula: gen_in/1e6 x P_in + gen_out/1e6 x P_out.",
-            "  Set TERE4AI_PRICE_GPT52_IN and TERE4AI_PRICE_GPT52_OUT (USD per",
-            "  million tokens) and rerun this script for a priced total.",
-        ]
-    lines += [
+        f"- Generator cost at {gen_row['input']:.2f}/{gen_row['output']:.2f} USD per MTok "
+        f"({gen_row['pricing']['url']}, read {gen_row['pricing']['read_on']}): "
+        f"**{gen_cost:.2f} USD**.",
+        f"- **Estimated total: {gen_cost + judge_cost:.2f} USD** "
+        f"(band {(gen_cost + judge_cost) * (1 - BAND):.2f} to {(gen_cost + judge_cost) * (1 + BAND):.2f}).",
         "",
         "## Cost-gate notes for task #27",
         "",
