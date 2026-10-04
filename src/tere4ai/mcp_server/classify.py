@@ -1039,7 +1039,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 legal_status_notes.append(ARTICLE_50_SECTION_B_NOTE)
                 duties: list[str] = []
             else:
-                if annex_i_section == "unknown":
+                # R44: with an Annex III match Chapter III is served whatever
+                # the section, so the section fact matters on the Article 6(1)
+                # route alone.
+                if annex_i_section == "unknown" and _annex_iii_scan(flags, domain)[0] is None:
                     missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
                 _carry_transparency_duties()
                 _name_absent_article_50_facts()

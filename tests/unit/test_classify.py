@@ -875,6 +875,18 @@ def test_a_section_a_system_and_an_unknown_section(dump, node_ids):
     assert any(m.startswith("flags.annex_i_section_b_legislation is unknown") for m in unknown["missing_facts"])
 
 
+def test_an_unknown_section_with_an_annex_iii_match_names_no_section_fact(dump):
+    """R44: Chapter III is served whatever the section when an Annex III point
+    matches, so the section fact is not named; on the Article 6(1) route alone it is."""
+    base = _section_b(employment_decisions=True)
+    matched = classify_ai_system({**base, "flags": _without(base["flags"], "annex_i_section_b_legislation")}, dump)
+    assert matched["answer"]["annex_i_section"] == "unknown"
+    assert not any(m.startswith("flags.annex_i_section_b_legislation is unknown") for m in matched["missing_facts"])
+    alone = _section_b()
+    alone = classify_ai_system({**alone, "flags": _without(alone["flags"], "annex_i_section_b_legislation")}, dump)
+    assert any(m.startswith("flags.annex_i_section_b_legislation is unknown") for m in alone["missing_facts"])
+
+
 def test_every_answer_carries_its_dates_and_the_text_it_follows(dump):
     """D7.4 and D7.5: dates by provision as data; the text named."""
     annex_iii = classify_ai_system(

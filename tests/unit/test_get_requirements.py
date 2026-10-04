@@ -674,8 +674,13 @@ def test_a_section_b_system_matching_annex_iii_gets_one_consistent_answer(dump, 
     assert "article_2_2" not in answer
     assert answer["annex_i_section"] == "B"
     assert "article-9" in answer["requirements_by_article"] and "article-27" in answer["requirements_by_article"]
-    # R37: both routes hold, so Chapter III carries both points of Article 113(c).
-    assert [e["date"] for e in answer["application_dates"]["article-9"]] == ["2027-12-02", "2028-08-02"]
+    # R43: Article 2(2) excludes point (c)(ii)'s Article 6(1) systems for a
+    # Section B product, so Chapter III is dated by the Annex III route only.
+    for group in answer["requirements_by_article"]:
+        dates = answer["application_dates"][group]
+        if group in ("article-9", "article-27"):
+            assert [e["date"] for e in dates] == ["2027-12-02"], group
+    assert [e["date"] for e in answer["application_dates"]["article-9"]] == ["2027-12-02"]
     assert answer["fria"]["applicability"] == "applies"
     assert envelope["status"] == "applicable_missing_evidence"
 
@@ -727,3 +732,17 @@ def test_a_section_b_derogation_candidate_on_the_annex_iii_route_says_what_can_c
     plain = get_applicable_requirements(classify_ai_system(annex_iii_only, dump), norms_payload, dump)
     assert plain["answer"]["provisional"] is True
     assert "Article 2(2)" not in plain["answer"]["provisional_note"]
+
+
+def test_an_unknown_section_with_an_annex_iii_match_names_no_section_fact(dump, norms_payload):
+    """R44: with an Annex III match Chapter III is served whatever the section,
+    so neither the Article 2(2) note nor the section fact is given; on the
+    Article 6(1) route alone both stay."""
+    matched = classify_ai_system(_annex_i(None, employment_decisions=True), dump)
+    assert matched["answer"]["high_risk_routes"] == ["article_6_1", "article_6_2"]
+    envelope = get_applicable_requirements(matched, norms_payload, dump)
+    assert not any("Article 2(2)" in n for n in envelope["legal_status_notes"])
+    assert not any(m.startswith(f"flags.{classify_module.ANNEX_I_SECTION_FACT} is unknown") for m in envelope["missing_facts"])
+    alone = get_applicable_requirements(classify_ai_system(_annex_i(None), dump), norms_payload, dump)
+    assert any("Article 2(2)" in n for n in alone["legal_status_notes"])
+    assert classify_module.ANNEX_I_SECTION_UNKNOWN_FACT in alone["missing_facts"]

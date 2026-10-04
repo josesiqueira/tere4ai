@@ -28,6 +28,7 @@ from typing import Any
 
 from tere4ai.mcp_server.application_dates import (
     ROUTE_ANNEX_I,
+    ROUTE_ANNEX_III,
     legal_text,
     provision_dates,
 )
@@ -517,21 +518,30 @@ def get_applicable_requirements(
             + (f" and actor filter '{actor}'" if actor else "")
         )
 
+    # R43: Article 2(2) excludes point (c)(ii)'s Article 6(1) systems for a
+    # Section B product, so with an Annex III match its Chapter III groups are
+    # dated by the Annex III route only.
+    routes_held = answer_in.get("high_risk_routes")
+    annex_iii_holds = route == ROUTE_ANNEX_III or (isinstance(routes_held, list) and "article_6_2" in routes_held)
+    group_route = ROUTE_ANNEX_III if section == "B" and annex_iii_holds else route
     answer_out: dict[str, Any] = {
         "risk_category": risk_category,
         "requirements_by_article": grouped,
         "summary": summary,
         # B132 (D-G68 (6)): each served group's application dates from the
         # table of Article 113 as amended, by the classification's route, as data.
-        "application_dates": {g: provision_dates(f"eu-ai-act:{g}", dump, route) for g in grouped},
+        "application_dates": {g: provision_dates(f"eu-ai-act:{g}", dump, group_route) for g in grouped},
         "legal_text": text,
     }
     legal_status_notes: list[str] = []
     if risk_category == "high_risk" and section == "unknown":
         answer_out["annex_i_section"] = "unknown"
-        legal_status_notes.append(SECTION_UNKNOWN_NOTE)
-        if ANNEX_I_SECTION_UNKNOWN_FACT not in missing_facts:
-            missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
+        # R44: the note and the fact matter on the Article 6(1) route alone;
+        # with an Annex III match Chapter III is served whatever the section.
+        if route == ROUTE_ANNEX_I:
+            legal_status_notes.append(SECTION_UNKNOWN_NOTE)
+            if ANNEX_I_SECTION_UNKNOWN_FACT not in missing_facts:
+                missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
     elif section is not None:
         answer_out["annex_i_section"] = section
     # Pass the classification's deterministic FRIA block (fria.py, DEC-14)
