@@ -96,9 +96,9 @@ def _assert_quoted_answer(env: dict, build_id: str) -> None:
     assert env["graph_version"] == build_id
 
 
-def test_schema_flag_names_lists_all_38_flags():
+def test_schema_flag_names_lists_all_39_flags():
     names = schema_flag_names()
-    assert len(names) == 38
+    assert len(names) == 39
     assert names == sorted(names)
     assert "social_scoring" in names
     assert "creditworthiness_evaluation" in names

@@ -313,6 +313,10 @@ const CATEGORY_FLAGS: [string, string][] = [
     "third_party_conformity_assessment_required",
     "Third-party conformity assessment required",
   ],
+  [
+    "annex_i_section_b_legislation",
+    "Product legislation listed in Annex I Section B (Art. 2(2): no Chapter III requirements)",
+  ],
 ];
 
 const DOMAINS = [

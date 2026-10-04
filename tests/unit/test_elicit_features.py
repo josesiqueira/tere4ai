@@ -236,6 +236,11 @@ def test_v5_prompt_carries_the_acts_words_for_biometrics_and_exceptions():
         assert passage in prompt, passage[:60]
 
 
+# B132: the Annex I section fact joined the schema after v6; v5 and v6 are
+# kept unchanged for the records that name them, and v7 asks it.
+FLAGS_AFTER_V6 = ("annex_i_section_b_legislation",)
+
+
 def test_v5_prompt_names_every_schema_flag():
     """Every fact the schema defines is in the v5 list, the two Omnibus
     prohibition facts included (Jose, 2026-10-01: "Add them to v5")."""
@@ -243,7 +248,7 @@ def test_v5_prompt_names_every_schema_flag():
 
     prompt = (ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8")
     listed = set(re.findall(r"[a-z0-9_]+", prompt))
-    missing = [name for name in schema_flag_names() if name not in listed]
+    missing = [name for name in schema_flag_names() if name not in listed and name not in FLAGS_AFTER_V6]
     assert missing == []
 
 
@@ -307,7 +312,7 @@ def test_v6_prompt_names_every_schema_flag():
 
     prompt = (ROOT / "prompts" / "elicit_features" / "v6.md").read_text(encoding="utf-8")
     listed = set(re.findall(r"[a-z0-9_]+", prompt))
-    missing = [name for name in schema_flag_names() if name not in listed]
+    missing = [name for name in schema_flag_names() if name not in listed and name not in FLAGS_AFTER_V6]
     assert missing == []
 
 

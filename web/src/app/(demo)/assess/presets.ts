@@ -48,6 +48,7 @@ export type ScenarioPreset = {
    fails if this list falls behind the schema). */
 const ALL_FLAG_KEYS = [
   "annex_i_covered_product",
+  "annex_i_section_b_legislation",
   "biometric_categorisation",
   "biometric_categorisation_lawful_or_law_enforcement",
   "biometric_categorisation_sensitive_or_protected_attributes",

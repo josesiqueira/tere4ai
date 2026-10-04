@@ -11,10 +11,12 @@ import pytest
 
 from tere4ai.mcp_server import classify as classify_module
 from tere4ai.mcp_server.classify import (
+    ARTICLE_2_2_CONDITION,
+    ARTICLE_2_2_PROVISIONS,
+    ARTICLE_2_2_WORDING,
     ARTICLE_5_POINT_BY_FLAG,
     ARTICLE_5_POINT_H,
     ARTICLE_6_1_FLAGS,
-    OMNIBUS_ARTICLE_5_POINT_BY_FLAG,
     classify_ai_system,
 )
 from tere4ai.mcp_server.tools import NON_LEGAL_ADVICE_NOTICE, STATUS_VOCABULARY
@@ -60,6 +62,7 @@ ALL_FLAGS = (
     "detects_patterns_without_replacing_human_assessment",
     "annex_i_covered_product",
     "third_party_conformity_assessment_required",
+    "annex_i_section_b_legislation",
 )
 
 
@@ -703,6 +706,8 @@ def test_article_5_point_mapping_matches_dump_text(dump):
         "facial_image_scraping": "untargeted scraping of facial images",
         "emotion_recognition_workplace_or_education": "workplace and education institutions",
         "biometric_categorisation": "biometric categorisation systems",
+        "generates_nonconsensual_intimate_material": "intimate parts",
+        "generates_csam": "Directive 2011/93/EU",
     }
     for flag, (node_id, _) in ARTICLE_5_POINT_BY_FLAG.items():
         node = nodes[node_id]
@@ -774,10 +779,10 @@ def test_domain_fallback_yields_to_explicitly_false_flags(dump):
     assert envelope2["answer"]["risk_category"] == "high_risk"
 
 
-def test_omnibus_ncii_prohibition_cites_amending_instrument(dump, node_ids):
-    """B59: Article 5(1) point (ba), inserted by Regulation (EU) 2026/1744.
-    No base-text node exists (Section 11 version pin), so the hit cites the
-    Omnibus SourceDocument and carries the application date as data."""
+def test_point_ba_cites_its_own_node_and_article_5_1a_and_1b(dump, node_ids):
+    """B132 (D-G68 (6)): Article 5(1) point (ba), inserted by Regulation (EU)
+    2026/1744, is a node of the graph; a hit cites it and the paragraphs
+    that say when it prohibits, and its date is data in application_dates."""
     features = {
         "description": "Image generator producing sexual deepfakes of real people.",
         "flags": all_false_flags(generates_nonconsensual_intimate_material=True),
@@ -786,15 +791,18 @@ def test_omnibus_ncii_prohibition_cites_amending_instrument(dump, node_ids):
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["answer"]["risk_category"] == "unacceptable_risk"
     assert envelope["answer"]["unacceptable_risk"] is True
-    assert "src:omnibus-com-2025-836" in envelope["source_nodes"]
+    for node in ("eu-ai-act:article-5:paragraph-1:point-ba", "eu-ai-act:article-5:paragraph-1a",
+                 "eu-ai-act:article-5:paragraph-1b"):
+        assert node in envelope["source_nodes"], node
+    assert "src:omnibus-com-2025-836" not in envelope["source_nodes"]
     notes = " ".join(envelope["legal_status_notes"])
-    assert "2026/1744" in notes
-    assert "2026-12-02" in notes
-    assert "point (ba)" in notes
-    assert "omnibus_amendments" in notes
+    assert "Regulation (EU) 2026/1744, Article 1, point (7)" in notes
+    assert "not yet modelled" not in notes
+    dates = {e["provision"]: e["date"] for e in envelope["answer"]["application_dates"]}
+    assert dates["eu-ai-act:article-5:paragraph-1:point-ba"] == "2026-12-02"
 
 
-def test_omnibus_csam_prohibition_cites_amending_instrument(dump, node_ids):
+def test_point_bb_cites_its_own_node_and_article_5_1a(dump, node_ids):
     features = {
         "description": "Generative model fine-tuned on abusive material.",
         "flags": all_false_flags(generates_csam=True),
@@ -802,12 +810,13 @@ def test_omnibus_csam_prohibition_cites_amending_instrument(dump, node_ids):
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["answer"]["risk_category"] == "unacceptable_risk"
-    assert "src:omnibus-com-2025-836" in envelope["source_nodes"]
-    assert any("point (bb)" in n for n in envelope["legal_status_notes"])
+    assert "eu-ai-act:article-5:paragraph-1:point-bb" in envelope["source_nodes"]
+    assert "eu-ai-act:article-5:paragraph-1a" in envelope["source_nodes"]
+    assert "eu-ai-act:article-5:paragraph-1b" not in envelope["source_nodes"]
 
 
 def test_omnibus_prohibition_flags_are_fail_closed(dump, node_ids):
-    """Absent omnibus prohibition flags are unknown, never false."""
+    """Absent point (ba) and (bb) flags are unknown, never false."""
     features = {
         "description": "General text and image assistant.",
         "flags": {},
@@ -817,6 +826,182 @@ def test_omnibus_prohibition_flags_are_fail_closed(dump, node_ids):
     missing = " ".join(envelope["missing_facts"])
     assert "generates_nonconsensual_intimate_material" in missing
     assert "generates_csam" in missing
+
+
+def test_article_2_2_is_quoted_verbatim_from_its_node(dump):
+    node = next(n for n in dump["nodes"] if n["id"] == "eu-ai-act:article-2:paragraph-2")
+    text = " ".join(node["text"].split())
+    assert ARTICLE_2_2_WORDING in text and ARTICLE_2_2_CONDITION in text
+    assert node["amendment"] == "replaced"
+    node_ids = {n["id"] for n in dump["nodes"]}
+    for provision in ARTICLE_2_2_PROVISIONS:
+        assert provision in node_ids, provision
+
+
+def _section_b(**overrides) -> dict:
+    return {
+        "description": "AI safety component of a machine under the Machinery Regulation.",
+        "flags": all_false_flags(annex_i_covered_product=True, third_party_conformity_assessment_required=True,
+                                 **overrides),
+    }
+
+
+def test_a_section_b_system_is_high_risk_and_cites_article_2_2(dump, node_ids):
+    """R6: the level is high_risk under either section; Section B cites
+    Article 2(2) and says the Chapter III requirements do not apply."""
+    envelope = classify_ai_system(_section_b(annex_i_section_b_legislation=True), dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["annex_i_section"] == "B"
+    assert envelope["status"] == "potentially_applicable"
+    assert "eu-ai-act:article-2:paragraph-2" in envelope["source_nodes"]
+    assert any("Article 2(2)" in n and "Chapter III requirements do not apply" in n
+               for n in envelope["legal_status_notes"])
+    assert not any("graph models the base act as enacted" in n for n in envelope["legal_status_notes"])
+
+
+def test_a_section_a_system_and_an_unknown_section(dump, node_ids):
+    """R14: an unknown section changes neither the level nor the status; the
+    fact is named."""
+    section_a = classify_ai_system(_section_b(annex_i_section_b_legislation=False), dump)
+    assert section_a["answer"]["annex_i_section"] == "A"
+    assert "eu-ai-act:article-2:paragraph-2" not in section_a["source_nodes"]
+    unknown = classify_ai_system(
+        {**_section_b(), "flags": _without(_section_b()["flags"], "annex_i_section_b_legislation")}, dump)
+    assert unknown["answer"]["risk_category"] == "high_risk"
+    assert unknown["answer"]["annex_i_section"] == "unknown"
+    assert unknown["status"] == section_a["status"] == "potentially_applicable"
+    assert any(m.startswith("flags.annex_i_section_b_legislation is unknown") for m in unknown["missing_facts"])
+
+
+def test_every_answer_carries_its_dates_and_the_text_it_follows(dump):
+    """D7.4 and D7.5: dates by provision as data; the text named."""
+    annex_iii = classify_ai_system(
+        {"description": "CV screening tool.", "flags": all_false_flags(employment_decisions=True)}, dump)
+    answer = annex_iii["answer"]
+    assert answer["legal_text"] == "Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744"
+    assert answer["annex_i_section"] is None
+    assert answer["high_risk_routes"] == ["article_6_2"]
+    dates = {e["provision"]: e["date"] for e in answer["application_dates"]}
+    assert dates["eu-ai-act:article-6:paragraph-2"] == "2027-12-02"
+    assert dates["eu-ai-act:annex-iii:point-4"] == "2027-12-02"  # R24: through Article 6(2)
+    annex_i = classify_ai_system(_section_b(annex_i_section_b_legislation=False), dump)
+    assert annex_i["answer"]["high_risk_routes"] == ["article_6_1"]
+    dates = {e["provision"]: e["date"] for e in annex_i["answer"]["application_dates"]}
+    assert dates["eu-ai-act:article-6:paragraph-1"] == "2028-08-02"
+    rejected = classify_ai_system({"description": "short", "bogus_field": 1}, dump)
+    assert rejected["answer"]["application_dates"] == []
+    assert rejected["answer"]["high_risk_routes"] == []
+
+
+def test_a_section_b_system_carries_no_article_50_duty(dump, node_ids):
+    """R36 (Codex plan review P1 2): Article 2(2) applies only Article 6(1),
+    Article 60a and Articles 102 to 112 to a system high-risk under Article
+    6(1) with Section B legislation, so a true Article 50 trigger lists no
+    duty, and the answer says so where the duties would be."""
+    envelope = classify_ai_system(
+        _section_b(annex_i_section_b_legislation=True, interacts_with_natural_persons=True), dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk" and answer["annex_i_section"] == "B"
+    assert answer["transparency_duties"] == []
+    assert "eu-ai-act:article-50:paragraph-1" not in envelope["source_nodes"]
+    assert any(n.startswith("eu-ai-act:article-50: no transparency duty is listed: Article 2(2)")
+               for n in envelope["legal_status_notes"])
+    assert any("Article 50 duties not listed: eu-ai-act:article-50:paragraph-1" in r for r in answer["rationale"])
+    # Section A keeps the duty (Article 50(6)).
+    section_a = classify_ai_system(
+        _section_b(annex_i_section_b_legislation=False, interacts_with_natural_persons=True), dump)
+    assert section_a["answer"]["transparency_duties"] == ["eu-ai-act:article-50:paragraph-1"]
+
+
+def test_a_section_b_system_matching_annex_iii_takes_the_annex_iii_route(dump, node_ids):
+    """R26 reversed (Codex plan review P1 3): Article 2(2) limits only what the
+    Article 6(1) classification brings; for a Section B product the Annex III
+    rules are still checked and a match decides the route, the FRIA and the
+    Article 50 duties, and the answer says the product's Section B
+    legislation also classifies it under Article 6(1)."""
+    features = {
+        **_section_b(annex_i_section_b_legislation=True, employment_decisions=True,
+                     interacts_with_natural_persons=True),
+        "deployer": {"body_governed_by_public_law": True},
+    }
+    envelope = classify_ai_system(features, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk"
+    assert answer["annex_iii_category"] == "eu-ai-act:annex-iii:point-4"
+    assert answer["annex_i_section"] == "B"
+    assert answer["fria"]["applicability"] == "applies"
+    assert answer["transparency_duties"] == ["eu-ai-act:article-50:paragraph-1"]
+    assert envelope["status"] == "potentially_applicable"
+    for node in ("eu-ai-act:article-6:paragraph-1", "eu-ai-act:article-2:paragraph-2",
+                 "eu-ai-act:article-6:paragraph-2", "eu-ai-act:annex-iii:point-4"):
+        assert node in envelope["source_nodes"], node
+    assert any("also high-risk under Article 6(1)" in n for n in envelope["legal_status_notes"])
+    # R37: both routes hold, so a Chapter III Sections 1 to 3 provision carries
+    # both points of Article 113(c); an Annex keeps its Article's point (R24).
+    assert answer["high_risk_routes"] == ["article_6_1", "article_6_2"]
+    dates = _dates_by_provision(answer)
+    assert dates["eu-ai-act:article-6:paragraph-2"] == ["2027-12-02", "2028-08-02"]
+    assert dates["eu-ai-act:article-6:paragraph-1"] == ["2027-12-02", "2028-08-02"]
+    assert dates["eu-ai-act:annex-iii:point-4"] == ["2027-12-02"]
+    assert dates["eu-ai-act:annex-i"] == ["2028-08-02"]
+
+
+def _dates_by_provision(answer: dict) -> dict[str, list[str]]:
+    """Every date of each provision, in the answer's order (a provision on two
+    routes has two entries, R37)."""
+    dates: dict[str, list[str]] = {}
+    for entry in answer["application_dates"]:
+        dates.setdefault(entry["provision"], []).append(entry["date"])
+    return dates
+
+
+def test_a_system_on_both_routes_names_both_and_carries_both_dates(dump, node_ids):
+    """R37 (the opus re-check of revision 2): a Section A product, or one whose
+    section is unknown, that also matches Annex III is decided by the Article
+    6(1) route (annex_iii_category none) yet high-risk under Article 6(2) too;
+    the answer names both routes and dates Chapter III by both points, so its
+    FRIA date (point (c)(i)) is among them."""
+    for section in (False, None):
+        flags = all_false_flags(annex_i_covered_product=True, third_party_conformity_assessment_required=True,
+                                employment_decisions=True)
+        if section is None:
+            flags.pop("annex_i_section_b_legislation")
+        else:
+            flags["annex_i_section_b_legislation"] = section
+        envelope = classify_ai_system(
+            {"description": "Safety component that also screens job applicants.", "flags": flags,
+             "deployer": {"body_governed_by_public_law": True}}, dump)
+        assert_envelope_invariants(envelope, node_ids)
+        answer = envelope["answer"]
+        assert answer["risk_category"] == "high_risk"
+        assert answer["annex_iii_category"] is None  # the Article 6(1) route decided (passage (g))
+        assert answer["high_risk_routes"] == ["article_6_1", "article_6_2"]
+        assert answer["fria"]["applicability"] == "applies"
+        assert answer["fria"]["applies_from"]["date"] == "2027-12-02"
+        assert _dates_by_provision(answer)["eu-ai-act:article-6:paragraph-1"] == ["2027-12-02", "2028-08-02"]
+
+
+def test_a_section_b_system_with_unknown_annex_iii_facts_requires_human_review(dump, node_ids):
+    """R39: an unknown Annex III fact could put a Section B product on the
+    Annex III route (R26), so the answer is not settled: the facts are named
+    and the status is requires_human_review; the level stays high_risk."""
+    flags = _without(_section_b(annex_i_section_b_legislation=True)["flags"],
+                     *classify_module.ANNEX_III_RELEVANT_FLAGS)
+    envelope = classify_ai_system({**_section_b(), "flags": flags}, dump)
+    assert_envelope_invariants(envelope, node_ids)
+    answer = envelope["answer"]
+    assert answer["risk_category"] == "high_risk" and answer["annex_i_section"] == "B"
+    assert answer["high_risk_routes"] == ["article_6_1"]
+    assert envelope["status"] == "requires_human_review"
+    assert any(m.startswith("flags.employment_decisions is unknown (Annex III high-risk relevant")
+               for m in envelope["missing_facts"])
+    assert any("unknown Annex III facts could put this Section B product on the Annex III route" in r
+               for r in answer["rationale"])
+    assert answer["fria"]["applicability"] == "unknown"
 
 
 # DEC-18: three states for prohibited, per-path Article 5 resolution -------
@@ -962,7 +1147,7 @@ def test_rejected_input_has_prohibited_null(dump):
 
 def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
     """The field and the status lowering read one resolution (ruling 6)."""
-    for flag in (*ARTICLE_5_POINT_BY_FLAG, *OMNIBUS_ARTICLE_5_POINT_BY_FLAG):
+    for flag in ARTICLE_5_POINT_BY_FLAG:
         envelope = classify_ai_system(
             {"description": "A described AI system.", "flags": _without(all_false_flags(employment_decisions=True), flag)},
             dump,
@@ -1500,12 +1685,17 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
 )
 def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, dump):
     """The level, the status, the confidence and the envelope's missing_facts
-    are the ladder's: classify_ai_system only adds answer["fria"]."""
+    are the ladder's: classify_ai_system only adds answer["fria"], the
+    high-risk routes, the application dates and the legal text (B132), and a
+    null Annex I section where the ladder left none."""
     import copy
 
     core = classify_module._classify_core(copy.deepcopy(features), dump)
     full = classify_ai_system(copy.deepcopy(features), dump)
     assert "fria" in full["answer"]
-    full["answer"].pop("fria")
+    for key in ("fria", "high_risk_routes", "application_dates", "legal_text"):
+        full["answer"].pop(key)
+    if "annex_i_section" not in core["answer"]:
+        assert full["answer"].pop("annex_i_section") is None
     core["generated_at"] = full["generated_at"] = "MASKED"
     assert full == core

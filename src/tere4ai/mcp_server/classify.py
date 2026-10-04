@@ -22,6 +22,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 
 @implements: DEC-08, DEC-10 (partial: runtime classification)
 @implements: DEC-18
+@implements: DEC-23
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -35,6 +36,12 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from tere4ai.mcp_server.application_dates import (
+    ROUTE_ANNEX_I,
+    ROUTE_ANNEX_III,
+    dates_for,
+    legal_text,
+)
 from tere4ai.mcp_server.fria import assess_fria_applicability
 from tere4ai.mcp_server.levels import (  # noqa: F401
     LEGACY_LEVEL_VALUES,
@@ -66,6 +73,27 @@ ARTICLE_5_POINT_BY_FLAG: dict[str, tuple[str, str]] = {
         "eu-ai-act:article-5:paragraph-1:point-b",
         "exploitation of vulnerabilities due to age, disability or a specific "
         "social or economic situation",
+    ),
+    # point (ba), inserted by Regulation (EU) 2026/1744 (B132): "generates or
+    # manipulates realistic images, videos, audio or similar material of an
+    # identifiable natural person's intimate parts, or of an identifiable
+    # natural person engaged in sexually explicit activities, without that
+    # person's freely-given, specific, informed, unambiguous and explicit
+    # consent"; Article 5(1a) and (1b) say when it prohibits
+    # (ARTICLE_5_SCOPING_PARAGRAPHS).
+    "generates_nonconsensual_intimate_material": (
+        "eu-ai-act:article-5:paragraph-1:point-ba",
+        "generating or manipulating realistic intimate or sexually explicit "
+        "material of an identifiable person without explicit consent",
+    ),
+    # point (bb), inserted by Regulation (EU) 2026/1744 (B132): "generates or
+    # manipulates material or performance within the meaning of Article 2,
+    # points (c) and (e), of Directive 2011/93/EU, except where a 'without
+    # right' defence applies under national law"; Article 5(1a) says when.
+    "generates_csam": (
+        "eu-ai-act:article-5:paragraph-1:point-bb",
+        "generating or manipulating child sexual abuse material (Directive "
+        "2011/93/EU, Article 2, points (c) and (e))",
     ),
     # point (c): "evaluation or classification of natural persons or groups of
     # persons over a certain period of time based on their social behaviour
@@ -111,28 +139,18 @@ ARTICLE_5_POINT_BY_FLAG: dict[str, tuple[str, str]] = {
     ),
 }
 
-# Prohibitions INSERTED by the Digital Omnibus on AI (Regulation (EU)
-# 2026/1744, point (7)), applying from 2 December 2026. The base-text graph
-# is pinned pre-amendment (Section 11), so no article-5 point node exists
-# for these yet; hits cite the Omnibus SourceDocument (snapshot-backed,
-# docs/omnibus_amendments.md carries the verified verbatim text) and the
-# applies-from date travels as DATA in legal_status_notes, never as control
-# flow. The flag definitions in system_features.schema.json encode the
-# complete practice including the Article 5(1a)/(1b) qualifiers, mirroring
-# how points (c) to (g) embed their qualifiers in the flag semantics.
-OMNIBUS_SOURCE_ID = "src:omnibus-com-2025-836"
-OMNIBUS_ARTICLE_5_APPLIES_FROM = "2026-12-02"
-OMNIBUS_ARTICLE_5_POINT_BY_FLAG: dict[str, tuple[str, str]] = {
+# Article 5(1a) and (1b), inserted with points (ba) and (bb) by Regulation
+# (EU) 2026/1744 (B132, spec G D-G68 (6)), say when those points prohibit:
+# 5(1a) for both, 5(1b) for point (ba). A hit on the point cites them beside
+# it. The flags' schema definitions carry the complete practice, the way
+# points (c) to (g) embed their qualifiers. The date the points apply from,
+# 2 December 2026, is data from application_dates.py, never control flow.
+ARTICLE_5_SCOPING_PARAGRAPHS: dict[str, tuple[str, ...]] = {
     "generates_nonconsensual_intimate_material": (
-        "point (ba)",
-        "generating or manipulating realistic intimate or sexually explicit "
-        "material of an identifiable person without explicit consent",
+        "eu-ai-act:article-5:paragraph-1a",
+        "eu-ai-act:article-5:paragraph-1b",
     ),
-    "generates_csam": (
-        "point (bb)",
-        "generating or manipulating child sexual abuse material (Directive "
-        "2011/93/EU, Article 2, points (c) and (e))",
-    ),
+    "generates_csam": ("eu-ai-act:article-5:paragraph-1a",),
 }
 
 # point (h): "the use of real-time remote biometric identification systems in
@@ -215,7 +233,6 @@ ARTICLE_5_POINT_H_EXCULPATING = (
 # NOT treated as false (system_features.schema.json).
 PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
     *ARTICLE_5_POINT_BY_FLAG.keys(),
-    *OMNIBUS_ARTICLE_5_POINT_BY_FLAG.keys(),
     "real_time_remote_biometric_public",
 )
 
@@ -358,7 +375,7 @@ def _unresolved_article_5_facts(flags: dict[str, Any]) -> list[str]:
     @implements: DEC-18
     """
     missing: list[str] = []
-    for flag in (*ARTICLE_5_POINT_BY_FLAG, *OMNIBUS_ARTICLE_5_POINT_BY_FLAG):
+    for flag in ARTICLE_5_POINT_BY_FLAG:
         if flag in flags:
             continue
         exculpating = ARTICLE_5_EXCULPATING_FACT.get(flag)
@@ -391,6 +408,78 @@ ARTICLE_6_3_PROFILING_OVERRIDE = "eu-ai-act:article-6:paragraph-3:subparagraph-3
 ARTICLE_6_1_FLAGS: tuple[str, str] = (
     "annex_i_covered_product",
     "third_party_conformity_assessment_required",
+)
+
+# B132 (spec G D-G68 (6), rulings R6, R14, R26 and R36): the Annex I section
+# of an Article 6(1) system's product legislation, a third fact of the
+# route. True means Section B (points 13 to 21), false Section A (points 2
+# to 12), absent unknown. The level is high_risk under either section. For
+# Section B, Article 2(2) applies to the Article 6(1) classification only
+# the provisions it names: not the Chapter III requirements, not Article 50.
+# It limits only what that classification brings, so the Annex III rules
+# are still checked and a match decides the route (R26). An unknown section
+# never reads as Section B: the level and the status rules do not change,
+# the fact is named (R14).
+ANNEX_I_SECTION_FACT = "annex_i_section_b_legislation"
+ARTICLE_2_PARAGRAPH_2 = "eu-ai-act:article-2:paragraph-2"
+# Article 2(2), verbatim from its Layer 1 node (tests/unit/test_classify.py).
+ARTICLE_2_2_WORDING = (
+    "For AI systems classified as high-risk AI systems in accordance with Article 6(1) related to products "
+    "covered by the Union harmonisation legislation listed in Section B of Annex I, only Article 6(1), "
+    "Article 60a and Articles 102 to 112 shall apply."
+)
+ARTICLE_2_2_CONDITION = (
+    "Articles 57, 58 and 59 shall apply only in so far as the requirements for high-risk AI systems under "
+    "this Regulation have been integrated in that Union harmonisation legislation."
+)
+# The provisions Article 2(2) applies, then the three it applies on its condition.
+ARTICLE_2_2_PROVISIONS: tuple[str, ...] = (
+    "eu-ai-act:article-6:paragraph-1",
+    "eu-ai-act:article-60a",
+    *(f"eu-ai-act:article-{number}" for number in range(102, 113)),
+)
+ARTICLE_2_2_CONDITIONAL_PROVISIONS: tuple[str, ...] = (
+    "eu-ai-act:article-57",
+    "eu-ai-act:article-58",
+    "eu-ai-act:article-59",
+)
+# Named on the Article 6(1) exit while the section is unknown (R14), and by
+# get_applicable_requirements beside the Chapter III requirements it serves.
+ANNEX_I_SECTION_UNKNOWN_FACT = (
+    f"flags.{ANNEX_I_SECTION_FACT} is unknown (the Annex I section of the "
+    "product's legislation); the level is high_risk under either section, "
+    "but for a Section B product Article 2(2) applies only the provisions "
+    "it names, not the Chapter III requirements"
+)
+SECTION_B_NOTE = (
+    f"{ARTICLE_2_PARAGRAPH_2}: the product's legislation is listed in Annex I Section B; Article 2(2): "
+    f"\"{ARTICLE_2_2_WORDING} {ARTICLE_2_2_CONDITION}\" The Chapter III requirements do not apply to "
+    "it; whether that condition holds is not decided here"
+)
+# R36: where the Article 50 duties would be listed for a system high-risk
+# only under Article 6(1) with Section B legislation.
+ARTICLE_50_SECTION_B_NOTE = (
+    "eu-ai-act:article-50: no transparency duty is listed: Article 2(2) applies only Article 6(1), "
+    "Article 60a and Articles 102 to 112 to a system high-risk under Article 6(1) whose product "
+    "legislation is listed in Annex I Section B"
+)
+# R37: the high-risk routes that hold, on every high_risk answer
+# (high_risk_routes), so the dates and the requirements follow every route,
+# not only the one that decided the answer (annex_iii_category stays the
+# deciding route's field: none when the Article 6(1) route decided).
+HIGH_RISK_ROUTE_ARTICLE_6_1 = "article_6_1"
+HIGH_RISK_ROUTE_ARTICLE_6_2 = "article_6_2"
+# R39: the words that mark an unknown Annex III fact among the missing facts,
+# which get_applicable_requirements reads for a Section B system.
+ANNEX_III_UNKNOWN_TAG = "(Annex III high-risk relevant, Article 6(2))"
+# R26: a Section B product whose facts also match an Annex III category.
+SECTION_B_ALSO_ANNEX_III_NOTE = (
+    f"{ARTICLE_2_PARAGRAPH_2}: the product's legislation is listed in Annex I Section B, so the system is "
+    "also high-risk under Article 6(1), and for that classification Article 2(2) applies only Article "
+    "6(1), Article 60a and Articles 102 to 112; Article 2(2) limits only what the Article 6(1) "
+    "classification brings, and the system is high-risk under Article 6(2) and Annex III as well, so that "
+    "route decides the requirements served, the fundamental rights impact assessment and the Article 50 "
+    "duties"
 )
 
 
@@ -694,7 +783,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     domain = _normalize_domain(features.get("domain"))
     autonomy = features.get("autonomy")
 
-    citations = _Citations(_node_index(dump))
+    node_index = _node_index(dump)
+    citations = _Citations(node_index)
     rationale: list[str] = []
     legal_status_notes: list[str] = []
     missing_facts: list[str] = []
@@ -719,8 +809,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     ]
     for flag in unknown_annex_flags:
         missing_facts.append(
-            f"flags.{flag} is unknown (Annex III high-risk relevant, Article "
-            "6(2)); absence is not treated as false"
+            f"flags.{flag} is unknown {ANNEX_III_UNKNOWN_TAG}; absence is not treated as false"
         )
 
     # B123 (D-G59): an open Article 6(1) route names its unknown fact on
@@ -781,9 +870,6 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             _resolve_prohibition(
                 flag, node_id, fragment, ARTICLE_5_EXCULPATING_FACT.get(flag)
             )
-    for flag, (_point, fragment) in OMNIBUS_ARTICLE_5_POINT_BY_FLAG.items():
-        if flags.get(flag) is True:
-            prohibition_hits.append((flag, OMNIBUS_SOURCE_ID, fragment))
     if flags.get("real_time_remote_biometric_public") is True:
         if flags.get("law_enforcement_use") is True:
             _resolve_prohibition(
@@ -808,18 +894,15 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         for flag, node_id, fragment in prohibition_hits:
             citations.cite(node_id)
             rationale.append(f"rule unacceptable_risk: flag {flag} matches {node_id} ({fragment})")
-            if flag in OMNIBUS_ARTICLE_5_POINT_BY_FLAG:
-                point, _ = OMNIBUS_ARTICLE_5_POINT_BY_FLAG[flag]
+            for scoping in ARTICLE_5_SCOPING_PARAGRAPHS.get(flag, ()):
+                citations.cite(scoping)
+            if flag in ARTICLE_5_SCOPING_PARAGRAPHS:
+                enacted_by = (node_index.get(node_id) or {}).get("enacted_by") or "Regulation (EU) 2026/1744"
                 legal_status_notes.append(
-                    f"{node_id}: Article 5(1) {point}, inserted by Regulation "
-                    "(EU) 2026/1744 (Digital Omnibus on AI), prohibits this "
-                    f"practice ({fragment}) with application from "
-                    f"{OMNIBUS_ARTICLE_5_APPLIES_FROM}; the amending text is "
-                    "not yet modelled as graph overlay content, so the "
-                    "citation is the amending instrument itself (verified "
-                    "inventory: docs/omnibus_amendments.md)"
+                    f"{node_id}: inserted by {enacted_by}; "
+                    + " and ".join(ARTICLE_5_SCOPING_PARAGRAPHS[flag])
+                    + " say when the point prohibits; the date it applies from is in application_dates"
                 )
-                continue
             legal_status_notes.append(
                 f"{node_id}: this practice is a prohibited AI practice under "
                 f"Article 5(1) ({fragment}); placing on the market, putting "
@@ -909,7 +992,14 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     annex_i_covered = flags.get("annex_i_covered_product")
     third_party_required = flags.get("third_party_conformity_assessment_required")
     article_6_1_unresolved = False
+    # R26: set when a Section B product also matches an Annex III category;
+    # the Annex III rule below then decides and says so.
+    section_b_also_article_6_1 = False
     if annex_i_covered is True and third_party_required is True:
+        # B132 (D-G68 (6), R6, R14, R26, R36): the Annex I section decides
+        # what the Article 6(1) classification brings, never the level.
+        section_b = flags.get(ANNEX_I_SECTION_FACT)
+        annex_i_section = "B" if section_b is True else "A" if section_b is False else "unknown"
         citations.cite(ARTICLE_6_PARAGRAPH_1)
         citations.cite(ANNEX_I)
         rationale.append(
@@ -917,47 +1007,82 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "third_party_conformity_assessment_required are both true; the "
             "system is high-risk under Article 6(1) via Annex I"
         )
-        legal_status_notes.append(
-            f"{ARTICLE_6_PARAGRAPH_3}: the Article 6(3) derogation applies "
-            "only to Annex III systems under Article 6(2), not to the "
-            "Article 6(1) embedded-product route"
-        )
-        legal_status_notes.append(
-            f"{OMNIBUS_SOURCE_ID}: Regulation (EU) 2026/1744 inserted "
-            "Article 6(1a) to (1c) narrowing which safety components count "
-            "and moved machinery from Annex I Section A to Section B; the "
-            "graph models the base act as enacted, so re-check this route "
-            "against docs/omnibus_amendments.md"
-        )
-        _carry_transparency_duties()
-        _name_absent_article_50_facts()
-        missing_facts.extend(citations.unresolved)
-        status = "potentially_applicable"
-        confidence = 1.0
-        if unknown_prohibition_flags:
-            status = "requires_human_review"
-            confidence = 0.5
+        if annex_i_section == "B" and _annex_iii_scan(flags, domain)[0] is not None:
+            citations.cite(ARTICLE_2_PARAGRAPH_2)
             rationale.append(
-                "status lowered to requires_human_review: unknown "
-                "prohibition-relevant flags could change the outcome to Unacceptable risk"
+                f"Annex I section: {ANNEX_I_SECTION_FACT} is true and an Annex III "
+                "category also matches; Article 2(2) limits only what the Article "
+                "6(1) classification brings, so the Annex III rule below decides"
             )
-        return make_envelope(
-            answer={
-                "risk_category": "high_risk",
-                "unacceptable_risk": unacceptable_risk_state,
-                "annex_iii_category": None,
-                "article_6_3_exception_candidate": False,
-                "transparency_duties": transparency_duties,
-                "rationale": rationale,
-            },
-            status=status,
-            graph_version=graph_version,
-            confidence=confidence,
-            source_nodes=citations.node_ids,
-            source_spans=citations.spans,
-            legal_status_notes=legal_status_notes,
-            missing_facts=missing_facts,
-        )
+            legal_status_notes.append(SECTION_B_ALSO_ANNEX_III_NOTE)
+            section_b_also_article_6_1 = True
+        else:
+            legal_status_notes.append(
+                f"{ARTICLE_6_PARAGRAPH_3}: the Article 6(3) derogation applies "
+                "only to Annex III systems under Article 6(2), not to the "
+                "Article 6(1) embedded-product route"
+            )
+            if annex_i_section == "B":
+                citations.cite(ARTICLE_2_PARAGRAPH_2)
+                rationale.append(
+                    f"Annex I section: {ANNEX_I_SECTION_FACT} is true, so the product's "
+                    "legislation is listed in Section B and Article 2(2) applies only "
+                    "the provisions it names, not the Chapter III requirements and not Article 50"
+                )
+                legal_status_notes.append(SECTION_B_NOTE)
+                # R36: Article 2(2) applies no Article 50 duty to this system.
+                if transparency_duties:
+                    rationale.append(
+                        "Article 50 duties not listed: " + ", ".join(transparency_duties)
+                        + " would be triggered by a known fact, but Article 2(2) applies none of Article 50"
+                    )
+                legal_status_notes.append(ARTICLE_50_SECTION_B_NOTE)
+                duties: list[str] = []
+            else:
+                if annex_i_section == "unknown":
+                    missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
+                _carry_transparency_duties()
+                _name_absent_article_50_facts()
+                duties = transparency_duties
+            missing_facts.extend(citations.unresolved)
+            status = "potentially_applicable"
+            confidence = 1.0
+            if unknown_prohibition_flags:
+                status = "requires_human_review"
+                confidence = 0.5
+                rationale.append(
+                    "status lowered to requires_human_review: unknown "
+                    "prohibition-relevant flags could change the outcome to Unacceptable risk"
+                )
+            if annex_i_section == "B" and unknown_annex_flags:
+                # R39: an unknown Annex III fact could put this Section B
+                # product on the Annex III route (R26), which brings what
+                # Article 2(2) does not; never read as the answer that serves less.
+                status = "requires_human_review"
+                confidence = 0.5
+                rationale.append(
+                    "status lowered to requires_human_review: unknown Annex III facts could "
+                    "put this Section B product on the Annex III route, which brings the "
+                    "Chapter III requirements and the Article 50 duties Article 2(2) does not"
+                )
+            return make_envelope(
+                answer={
+                    "risk_category": "high_risk",
+                    "unacceptable_risk": unacceptable_risk_state,
+                    "annex_iii_category": None,
+                    "annex_i_section": annex_i_section,
+                    "article_6_3_exception_candidate": False,
+                    "transparency_duties": duties,
+                    "rationale": rationale,
+                },
+                status=status,
+                graph_version=graph_version,
+                confidence=confidence,
+                source_nodes=citations.node_ids,
+                source_spans=citations.spans,
+                legal_status_notes=legal_status_notes,
+                missing_facts=missing_facts,
+            )
     if annex_i_covered is True and third_party_required is None:
         # Named at the top (B123); here it only holds the route open.
         article_6_1_unresolved = True
@@ -1056,6 +1181,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "risk_category": "high_risk",
                 "unacceptable_risk": unacceptable_risk_state,
                 "annex_iii_category": annex_match["node"],
+                # R26: a Section B product also high-risk under Article 6(1).
+                **({"annex_i_section": "B"} if section_b_also_article_6_1 else {}),
                 "article_6_3_exception_candidate": exception_candidate,
                 "transparency_duties": transparency_duties,
                 "rationale": rationale,
@@ -1235,6 +1362,25 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     )
 
 
+def route_of(answer: dict[str, Any]) -> str | None:
+    """Article 113(c)'s route for an answer's dates (R37): Annex III or Annex
+    I when only that route holds, None (both points) when both hold or none
+    does. An answer without high_risk_routes (a bare answer, or one stored
+    before B132) is read from its deciding route's fields."""
+    routes = answer.get("high_risk_routes")
+    if not isinstance(routes, list):
+        routes = (
+            [HIGH_RISK_ROUTE_ARTICLE_6_2] if answer.get("annex_iii_category")
+            else [HIGH_RISK_ROUTE_ARTICLE_6_1] if answer.get("annex_i_section") is not None
+            else []
+        )
+    if routes == [HIGH_RISK_ROUTE_ARTICLE_6_2]:
+        return ROUTE_ANNEX_III
+    if routes == [HIGH_RISK_ROUTE_ARTICLE_6_1]:
+        return ROUTE_ANNEX_I
+    return None
+
+
 def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
     """Deterministic classification plus the Article 27(1) FRIA block.
 
@@ -1302,4 +1448,26 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         # never the level or status.
         unknown_annex_iii_facts=_unknown_annex_iii_facts(flags),
     )
+    # B132 (spec G D-G68 (6)): the Annex I section on every answer (null off
+    # the Article 6(1) route), the high-risk routes that hold (R37: computed
+    # with the same Annex III check the FRIA rule reads above), the
+    # application dates of every provision the answer cites, from the reviewed
+    # table of Article 113 as amended, by those routes (both points of
+    # Article 113(c) when both hold; data, never control flow: nothing above
+    # reads them), and the text it follows.
+    answer.setdefault("annex_i_section", None)
+    article_6_1_holds = (
+        flags.get("annex_i_covered_product") is True
+        and flags.get("third_party_conformity_assessment_required") is True
+    )
+    answer["high_risk_routes"] = [
+        name for name, holds in (
+            (HIGH_RISK_ROUTE_ARTICLE_6_1, article_6_1_holds),
+            (HIGH_RISK_ROUTE_ARTICLE_6_2, bool(annex_points)),
+        )
+        if holds
+    ] if answer.get("risk_category") == "high_risk" else []
+    route = route_of(answer)
+    answer["application_dates"] = dates_for(list(envelope.get("source_nodes") or []), dump, route)
+    answer["legal_text"] = legal_text(dump)
     return envelope

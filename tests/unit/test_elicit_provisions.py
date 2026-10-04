@@ -160,6 +160,8 @@ def test_fact_provisions_rejects_a_placeholder_before_any_facts_line() -> None:
 
 V6_PATH = ROOT / "prompts" / "elicit_features" / "v6.md"
 OMNIBUS_FLAGS = ("generates_nonconsensual_intimate_material", "generates_csam")
+# B132: added to the schema after v6, asked by v7.
+FLAGS_AFTER_V6 = ("annex_i_section_b_legislation",)
 
 
 def _v6_text() -> str:
@@ -179,7 +181,7 @@ def test_v6_every_schema_flag_but_the_two_omnibus_facts_has_a_provision() -> Non
     without = [
         name
         for name in schema_flag_names()
-        if name not in OMNIBUS_FLAGS and not table.get(f"flags.{name}")
+        if name not in OMNIBUS_FLAGS and name not in FLAGS_AFTER_V6 and not table.get(f"flags.{name}")
     ]
     assert without == []
     for name in OMNIBUS_FLAGS:
@@ -196,6 +198,8 @@ def test_v6_article_5_flags_quote_the_point_the_classifier_cites() -> None:
 
     table = _v6_table()
     for flag, (node_id, _fragment) in ARTICLE_5_POINT_BY_FLAG.items():
+        if flag in OMNIBUS_FLAGS:
+            continue  # v6 quoted points (ba) and (bb) from the amending act
         assert node_id in table.get(f"flags.{flag}", []), flag
     assert ARTICLE_5_POINT_H in table["flags.real_time_remote_biometric_public"]
     # Each exculpating fact quotes the point whose exception or element it is.

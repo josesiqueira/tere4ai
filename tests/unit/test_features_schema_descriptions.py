@@ -19,12 +19,6 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "system_features.schema.json"
 LAYER1_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 
-# The two prohibitions the Digital Omnibus inserted have no node in the
-# graph, which is pinned before the amendment (architecture.md Section 11);
-# their descriptions name the amending act, whose verified text is in
-# docs/omnibus_amendments.md.
-OMNIBUS_FLAGS = {"generates_nonconsensual_intimate_material", "generates_csam"}
-
 PROVISION = re.compile(r"\b(Article \d+\(\d+[a-z]?\)|Annex [IVX]+ point \d)")
 QUOTE = re.compile(r"the Act's words: '([^']+)'")
 # Every passage in single quotes, opened after a space or a bracket (so the
@@ -56,10 +50,10 @@ def test_every_flag_has_a_description_naming_its_provision():
         assert PROVISION.search(description), f"{name}: the description names no Article or Annex point"
 
 
-def test_every_flag_outside_the_omnibus_quotes_the_act():
+def test_every_flag_quotes_the_act():
+    """B132: the two prohibitions the Digital Omnibus inserted are Article 5
+    points of the graph now, so they quote it like every other flag."""
     for name, spec in _flags().items():
-        if name in OMNIBUS_FLAGS:
-            continue
         assert QUOTE.search(spec["description"]), f"{name}: no passage quoted in the Act's words"
 
 
@@ -69,8 +63,18 @@ def test_every_quoted_passage_is_the_text_of_a_node():
     # In-force text only: an earlier version (UnitVersion) is not the Act in force.
     texts = [_normalised(node.get("text") or "") for node in dump["nodes"] if node.get("type") != "UnitVersion"]
     for name, spec in _flags().items():
-        if name in OMNIBUS_FLAGS:
-            continue
         for quoted in QUOTED.findall(spec["description"]):
             passage = _normalised(quoted)
             assert any(passage in text for text in texts), f"{name}: '{passage}' is in no node's text"
+
+
+def test_the_amended_article_6_and_article_3_14_are_in_the_facts_they_bear_on():
+    """D7.2: Article 6(1a) to (1c) and the replaced Article 3(14) in the Act's
+    words; the Annex I section fact quotes Article 2(2)."""
+    flags = _flags()
+    assert "Article 3(14) as replaced by Regulation (EU) 2026/1744" in flags["medical_or_safety_component"]["description"]
+    for name in ("medical_or_safety_component", "annex_i_covered_product"):
+        assert "Article 6(1a)" in flags[name]["description"] and "Article 6(1b)" in flags[name]["description"], name
+    assert "Article 6(1c)" in flags["third_party_conformity_assessment_required"]["description"]
+    assert "Article 2(2)" in flags["annex_i_section_b_legislation"]["description"]
+    assert flags["annex_i_section_b_legislation"]["type"] == "boolean"
