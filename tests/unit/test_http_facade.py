@@ -1088,3 +1088,21 @@ def test_units_503_without_a_core_node_list(tmp_path):
         response = test_client.get("/api/units")
     assert response.status_code == 503
     assert response.json() == {"error": "core node list unavailable"}
+
+
+def test_backlog_refuses_a_norm_on_a_deleted_unit_before_any_model_call(client, monkeypatch):
+    """B132 (D-G68 (3)): never a backlog from wording the Omnibus deleted; the
+    refusal comes before the paid clients are built."""
+    def no_paid_clients():
+        raise AssertionError("a paid client was built")
+
+    monkeypatch.setattr(facade, "_build_paid_clients", no_paid_clients)
+    norms = client.app.state.norms
+    norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
+    moved = {**norm, "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n9",
+             "source_node_id": "eu-ai-act:article-10:paragraph-5"}
+    monkeypatch.setitem(norms, "norms", [*norms["norms"], moved])
+    response = client.post("/api/backlog", json={"norm_ids": [moved["norm_id"]], "system_context": "ctx"})
+    assert response.status_code == 422
+    assert response.json()["refused_norm_ids"] == [moved["norm_id"]]
+    assert "Deleted by Regulation (EU) 2026/1744" in response.json()["error"]

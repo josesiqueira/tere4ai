@@ -79,3 +79,41 @@ def test_version_pin_gate_missing_merge_marker():
             n.pop("merged_into_base", None)
     report = validate_build(dump)
     assert any("G6" in f and "silent replacement" in f for f in report.failures)
+
+
+# B132 (spec G D-G68 (3)): a gate refuses a norm, an alignment or a test-set
+# item whose source unit the Omnibus deleted.
+
+DELETED_UNIT = "eu-ai-act:article-10:paragraph-5"
+
+
+def test_a_norm_or_an_alignment_on_a_deleted_unit_fails_g3_and_g4():
+    dump = _real_dump()
+    norms = [{"norm_id": f"norm:{DELETED_UNIT}:n1", "source_span_id": "span:010.005",
+              "source_node_id": DELETED_UNIT}]
+    alignments = [{"id": "align:x", "source_norm_id": f"norm:{DELETED_UNIT}:n1", "judge_verdict": "rejected"}]
+    failures = validate_build(dump, norms=norms, alignments=alignments).failures
+    assert any(f.startswith("G3 norm on a unit the Omnibus deleted") and DELETED_UNIT in f for f in failures)
+    assert any(f.startswith("G4 alignment of a norm on a unit the Omnibus deleted: align:x") for f in failures)
+
+
+def test_the_published_dev_norms_and_alignments_stand_on_no_deleted_unit():
+    """D9: the dev dumps keep only norms and alignments on units unchanged in force."""
+    norms = json.loads((DUMP.parent / "norms_core.json").read_text(encoding="utf-8"))["norms"]
+    alignments = json.loads((DUMP.parent / "alignments_core.json").read_text(encoding="utf-8"))["assertions"]
+    dump = _real_dump()
+    report = validate_build(dump, norms=norms, alignments=alignments)
+    assert not [f for f in report.failures if "deleted" in f], report.failures[:5]
+    units = {n["id"]: n.get("amendment") for n in dump["nodes"]}
+    assert {units[n["source_node_id"]] for n in norms} == {"unchanged"}
+
+
+def test_a_test_set_item_citing_a_deleted_unit_is_named():
+    from tere4ai.eval.harness import load_gold_items
+    from tere4ai.validate_graph.gates import deleted_unit_citations
+
+    dump = _real_dump()
+    assert deleted_unit_citations(dump, load_gold_items()) == []
+    item = {"id": "gold:x", "kind": "retrieval", "gold": {"node_id": DELETED_UNIT}, "gold_citations": []}
+    assert deleted_unit_citations(dump, [item]) == [
+        f"test-set item gold:x cites a unit the Omnibus deleted: {DELETED_UNIT}"]

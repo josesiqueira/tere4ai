@@ -148,12 +148,16 @@ answer holds its deontic decomposition (actor, modal, action, object,
 conditions, exceptions), full source unit text, Article 3 definitions
 occurring in its action/object, accepted HLEG alignment targets with
 relation types and final scores, and a span trace. Non-accepted norms
-are explained too, with their review status stated prominently.
+are explained too, with their review status stated prominently. The
+source text is the Act in force (Regulation (EU) 2024/1689 as amended by
+Regulation (EU) 2026/1744); earlier_version=true adds the unit's 2024
+wording where the amendment changed it, or says why it has none.
 Deterministic and free.
 ```
 
 | Input | Type | Required |
 |---|---|---|
+| `earlier_version` | boolean | no |
 | `norm_id` | string | yes |
 
 ## `generate_control_backlog`

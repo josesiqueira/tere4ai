@@ -10,6 +10,7 @@
    with the non-legal-advice notice. Visual system: docs/DESIGN.md. */
 
 import { useEffect, useRef, useState } from "react";
+import { articleGroupOf, compareArticleGroups } from "@/lib/articleGroups";
 import { levelName } from "@/lib/levels";
 import { NOTICE } from "@/lib/notice";
 import { Loader2 } from "lucide-react";
@@ -847,8 +848,8 @@ type BacklogItem = BacklogAnswer["items"][number];
 
 function backlogArticleGroup(item: BacklogItem): string {
   for (const id of item.norm_ids) {
-    const match = id.match(/eu-ai-act:(article-\d+|annex-[ivxlcdm]+)/i);
-    if (match) return `eu-ai-act:${match[1]}`;
+    const group = articleGroupOf(id);
+    if (group) return group;
   }
   return "other sources";
 }
@@ -861,11 +862,7 @@ function groupBacklogByArticle(items: BacklogItem[]): [string, BacklogItem[]][] 
     list.push(item);
     groups.set(group, list);
   }
-  return Array.from(groups.entries()).sort(([a], [b]) => {
-    const na = Number(a.match(/article-(\d+)/)?.[1] ?? 9999);
-    const nb = Number(b.match(/article-(\d+)/)?.[1] ?? 9999);
-    return na - nb || a.localeCompare(b);
-  });
+  return Array.from(groups.entries()).sort(([a], [b]) => compareArticleGroups(a, b));
 }
 
 /* Requirements-by-evidence-status board (Task 5). Every served requirement

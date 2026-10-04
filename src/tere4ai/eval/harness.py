@@ -2,6 +2,7 @@
 
 @implements: DEC-11, DEC-17
 @implements: DEC-20
+@implements: DEC-23
 @grounded_by: REF-15, REF-16, REF-17
 
 Runs the five Section 12 ablation conditions (strategies.py) over evaluation
@@ -56,6 +57,7 @@ from tere4ai.extract_norms.model_clients import ModelClient, declared_sampling
 from tere4ai.graph_store.build_record import atomic_write_json
 from tere4ai.graph_store.present import exception_reason
 from tere4ai.judge.config import ConfigurationError, ModelConfig, load_model_config
+from tere4ai.validate_graph.gates import deleted_unit_citations
 
 
 def _repo_root() -> Path:
@@ -396,6 +398,13 @@ def run_eval(
             )
             for name in strategies
         }
+
+    # B132 (D-G68 (3)): a test-set item citing a unit the Omnibus deleted is
+    # refused before any strategy runs; the answer key is corrected instead.
+    if dump is not None:
+        refused = deleted_unit_citations(dump, items)
+        if refused:
+            raise ValueError("; ".join(refused))
 
     build_id = str((dump or {}).get("build", {}).get("build_id", "unknown-build"))
     strategy_names = sorted(strategies)

@@ -1213,3 +1213,15 @@ def test_benchmark_map_uses_the_pyramid_names():
         "limited": "limited_risk",
         "minimal": "minimal_risk",
     }
+
+
+def test_a_run_refuses_a_test_set_item_on_a_deleted_unit(tmp_path):
+    """B132 (D-G68 (3)): the answer key is corrected, never run on a unit the
+    Omnibus deleted; the refusal comes before any strategy runs."""
+    dump = json.loads(LAYER1_PATH.read_text(encoding="utf-8"))
+    item = {"id": "gold:x", "kind": "retrieval", "question": "q", "gold": {"node_id": "eu-ai-act:article-10:paragraph-5"},
+            "gold_citations": ["eu-ai-act:article-10:paragraph-5"]}
+    ran = []
+    with pytest.raises(ValueError, match="cites a unit the Omnibus deleted"):
+        run_eval([item], {"s": lambda i: ran.append(i) or {}}, dump=dump, results_dir=tmp_path)
+    assert ran == []

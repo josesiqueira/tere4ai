@@ -549,12 +549,14 @@ def test_the_pre_dec_19_norms_build_serves_no_type(dump, norms_payload):
 
 def test_a_norm_on_a_unit_the_omnibus_deleted_is_not_a_requirement(dump, norms_payload):
     """Final review F7 (brief D3: requirement selection skips deleted units). The dev
-    norms were extracted from the 2024 text; the 14 accepted ones on Article 10(5)
-    and its points cite a unit the Omnibus deleted, whose span no longer resolves."""
-    deleted = [n for n in norms_payload["norms"] if n.get("judge_verdict") == "accepted"
-               and n["source_node_id"].startswith("eu-ai-act:article-10:paragraph-5")]
-    assert deleted, "the dev norms still hold norms on Article 10(5)"
-    answer = get_applicable_requirements({"risk_category": "high_risk"}, norms_payload, dump)["answer"]
+    norms were extracted from the 2024 text and D9 dropped those on changed units,
+    so one accepted norm is moved onto the deleted paragraph."""
+    norm = next(n for n in norms_payload["norms"] if n.get("judge_verdict") == "accepted"
+                and n["source_node_id"].startswith("eu-ai-act:article-9:"))
+    deleted = [{**norm, "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n1",
+                "source_node_id": "eu-ai-act:article-10:paragraph-5", "source_span_id": "span:010.005"}]
+    payload = {**norms_payload, "norms": [*norms_payload["norms"], *deleted]}
+    answer = get_applicable_requirements({"risk_category": "high_risk"}, payload, dump)["answer"]
     entries = [e for group in answer["requirements_by_article"].values() for e in group]
     assert entries
     assert not [e for e in entries if e["source_node_id"].startswith("eu-ai-act:article-10:paragraph-5")]

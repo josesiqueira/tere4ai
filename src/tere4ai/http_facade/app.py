@@ -3,6 +3,7 @@
 @implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log)
 @implements: DEC-17
 @implements: DEC-19
+@implements: DEC-23
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
@@ -223,6 +224,8 @@ class BacklogRequest(_Utf8GuardedModel):
 
 class ExplainRequest(_Utf8GuardedModel):
     norm_id: str
+    # B132: the source unit's 2024 wording beside the in-force text, on request.
+    earlier_version: bool = False
 
 
 class TraceRequest(_Utf8GuardedModel):
@@ -867,6 +870,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             request.app.state.dump,
             request.app.state.norms,
             request.app.state.alignments,
+            earlier_version=body.earlier_version,
         )
         return JSONResponse(content=envelope)
 
@@ -1008,6 +1012,11 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 },
             )
         norms = [norms_by_id[norm_id] for norm_id in body.norm_ids]
+        refusals = backlog_tool.deleted_source_refusals(norms, request.app.state.dump)
+        if refusals:
+            # B132: never a backlog from wording the Omnibus deleted; no model call.
+            return JSONResponse(status_code=422, content={"error": "; ".join(refusals.values()),
+                                                          "refused_norm_ids": list(refusals)})
         try:
             generator, judge = _build_paid_clients()
         except ModelConfigError as exc:

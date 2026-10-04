@@ -355,3 +355,60 @@ def test_resolve_span_refuses_an_invalid_exclude_range(dump, shape):
     }[shape]
     with pytest.raises(SpanIntegrityError, match="invalid exclude range"):
         resolve_span(span["span_id"], edited, SNAPSHOTS_DIR)
+
+
+# B132 (spec G D-G68 (3)): the in-force text is the default; the earlier
+# version on request; a norm on a deleted unit explained with the deleted
+# note. D9 left the dev norms on unchanged units only, so the norm here is
+# moved onto a replaced or deleted unit.
+
+
+def _moved_norm(norms: dict, unit: str, span: str) -> tuple[dict, str]:
+    norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
+    moved = {**norm, "norm_id": f"norm:{unit}:n9", "source_node_id": unit, "source_span_id": span}
+    return {**norms, "norms": [*norms["norms"], moved]}, moved["norm_id"]
+
+
+def test_explain_shows_the_earlier_version_only_on_request(dump, norms_payload, alignments_payload):
+    payload, norm_id = _moved_norm(norms_payload, "eu-ai-act:article-10:paragraph-1", "span:010.001")
+    default = explain_requirement(norm_id, dump, payload, alignments_payload)
+    assert "earlier_version" not in default["answer"]["source"]
+    assert default["answer"]["legal_text"] == "Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744"
+    asked = explain_requirement(norm_id, dump, payload, alignments_payload, earlier_version=True)
+    earlier = asked["answer"]["source"]["earlier_version"]
+    assert earlier["found"] is True
+    assert earlier["node_id"] == "version:2024-07-12:eu-ai-act:article-10:paragraph-1"
+    assert earlier["valid_to"] == "2026-07-26" and earlier["legal_status"] == "superseded"
+    assert earlier["span_id"] == "span:010.001@2024-07-12"
+    assert earlier["text"] != asked["answer"]["source"]["text"]
+    unchanged = explain_requirement(norms_payload["norms"][0]["norm_id"], dump, norms_payload, alignments_payload,
+                                    earlier_version=True)
+    assert unchanged["answer"]["source"]["earlier_version"] == {
+        "found": False, "reason": "unchanged",
+        "note": "the Digital Omnibus did not change this unit, so it has no earlier version"}
+
+
+def test_an_inserted_unit_has_no_earlier_version_and_says_why(dump, norms_payload, alignments_payload):
+    """Codex plan review P2 6: an inserted unit is new in the Omnibus, not
+    unchanged; a unit the dump lacks is unavailable, not unchanged."""
+    for unit, span, point in (("eu-ai-act:article-4a:paragraph-1", "span:004a.001", "point (6)"),
+                              ("eu-ai-act:article-5:paragraph-1:point-ba", "span:fmx:art_005.parag_001.np_ba",
+                               "point (7)")):
+        payload, norm_id = _moved_norm(norms_payload, unit, span)
+        earlier = explain_requirement(norm_id, dump, payload, alignments_payload,
+                                      earlier_version=True)["answer"]["source"]["earlier_version"]
+        assert earlier["found"] is False and earlier["reason"] == "inserted", unit
+        assert f"inserted by Regulation (EU) 2026/1744, Article 1, {point}" in earlier["note"], unit
+    payload, norm_id = _moved_norm(norms_payload, "eu-ai-act:article-999:paragraph-1", "span:999.001")
+    missing = explain_requirement(norm_id, dump, payload, alignments_payload, earlier_version=True)
+    assert missing["answer"]["source"]["earlier_version"]["reason"] == "source_unavailable"
+
+
+def test_explain_names_a_deleted_source_unit_and_never_quotes_it(dump, norms_payload, alignments_payload):
+    payload, norm_id = _moved_norm(norms_payload, "eu-ai-act:article-10:paragraph-5", "span:010.005")
+    envelope = explain_requirement(norm_id, dump, payload, alignments_payload)
+    source = envelope["answer"]["source"]
+    assert source["text"] is None
+    assert source["deleted"].startswith("Deleted by Regulation (EU) 2026/1744, Article 1, point (9)")
+    assert envelope["status"] == "requires_human_review"
+    assert any("no longer in force" in m for m in envelope["missing_facts"])

@@ -15,6 +15,9 @@ Architecture.md Section 13. Gates implemented here:
      and checked and every unit checked (spec G D-G68); a dump that reads as amended
      without the Omnibus SourceDocument is refused
   G2 also refuses a span id carried by an in-force node and an earlier version (B132)
+  G3 and G4 also refuse a norm, and an alignment of a norm, whose source unit the
+     Omnibus deleted; deleted_unit_citations refuses a test-set item that cites
+     one (B132, spec G D-G68 (3))
 
 validate_build returns a report; the build entry point refuses to publish on
 failure (no silent degradation).
@@ -25,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from tere4ai.parse_legal_structure.amendments import OMNIBUS_ACT
+from tere4ai.parse_legal_structure.amendments import OMNIBUS_ACT, is_deleted
 
 HIERARCHY_EDGES = {
     "HAS_CHAPTER",
@@ -51,6 +54,29 @@ HIERARCHY_EDGES = {
 REACHABILITY_EDGES = HIERARCHY_EDGES | {"DEFINES_TERM", "HAS_CROSS_REFERENCE", "HAS_VERSION"}
 UNIT_TYPES = ("Chapter", "Section", "Article", "Paragraph", "Subparagraph", "Point", "Annex", "AnnexItem")
 CONSOLIDATED_ID = "src:eu-ai-act:consolidated-2026-07-27"
+
+
+def _norm_unit(norm_id: object) -> str | None:
+    """The source unit a norm id names: norm:<unit id>:n<k> -> <unit id>."""
+    if not isinstance(norm_id, str) or not norm_id.startswith("norm:") or ":" not in norm_id[5:]:
+        return None
+    return norm_id[len("norm:"):].rsplit(":", 1)[0]
+
+
+def deleted_unit_citations(dump: dict, items: list[dict]) -> list[str]:
+    """One line per hand-made test-set item that cites a unit the Omnibus
+    deleted (B132, D-G68 (3)): in gold_citations, or as a node id among the
+    gold answer's values. The answer key is corrected to the unit that now
+    holds the rule, never served on a deleted unit."""
+    deleted = {n["id"] for n in dump.get("nodes", []) if is_deleted(n)}
+    failures: list[str] = []
+    for item in items:
+        gold = item.get("gold") if isinstance(item.get("gold"), dict) else {}
+        cited = [*item.get("gold_citations", []), *(v for v in gold.values() if isinstance(v, str))]
+        for node_id in dict.fromkeys(cited):
+            if node_id in deleted:
+                failures.append(f"test-set item {item.get('id')} cites a unit the Omnibus deleted: {node_id}")
+    return failures
 
 
 @dataclass
@@ -117,9 +143,14 @@ def validate_build(
 
     # G3: no norm without a source span
     recital_ids = {i for i, n in nodes.items() if n.get("type") == "Recital"}
+    deleted_ids = {i for i, n in nodes.items() if is_deleted(n)}
     for norm in norms or []:
         if not norm.get("source_span_id"):
             report.failures.append(f"G3 norm without source span: {norm.get('norm_id')}")
+        # B132 (D-G68 (3)): a deleted unit has no span of its own; nothing stands on it.
+        if norm.get("source_node_id") in deleted_ids:
+            report.failures.append(
+                f"G3 norm on a unit the Omnibus deleted: {norm.get('norm_id')} ({norm.get('source_node_id')})")
         # G5 half: norms never derive from recitals
         if norm.get("source_node_id") in recital_ids:
             report.failures.append(
@@ -129,6 +160,8 @@ def validate_build(
 
     # G4: accepted alignments need evidence spans on both sides
     for a in alignments or []:
+        if _norm_unit(a.get("source_norm_id")) in deleted_ids:
+            report.failures.append(f"G4 alignment of a norm on a unit the Omnibus deleted: {a.get('id')}")
         if a.get("judge_verdict") == "accepted" or a.get("review_status") == "accepted":
             if not a.get("source_evidence_span_ids") or not a.get("target_evidence_span_ids"):
                 report.failures.append(

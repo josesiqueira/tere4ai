@@ -2,6 +2,7 @@
 
 @implements: DEC-06 (partial: runtime grounding judge), DEC-08
 @implements: DEC-19
+@implements: DEC-23
 @grounded_by: REF-16, REF-24, REF-17
 
 Turns judge-accepted NormativeStatements into an engineering control backlog
@@ -64,6 +65,7 @@ from tere4ai.judge.config import require_independent_clients
 from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
 from tere4ai.mcp_server.evidence import JUDGE_ERROR, JUDGE_NOT_RUN
 from tere4ai.mcp_server.tools import make_envelope
+from tere4ai.parse_legal_structure.amendments import deleted_note, is_deleted
 
 TOOL_NAME = "generate_control_backlog"
 GENERATOR_PROMPT = "generate_backlog"
@@ -98,6 +100,20 @@ _NORM_PROMPT_FIELDS = (
     "exceptions",
     "lifecycle_phase_ids",
 )
+
+
+def deleted_source_refusals(norms: list[dict[str, Any]], dump: dict[str, Any]) -> dict[str, str]:
+    """{norm_id: reason} for each norm whose source unit the Omnibus deleted
+    (B132, D-G68 (3)): a backlog is never generated from wording no longer in
+    force, and the refusal comes before any model call."""
+    index = {n["id"]: n for n in dump.get("nodes", []) if isinstance(n, dict) and "id" in n}
+    refusals: dict[str, str] = {}
+    for norm in norms:
+        node = index.get(str(norm.get("source_node_id", "")))
+        if is_deleted(node):
+            refusals[str(norm.get("norm_id"))] = (
+                f"norm_id '{norm.get('norm_id')}' rests on {node['id']}: {deleted_note(node)}")
+    return refusals
 
 
 def _generator_user_message(norms: list[dict[str, Any]], system_context: str) -> str:

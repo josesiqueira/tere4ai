@@ -13,8 +13,18 @@ and review status are reported prominently inside the answer. Non-accepted
 norms are still explainable; their review status downgrades the envelope
 status to requires_human_review, never silently.
 
+B132 (spec G D-G68 (3)): the in-force text is the default. On request
+(earlier_version=True) the answer adds the source unit's 2024 wording, its
+UnitVersion node, valid until 26 July 2026, or says why there is none: the
+unit was inserted by the Omnibus, the Omnibus did not change it, or the
+source unit cannot be read. A norm whose source unit the Omnibus deleted
+is explained with the deleted note, never with wording no longer in force,
+and its envelope status is requires_human_review. Every answer names the
+text it follows.
+
 @implements: DEC-08
 @implements: DEC-19
+@implements: DEC-23
 @grounded_by: REF-17, REF-16
 """
 
@@ -24,7 +34,9 @@ import re
 from typing import Any
 
 from tere4ai.extract_norms.recorded import extraction_generator_settings
+from tere4ai.mcp_server.application_dates import legal_text
 from tere4ai.mcp_server.tools import make_envelope
+from tere4ai.parse_legal_structure.amendments import deleted_note, is_deleted, version_node_id
 
 ARTICLE_3_PREFIX = "eu-ai-act:article-3:"
 
@@ -118,11 +130,45 @@ def _hleg_nodes() -> list[dict[str, Any]]:
         return []
 
 
+def _earlier_version(
+    source_node_id: str, source_node: dict[str, Any] | None, node_index: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """The 2024 wording of a changed unit (its UnitVersion node), or why it
+    has none: inserted (the unit is new in the Omnibus), unchanged, or
+    source_unavailable (the unit, or the version its change implies, is not
+    in the dump)."""
+    if source_node is None:
+        return {"found": False, "reason": "source_unavailable",
+                "note": "the source unit is not in the graph dump, so no earlier version can be read"}
+    version = node_index.get(version_node_id(source_node_id))
+    if version is not None:
+        return {
+            "found": True,
+            "node_id": version["id"],
+            "text": version.get("text"),
+            "valid_from": version.get("valid_from"),
+            "valid_to": version.get("valid_to"),
+            "legal_status": version.get("legal_status"),
+            "enacted_by": version.get("enacted_by"),
+            "span_id": (version.get("source_span") or {}).get("span_id"),
+        }
+    amendment = source_node.get("amendment")
+    if amendment == "inserted":
+        return {"found": False, "reason": "inserted",
+                "note": f"the unit was inserted by {source_node.get('enacted_by')}, so it has no earlier version"}
+    if amendment in (None, "unchanged"):
+        return {"found": False, "reason": "unchanged",
+                "note": "the Digital Omnibus did not change this unit, so it has no earlier version"}
+    return {"found": False, "reason": "source_unavailable",
+            "note": f"the unit is marked {amendment} but its earlier version is not in the graph dump"}
+
+
 def explain_requirement(
     norm_id: str,
     dump: dict[str, Any],
     norms_payload: dict[str, Any],
     alignments_payload: dict[str, Any],
+    earlier_version: bool = False,
 ) -> dict[str, Any]:
     """Deterministic explanation of one norm from the judged build artifacts.
 
@@ -165,6 +211,11 @@ def explain_requirement(
         missing_facts.append(
             f"source node '{source_node_id}' of norm '{norm_id}' is not present "
             "in the graph dump; the source text cannot be rendered"
+        )
+    elif is_deleted(source_node):
+        missing_facts.append(
+            f"source node '{source_node_id}' of norm '{norm_id}': {deleted_note(source_node)} "
+            "The norm rests on wording no longer in force."
         )
 
     definitions = _matched_definitions(norm, dump)
@@ -233,7 +284,11 @@ def explain_requirement(
             "node_id": source_node_id,
             "type": (source_node or {}).get("type"),
             "text": (source_node or {}).get("text"),
+            **({"deleted": deleted_note(source_node)} if is_deleted(source_node) else {}),
+            **({"earlier_version": _earlier_version(source_node_id, source_node, node_index)}
+               if earlier_version else {}),
         },
+        "legal_text": legal_text(dump),
         "article_3_definitions": definitions,
         "hleg_alignments": {
             "accepted": accepted,

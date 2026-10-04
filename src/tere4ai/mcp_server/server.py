@@ -26,6 +26,7 @@ scripts/manage_mcp_keys.py); stdio stays keyless unless
 TERE4AI_MCP_REQUIRE_KEY=1. Every tool call is metered body-free.
 
 @implements: DEC-08, DEC-10
+@implements: DEC-23
 @grounded_by: REF-16, REF-17, REF-15, REF-31
 """
 
@@ -348,13 +349,16 @@ def source_trace(node_id: str) -> dict[str, Any]:
 
 
 @mcp.tool(annotations=_READ_ONLY)
-def explain_requirement(norm_id: str) -> dict[str, Any]:
+def explain_requirement(norm_id: str, earlier_version: bool = False) -> dict[str, Any]:
     """Explain one judged requirement (a normative statement) in depth. The
     answer holds its deontic decomposition (actor, modal, action, object,
     conditions, exceptions), full source unit text, Article 3 definitions
     occurring in its action/object, accepted HLEG alignment targets with
     relation types and final scores, and a span trace. Non-accepted norms
-    are explained too, with their review status stated prominently.
+    are explained too, with their review status stated prominently. The
+    source text is the Act in force (Regulation (EU) 2024/1689 as amended by
+    Regulation (EU) 2026/1744); earlier_version=true adds the unit's 2024
+    wording where the amendment changed it, or says why it has none.
     Deterministic and free."""
     loaded = _active()
     dump = loaded.dump
@@ -366,7 +370,9 @@ def explain_requirement(norm_id: str) -> dict[str, Any]:
     alignments_payload = loaded.alignments
     if alignments_payload is None:
         return _alignments_missing_envelope()
-    return explain_rules.explain_requirement(norm_id, dump, norms_payload, alignments_payload)
+    return explain_rules.explain_requirement(
+        norm_id, dump, norms_payload, alignments_payload, earlier_version=earlier_version
+    )
 
 
 @mcp.tool(annotations=_READ_ONLY)
@@ -726,6 +732,15 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
             ],
         )
     norms = [_norm_by_id(norms_payload, norm_id) for norm_id in norm_ids]
+    refusals = backlog_rules.deleted_source_refusals(norms, dump)
+    if refusals:
+        return tools.make_envelope(
+            answer={"refused_norm_ids": list(refusals)},
+            status="not_applicable",
+            graph_version=_graph_version(dump),
+            confidence=0.0,
+            missing_facts=[*refusals.values(), "no backlog was generated and no model call was made"],
+        )
     _attach_source_text(norms, dump)
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):

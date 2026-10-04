@@ -45,11 +45,6 @@ def census():
         n for n in norms_payload["norms"] if n.get("review_status") == "accepted"
     ]
     node_ids = {n["id"] for n in dump["nodes"]}
-    # B132: a norm on a unit the Omnibus deleted (Article 10(5)) has no span
-    # to resolve; such norms are counted apart, and plan B drops them from
-    # the dev dumps (brief D9) before B74 replaces them all.
-    deleted = {n["id"] for n in dump["nodes"] if n.get("amendment") == "deleted"}
-    accepted = [n for n in accepted if n["source_node_id"] not in deleted]
     resolved: dict[str, dict | Exception] = {}
     for norm in accepted:
         span_id = norm["source_span_id"]
@@ -63,10 +58,14 @@ def census():
 
 def test_census_covers_every_published_accepted_norm(census):
     norms_payload, accepted, _, _ = census
-    on_deleted_units = 14  # Article 10, paragraph 5 and its points (c) to (f), deleted by the Omnibus (B132)
-    assert len(accepted) + on_deleted_units == norms_payload["stats"]["verdicts"]["accepted"], (
+    # B132 (D9, ruling R9): the 51 accepted norms on units the Omnibus changed
+    # (14 deleted, 15 replaced, 22 on a container whose content changed) were
+    # dropped from the dev dump; the stats block still counts the extraction run.
+    dropped_accepted = 51
+    assert len(accepted) + dropped_accepted == norms_payload["stats"]["verdicts"]["accepted"], (
         "accepted norms in the dump disagree with the dump's own stats block"
     )
+    assert norms_payload["stats"]["b132_dropped"]["norms"] == 60
     assert accepted, "census would be vacuous: no accepted norms found"
 
 

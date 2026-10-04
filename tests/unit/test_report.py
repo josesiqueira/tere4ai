@@ -44,8 +44,9 @@ def test_determinism_byte_identical() -> None:
 
 def test_shopbot_renders_rows_and_placeholders() -> None:
     html = render_report_from_paths([SHOPBOT])
-    # 13 accepted article-50 norms in the recorded requirements envelope.
-    assert html.count('class="norm-row"') == 13
+    # 10 accepted article-50 norms in the recorded requirements envelope (13
+    # before B132 dropped the three on Article 50(7), which the Omnibus replaced).
+    assert html.count('class="norm-row"') == 10
     # Unrecorded tools still get their fixed sections, as placeholders.
     for tool in (
         "trace_implementation",
@@ -86,7 +87,7 @@ def test_malformed_line_becomes_problem_card_and_rest_renders(
     assert "invalid JSON" in result.problems[0].errors[0]
     html = render_report_from_paths([doctored])
     assert "Recording problems" in html
-    assert html.count('class="norm-row"') == 13
+    assert html.count('class="norm-row"') == 10
 
 
 def test_missing_keys_line_is_problem_card(tmp_path: Path) -> None:
@@ -242,7 +243,7 @@ def test_nonmonotonic_seq_flagged_never_fatal(tmp_path: Path) -> None:
     assert len(result.exchanges) == 2
     assert any("seq" in f for f in result.header_flags)
     html = render_report_from_paths([doctored])
-    assert html.count('class="norm-row"') == 13
+    assert html.count('class="norm-row"') == 10
 
 
 def test_statuses_and_legend_present() -> None:

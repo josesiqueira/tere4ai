@@ -891,3 +891,18 @@ def test_a_v1_backlog_keeps_its_old_input_and_output(tmp_path):
     assert "judge_type_views" not in answer
     assert not any("requirement_type" in note for note in answer["notes"])
     assert "requirement_type" not in judge.calls[0][1]
+
+
+def test_deleted_source_refusals_name_each_norm_on_a_deleted_unit():
+    """B132 (D-G68 (3)): checked against the published Layer 1 before any model call."""
+    from pathlib import Path
+
+    from tere4ai.mcp_server.backlog import deleted_source_refusals
+
+    dump = json.loads((Path(__file__).resolve().parents[2] / "data" / "graph_dumps" / "layer1.json")
+                      .read_text(encoding="utf-8"))
+    norms = [{"norm_id": "norm:eu-ai-act:article-10:paragraph-5:n1", "source_node_id": "eu-ai-act:article-10:paragraph-5"},
+             {"norm_id": "norm:eu-ai-act:article-9:paragraph-1:n1", "source_node_id": "eu-ai-act:article-9:paragraph-1"}]
+    refusals = deleted_source_refusals(norms, dump)
+    assert list(refusals) == ["norm:eu-ai-act:article-10:paragraph-5:n1"]
+    assert "Deleted by Regulation (EU) 2026/1744, Article 1, point (9)" in refusals["norm:eu-ai-act:article-10:paragraph-5:n1"]

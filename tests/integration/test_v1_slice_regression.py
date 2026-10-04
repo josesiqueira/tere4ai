@@ -48,8 +48,9 @@ def test_v1_slice_dominant_targets_hold():
                 f"{article}: {total} accepted assertions, expected >= {expect['min_accepted']}"
             )
             continue
-        dominant = max(targets, key=targets.get)
-        if dominant != expect["dominant_target"]:
+        # B132: the expected target holds the top count, alone or tied.
+        if targets.get(expect["dominant_target"], 0) != max(targets.values()):
+            dominant = max(targets, key=targets.get)
             failures.append(
                 f"{article}: dominant target {dominant}, expected {expect['dominant_target']}"
             )
