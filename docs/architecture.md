@@ -234,6 +234,12 @@ recommendation):
   (REF-24). Both are config values in .env / eval config, never hardcoded.
 - All judge models are config values, never hardcoded. Every judge decision is
   logged (input, verdict, scores, rationale, model, prompt version, timestamp).
+- The HTTP facade's demo mode (added 2026-10-06, DEC-24): /api/backlog and
+  /api/evidence can answer from the generator alone, signed, and a judge
+  route judges the kept answer later with a demo judge of the generator's
+  own family (TERE4AI_DEMO_JUDGE_MODEL, never the generator's model id),
+  every such answer labelled so. The MCP tools and the inline routes keep
+  the independent judge above.
 - Note: the coding agents that BUILD the software (Opus 4.8 planning, Fable 5
   implementation) are a separate layer from these internal runtime models. Do
   not confuse them.
@@ -1324,6 +1330,144 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   test_in_force_build.py, test_application_dates.py, test_classify.py,
   test_get_requirements.py, test_validate_graph.py,
   tests/integration/test_acceptance_in_force.py.
+
+- DEC-24: the HTTP facade can run the generator of /api/backlog and
+  /api/evidence without the judge and judge the kept answer on a later
+  request, with a demo judge of the generator's own family; the MCP
+  tools are unchanged and always judged under DEC-07 (added 2026-10-06,
+  draft, revised after a Codex review and a second-seat review, 24
+  findings; thesis task B138, spec G D-G74 and its rulings S48 to S85 in
+  sdd/2026-10-05-B138-repository-evidence/progress.md in the private
+  research repository; the owner's words: the judge "as a further, like
+  'click here if you want to see the judge results' ... and the
+  estimation of cost next to it", the split in the HTTP layer "yse", the
+  judge on the click "An OpenAI model"). Engineering decision for the
+  dashboard's demonstration of the tools on pasted repositories (cost
+  and time in front of an audience); it needs no literature grounding
+  (AGENTS.md grounding bar), and it weakens the control DEC-07 grounds
+  in REF-24 only where it is labelled.
+  The mode: both routes take judge, "inline" (the default, today's
+  answer byte for byte) or "on_demand". On demand, the generator and
+  the tool's mechanical checks run as today and no judge request is
+  made; the answer has status requires_human_review and judge_verdict
+  "not_checked" (Section 13: an unjudged generated answer is never
+  surfaced under its generator-derived status), keeps every field of the
+  inline answer (the assessment or items, notes, counts, prompts, the
+  generator's usage) and, when its verdict is "not_checked", a signed
+  record; a degraded generator answer is not signed and has nothing to
+  judge. The request names the norms build it expects and a caller
+  reference (the dashboard's project, repository run and document);
+  another loaded build is refused (409) before any model call. Each
+  route loads only what it calls: the generator-only mode the
+  generator's settings and key, the judge routes the demo judge's and
+  the signing key; neither reads the Anthropic judge's settings or key,
+  which only the inline mode and the MCP tools need. /api/health reports
+  the readiness of each apart (the generator-only mode, the demo judge
+  with its declaration, the signing key present or missing, never its
+  value). Every refusal before any model call (configuration,
+  signature, build, a judge equal to the generator) carries model_called
+  false.
+  The signed record: the format version "tere4ai.signed_answer.v1", the
+  route, a generation id drawn at random (UUID version 4), the caller
+  reference, the sorted norm ids, the graph_version and norms_build, the
+  generator's model id and prompt (name, version), the judge prompt
+  (name, version), the SHA-256 of the untrusted text the generator read,
+  and the answer's core as returned. Its bytes: JSON with keys sorted at
+  every level, separators "," and ":" without spaces, non-ASCII as
+  UTF-8, every field present (null where empty), no floating-point
+  number. The signature: HMAC-SHA256 over those bytes under
+  TERE4AI_ANSWER_SIGNING_KEY, 64 hexadecimal characters held by the
+  facade alone (any other form is a configuration error), compared with
+  hmac.compare_digest; test vectors (records, bytes, signatures under a
+  test key) in the tests, shared with the dashboard. The facade keeps no
+  state and builds its clients per request, so the signature is how a
+  judge route knows it judges what the generator wrote, for the caller
+  and generation it was written for; without the key, on_demand is a
+  configuration error.
+  The judge routes: POST /api/evidence/judge (the evidence request's
+  fields, the signed record, the signature) and POST /api/backlog/judge
+  (norm_ids, system_context, the signed record, the signature). Each
+  verifies the signature, refuses a demo judge model equal to the
+  record's generator model, checks the loaded build against the record,
+  and compares every field sent apart from the record with it (the
+  route called with the signed route, the SHA-256 of content or
+  system_context with the signed hash, norm_id or the sorted norm_ids
+  with the signed ids, artifact_type and artifact_id with the signed
+  core), refusing any mismatch with 422 or 409 before any model call;
+  it runs ground_check with the judge prompt the record names on the
+  answer text built only from the verified signed core and on the
+  verified untrusted text, and returns the judge's part only: the
+  generation id, the verdict, rationale, run id, model, effort,
+  temperature, prompt and usage, for the backlog under a typed prompt
+  the cleaned judge_type_views (one entry per signed item, in order,
+  DEC-19), the status after the tool's rule (an accepting verdict gives the tool's
+  mapped status, any other requires_human_review), and judge_setting
+  "demo". A judge request that fails after it was sent answers
+  judge_error with requires_human_review and the judge's usage (for
+  evidence a behaviour of this route of its own; the inline evidence
+  route answers 502). The caller keeps the generator's answer as
+  returned and shows the judge's part beside it.
+  The demo judge: TERE4AI_DEMO_JUDGE_MODEL, built as an OpenAI client in
+  the judge role from its declared row in config/model_parameters.json
+  (provider openai) and its row in config/model_prices.json, which a
+  price loader of the judge's configuration reads, refused when either
+  row is missing or when it equals TERE4AI_GENERATOR_MODEL or the
+  record's generator model. The first model is gpt-6-sol (temperature
+  N/A, effort xhigh; JSON mode sent, the owner's 2026-09-30 reading for
+  gpt-6-astra extended to gpt-6-sol, not a statement of the gpt-6-sol
+  pages; 2.00 and 10.00 USD per million input and output tokens at
+  short context, 4.00 and 15.00 above 272,000 input tokens, batch 1.00
+  and 5.00; read on OpenAI's GPT-6 guide, the gpt-6-sol model page and
+  the pricing page on 2026-10-06, the quotes re-read when the rows are
+  written). Every runtime log line the demo judge writes carries
+  judge_setting "demo", and scripts/estimate_benchmark_cost.py leaves
+  those lines out of its judge figures. The report takes a judge part
+  as a session line of its own (tool "judge_on_demand", a Section 8
+  envelope whose answer is the judge's part with the judged tool and the
+  generation id): report/ingest.py attaches it to the exchange whose
+  signed record holds the same generation id, and report/render.py
+  shows it beside the unchanged generator answer, the item views beside
+  their items, keys evidence answers by generation id so the documents
+  of one norm are never reduced to the latest, and prints judge_setting
+  in every judge record, so a demo verdict reads "judged by <model>, the
+  generator's own family (demo setting)".
+  DEC-07 stands for TERE4AI_JUDGE_MODEL (assert_independent_judge still
+  refuses an OpenAI-family model there), for the MCP tools and for every
+  measurement of the thesis; Section 9's rule that every demo screen
+  renders the judge verdict reads, for an on-demand answer, "not checked
+  by the judge" until a judge route has answered.
+  Considered and not taken: trusting the caller's copy of the answer
+  (any client could obtain a judged label on text the generator never
+  wrote); keeping answers in the facade by id (state lost at a restart);
+  a judge route that rebuilds the whole inline envelope from what the
+  caller sends; an OpenAI judge under TERE4AI_JUDGE_MODEL (it would
+  change DEC-07 for the MCP tools and the experiment); gpt-6-astra as
+  the demo judge (the generator judging itself).
+  Defense: the demo shows the tools' answers quickly and the judge only
+  when asked, with its cost shown first; the signed record keeps
+  "judged" true of exactly what was generated, for whom; the label and
+  the log field keep a same-family judge from being read as DEC-07's.
+  Cost if wrong: one facade mode, two routes, a report field, a log
+  field and two settings to remove; the MCP tools and the inline routes
+  never change.
+  verify: src/tere4ai/http_facade/app.py (the judge field, the expected
+  build, the caller reference, the judge routes, the signed record, each
+  route's configuration, /api/health's readiness); mcp_server/
+  evidence.py and backlog.py (each tool split into a generator part and
+  a judge part, the MCP answers unchanged); judge/config.py (the demo
+  judge's loading, refusals and price loader); judge/runtime_grounding.py
+  (judge_setting on log lines); extract_norms/model_clients.py;
+  report/ingest.py and report/render.py; scripts/estimate_benchmark_cost.py;
+  config/model_parameters.json and config/model_prices.json (gpt-6-sol);
+  .env.example (TERE4AI_DEMO_JUDGE_MODEL, TERE4AI_ANSWER_SIGNING_KEY);
+  tests on mock clients: the inline envelopes byte for byte, the test
+  vectors, a forged or stale signature, a judge equal to the signed
+  generator and each field sent that differs from the record (route,
+  content or system_context, norm ids, artifact fields) refused before
+  any request, a judge_on_demand line attached to its generation in the
+  report, an unexpected build refused,
+  model_called false on every refusal before a request, demo lines left
+  out of the estimate.
 
 ## 17. Implementation-traceability convention
 
