@@ -1,6 +1,7 @@
 """Cost estimator for the B74 sequence: dry-run every step, count tokens, price it.
 
 @implements: DEC-11 (partial: cost estimate for the B74 sequence, dry run only)
+@implements: DEC-24 (its price loader in judge/config.py; the demo judge's log lines left out)
 @grounded_by: REF-15
 
 The sequence is Layer 2 extraction, Layer 3 alignment, the control backlog,
@@ -65,12 +66,14 @@ from tere4ai.eval.harness import load_benchmark_items, load_gold_items, run_eval
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
 from tere4ai.extract_norms import pipeline as extract_pipeline  # noqa: E402
 from tere4ai.judge.config import (  # noqa: E402
-    _ISO_DAY,
+    MODEL_PRICES_FILE,
+    MODEL_PRICES_PATH,
     ConfigurationError,
     ModelParameters,
     declaration_for,
     load_dotenv_once,
     load_model_parameters,
+    load_model_prices,
 )
 from tere4ai.mcp_server.backlog import generate_control_backlog  # noqa: E402
 
@@ -84,73 +87,16 @@ ELICIT_DUMP = ROOT / "data" / "graph_dumps" / "layer1.json"
 SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
 OUT_PATH = ROOT / "docs" / "benchmark_cost_estimate.md"
 
-PRICES_PATH = ROOT / "config" / "model_prices.json"
-PRICES_FILE = "config/model_prices.json"
+PRICES_PATH = MODEL_PRICES_PATH
+PRICES_FILE = MODEL_PRICES_FILE
 GENERATOR_VARIABLE = "TERE4AI_GENERATOR_MODEL"
 JUDGE_VARIABLE = "TERE4AI_JUDGE_MODEL"
 # the provider each role's client talks to (architecture.md Section 7)
 ROLE_PROVIDERS = {"generator": "openai", "judge": "anthropic"}
-_PRICE_KEYS = ("input", "output", "batch_input", "batch_output")
 
 
-def _price_problem(row: Any) -> str | None:
-    """What is wrong with one price row, or None. The page and the day are
-    checked as declaration_for checks the declaration's own (https page,
-    YYYY-MM-DD day)."""
-    from datetime import date
-    from urllib.parse import urlsplit
-
-    if not isinstance(row, dict):
-        return "the row is not an object"
-    if row.get("provider") not in ("openai", "anthropic"):
-        return "provider must be openai or anthropic"
-    for key in _PRICE_KEYS:
-        try:
-            if float(row[key]) < 0:
-                return f"{key} is negative"
-        except (KeyError, TypeError, ValueError):
-            return f"{key} is missing or is not a decimal string"
-    pricing = row.get("pricing")
-    if not isinstance(pricing, dict):
-        return "no pricing page (https) and no day it was read (YYYY-MM-DD)"
-    url, read_on = pricing.get("url"), pricing.get("read_on")
-    try:
-        read_day = (date.fromisoformat(read_on)
-                    if isinstance(read_on, str) and _ISO_DAY.fullmatch(read_on) else None)
-    except ValueError:
-        read_day = None
-    try:
-        page = urlsplit(url) if isinstance(url, str) else None
-    except ValueError:
-        page = None
-    if page is None or page.scheme != "https" or not page.hostname or read_day is None:
-        return "names no pricing page (https) or no day it was read (YYYY-MM-DD)"
-    return None
-
-
-def load_model_prices(path: Path | None = None) -> dict[str, dict[str, Any]]:
-    """The price rows keyed by model id, every row checked; the four prices
-    come back as floats (USD per million tokens). Raises ConfigurationError
-    naming every refused row."""
-    path = path or PRICES_PATH
-    where = PRICES_FILE if path == PRICES_PATH else path.name
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        raise ConfigurationError(f"configuration error: {where} is missing") from None
-    except (OSError, ValueError) as exc:
-        raise ConfigurationError(
-            f"configuration error: {where} cannot be read ({type(exc).__name__})") from None
-    if (not isinstance(data, dict) or data.get("schema_version") != 1
-            or not isinstance(data.get("models"), dict)):
-        raise ConfigurationError(
-            f"configuration error: {where} must hold schema_version 1 and a models object keyed by model id")
-    problems = [f"{model_id}: {problem}" for model_id, row in data["models"].items()
-                if (problem := _price_problem(row)) is not None]
-    if problems:
-        raise ConfigurationError(f"configuration error: {where} has refused rows: " + "; ".join(problems))
-    return {model_id: {**row, **{key: float(row[key]) for key in _PRICE_KEYS}}
-            for model_id, row in data["models"].items()}
+# DEC-24: the price loader moved to tere4ai.judge.config (load_model_prices,
+# imported above), so the demo judge's configuration reads the same table.
 
 
 def declared_models(env: Any, parameters_path: Path | None = None) -> dict[str, ModelParameters]:

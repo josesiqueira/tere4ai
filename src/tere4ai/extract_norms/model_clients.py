@@ -1,6 +1,7 @@
 """Model clients for the M2 norm-extraction pipeline.
 
 @implements: DEC-07
+@implements: DEC-24
 @grounded_by: REF-24
 
 The generator (norm extraction) runs on the OpenAI family and the extraction
@@ -24,6 +25,8 @@ from typing import Protocol
 from tere4ai.judge.config import (
     NOT_APPLICABLE,
     DeclaredParameterRefused,
+    DemoJudgeConfig,
+    GeneratorConfig,
     ModelConfig,
     ModelParameters,
 )
@@ -446,7 +449,7 @@ class OpenAIGenerator(_SamplingRecord):
 
     provider = "openai"
 
-    def __init__(self, cfg: ModelConfig, retry_policy: RetryPolicy = SERVICE_POLICY):
+    def __init__(self, cfg: ModelConfig | GeneratorConfig, retry_policy: RetryPolicy = SERVICE_POLICY):
         from openai import OpenAI  # imported lazily so offline tests need no SDK
 
         self.model = cfg.generator_model
@@ -486,6 +489,23 @@ class OpenAIGenerator(_SamplingRecord):
         self._count_reply(getattr(response, "usage", None), "prompt_tokens", "completion_tokens",
                           ("completion_tokens_details", "reasoning_tokens"))
         return response.choices[0].message.content or ""
+
+
+class OpenAIDemoJudge(OpenAIGenerator):
+    """DEC-24's demo judge: an OpenAI model in the judge's role, built from its
+    own configuration (TERE4AI_DEMO_JUDGE_MODEL, its declared row), never from
+    DEC-07's judge settings. It sends what its row declares, as the generator
+    does; only the facade's judge routes build it.
+    """
+
+    def __init__(self, cfg: DemoJudgeConfig, retry_policy: RetryPolicy = SERVICE_POLICY):
+        from openai import OpenAI  # imported lazily so offline tests need no SDK
+
+        self.model = cfg.model
+        self.usage = _new_usage()
+        self._declared = cfg.parameters
+        self._retry_policy = retry_policy
+        self._client = OpenAI(api_key=cfg.api_key, max_retries=0)
 
 
 class AnthropicJudge(_SamplingRecord):

@@ -17,6 +17,14 @@
    "json_mode": "sent",
    "documentation": {"url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra", "read_on": "2026-09-28"},
    "note": "Read 2026-09-28 on the provider's documentation. Temperature N/A: the GPT-6 guide, https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra, under \"Set `model` to `gpt-6-astra`, `gpt-6-sol`, or `gpt-6-luna`, then check the following:\", says \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\", and the declared effort is xhigh (the model also answered 400 to temperature 0 in B74, norms_core.b74.json). Effort xhigh: the model page above says \"`reasoning.effort` supports `low`, `medium`, `high`, `xhigh`, and `max`.\"; xhigh is the level spec F Section 4 chose. JSON mode sent, marked: the model page names no JSON mode (it lists Structured outputs as supported and Chat Completions as an endpoint); the structured outputs guide, https://developers.openai.com/api/docs/guides/structured-outputs, states it for the API, not per model: \"Both Structured Outputs and JSON mode are supported in the Responses API, Chat Completions API, Assistants API, Fine-tuning API and Batch API.\" The client sends it at tere4ai2 9673819 and no record says it was refused. Asked in B101 whether this row declares JSON mode \"sent\" or \"N/A, not sent\", Jose chose \"sent\" on 2026-09-30."
+  },
+  "gpt-6-sol": {
+   "provider": "openai",
+   "temperature": "N/A",
+   "effort": "xhigh",
+   "json_mode": "sent",
+   "documentation": {"url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-sol", "read_on": "2026-10-06"},
+   "note": "The demo judge of DEC-24 (spec G D-G74 (5)), read 2026-10-06 on the provider's documentation. Temperature N/A: the GPT-6 guide above says \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\", and the declared effort is xhigh. Effort xhigh: the model page, https://developers.openai.com/api/docs/models/gpt-6-sol, lists \"none, low, medium (default), high, xhigh, and max\"; xhigh is the level spec F Section 4 chose for every instrument. JSON mode sent: Jose's reading of 2026-09-30 for gpt-6-astra extended to gpt-6-sol, not a statement of the gpt-6-sol pages (the model page lists structured outputs and Chat Completions; the structured outputs guide, https://developers.openai.com/api/docs/guides/structured-outputs, states JSON mode for the API)."
   }
  }
 }

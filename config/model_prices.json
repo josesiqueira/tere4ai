@@ -21,6 +21,16 @@
       "batch_output": "25.00",
       "pricing": {"url": "https://developers.openai.com/api/docs/pricing", "read_on": "2026-10-04"},
       "quote": "Standard: \"Short context input $10.00 | Short context cached input $1.00 | Short context output $50.00\"; \"Long context input $20.00 | Long context cached input $2.00 | Long context output $75.00\"; Batch: \"Short context input $5.00 | Short context cached input $0.50 | Short context output $25.00\"; \"Short context: ≤272K input tokens. Long context: >272K input tokens.\" Reasoning, https://developers.openai.com/api/docs/guides/reasoning, read 2026-10-04: \"While reasoning tokens are not visible via the API, they still occupy space in the model's context window and are billed as output tokens.\""
+    },
+    "gpt-6-sol": {
+      "provider": "openai",
+      "currency": "USD",
+      "input": "2.00",
+      "output": "10.00",
+      "batch_input": "1.00",
+      "batch_output": "5.00",
+      "pricing": {"url": "https://developers.openai.com/api/docs/pricing", "read_on": "2026-10-06"},
+      "quote": "The demo judge of DEC-24 (spec G D-G74 (5)). Standard, gpt-6-sol: short context input $2.00 and output $10.00 per million tokens; long context (above 272K input tokens) input $4.00 and output $15.00; Batch: short context input $1.00 and output $5.00. \"Short context: ≤272K input tokens. Long context: >272K input tokens.\" Reasoning, https://developers.openai.com/api/docs/guides/reasoning: reasoning tokens \"are billed as output tokens.\""
     }
   }
 }

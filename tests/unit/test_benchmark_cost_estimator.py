@@ -204,12 +204,19 @@ def test_the_script_names_no_model():
     assert "gpt-" not in source and "claude-" not in source
 
 
-def test_the_repository_price_file_loads_and_both_rows_read_2026_10_04():
+def test_the_repository_price_file_loads_and_each_row_reads_its_day():
     prices = est.load_model_prices(PRICES_PATH)
-    assert set(prices) == {"claude-opus-5-5", "gpt-6-astra"}
-    for row in prices.values():
-        assert row["pricing"]["read_on"] == "2026-10-04"
+    assert set(prices) == {"claude-opus-5-5", "gpt-6-astra", "gpt-6-sol"}
+    # DEC-24: gpt-6-sol, the demo judge, read on the day its row was written
+    # (D-G74 was decided 2026-10-06, so not before); the others 2026-10-04
+    for model, row in prices.items():
+        if model == "gpt-6-sol":
+            assert row["pricing"]["read_on"] >= "2026-10-06"
+        else:
+            assert row["pricing"]["read_on"] == "2026-10-04"
         assert row["pricing"]["url"].startswith("https://")
+    assert (prices["gpt-6-sol"]["input"], prices["gpt-6-sol"]["output"]) == (2.0, 10.0)
+    assert (prices["gpt-6-sol"]["batch_input"], prices["gpt-6-sol"]["batch_output"]) == (1.0, 5.0)
     assert (prices["claude-opus-5-5"]["input"], prices["claude-opus-5-5"]["output"]) == (4.0, 20.0)
     assert (prices["gpt-6-astra"]["input"], prices["gpt-6-astra"]["output"]) == (10.0, 50.0)
 

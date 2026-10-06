@@ -1,6 +1,7 @@
 """Runtime model configuration: generator and judge families.
 
 @implements: DEC-07
+@implements: DEC-24
 @grounded_by: REF-24, ADD-16
 
 Architecture.md Section 7 (decided 2026-07-08): the generator (extraction,
@@ -397,3 +398,189 @@ def load_model_config(env: dict[str, str] | None = None, parameters_path: Path |
         generator_parameters=declared["generator"],
         judge_parameters=declared["judge"],
     )
+
+
+# DEC-24 (spec G D-G74 (2), (3), (5); rulings S54, S55, S67, S68): the HTTP
+# facade's generator-only mode and its judge routes each load only what they
+# call. The generator-only mode reads the generator's model, key and
+# declared row; the judge routes read the demo judge (an OpenAI model in the
+# judge's role, refused when it is the generator's model) and the signing
+# key. Neither reads the Anthropic judge's settings or key, which only the
+# inline mode and the MCP tools need. DEC-07's TERE4AI_JUDGE_MODEL and
+# assert_independent_judge are untouched.
+MODEL_PRICES_FILE = "config/model_prices.json"
+MODEL_PRICES_PATH = Path(__file__).resolve().parents[3] / MODEL_PRICES_FILE
+PRICE_KEYS: tuple[str, ...] = ("input", "output", "batch_input", "batch_output")
+GENERATOR_VARIABLE = "TERE4AI_GENERATOR_MODEL"
+DEMO_JUDGE_VARIABLE = "TERE4AI_DEMO_JUDGE_MODEL"
+SIGNING_KEY_VARIABLE = "TERE4AI_ANSWER_SIGNING_KEY"
+_SIGNING_KEY = re.compile(r"[0-9a-fA-F]{64}", re.ASCII)
+
+
+def price_problem(row: Any) -> str | None:
+    """What is wrong with one price row, or None. The page and the day are
+    checked as declaration_for checks the declaration's own (https page,
+    YYYY-MM-DD day)."""
+    if not isinstance(row, dict):
+        return "the row is not an object"
+    if row.get("provider") not in PROVIDERS:
+        return "provider must be openai or anthropic"
+    for key in PRICE_KEYS:
+        try:
+            if float(row[key]) < 0:
+                return f"{key} is negative"
+        except (KeyError, TypeError, ValueError):
+            return f"{key} is missing or is not a decimal string"
+    pricing = row.get("pricing")
+    if not isinstance(pricing, dict):
+        return "no pricing page (https) and no day it was read (YYYY-MM-DD)"
+    url, read_on = pricing.get("url"), pricing.get("read_on")
+    try:
+        read_day = (date.fromisoformat(read_on)
+                    if isinstance(read_on, str) and _ISO_DAY.fullmatch(read_on) else None)
+    except ValueError:
+        read_day = None
+    try:
+        page = urlsplit(url) if isinstance(url, str) else None
+    except ValueError:
+        page = None
+    if page is None or page.scheme != "https" or not page.hostname or read_day is None:
+        return "names no pricing page (https) or no day it was read (YYYY-MM-DD)"
+    return None
+
+
+def load_model_prices(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """The price rows of config/model_prices.json keyed by model id, every row
+    checked; the four prices come back as floats (USD per million tokens).
+    Raises ConfigurationError naming every refused row. (Moved here from
+    scripts/estimate_benchmark_cost.py, which imports it, so the demo judge's
+    configuration reads the same table, DEC-24.)"""
+    path = path or MODEL_PRICES_PATH
+    where = MODEL_PRICES_FILE if path == MODEL_PRICES_PATH else path.name
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ConfigurationError(f"configuration error: {where} is missing") from None
+    except (OSError, ValueError) as exc:
+        raise ConfigurationError(
+            f"configuration error: {where} cannot be read ({type(exc).__name__})") from None
+    if (not isinstance(data, dict) or data.get("schema_version") != 1
+            or not isinstance(data.get("models"), dict)):
+        raise ConfigurationError(
+            f"configuration error: {where} must hold schema_version 1 and a models object keyed by model id")
+    problems = [f"{model_id}: {problem}" for model_id, row in data["models"].items()
+                if (problem := price_problem(row)) is not None]
+    if problems:
+        raise ConfigurationError(f"configuration error: {where} has refused rows: " + "; ".join(problems))
+    return {model_id: {**row, **{key: float(row[key]) for key in PRICE_KEYS}}
+            for model_id, row in data["models"].items()}
+
+
+def _environment(env: dict[str, str] | None) -> dict[str, str]:
+    if env is None:
+        load_dotenv_once()
+        return dict(os.environ)
+    return env
+
+
+@dataclass(frozen=True)
+class GeneratorConfig:
+    """The generator alone, for the facade's generator-only mode (DEC-24): the
+    three attributes OpenAIGenerator reads, and nothing of the judge."""
+
+    generator_model: str
+    generator_api_key: str
+    generator_parameters: ModelParameters
+
+
+def load_generator_config(env: dict[str, str] | None = None, parameters_path: Path | None = None) -> GeneratorConfig:
+    """The generator's model, key and declared row; refused (ModelConfigError,
+    ConfigurationError) naming what is missing, before any model call."""
+    env = _environment(env)
+    missing = [name for name in (GENERATOR_VARIABLE, "OPENAI_API_KEY") if not env.get(name)]
+    if missing:
+        raise ModelConfigError(f"missing model configuration for the generator: {', '.join(missing)}. Set these in "
+                               ".env (see .env.example); the pipeline never falls back to defaults.")
+    retired = _retired_variables_error(env)
+    if retired is not None:
+        raise ConfigurationError(retired)
+    path = parameters_path or MODEL_PARAMETERS_PATH
+    model = env[GENERATOR_VARIABLE]
+    return GeneratorConfig(generator_model=model, generator_api_key=env["OPENAI_API_KEY"],
+                           generator_parameters=declaration_for(load_model_parameters(path), model, "openai", _where(path)))
+
+
+@dataclass(frozen=True)
+class DemoJudgeConfig:
+    """The demo judge of DEC-24: an OpenAI model in the judge's role, with its
+    declared row and its price row."""
+
+    model: str
+    api_key: str
+    parameters: ModelParameters
+    price: dict[str, Any]
+
+
+def load_demo_judge_config(env: dict[str, str] | None = None, parameters_path: Path | None = None,
+                           prices_path: Path | None = None) -> DemoJudgeConfig:
+    """TERE4AI_DEMO_JUDGE_MODEL with its openai row in config/model_parameters.json
+    and its row in config/model_prices.json; refused when it is unset, equals
+    TERE4AI_GENERATOR_MODEL, or lacks either row (spec G D-G74 (5))."""
+    env = _environment(env)
+    missing = [name for name in (DEMO_JUDGE_VARIABLE, "OPENAI_API_KEY") if not env.get(name)]
+    if missing:
+        raise ModelConfigError(f"missing model configuration for the demo judge: {', '.join(missing)}. Set these in "
+                               ".env (see .env.example).")
+    model = env[DEMO_JUDGE_VARIABLE]
+    generator = env.get(GENERATOR_VARIABLE, "")
+    if generator and model.strip().lower() == generator.strip().lower():
+        raise ModelConfigError(f"the demo judge {model!r} is the generator's model; the generator never judges "
+                               "its own output (DEC-24, DEC-07)")
+    path = parameters_path or MODEL_PARAMETERS_PATH
+    parameters = declaration_for(load_model_parameters(path), model, "openai", _where(path))
+    prices = load_model_prices(prices_path)
+    if model not in prices:
+        where = MODEL_PRICES_FILE if prices_path is None or prices_path == MODEL_PRICES_PATH else prices_path.name
+        raise ConfigurationError(f"configuration error: {where} has no price row for the demo judge {model!r}")
+    return DemoJudgeConfig(model=model, api_key=env["OPENAI_API_KEY"], parameters=parameters, price=prices[model])
+
+
+def load_signing_key(env: dict[str, str] | None = None) -> bytes:
+    """The facade's answer-signing key: 64 hexadecimal characters (32 bytes),
+    any other form a configuration error; never logged, never returned."""
+    env = _environment(env)
+    value = env.get(SIGNING_KEY_VARIABLE, "")
+    if not value:
+        raise ModelConfigError(f"configuration error: {SIGNING_KEY_VARIABLE} is not set; the generator-only mode "
+                               "and the judge routes need it (DEC-24)")
+    if not _SIGNING_KEY.fullmatch(value):
+        raise ModelConfigError(f"configuration error: {SIGNING_KEY_VARIABLE} must be 64 hexadecimal characters "
+                               "(32 bytes)")
+    return bytes.fromhex(value)
+
+
+def route_readiness(env: dict[str, str] | None = None, parameters_path: Path | None = None,
+                    prices_path: Path | None = None) -> dict[str, Any]:
+    """/api/health's readiness of each route apart (spec G D-G74 (2), S68):
+    the generator-only mode, the demo judge with its declaration and price,
+    the signing key present or missing (never its value)."""
+    env = _environment(env)
+    try:
+        generator = load_generator_config(env, parameters_path)
+        generator_part: dict[str, Any] = {"ready": True, "model": generator.generator_model,
+                                          "effort": generator.generator_parameters.effort, "error": None}
+    except ModelConfigError as exc:
+        generator_part = {"ready": False, "model": env.get(GENERATOR_VARIABLE) or None, "effort": None, "error": str(exc)}
+    try:
+        judge = load_demo_judge_config(env, parameters_path, prices_path)
+        judge_part: dict[str, Any] = {"ready": True, "model": judge.model, "effort": judge.parameters.effort,
+                                      "temperature": judge.parameters.temperature, "declaration_error": None}
+    except ModelConfigError as exc:
+        judge_part = {"ready": False, "model": env.get(DEMO_JUDGE_VARIABLE) or None, "effort": None,
+                      "temperature": None, "declaration_error": str(exc)}
+    try:
+        load_signing_key(env)
+        key_part: dict[str, Any] = {"present": True, "error": None}
+    except ModelConfigError as exc:
+        key_part = {"present": bool(env.get(SIGNING_KEY_VARIABLE)), "error": str(exc)}
+    return {"generator_only": generator_part, "demo_judge": judge_part, "signing_key": key_part}
