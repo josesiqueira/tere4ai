@@ -3,6 +3,7 @@
 @implements: DEC-06 (partial: runtime grounding judge), DEC-08
 @implements: DEC-19
 @implements: DEC-23
+@implements: DEC-24
 @grounded_by: REF-16, REF-24, REF-17
 
 Turns judge-accepted NormativeStatements into an engineering control backlog
@@ -41,6 +42,12 @@ by having a plan. Every safeguard is behavioral:
   dropped item); the generator never sees the norms' types; the runtime
   judge's view of each control's type is recorded in judge_type_views and
   never changes the verdict. A v1 run keeps its old input and output.
+- DEC-24: the tool is a generator part and a judge part. The MCP tool runs
+  both, its answer byte for byte as before. The HTTP facade's generator-only
+  mode runs the generator part alone (generate_control_backlog_on_demand:
+  status requires_human_review, judge_verdict "not_checked"), and its judge
+  route runs the judge part alone on the signed items later
+  (judge_backlog_on_demand, judge_setting "demo").
 """
 
 from __future__ import annotations
@@ -63,7 +70,7 @@ from tere4ai.graph_store.present import exception_reason
 from tere4ai.judge import runtime_grounding
 from tere4ai.judge.config import require_independent_clients
 from tere4ai.judge.runtime_grounding import DEFAULT_LOG_PATH, ground_check
-from tere4ai.mcp_server.evidence import JUDGE_ERROR, JUDGE_NOT_RUN
+from tere4ai.mcp_server.evidence import JUDGE_ERROR, JUDGE_NOT_RUN, NOT_CHECKED, NOT_CHECKED_NOTE
 from tere4ai.mcp_server.tools import make_envelope
 from tere4ai.parse_legal_structure.amendments import deleted_note, is_deleted
 
@@ -299,6 +306,81 @@ def _record_type_views(raw: Any, items: list[dict[str, Any]]) -> list[dict[str, 
     return views
 
 
+def _generate_items(
+    norms: list[dict[str, Any]],
+    system_context: str,
+    generator: ModelClient,
+    prompt_version: str,
+    graph_version: str,
+    log_path: Path,
+    spend: Any,
+) -> dict[str, Any]:
+    """The generator part (DEC-24): {"degraded": envelope} when no backlog
+    exists (a failed request, an unusable output, no item surviving the
+    mechanical checks), else the items after the citation check, the priority
+    rule and the grouping, with their counts and notes."""
+    gen_prompt = load_prompt(GENERATOR_PROMPT, prompt_version)
+    notes: list[str] = []
+    known_ids = {norm.get("norm_id") for norm in norms}
+    deontic_by_id = {
+        norm.get("norm_id"): norm.get("deontic_type") for norm in norms
+    }
+    conditions_by_id = {
+        norm.get("norm_id"): norm.get("conditions") or [] for norm in norms
+    }
+
+    gen_user = _generator_user_message(norms, system_context)
+    # A generator that raises after its retries (B97 item 5) yields a degraded
+    # answer carrying the spend of the requests it sent, never an error that
+    # would lose them; an interrupt still propagates.
+    request_failed: str | None = None
+    try:
+        parsed, error = _call_json_with_retry(generator, gen_prompt, gen_user)
+    except Exception as exc:  # noqa: BLE001
+        request_failed = exception_reason(exc)
+        parsed, error = None, f"generator request failed: {request_failed}"
+    _log_event(
+        log_path,
+        {
+            "timestamp": _now(),
+            "direction": "generator",
+            "tool": TOOL_NAME,
+            "norm_ids": sorted(str(norm_id) for norm_id in known_ids),
+            "model": generator.model,
+            "effort": getattr(generator, "effort", "not configured"),
+            "prompt_version": prompt_version,
+            "prompt_sha256": prompt_sha256(gen_prompt),
+            "input_sha256": _input_hash(gen_user),
+            "parse_ok": parsed is not None,
+            "error": error,
+        },
+    )
+    if request_failed is not None:
+        return {"degraded": _degraded_envelope(
+            f"generator request failed, no backlog produced: {request_failed}", graph_version, spend()
+        )}
+    if parsed is None or not isinstance(parsed.get("items"), list):
+        reason = error or "generator JSON lacks an 'items' list"
+        return {"degraded": _degraded_envelope(
+            f"generator output unusable, no backlog produced: {reason}", graph_version, spend()
+        )}
+
+    typed = types_for(prompt_version)  # B65 ruling 49
+    items, dropped_items = _clean_items(
+        parsed["items"], known_ids, deontic_by_id, notes, conditions_by_id, typed=typed
+    )
+    items, merged_items = _group_items(items, notes)
+    if not items:
+        return {"degraded": _degraded_envelope(
+            "no backlog items survived the mechanical citation check "
+            f"({dropped_items} dropped); nothing trustworthy to return",
+            graph_version,
+            spend(),
+        )}
+
+    return {"items": items, "dropped_items": dropped_items, "merged_items": merged_items, "notes": notes, "typed": typed}
+
+
 def generate_control_backlog(
     norms: list[dict[str, Any]],
     system_context: str,
@@ -372,63 +454,12 @@ def generate_control_backlog(
                       "judge": usage_since(judge, judge_before)},
         }
 
-    notes: list[str] = []
+    generated = _generate_items(norms, system_context, generator, prompt_version, graph_version, log_path, spend)
+    if "degraded" in generated:
+        return generated["degraded"]
+    items, dropped_items, merged_items, notes, typed = (
+        generated["items"], generated["dropped_items"], generated["merged_items"], generated["notes"], generated["typed"])
     known_ids = {norm.get("norm_id") for norm in norms}
-    deontic_by_id = {
-        norm.get("norm_id"): norm.get("deontic_type") for norm in norms
-    }
-    conditions_by_id = {
-        norm.get("norm_id"): norm.get("conditions") or [] for norm in norms
-    }
-
-    gen_user = _generator_user_message(norms, system_context)
-    # A generator that raises after its retries (B97 item 5) yields a degraded
-    # answer carrying the spend of the requests it sent, never an error that
-    # would lose them; an interrupt still propagates.
-    request_failed: str | None = None
-    try:
-        parsed, error = _call_json_with_retry(generator, gen_prompt, gen_user)
-    except Exception as exc:  # noqa: BLE001
-        request_failed = exception_reason(exc)
-        parsed, error = None, f"generator request failed: {request_failed}"
-    _log_event(
-        log_path,
-        {
-            "timestamp": _now(),
-            "direction": "generator",
-            "tool": TOOL_NAME,
-            "norm_ids": sorted(str(norm_id) for norm_id in known_ids),
-            "model": generator.model,
-            "effort": getattr(generator, "effort", "not configured"),
-            "prompt_version": prompt_version,
-            "prompt_sha256": prompt_sha256(gen_prompt),
-            "input_sha256": _input_hash(gen_user),
-            "parse_ok": parsed is not None,
-            "error": error,
-        },
-    )
-    if request_failed is not None:
-        return _degraded_envelope(
-            f"generator request failed, no backlog produced: {request_failed}", graph_version, spend()
-        )
-    if parsed is None or not isinstance(parsed.get("items"), list):
-        reason = error or "generator JSON lacks an 'items' list"
-        return _degraded_envelope(
-            f"generator output unusable, no backlog produced: {reason}", graph_version, spend()
-        )
-
-    typed = types_for(prompt_version)  # B65 ruling 49
-    items, dropped_items = _clean_items(
-        parsed["items"], known_ids, deontic_by_id, notes, conditions_by_id, typed=typed
-    )
-    items, merged_items = _group_items(items, notes)
-    if not items:
-        return _degraded_envelope(
-            "no backlog items survived the mechanical citation check "
-            f"({dropped_items} dropped); nothing trustworthy to return",
-            graph_version,
-            spend(),
-        )
 
     # Runtime grounding judge gates the rendered backlog (Section 7); the
     # untrusted system context travels as delimited data, never instructions.
@@ -511,3 +542,156 @@ def generate_control_backlog(
         missing_facts=missing_facts,
         judge_verdict=verdict,
     )
+
+
+def generate_control_backlog_on_demand(
+    norms: list[dict[str, Any]],
+    system_context: str,
+    generator: ModelClient,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+    graph_version: str = "unknown",
+    log_path: Path | None = None,
+) -> dict[str, Any]:
+    """The generator part alone, for the facade's generator-only mode (DEC-24,
+    spec G D-G74 (2)): the same generator call, citation check, priority rule
+    and grouping as generate_control_backlog, no judge request. The answer
+    keeps the items as produced, the dropped and merged counts, the notes, the
+    generator's model, prompt and usage, and names the judge prompt a judge
+    route will use; the envelope reads status requires_human_review and
+    judge_verdict "not_checked". A degraded answer is returned as the tool
+    returns it, with nothing to judge."""
+    if not norms:
+        raise ValueError("generate_control_backlog needs at least one judge-accepted norm")
+    if not isinstance(system_context, str):
+        raise ValueError("system_context must be a string")
+    log_path = log_path or DEFAULT_LOG_PATH
+    not_accepted = [norm.get("norm_id", "norm:unknown") for norm in norms if norm.get("judge_verdict") != "accepted"]
+    if not_accepted:
+        return _degraded_envelope(
+            "a control backlog can only be generated from judge-accepted "
+            f"norms; refused non-accepted norm ids: {sorted(not_accepted)}",
+            graph_version,
+        )
+    generator_before = usage_snapshot(generator)
+    gen_prompt = load_prompt(GENERATOR_PROMPT, prompt_version)
+
+    def spend() -> dict[str, Any]:
+        return {
+            "generator_model": generator.model,
+            "generator_effort": getattr(generator, "effort", "not configured"),
+            "generator_temperature": getattr(generator, "temperature", "not configured"),
+            "generator_prompt": GENERATOR_PROMPT,
+            "generator_prompt_version": prompt_version,
+            "generator_prompt_sha256": prompt_sha256(gen_prompt),
+            "judge_prompt": runtime_grounding.JUDGE_KIND,
+            "judge_prompt_version": prompt_version,
+            "usage": {"generator": usage_since(generator, generator_before), "judge": None},
+        }
+
+    generated = _generate_items(norms, system_context, generator, prompt_version, graph_version, log_path, spend)
+    if "degraded" in generated:
+        return generated["degraded"]
+    known_ids = {norm.get("norm_id") for norm in norms}
+    source_nodes: list[str] = []
+    source_spans: list[dict[str, Any]] = []
+    for norm in norms:
+        node_id = norm.get("source_node_id")
+        if node_id and node_id not in source_nodes:
+            source_nodes.append(node_id)
+        span_id = norm.get("source_span_id")
+        if span_id and {"span_id": span_id} not in source_spans:
+            source_spans.append({"span_id": span_id})
+    answer = {
+        "tool": TOOL_NAME,
+        "items": generated["items"],
+        "dropped_items": generated["dropped_items"],
+        "merged_items": generated["merged_items"],
+        "notes": generated["notes"],
+        **spend(),
+    }
+    return make_envelope(
+        answer=answer,
+        status="requires_human_review",
+        graph_version=graph_version,
+        confidence=0.0,
+        source_nodes=source_nodes,
+        source_spans=source_spans,
+        graph_evidence_subgraph={"nodes": sorted(str(norm_id) for norm_id in known_ids) + source_nodes, "edges": []},
+        missing_facts=[
+            "backlog items define required work; no project evidence has been evaluated against these norms yet",
+            NOT_CHECKED_NOTE,
+        ],
+        judge_verdict=NOT_CHECKED,
+    )
+
+
+# The keys of an item in the order _clean_items writes them: the judge reads
+# the items as JSON in this order, so a copy whose keys came back in another
+# order (a jsonb store) gives the inline path's text again.
+_ITEM_KEY_ORDER = ("title", "description", "norm_ids", "suggested_evidence", "priority", "requirement_type")
+
+
+def _ordered_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{key: item[key] for key in _ITEM_KEY_ORDER if key in item} for item in items]
+
+
+def judge_backlog_on_demand(
+    norms: list[dict[str, Any]],
+    items: list[dict[str, Any]],
+    system_context: str,
+    judge: ModelClient,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+    log_path: Path | None = None,
+) -> dict[str, Any]:
+    """The judge part alone, for the facade's judge route (DEC-24, spec G
+    D-G74 (4)): the runtime grounding judge on the rendered backlog built
+    only from the verified signed items, and on the verified system context,
+    as the inline path calls it. Returns the judge's part: verdict, rationale,
+    run, model, effort, temperature, prompt and usage, under a typed prompt
+    the judge's view of each item's type (one entry per signed item, in
+    order, cleaned as the inline path cleans it), the status after the tool's
+    rule (accepted: applicable_missing_evidence; any other verdict:
+    requires_human_review) and judge_setting "demo". A judge request that
+    fails after it was sent answers judge_error with the judge's usage."""
+    log_path = log_path or DEFAULT_LOG_PATH
+    items = _ordered_items(items)
+    before = usage_snapshot(judge)
+    part: dict[str, Any] = {
+        "tool": TOOL_NAME,
+        "judge_model": judge.model,
+        "judge_effort": getattr(judge, "effort", "not configured"),
+        "judge_temperature": getattr(judge, "temperature", "not configured"),
+        "judge_prompt": runtime_grounding.JUDGE_KIND,
+        "judge_prompt_version": prompt_version,
+        "judge_setting": "demo",
+    }
+    try:
+        check = ground_check(
+            json.dumps({"tool": TOOL_NAME, "items": items}, ensure_ascii=False, indent=1),
+            norms,
+            system_context if system_context.strip() else None,
+            judge,
+            prompt_version=prompt_version,
+            log_path=log_path,
+            context=TOOL_NAME,
+            judge_setting="demo",
+        )
+    except Exception as exc:  # noqa: BLE001
+        used = usage_since(judge, before)
+        if used is not None and used.get("requests_sent", 0) == 0:
+            raise
+        return {**part, "judge_verdict": JUDGE_ERROR, "status": "requires_human_review", "judge_rationale": None,
+                "judge_run_id": None, "judge_prompt_sha256": None, "error": exception_reason(exc), "usage": {"judge": used}}
+    verdict = check["verdict"]
+    typed = types_for(prompt_version)
+    return {
+        **part,
+        "judge_verdict": verdict,
+        "status": "applicable_missing_evidence" if verdict == "accepted" else "requires_human_review",
+        "judge_rationale": check["rationale"],
+        "judge_run_id": check["judge_run"]["id"],
+        "judge_prompt_sha256": check["judge_run"]["prompt_sha256"],
+        "error": None,
+        **({"judge_type_views": _record_type_views(check.get("type_views"), items)} if typed else {}),
+        "usage": {"judge": usage_since(judge, before)},
+    }

@@ -1,0 +1,563 @@
+{
+ "evidence accepted": {
+  "answer": {
+   "tool": "evaluate_project_evidence",
+   "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+   "artifact_type": "repository file excerpt",
+   "assessment": "partially_satisfied",
+   "quotes": [
+    "log.append(event)"
+   ],
+   "gaps": [
+    "no retention period"
+   ],
+   "rationale": "Appended to a log.",
+   "artifact_id": "run:1:1-3",
+   "dropped_quotes": 0,
+   "notes": [],
+   "judge_rationale": "Grounded in the cited norm.",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_temperature": "not configured",
+   "judge_run_id": "judgerun:runtime_grounding:<random>"
+  },
+  "status": "partially_satisfied",
+  "confidence": 0.75,
+  "source_nodes": [
+   "eu-ai-act:article-12:paragraph-1"
+  ],
+  "source_spans": [
+   {
+    "span_id": "span:012.001"
+   }
+  ],
+  "graph_evidence_subgraph": {
+   "nodes": [
+    "norm:eu-ai-act:article-12:paragraph-1:n1",
+    "eu-ai-act:article-12:paragraph-1"
+   ],
+   "edges": []
+  },
+  "legal_status_notes": [],
+  "missing_facts": [
+   "no retention period"
+  ],
+  "judge_verdict": "accepted",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "evidence rejected": {
+  "answer": {
+   "tool": "evaluate_project_evidence",
+   "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+   "artifact_type": "repository file excerpt",
+   "assessment": "satisfied",
+   "quotes": [
+    "log.append(event)"
+   ],
+   "gaps": [
+    "no retention period"
+   ],
+   "rationale": "Appended to a log.",
+   "artifact_id": "run:1:1-3",
+   "dropped_quotes": 0,
+   "notes": [],
+   "judge_rationale": "Not supported.",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_temperature": "not configured",
+   "judge_run_id": "judgerun:runtime_grounding:<random>"
+  },
+  "status": "requires_human_review",
+  "confidence": 0.0,
+  "source_nodes": [
+   "eu-ai-act:article-12:paragraph-1"
+  ],
+  "source_spans": [
+   {
+    "span_id": "span:012.001"
+   }
+  ],
+  "graph_evidence_subgraph": {
+   "nodes": [
+    "norm:eu-ai-act:article-12:paragraph-1:n1",
+    "eu-ai-act:article-12:paragraph-1"
+   ],
+   "edges": []
+  },
+  "legal_status_notes": [],
+  "missing_facts": [
+   "no retention period",
+   "runtime grounding judge verdict 'rejected': the generated assessment is not surfaced as-is and requires human review"
+  ],
+  "judge_verdict": "rejected",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "evidence invalid assessment": {
+  "answer": {
+   "tool": "evaluate_project_evidence",
+   "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+   "artifact_type": "repository file excerpt",
+   "assessment": "cannot_assess",
+   "quotes": [
+    "log.append(event)"
+   ],
+   "gaps": [
+    "no retention period"
+   ],
+   "rationale": "Appended to a log.",
+   "artifact_id": "run:1:1-3",
+   "dropped_quotes": 0,
+   "notes": [
+    "generator returned invalid assessment 'compliant'; downgraded to cannot_assess"
+   ],
+   "judge_rationale": "Grounded in the cited norm.",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_temperature": "not configured",
+   "judge_run_id": "judgerun:runtime_grounding:<random>"
+  },
+  "status": "requires_human_review",
+  "confidence": 0.75,
+  "source_nodes": [
+   "eu-ai-act:article-12:paragraph-1"
+  ],
+  "source_spans": [
+   {
+    "span_id": "span:012.001"
+   }
+  ],
+  "graph_evidence_subgraph": {
+   "nodes": [
+    "norm:eu-ai-act:article-12:paragraph-1:n1",
+    "eu-ai-act:article-12:paragraph-1"
+   ],
+   "edges": []
+  },
+  "legal_status_notes": [],
+  "missing_facts": [
+   "no retention period"
+  ],
+  "judge_verdict": "accepted",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "evidence quote dropped": {
+  "answer": {
+   "tool": "evaluate_project_evidence",
+   "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+   "artifact_type": "repository file excerpt",
+   "assessment": "cannot_assess",
+   "quotes": [],
+   "gaps": [
+    "no retention period"
+   ],
+   "rationale": "Appended to a log.",
+   "artifact_id": "run:1:1-3",
+   "dropped_quotes": 1,
+   "notes": [
+    "1 quote(s) were not verbatim fragments of the evidence content and were dropped",
+    "assessment 'satisfied' retained no surviving verbatim quote; downgraded to cannot_assess"
+   ],
+   "judge_rationale": "Grounded in the cited norm.",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_temperature": "not configured",
+   "judge_run_id": "judgerun:runtime_grounding:<random>"
+  },
+  "status": "requires_human_review",
+  "confidence": 0.75,
+  "source_nodes": [
+   "eu-ai-act:article-12:paragraph-1"
+  ],
+  "source_spans": [
+   {
+    "span_id": "span:012.001"
+   }
+  ],
+  "graph_evidence_subgraph": {
+   "nodes": [
+    "norm:eu-ai-act:article-12:paragraph-1:n1",
+    "eu-ai-act:article-12:paragraph-1"
+   ],
+   "edges": []
+  },
+  "legal_status_notes": [],
+  "missing_facts": [
+   "no retention period"
+  ],
+  "judge_verdict": "accepted",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "evidence unparsable": {
+  "answer": {
+   "tool": "evaluate_project_evidence",
+   "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+   "refused": true,
+   "message": "generator output unusable, no assessment produced: unparseable model JSON: Expecting value: line 1 column 1 (char 0)"
+  },
+  "status": "requires_human_review",
+  "confidence": 0.0,
+  "source_nodes": [],
+  "source_spans": [],
+  "graph_evidence_subgraph": {},
+  "legal_status_notes": [],
+  "missing_facts": [
+   "generator output unusable, no assessment produced: unparseable model JSON: Expecting value: line 1 column 1 (char 0)"
+  ],
+  "judge_verdict": "not_run",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "evidence norm not accepted": {
+  "answer": {
+   "tool": "evaluate_project_evidence",
+   "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+   "refused": true,
+   "message": "evidence can only be evaluated against judge-accepted norms; norm norm:eu-ai-act:article-12:paragraph-1:n1 has judge_verdict 'rejected'"
+  },
+  "status": "requires_human_review",
+  "confidence": 0.0,
+  "source_nodes": [],
+  "source_spans": [],
+  "graph_evidence_subgraph": {},
+  "legal_status_notes": [],
+  "missing_facts": [
+   "evidence can only be evaluated against judge-accepted norms; norm norm:eu-ai-act:article-12:paragraph-1:n1 has judge_verdict 'rejected'"
+  ],
+  "judge_verdict": "not_run",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "evidence batch": {
+  "answer": {
+   "tool": "evaluate_project_evidence_batch",
+   "artifact_type": "repository file excerpt",
+   "artifact_id": "run:1:1-3",
+   "evaluated": 2,
+   "skipped": [
+    {
+     "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n3",
+     "reason": "judge_verdict 'rejected' is not accepted"
+    }
+   ],
+   "results": [
+    {
+     "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+     "status": "partially_satisfied",
+     "judge_verdict": "accepted",
+     "answer": {
+      "tool": "evaluate_project_evidence",
+      "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+      "artifact_type": "repository file excerpt",
+      "assessment": "partially_satisfied",
+      "quotes": [
+       "log.append(event)"
+      ],
+      "gaps": [
+       "no retention period"
+      ],
+      "rationale": "Appended to a log.",
+      "artifact_id": "run:1:1-3",
+      "dropped_quotes": 0,
+      "notes": [],
+      "judge_rationale": "Grounded in the cited norm.",
+      "judge_model": "fake-judge",
+      "judge_effort": "not configured",
+      "judge_temperature": "not configured",
+      "judge_run_id": "judgerun:runtime_grounding:<random>"
+     }
+    },
+    {
+     "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n2",
+     "status": "partially_satisfied",
+     "judge_verdict": "accepted",
+     "answer": {
+      "tool": "evaluate_project_evidence",
+      "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n2",
+      "artifact_type": "repository file excerpt",
+      "assessment": "partially_satisfied",
+      "quotes": [
+       "log.append(event)"
+      ],
+      "gaps": [
+       "no retention period"
+      ],
+      "rationale": "Appended to a log.",
+      "artifact_id": "run:1:1-3",
+      "dropped_quotes": 0,
+      "notes": [],
+      "judge_rationale": "Grounded in the cited norm.",
+      "judge_model": "fake-judge",
+      "judge_effort": "not configured",
+      "judge_temperature": "not configured",
+      "judge_run_id": "judgerun:runtime_grounding:<random>"
+     }
+    }
+   ]
+  },
+  "status": "partially_satisfied",
+  "confidence": 0.75,
+  "source_nodes": [
+   "eu-ai-act:article-12:paragraph-1"
+  ],
+  "source_spans": [
+   {
+    "span_id": "span:012.001"
+   }
+  ],
+  "graph_evidence_subgraph": {},
+  "legal_status_notes": [],
+  "missing_facts": [
+   "norm norm:eu-ai-act:article-12:paragraph-1:n1: status partially_satisfied",
+   "norm norm:eu-ai-act:article-12:paragraph-1:n2: status partially_satisfied",
+   "norm norm:eu-ai-act:article-12:paragraph-1:n3 skipped: judge_verdict 'rejected' is not accepted"
+  ],
+  "judge_verdict": "accepted",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "backlog accepted typed": {
+  "answer": {
+   "tool": "generate_control_backlog",
+   "items": [
+    {
+     "title": "Keep a log",
+     "description": "Do Keep a log.",
+     "norm_ids": [
+      "norm:eu-ai-act:article-12:paragraph-1:n1"
+     ],
+     "suggested_evidence": [
+      "a log"
+     ],
+     "priority": "must",
+     "requirement_type": "functional"
+    },
+    {
+     "title": "Ask",
+     "description": "Do Ask.",
+     "norm_ids": [
+      "norm:eu-ai-act:article-12:paragraph-1:n2"
+     ],
+     "suggested_evidence": [
+      "a log"
+     ],
+     "priority": "should",
+     "requirement_type": "functional"
+    }
+   ],
+   "dropped_items": 1,
+   "merged_items": 1,
+   "notes": [
+    "item 2 ('Log access') has no valid requirement_type ('bogus'); kept with null",
+    "item 3 ('Ask') had invalid priority 'maybe'; recomputed mechanically from deontic types to 'should'",
+    "item 4 ('Ghost') dropped: cites norm_ids outside the input set: ['norm:nowhere']",
+    "item 'Log access' merged into 'Keep a log': both cite the identical norm set (one control per norm set); its requirement_type None differs, the merged control keeps 'functional'"
+   ],
+   "judge_rationale": "Fine.",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_run_id": "judgerun:runtime_grounding:<random>",
+   "judge_type_views": [
+    {
+     "judge_type_agrees": false,
+     "judge_requirement_type": "quality"
+    },
+    {
+     "judge_type_agrees": null,
+     "judge_requirement_type": null
+    }
+   ],
+   "generator_model": "fake-generator",
+   "generator_effort": "not configured",
+   "generator_temperature": "not configured",
+   "judge_temperature": "not configured",
+   "generator_prompt": "generate_backlog",
+   "generator_prompt_version": "v2",
+   "generator_prompt_sha256": "30abb18630d4ba7f14b7bf1b3e74a03c98abbfa0bb99c3fa913230e2764a6cf5",
+   "judge_prompt": "runtime_grounding",
+   "judge_prompt_version": "v2",
+   "judge_prompt_sha256": "58df4d4212e7e16c29215c8d03a3a2eeef5cdbcb75e0fc4cbdfe48295656ae6b",
+   "usage": {
+    "generator": null,
+    "judge": null
+   }
+  },
+  "status": "applicable_missing_evidence",
+  "confidence": 0.75,
+  "source_nodes": [
+   "eu-ai-act:article-12:paragraph-1",
+   "eu-ai-act:article-14:paragraph-1"
+  ],
+  "source_spans": [
+   {
+    "span_id": "span:012.001"
+   },
+   {
+    "span_id": "span:014.001"
+   }
+  ],
+  "graph_evidence_subgraph": {
+   "nodes": [
+    "norm:eu-ai-act:article-12:paragraph-1:n1",
+    "norm:eu-ai-act:article-12:paragraph-1:n2",
+    "norm:eu-ai-act:article-14:paragraph-1:n1",
+    "eu-ai-act:article-12:paragraph-1",
+    "eu-ai-act:article-14:paragraph-1"
+   ],
+   "edges": []
+  },
+  "legal_status_notes": [],
+  "missing_facts": [
+   "backlog items define required work; no project evidence has been evaluated against these norms yet"
+  ],
+  "judge_verdict": "accepted",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "backlog rejected v1": {
+  "answer": {
+   "tool": "generate_control_backlog",
+   "items": [
+    {
+     "title": "Keep a log",
+     "description": "Do Keep a log.",
+     "norm_ids": [
+      "norm:eu-ai-act:article-14:paragraph-1:n1"
+     ],
+     "suggested_evidence": [
+      "a log"
+     ],
+     "priority": "should"
+    }
+   ],
+   "dropped_items": 0,
+   "merged_items": 0,
+   "notes": [
+    "item 1 ('Keep a log') had invalid priority 'soon'; recomputed mechanically from deontic types to 'should'"
+   ],
+   "judge_rationale": "Not supported.",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_run_id": "judgerun:runtime_grounding:<random>",
+   "generator_model": "fake-generator",
+   "generator_effort": "not configured",
+   "generator_temperature": "not configured",
+   "judge_temperature": "not configured",
+   "generator_prompt": "generate_backlog",
+   "generator_prompt_version": "v1",
+   "generator_prompt_sha256": "3c2f62d2ac2f90bf0a33e76519cf38ac2143cb277da23046689c0dbf3e09e504",
+   "judge_prompt": "runtime_grounding",
+   "judge_prompt_version": "v1",
+   "judge_prompt_sha256": "7ee2988170045d521caeef1aa0547d41cf38cca8d7bf2cbf0156c3a9f819214a",
+   "usage": {
+    "generator": null,
+    "judge": null
+   }
+  },
+  "status": "requires_human_review",
+  "confidence": 0.0,
+  "source_nodes": [
+   "eu-ai-act:article-12:paragraph-1",
+   "eu-ai-act:article-14:paragraph-1"
+  ],
+  "source_spans": [
+   {
+    "span_id": "span:012.001"
+   },
+   {
+    "span_id": "span:014.001"
+   }
+  ],
+  "graph_evidence_subgraph": {
+   "nodes": [
+    "norm:eu-ai-act:article-12:paragraph-1:n1",
+    "norm:eu-ai-act:article-12:paragraph-1:n2",
+    "norm:eu-ai-act:article-14:paragraph-1:n1",
+    "eu-ai-act:article-12:paragraph-1",
+    "eu-ai-act:article-14:paragraph-1"
+   ],
+   "edges": []
+  },
+  "legal_status_notes": [],
+  "missing_facts": [
+   "backlog items define required work; no project evidence has been evaluated against these norms yet",
+   "runtime grounding judge verdict 'rejected': the generated backlog is not surfaced as-is and requires human review"
+  ],
+  "judge_verdict": "rejected",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "backlog nothing survives": {
+  "answer": {
+   "tool": "generate_control_backlog",
+   "refused": true,
+   "message": "no backlog items survived the mechanical citation check (1 dropped); nothing trustworthy to return",
+   "generator_model": "fake-generator",
+   "generator_effort": "not configured",
+   "generator_temperature": "not configured",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_temperature": "not configured",
+   "generator_prompt": "generate_backlog",
+   "generator_prompt_version": "v2",
+   "generator_prompt_sha256": "30abb18630d4ba7f14b7bf1b3e74a03c98abbfa0bb99c3fa913230e2764a6cf5",
+   "judge_prompt": "runtime_grounding",
+   "judge_prompt_version": "v2",
+   "judge_prompt_sha256": "58df4d4212e7e16c29215c8d03a3a2eeef5cdbcb75e0fc4cbdfe48295656ae6b",
+   "usage": {
+    "generator": null,
+    "judge": null
+   }
+  },
+  "status": "requires_human_review",
+  "confidence": 0.0,
+  "source_nodes": [],
+  "source_spans": [],
+  "graph_evidence_subgraph": {},
+  "legal_status_notes": [],
+  "missing_facts": [
+   "no backlog items survived the mechanical citation check (1 dropped); nothing trustworthy to return"
+  ],
+  "judge_verdict": "not_run",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ },
+ "backlog unparsable": {
+  "answer": {
+   "tool": "generate_control_backlog",
+   "refused": true,
+   "message": "generator output unusable, no backlog produced: generator JSON lacks an 'items' list",
+   "generator_model": "fake-generator",
+   "generator_effort": "not configured",
+   "generator_temperature": "not configured",
+   "judge_model": "fake-judge",
+   "judge_effort": "not configured",
+   "judge_temperature": "not configured",
+   "generator_prompt": "generate_backlog",
+   "generator_prompt_version": "v2",
+   "generator_prompt_sha256": "30abb18630d4ba7f14b7bf1b3e74a03c98abbfa0bb99c3fa913230e2764a6cf5",
+   "judge_prompt": "runtime_grounding",
+   "judge_prompt_version": "v2",
+   "judge_prompt_sha256": "58df4d4212e7e16c29215c8d03a3a2eeef5cdbcb75e0fc4cbdfe48295656ae6b",
+   "usage": {
+    "generator": null,
+    "judge": null
+   }
+  },
+  "status": "requires_human_review",
+  "confidence": 0.0,
+  "source_nodes": [],
+  "source_spans": [],
+  "graph_evidence_subgraph": {},
+  "legal_status_notes": [],
+  "missing_facts": [
+   "generator output unusable, no backlog produced: generator JSON lacks an 'items' list"
+  ],
+  "judge_verdict": "not_run",
+  "graph_version": "build-test",
+  "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
+ }
+}
