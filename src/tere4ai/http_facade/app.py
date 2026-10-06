@@ -193,18 +193,30 @@ def _is_utf8_encodable(value: str) -> bool:
     return True
 
 
+MAX_BODY_DEPTH = 100
+TOO_DEEP_MESSAGE = f"the request body is nested more than {MAX_BODY_DEPTH} levels deep"
+
+
 def _reject_unencodable(value: Any) -> None:
-    """Raise ValueError if any string anywhere in value is not UTF-8."""
-    if isinstance(value, str):
-        if not _is_utf8_encodable(value):
-            raise ValueError(UNENCODABLE_STRING_MESSAGE)
-    elif isinstance(value, dict):
-        for key, item in value.items():
-            _reject_unencodable(key)
-            _reject_unencodable(item)
-    elif isinstance(value, (list, tuple)):
-        for item in value:
-            _reject_unencodable(item)
+    """Raise ValueError if any string anywhere in value is not UTF-8, or if
+    the value is nested more than MAX_BODY_DEPTH levels (a deeper body would
+    exhaust the recursion limit of later steps: a 422, never a 500, R68).
+    Iterative, so the guard itself cannot run out of recursion depth."""
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    while stack:
+        item, depth = stack.pop()
+        if isinstance(item, str):
+            if not _is_utf8_encodable(item):
+                raise ValueError(UNENCODABLE_STRING_MESSAGE)
+        elif isinstance(item, (dict, list, tuple)):
+            if depth >= MAX_BODY_DEPTH:
+                raise ValueError(TOO_DEEP_MESSAGE)
+            if isinstance(item, dict):
+                for key, child in item.items():
+                    stack.append((key, depth + 1))
+                    stack.append((child, depth + 1))
+            else:
+                stack.extend((child, depth + 1) for child in item)
 
 
 class _Utf8GuardedModel(BaseModel):
@@ -435,7 +447,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         # degradation, but never a raw 500 either).
         # Unencodable strings (lone surrogates, B63) get the same treatment:
         # the echoed input would crash the encoder just like a NaN would.
-        errors = _sanitize_unencodable(_sanitize_non_finite(jsonable_encoder(exc.errors())))
+        try:
+            errors = _sanitize_unencodable(_sanitize_non_finite(jsonable_encoder(exc.errors())))
+        except RecursionError:
+            # A deeply nested body echoed as the error's input would exhaust
+            # the encoder: answer without the echoed input (R68).
+            errors = [{"type": e.get("type"), "loc": [str(x) for x in e.get("loc", ())], "msg": e.get("msg")}
+                      for e in exc.errors()]
         return JSONResponse(status_code=422, content={"detail": errors})
 
     # Section 8 hardening: fixed-window per-client rate limit and a body-free

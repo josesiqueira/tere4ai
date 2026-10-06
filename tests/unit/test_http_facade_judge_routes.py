@@ -225,3 +225,23 @@ def test_a_judge_failing_before_its_request_is_not_billed_and_after_it_is(client
     assert response.status_code == 200
     assert (part["judge_verdict"], part["status"], part["model_called"]) == ("judge_error", "requires_human_review", True)
     assert "overloaded" in part["error"]
+
+
+# R68 fix round 1: a body nested past the guard's depth cap is a 422 at the
+# door, never a 500 from the recursion limit, on every request model.
+@pytest.mark.parametrize("depth", [150, 2000, 6000])
+def test_a_deeply_nested_record_is_refused_with_422_before_any_model_call(client, models, depth):
+    answer = _answer(client)
+    deep = "[" * depth + "]" * depth
+    body = json.dumps({"norm_ids": [NORM_ID], "system_context": "x", "signature": "0" * 64}).rstrip("}")
+    body += ',"signed_record":{"core":' + deep + "}}"
+    response = client.post("/api/backlog/judge", content=body, headers={"content-type": "application/json"})
+    assert response.status_code == 422
+    assert models.judge.calls == []
+    assert answer["signed_record"]
+
+
+def test_a_deeply_nested_classify_body_is_refused_with_422(client):
+    deep = "[" * 2000 + "]" * 2000
+    response = client.post("/api/classify", content='{"features":{"a":' + deep + "}}", headers={"content-type": "application/json"})
+    assert response.status_code == 422
