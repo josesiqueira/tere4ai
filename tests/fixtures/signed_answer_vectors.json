@@ -1,0 +1,148 @@
+{
+ "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+ "note": "Test vectors of DEC-24's signed record (tere4ai.signed_answer.v1): each record, its canonical bytes as UTF-8 text and its HMAC-SHA256 under the test key. Shared word for word with tere4ai-dashboard (src/test/signedAnswerVectors.json). Mock data: never a real key.",
+ "vectors": [
+  {
+   "name": "evidence",
+   "record": {
+    "format": "tere4ai.signed_answer.v1",
+    "route": "/api/evidence",
+    "generation_id": "5f0c1a6e-8a7b-4c1d-9e2f-3a4b5c6d7e8f",
+    "caller": {
+     "project": "22222222-2222-4222-8222-222222222222",
+     "repository_run": "11111111-1111-4111-8111-111111111111",
+     "document": "33333333-3333-4333-8333-333333333333"
+    },
+    "norm_ids": [
+     "norm:eu-ai-act:article-12:paragraph-1:n1"
+    ],
+    "graph_version": "build-3b753e5e9297",
+    "norms_build": "build-3b753e5e9297",
+    "generator_model": "gpt-6-astra",
+    "generator_prompt": {
+     "name": "evaluate_evidence",
+     "version": "v1"
+    },
+    "judge_prompt": {
+     "name": "runtime_grounding",
+     "version": "v1"
+    },
+    "untrusted_sha256": "70a3cc196a78e3fc8a1ed29fcd998b263e0fd489def5fc89d0d6a4e9059c9fd8",
+    "core": {
+     "tool": "evaluate_project_evidence",
+     "norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1",
+     "artifact_type": "repository file excerpt",
+     "artifact_id": "11111111-1111-4111-8111-111111111111:1:1-3",
+     "assessment": "partially_satisfied",
+     "quotes": [
+      "log.append(event)"
+     ],
+     "gaps": [
+      "no retention period for the log (Gr\u00f6\u00dfe, \u2028 line separator, tab\there, control \u001f)"
+     ],
+     "rationale": "The events are appended to a log; nothing says how long it is kept. \u00e9\u4e2d\ud83d\ude00"
+    }
+   },
+   "bytes": "{\"caller\":{\"document\":\"33333333-3333-4333-8333-333333333333\",\"project\":\"22222222-2222-4222-8222-222222222222\",\"repository_run\":\"11111111-1111-4111-8111-111111111111\"},\"core\":{\"artifact_id\":\"11111111-1111-4111-8111-111111111111:1:1-3\",\"artifact_type\":\"repository file excerpt\",\"assessment\":\"partially_satisfied\",\"gaps\":[\"no retention period for the log (Gr\u00f6\u00dfe, \u2028 line separator, tab\\there, control \\u001f)\"],\"norm_id\":\"norm:eu-ai-act:article-12:paragraph-1:n1\",\"quotes\":[\"log.append(event)\"],\"rationale\":\"The events are appended to a log; nothing says how long it is kept. \u00e9\u4e2d\ud83d\ude00\",\"tool\":\"evaluate_project_evidence\"},\"format\":\"tere4ai.signed_answer.v1\",\"generation_id\":\"5f0c1a6e-8a7b-4c1d-9e2f-3a4b5c6d7e8f\",\"generator_model\":\"gpt-6-astra\",\"generator_prompt\":{\"name\":\"evaluate_evidence\",\"version\":\"v1\"},\"graph_version\":\"build-3b753e5e9297\",\"judge_prompt\":{\"name\":\"runtime_grounding\",\"version\":\"v1\"},\"norm_ids\":[\"norm:eu-ai-act:article-12:paragraph-1:n1\"],\"norms_build\":\"build-3b753e5e9297\",\"route\":\"/api/evidence\",\"untrusted_sha256\":\"70a3cc196a78e3fc8a1ed29fcd998b263e0fd489def5fc89d0d6a4e9059c9fd8\"}",
+   "signature": "b7dee16918b9c02c3864e7dc9398bde701c9b3068f6d172784657e00bd61e65e"
+  },
+  {
+   "name": "backlog",
+   "record": {
+    "format": "tere4ai.signed_answer.v1",
+    "route": "/api/backlog",
+    "generation_id": "0d9c8b7a-6f5e-4d3c-8b2a-1f0e9d8c7b6a",
+    "caller": {
+     "project": "22222222-2222-4222-8222-222222222222",
+     "repository_run": "11111111-1111-4111-8111-111111111111",
+     "document": null
+    },
+    "norm_ids": [
+     "norm:a",
+     "norm:b"
+    ],
+    "graph_version": "build-3b753e5e9297",
+    "norms_build": "build-3b753e5e9297",
+    "generator_model": "gpt-6-astra",
+    "generator_prompt": {
+     "name": "generate_backlog",
+     "version": "v2"
+    },
+    "judge_prompt": {
+     "name": "runtime_grounding",
+     "version": "v2"
+    },
+    "untrusted_sha256": "de8781a0d40b80413f952a34a337736755984656e48c321d9f0d0d1bacb73f9c",
+    "core": {
+     "items": [
+      {
+       "title": "Keep an audit log",
+       "description": "Record every door event.",
+       "norm_ids": [
+        "norm:a"
+       ],
+       "suggested_evidence": [
+        "log retention policy"
+       ],
+       "priority": "must",
+       "requirement_type": "functional"
+      },
+      {
+       "title": "Review access",
+       "description": "Review who may open.",
+       "norm_ids": [
+        "norm:a",
+        "norm:b"
+       ],
+       "suggested_evidence": [],
+       "priority": "should",
+       "requirement_type": null
+      }
+     ]
+    }
+   },
+   "bytes": "{\"caller\":{\"document\":null,\"project\":\"22222222-2222-4222-8222-222222222222\",\"repository_run\":\"11111111-1111-4111-8111-111111111111\"},\"core\":{\"items\":[{\"description\":\"Record every door event.\",\"norm_ids\":[\"norm:a\"],\"priority\":\"must\",\"requirement_type\":\"functional\",\"suggested_evidence\":[\"log retention policy\"],\"title\":\"Keep an audit log\"},{\"description\":\"Review who may open.\",\"norm_ids\":[\"norm:a\",\"norm:b\"],\"priority\":\"should\",\"requirement_type\":null,\"suggested_evidence\":[],\"title\":\"Review access\"}]},\"format\":\"tere4ai.signed_answer.v1\",\"generation_id\":\"0d9c8b7a-6f5e-4d3c-8b2a-1f0e9d8c7b6a\",\"generator_model\":\"gpt-6-astra\",\"generator_prompt\":{\"name\":\"generate_backlog\",\"version\":\"v2\"},\"graph_version\":\"build-3b753e5e9297\",\"judge_prompt\":{\"name\":\"runtime_grounding\",\"version\":\"v2\"},\"norm_ids\":[\"norm:a\",\"norm:b\"],\"norms_build\":\"build-3b753e5e9297\",\"route\":\"/api/backlog\",\"untrusted_sha256\":\"de8781a0d40b80413f952a34a337736755984656e48c321d9f0d0d1bacb73f9c\"}",
+   "signature": "69ce289e586a8fa502e14afcaeeec6e42d55ae90613df7f50c4b5fc06da4f481"
+  },
+  {
+   "name": "evidence with nulls",
+   "record": {
+    "format": "tere4ai.signed_answer.v1",
+    "route": "/api/evidence",
+    "generation_id": "9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d",
+    "caller": {
+     "project": "p",
+     "repository_run": "r",
+     "document": null
+    },
+    "norm_ids": [
+     "n"
+    ],
+    "graph_version": "g",
+    "norms_build": "n",
+    "generator_model": "m",
+    "generator_prompt": {
+     "name": "evaluate_evidence",
+     "version": "v1"
+    },
+    "judge_prompt": {
+     "name": "runtime_grounding",
+     "version": "v1"
+    },
+    "untrusted_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "core": {
+     "tool": "evaluate_project_evidence",
+     "norm_id": "n",
+     "artifact_type": "t",
+     "artifact_id": null,
+     "assessment": "cannot_assess",
+     "quotes": [],
+     "gaps": [],
+     "rationale": "no rationale returned"
+    }
+   },
+   "bytes": "{\"caller\":{\"document\":null,\"project\":\"p\",\"repository_run\":\"r\"},\"core\":{\"artifact_id\":null,\"artifact_type\":\"t\",\"assessment\":\"cannot_assess\",\"gaps\":[],\"norm_id\":\"n\",\"quotes\":[],\"rationale\":\"no rationale returned\",\"tool\":\"evaluate_project_evidence\"},\"format\":\"tere4ai.signed_answer.v1\",\"generation_id\":\"9a8b7c6d-5e4f-4a3b-9c2d-1e0f9a8b7c6d\",\"generator_model\":\"m\",\"generator_prompt\":{\"name\":\"evaluate_evidence\",\"version\":\"v1\"},\"graph_version\":\"g\",\"judge_prompt\":{\"name\":\"runtime_grounding\",\"version\":\"v1\"},\"norm_ids\":[\"n\"],\"norms_build\":\"n\",\"route\":\"/api/evidence\",\"untrusted_sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}",
+   "signature": "97f8f87fd9f4d172cd862fe9ba5d7d03fe1d49585701b2c90ce3c25d6d78a574"
+  }
+ ]
+}
