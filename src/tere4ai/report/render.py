@@ -3,6 +3,7 @@
 @implements: DEC-08, DEC-15, DEC-18
 @implements: DEC-19
 @implements: DEC-20
+@implements: DEC-24
 @grounded_by: ADD-14, ADD-15
 
 Pure function of the ingested exchanges: no clock, no randomness, no model,
@@ -17,6 +18,14 @@ Markup contract (the honesty tests code against it):
   requires_human_review gets a dashed border only.
 - Sections carry data-section attributes; matrix rows carry data-trace-row.
 - The non-legal-advice notice renders twice and is never inside <details>.
+- DEC-24 (spec G D-G74 (8), rulings S79, S81, S82): a generator-only answer
+  reads "not checked by the judge" until a judge part is attached to it;
+  the latest attached part is shown beside the unchanged generator answer
+  (for a backlog, each item's view beside its item), its judge_setting
+  printed and the label "judged by <model>, the generator's own family
+  (demo setting)". A judge part whose generation is not in the input is
+  shown apart, named. (B138 builds phase 5's backlog judge; keying evidence
+  answers by generation id is B140's.)
 """
 
 from __future__ import annotations
@@ -35,7 +44,13 @@ from tere4ai.mcp_server.tools import (
     STATUS_VOCABULARY,
     VERBATIM_QUOTE_FIELDS,
 )
-from tere4ai.report.ingest import Exchange, ProblemCard, ingest_inputs
+from tere4ai.report.ingest import (
+    JUDGE_ON_DEMAND,
+    Exchange,
+    ProblemCard,
+    generation_id_of,
+    ingest_inputs,
+)
 
 # Fixed honesty sentence for the trace matrix. When the recorded trace_note
 # does not carry it, the generator inserts it itself and flags the insertion.
@@ -71,8 +86,38 @@ _HOMED_TOOLS = frozenset(
         "evaluate_project_evidence",
         "explain_requirement",
         "resolve_span",
+        # DEC-24: shown beside the generation it judged, or apart.
+        JUDGE_ON_DEMAND,
     }
 )
+
+NOT_CHECKED_WORDS = "not checked by the judge"
+
+
+def demo_label(model: Any) -> str:
+    """DEC-24's one wording of the label (ruling S79)."""
+    return f"judged by {model}, the generator's own family (demo setting)"
+
+
+JUDGE_ERROR = "judge_error"
+
+
+def judge_error_words(part: dict[str, Any]) -> str:
+    """Ruling R77: a demo judge part whose request failed after it was sent
+    is an error, never a verdict; the dashboard's words for it."""
+    error = part.get("error") or "no error given"
+    return f"the judge failed after its request was sent: {error}; not judged (demo setting, {part.get('judge_model')})"
+
+
+def _is_judge_error(part_ex: Exchange) -> bool:
+    return part_ex.envelope.get("judge_verdict") == JUDGE_ERROR
+
+
+def _latest_judged(ex: Exchange) -> Exchange | None:
+    """The latest demo judge part that judged (ruling R77: a judge_error
+    part never stands for a verdict)."""
+    judged = [p for p in ex.judge_parts if not _is_judge_error(p)]
+    return judged[-1] if judged else None
 
 _CSS = """
 :root {
@@ -316,6 +361,8 @@ def _placeholder(tool: str) -> str:
 def _identity_of(ex: Exchange) -> Any:
     ans = _answer(ex)
     req = ex.request if isinstance(ex.request, dict) else {}
+    if ex.tool == JUDGE_ON_DEMAND:
+        return generation_id_of(ex)
     if ex.tool in ("explain_requirement", "evaluate_project_evidence"):
         return ans.get("norm_id") or req.get("norm_id")
     if ex.tool == "trace_alignment":
@@ -1301,6 +1348,44 @@ def _render_matrix(
     return "".join(out)
 
 
+def _demo_judge_record_html(part_ex: Exchange) -> str:
+    """DEC-24: the latest judge part beside the unchanged generator answer."""
+    part = _answer(part_ex)
+    error = _is_judge_error(part_ex)
+    parts = ['<div class="judge-record"><p class="microlabel">judge record</p>']
+    parts.append('<p class="record-line">verdict ' + _token("judge_verdict", part_ex.envelope.get("judge_verdict")))
+    if not error:
+        parts.append(" · status after the judge " + _status_badge(part_ex.envelope.get("status")))
+    if part.get("judge_model") is not None:
+        parts.append(" · model " + emit_field("judge_model", part.get("judge_model")))
+    if "judge_effort" in part:
+        parts.append(" · effort " + emit_field("judge_effort", part.get("judge_effort")))
+    if part.get("judge_run_id") is not None:
+        parts.append(" · run " + emit_field("judge_run_id", part.get("judge_run_id")))
+    parts.append(" · judge setting " + emit_field("judge_setting", part.get("judge_setting")))
+    parts.append("</p>")
+    caption = judge_error_words(part) if error else demo_label(part.get("judge_model"))
+    parts.append(f'<p class="caption">{_esc(caption)}</p>')
+    if part.get("judge_rationale") is not None:
+        parts.append(_verbatim_block("judge_rationale", part.get("judge_rationale")))
+    parts.append("</div>")
+    return "".join(parts)
+
+
+def _judge_record_for(ex: Exchange) -> str:
+    """The judge record of an exchange: the latest demo judge part attached
+    to it (DEC-24), "not checked by the judge" for a generator-only answer
+    with none, else the inline judge record."""
+    judged = _latest_judged(ex)
+    if judged is not None:
+        return _demo_judge_record_html(judged)
+    if ex.judge_parts:
+        return _demo_judge_record_html(ex.judge_parts[-1])
+    if ex.envelope.get("judge_verdict") == "not_checked":
+        return f'<div class="judge-record"><p class="record-line">{NOT_CHECKED_WORDS}</p></div>'
+    return _judge_record_html(_answer(ex), ex.envelope)
+
+
 def _judge_record_html(source: dict[str, Any], envelope: dict[str, Any]) -> str:
     parts = ['<div class="judge-record"><p class="microlabel">judge record</p>']
     parts.append(
@@ -1315,6 +1400,8 @@ def _judge_record_html(source: dict[str, Any], envelope: dict[str, Any]) -> str:
         parts.append(
             " · run " + emit_field("judge_run_id", source.get("judge_run_id"))
         )
+    if source.get("judge_setting") is not None:
+        parts.append(" · judge setting " + emit_field("judge_setting", source.get("judge_setting")))
     parts.append("</p>")
     if source.get("judge_rationale") is not None:
         parts.append(_verbatim_block("judge_rationale", source.get("judge_rationale")))
@@ -1358,7 +1445,9 @@ def _render_backlog(
         return "".join(out)
     ans = _answer(backlog_ex)
     items = [i for i in (ans.get("items") or []) if isinstance(i, dict)]
-    views = ans.get("judge_type_views")
+    # DEC-24: a demo judge part's views of the signed items, in item order
+    judged_part = _latest_judged(backlog_ex)
+    views = _answer(judged_part).get("judge_type_views") if judged_part is not None else ans.get("judge_type_views")
     views = views if isinstance(views, list) and len(views) == len(items) else None
     out.append("<ol>")
     for position, item in enumerate(items):
@@ -1401,7 +1490,7 @@ def _render_backlog(
     notes = ans.get("notes")
     if isinstance(notes, list) and notes:
         out.append("<ul>" + _list_items("notes", notes) + "</ul>")
-    out.append(_judge_record_html(ans, backlog_ex.envelope))
+    out.append(_judge_record_for(backlog_ex))
     out.append(_legal_notes_html(backlog_ex))
     out.append(_record_line(backlog_ex, mixed, superseded))
     out.append("</section>")
@@ -1663,7 +1752,7 @@ def _render_evidence(
             )
         if ans.get("rationale") is not None:
             out.append(_verbatim_block("rationale", ans.get("rationale")))
-        out.append(_judge_record_html(ans, ex.envelope))
+        out.append(_judge_record_for(ex))
         out.append(_legal_notes_html(ex))
         out.append(
             _record_line(
@@ -1673,6 +1762,27 @@ def _render_evidence(
             )
         )
     out.append("</section>")
+    return "".join(out)
+
+
+def _render_judge_parts_apart(exchanges: list[Exchange]) -> str:
+    """DEC-24: judge parts whose generation is not in the input, named."""
+    attached = {id(part) for ex in exchanges for part in ex.judge_parts}
+    apart = [ex for ex in exchanges if ex.tool == JUDGE_ON_DEMAND and id(ex) not in attached]
+    if not apart:
+        return ""
+    out = ['<section data-section="judge-parts-apart"><h2>Judge parts without their generation</h2>',
+           '<p class="caption">A demo judge part whose generation is not in this session; shown apart, never attached to another answer.</p><ul>']
+    for ex in apart:
+        part = _answer(ex)
+        out.append(
+            "<li>generation " + emit_field("generation_id", part.get("generation_id"))
+            + " · judged tool " + emit_field("tool", part.get("tool"))
+            + " · verdict " + _token("judge_verdict", ex.envelope.get("judge_verdict"))
+            + " · judge setting " + emit_field("judge_setting", part.get("judge_setting"))
+            + f" · {_esc(judge_error_words(part) if _is_judge_error(ex) else demo_label(part.get('judge_model')))}</li>"
+        )
+    out.append("</ul></section>")
     return "".join(out)
 
 
@@ -1975,6 +2085,7 @@ def render_report(
     body.append(_render_backlog(backlog_ex, mixed, superseded_for(backlog_ex)))
     body.append(_render_hleg(matrix_ex, alignment_exs, mixed, history))
     body.append(_render_evidence(evidence_exs, mixed, history))
+    body.append(_render_judge_parts_apart(exchanges))
     body.append(_render_provenance(exchanges, resolve_exs, unhomed_exs, mixed))
     body.append(_render_problems(problems))
 

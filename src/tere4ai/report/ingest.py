@@ -1,6 +1,7 @@
 """Ingestion of recorded sessions and loose envelopes for the report.
 
 @implements: DEC-08, DEC-15
+@implements: DEC-24
 @grounded_by: ADD-14, ADD-15
 
 Session JSONL contract (verified against the live server): one JSON object
@@ -13,6 +14,12 @@ A loose --envelope file is a bare Section 8 envelope. Its tool is taken from
 answer.tool when present, otherwise fingerprinted from the answer shape; its
 timestamp is the envelope's own generated_at; its request is rendered as
 "not recorded". It is appended after the highest recorded seq.
+
+DEC-24 (spec G D-G74 (8), rulings S81, S82): a session line of tool
+"judge_on_demand" carries a demo judge's part (its answer names the judged
+tool and the generation id); it is attached to the exchange whose signed
+record (answer.signed_record) holds the same generation id, in seq order,
+and a line with no such exchange stays unattached, to be shown apart.
 """
 
 from __future__ import annotations
@@ -42,6 +49,8 @@ class Exchange:
     origin: str = "session"  # "session" or "loose"
     conformance_flags: list[str] = field(default_factory=list)
     order: int = 0  # global ingest order; tie-break for equal seq
+    # DEC-24: the judge_on_demand exchanges that judged this one, seq order.
+    judge_parts: list[Exchange] = field(default_factory=list)
 
 
 @dataclass
@@ -62,6 +71,43 @@ class IngestResult:
     problems: list[ProblemCard]
     source_names: list[str]
     header_flags: list[str]
+    # DEC-24: judge parts whose generation is not in the input.
+    unattached_judge_parts: list[Exchange] = field(default_factory=list)
+
+
+JUDGE_ON_DEMAND = "judge_on_demand"
+
+
+def generation_id_of(ex: Exchange) -> str | None:
+    """DEC-24: the generation id a judge part names, or the one an exchange's
+    signed record holds; None for every other exchange."""
+    answer = ex.envelope.get("answer")
+    if not isinstance(answer, dict):
+        return None
+    if ex.tool == JUDGE_ON_DEMAND:
+        value = answer.get("generation_id")
+    else:
+        record = answer.get("signed_record")
+        value = record.get("generation_id") if isinstance(record, dict) else None
+    return value if isinstance(value, str) and value else None
+
+
+def attach_judge_parts(exchanges: list[Exchange]) -> list[Exchange]:
+    """Attach each judge_on_demand exchange to the exchange whose signed
+    record holds its generation id; returns the ones with no such exchange."""
+    generations: dict[str, Exchange] = {}
+    for ex in exchanges:
+        gid = generation_id_of(ex)
+        if ex.tool != JUDGE_ON_DEMAND and gid is not None:
+            generations.setdefault(gid, ex)
+    unattached: list[Exchange] = []
+    for ex in sorted((e for e in exchanges if e.tool == JUDGE_ON_DEMAND), key=lambda e: (e.seq, e.order)):
+        target = generations.get(generation_id_of(ex) or "")
+        if target is None:
+            unattached.append(ex)
+        else:
+            target.judge_parts.append(ex)
+    return unattached
 
 
 # Answer-shape fingerprints for loose envelopes, checked in this order.
@@ -331,4 +377,5 @@ def ingest_inputs(
         problems=problems,
         source_names=source_names,
         header_flags=header_flags,
+        unattached_judge_parts=attach_judge_parts(exchanges),
     )
