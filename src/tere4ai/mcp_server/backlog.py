@@ -47,7 +47,12 @@ by having a plan. Every safeguard is behavioral:
   mode runs the generator part alone (generate_control_backlog_on_demand:
   status requires_human_review, judge_verdict "not_checked"), and its judge
   route runs the judge part alone on the signed items later
-  (judge_backlog_on_demand, judge_setting "demo").
+  (judge_backlog_on_demand, judge_setting "demo"). The facade asks
+  on_demand_refusal before it builds the generator, so a request refused
+  before any model call is never read as billed; a U+0000 in the
+  generator-only answer is replaced with U+FFFD before the answer is signed,
+  said in its notes, so the dashboard can keep the paid answer (B138 fix
+  wave W7, W8).
 """
 
 from __future__ import annotations
@@ -544,6 +549,50 @@ def generate_control_backlog(
     )
 
 
+NUL = "\u0000"
+REPLACEMENT = "\ufffd"
+
+
+def _without_nul(value: Any) -> tuple[Any, int]:
+    """Every string in value with U+0000 replaced by U+FFFD, and the count
+    of the characters replaced (a database text field cannot hold U+0000)."""
+    if isinstance(value, str):
+        count = value.count(NUL)
+        return (value.replace(NUL, REPLACEMENT) if count else value), count
+    if isinstance(value, list):
+        pairs = [_without_nul(v) for v in value]
+        return [v for v, _ in pairs], sum(n for _, n in pairs)
+    if isinstance(value, dict):
+        out: dict[Any, Any] = {}
+        total = 0
+        for key, v in value.items():
+            out[key], n = _without_nul(v)
+            total += n
+        return out, total
+    return value, 0
+
+
+def nul_replaced_note(count: int) -> str:
+    return (f"{count} U+0000 characters of the generated answer were replaced with U+FFFD before it was signed: "
+            "a database text field cannot hold U+0000 (DEC-24)")
+
+
+def on_demand_refusal(norms: list[dict[str, Any]], system_context: Any) -> str | None:
+    """The refusals of the generator-only mode that come before any model
+    call (DEC-24, B138 fix wave W4 and W8): the facade answers them with
+    model_called false and no paid header. None when the request may go to
+    the generator."""
+    if not norms:
+        return "generate_control_backlog needs at least one judge-accepted norm"
+    if not isinstance(system_context, str):
+        return "system_context must be a string"
+    not_accepted = [norm.get("norm_id", "norm:unknown") for norm in norms if norm.get("judge_verdict") != "accepted"]
+    if not_accepted:
+        return ("a control backlog can only be generated from judge-accepted "
+                f"norms; refused non-accepted norm ids: {sorted(not_accepted)}")
+    return None
+
+
 def generate_control_backlog_on_demand(
     norms: list[dict[str, Any]],
     system_context: str,
@@ -590,7 +639,13 @@ def generate_control_backlog_on_demand(
 
     generated = _generate_items(norms, system_context, generator, prompt_version, graph_version, log_path, spend)
     if "degraded" in generated:
-        return generated["degraded"]
+        degraded, _ = _without_nul(generated["degraded"])
+        return degraded
+    items, replaced = _without_nul(generated["items"])
+    notes, replaced_in_notes = _without_nul(generated["notes"])
+    replaced += replaced_in_notes
+    if replaced:
+        notes = [*notes, nul_replaced_note(replaced)]
     known_ids = {norm.get("norm_id") for norm in norms}
     source_nodes: list[str] = []
     source_spans: list[dict[str, Any]] = []
@@ -603,10 +658,10 @@ def generate_control_backlog_on_demand(
             source_spans.append({"span_id": span_id})
     answer = {
         "tool": TOOL_NAME,
-        "items": generated["items"],
+        "items": items,
         "dropped_items": generated["dropped_items"],
         "merged_items": generated["merged_items"],
-        "notes": generated["notes"],
+        "notes": notes,
         **spend(),
     }
     return make_envelope(

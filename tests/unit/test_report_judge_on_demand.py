@@ -118,3 +118,31 @@ def test_a_judge_error_part_apart_is_named_as_an_error(tmp_path):
     path = _write(tmp_path, _judge_error_line(classify, 70, "g-missing", "generate_control_backlog"))
     html = _section(render_report_from_paths([path]), "judge-parts-apart")
     assert "the judge failed after its request was sent" in html and LABEL not in html
+
+
+# B138 fix wave W5 (final review F5): a judge part attached to a superseded
+# generation is shown as a labelled judge record (its demo label, its
+# judge_setting and its rationale), never only as a plain verdict in the
+# provenance table.
+def test_every_judge_part_of_a_superseded_generation_is_shown_with_its_label_and_setting(tmp_path):
+    _, classify = _base()
+    path = _write(tmp_path, _backlog_line(classify, 50, "g-1"),
+                  _judge_line(classify, 51, "g-1", "generate_control_backlog", "rejected", "requires_human_review"),
+                  _judge_error_line(classify, 52, "g-1", "generate_control_backlog"),
+                  _backlog_line(classify, 60, "g-2"))
+    html = render_report_from_paths([path])
+    backlog = _section(html, "backlog")
+    assert "not checked by the judge" in backlog and LABEL not in backlog
+    superseded = _section(html, "judge-parts-superseded")
+    assert "g-1" in superseded and "g-2" not in superseded
+    assert superseded.count('class="judge-record"') == 2
+    assert LABEL in superseded and superseded.count('data-envelope-field="judge_setting">demo<') == 2
+    assert ">rejected<" in superseded and "Within the cited norms." in superseded
+    assert "the judge failed after its request was sent" in superseded
+    assert 'data-section="judge-parts-apart"' not in html
+
+
+def test_no_superseded_judge_section_when_every_part_is_shown(tmp_path):
+    _, classify = _base()
+    path = _write(tmp_path, _backlog_line(classify, 50, "g-1"), _judge_line(classify, 51, "g-1", "generate_control_backlog"))
+    assert 'data-section="judge-parts-superseded"' not in render_report_from_paths([path])

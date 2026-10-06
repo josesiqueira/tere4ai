@@ -24,7 +24,10 @@ Markup contract (the honesty tests code against it):
   (for a backlog, each item's view beside its item), its judge_setting
   printed and the label "judged by <model>, the generator's own family
   (demo setting)". A judge part whose generation is not in the input is
-  shown apart, named. (B138 builds phase 5's backlog judge; keying evidence
+  shown apart, named. Every judge part of a generation the report does not
+  show (a superseded backlog or evidence answer) is shown as a labelled
+  judge record of its own, so a demo verdict never reads as a plain one
+  (B138 fix wave W5). (B138 builds phase 5's backlog judge; keying evidence
   answers by generation id is B140's.)
 """
 
@@ -1765,6 +1768,26 @@ def _render_evidence(
     return "".join(out)
 
 
+def _render_judge_parts_superseded(exchanges: list[Exchange], shown: list[Exchange | None]) -> str:
+    """B138 fix wave W5: every judge part attached to a generation whose
+    answer the report does not show (superseded by a later one), each as a
+    labelled judge record with its judge_setting."""
+    shown_ids = {id(ex) for ex in shown if ex is not None}
+    hidden = sorted((ex for ex in exchanges if ex.tool != JUDGE_ON_DEMAND and ex.judge_parts and id(ex) not in shown_ids),
+                    key=lambda e: (e.seq, e.order))
+    if not hidden:
+        return ""
+    out = ['<section data-section="judge-parts-superseded"><h2>Judge parts of superseded generations</h2>',
+           '<p class="caption">A demo judge part attached to a generation a later one superseded; '
+           "the generation is not shown above, its judge parts are shown here.</p>"]
+    for ex in hidden:
+        out.append('<p class="record-line">generation ' + emit_field("generation_id", generation_id_of(ex))
+                   + " · tool " + emit_field("tool", ex.tool) + f" · seq {_esc(ex.seq)}</p>")
+        out.extend(_demo_judge_record_html(part) for part in ex.judge_parts)
+    out.append("</section>")
+    return "".join(out)
+
+
 def _render_judge_parts_apart(exchanges: list[Exchange]) -> str:
     """DEC-24: judge parts whose generation is not in the input, named."""
     attached = {id(part) for ex in exchanges for part in ex.judge_parts}
@@ -2085,6 +2108,7 @@ def render_report(
     body.append(_render_backlog(backlog_ex, mixed, superseded_for(backlog_ex)))
     body.append(_render_hleg(matrix_ex, alignment_exs, mixed, history))
     body.append(_render_evidence(evidence_exs, mixed, history))
+    body.append(_render_judge_parts_superseded(exchanges, [backlog_ex, *evidence_exs]))
     body.append(_render_judge_parts_apart(exchanges))
     body.append(_render_provenance(exchanges, resolve_exs, unhomed_exs, mixed))
     body.append(_render_problems(problems))

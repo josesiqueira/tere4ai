@@ -197,3 +197,50 @@ def test_an_answer_the_facade_cannot_sign_is_returned_unsigned_with_its_reason(c
     assert "signed_record" not in answer and "signature" not in answer
     assert answer["unsigned_reason"].startswith("the facade could not sign this answer: ")
     assert response.json()["judge_verdict"] == "not_checked"
+
+
+# B138 fix wave W4 (final review F4): a norm the judge did not accept is
+# refused before any model call, with model_called false and without the
+# paid header; the inline path answers as before.
+def test_a_norm_not_accepted_on_demand_is_refused_before_any_model_call_and_not_billed(client, generator_only, monkeypatch):
+    generator = generator_only({})
+    norms = client.app.state.norms
+    norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
+    rejected = {**norm, "norm_id": "norm:eu-ai-act:article-9:paragraph-1:n99", "judge_verdict": "rejected"}
+    monkeypatch.setitem(norms, "norms", [*norms["norms"], rejected])
+    response = _backlog(client, norm_ids=[rejected["norm_id"]])
+    assert (response.status_code, response.json()["model_called"]) == (422, False)
+    assert facade.PAID_HEADER not in response.headers
+    assert "judge-accepted" in response.json()["error"] and rejected["norm_id"] in response.json()["error"]
+    assert generator.calls == []
+
+
+# B138 fix wave W8 (final review F8): the on-demand catch covers only the
+# steps before the generator call; a ValueError raised once the generator is
+# reached is a paid failure (502, model_called true), never "nothing billed".
+def test_a_value_error_after_the_generator_is_reached_is_a_paid_failure(client, generator_only, monkeypatch):
+    generator_only({})
+
+    def late(*args, **kwargs):
+        raise ValueError("a check after the generator's request")
+
+    monkeypatch.setattr(facade.backlog_tool, "generate_control_backlog_on_demand", late)
+    response = _backlog(client)
+    assert (response.status_code, response.json()["model_called"]) == (502, True)
+
+
+# B138 fix wave W7 (final review F7): a generated string holding U+0000 is
+# signed with U+FFFD in its place, said in the answer's notes, so the
+# dashboard can store the paid answer in jsonb.
+def test_a_generated_nul_is_replaced_before_signing_and_said_in_the_notes(client, generator_only):
+    items = [{**ITEMS[0], "title": "Keep\u0000 a log", "suggested_evidence": ["a\u0000plan"]}]
+    generator_only({ACCEPTED_NORM_ID: json.dumps({"items": items})})
+    response = _backlog(client)
+    assert response.status_code == 200
+    text = response.text
+    assert "\\u0000" not in text and "\u0000" not in text
+    answer = response.json()["answer"]
+    assert answer["items"][0]["title"] == "Keep� a log" and answer["items"][0]["suggested_evidence"] == ["a�plan"]
+    assert answer["signed_record"]["core"] == {"items": answer["items"]}
+    assert verify(answer["signed_record"], answer["signature"], KEY)
+    assert any("U+0000" in note and "U+FFFD" in note and "2" in note for note in answer["notes"])

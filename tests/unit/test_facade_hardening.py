@@ -56,6 +56,9 @@ def test_rate_limit_returns_429_with_retry_after(client_rate_limited):
     assert over.status_code == 429
     assert "Retry-After" in over.headers
     assert over.json()["limit_per_minute"] == 3
+    # B138 fix wave W4 (final review F4): the limiter answers before any
+    # model call, and says so, so a paid caller records it as not billed.
+    assert over.json()["model_called"] is False
 
 
 def test_rate_limit_zero_disables(monkeypatch, tmp_path):

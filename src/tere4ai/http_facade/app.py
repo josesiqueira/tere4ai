@@ -481,7 +481,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             if windows[key] > limit:
                 return JSONResponse(
                     status_code=429,
-                    content={"error": "rate limit exceeded", "limit_per_minute": limit},
+                    # B138 fix wave W4: answered before any model call, and
+                    # said, so a paid caller records it as not billed.
+                    content={"error": "rate limit exceeded", "limit_per_minute": limit, "model_called": False},
                     headers={"Retry-After": str(60 - int(_time.time() % 60))},
                 )
 
@@ -1094,15 +1096,19 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         return JSONResponse(content={**envelope, **resolved})
 
     def _backlog_on_demand(request: Request, body: BacklogRequest, norms: list[dict[str, Any]]) -> JSONResponse:
-        # PAID: one generator call, no judge (DEC-24).
+        # PAID: one generator call, no judge (DEC-24). B138 fix wave W4, W8:
+        # the refusals before any model call are asked first and answered
+        # with model_called false and no paid header; once the generator is
+        # reached, every failure is a paid one, whatever its exception.
+        refusal = backlog_tool.on_demand_refusal(norms, body.system_context)
+        if refusal is not None:
+            return _before_any_model_call(422, {"error": refusal})
         refused, generator, key = _on_demand_refusal(request, body)
         if refused is not None:
             return refused
         try:
             envelope = backlog_tool.generate_control_backlog_on_demand(
                 norms, body.system_context, generator, graph_version=_graph_version(request))
-        except ValueError as exc:
-            return _before_any_model_call(422, {"error": str(exc)})
         except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
             return JSONResponse(status_code=502, content={"error": f"model call failed: {exc}", "model_called": True})
         assert body.caller is not None  # the request model requires it on demand
