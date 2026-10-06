@@ -573,7 +573,7 @@ def _without_nul(value: Any) -> tuple[Any, int]:
 
 
 def nul_replaced_note(count: int) -> str:
-    return (f"{count} U+0000 characters of the generated answer were replaced with U+FFFD before it was signed: "
+    return (f"{count} U+0000 characters of this answer were replaced with U+FFFD (before signing, when it is signed): "
             "a database text field cannot hold U+0000 (DEC-24)")
 
 
@@ -639,7 +639,11 @@ def generate_control_backlog_on_demand(
 
     generated = _generate_items(norms, system_context, generator, prompt_version, graph_version, log_path, spend)
     if "degraded" in generated:
-        degraded, _ = _without_nul(generated["degraded"])
+        degraded, replaced = _without_nul(generated["degraded"])
+        if replaced:
+            # B138 residual round M2: said as on the answer with items.
+            answer = degraded["answer"]
+            answer["notes"] = [*(answer.get("notes") or []), nul_replaced_note(replaced)]
         return degraded
     items, replaced = _without_nul(generated["items"])
     notes, replaced_in_notes = _without_nul(generated["notes"])

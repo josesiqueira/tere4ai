@@ -13,6 +13,7 @@ from tere4ai.mcp_server.backlog import (
     generate_control_backlog,
     generate_control_backlog_on_demand,
     judge_backlog_on_demand,
+    nul_replaced_note,
 )
 from tere4ai.mcp_server.evidence import NOT_CHECKED, NOT_CHECKED_NOTE
 
@@ -100,3 +101,27 @@ def test_a_backlog_judge_failing_after_its_request_answers_judge_error_and_befor
     assert part["usage"]["judge"]["requests_sent"] >= 1
     with pytest.raises(RuntimeError):
         judge_backlog_on_demand(NORMS, items, CONTEXT, _Failing(sends=False), log_path=tmp_path / "j.jsonl")
+
+
+class _RaisingWithNul:
+    """A generator whose request fails with U+0000 in its error text."""
+
+    model = "gpt-gen"
+
+    def __init__(self):
+        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "requests_sent": 0}
+
+    def complete(self, system: str, user: str) -> str:
+        self.usage["requests_sent"] += 1
+        raise RuntimeError("over\u0000loaded")
+
+
+# B138 residual round M2 (W7): a degraded on-demand answer has its U+0000
+# replaced with U+FFFD like any other, and says so in a note with the count.
+def test_a_degraded_on_demand_answer_has_its_nul_replaced_and_said_in_a_note(tmp_path):
+    envelope = generate_control_backlog_on_demand(NORMS, CONTEXT, _RaisingWithNul(), log_path=tmp_path / "g.jsonl")
+    assert envelope["answer"]["refused"] is True
+    assert "\u0000" not in json.dumps(envelope, ensure_ascii=False)
+    assert "over�loaded" in envelope["answer"]["message"]
+    assert any("U+0000" in note and "U+FFFD" in note for note in envelope["answer"]["notes"])
+    assert envelope["answer"]["notes"] == [nul_replaced_note(2)]
