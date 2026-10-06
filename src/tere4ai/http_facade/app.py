@@ -4,6 +4,7 @@
 @implements: DEC-17
 @implements: DEC-19
 @implements: DEC-23
+@implements: DEC-24
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
@@ -50,6 +51,15 @@ Behavioral contract:
   data, enabled only when TERE4AI_DEMO_SESSIONS_DIR is set.
 - The backlog endpoint passes every norm through; there is no cap
   (2026-09-08, B71).
+- DEC-24: /api/backlog takes judge "inline" (the default,
+  the answer above byte for byte) or "on_demand": the generator and the
+  tool's mechanical checks run, no judge request is made, and the answer
+  (status requires_human_review, judge_verdict "not_checked") carries a
+  record signed with TERE4AI_ANSWER_SIGNING_KEY for its caller and
+  generation. An on-demand request names the norms build it expects
+  (another loaded build: 409) and its caller. Each mode loads only what it
+  calls; every refusal before any model call carries model_called false;
+  /api/health reports each route's readiness apart (routes).
 - CORS is open only to the local demo UI origin (localhost:3111).
 """
 
@@ -64,7 +74,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -95,10 +105,14 @@ from tere4ai.graph_store.present import (
     unreadable,
 )
 from tere4ai.graph_store.publication import load_active, read_target_state
+from tere4ai.http_facade.signed import RecordError, build_record, sign
 from tere4ai.judge.config import (
     ModelConfigError,
     load_dotenv_once,
+    load_generator_config,
     load_model_config,
+    load_signing_key,
+    route_readiness,
     runtime_judge_declaration,
 )
 from tere4ai.mcp_server import backlog as backlog_tool
@@ -210,6 +224,30 @@ class ElicitRequest(_Utf8GuardedModel):
     description: str = Field(min_length=elicit_tool.MIN_DESCRIPTION_CHARS)
 
 
+class Caller(_Utf8GuardedModel):
+    """DEC-24: who asked for a generator-only answer: the dashboard's
+    project, its repository run and, for evidence, the document."""
+
+    project: str = Field(min_length=1, max_length=200)
+    repository_run: str = Field(min_length=1, max_length=200)
+    document: str | None = Field(default=None, max_length=200)
+
+
+class _JudgeMode(_Utf8GuardedModel):
+    """DEC-24: inline (the default, today's answer) or on_demand, which names
+    the norms build it expects and its caller."""
+
+    judge: Literal["inline", "on_demand"] = "inline"
+    expected_norms_build: str | None = Field(default=None, max_length=200)
+    caller: Caller | None = None
+
+    @model_validator(mode="after")
+    def _on_demand_names_its_build_and_caller(self) -> _JudgeMode:
+        if self.judge == "on_demand" and (self.expected_norms_build is None or self.caller is None):
+            raise ValueError("judge on_demand needs expected_norms_build and caller")
+        return self
+
+
 class EvidenceRequest(_Utf8GuardedModel):
     norm_id: str
     artifact_type: str
@@ -217,7 +255,7 @@ class EvidenceRequest(_Utf8GuardedModel):
     artifact_id: str | None = None
 
 
-class BacklogRequest(_Utf8GuardedModel):
+class BacklogRequest(_JudgeMode):
     norm_ids: list[str] = Field(min_length=1)
     system_context: str
 
@@ -453,6 +491,61 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             if isinstance(n, dict) and "norm_id" in n
         }
 
+    def _norms_build(request: Request) -> str:
+        return str((request.app.state.norms or {}).get("build", {}).get("build_id", "unknown"))
+
+    def _before_any_model_call(status: int, content: dict[str, Any]) -> JSONResponse:
+        """DEC-24 (spec G D-G74 (2), ruling S69): a refusal of an on-demand
+        or judge request before any model call says so."""
+        return JSONResponse(status_code=status, content={**content, "model_called": False})
+
+    def _build_refusal(request: Request, body: _JudgeMode) -> JSONResponse | None:
+        """On demand, the expected norms build first, before any norm is
+        looked up (ruling R69): a norm unknown to another build reads as the
+        build it is."""
+        loaded = _norms_build(request)
+        if body.judge != "on_demand" or body.expected_norms_build == loaded:
+            return None
+        return _before_any_model_call(409, {
+            "error": f"the facade has loaded norms build {loaded}, not the expected {body.expected_norms_build}",
+            "loaded_norms_build": loaded, "expected_norms_build": body.expected_norms_build})
+
+    def _on_demand_refusal(request: Request, body: _JudgeMode) -> tuple[JSONResponse | None, Any, bytes]:
+        """The on-demand preconditions after the build: the generator's
+        configuration, the signing key; the generator client and the key
+        when both hold."""
+        try:
+            generator = OpenAIGenerator(load_generator_config())
+            key = load_signing_key()
+        except ModelConfigError as exc:
+            return _before_any_model_call(503, {"error": str(exc)}), None, b""
+        return None, generator, key
+
+    def _signed(request: Request, envelope: dict[str, Any], *, route: str, caller: Caller, norm_ids: list[str],
+                untrusted_text: str, core: dict[str, Any], key: bytes) -> dict[str, Any]:
+        """A not-checked answer gains its signed record and signature
+        (spec G D-G74 (3)); a degraded one is returned as it is."""
+        if envelope.get("judge_verdict") != evidence_tool.NOT_CHECKED:
+            return envelope
+        answer = envelope["answer"]
+        try:
+            record = build_record(
+                route=route, caller=caller.model_dump(), norm_ids=norm_ids, graph_version=_graph_version(request),
+                norms_build=_norms_build(request), generator_model=answer["generator_model"],
+                generator_prompt={"name": answer["generator_prompt"], "version": answer["generator_prompt_version"]},
+                judge_prompt={"name": answer["judge_prompt"], "version": answer["judge_prompt_version"]},
+                untrusted_text=untrusted_text, core=core)
+            signature = sign(record, key)
+        except (RecordError, RecursionError, KeyError, TypeError, ValueError) as exc:
+            # Ruling R68: the generator was called and billed; its answer is
+            # returned as it is, unsigned, so it cannot be judged, never a
+            # 500 the caller would read as a refusal before any model call.
+            answer["unsigned_reason"] = f"the facade could not sign this answer: {exception_reason(exc)}"
+            return envelope
+        answer["signed_record"] = record
+        answer["signature"] = signature
+        return envelope
+
     @app.get("/llms.txt", response_class=PlainTextResponse)
     def llms_txt() -> str:
         """Agent discovery: what this service is and how to consume it."""
@@ -562,6 +655,10 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 # declare it. The dashboard's judge runner compares them with
                 # its own price table row for the same model id.
                 "runtime_judge": runtime_judge_declaration(os.environ.get("TERE4AI_JUDGE_MODEL") or None),
+                # DEC-24 (spec G D-G74 (2), ruling S68): each route's
+                # readiness apart; the signing key present or missing, never
+                # its value.
+                "routes": route_readiness(),
             }
         )
 
@@ -954,6 +1051,23 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         )
         return JSONResponse(content={**envelope, **resolved})
 
+    def _backlog_on_demand(request: Request, body: BacklogRequest, norms: list[dict[str, Any]]) -> JSONResponse:
+        # PAID: one generator call, no judge (DEC-24).
+        refused, generator, key = _on_demand_refusal(request, body)
+        if refused is not None:
+            return refused
+        try:
+            envelope = backlog_tool.generate_control_backlog_on_demand(
+                norms, body.system_context, generator, graph_version=_graph_version(request))
+        except ValueError as exc:
+            return _before_any_model_call(422, {"error": str(exc)})
+        except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
+            return JSONResponse(status_code=502, content={"error": f"model call failed: {exc}", "model_called": True})
+        assert body.caller is not None  # the request model requires it on demand
+        envelope = _signed(request, envelope, route="/api/backlog", caller=body.caller, norm_ids=list(body.norm_ids),
+                           untrusted_text=body.system_context, core={"items": envelope["answer"].get("items")}, key=key)
+        return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
+
     @app.post("/api/evidence")
     def evidence(request: Request, body: EvidenceRequest) -> JSONResponse:
         # PAID: one generator call plus one runtime grounding judge call.
@@ -999,24 +1113,33 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         # PAID: one generator call plus one runtime grounding judge call.
         unavailable = _unavailable(request)
         if unavailable is not None:
+            if body.judge == "on_demand":
+                return _before_any_model_call(503, json.loads(unavailable.body))
             return unavailable
+        build = _build_refusal(request, body)
+        if build is not None:
+            return build
         norms_by_id = _norms_by_id(request)
         unknown = [norm_id for norm_id in body.norm_ids if norm_id not in norms_by_id]
         if unknown:
-            return JSONResponse(
-                status_code=404,
-                content={
-                    "error": "unknown norm_ids: not present in the judged norms "
-                    "payload (norms_core.json)",
-                    "unknown_norm_ids": unknown,
-                },
-            )
+            content = {
+                "error": "unknown norm_ids: not present in the judged norms "
+                "payload (norms_core.json)",
+                "unknown_norm_ids": unknown,
+            }
+            if body.judge == "on_demand":
+                return _before_any_model_call(404, content)
+            return JSONResponse(status_code=404, content=content)
         norms = [norms_by_id[norm_id] for norm_id in body.norm_ids]
         refusals = backlog_tool.deleted_source_refusals(norms, request.app.state.dump)
         if refusals:
             # B132: never a backlog from wording the Omnibus deleted; no model call.
-            return JSONResponse(status_code=422, content={"error": "; ".join(refusals.values()),
-                                                          "refused_norm_ids": list(refusals)})
+            content = {"error": "; ".join(refusals.values()), "refused_norm_ids": list(refusals)}
+            if body.judge == "on_demand":
+                return _before_any_model_call(422, content)
+            return JSONResponse(status_code=422, content=content)
+        if body.judge == "on_demand":
+            return _backlog_on_demand(request, body, norms)
         try:
             generator, judge = _build_paid_clients()
         except ModelConfigError as exc:
