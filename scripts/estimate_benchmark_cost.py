@@ -574,14 +574,17 @@ def observed_output_chars() -> dict[str, dict[str, float]]:
     return out
 
 
-def observed_judge_reply_chars() -> float:
-    """Mean judge reply size from the real run-2 runtime grounding log."""
+def observed_judge_reply_chars(log_path: Path | None = None) -> float:
+    """Mean judge reply size from the real run-2 runtime grounding log. The
+    demo judge's lines (judge_setting "demo", DEC-24) are left out: they are
+    not DEC-07's judge (spec G D-G74 (9))."""
     sizes = []
-    if RUNTIME_LOG.exists():
-        with RUNTIME_LOG.open(encoding="utf-8") as fh:
+    log_path = log_path or RUNTIME_LOG
+    if log_path.exists():
+        with log_path.open(encoding="utf-8") as fh:
             for line in fh:
                 rec = json.loads(line)
-                if rec.get("direction") == "judge":
+                if rec.get("direction") == "judge" and rec.get("judge_setting") != "demo":
                     sizes.append(
                         len(
                             json.dumps(

@@ -604,3 +604,14 @@ def test_a_measured_path_that_is_missing_or_not_a_record_is_refused_by_name(tmp_
 def test_without_measured_usage_the_bands_are_the_declared_ones():
     assert est.reasoning_bands({"generator": 0.1}) == est.reasoning_bands({"generator": 0.1}, {})
     assert est.reasoning_bands({"generator": 0.1})["generator"]["low"] == 0.1
+
+
+# DEC-24 (spec G D-G74 (9)): the demo judge's lines never enter a figure of
+# DEC-07's judge.
+def test_the_judge_reply_size_leaves_the_demo_judge_lines_out(tmp_path):
+    log = tmp_path / "runtime_log.jsonl"
+    plain = {"direction": "judge", "verdict": "accepted", "scores": {}, "rationale": "r" * 10}
+    demo = {**plain, "rationale": "d" * 5000, "judge_setting": "demo"}
+    log.write_text("\n".join(json.dumps(line) for line in (plain, demo, {"direction": "generator"})) + "\n", encoding="utf-8")
+    expected = len(json.dumps({k: plain.get(k) for k in ("verdict", "scores", "rationale")}))
+    assert est.observed_judge_reply_chars(log) == expected

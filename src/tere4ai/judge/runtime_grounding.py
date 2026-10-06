@@ -2,6 +2,7 @@
 
 @implements: DEC-06 (partial: runtime grounding judge)
 @implements: DEC-19
+@implements: DEC-24
 @grounded_by: REF-16, REF-24, REF-31, ADD-16, ADD-18
 
 Architecture.md Section 7: on every generated requirement, backlog item, or
@@ -22,6 +23,10 @@ Hard invariants enforced here:
 - Every judge call is logged to data/review_queue/runtime_log.jsonl (model
   id, prompt version, input and answer hashes, cited norm ids, verdict,
   rationale). Never API keys, never full prompts, never full evidence text.
+- DEC-24: a call made by the facade's demo judge carries judge_setting
+  "demo" on its log line and its judge run, so no consumer that measures
+  DEC-07's judge from the log counts it (spec G D-G74 (9)); every other
+  call's line is unchanged.
 """
 
 from __future__ import annotations
@@ -110,6 +115,7 @@ def ground_check(
     log_path: Path | None = None,
     build_id: str = "runtime",
     context: str = "runtime_answer",
+    judge_setting: str | None = None,
 ) -> dict[str, Any]:
     """Judge one generated runtime answer against its cited norms.
 
@@ -121,7 +127,9 @@ def ground_check(
     requires_human_review; this function never suppresses or upgrades a
     verdict. type_views is the judge's raw "type_views" value (DEC-19,
     runtime_grounding v2 on a control backlog), None when absent; the
-    caller cleans it, and it never touches the verdict.
+    caller cleans it, and it never touches the verdict. judge_setting
+    (DEC-24): "demo" for the facade's demo judge, written on the log line
+    and the judge run; None leaves both as they were.
     """
     log_path = log_path or DEFAULT_LOG_PATH
     judge_prompt = load_prompt("runtime_grounding", prompt_version)
@@ -152,6 +160,7 @@ def ground_check(
             "answer_sha256": _input_hash(answer_text),
             "verdict": verdict,
             "rationale": rationale,
+            **({"judge_setting": judge_setting} if judge_setting is not None else {}),
         },
     )
 
@@ -171,6 +180,7 @@ def ground_check(
         "started_at": started_at,
         "completed_at": _now(),
         "build_id": build_id,
+        **({"judge_setting": judge_setting} if judge_setting is not None else {}),
     }
     return {
         "verdict": verdict,

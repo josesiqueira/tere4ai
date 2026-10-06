@@ -203,3 +203,15 @@ def test_ground_check_passes_the_judges_type_views_on_and_none_when_absent(tmp_p
     assert with_views["type_views"] == views
     assert without["type_views"] is None
     assert with_views["verdict"] == without["verdict"] == "accepted"
+
+
+# DEC-24 (spec G D-G74 (9)): the demo judge's log lines and judge runs say
+# so; every other line is as it was.
+def test_a_demo_judge_call_carries_judge_setting_on_its_log_line_and_run(tmp_path):
+    judge = FakeClient({"Generated runtime answer": '{"verdict": "accepted", "rationale": "ok"}'}, model="gpt-judge")
+    log = tmp_path / "log.jsonl"
+    demo = ground_check("{}", [{"norm_id": "n"}], "text", judge, log_path=log, judge_setting="demo")
+    plain = ground_check("{}", [{"norm_id": "n"}], "text", judge, log_path=log)
+    lines = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    assert lines[0]["judge_setting"] == "demo" and "judge_setting" not in lines[1]
+    assert demo["judge_run"]["judge_setting"] == "demo" and "judge_setting" not in plain["judge_run"]
