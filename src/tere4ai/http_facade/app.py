@@ -51,6 +51,13 @@ Behavioral contract:
   data, enabled only when TERE4AI_DEMO_SESSIONS_DIR is set.
 - The backlog endpoint passes every norm through; there is no cap
   (2026-09-08, B71).
+- DEC-24: POST /api/backlog/judge (PAID: one demo judge call) takes the
+  request's fields with a signed record and its signature; it verifies the
+  signature, refuses a demo judge equal to the record's generator, a loaded
+  build other than the signed one and any field that differs from the
+  record (409 or 422, model_called false), then runs the runtime grounding
+  judge as the inline path would on the verified core and returns the
+  judge's part only, judge_setting "demo".
 - DEC-24: /api/backlog takes judge "inline" (the default,
   the answer above byte for byte) or "on_demand": the generator and the
   tool's mechanical checks run, no judge request is made, and the answer
@@ -93,7 +100,7 @@ from tere4ai.eval.present_evaluation import (
     unreadable_row,
 )
 from tere4ai.eval.present_evaluation import summary_of as evaluation_summary_of
-from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIGenerator
+from tere4ai.extract_norms.model_clients import AnthropicJudge, OpenAIDemoJudge, OpenAIGenerator
 from tere4ai.extract_norms.recorded import extraction_generator_settings
 from tere4ai.extract_norms.requirement_type import JUDGE_VIEW_FIELDS, carried
 from tere4ai.graph_store.build_record import BuildRecordStore
@@ -105,9 +112,10 @@ from tere4ai.graph_store.present import (
     unreadable,
 )
 from tere4ai.graph_store.publication import load_active, read_target_state
-from tere4ai.http_facade.signed import RecordError, build_record, sign
+from tere4ai.http_facade.signed import RecordError, build_record, sha256_text, sign, verify
 from tere4ai.judge.config import (
     ModelConfigError,
+    load_demo_judge_config,
     load_dotenv_once,
     load_generator_config,
     load_model_config,
@@ -256,6 +264,18 @@ class EvidenceRequest(_Utf8GuardedModel):
 
 
 class BacklogRequest(_JudgeMode):
+    norm_ids: list[str] = Field(min_length=1)
+    system_context: str
+
+
+class _Signed(_Utf8GuardedModel):
+    """DEC-24: the signed record and signature an on-demand answer carried."""
+
+    signed_record: dict[str, Any]
+    signature: str = Field(max_length=200)
+
+
+class BacklogJudgeRequest(_Signed):
     norm_ids: list[str] = Field(min_length=1)
     system_context: str
 
@@ -565,6 +585,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             "(free, deterministic); "
             "POST /api/evidence, /api/backlog, /api/elicit (paid model calls, marked with "
             "X-TERE4AI-Paid-Call); GET /api/health.\n"
+            "POST /api/backlog with judge on_demand: the generator alone, a signed answer; "
+            "POST /api/backlog/judge: a demo judge of the generator's family on that signed "
+            "answer (paid, DEC-24)\n"
             "GET /api/builds, GET /api/builds/{ref}: the build records, free, read per request\n"
             "GET /api/evaluations, GET /api/evaluations/{ref}: the evaluation records (E1, E6), "
             "free, read per request\n"
@@ -625,6 +648,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                     "report": {"method": "POST", "path": "/api/report", "paid": False},
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
                     "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
+                    "backlog_judge": {"method": "POST", "path": "/api/backlog/judge", "paid": True},
                     "elicit": {"method": "POST", "path": "/api/elicit", "paid": True},
                     "health": {"method": "GET", "path": "/api/health", "paid": False},
                 },
@@ -1067,6 +1091,69 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         envelope = _signed(request, envelope, route="/api/backlog", caller=body.caller, norm_ids=list(body.norm_ids),
                            untrusted_text=body.system_context, core={"items": envelope["answer"].get("items")}, key=key)
         return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
+
+    def _judge_refusal(request: Request, body: _Signed, route: str, sent: dict[str, Any]) -> tuple[JSONResponse | None, Any]:
+        """The judge route's checks, all before any model call (spec G D-G74
+        (3), (4), rulings S52, S69, S84): the demo judge's configuration and
+        the signing key, the signature, a judge other than the record's
+        generator, the loaded build, then every field sent apart from the
+        record against it. The demo judge client when all hold."""
+        try:
+            key = load_signing_key()
+            judge_cfg = load_demo_judge_config()
+        except ModelConfigError as exc:
+            return _before_any_model_call(503, {"error": str(exc)}), None
+        record = body.signed_record
+        if not verify(record, body.signature, key):
+            return _before_any_model_call(422, {"error": "the answer's signature does not verify", "field": "signature"}), None
+        if judge_cfg.model.strip().lower() == str(record["generator_model"]).strip().lower():
+            return _before_any_model_call(422, {
+                "error": f"the demo judge {judge_cfg.model!r} is the model that generated the answer", "field": "generator_model"}), None
+        loaded = {"graph_version": _graph_version(request), "norms_build": _norms_build(request)}
+        for field, value in loaded.items():
+            if record[field] != value:
+                return _before_any_model_call(409, {
+                    "error": f"the answer was signed on {field} {record[field]}, and the facade has loaded {value}",
+                    "field": field}), None
+        if record["judge_prompt"]["name"] != "runtime_grounding":
+            return _before_any_model_call(422, {"error": "the record names a judge prompt this route does not run", "field": "judge_prompt"}), None
+        expected = {"route": route, **sent}
+        actual = {"route": record["route"], **{field: (record["untrusted_sha256"] if field == "untrusted_sha256" else
+                                                       record["norm_ids"] if field == "norm_ids" else record["core"].get(field))
+                                               for field in sent}}
+        for field in expected:
+            if expected[field] != actual[field]:
+                name = {"untrusted_sha256": "content" if route == "/api/evidence" else "system_context",
+                        "norm_ids": "norm_id" if route == "/api/evidence" else "norm_ids"}.get(field, field)
+                return _before_any_model_call(422, {"error": f"the {name} sent is not the one the answer was signed for", "field": name}), None
+        return None, OpenAIDemoJudge(judge_cfg)
+
+    def _judge_part_response(record: dict[str, Any], run: Any) -> JSONResponse:
+        try:
+            part = run()
+        except Exception as exc:  # noqa: BLE001 - a failure before any judge request
+            return _before_any_model_call(503, {"error": f"the judge could not start: {exception_reason(exc)}"})
+        return JSONResponse(content={**part, "generation_id": record["generation_id"], "model_called": True},
+                            headers={PAID_HEADER: "true"})
+
+    @app.post("/api/backlog/judge")
+    def backlog_judge(request: Request, body: BacklogJudgeRequest) -> JSONResponse:
+        # PAID: one demo judge call on a signed generator-only backlog (DEC-24).
+        unavailable = _unavailable(request)
+        if unavailable is not None:
+            return _before_any_model_call(503, json.loads(unavailable.body))
+        refused, judge = _judge_refusal(request, body, "/api/backlog", {
+            "untrusted_sha256": sha256_text(body.system_context), "norm_ids": sorted(body.norm_ids)})
+        if refused is not None:
+            return refused
+        norms_by_id = _norms_by_id(request)
+        unknown = [norm_id for norm_id in body.norm_ids if norm_id not in norms_by_id]
+        if unknown:
+            return _before_any_model_call(404, {"error": "unknown norm_ids", "unknown_norm_ids": unknown})
+        record = body.signed_record
+        return _judge_part_response(record, lambda: backlog_tool.judge_backlog_on_demand(
+            [norms_by_id[norm_id] for norm_id in body.norm_ids], record["core"]["items"], body.system_context, judge,
+            prompt_version=record["judge_prompt"]["version"]))
 
     @app.post("/api/evidence")
     def evidence(request: Request, body: EvidenceRequest) -> JSONResponse:

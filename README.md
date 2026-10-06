@@ -264,7 +264,14 @@ cd web && npm run build && npx next start -p 3111
 /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
 plus Anthropic runtime grounding judge; keys in .env, see .env.example), and
 /api/elicit a PAID generator call (fact elicitation, no judge); all three
-mark their responses with the X-TERE4AI-Paid-Call header.
+mark their responses with the X-TERE4AI-Paid-Call header. For the
+dashboard's demonstration on pasted repositories (DEC-24), /api/backlog also
+takes judge "on_demand": the generator alone, a backlog "not_checked" with a
+record the facade signs (TERE4AI_ANSWER_SIGNING_KEY); /api/backlog/judge then
+runs a demo judge of the generator's own family (TERE4AI_DEMO_JUDGE_MODEL,
+gpt-6-sol) on that signed backlog, each a PAID call, every judged backlog
+labelled "judged by <model>, the generator's own family (demo setting)". The
+MCP tools and the inline mode keep DEC-07's independent judge.
 
 ## Build records, materialisation, publication and activation
 
