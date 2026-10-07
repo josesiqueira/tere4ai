@@ -485,14 +485,15 @@ def test_the_v2_prompts_carry_the_definitions_and_the_scope_verbatim():
     assert "requirement_type" not in load_prompt("judge_norms", "v1")
 
 
-def test_extraction_defaults_to_the_v3_prompts(tmp_path):
+def test_extraction_defaults_to_the_v4_prompts(tmp_path):
+    assert DEFAULT_PROMPT_VERSION == "v4"
     generator = FakeClient({PARA_ID: GENERATOR_ANSWER}, model="fake-generator")
     judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
     result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, log_path=tmp_path / "log.jsonl")
-    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v3")
-    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v3")
-    assert result["norms"][0]["extractor_prompt_version"] == "v3"
-    assert result["judge_runs"][0]["prompt_version"] == "v3"
+    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v4")
+    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v4")
+    assert result["norms"][0]["extractor_prompt_version"] == "v4"
+    assert result["judge_runs"][0]["prompt_version"] == "v4"
 
 
 def test_the_v2_judge_receives_the_actor_inference_source_text(tmp_path):
@@ -577,9 +578,8 @@ def test_a_unit_outside_the_rule_table_gets_null_and_is_counted(tmp_path):
 def test_the_v3_prompts_drop_the_field_and_keep_everything_else():
     """DEC-21 (B124, spec G D-G62): extract_norms v3 is v2 without the
     field's example key and vocabulary line; judge_norms v3 is v2 under a new
-    version line (the two share one version); v3 is the default and the
-    version of record for B74."""
-    assert DEFAULT_PROMPT_VERSION == "v3"
+    version line (the two share one version); v3 was the default and the
+    version of record from B124 until B144 (DEC-26)."""
     extract, judge = load_prompt("extract_norms", "v3"), load_prompt("judge_norms", "v3")
     assert extract == (
         load_prompt("extract_norms", "v2")
@@ -593,8 +593,6 @@ def test_the_v3_prompts_drop_the_field_and_keep_everything_else():
     for prompt in (extract, judge):
         assert "target_system_category" not in prompt
         assert DEFINITIONS_TEXT in prompt and SCOPE_TEXT in prompt
-    record = (REPO_ROOT / "eval" / "config_evaluated.yaml").read_text(encoding="utf-8")
-    assert "  extract_norms: v3\n" in record and "  judge_norms: v3\n" in record
 
 
 def test_under_v3_the_judge_never_sees_the_field_and_the_norm_takes_the_rule_value(tmp_path):

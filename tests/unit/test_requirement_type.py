@@ -213,7 +213,7 @@ def test_a_null_type_reads_no_type_inside_the_scope_and_not_an_operator_requirem
 
 def test_only_the_pre_dec_19_prompt_versions_are_untyped():
     assert not types_for("v1")
-    assert types_for("v2") and types_for("v3")
+    assert types_for("v2") and types_for("v3") and types_for("v4")
 
 
 def test_the_scope_text_names_every_non_operator_role():

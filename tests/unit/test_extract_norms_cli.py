@@ -73,11 +73,11 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[],
                                  inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
-                                 config={"prompt_version": "v3", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
+                                 config={"prompt_version": "v4", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
                                  expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
-                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v3"),
-                                                "judge": cli.prompt_sha256("judge_norms-v3")})
+                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v4"),
+                                                "judge": cli.prompt_sha256("judge_norms-v4")})
     # Changed by final review A1: a resume is refused while the run it resumes
     # is live, so the prior attempt ends failed here as an interrupted run does.
     store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
@@ -592,7 +592,7 @@ def test_the_groups_counts_of_norms_without_a_category_are_summed_into_the_paylo
 # B124 (DEC-21, spec G D-G62): the v3 pipeline through its command line with
 # scripted models (no network, no keys): the rule value on every norm, the
 # judge's input without the field, the build record's count and a
-# checkpoint resume. Nothing else runs extraction end to end before B74.
+# checkpoint resume. test_section_2_provider_rule.py runs v4 the same way.
 
 V3_UNITS = {
     "eu-ai-act:article-16:paragraph-1": "Providers of high-risk AI systems shall keep the logs.",
@@ -670,9 +670,9 @@ def test_a_mock_model_run_of_the_v3_pipeline_sets_the_rule_value_counts_the_null
         return inner(dump, node_ids, generator, judge, prompt_version=prompt_version)
 
     monkeypatch.setattr(cli, "extract_norms", stop_on_article_50)
-    # no --prompt-version: the run takes the default
+    # B144: v4 is the default; this run pins v3, which stays runnable (D-G76 (6))
     argv = ["--nodes", "eu-ai-act:article-16,eu-ai-act:article-50,eu-ai-act:article-99",
-            "--dump", str(dump_path), "--out", str(out)]
+            "--dump", str(dump_path), "--out", str(out), "--prompt-version", "v3"]
     assert cli.main(argv) == 3
     ckpt = out.with_suffix(".checkpoint.jsonl")
     (line,) = [json.loads(x) for x in ckpt.read_text().splitlines()]

@@ -70,8 +70,10 @@ EXTRACTION_METHOD = "llm_extract_v1"
 
 # The prompt version extract_norms and judge_norms share (DEC-19: v2 carries
 # the requirement type and thesis task B4's actor-inference source text;
-# DEC-21: v3 no longer asks the extractor for target_system_category).
-DEFAULT_PROMPT_VERSION = "v3"
+# DEC-21: v3 no longer asks the extractor for target_system_category;
+# DEC-26: v4 gives every requirement of Articles 8 to 15 whose text names no
+# person or body that must act to the provider through Article 16(a)).
+DEFAULT_PROMPT_VERSION = "v4"
 # B4: judge_norms v1 never received the actor-inference source text; a v1
 # run keeps the input v1 had, so the version names one instrument.
 _PROMPTS_WITHOUT_INFERENCE_TEXT = frozenset({"v1"})
