@@ -257,17 +257,6 @@
       "notes": "The derivation record of hleg_ethics_guidelines_2019_en_requirements.txt: the PDF and its sha256, the libraries and versions, the rules, every paragraph's range, page and structure elements, every removed footnote marker, page join and hyphen join, the requirement and subtopic headings with their ranges, and every excluded item with its location, kind and text (DEC-25)."
     },
     {
-      "file": "hleg_ethics_guidelines_2019_en_v1text.txt",
-      "sha256": "ae85c74536609761519b72bdd003dfbe909205e0eb5f223d47c01fb325b04608",
-      "source_document": "hleg-ethics-guidelines",
-      "eli": "",
-      "manifestation": "derived-text",
-      "language": "en",
-      "retrieved_at": "2026-07-08",
-      "legal_status": "non_binding",
-      "notes": "DERIVATIVE working text carried from TERE4AI v1 (data/ai_hleg.txt), not an official manifestation. Convenient for span-anchored extraction; verify quotes against the official PDF."
-    },
-    {
       "file": "digital_omnibus_ai_32026R1744_eurlex_html_2026-09-02.html",
       "sha256": "3af13427fe45ef448f22b8ee4f2ad16a3142ccc3a1995e78b0d422ce28cd4137",
       "source_document": "omnibus",

@@ -202,3 +202,13 @@ def test_the_legal_status_notes_name_the_guidelines():
 def test_the_comment_no_longer_promises_an_hleg_node_at_layer3_publication():
     source = (MANIFEST.parents[2] / "src" / "tere4ai" / "ingest" / "sources.py").read_text(encoding="utf-8")
     assert "only exists at Layer 3 publication" not in source and "keeps the historical base-act linkage" not in source
+
+
+def test_the_manifest_lists_31_files_three_of_them_the_guidelines():
+    import json
+
+    entries = json.loads(MANIFEST.read_text(encoding="utf-8"))["snapshots"]
+    assert len(entries) == 31
+    assert sorted(e["file"] for e in entries if e["source_document"] == "hleg-ethics-guidelines") == [
+        "hleg_ethics_guidelines_2019_en.pdf", "hleg_ethics_guidelines_2019_en_requirements.txt",
+        "hleg_ethics_guidelines_2019_en_requirements_derivation.json"]
