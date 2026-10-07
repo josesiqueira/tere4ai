@@ -109,7 +109,7 @@ def test_a_body_paragraph_tagged_as_an_artifact_fails_c2_naming_its_page(facts, 
     for element, _note, _skipped in ht.walk(mock.tree):
         element.children = [c for c in element.children if c is not target]
     failures = _c2(mock, readings, reviewed)
-    assert any(f.startswith("C2 page 19, top ") and "artifact" in f for f in failures)
+    assert any(f.startswith("C2 page 19, top ") and "exclusion not in the reviewed list: " in f for f in failures)
 
 
 def test_a_page_number_left_in_a_paragraph_fails_c2_naming_its_page(facts, readings, reviewed):
@@ -127,3 +127,53 @@ def test_a_reviewed_exclusion_the_derivation_did_not_make_fails(frozen, readings
     extra = [*reviewed, {"kind": "footnote", "page": 20, "top": 760.0, "number": "99", "text": "99 Invented."}]
     failures = hc.check_c2(text, record, readings[0], extra, hc.body_bottoms(facts))
     assert any(f.startswith("C2 page 20, top 760.0: reviewed exclusion the derivation did not make") for f in failures)
+
+
+def _kind(item, frozen, facts, items=None):
+    record = frozen[3]
+    return hc.kind_failures(item, record, hc.body_bottoms(facts), items if items is not None else record["exclusions"])
+
+
+def _item(reviewed, kind, page):
+    return copy.deepcopy(next(i for i in reviewed if i["kind"] == kind and i["page"] == page))
+
+
+def test_a_footnote_with_no_removed_marker_in_the_body_of_its_page_fails_its_kind_test(frozen, reviewed, facts):
+    item = _item(reviewed, "footnote", 19)
+    item["number"], item["text"] = "99", "99 " + item["text"].split(" ", 1)[1]
+    assert _kind(item, frozen, facts) == [
+        f"C2 page 19, top {item['top']}: footnote 99 has no removed marker in the body of page 19"]
+
+
+def test_a_footnote_above_the_footnote_area_fails_its_kind_test(frozen, reviewed, facts):
+    item = _item(reviewed, "footnote", 19)
+    bottom = hc.body_bottoms(facts)[19]
+    item["top"] = bottom - 1.0
+    assert _kind(item, frozen, facts) == [
+        f"C2 page 19, top {item['top']}: footnote {item['number']} is not below the page's last body line ({bottom})"]
+
+
+def test_a_page_number_that_is_not_the_printed_one_fails_its_kind_test(frozen, reviewed, facts):
+    item = _item(reviewed, "page_number", 19)
+    item["text"] = "18"
+    assert _kind(item, frozen, facts) == [
+        f"C2 page 19, top {item['top']}: '18' is not the printed page number 17 below the body"]
+
+
+def test_text_outside_the_section_on_a_page_inside_it_fails_its_kind_test(frozen, reviewed, facts):
+    item = _item(reviewed, "outside_section", 17)
+    item["page"] = 19
+    assert _kind(item, frozen, facts) == [
+        f"C2 page 19, top {item['top']}: text outside the section on a page inside it: {item['text'][:40]!r}"]
+
+
+def test_a_stretch_pypdf_reads_that_is_not_in_the_derived_text_leaves_a_residue_on_its_page(frozen, readings, reviewed, facts):
+    _, _, text, record = frozen
+    stretch = next(s for s in hc.stretches(text, record) if s.page == 20 and len(s.text) > 100)
+    word = stretch.text.split()[0]
+    blanked = stretch.text.replace(word, " " * len(word), 1)  # same length, so every offset holds
+    altered = text[:stretch.start] + blanked + text[stretch.end:]
+    assert altered != text
+    failures = hc.check_c2(altered, record, readings[0], reviewed, hc.body_bottoms(facts))
+    assert any(f.startswith("C2 page 20: pypdf reads ") and f.endswith(", which is neither derived nor excluded")
+               for f in failures)

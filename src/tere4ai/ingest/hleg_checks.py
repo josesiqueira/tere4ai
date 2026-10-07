@@ -155,9 +155,14 @@ def check_c2(text: str, record: dict[str, Any], plain: dict[int, str], reviewed:
         for s in pieces:
             if s.page == n:
                 rest = rest.replace(_nows(s.text), "", 1)
-        for item in made:
-            if item["page"] == n and item["kind"] != "removed_marker":
-                rest = rest.replace(_nows(item["text"]), "", 1)
+        # Longest first, so a short item (a page number, "45 For instance EN 301 549.")
+        # cannot take characters from a longer one. Each item is removed at its first
+        # occurrence, not at its own position (pypdf's text has no positions). That
+        # cannot hide a residue: a short item that matched elsewhere would leave its
+        # own copy behind, so the rest would still be non-empty and reported.
+        for item in sorted((i for i in made if i["page"] == n and i["kind"] != "removed_marker"),
+                           key=lambda i: -len(_nows(i["text"]))):
+            rest = rest.replace(_nows(item["text"]), "", 1)
         for item in made:  # the markers last: their digits occur in other text too
             if item["page"] == n and item["kind"] == "removed_marker":
                 rest = rest.replace(item["text"], "", 1)
