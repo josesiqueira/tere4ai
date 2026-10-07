@@ -34,6 +34,8 @@ gates P1..P5 after (#49); a publication that fails either is not published.
 It prints `published Build N: <build id>, ...` and the build_chain file it
 wrote.
 
+Until the B74 re-run, the tracked alignments (data/graph_dumps/alignments_core.json, made before B143) name no HLEG text and are refused by gate G2 ("the alignments name no hleg_text_sha256"); the block publishes the B74 re-run's files, whose alignments carry the derived HLEG text's and its record's sha256 (DEC-25).
+
 A published chain is not rebuilt this way. Publishing inputs already
 published is refused before the load, naming the next step: "already
 published as chain C; activate it with ..." when its publication manifest is

@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 from tere4ai.align_hleg.hleg_source import load_pair
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
@@ -40,10 +41,10 @@ class _Report:
         return not self.failures
 
 
-def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None):
+def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None, layer1_nodes=None, alignments_build=None):
     tmp_path.mkdir(parents=True, exist_ok=True)
     layer1 = tmp_path / "layer1.json"
-    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": layer1_nodes or [], "edges": []}))
     norms_payload = {"build": {"build_id": "build-b"}, "norms": [], "judge_runs": judge_runs or []}
     if reference:
         norms_payload["build"]["reference"] = reference
@@ -52,6 +53,7 @@ def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None):
     build = {"build_id": "build-b"}
     if align_input:
         build["alignment_input_sha256"] = sha256_of_file(norms)
+    build.update(alignments_build or {})
     alignments = tmp_path / "alignments_core.json"
     alignments.write_text(json.dumps({"build": build, "assertions": [], "mapping_runs": [], "judge_runs": []}))
     store = BuildRecordStore(tmp_path)
@@ -63,13 +65,16 @@ def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None):
 
 
 def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=False, seen=None,
-           real_norms_to_graph=False, capture=None):
+           real_norms_to_graph=False, capture=None, real_hleg=False):
     monkeypatch.setattr(cli, "validate_build", lambda dump, norms=None, alignments=None: _Report([] if gates_ok else ["G3 norm without source span: x"], {"layer1_nodes": 0}))
     if not real_norms_to_graph:
         monkeypatch.setattr(cli, "norms_to_graph", lambda payload, build_id: {"nodes": [], "edges": []})
     monkeypatch.setattr(cli, "alignments_to_graph", lambda payload, hleg, build_id: {"nodes": [], "edges": []})
-    monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair=None: [])
-    monkeypatch.setattr(cli, "build_hleg_subtopics", lambda build_id: {"nodes": [], "edges": [], "skipped": []})
+    if not real_hleg:
+        monkeypatch.setattr(cli, "load_pair", lambda: None)
+        monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair=None: [])
+        monkeypatch.setattr(cli, "build_hleg_subtopics", lambda pair=None, build_id=None: {"nodes": [], "edges": []})
+        monkeypatch.setattr(cli, "hleg_failures", lambda *args: [])
 
     class FakeStore:
         def load_dump(self, dump, driver):
@@ -739,3 +744,77 @@ def test_an_input_outside_the_dump_dir_is_refused_before_any_load(tmp_path, monk
         assert seen == [], "the load never ran"
         assert not list(tmp_path.glob("build_chain_*.json")) and not (tmp_path / "publications").exists()
         assert store.read(rid)["executions"] == executions_before, "no execution was recorded"
+
+
+MADE_ON = {"hleg_text_sha256": PAIR.text_sha256, "hleg_derivation_record_sha256": PAIR.record_sha256}
+
+
+def _gates_only(tmp_path, monkeypatch, *, layer1_nodes=LISTED, alignments_build=MADE_ON):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path, layer1_nodes=layer1_nodes, alignments_build=alignments_build)
+    _fakes(monkeypatch, cli, real_hleg=True)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                   "--dump-dir", str(tmp_path), "--gates-only"])
+    ex = store.read(rid)["executions"][-1]
+    g2 = next(g for g in ex["gates"] if g["name"] == "G2") if ex["gates"] else None
+    return cli, rc, ex, g2
+
+
+def test_gates_only_builds_and_checks_the_hleg_nodes_before_it_returns(tmp_path, monkeypatch):
+    cli, rc, ex, g2 = _gates_only(tmp_path, monkeypatch)
+    assert rc == 0 and ex["status"] == "done" and ex["covers_steps"] == ["P.1"] and g2["ok"]
+    # review M5: the 7 requirement and 23 subtopic nodes were built and checked before the return
+    assert any("hleg_targets_checked=30" in g["detail"] for g in ex["gates"])
+
+
+def test_gates_only_fails_for_alignments_made_on_another_text(tmp_path, monkeypatch):
+    _, rc, ex, g2 = _gates_only(tmp_path, monkeypatch, alignments_build={**MADE_ON, "hleg_text_sha256": "0" * 64})
+    assert rc == 1 and ex["status"] == "failed" and not g2["ok"]
+    assert f"G2 the alignments were made on {TEXT_FILE} {'0' * 64}" in g2["detail"]
+
+
+def test_gates_only_fails_for_alignments_made_on_another_record(tmp_path, monkeypatch):
+    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, alignments_build={**MADE_ON, "hleg_derivation_record_sha256": "1" * 64})
+    assert rc == 1 and f"G2 the alignments were made on {RECORD_FILE} {'1' * 64}" in g2["detail"]
+
+
+def test_gates_only_fails_for_alignments_that_name_no_hleg_text(tmp_path, monkeypatch):
+    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, alignments_build={})
+    assert rc == 1 and "G2 the alignments name no hleg_text_sha256" in g2["detail"]
+
+
+def test_gates_only_fails_when_layer0_does_not_list_the_pair(tmp_path, monkeypatch):
+    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, layer1_nodes=[])
+    assert rc == 1 and f"G2 Layer 0 does not list {TEXT_FILE}" in g2["detail"]
+
+
+def test_gates_only_fails_for_an_hleg_span_citing_a_file_layer0_does_not_list(tmp_path, monkeypatch):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path, layer1_nodes=LISTED, alignments_build=MADE_ON)
+    _fakes(monkeypatch, cli, real_hleg=True)
+    stale = [{**n, "source_span": {**n["source_span"], "snapshot_file": "hleg_unlisted_copy.txt"}}
+             for n in build_hleg_nodes(PAIR)]
+    monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair=None: stale)
+    rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                   "--dump-dir", str(tmp_path), "--gates-only"])
+    g2 = next(g for g in store.read(rid)["executions"][-1]["gates"] if g["name"] == "G2")
+    assert rc == 1 and "G2 node hleg:human-agency-and-oversight cites hleg_unlisted_copy.txt" in g2["detail"]
+
+
+def test_the_published_subtopic_edges_carry_the_published_build_id(tmp_path, monkeypatch):
+    cli = _publish()
+    layer1, norms, alignments, store, rid = _files(tmp_path, layer1_nodes=LISTED, alignments_build=MADE_ON)
+    captured: list = []
+    _fakes(monkeypatch, cli, real_hleg=True, capture=captured)
+    assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
+                     "--dump-dir", str(tmp_path)]) == 0
+    dump = captured[0]
+    subtopic_edges = [e for e in dump["edges"] if e["edge_type"] == "HAS_SUBTOPIC"]
+    assert len(subtopic_edges) == 23 and {e["build_id"] for e in subtopic_edges} == {dump["build"]["build_id"]}
+    assert len([n for n in dump["nodes"] if n.get("type") == "HLEGRequirementSubtopic"]) == 23
+
+
+def test_gates_only_fails_when_layer0_lists_the_text_with_another_sha256(tmp_path, monkeypatch):
+    other = [{**n, "sha256": "2" * 64} if n["file"] == TEXT_FILE else n for n in LISTED]
+    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, layer1_nodes=other)
+    assert rc == 1 and f"G2 Layer 0 lists {TEXT_FILE} with sha256 {'2' * 64}, the frozen file is {PAIR.text_sha256}" in g2["detail"]

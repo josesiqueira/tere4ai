@@ -14,8 +14,9 @@ Flow, recorded as one execution of the build record that produced --norms
 (or --record): evidence first (a file carrying decisions must carry the
 reference block materialise_reference.py stamped, the alignments must have
 been computed over this exact norms file, and every reference block is
-bound to exactly one --manifest), then the critical gates G1 to G6, then
-the load into Neo4j and the post-load gates P1 to P5. Only after the
+bound to exactly one --manifest), then (with alignments) the HLEG targets built from the
+frozen text and record and checked with the gates (D-G75 (8)), the critical
+gates G1 to G6, then the load into Neo4j and the post-load gates P1 to P5. Only after the
 post-load gates pass are the chain record, the publication manifest and
 BUILD_CHAIN_CURRENT.txt written and the record frozen; activation is a
 separate step (scripts/activate_build.py). Decisions are never applied
@@ -38,6 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes  # noqa: E402
+from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair  # noqa: E402
 from tere4ai.align_hleg.hleg_subtopics import build_hleg_subtopics  # noqa: E402
 from tere4ai.graph_store.build_chain import (  # noqa: E402
     build_chain,
@@ -78,7 +80,7 @@ from tere4ai.review_queue.materialize import (  # noqa: E402
     already_materialised,
     verify_freeze_manifest,
 )
-from tere4ai.validate_graph.gates import validate_build  # noqa: E402
+from tere4ai.validate_graph.gates import hleg_failures, validate_build  # noqa: E402
 from tere4ai.validate_graph.postload import validate_postload  # noqa: E402
 
 MANIFEST_REF_KEYS = ("campaign_id", "freeze_id", "campaign_type", "stage", "decisions_sha256", "layer")
@@ -361,10 +363,27 @@ def _main(argv: list[str] | None = None) -> int:
             if refusal is not None:
                 return fail(refusal)
 
-            # (4) The critical gates, one recorded outcome per gate.
+            # (4) The critical gates, one recorded outcome per gate. With
+            # alignments, the HLEG requirement and subtopic targets are built
+            # from the frozen text and record first and checked with the gates
+            # (spec G D-G75 (8)), so a gates-only run sees them too.
             norms = norms_payload.get("norms", [])
             assertions = alignments_payload.get("assertions", []) if alignments_payload else None
+            hleg_nodes: list[dict] = []
+            subtopics: dict = {"nodes": [], "edges": []}
+            hleg_problems: list[str] = []
+            if alignments_payload is not None:
+                try:
+                    pair = load_pair()
+                    hleg_nodes = build_hleg_nodes(pair)
+                    subtopics = build_hleg_subtopics(pair)
+                    hleg_problems = hleg_failures(layer1, alignments_payload.get("build", {}), pair, hleg_nodes,
+                                                  subtopics["nodes"])
+                except (HlegSourceError, ValueError) as exc:
+                    hleg_problems = [f"G2 the HLEG text cannot be read: {exc}"]
             report = validate_build(layer1, norms=norms, alignments=assertions)
+            report.failures.extend(hleg_problems)
+            report.stats["hleg_targets_checked"] = len(hleg_nodes) + len(subtopics["nodes"])
             gates = gate_entries(report.failures, GATES, report.stats)
             print(f"gates: {'PASS' if report.passed else 'FAIL'} | stats {report.stats}")
             if not report.passed:
@@ -400,13 +419,13 @@ def _main(argv: list[str] | None = None) -> int:
             build_id = chained_build_id(base_build_id, chain)
             graph = norms_to_graph(norms_payload, build_id=build_id)
             if alignments_payload is not None:
-                g3 = alignments_to_graph(alignments_payload, build_hleg_nodes(), build_id=build_id)
+                g3 = alignments_to_graph(alignments_payload, hleg_nodes, build_id=build_id)
                 graph["nodes"].extend(g3["nodes"])
                 graph["edges"].extend(g3["edges"])
-                # The publisher's subtopic headings (DEC-05 partial, DEC-25).
-                subtopics = build_hleg_subtopics(build_id=build_id)
+                # The publisher's subtopic headings (DEC-05 partial, DEC-25),
+                # built and checked at step (4); their edges take this build's id.
                 graph["nodes"].extend(subtopics["nodes"])
-                graph["edges"].extend(subtopics["edges"])
+                graph["edges"].extend({**e, "build_id": build_id} for e in subtopics["edges"])
                 print(f"hleg subtopics: {len(subtopics['nodes'])} nodes from the publisher's headings")
             build = norms_payload.get("build", {})
             pseudo_dump = {"build": {"build_id": build_id, "built_at": build.get("built_at", ""),

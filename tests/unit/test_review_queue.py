@@ -418,6 +418,7 @@ def test_materialised_reference_reaches_the_gates(tmp_path, monkeypatch):
         return _Report()
 
     monkeypatch.setattr(publish, "validate_build", fake_validate_build)
+    monkeypatch.setattr(publish, "hleg_failures", lambda *args: [])
 
     rc = publish.main(
         [

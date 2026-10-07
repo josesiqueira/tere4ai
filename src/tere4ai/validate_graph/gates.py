@@ -2,6 +2,7 @@
 
 @implements: DEC-10 (partial: structural gates; deep-extraction gates activate with M2 data)
 @implements: DEC-23
+@implements: DEC-25
 @grounded_by: REF-27, REF-26, ADD-21
 
 Architecture.md Section 13. Gates implemented here:
@@ -18,6 +19,10 @@ Architecture.md Section 13. Gates implemented here:
   G3 and G4 also refuse a norm, and an alignment of a norm, whose source unit the
      Omnibus deleted; deleted_unit_citations refuses a test-set item that cites
      one (B132, spec G D-G68 (3))
+  G2 also checks, at publication with alignments, the HLEG requirement and subtopic
+     nodes: the derived text and record they were built from are the ones Layer 0
+     lists and the alignments name, and every HLEG span cites the derived text as
+     Layer 0 lists it (hleg_failures; spec G D-G75 (8))
 
 validate_build returns a report; the build entry point refuses to publish on
 failure (no silent degradation).
@@ -87,6 +92,37 @@ class ValidationReport:
     @property
     def passed(self) -> bool:
         return not self.failures
+
+
+def hleg_failures(dump: dict, alignments_build: dict, pair: Any, requirement_nodes: list[dict],
+                  subtopic_nodes: list[dict]) -> list[str]:
+    """Spec G D-G75 (8), reported under G2: the HLEG pair the targets were built from
+    is the one Layer 0 lists (the files the parse's checks passed) and the one the
+    alignments name, and every HLEG span cites the derived text as Layer 0 lists it."""
+    from tere4ai.align_hleg.hleg_source import listed_pair
+    from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
+
+    failures: list[str] = []
+    listed = listed_pair(dump)
+    for name, sha in ((TEXT_FILE, pair.text_sha256), (RECORD_FILE, pair.record_sha256)):
+        if name not in listed:
+            failures.append(f"G2 Layer 0 does not list {name}: the parse of this build did not check that HLEG text")
+        elif listed[name] != sha:
+            failures.append(f"G2 Layer 0 lists {name} with sha256 {listed[name]}, the frozen file is {sha}")
+    for key, name, sha in (("hleg_text_sha256", TEXT_FILE, pair.text_sha256),
+                           ("hleg_derivation_record_sha256", RECORD_FILE, pair.record_sha256)):
+        made_on = alignments_build.get(key)
+        if made_on is None:
+            failures.append(f"G2 the alignments name no {key}: they were made before spec G D-G75; run the alignment "
+                            "command again")
+        elif made_on != sha:
+            failures.append(f"G2 the alignments were made on {name} {made_on}, the frozen file is {sha}")
+    for node in [*requirement_nodes, *subtopic_nodes]:
+        span = node.get("source_span") or {}
+        if span.get("snapshot_file") != TEXT_FILE or span.get("snapshot_sha256") != listed.get(TEXT_FILE):
+            failures.append(f"G2 node {node.get('id')} cites {span.get('snapshot_file')} {span.get('snapshot_sha256')}, "
+                            "not the derived text Layer 0 lists")
+    return failures
 
 
 def validate_build(
