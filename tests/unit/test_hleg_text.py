@@ -183,3 +183,21 @@ def test_write_sets_the_two_checksums_and_refuses_a_missing_entry(tmp_path):
         assert written[name] == hashlib.sha256((tmp_path / name).read_bytes()).hexdigest()
     path.write_text(json.dumps({"snapshots": keep[:1]}, indent=2) + "\n", encoding="utf-8")
     assert ht.main(["--write", "--manifest", str(path)]) == 1
+
+
+def test_a_marker_after_whitespace_stops_the_derivation(facts):
+    mock = copy.deepcopy(facts)
+    element = next(e for e, _n, _s in ht.walk(mock.tree) if e.page == 18 and e.mcids and e.type == "P"
+                   and any(c.get("mcid") in e.mcids and c["text"] == "3" for c in mock.chars[18]))
+    chars = [c for c in mock.chars[18] if c.get("mcid") in element.mcids]
+    body = sorted(c["size"] for c in chars if c["text"].strip())[len(chars) // 2]
+    first_small = next(i for i, c in enumerate(chars) if c["size"] < ht.MARKER_SIZE_RATIO * body)
+    chars[first_small - 1]["text"] = " "
+    with pytest.raises(ht.DerivationError, match=r"page 18, element [0-9.]+: the footnote marker '\d+' does not follow"):
+        ht.derive_from(mock)
+
+
+def test_a_piece_with_no_character_at_body_size_stops_the_derivation(facts, monkeypatch):
+    monkeypatch.setattr(ht.statistics, "median", lambda values: 10_000.0)
+    with pytest.raises(ht.DerivationError, match=r"page \d+, element [0-9.]+: every character is below"):
+        ht.derive_from(copy.deepcopy(facts))

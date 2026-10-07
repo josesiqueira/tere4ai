@@ -1488,9 +1488,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   could not be quoted), footnotes and page numbers sat inside it, two
   line-end hyphens were lost ("human-in-theloop") and the span of section
   1.7 ran 2,114 characters into the next part of the Guidelines.
-  The source: the Publications Office PDF frozen on 2026-07-08 (Section 6
-  (d)), the only edition with an ISBN, a DOI and a CELLAR identifier; no
-  structured manifestation exists (read 2026-10-07).
+  The source: the Publications Office PDF frozen on 2026-07-08, the only
+  edition with an ISBN, a DOI and a CELLAR identifier; no structured
+  manifestation exists (read 2026-10-07).
   The derivation: `python -m tere4ai.ingest.hleg_text --write` reads the
   PDF through its checksum and writes the text of Chapter II Section 1,
   from "1.1 Human agency and oversight" to "2. Technical and

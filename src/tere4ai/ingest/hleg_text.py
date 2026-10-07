@@ -169,6 +169,9 @@ def _piece(chars: list[dict[str, Any]], page: int, path: str) -> dict[str, Any]:
         kept.append(c)
     if current:
         runs.append((kept[-1] if kept else None, current))
+    if not kept:
+        raise DerivationError(f"page {page}, element {path}: every character is below {MARKER_SIZE_RATIO} times the "
+                              "median size, so no text is left to read")
     words = extract_words(kept, x_tolerance=X_TOLERANCE, return_chars=True)
     text, offsets, hyphens = "", {}, []
     for line in cluster_objects(words, "top", LINE_TOLERANCE):
@@ -187,6 +190,9 @@ def _piece(chars: list[dict[str, Any]], page: int, path: str) -> dict[str, Any]:
             continue  # a run of small whitespace is a space (R11)
         if not number.isdigit():
             raise DerivationError(f"page {page}, element {path}: small characters {number!r} are not a footnote number")
+        if before is not None and id(before) not in offsets:
+            raise DerivationError(f"page {page}, element {path}: the footnote marker {number!r} does not follow a "
+                                  "word character (the character before it is whitespace)")
         at = offsets[id(before)] + 1 if before is not None else 0
         markers.append({"number": number, "piece_offset": at, "top": round(min(c["top"] for c in run), 2)})
     runin = ""
@@ -197,7 +203,7 @@ def _piece(chars: list[dict[str, Any]], page: int, path: str) -> dict[str, Any]:
     last_top = max(c["top"] for c in kept)
     last_x1 = max(c["x1"] for c in kept if abs(c["top"] - last_top) < 1)
     return {"text": text, "markers": markers, "hyphens": hyphens, "runin": runin.strip(), "last_x1": last_x1,
-            "page": page, "path": path}
+            "max_x1": max(c["x1"] for c in kept), "page": page, "path": path}
 
 
 def derive_from(facts: PdfFacts) -> tuple[str, dict[str, Any]]:
@@ -224,7 +230,7 @@ def derive_from(facts: PdfFacts) -> tuple[str, dict[str, Any]]:
         raise DerivationError(f"on pages {PAGES[0]} to {PAGES[-1]} the start heading is found {len(starts)} times "
                               f"and the end heading {len(ends)} times; each must be found once, in order")
     section = pieces[starts[0]:ends[0]]
-    margin = {n: max((p["last_x1"] for p in section if p["page"] == n), default=0.0) for n in PAGES}
+    margin = {n: max((p["max_x1"] for p in section if p["page"] == n), default=0.0) for n in PAGES}
     blocks: list[dict[str, Any]] = []
     for piece in section:
         heading = piece["type"] != "P" and bool(_REQUIREMENT_HEADING.match(piece["text"]))
