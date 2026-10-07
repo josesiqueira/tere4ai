@@ -1469,6 +1469,65 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   model_called false on every refusal before a request, demo lines left
   out of the estimate.
 
+- DEC-25: Layer 3 reads the Ethics Guidelines for Trustworthy AI (ADD-01)
+  from a text derived from their official PDF by a committed command and
+  checked against that PDF in every Layer 0+1 build, under a
+  SourceDocument of their own, each of the seven requirements given whole
+  (added 2026-10-07, draft until B143's last
+  tere4ai2 task; thesis task B143, spec G D-G75 and the rulings in
+  sdd/2026-10-07-B143-hleg-source/progress.md in the private research
+  repository; the owner's words: "this can mean that we have a different
+  approach from just me giving you a .txt that is a ctrl c ctrl vo f the
+  pdf", and on Section 1 of this file: "we cant have a stale
+  architecture.md or untruthful"). Engineering decision (determinism,
+  traceability, no silent degradation, Section 13); it needs no literature
+  grounding (AGENTS.md grounding bar). Until it, Layer 3 read a plain-text
+  copy of the PDF made by hand for TERE4AI v1, checked against nothing:
+  each requirement's text stopped at the first page break of its section
+  (section 1.2 gave 1,743 of 4,639 characters, so 6 of the 23 subtopics
+  could not be quoted), footnotes and page numbers sat inside it, two
+  line-end hyphens were lost ("human-in-theloop") and the span of section
+  1.7 ran 2,114 characters into the next part of the Guidelines.
+  The source: the Publications Office PDF frozen on 2026-07-08 (Section 6
+  (d)), the only edition with an ISBN, a DOI and a CELLAR identifier; no
+  structured manifestation exists (read 2026-10-07).
+  The derivation: `python -m tere4ai.ingest.hleg_text --write` reads the
+  PDF through its checksum and writes the text of Chapter II Section 1,
+  from "1.1 Human agency and oversight" to "2. Technical and
+  non-technical methods to realise Trustworthy AI", exclusive, and a
+  derivation record beside it; the rules are listed in the module and in
+  the record: the structure tree's order, Note and Figure subtrees
+  skipped, artifacts never read, characters below 0.75 times their
+  paragraph's median size removed as footnote markers (each the number of
+  a footnote on its page), words spaced by pdfplumber's word reading, a
+  line-end hyphen kept and joined, a page's last paragraph that reaches
+  the margin joined to the next page's first.
+  The checks (`tere4ai.ingest.hleg_checks`, inside the parse before any
+  node is built, and in the tests), against pypdf as a second reader: C0
+  the derivation reproduces both files byte for byte; C1 every derived
+  stretch between markers and joins is in pypdf's text of its page; C2
+  pypdf's text of the pages, less the derived stretches, leaves only the
+  excluded items, which equal a reviewed list item by item, location
+  included, and each pass the test of its kind; C3 each page's words
+  compared in order with pypdf's layout reading, every difference a
+  reviewed row bound to its location; C4 the seven headings in order, the
+  23 subtopic headings opening their paragraphs, no line of only digits.
+  A failure raises HlegCheckError naming the check and its first
+  differences; the parse writes no new layer1.json and records the failed
+  execution; on success the outcome is in the build block (hleg).
+  Layer 0 and Layer 3: as spec G D-G75 (4) to (8) state (the
+  SourceDocument, the explicit table of source documents, DERIVED_FROM
+  from the derived files to the PDF, post-load gate P5 limited to the
+  Layer 2 and 3 edges, each requirement's section body as its
+  description, the publisher's headings as subtopics, the pair's sha256
+  recorded by the alignment run and checked by publication and by the one
+  loader that serves HLEG spans).
+  Defense: the quote check proves a quote is in the text it was given;
+  this decision proves the text given is the publisher's.
+  Cost if wrong: before B74, a derivation and its checks to redo, with no
+  model call; after B74, every alignment made and graded again.
+  verify: src/tere4ai/ingest/hleg_text.py; tests/unit/test_hleg_text.py.
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)

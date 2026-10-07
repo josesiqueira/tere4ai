@@ -35,6 +35,19 @@ dev = [
     # The protocol tests drive the server with this SDK's client (mode legacy
     # and mode 2026-07-28); fastmcp alone allows any mcp below 3.
     "mcp>=2.2,<2.3",
+    # B143 (DEC-25): the HLEG derivation and its checks run in the tests.
+    "tere4ai[hleg]",
+]
+# B143 (DEC-25): the HLEG text is derived from the Guidelines' PDF and
+# checked against it with a second reader in every Layer 0+1 build. Exact
+# pins: check C0 re-derives byte for byte, so a new version is a reviewed
+# change. The facade and the MCP server read only the derived text and its
+# record and do not install this group. This is the one place the pins are
+# written (the repository has no lock file; CI installs from this table).
+hleg = [
+    "pdfplumber==0.11.10",
+    "pdfminer.six==20260107",
+    "pypdf==6.19.0",
 ]
 # The Pages site (DEC-22): Material for MkDocs pinned; it requires
 # mkdocs>=1.6,<2. CI's docs job reads this list and installs only it, not

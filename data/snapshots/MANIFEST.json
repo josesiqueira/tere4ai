@@ -222,11 +222,39 @@
       "sha256": "ad76062612b92522f10d02c7239e4e6e5a159af779c657fdd34a98c23984e63e",
       "source_document": "hleg-ethics-guidelines",
       "eli": "",
+      "cellar_work_uuid": "d3988569-0434-11ea-8c1f-01aa75ed71a1",
+      "cellar_item_uri": "http://publications.europa.eu/resource/cellar/d3988569-0434-11ea-8c1f-01aa75ed71a1.0004.03/DOC_1",
+      "isbn": "978-92-76-11998-2",
+      "doi": "10.2759/346720",
+      "catalogue_number": "KK-02-19-841-EN-N",
+      "retrieval_method": "GET http://publications.europa.eu/resource/cellar/d3988569-0434-11ea-8c1f-01aa75ed71a1.0004.03/DOC_1",
       "manifestation": "pdf-official",
       "language": "en",
       "retrieved_at": "2026-07-08",
       "legal_status": "non_binding",
-      "notes": "Ethics Guidelines for Trustworthy AI, AI HLEG (2019), official Publications Office PDF (cellar d3988569-0434-11ea-8c1f-01aa75ed71a1). Layer 3 primary source; the 7 requirements are a closed set."
+      "notes": "Ethics Guidelines for Trustworthy AI, AI HLEG (2019), the Publications Office edition (publication d3988569-0434-11ea-8c1f-01aa75ed71a1, released 2019-11-08), the only edition with an ISBN, a DOI and a CELLAR identifier; no structured manifestation is served (publication record and CELLAR branch notice read 2026-10-07: pdf, pdfx and print only). Bytes re-checked against the CELLAR item on 2026-10-07: identical (1,754,977 bytes). Reuse: Decision 2011/833/EU (colophon). Layer 3 reads the text derived from it (hleg_ethics_guidelines_2019_en_requirements.txt, DEC-25)."
+    },
+    {
+      "file": "hleg_ethics_guidelines_2019_en_requirements.txt",
+      "sha256": "b2c4cc4e318d187398c2334a70855fe70f7f138ab4875674e2c57b60d765b28c",
+      "source_document": "hleg-ethics-guidelines",
+      "eli": "",
+      "manifestation": "derived-text",
+      "language": "en",
+      "retrieved_at": "2026-10-07",
+      "legal_status": "non_binding",
+      "notes": "The text of Chapter II Section 1 (the seven requirements), derived from hleg_ethics_guidelines_2019_en.pdf (sha256 ad76062612b92522f10d02c7239e4e6e5a159af779c657fdd34a98c23984e63e) by python -m tere4ai.ingest.hleg_text --write on the date in retrieved_at; footnotes, footnote markers and page numbers left out; checked against the PDF in every Layer 0+1 build (checks C0 to C4, DEC-25). Made, not retrieved: retrieved_at is the day it was derived."
+    },
+    {
+      "file": "hleg_ethics_guidelines_2019_en_requirements_derivation.json",
+      "sha256": "83c620920eb77bb5f573acbc85575478da759680ee2a71d60f00d5c0af173eb4",
+      "source_document": "hleg-ethics-guidelines",
+      "eli": "",
+      "manifestation": "derivation-record",
+      "language": "en",
+      "retrieved_at": "2026-10-07",
+      "legal_status": "non_binding",
+      "notes": "The derivation record of hleg_ethics_guidelines_2019_en_requirements.txt: the PDF and its sha256, the libraries and versions, the rules, every paragraph's range, page and structure elements, every removed footnote marker, page join and hyphen join, the requirement and subtopic headings with their ranges, and every excluded item with its location, kind and text (DEC-25)."
     },
     {
       "file": "hleg_ethics_guidelines_2019_en_v1text.txt",
