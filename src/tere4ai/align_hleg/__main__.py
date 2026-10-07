@@ -1,6 +1,6 @@
 """Build entry point: python -m tere4ai.align_hleg --norms data/graph_dumps/norms_<slug>.json
 
-@implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the L3.1 to L3.3 execution record)
+@implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the L3.1 to L3.3 execution record), DEC-25
 @grounded_by: REF-24, REF-21, REF-10, REF-16, ADD-20
 
 Runs the judged alignment pipeline over the accepted norms in the given
@@ -10,6 +10,11 @@ the layer1 dump via each norm's source_node_id. Use --dry-run to list the
 norms that would be aligned without calling any model. Every attempt writes
 an execution record covering L3.1 to L3.3 into the build record store
 (D-G20), with run ids on every checkpoint line and a validated resume.
+
+The HLEG text and its derivation record it aligns on are inputs of the
+execution and go into the output's build block (spec G D-G75 (7)); a resume
+across two of them is refused, and checkpoint lines without a run id are never
+inherited.
 """
 
 from __future__ import annotations
@@ -21,6 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
+from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair, pair_refusal
 from tere4ai.align_hleg.pipeline import align_norms
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
@@ -43,7 +49,13 @@ from tere4ai.graph_store.build_record import (
     relative_to_dump_dir,
     signals_as_interrupt,
 )
-from tere4ai.graph_store.checkpoints import CheckpointError, prepare_resume, resume_command
+from tere4ai.graph_store.checkpoints import (
+    CheckpointError,
+    prepare_resume,
+    read_checkpoint,
+    resume_command,
+)
+from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
 from tere4ai.judge.config import ConfigurationError, load_model_config
 
 ALIGN_PROMPT_KIND = "align_hleg"
@@ -122,7 +134,8 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--record", default=None,
                         help="build record alias or id (default: the record that wrote the norms file, else the slug)")
     parser.add_argument("--accept-legacy-checkpoint", action="store_true",
-                        help="inherit checkpoint lines written before build records existed (no run id)")
+                        help="has no effect for align_hleg: checkpoint lines without a run id carry no record of the HLEG text they were "
+                         "aligned on and are always refused (spec G D-G75 (7))")
     args = parser.parse_args(argv)
 
     payload = json.loads(args.norms.read_text(encoding="utf-8"))
@@ -168,8 +181,24 @@ def _main(argv: list[str] | None = None) -> int:
 
     norms_digest = sha256_of_file(args.norms)
     layer1_digest = sha256_of_file(args.dump)
+    # D-G75 (7): the HLEG text and record this run aligns on, read through their
+    # checksums, are inputs of the execution and go into the alignments' build
+    # block; a Layer 1 dump that does not list the same pair is refused here,
+    # before any client exists, because publication would refuse the result.
+    try:
+        hleg_pair = load_pair()
+    except HlegSourceError as exc:
+        print(f"refusing to start: the HLEG text cannot be read: {exc}", file=sys.stderr)
+        return 2
+    unlisted = pair_refusal(layer1, hleg_pair)
+    if unlisted:
+        print(f"refusing to start: {unlisted}; publication refuses alignments made on a text the Layer 1 dump "
+              "does not list (spec G D-G75 (8))", file=sys.stderr)
+        return 2
     inputs = [{"role": "norms", "file": relative_to_dump_dir(args.norms, dump_dir), "sha256": norms_digest},
-              {"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest}]
+              {"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest},
+              {"role": "hleg_text", "file": TEXT_FILE, "sha256": hleg_pair.text_sha256},
+              {"role": "hleg_derivation_record", "file": RECORD_FILE, "sha256": hleg_pair.record_sha256}]
     config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size}
     ref = args.record or store.find_by_output_digest(norms_digest) or slug
     # B79 item 10: the record is chosen here and created only after every
@@ -189,9 +218,18 @@ def _main(argv: list[str] | None = None) -> int:
     models = cfg.as_public_dict()
     prompts = {"generator": prompt_sha256(load_prompt(ALIGN_PROMPT_KIND, args.prompt_version)),
                "judge": prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, args.prompt_version))}
+    # D-G75 (7): lines without a run id carry no recorded inputs, so nothing says
+    # which HLEG text they were aligned on; align_hleg never inherits them.
+    legacy = read_checkpoint(checkpoint_path, "batch", RESULT_KEYS).legacy_keys if args.resume else []
+    if legacy:
+        print(f"refusing to start: {checkpoint_path.name} has {len(legacy)} line(s) without a run id; they carry no "
+              "record of the HLEG text and record they were aligned on, so align_hleg never inherits them, with or "
+              "without --accept-legacy-checkpoint (spec G D-G75 (7)); move the checkpoint away and run again",
+              file=sys.stderr)
+        return 2
     try:
         plan = prepare_resume(checkpoint_path, "batch", RESULT_KEYS, resume=args.resume,
-                              accept_legacy=args.accept_legacy_checkpoint, store=store, record_id=choice.record_id,
+                              accept_legacy=False, store=store, record_id=choice.record_id,
                               expected_config=config, expected_inputs=inputs, expected_models=models,
                               expected_prompt_sha256=prompts)
     except CheckpointError as exc:
@@ -203,7 +241,7 @@ def _main(argv: list[str] | None = None) -> int:
     # spec F D-F30: a terminal run with a checkpoint waits out an overload
     generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
     judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
-    hleg_nodes = build_hleg_nodes()
+    hleg_nodes = build_hleg_nodes(hleg_pair)
     # B79 item 10: created only now, after every refusal and every build step
     # that can fail, so nothing before the run starts leaves a record
     record_id, message = create_chosen_record(store, choice)
@@ -285,6 +323,8 @@ def _main(argv: list[str] | None = None) -> int:
                 "alignment_effort": {"generator": _effort_of(generator), "judge": _effort_of(judge)},
                 "alignment_usage": usage(),
                 "alignment_input_sha256": norms_digest,
+                "hleg_text_sha256": hleg_pair.text_sha256,
+                "hleg_derivation_record_sha256": hleg_pair.record_sha256,
                 "aligned_at": datetime.now(UTC).isoformat(),
                 "alignment_prompt_version": args.prompt_version,
             },

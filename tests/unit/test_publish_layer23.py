@@ -10,10 +10,16 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.align_hleg.hleg_source import load_pair
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.publication import read_target_state
+from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
 from tere4ai.review_queue.materialize import already_materialised
+
+PAIR = load_pair()
+LISTED = [{"id": f"srcfile:{TEXT_FILE}", "layer": 0, "type": "SourceFile", "file": TEXT_FILE, "sha256": PAIR.text_sha256},
+          {"id": f"srcfile:{RECORD_FILE}", "layer": 0, "type": "SourceFile", "file": RECORD_FILE, "sha256": PAIR.record_sha256}]
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -62,7 +68,7 @@ def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=Fal
     if not real_norms_to_graph:
         monkeypatch.setattr(cli, "norms_to_graph", lambda payload, build_id: {"nodes": [], "edges": []})
     monkeypatch.setattr(cli, "alignments_to_graph", lambda payload, hleg, build_id: {"nodes": [], "edges": []})
-    monkeypatch.setattr(cli, "build_hleg_nodes", lambda: [])
+    monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair=None: [])
     monkeypatch.setattr(cli, "build_hleg_subtopics", lambda build_id: {"nodes": [], "edges": [], "skipped": []})
 
     class FakeStore:
@@ -328,7 +334,7 @@ def _align_fakes(monkeypatch, cli):
     # B99 (spec F D-F30): the command builds its clients with the terminal policy, a keyword the fakes accept
     monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg, **kwargs: FakeClient())
     monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg, **kwargs: FakeClient())
-    monkeypatch.setattr(cli, "build_hleg_nodes", lambda: [])
+    monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair=None: [])
     monkeypatch.setattr(cli, "load_prompt", lambda kind, version: f"{kind}-{version}")
 
 
@@ -337,7 +343,7 @@ def test_the_readme_intermediate_build_publishes_human_then_llm(tmp_path, monkey
     import tere4ai.align_hleg.__main__ as align_cli
 
     layer1 = tmp_path / "layer1.json"
-    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
+    layer1.write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": LISTED, "edges": []}))
     pristine = tmp_path / "norms_core.json"
     pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}))
     decisions = tmp_path / "decisions.json"

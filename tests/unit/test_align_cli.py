@@ -3,8 +3,25 @@ as the lost 2026-07-08 extraction run)."""
 
 import json
 
+import pytest
+
+from tere4ai.align_hleg.hleg_source import load_pair
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
+from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
+
+PAIR = load_pair()
+
+
+def _hleg_source_files():
+    return [{"id": f"srcfile:{TEXT_FILE}", "layer": 0, "type": "SourceFile", "file": TEXT_FILE, "sha256": PAIR.text_sha256},
+            {"id": f"srcfile:{RECORD_FILE}", "layer": 0, "type": "SourceFile", "file": RECORD_FILE,
+             "sha256": PAIR.record_sha256}]
+
+
+def _hleg_inputs():
+    return [{"role": "hleg_text", "file": TEXT_FILE, "sha256": PAIR.text_sha256},
+            {"role": "hleg_derivation_record", "file": RECORD_FILE, "sha256": PAIR.record_sha256}]
 
 
 def _norms_file(tmp_path, n=3, name="norms_test.json"):
@@ -14,7 +31,7 @@ def _norms_file(tmp_path, n=3, name="norms_test.json"):
     p = tmp_path / name
     p.write_text(json.dumps({"build": {"build_id": "b"}, "norms": norms}))
     layer1 = tmp_path / "layer1.json"
-    layer1.write_text(json.dumps({"build": {}, "nodes": [], "edges": []}))
+    layer1.write_text(json.dumps({"build": {}, "nodes": _hleg_source_files(), "edges": []}))
     return p, layer1, norms
 
 
@@ -48,7 +65,7 @@ def _fakes(monkeypatch, cli, batches):
     monkeypatch.setattr(cli, "OpenAIGenerator", lambda cfg, **kw: policies.append(kw.get("retry_policy")) or FakeClient())
     monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg, **kw: policies.append(kw.get("retry_policy")) or FakeClient())
     monkeypatch.setattr(cli, "_TEST_POLICIES", policies, raising=False)
-    monkeypatch.setattr(cli, "build_hleg_nodes", lambda: [])
+    monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair=None: [])
     monkeypatch.setattr(cli, "load_prompt", lambda kind, version: f"{kind}-{version}")
 
 
@@ -62,7 +79,8 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "b", None)
     inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
-              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]
+              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
+              *_hleg_inputs()]
     prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
@@ -97,7 +115,7 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
     store = BuildRecordStore(tmp_path)
     ex = store.read(store.resolve("test"))["executions"][0]
     assert ex["covers_steps"] == ["L3.1", "L3.2", "L3.3"] and ex["expected_total"] == 2 and ex["config"]["batch_size"] == 2
-    assert {i["role"] for i in ex["inputs"]} == {"norms", "layer1_dump"} and ex["counts"]["mechanical_rejects_count"] == 0
+    assert {i["role"] for i in ex["inputs"]} == {"norms", "layer1_dump", "hleg_text", "hleg_derivation_record"} and ex["counts"]["mechanical_rejects_count"] == 0
     assert ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0} and ex["prompt_sha256"]["judge"]
     assert ex["counts"]["norms_total"] == 3 and ex["counts"]["candidates"] is None, "a count the stats lack is null"
     assert ex["counts"]["norms_skipped_not_accepted"] is None and ex["counts"]["zero_alignment_norms"] is None
@@ -248,7 +266,8 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "b", None)
     inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
-              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]
+              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
+              *_hleg_inputs()]
     prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
@@ -447,3 +466,70 @@ def test_a_refused_declared_parameter_ends_the_align_execution_failed_and_exits_
     assert out.with_suffix(".checkpoint.jsonl").is_file() and out.read_bytes() == b""
     err = capsys.readouterr().err
     assert f"stopped: {reason}" in err and "continue with:" not in err
+
+
+def test_the_run_records_the_hleg_text_and_record_it_aligned_on(tmp_path, monkeypatch):
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    out = tmp_path / "alignments_test.json"
+    _fakes(monkeypatch, cli, [])
+    assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
+    ex = _first_execution(tmp_path)
+    assert [i for i in ex["inputs"] if i["role"].startswith("hleg_")] == _hleg_inputs()
+    build = json.loads(out.read_text())["build"]
+    assert (build["hleg_text_sha256"], build["hleg_derivation_record_sha256"]) == (PAIR.text_sha256, PAIR.record_sha256)
+
+
+@pytest.mark.parametrize("flag", [[], ["--accept-legacy-checkpoint"]])
+def test_checkpoint_lines_without_a_run_id_are_refused_with_or_without_the_flag(tmp_path, monkeypatch, capsys, flag):
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, norms = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    _fakes(monkeypatch, cli, [])
+    out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"batch": f"batch:0:{norms[0]['norm_id']}", "result": {
+        "assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume", *flag])
+    err = capsys.readouterr().err
+    assert rc == 2 and "alignments_test.checkpoint.jsonl" in err and "without a run id" in err
+    assert "never inherits them" in err and cli._TEST_POLICIES == [], "refused before any client is built"
+    assert not BuildRecordStore(tmp_path).list_records(), "a refused run leaves no record"
+
+
+@pytest.mark.parametrize("changed", [0, 1])  # review M6: the text, then the record
+def test_a_resume_across_two_hleg_texts_is_refused(tmp_path, monkeypatch, capsys, changed):
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, norms = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    _fakes(monkeypatch, cli, [])
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("test", "b", None)
+    other_text = [{**i, "sha256": "0" * 64} if k == changed else i for k, i in enumerate(_hleg_inputs())]
+    inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
+              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}, *other_text]
+    prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[], inputs=inputs,
+                                 config={"prompt_version": "v1", "batch_size": 20}, expected_total=1, work_unit="batches",
+                                 checkpoint_file="alignments_test.checkpoint.jsonl",
+                                 models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh",
+                                         "judge_effort": "xhigh"},
+                                 prompt_sha256={"generator": cli.prompt_sha256("align_hleg-v1"),
+                                                "judge": cli.prompt_sha256("judge_alignment-v1")})
+    store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
+    out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}",
+        "result": {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume"])
+    role = ("hleg_text", "hleg_derivation_record")[changed]
+    assert rc == 2 and f"used different inputs: {role}" in capsys.readouterr().err
+
+
+def test_a_layer1_dump_that_does_not_list_the_pair_is_refused_before_any_client(tmp_path, monkeypatch, capsys):
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    layer1.write_text(json.dumps({"build": {}, "nodes": [], "edges": []}))
+    _fakes(monkeypatch, cli, [])
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(tmp_path / "alignments_test.json")])
+    err = capsys.readouterr().err
+    assert rc == 2 and f"{TEXT_FILE} not at all" in err and cli._TEST_POLICIES == []
