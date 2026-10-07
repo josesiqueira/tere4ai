@@ -56,7 +56,7 @@ def _written(norm: dict[str, Any]) -> str | None:
 
 def _inferred(norm: dict[str, Any]) -> str | None:
     value = norm.get("actor_inferred")
-    return value if isinstance(value, str) and value else None
+    return value if isinstance(value, str) and value.strip() else None
 
 
 def not_served_to_provider(norms: list[dict[str, Any]], dump: dict[str, Any]) -> list[str]:

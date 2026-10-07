@@ -1178,9 +1178,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   does not ask for it and the v3 judge's candidate does not carry it
   (judge_norms v3 is v2 under a new version line; the two share one
   version; v3 was the default and the version of record in
-  eval/config_evaluated.yaml until B144, and DEC-26 makes v4 both). A norm on a unit outside the table carries
-  null, counted as without_target_system_category in the extraction
-  stats and the execution record; extending the scope means adding rows.
+  eval/config_evaluated.yaml until B144, and DEC-26 makes v4 both). A norm
+  on a unit outside the table carries null, counted as
+  without_target_system_category in the extraction stats and the
+  execution record; extending the scope means adding rows.
   The review apply step sets the rule value on a norm a person adds or
   replaces and refuses one on a unit outside the table. The judge's
   checks and verdict values do not change; the Layer 2 annotators never
@@ -1606,8 +1607,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   exemption that qualifies one (Article 9(7), 15(4), 14(5)), whatever the
   grammatical subject (the system, a part of it, a thing the Section
   requires of it) and whether the verb is active or passive; never a
-  right, nor a permission, an ability or a duty of a person the system
-  must enable or inform (Article 14(4)(d) read alone). A person or body
+  right, nor a norm read as the person's own permission, ability or duty
+  of a person the system must enable or inform (Article 14(4)(d) read
+  alone); the duty to enable that person is the system's and is covered.
+  A person or body
   the text names as the one that acts keeps its written actor (the
   Commission, notified bodies, SMEs and SMCs, providers); a person named
   only inside what a requirement must ensure is not its actor (Article
@@ -1619,8 +1622,8 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   the Article 14(4) paragraph beside its point (d), Article 15(4));
   judge_norms v4's check 3 accepts that inference for a unit of Articles
   8 to 15 and rejects it outside them, where the text names the person
-  who acts, for an enabled person's permission or ability, and the system
-  in actor_explicit there; from v4 on a point given as the inference
+  who acts, for a norm read as an enabled person's own permission or
+  ability, and the system in actor_explicit there; from v4 on a point given as the inference
   source reaches the judge with the paragraph that holds it, and the E1
   label sheet shows the same text. v4 is the default and the version of
   record (eval/config_evaluated.yaml), so B74 extracts with it; v1 to v3

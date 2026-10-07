@@ -93,6 +93,14 @@ def test_the_four_groups_take_every_norm_once_in_the_stated_order():
     assert audit["sum"] == audit["norms_of_section_2"] == 9
 
 
+def test_a_blank_inferred_actor_counts_as_empty():
+    norms = [_n("blank-inferred", S12, inferred="  ", src=POINT_A_NODE), _n("blank-both", S12, explicit=" ", inferred="\t")]
+    audit = actor_audit(norms)
+    assert audit["against_the_representation"]["norms"] == [
+        {"norm_id": "blank-inferred", "reason": "both actor slots empty"},
+        {"norm_id": "blank-both", "reason": "both actor slots empty"}]
+
+
 def test_a_written_party_is_labelled_with_the_canonical_actor_of_the_canonicalization():
     norms = [_n("1", S12, explicit="the Commission"), _n("2", S12, explicit="notified bodies"),
              _n("3", S12, explicit="providers of high-risk AI systems"), _n("4", S12, explicit="high-risk AI systems")]
