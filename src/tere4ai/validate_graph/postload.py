@@ -16,8 +16,11 @@ Checks (each returns a violation count; 0 everywhere means PASS):
   P3 no judge-accepted NormativeStatement without a source_span_id
   P4 no judge-accepted AlignmentAssertion missing evidence span ids on
      either side
-  P5 no DERIVED_FROM or ASSERTS_ALIGNMENT_* edge carrying a build_id other
-     than the one just published (stale-build residue detection)
+  P5 no Layer 2 or 3 edge (DERIVED_FROM from a NormativeStatement,
+     ASSERTS_ALIGNMENT_OF, ASSERTS_ALIGNMENT_TO) carrying a build_id other
+     than the one just published (stale-build residue detection); Layer 0
+     and 1 edges carry the parse's build id by design and are not counted
+     (B143, spec G D-G75 (4))
 """
 
 from __future__ import annotations
@@ -43,8 +46,9 @@ _ACCEPTED_ASSERTION_NO_EVIDENCE = (
     "RETURN count(a) AS violations"
 )
 _STALE_BUILD_EDGES = (
-    "MATCH ()-[r]->() "
-    "WHERE type(r) IN ['DERIVED_FROM', 'ASSERTS_ALIGNMENT_OF', 'ASSERTS_ALIGNMENT_TO'] "
+    "MATCH (a)-[r]->() "
+    "WHERE ((type(r) = 'DERIVED_FROM' AND a:NormativeStatement) "
+    "OR type(r) IN ['ASSERTS_ALIGNMENT_OF', 'ASSERTS_ALIGNMENT_TO']) "
     "AND r.build_id <> $build_id "
     "RETURN count(r) AS violations"
 )

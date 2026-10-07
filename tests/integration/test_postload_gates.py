@@ -42,7 +42,7 @@ def driver():
 def published_build_id(driver):
     with driver.session() as s:
         record = s.run(
-            "MATCH ()-[r:DERIVED_FROM]->() RETURN r.build_id AS b LIMIT 1"
+            "MATCH (:NormativeStatement)-[r:DERIVED_FROM]->() RETURN r.build_id AS b LIMIT 1"
         ).single()
     if not record or not record["b"]:
         pytest.skip("no published Layer 2/3 build in this database")
@@ -82,3 +82,23 @@ def test_wrong_build_id_fails_p5(driver):
     )
     assert not report.passed
     assert any(f.startswith("P5") for f in report.failures)
+
+
+def test_p5_passes_a_layer0_derived_from_edge_and_fails_a_stale_norm_edge(driver):
+    """B143 (R4, R23): a Layer 0 DERIVED_FROM edge with the parse's build id passes P5;
+    a NormativeStatement's DERIVED_FROM edge with a stale build id fails it. The
+    test's nodes have ids starting test:b143: and are removed in the finally block."""
+    from tere4ai.validate_graph.postload import _STALE_BUILD_EDGES
+
+    def violations(session):
+        return session.run(_STALE_BUILD_EDGES, {"build_id": "test:b143:published"}).single()["violations"]
+
+    with driver.session() as session:
+        try:
+            before = violations(session)
+            session.run("CREATE (:SourceFile {id: 'test:b143:text'})-[:DERIVED_FROM {build_id: 'build-test:b143'}]->(:SourceFile {id: 'test:b143:pdf'})")
+            assert violations(session) == before
+            session.run("CREATE (:NormativeStatement {id: 'test:b143:norm'})-[:DERIVED_FROM {build_id: 'test:b143:stale'}]->(:Paragraph {id: 'test:b143:unit'})")
+            assert violations(session) == before + 1
+        finally:
+            session.run("MATCH (n) WHERE n.id STARTS WITH 'test:b143:' DETACH DELETE n")

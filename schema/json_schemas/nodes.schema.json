@@ -82,6 +82,7 @@
         "title": { "type": "string" },
         "celex": { "type": "string" },
         "eli": { "type": "string" },
+        "doi": { "type": "string", "pattern": "^10\\.[0-9]{4,9}/\\S+$", "description": "B143: the DOI of a non-legal source (the HLEG Guidelines: 10.2759/346720)" },
         "legal_status": { "$ref": "#/$defs/legalStatus" },
         "merged_into_base": { "type": "boolean" },
         "merged_on": { "type": "string" },

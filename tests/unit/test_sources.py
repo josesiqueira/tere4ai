@@ -111,3 +111,94 @@ def test_the_consolidated_text_is_its_own_non_binding_source():
     assert ("srcfile:formex/CL2024R1689EN0010010.0001.xml", CONSOLIDATED_ID) in derived
     assert ("srcfile:formex/L_202601744EN.000101.fmx.xml", OMNIBUS_ID) in derived
     assert ("srcfile:formex/L_202401689EN.000101.fmx.xml", BASE_ACT_ID) in derived
+
+
+def test_the_guidelines_are_their_own_non_binding_source_document():
+    """B143 (spec G D-G75 (4)): guidance, not law, with its DOI; no versioning edge."""
+    from tere4ai.ingest.sources import HLEG_ID
+
+    nodes, edges = layer0("build-test", MANIFEST)
+    hleg = next(n for n in nodes if n["id"] == HLEG_ID)
+    assert (hleg["type"], hleg["layer"], hleg["legal_status"], hleg["doi"]) == (
+        "SourceDocument", 0, "non_binding", "10.2759/346720")
+    assert hleg["title"] == "Ethics Guidelines for Trustworthy AI (High-Level Expert Group on Artificial Intelligence, 2019)"
+    for words in ("978-92-76-11998-2", "KK-02-19-841-EN-N", "d3988569-0434-11ea-8c1f-01aa75ed71a1", "guidance, not law"):
+        assert words in hleg["notes"].lower() or words in hleg["notes"]
+    assert not [e for e in edges if e["edge_type"] in ("AMENDS", "HAS_VERSION") and HLEG_ID in (e["from"], e["to"])]
+
+
+def test_the_hleg_files_belong_to_the_guidelines_and_not_to_the_act():
+    from tere4ai.ingest.hleg_text import PDF_FILE, RECORD_FILE, TEXT_FILE
+    from tere4ai.ingest.sources import HLEG_ID
+
+    _, edges = layer0("build-test", MANIFEST)
+    derived = {(e["from"], e["to"]) for e in edges if e["edge_type"] == "DERIVED_FROM_SOURCE"}
+    for name in (PDF_FILE, TEXT_FILE, RECORD_FILE):
+        assert (f"srcfile:{name}", HLEG_ID) in derived
+        assert (f"srcfile:{name}", BASE_ACT_ID) not in derived
+    made = [(e["from"], e["to"], e["method"], e["build_id"]) for e in edges if e["edge_type"] == "DERIVED_FROM"]
+    assert sorted(made) == sorted([(f"srcfile:{TEXT_FILE}", f"srcfile:{PDF_FILE}", "hleg_text_derivation_v1", "build-test"),
+                                   (f"srcfile:{RECORD_FILE}", f"srcfile:{PDF_FILE}", "hleg_text_derivation_v1", "build-test")])
+
+
+def test_every_source_document_value_of_the_manifest_is_named():
+    import json
+
+    from tere4ai.ingest.sources import SOURCE_DOCUMENT_IDS
+
+    values = {e["source_document"] for e in json.loads(MANIFEST.read_text(encoding="utf-8"))["snapshots"]}
+    assert values == set(SOURCE_DOCUMENT_IDS) == {"eu-ai-act", "omnibus", "eu-ai-act-consolidated", "hleg-ethics-guidelines"}
+
+
+def test_an_unknown_source_document_stops_layer0(tmp_path):
+    import json
+
+    import pytest
+
+    path = tmp_path / "MANIFEST.json"
+    path.write_text(json.dumps({"snapshots": [{"file": "x.pdf", "sha256": "0" * 64, "source_document": "altai"}]}))
+    with pytest.raises(ValueError, match=r"x\.pdf: source_document 'altai' is not one layer0\(\) knows"):
+        layer0("build-test", path)
+
+
+def test_layer0s_edges_and_hleg_nodes_validate_and_the_schema_has_the_doi():
+    """Review I4: the edges (DERIVED_FROM included) and the four HLEG nodes validate; the
+    other SourceFile ids (upper case, "/") break nodeId's pattern since before B143, outside
+    this card. The SourceDocument branch allows extra properties, so the doi property is
+    checked in the schema itself."""
+    import json
+    import re
+
+    from jsonschema import Draft202012Validator
+    from referencing import Registry, Resource
+
+    from tere4ai.ingest.hleg_text import PDF_FILE, RECORD_FILE, TEXT_FILE
+    from tere4ai.ingest.sources import HLEG_ID
+
+    root = MANIFEST.parents[2] / "schema" / "json_schemas"
+    schemas = {n: json.loads((root / f"{n}.schema.json").read_text(encoding="utf-8")) for n in ("nodes", "edges")}
+    registry = Registry().with_resources((s["$id"], Resource.from_contents(s)) for s in schemas.values())
+    nodes, edges = layer0("build-test", MANIFEST)
+    edge_validator = Draft202012Validator(schemas["edges"], registry=registry)
+    assert [list(edge_validator.iter_errors(e)) for e in edges] == [[] for _ in edges]
+    assert any(e["edge_type"] == "DERIVED_FROM" for e in edges), "the edges checked hold a DERIVED_FROM edge"
+    hleg_ids = {HLEG_ID, *(f"srcfile:{name}" for name in (PDF_FILE, TEXT_FILE, RECORD_FILE))}
+    node_validator = Draft202012Validator(schemas["nodes"], registry=registry)
+    hleg_nodes = [n for n in nodes if n["id"] in hleg_ids]
+    assert len(hleg_nodes) == 4 and [list(node_validator.iter_errors(n)) for n in hleg_nodes] == [[]] * 4
+    branch = next(b for b in schemas["nodes"]["oneOf"] if b["properties"]["type"].get("const") == "SourceDocument")
+    doi = branch["properties"]["doi"]
+    assert doi["type"] == "string" and re.fullmatch(doi["pattern"], "10.2759/346720")
+
+
+def test_the_legal_status_notes_name_the_guidelines():
+    """Review M6: coverage_report and source_trace list every SourceDocument (tools.py:233)."""
+    from tere4ai.mcp_server.tools import _legal_status_notes
+
+    nodes, _ = layer0("build-test", MANIFEST)
+    assert "src:hleg:ethics-guidelines-2019: legal_status non_binding" in _legal_status_notes(nodes)
+
+
+def test_the_comment_no_longer_promises_an_hleg_node_at_layer3_publication():
+    source = (MANIFEST.parents[2] / "src" / "tere4ai" / "ingest" / "sources.py").read_text(encoding="utf-8")
+    assert "only exists at Layer 3 publication" not in source and "keeps the historical base-act linkage" not in source

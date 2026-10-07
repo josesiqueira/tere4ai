@@ -1,6 +1,6 @@
 """Layer 0 source registry: the version pin for M1.
 
-@implements: DEC-12, DEC-23
+@implements: DEC-12, DEC-23, DEC-25
 @grounded_by: REF-01, REF-02, REF-04
 
 Emits the SourceDocument nodes and versioning edges required by
@@ -14,6 +14,9 @@ docs/architecture.md Section 11:
   - EUR-Lex's consolidated text of 27 July 2026 (B132), legal_status
     non_binding: it has no legal effect, and Layer 1 checks every unit
     of it against the Official Journal wording (architecture.md Section 11)
+  - the Ethics Guidelines for Trustworthy AI (AI HLEG, 2019), legal_status
+    non_binding: guidance, not law; Layer 3 reads the text of its seven
+    requirements derived from its PDF (DEC-25)
   - the frozen SourceFile snapshot(s) from data/snapshots/MANIFEST.json
 
 Since B132 (spec G D-G68) Layer 1 is the Act as amended: the Omnibus's
@@ -32,6 +35,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tere4ai.ingest.hleg_text import PDF_FILE as HLEG_PDF_FILE
+from tere4ai.ingest.hleg_text import RECORD_FILE as HLEG_RECORD_FILE
+from tere4ai.ingest.hleg_text import TEXT_FILE as HLEG_TEXT_FILE
+
 BASE_ACT_ID = "src:eu-ai-act:oj-2024-07-12"
 OMNIBUS_ID = "src:omnibus-com-2025-836"
 CONSOLIDATED_ID = "src:eu-ai-act:consolidated-2026-07-27"
@@ -40,6 +47,24 @@ CONSOLIDATED_NOTE = (
     "purely as a documentation tool and has no legal effect.\" Layer 1 is parsed from it and every unit is "
     "checked against the Official Journal wording of the act that enacted it (architecture.md Section 11)."
 )
+
+HLEG_ID = "src:hleg:ethics-guidelines-2019"
+HLEG_NOTE = (
+    "Guidance, not law: the Ethics Guidelines for Trustworthy AI of the High-Level Expert Group on Artificial "
+    "Intelligence (2019), the Publications Office edition: CELLAR work d3988569-0434-11ea-8c1f-01aa75ed71a1, "
+    "English PDF ISBN 978-92-76-11998-2, catalogue number KK-02-19-841-EN-N. Layer 3 reads the text of its "
+    "seven requirements, derived from the PDF and checked against it in every build (DEC-25)."
+)
+# Every source_document value of MANIFEST.json and the SourceDocument it names.
+# A value not listed here stops layer0() (B143, spec G D-G75 (4)): until then
+# an unknown value fell back to the AI Act, which made the HLEG files files of
+# the AI Act.
+SOURCE_DOCUMENT_IDS = {
+    "eu-ai-act": BASE_ACT_ID,
+    "omnibus": OMNIBUS_ID,
+    "eu-ai-act-consolidated": CONSOLIDATED_ID,
+    "hleg-ethics-guidelines": HLEG_ID,
+}
 
 # Deferred application dates introduced by the Omnibus (architecture.md S11).
 OMNIBUS_DEFERRED_DEADLINES = {
@@ -55,6 +80,7 @@ def _edge(
     to_id: str,
     build_id: str,
     derivation_id: str,
+    method: str = "source_registry_v1",
 ) -> dict[str, Any]:
     return {
         "edge_id": edge_id,
@@ -63,7 +89,7 @@ def _edge(
         "to": to_id,
         "provenance_class": "EXTRACTED_SOURCE",
         "derivation_id": derivation_id,
-        "method": "source_registry_v1",
+        "method": method,
         "confidence": 1.0,
         "review_status": "auto_accepted",
         "build_id": build_id,
@@ -76,7 +102,8 @@ def layer0(
     """Return (nodes, edges) for Layer 0: source documents, files, versioning.
 
     manifest_path points at data/snapshots/MANIFEST.json; every listed
-    snapshot becomes a SourceFile node linked to the base Act.
+    snapshot becomes a SourceFile linked to the SourceDocument its manifest
+    entry names.
     """
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
 
@@ -121,6 +148,15 @@ def layer0(
             "legal_status": "non_binding",
             "notes": CONSOLIDATED_NOTE,
         },
+        {
+            "id": HLEG_ID,
+            "layer": 0,
+            "type": "SourceDocument",
+            "title": "Ethics Guidelines for Trustworthy AI (High-Level Expert Group on Artificial Intelligence, 2019)",
+            "doi": "10.2759/346720",
+            "legal_status": "non_binding",
+            "notes": HLEG_NOTE,
+        },
     ]
     if marker_list_path is not None:
         # B132: the Omnibus is merged into the base text; the reviewed marker
@@ -158,13 +194,18 @@ def layer0(
         ),
     ]
 
-    # Which SourceDocument a snapshot manifests. Everything not named here
-    # keeps the historical base-act linkage (including the HLEG snapshots,
-    # whose own SourceDocument only exists at Layer 3 publication).
-    source_ids = {"omnibus": OMNIBUS_ID, "eu-ai-act-consolidated": CONSOLIDATED_ID}
+    # Which SourceDocument a snapshot manifests: every value is named in
+    # SOURCE_DOCUMENT_IDS, and an unknown one stops here instead of falling
+    # back to the AI Act (B143). The HLEG files belong to the Guidelines' own
+    # SourceDocument, made here with the other Layer 0 nodes.
+    listed = {snap["file"] for snap in manifest["snapshots"]}
     for snap in manifest["snapshots"]:
         file_id = f"srcfile:{snap['file']}"
-        source_id = source_ids.get(snap.get("source_document", ""), BASE_ACT_ID)
+        value = snap.get("source_document", "")
+        if value not in SOURCE_DOCUMENT_IDS:
+            raise ValueError(f"{snap['file']}: source_document {value!r} is not one layer0() knows "
+                             f"({', '.join(sorted(SOURCE_DOCUMENT_IDS))})")
+        source_id = SOURCE_DOCUMENT_IDS[value]
         nodes.append(
             {
                 "id": file_id,
@@ -187,5 +228,14 @@ def layer0(
                 f"derivation:source_registry:{snap['file']}",
             )
         )
+
+    # The derived HLEG text and its record were made from the PDF (DEC-25):
+    # the graph says so with DERIVED_FROM to the PDF's SourceFile.
+    if HLEG_PDF_FILE in listed:
+        for name in (HLEG_TEXT_FILE, HLEG_RECORD_FILE):
+            if name in listed:
+                edges.append(_edge(f"edge:srcfile:{name}-derived-from-srcfile:{HLEG_PDF_FILE}", "DERIVED_FROM",
+                                   f"srcfile:{name}", f"srcfile:{HLEG_PDF_FILE}", build_id,
+                                   f"derivation:hleg_text:{name}", method="hleg_text_derivation_v1"))
 
     return nodes, edges

@@ -24,7 +24,8 @@
         "REFERS_TO", "HAS_CROSS_REFERENCE", "RESOLVES_TO",
         "AMENDS",
         "HAS_VERSION",
-        "DERIVED_FROM_SOURCE"
+        "DERIVED_FROM_SOURCE",
+        "DERIVED_FROM"
       ]
     },
     "from": { "type": "string" },
