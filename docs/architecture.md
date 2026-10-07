@@ -422,8 +422,8 @@ OVR-1. grounded_by: REF-17, REF-15
   IV (requirements), Articles 16 to 27 including the Article 27 fundamental-
   rights impact assessment (provider and deployer obligations), Article 50
   (transparency), Articles 72 to 73 (light post-market monitoring), the seven
-  HLEG requirements, and ALTAI items where license allows (ethics-layer source:
-  REF-33).
+  HLEG requirements (ethics-layer source: ADD-01, Section 6 (d)); ALTAI is not
+  in the graph, a future study (B111).
 - Structural only in v2, deep extraction deferred to v2.1+: Articles 1 to 2 and
   4, 28 to 49, 51 to 71 (60a included), 74 to 113 (75a to 75d included), and
   the remaining annexes (Annex XIV included). Units the Omnibus deleted are
@@ -439,8 +439,9 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   draft, non_binding, superseded, unknown_needs_review.
 - The Digital Omnibus on AI (REF-02) is in force (Regulation (EU) 2026/1744,
   OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026) and changes the base
-  text and the high-risk dates (standalone Annex III high-risk to at the
-  latest 2 December 2027; embedded Annex I to 2 August 2028). It is a
+  text and the high-risk dates (Chapter III Sections 1 to 3 from 2 December
+  2027 for systems high-risk under Article 6(2) and Annex III and from 2 August
+  2028 under Article 6(1) and Annex I, Article 113(c) as amended). It is a
   distinct SourceDocument linked to the base Act by AMENDS and HAS_VERSION
   edges.
 - THE ACT IN FORCE (B132, 2026-10-03, DEC-23; it replaces the version pin
@@ -531,13 +532,18 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
 ## 12. Evaluation
 OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
 
-- Ablation ladder: plain LLM, vector RAG over Act chunks, graph without judge,
-  graph plus build judge, graph plus build and runtime judge, graph plus
-  runtime judge only (six conditions; the sixth added by B126).
-- Primary dataset: the open AI Act Evaluation Benchmark (REF-15), covering
-  classification, article retrieval, obligation generation, and QA. Verify its
-  coverage against the high-risk core first.
-- Hand-built gold set: around 60 to 80 items on the high-risk core, each
+- Ablation ladder: plain LLM, vector RAG over Act chunks, the structured
+  layers TERE4AI builds without a judge, with the build judge, with both
+  judges, and with the runtime judge only (six conditions; the sixth added by
+  B126; conditions 3 to 6 rank norms with condition 2's text index and do not
+  traverse the graph, spec G Section 10.4).
+- Main answer key: the hand-made legal test set (eval/gold/gold_seed.json, the
+  harness's --gold default; 10 seed items of 60 to 80; B104 decision 1, spec G
+  Section 10.4). Secondary: a frozen 47-item sample of the open AI Act
+  Evaluation Benchmark (REF-15, eval/gold/benchmark_sample.json), reported as
+  agreement with its own published labels, never as legal truth; its coverage
+  of the core is measured in eval/README.md.
+- The hand-made legal test set: around 60 to 80 items on the high-risk core, each
   labelled by two annotators independently and their disagreements
   adjudicated by a person who did not produce them (spec G Sections 6 and
   10.4); report the agreement before adjudication with a chance-corrected
@@ -545,12 +551,15 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
   answer is what the ablation scores.
 - Baselines to beat and position against: XTRAREG-style extraction without a
   graph or judge (REF-16), and the requirement-to-verification mapping of
-  REF-17.
+  REF-17. Neither is run as a condition; they are related work to position
+  against.
 - Metrics: structural coverage accuracy, cross-reference resolution accuracy,
   obligation extraction precision and recall, deontic and actor classification
-  accuracy, condition and exception recall, mapping precision, judge false-accept
-  and false-reject rates, runtime citation completeness, hallucinated citation
-  rate, human-review disagreement, developer usefulness.
+  accuracy, condition and exception recall, alignment precision, judge
+  false-accept and false-reject rates; for each answer key apart,
+  classification accuracy, abstention, citation completeness and hallucinated
+  citation rate (spec G Section 10.4); human-review disagreement. Effects on
+  developers' work are not measured here: a future workflow study (B104 R6).
 - Caution: existing compliance benchmarks are thin for systemic risk (REF-18);
   v2 excludes GPAI systemic risk, so exposure is limited.
 
@@ -591,15 +600,17 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
   Layers 2 and 3 over the v2 core only. Migrate the existing v1 slice (Articles
   9, 10, 13, 14, 15 and the seven HLEG nodes) into the new judged, reified
   pipeline; keep the old poster query as a regression fixture.
-- M3 (DONE 2026-07-08/09 for the four journey tools, facade, MCP, demo flow;
-  explain_requirement and trace_alignment in progress, tasks 41-42)
+- M3 (DONE 2026-07-08/09, explain_requirement and trace_alignment included)
   Runtime tools plus runtime judge. classify_ai_system,
   get_applicable_requirements, evaluate_project_evidence,
   generate_control_backlog, end-to-end audit log. Demo UI increment: the full
   demo flow (describe system, see classification, requirements with citations,
   evidence evaluation, judge verdicts), screenshot-ready for the tool paper.
-- M4 (harness DONE, first two live sweeps run 2026-07-08/09; open: full gold
-  set authoring, judge FA/FR labeling, full-benchmark run, variance study)
+- M4 (harness DONE; the July 2026 sweeps, the full-benchmark run and the
+  variance study ran on the build before B74 and are not reported; open: the
+  hand-made legal test set, 10 seed items of 60 to 80, and the six-condition
+  study on the B74 build, spec G Section 10.4; the build judges' false-accept
+  and false-reject rates are step E1, card B150)
   Evaluation harness plus gold set plus ablations.
 - Deferred to post-thesis / v2.1: GPAI deep extraction, standards mapping (TAIR),
   full-Act deep extraction, the trust/HCI study.
@@ -616,7 +627,9 @@ Highest-risk components (evaluate explicitly, do not fold into general numbers):
 - Evidence evaluation (does artifact X satisfy requirement Y) is the most novel
   step and the least de-risked by prior work; the siblings do generation and
   mapping, not evidence evaluation, so there is no external accuracy baseline.
-- Applying the Omnibus amendments to the base text deterministically is fiddly.
+- Applying the Omnibus amendments to the base text deterministically (built in
+  B132: every amended unit checked against the Official Journal wording,
+  Section 11).
 - The end-2026 timeline is tight even scoped; protect M1 to M3, the tool paper,
   and one evaluation paper.
 
@@ -627,18 +640,18 @@ Open decisions:
 - OPEN-LICENSE: RESOLVED 2026-07-23. Server and all code AGPL-3.0-or-later
   (LICENSE at the repo root); graph metadata CC BY 4.0
   (data/graph_dumps/LICENSE); EU legal text under EU reuse terms (no ownership
-  claimed, quotes byte-exact); ALTAI redistribution still needs its license
-  check before the ethics layer ships ALTAI items (task C2).
+  claimed, quotes byte-exact); ALTAI is not in the graph: a future study
+  (B111, which replaced task C2), with its licence check when it is taken up.
 - OPEN-STANDARDS: standards mapping (TAIR) deferred to v2.1.
 
-Sources to verify before the thesis (see references.md [VERIFY] tags): the
-Omnibus final OJ citation, the Institutional Grammar primaries (REF-14c), the
-exact XTRAREG and Galli metrics, AIRO's canonical URL, and the AI Act Evaluation
-Benchmark coverage.
+Sources to verify before the thesis: REF-14c's printed title (references.md)
+and REF-15's published metrics (eval/README.md). The Omnibus citation (REF-02),
+the XTRAREG and Galli metrics (REF-16, REF-11) and AIRO's URL (REF-25) are
+verified; the Institutional Grammar primaries were dropped from the register.
 
 ## 16. Traceability matrix (decision, grounding, defense, verify)
 
-Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
+Per decision: grounded_by, a one-sentence defence argument, and a verify line
 (where an auditor or the agent confirms it was built). Modules carry
 `@implements` and `@grounded_by` tags; see Section 17.
 
@@ -646,26 +659,37 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   reproducibility, no-silent-degradation, Section 13); corroborated by REF-27, REF-08.
   Defense: the authoritative structure must be deterministic and reproducible;
   LLMs also hallucinate legal hierarchy, so no model touches Layer 1.
-  verify: src/parse_legal_structure/ has no model calls; tests assert 119/180/14
+  verify: src/tere4ai/parse_legal_structure/ has no model calls; tests assert 119/180/14
   for the Act in force (tests/integration/test_acceptance_in_force.py) and
   113/180/13 for the 2024 parse (tests/integration/test_acceptance_m1.py).
 - DEC-02: cross-references resolved by rule first. Engineering MUST (determinism);
   corroborated by REF-26, REF-29.
   Defense: references are exact pointers, so rule resolution is deterministic;
   references and conditionals are also the highest-error zone for LLMs.
-  verify: src/resolve_crossrefs/ rule pass plus AMBIGUOUS queue; crossref test.
+  verify: src/tere4ai/resolve_crossrefs/resolver.py rule pass plus the dump's
+  review_queue (AMBIGUOUS_NEEDS_REVIEW in
+  schema/json_schemas/layer1_dump.schema.json);
+  tests/unit/test_crossref_reification.py.
 - DEC-03: NormativeStatement first-class, Institutional Grammar. grounded_by REF-11,
   REF-12, REF-13. Defense: deontic-KG practice; an article holds many norms.
-  verify: src/extract_norms/ emits norm nodes; norm_extraction test.
+  verify: src/tere4ai/extract_norms/ emits norm nodes;
+  tests/unit/test_extract_norms.py.
 - DEC-04: actor inferred via Article 16, canonicalised. grounded_by REF-11, REF-12.
   Defense: multi-party texts cause object/actor misidentification.
-  verify: src/canonicalize/ actor table; actor_inference test.
+  verify: src/tere4ai/canonicalize/canonicalizer.py actor table
+  (CANONICAL_ACTORS); tests/unit/test_canonicalize.py,
+  tests/unit/test_layer23_schemas.py.
 - DEC-05: reified AlignmentAssertion nodes. grounded_by REF-24, REF-21, REF-10.
   Defense: a mapping is an auditable claim, not law; store-portable.
-  verify: src/align_hleg/; query for accepted mapping without evidence returns zero.
+  verify: src/tere4ai/align_hleg/; the query for an accepted alignment without
+  evidence returns zero (gate G4, src/tere4ai/validate_graph/gates.py;
+  post-load gate P4, postload.py).
 - DEC-06: dual/triple judges. grounded_by REF-16, REF-24, REF-27.
   Defense: unjudged legal grounding is only 50 to 68 percent correct.
-  verify: src/judge/ three entry points; runtime_grounding test asserts no answer without a verdict.
+  verify: the extraction judge in src/tere4ai/extract_norms/pipeline.py, the
+  alignment judge in src/tere4ai/align_hleg/pipeline.py and the runtime
+  grounding judge in src/tere4ai/judge/runtime_grounding.py (ground_check);
+  runtime_grounding test asserts no answer without a verdict.
 - DEC-07: OpenAI generator, independent non-OpenAI judge (decided 2026-07-08).
   grounded_by REF-24.
   Defense: same-family judge failure modes correlate; an independent judge
@@ -688,14 +712,16 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   tests/unit/test_banned_term_scope.py encodes the scoped contract.
 - DEC-09: Neo4j primary plus RDF export. grounded_by REF-21, REF-22, REF-08, REF-25, REF-23.
   Defense: edge-native provenance and a reject-not-infer task fit property graphs.
-  verify: graph_store/ uses Neo4j; rdf_export_roundtrip test.
+  verify: src/tere4ai/graph_store/ uses Neo4j; tests/integration/test_rdf_roundtrip.py,
+  tests/unit/test_rdf_export.py.
 - DEC-10: full structural mirror, deep only on high-risk core. grounded_by
   REF-17, REF-15, ADD-24.
   Defense: value and benchmarks concentrate on the high-risk regime.
   verify: coverage_report shows full Layer 1, Layer 2/3 only on Section 10 set.
 - DEC-11: reuse open benchmark plus sibling baselines. grounded_by REF-15, REF-16, REF-17.
   Defense: an open benchmark covers our tasks; siblings are the baselines.
-  verify: eval/ loads REF-15; src/tere4ai/eval/strategies.py implements the
+  verify: src/tere4ai/eval/harness.py loads REF-15
+  (eval/gold/benchmark_sample.json); src/tere4ai/eval/strategies.py implements the
   vector-RAG and no-judge baseline conditions.
 - DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02, REF-04.
   Defense: it is adopted and changes the in-force text and the dates.
@@ -1411,6 +1437,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   and time in front of an audience); it needs no literature grounding
   (AGENTS.md grounding bar), and it weakens the control DEC-07 grounds
   in REF-24 only where it is labelled.
+  Built 2026-10-07 by card B138 for /api/backlog only; the /api/evidence half,
+  its judge route and its field checks are card B140's (admitted, before B74).
+  The text of this entry describes both routes as designed.
   The mode: both routes take judge, "inline" (the default, today's
   answer byte for byte) or "on_demand". On demand, the generator and
   the tool's mechanical checks run as today and no judge request is
@@ -1516,10 +1545,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   field and two settings to remove; the MCP tools and the inline routes
   never change.
   verify: src/tere4ai/http_facade/app.py (the judge field, the expected
-  build, the caller reference, the judge routes, the signed record, each
+  build, the caller reference, the judge route /api/backlog/judge, the signed record, each
   route's configuration, /api/health's readiness); mcp_server/
-  evidence.py and backlog.py (each tool split into a generator part and
-  a judge part, the MCP answers unchanged); judge/config.py (the demo
+  backlog.py (the tool split into a generator part and a judge part, the MCP
+  answer unchanged; the evidence half is card B140's); judge/config.py (the demo
   judge's loading, refusals and price loader); judge/runtime_grounding.py
   (judge_setting on log lines); extract_norms/model_clients.py;
   report/ingest.py and report/render.py; scripts/estimate_benchmark_cost.py;
@@ -1528,7 +1557,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   tests on mock clients: the inline envelopes byte for byte, the test
   vectors, a forged or stale signature, a judge equal to the signed
   generator and each field sent that differs from the record (route,
-  content or system_context, norm ids, artifact fields) refused before
+  system_context, norm ids) refused before
   any request, a judge_on_demand line attached to its generation in the
   report, an unexpected build refused,
   model_called false on every refusal before a request, demo lines left
@@ -1693,38 +1722,45 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)
-  and verify_in_code (a path plus a test).
+  and a verify line (a path plus a test).
 - Every module or function that implements a decision carries in its header:
   `@implements: <decision-id>` and `@grounded_by: REF-xx, REF-yy`.
 - `docs/traceability.md` is generated in CI from those tags, never hand-written,
   with columns decision_id, grounded_by, code_paths, test_ids, status
   (implemented, partial, not_started).
-- CI fails the build if a Section 16 decision has no `@implements` anywhere, or
-  if a `@grounded_by` cites a REF id not in references.md.
+- CI fails the build if a decision listed in scripts/ci_expected_decisions.json
+  has no `@implements`, if an `@implements` cites an unknown decision, or if a
+  `@grounded_by` cites a source id not in references.md.
 - No REF may be cited unless it exists in references.md with a source-type tag.
   Grounding bar (single definition, shared with @AGENTS.md and references.md): a
   MUST that makes a research or empirical claim needs at least one PEER, STD, or
   OFF grounding; PRE, PROJ, and PRAC may support but never be sole grounding. An
   engineering or non-functional MUST stands on engineering merit and needs no
-  literature grounding. The CI tag-checker enforces this bar.
+  literature grounding. The CI tag-checker checks only that each cited source id exists; the bar is
+  applied in review.
 - To answer "is decision X built": grep `@implements`, open the cited test, run
   it, report code paths plus test result plus grounding. Report status honestly
   as implemented, partial, or not_started. Never report done on the basis of the
   spec alone.
 
-## 18. Repository layout (target)
+## 18. Repository layout (2026-10-07)
 
 ```
 tere4ai2/
-  AGENTS.md  USER.md
-  docs/            architecture.md  references.md  DESIGN.md  traceability.md (generated)
+  AGENTS.md  USER.md  README.md  CHANGELOG.md
+  docs/            architecture.md  references.md  DESIGN.md  traceability.md (generated)  server/
   src/tere4ai/     ingest/ parse_legal_structure/ resolve_crossrefs/
                    extract_norms/ canonicalize/ align_hleg/ judge/
                    validate_graph/ graph_store/ mcp_server/ http_facade/ eval/
+                   elicit_features/ review_queue/ trace_scan/ report/ server_docs/
   web/             Next.js demo UI (thin, read-only; per docs/DESIGN.md)
-  schema/          json_schemas/ cypher_constraints/ rdf_export/
+  schema/          json_schemas/ cypher_constraints/
   prompts/         extract_norms/ judge_norms/ align_hleg/ judge_alignment/ runtime_grounding/
-  data/            sources/ snapshots/ graph_dumps/ review_queue/
-  tests/           unit/ integration/ fixtures/ gold/ meta/
-  docker-compose.yml  pyproject.toml
+                   elicit_features/ evaluate_evidence/ generate_backlog/ requirement_type/
+  config/          model_parameters.json  model_prices.json
+  data/            snapshots/ amendments/ graph_dumps/ review_queue/ (logs, not tracked)
+  eval/            config_evaluated.yaml  gold/  results/
+  scripts/  demo/  deploy/rahti/ (Phase 2 seeds, untested)
+  tests/           unit/ integration/ fixtures/ meta/
+  docker-compose.yml  Dockerfile  pyproject.toml
 ```

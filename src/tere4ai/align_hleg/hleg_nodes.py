@@ -14,7 +14,8 @@ G D-G75 (5)). The set is closed (alignments.schema.json enforces the ids);
 this module never invents an eighth.
 
 The ALTAI question lists (assessment section of the same document) are NOT
-emitted here; ALTAI redistribution has a pending license check (OPEN-LICENSE).
+emitted here: ALTAI is not in the graph, a future study (B111) with its own
+licence check.
 """
 
 from __future__ import annotations
