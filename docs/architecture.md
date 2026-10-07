@@ -290,8 +290,11 @@ recommendation):
   same-family judges have correlated failure modes, which weakens the control
   (REF-24). Both are config values in .env / eval config, never hardcoded.
 - All judge models are config values, never hardcoded. Every judge decision is
-  logged (input hash, verdict, scores, rationale, model, prompt version,
-  timestamp; never the full input).
+  logged as one line of the audit log (timestamp, model, effort, prompt
+  version and hash, input hash, verdict, rationale; never the full input
+  and no scores). The JudgeRun record the judge returns is separate: it
+  carries the scores, the temperature, the start and end times and the
+  build id as well, and goes to the caller, not into the log.
 - The HTTP facade's demo mode (added 2026-10-06, DEC-24): /api/backlog can
   answer from the generator alone (judge "on_demand"), signed, and
   /api/backlog/judge judges the kept answer later with a demo judge of the
