@@ -1,13 +1,17 @@
 """Deterministic builder for the seven HLEGRequirement nodes (Layer 3).
 
-@implements: DEC-05 (partial: target-side HLEG nodes; assertions arrive with the mapping pipeline)
-@grounded_by: REF-33, REF-10
+@implements: DEC-05 (partial: target-side HLEG nodes; assertions arrive with the alignment pipeline)
+@implements: DEC-25 (partial: each requirement given whole)
+@grounded_by: ADD-01, REF-10
 
-Slices the frozen HLEG Ethics Guidelines working text (sections 1.1 to 1.7 of
-chapter II) into the seven canonical requirements. The set is closed
-(alignments.schema.json enforces the ids); this module never invents an
-eighth. Source spans point into the frozen, checksum-verified text file so
-every future AlignmentAssertion can cite ethics-side evidence spans.
+Each requirement's description is its section of Chapter II Section 1 of
+the Ethics Guidelines for Trustworthy AI, from after its heading to the next
+requirement's heading (1.7 to the end of the text), paragraphs separated by
+one blank line; its span is the whole section with its heading. Text and
+ranges come from the derived text and its derivation record
+(tere4ai.ingest.hleg_text), read through their checksums (hleg_source; spec
+G D-G75 (5)). The set is closed (alignments.schema.json enforces the ids);
+this module never invents an eighth.
 
 The ALTAI question lists (assessment section of the same document) are NOT
 emitted here; ALTAI redistribution has a pending license check (OPEN-LICENSE).
@@ -15,15 +19,10 @@ emitted here; ALTAI redistribution has a pending license check (OPEN-LICENSE).
 
 from __future__ import annotations
 
-import hashlib
-import json
-import re
-from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_TEXT = ROOT / "data" / "snapshots" / "hleg_ethics_guidelines_2019_en_v1text.txt"
-DEFAULT_MANIFEST = ROOT / "data" / "snapshots" / "MANIFEST.json"
+from tere4ai.align_hleg.hleg_source import HlegPair, load_pair
+from tere4ai.ingest.hleg_text import TEXT_FILE
 
 # Canonical order and ids (closed set; mirrors alignments.schema.json).
 CANONICAL = [
@@ -39,70 +38,41 @@ CANONICAL = [
     ("hleg:accountability", "Accountability"),
 ]
 
-_HEADING = re.compile(r"^1\.([1-7]) (.+)$", re.M)
+
+def section_end(text: str, heads: list[dict[str, Any]], i: int) -> int:
+    """Where section i ends: before the blank line that precedes the next heading,
+    or before the final newline of the text."""
+    following = heads[i + 1]["start"] if i + 1 < len(heads) else len(text)
+    return len(text[:following].rstrip("\n"))
 
 
-def build_hleg_nodes(
-    text_path: Path | str = DEFAULT_TEXT,
-    manifest_path: Path | str = DEFAULT_MANIFEST,
-) -> list[dict[str, Any]]:
-    """Return the seven HLEGRequirement nodes with source spans.
-
-    Verifies the text file checksum against the snapshot manifest first
-    (frozen-source rule, architecture.md Section 6). Raises on any drift or
-    if the seven sections are not found exactly once each, in order.
-    """
-    text_path = Path(text_path)
-    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
-    entry = next(
-        (s for s in manifest["snapshots"] if s["file"] == text_path.name), None
-    )
-    if entry is None:
-        raise ValueError(f"{text_path.name} is not in the snapshot manifest")
-    actual = hashlib.sha256(text_path.read_bytes()).hexdigest()
-    if actual != entry["sha256"]:
-        raise ValueError(
-            f"checksum mismatch for {text_path.name}: manifest {entry['sha256']}, file {actual}"
-        )
-
-    text = text_path.read_text(encoding="utf-8")
-    headings = list(_HEADING.finditer(text))
-    if len(headings) != 7:
-        raise ValueError(f"expected exactly 7 requirement headings, found {len(headings)}")
-
+def build_hleg_nodes(pair: HlegPair | None = None) -> list[dict[str, Any]]:
+    """The seven HLEGRequirement nodes with their spans; raises ValueError when the
+    record's seven headings are not the canonical ones, once each, in order."""
+    pair = pair or load_pair()
+    text, heads = pair.text, pair.record["requirement_headings"]
+    if [h["order"] for h in heads] != [1, 2, 3, 4, 5, 6, 7]:
+        raise ValueError(f"expected the requirement headings 1.1 to 1.7 in order, found {[h['order'] for h in heads]}")
     nodes: list[dict[str, Any]] = []
-    for i, match in enumerate(headings):
-        order = int(match.group(1))
-        req_id, canonical_name = CANONICAL[order - 1]
-        # section body runs to the next heading (or a hard cap for 1.7)
-        start = match.start()
-        end = headings[i + 1].start() if i + 1 < len(headings) else start + 6000
-        section = text[start:end]
-        # description: first non-heading paragraph of the section
-        body_lines = section.splitlines()[1:]
-        description_lines: list[str] = []
-        for line in body_lines:
-            if not line.strip():
-                if description_lines:
-                    break
-                continue
-            description_lines.append(line.strip())
-        nodes.append(
-            {
-                "id": req_id,
-                "type": "HLEGRequirement",
-                "layer": 3,
-                "order": order,
-                "name": canonical_name,
-                "description": " ".join(description_lines),
-                "source_span": {
-                    "span_id": f"span:hleg:req{order}",
-                    "snapshot_file": text_path.name,
-                    "snapshot_sha256": entry["sha256"],
-                    "start": start,
-                    "end": min(end, len(text)),
-                    "anchor": match.group(0).strip(),
-                },
-            }
-        )
+    for i, head in enumerate(heads):
+        req_id, name = CANONICAL[head["order"] - 1]
+        if text[head["start"]:head["end"]] != head["text"] or head["text"] != f"1.{head['order']} {name}":
+            raise ValueError(f"heading {head['text']!r} at {head['start']} is not 1.{head['order']} {name}")
+        end = section_end(text, heads, i)
+        nodes.append({
+            "id": req_id,
+            "type": "HLEGRequirement",
+            "layer": 3,
+            "order": head["order"],
+            "name": name,
+            "description": text[head["end"]:end].strip("\n"),
+            "source_span": {
+                "span_id": f"span:hleg:req{head['order']}",
+                "snapshot_file": TEXT_FILE,
+                "snapshot_sha256": pair.text_sha256,
+                "start": head["start"],
+                "end": end,
+                "anchor": head["text"],
+            },
+        })
     return nodes

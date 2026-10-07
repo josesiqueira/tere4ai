@@ -718,7 +718,7 @@ def test_span_endpoint_resolves_hleg_target_spans(client):
     response = client.get("/api/span/span:hleg:req2")
     assert response.status_code == 200
     body = response.json()
-    assert body["snapshot_file"] == "hleg_ethics_guidelines_2019_en_v1text.txt"
+    assert body["snapshot_file"] == "hleg_ethics_guidelines_2019_en_requirements.txt"
     assert "robustness" in body["text"].lower()
 
 

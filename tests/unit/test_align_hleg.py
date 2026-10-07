@@ -418,3 +418,27 @@ def test_norm_without_source_text_is_recorded_failed(tmp_path):
     assert result["assertions"] == []
     assert len(result["stats"]["norms_failed"]) == 1
     assert result["stats"]["norms_failed"][0]["reason"] == "missing source_text"
+
+
+def test_l3_2_accepts_a_quote_of_every_subtopic_from_its_parent(tmp_path):
+    """B143 (acceptance 1): a scripted generator quotes each of the 23 subtopics' first
+    sentences against its parent requirement; the mechanical quote check rejects none."""
+    from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
+    from tere4ai.align_hleg.hleg_subtopics import build_hleg_subtopics
+
+    nodes = build_hleg_nodes()
+    subtopics = build_hleg_subtopics()["nodes"]
+    norms, scripted = [], {}
+    for i, s in enumerate(subtopics, start=1):
+        norm_id = f"norm:eu-ai-act:article-99:paragraph-{i}:n1"
+        norms.append(_norm(norm_id=norm_id, source_node_id=f"eu-ai-act:article-99:paragraph-{i}",
+                           source_span_id=f"span:099.{i:03d}"))
+        scripted[norm_id] = _generator_answer(target_id=s["hleg_requirement_id"], target_quote=s["description"])
+    generator = FakeClient(scripted, model="fake-generator")
+    judge = FakeClient({"Target HLEG requirement:": _judge_answer()}, model="fake-judge")
+    result = align_norms(norms, nodes, generator, judge, prompt_version="v1",
+                         log_path=tmp_path / "alignment_log.jsonl", build_id="build-test")
+    assert result["stats"]["mechanical_rejects"] == []
+    assert not [r for r in result["judge_runs"] if r["judge_model"] == MECHANICAL_JUDGE_MODEL]
+    assert len(result["assertions"]) == 23
+    assert sorted(a["target_id"] for a in result["assertions"]) == sorted(s["hleg_requirement_id"] for s in subtopics)

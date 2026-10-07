@@ -142,7 +142,7 @@ def test_explain_accepted_norm_full_chain(
     # Span trace: valid span ids; the norm's own span resolves in the dump.
     trace_ids = [s["span_id"] for s in answer["span_trace"]]
     assert KNOWN_SPAN_ID in trace_ids
-    hleg_text = SNAPSHOTS_DIR / "hleg_ethics_guidelines_2019_en_v1text.txt"
+    hleg_text = SNAPSHOTS_DIR / "hleg_ethics_guidelines_2019_en_requirements.txt"
     for entry in answer["span_trace"]:
         assert entry["span_id"].startswith("span:")
         if entry["span_id"] in span_ids_in_dump:

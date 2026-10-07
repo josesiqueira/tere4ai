@@ -403,14 +403,11 @@ def _main(argv: list[str] | None = None) -> int:
                 g3 = alignments_to_graph(alignments_payload, build_hleg_nodes(), build_id=build_id)
                 graph["nodes"].extend(g3["nodes"])
                 graph["edges"].extend(g3["edges"])
-                # Deterministic HLEG subtopic targets (DEC-05 partial); skipped
-                # heading candidates are printed, never silently dropped.
+                # The publisher's subtopic headings (DEC-05 partial, DEC-25).
                 subtopics = build_hleg_subtopics(build_id=build_id)
                 graph["nodes"].extend(subtopics["nodes"])
                 graph["edges"].extend(subtopics["edges"])
-                print(f"hleg subtopics: {len(subtopics['nodes'])} nodes, {len(subtopics['skipped'])} skipped heading candidates")
-                for item in subtopics["skipped"]:
-                    print(f"  subtopic candidate skipped ({item['reason']}): {item['heading_candidate']!r}")
+                print(f"hleg subtopics: {len(subtopics['nodes'])} nodes from the publisher's headings")
             build = norms_payload.get("build", {})
             pseudo_dump = {"build": {"build_id": build_id, "built_at": build.get("built_at", ""),
                                      "tere4ai_version": build.get("tere4ai_version", ""),

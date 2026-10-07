@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SNAPSHOT = ROOT / "data" / "snapshots" / "eu_ai_act_32024R1689_eurlex_html_2026-07-08.html"
 FORMEX_DIR = ROOT / "data" / "snapshots" / "formex"
 MANIFEST = ROOT / "data" / "snapshots" / "MANIFEST.json"
-HLEG_TEXT = ROOT / "data" / "snapshots" / "hleg_ethics_guidelines_2019_en_v1text.txt"
+HLEG_TEXT = ROOT / "data" / "snapshots" / "hleg_ethics_guidelines_2019_en_requirements.txt"
 
 pytestmark = pytest.mark.skipif(
     not (SNAPSHOT.exists() and FORMEX_DIR.is_dir() and HLEG_TEXT.exists()),
@@ -276,6 +276,33 @@ def test_context_for_is_not_a_hierarchy_edge_and_recitals_stay_context_only(dump
 # ---------------------------------------------------------------------------
 
 
+SUBTOPIC_IDS = [
+    "hleg:human-agency-and-oversight:subtopic:fundamental-rights",
+    "hleg:human-agency-and-oversight:subtopic:human-agency",
+    "hleg:human-agency-and-oversight:subtopic:human-oversight",
+    "hleg:technical-robustness-and-safety:subtopic:resilience-to-attack-and-security",
+    "hleg:technical-robustness-and-safety:subtopic:fallback-plan-and-general-safety",
+    "hleg:technical-robustness-and-safety:subtopic:accuracy",
+    "hleg:technical-robustness-and-safety:subtopic:reliability-and-reproducibility",
+    "hleg:privacy-and-data-governance:subtopic:privacy-and-data-protection",
+    "hleg:privacy-and-data-governance:subtopic:quality-and-integrity-of-data",
+    "hleg:privacy-and-data-governance:subtopic:access-to-data",
+    "hleg:transparency:subtopic:traceability",
+    "hleg:transparency:subtopic:explainability",
+    "hleg:transparency:subtopic:communication",
+    "hleg:diversity-non-discrimination-and-fairness:subtopic:avoidance-of-unfair-bias",
+    "hleg:diversity-non-discrimination-and-fairness:subtopic:accessibility-and-universal-design",
+    "hleg:diversity-non-discrimination-and-fairness:subtopic:stakeholder-participation",
+    "hleg:societal-and-environmental-well-being:subtopic:sustainable-and-environmentally-friendly-ai",
+    "hleg:societal-and-environmental-well-being:subtopic:social-impact",
+    "hleg:societal-and-environmental-well-being:subtopic:society-and-democracy",
+    "hleg:accountability:subtopic:auditability",
+    "hleg:accountability:subtopic:minimisation-and-reporting-of-negative-impacts",
+    "hleg:accountability:subtopic:trade-offs",
+    "hleg:accountability:subtopic:redress",
+]
+
+
 @pytest.fixture(scope="module")
 def subtopics():
     from tere4ai.align_hleg.hleg_subtopics import build_hleg_subtopics
@@ -288,7 +315,8 @@ def test_subtopic_count_and_closed_parents(subtopics):
 
     nodes = subtopics["nodes"]
     assert len(nodes) >= 10
-    assert len(nodes) == 23  # verified against the frozen HLEG text
+    assert len(nodes) == 23  # the publisher's headings in the derivation record
+    assert [n["id"] for n in nodes] == SUBTOPIC_IDS
     canonical_ids = {cid for cid, _ in CANONICAL}
     parents = {n["hleg_requirement_id"] for n in nodes}
     assert parents == canonical_ids  # all 7 requirements have subtopics
@@ -320,28 +348,8 @@ def test_has_subtopic_edges(subtopics):
         child = nodes_by_id[e["to"]]
         assert e["from"] == child["hleg_requirement_id"], e["edge_id"]
         assert e["provenance_class"] == "EXTRACTED_SOURCE"
-        assert e["method"] == "hleg_subtopic_slice_v1"
+        assert e["method"] == "hleg_subtopic_headings_v2"
         assert e["source_span_id"] == child["source_span"]["span_id"], e["edge_id"]
-
-
-def test_ambiguous_headings_are_skipped_and_reported(subtopics):
-    """Never guess: candidates failing the strict heading test are excluded
-    from the nodes and recorded in the module-level report."""
-    from tere4ai.align_hleg.hleg_subtopics import SKIPPED_REPORT
-
-    skipped = subtopics["skipped"]
-    assert skipped == SKIPPED_REPORT
-    # the frozen text yields exactly these three rejected candidates
-    assert [(s["section_id"], s["reason"]) for s in skipped] == [
-        ("hleg:technical-robustness-and-safety", "prefix contains punctuation or digits"),
-        ("hleg:technical-robustness-and-safety", "prefix has 9 words (max 7)"),
-        ("hleg:privacy-and-data-governance", "prefix has 14 words (max 7)"),
-    ]
-    emitted_labels = {n["label"] for n in subtopics["nodes"]}
-    for s in skipped:
-        assert s["heading_candidate"] not in emitted_labels
-        assert s["reason"]
-        assert s["offset"] >= 0
 
 
 def test_subtopics_deterministic(subtopics):
