@@ -10,7 +10,7 @@ from pathlib import Path
 from tere4ai.graph_store.store import NODE_LABELS
 
 ARCHITECTURE = Path(__file__).resolve().parents[2] / "docs" / "architecture.md"
-_CAMEL = re.compile(r"\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b")
+_CAMEL = re.compile(r"\b[A-Z]{2,}[A-Z][a-z0-9]+\w*|\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b")
 
 
 def _section_1() -> list[str]:
