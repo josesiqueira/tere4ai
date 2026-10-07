@@ -41,11 +41,21 @@ def test_constraints_and_load_round_trip(driver):
     from tere4ai.graph_store.store import GraphStore
 
     store = GraphStore()
+    dump = json.loads(DUMP.read_text(encoding="utf-8"))
+    # load_dump MERGEs the dump and then reconciles Layer 0 to it: SourceFile and
+    # SourceDocument nodes the dump does not list are removed. So this test runs only
+    # when the database's Layer 0 node ids equal the tracked dump's (or it has none).
+    listed = {n["id"] for n in dump["nodes"] if n["type"] in ("SourceFile", "SourceDocument")}
+    with driver.session() as s:
+        held = {r["id"] for r in s.run("MATCH (n) WHERE n:SourceFile OR n:SourceDocument RETURN n.id AS id")}
+    if held and held != listed:
+        pytest.skip(f"the database's Layer 0 differs from the tracked layer1.json ({len(held - listed)} nodes "
+                    f"it holds are not listed, {len(listed - held)} listed are not held); load_dump would "
+                    "remove the unlisted ones")
     result = store.apply_constraints(driver)
     assert result["applied"] > 0
 
-    dump = json.loads(DUMP.read_text(encoding="utf-8"))
-    store.load_dump(dump, driver)  # idempotent MERGE, safe to repeat
+    store.load_dump(dump, driver)  # MERGE then reconcile Layer 0 to the dump; repeatable on a matching database
 
     labels = ("Article", "Recital", "Annex", "Point", "AnnexItem")
     with driver.session() as s:
