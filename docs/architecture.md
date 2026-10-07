@@ -1561,6 +1561,81 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   test_in_force_build.py, test_parse_cli_record.py, test_align_cli.py,
   test_align_hleg.py, test_publish_layer23.py, test_v1_text_gone.py and
   test_architecture_layers.py; tests/integration/test_postload_gates.py.
+- DEC-26: a requirement of Articles 8 to 15 (Chapter III Section 2,
+  "Requirements for high-risk AI systems") whose text names no person or
+  body that must act is the provider's duty, inferred through Article
+  16(a): actor_explicit null, actor_inferred provider,
+  actor_inference_source_node_id eu-ai-act:article-16:paragraph-1:point-a
+  (added 2026-10-07; thesis task B144, spec G D-G76 and the rulings in
+  sdd/2026-10-07-B144-system-subject-duties/progress.md in the private
+  research repository; the owner's words, on the extraction rule giving
+  such duties to the provider through Article 16(a): "im leaning towards
+  a", then "yes a card for it and admited before b74"). grounded_by
+  REF-01, REF-11. Article 8(1): "High-risk AI systems shall comply with
+  the requirements laid down in this Section"; Article 16(a): "Providers
+  of high-risk AI systems shall: (a) ensure that their high-risk AI
+  systems are compliant with the requirements set out in Section 2";
+  REF-11 (Section 3.3, p. 3): an addressee "must individually or
+  collectively possess the capacity to act, such as a natural or legal
+  person. Consequently, entities like 'AI systems', 'a process', or
+  'adopted measures' cannot serve as addressees of obligations".
+  Until it, extract_norms v3 gave a Section 2 duty to the provider only
+  when it was stated in the passive voice, with the whole of Article 16
+  as its source; a duty whose subject is the system kept the system as
+  its written actor, which the role filter (mcp_server/requirements.py,
+  _actor_matches) serves to no role, so Article 12(1), "High-risk AI
+  systems shall technically allow for the automatic recording of events
+  (logs) over the lifetime of the system", reached no provider.
+  Which norms: an obligation or prohibition that states one of the
+  Section's requirements for the high-risk AI system, and a permission or
+  exemption that qualifies one (Article 9(7), 15(4), 14(5)), whatever the
+  grammatical subject (the system, a part of it, a thing the Section
+  requires of it) and whether the verb is active or passive; never a
+  right, nor a permission, an ability or a duty of a person the system
+  must enable or inform (Article 14(4)(d) read alone). A person or body
+  the text names as the one that acts keeps its written actor (the
+  Commission, notified bodies, SMEs and SMCs, providers); a person named
+  only inside what a requirement must ensure is not its actor (Article
+  14(5)'s measures, which must ensure that no decision is taken "by the
+  deployer" unless verified, are the provider's).
+  Outside Articles 8 to 15 extract_norms v3's rule stands. No slot is
+  added: the system's words stay in the norm's source unit and span.
+  extract_norms v4 states the rule with worked examples (Article 12(1),
+  the Article 14(4) paragraph beside its point (d), Article 15(4));
+  judge_norms v4's check 3 accepts that inference for a unit of Articles
+  8 to 15 and rejects it outside them, where the text names the person
+  who acts, for an enabled person's permission or ability, and the system
+  in actor_explicit there; from v4 on a point given as the inference
+  source reaches the judge with the paragraph that holds it, and the E1
+  label sheet shows the same text. v4 is the default and the version of
+  record (eval/config_evaluated.yaml), so B74 extracts with it; v1 to v3
+  stay runnable with the input they had. The extraction command stores
+  two checks in the execution's counts: the accepted norms of Articles 8
+  to 15 the provider is not served, and an audit of every norm of
+  Articles 8 to 15 in four groups (rule applied, written party, outside
+  the rule, against the representation), with the norms outside Articles
+  8 to 15 that cite point (a). Reporting effects, disclosed and not
+  corrected: the canonicalization moves a covered norm from
+  actors_unresolved to actors_resolved, the near-duplicate report
+  compares it inside its Article's provider block, and the digests given
+  to models name provider as its actor; B74's figures are the first that
+  count.
+  This is the project's reading of Article 16(a), not the only one:
+  REF-11 (Section 3.3, p. 4) reads the addressee of Article 14's "the
+  oversight measures shall be commensurate with the risks" as the
+  deployer. The reading is recorded on every norm with its source,
+  checked by the judge and open to the annotators of L2.3 (the
+  dashboard's annotation guideline v3).
+  Defense: who must act decides who is told; the Act makes the provider
+  answer for every Section 2 requirement whatever the sentence's
+  subject, and the reading lives in the norm, where the judge checks it,
+  the build record audits it and the annotators can correct it.
+  Cost if wrong: before B74, two prompt versions, a judge input, two
+  counts and a guideline version to redo, with no model call; after B74,
+  a Section 2 norm the Act gives to someone else without naming them is
+  served to the provider until L2.3 corrects it.
+  verify: prompts/extract_norms/v4.md; tests/unit/test_norms_prompts_v4.py
+  (draft until B144's last tere4ai2 task).
 
 ## 17. Implementation-traceability convention
 
