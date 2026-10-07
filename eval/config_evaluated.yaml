@@ -1,24 +1,38 @@
 # Model configuration of record for evaluated builds (DEC-07 verify target).
 # Generated values must match the .env used for the run; the eval harness
 # (M4) refuses to report results whose config does not match this file.
+# B149 (2026-10-07): brought to the declared models of .env, the declared
+# settings of config/model_parameters.json (spec F D-F22, D-F29) and the
+# code defaults of the prompts. tests/unit/test_eval_config_of_record.py
+# fails when this file drifts from any of them.
 generator:
   family: openai
-  model: gpt-5.2
-  temperature: 0
+  model: gpt-6-astra
+  temperature: N/A
+  effort: xhigh
 judges:
   family: anthropic          # independent non-OpenAI family (DEC-07, 2026-07-08)
-  model: claude-opus-4-8
-  temperature: 0
-  kinds: [extraction, mapping, runtime_grounding]
+  model: claude-opus-5-5
+  temperature: N/A
+  effort: xhigh
+  kinds: [extraction, alignment, runtime_grounding]
 prompt_versions:
   extract_norms: v4
   judge_norms: v4
   align_hleg: v1
   judge_alignment: v1
   evaluate_evidence: v1
-  generate_backlog: v1
-  runtime_grounding: v1
+  generate_backlog: v2
+  # The runtime judge (runtime_grounding) runs at a version per path in code:
+  # the evaluate_project_evidence tool at v1, the backlog tool at v2 and the
+  # ablation's graph_full condition at v1 (strategies.py judge_prompt_version).
+  runtime_grounding_evidence: v1
+  runtime_grounding_backlog: v2
+  runtime_grounding_ablation: v1
+  elicit_features: v7
 builds:
-  layer1: build-3b753e5e9297
-  norms: norms_core.json (2026-07-08, 434 norms, 339 accepted)
-  alignments: alignments_core.json (2026-07-08, 620 assertions, 475 accepted)
+  # The July builds are disposable. The B74 re-run builds from Layer 0 and
+  # B74 fills these three lines with the ids and counts of its own builds.
+  layer1: to be filled by B74
+  norms: to be filled by B74
+  alignments: to be filled by B74

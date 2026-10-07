@@ -358,10 +358,10 @@ def test_artifact_name_is_order_insensitive_and_build_keyed():
 
 def test_config_of_record_parses_the_real_file():
     record = read_config_of_record(EVAL_CONFIG_PATH)
-    assert record == {"generator_model": "gpt-5.2", "judge_model": "claude-opus-4-8"}
+    assert record == {"generator_model": "gpt-6-astra", "judge_model": "claude-opus-5-5"}
 
 
-def _fake_cfg(generator="gpt-5.2", judge="claude-opus-4-8") -> ModelConfig:
+def _fake_cfg(generator="gpt-6-astra", judge="claude-opus-5-5") -> ModelConfig:
     # B99 (spec F D-F29): the efforts are the declared rows' values now
     return ModelConfig(generator_model=generator, judge_model=judge, generator_api_key="sk-fake",
                        judge_api_key="sk-ant-fake", generator_parameters=declared(generator, "openai"),
