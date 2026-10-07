@@ -3,7 +3,8 @@
 @implements: DEC-03, DEC-06 (partial: extraction judge only), DEC-16 (partial: the L2.1 and L2.2 execution record)
 @implements: DEC-19
 @implements: DEC-21
-@grounded_by: REF-11, REF-12, REF-13, REF-16, REF-24, REF-27, ADD-20
+@implements: DEC-26
+@grounded_by: REF-01, REF-11, REF-12, REF-13, REF-16, REF-24, REF-27, ADD-20
 
 Runs the judged norm-extraction pipeline over the given Layer 1 node ids
 (article ids expand to their paragraphs and points) and writes
@@ -21,6 +22,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from tere4ai.extract_norms.actor_audit import report_lines, section_2_checks
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     AnthropicJudge,
@@ -287,6 +289,9 @@ def _main(argv: list[str] | None = None) -> int:
                     merged["stats"].get("untyped_in_scope", 0) + stats["untyped_in_scope"]
                 )
 
+        # B144 (spec G D-G76 (7)): over every group of the run, inherited ones included
+        section_2 = section_2_checks(merged["norms"], dump)
+
         generator_sampling = declared_sampling(generator, judge)
         payload = {
             "build": {
@@ -315,6 +320,7 @@ def _main(argv: list[str] | None = None) -> int:
             counts={"source_units": stats["source_units"], "candidates": stats["candidates"],
                     "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"]),
                     "without_target_system_category": stats["without_target_system_category"],
+                    **section_2,
                     **({"untyped_in_scope": stats["untyped_in_scope"]} if "untyped_in_scope" in stats else {})},
             usage=usage(),
             sampling=declared_sampling(generator, judge),
@@ -344,6 +350,8 @@ def _main(argv: list[str] | None = None) -> int:
     print(f"wrote {out_path}")
     print(f"source units: {stats['source_units']}, candidates: {stats['candidates']}")
     print(f"verdicts: {stats['verdicts']}")
+    for line in report_lines(section_2):
+        print(line)
     if stats["nodes_failed"]:
         print(f"failed nodes: {len(stats['nodes_failed'])} (see stats in the output file)")
     if stats["invalid_norms"]:

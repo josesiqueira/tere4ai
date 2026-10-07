@@ -704,3 +704,38 @@ def test_a_mock_model_run_of_the_v3_pipeline_sets_the_rule_value_counts_the_null
     assert resumed["status"] == "done" and resumed["inherited_keys"] == ["eu-ai-act:article-16"]
     assert resumed["counts"]["without_target_system_category"] == 1
     assert "norms without a target_system_category (source unit outside the rule table): 1" in capsys.readouterr().out
+
+
+def test_the_command_stores_and_prints_the_section_2_checks_over_the_merged_groups(tmp_path, monkeypatch, capsys):
+    """B144 (DEC-26, spec G D-G76 (7)): the two checks read the norms of every
+    group of the run, beside without_target_system_category."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    n12 = {"norm_id": "norm:eu-ai-act:article-12:paragraph-1:n1", "source_node_id": "eu-ai-act:article-12:paragraph-1",
+           "actor_explicit": "high-risk AI systems", "actor_inferred": None, "actor_inference_source_node_id": None,
+           "judge_verdict": "accepted", "deontic_type": "obligation"}
+    n17 = {"norm_id": "norm:eu-ai-act:article-17:paragraph-1:n1", "source_node_id": "eu-ai-act:article-17:paragraph-1",
+           "actor_explicit": None, "actor_inferred": "provider",
+           "actor_inference_source_node_id": "eu-ai-act:article-16:paragraph-1:point-a",
+           "judge_verdict": "accepted", "deontic_type": "obligation"}
+
+    def group(norm):
+        return {"norms": [norm], "judge_runs": [], "stats": {"source_units": 1, "candidates": 1,
+                "verdicts": {"accepted": 1}, "nodes_failed": [], "invalid_norms": []}}
+
+    _fakes(monkeypatch, cli, [], results={"eu-ai-act:article-12": group(n12), "eu-ai-act:article-17": group(n17)})
+    rc = cli.main(["--nodes", "eu-ai-act:article-12,eu-ai-act:article-17", "--dump", str(dump_path), "--out", str(out)])
+    assert rc == 0
+    store = BuildRecordStore(tmp_path)
+    counts = store.read(store.resolve("test"))["executions"][0]["counts"]
+    assert counts["section_2_not_served_to_provider"] == {"count": 1, "norm_ids": [n12["norm_id"]]}
+    assert counts["section_2_actor_audit"]["written_party"] == {"count": 1, "norms": [
+        {"norm_id": n12["norm_id"], "label": "unresolved", "phrase": "high-risk AI systems"}]}
+    assert counts["point_a_source_outside_section_2"] == {"count": 1, "norm_ids": [n17["norm_id"]]}
+    assert "without_target_system_category" in counts
+    printed = capsys.readouterr().out
+    assert f"Articles 8 to 15, accepted norms the provider is not served: 1\n  {n12['norm_id']}\n" in printed
+    assert ("Norms outside Articles 8 to 15 whose actor source is eu-ai-act:article-16:paragraph-1:point-a: 1\n"
+            f"  {n17['norm_id']}\n") in printed

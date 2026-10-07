@@ -233,7 +233,14 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     store.finish_execution(
         parent, run, status="done", outputs=[norms_input], completed_keys=["eu-ai-act:article-1"], usage=usage,
         counts={"source_units": 1, "candidates": 1, "verdicts": {"accepted": 1}, "invalid_norms_count": 0,
-               "without_target_system_category": 0},
+               "without_target_system_category": 0,
+               "section_2_not_served_to_provider": {"count": 0, "norm_ids": []},
+               "section_2_actor_audit": {"rule_applied": {"count": 0, "norm_ids": []},
+                                         "written_party": {"count": 0, "norms": []},
+                                         "outside_the_rule": {"count": 0, "norms": []},
+                                         "against_the_representation": {"count": 0, "norms": []},
+                                         "sum": 0, "norms_of_section_2": 0},
+               "point_a_source_outside_section_2": {"count": 0, "norm_ids": []}},
         work_failures={"nodes_failed": 0, "norms_failed": 0},
     )
     align_common = {"command": "align_hleg", "covers_steps": ["L3.1", "L3.2", "L3.3"],
