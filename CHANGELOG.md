@@ -5,6 +5,25 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B144: a requirement of Articles 8 to 15 whose text names no person who must act is the provider's, through Article 16(a) (2026-10-07)
+- Prompts extract_norms v4 and judge_norms v4, the default and the version
+  of record (eval/config_evaluated.yaml): such a requirement, whatever its
+  grammatical subject and whether active or passive, has actor_explicit
+  null, actor_inferred provider and actor_inference_source_node_id
+  eu-ai-act:article-16:paragraph-1:point-a (DEC-26); check 3 accepts that
+  inference for Articles 8 to 15 only. A person or body the text names
+  keeps its written actor; outside Articles 8 to 15 nothing changes. v1 to
+  v3 stay runnable with the input they had.
+- From v4 on, a point given as the actor-inference source reaches the
+  judge, and the E1 label sheet, with the paragraph that holds it.
+- The extraction command prints and stores in the execution's counts
+  `section_2_not_served_to_provider`, `section_2_actor_audit` and
+  `point_a_source_outside_section_2`.
+- Contract: the norms schema, the store, the facade and the served entry
+  do not change; a covered norm is served to the provider with
+  actor_source "inferred"; the canonicalization counts, the near-duplicate
+  blocks and the norm digests given to models read provider for it.
+
 ### B143: the HLEG text from the Guidelines' official PDF, checked in every build, each requirement whole (2026-10-07)
 - Layer 3 reads the Ethics Guidelines for Trustworthy AI from a text derived
   from the Publications Office PDF by `python -m tere4ai.ingest.hleg_text`

@@ -100,6 +100,16 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   authorised representative, product manufacturer, and so on). Inferred actors
   record their inference source node (for example provider inferred via Article
   16). grounded_by: REF-12
+- Requirements of Articles 8 to 15 (added 2026-10-07, DEC-26): a norm of
+  Chapter III Section 2 that states or qualifies one of its requirements
+  for the high-risk AI system and whose text names no person or body that
+  must act has no written actor, the inferred actor provider and the
+  Article 16(a) node, eu-ai-act:article-16:paragraph-1:point-a, as its
+  inference source, whatever the sentence's subject and whether its verb
+  is active or passive. The system's words stay in the norm's source unit
+  and span; no slot holds them. A person or body the text names keeps its
+  written actor; outside Articles 8 to 15 a thing may still stand as the
+  written actor (Article 17's "that system"). grounded_by: REF-01, REF-11
 
 ## 4. Reified alignments
 grounded_by: REF-24, REF-21, REF-10
@@ -227,7 +237,12 @@ Three judges, kept separate:
   not, without that record changing the verdict. Since judge_norms v3
   (2026-10-03, DEC-21) the candidate it receives no longer carries
   target_system_category, which a rule sets after the verdict; its checks
-  and verdict values do not change.
+  and verdict values do not change. Since judge_norms v4 (2026-10-07,
+  DEC-26) check 3 accepts the provider inferred through Article 16(a)
+  (eu-ai-act:article-16:paragraph-1:point-a) for a requirement of Articles
+  8 to 15 whose text names no person or body that must act and rejects
+  that inference elsewhere, and a point given as the inference source
+  reaches the judge with the paragraph that holds it.
 - Build-time mapping judge: before an alignment is accepted, scores it, may
   correct the relation type, and rejects any mapping whose rationale relies on
   concepts absent from both source spans.
@@ -1162,8 +1177,8 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   the judge reads as before and the norm does not keep; extract_norms v3
   does not ask for it and the v3 judge's candidate does not carry it
   (judge_norms v3 is v2 under a new version line; the two share one
-  version, and v3 is the default and the version of record in
-  eval/config_evaluated.yaml). A norm on a unit outside the table carries
+  version; v3 was the default and the version of record in
+  eval/config_evaluated.yaml until B144, and DEC-26 makes v4 both). A norm on a unit outside the table carries
   null, counted as without_target_system_category in the extraction
   stats and the execution record; extending the scope means adding rows.
   The review apply step sets the rule value on a norm a person adds or
@@ -1634,8 +1649,17 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   counts and a guideline version to redo, with no model call; after B74,
   a Section 2 norm the Act gives to someone else without naming them is
   served to the provider until L2.3 corrects it.
-  verify: prompts/extract_norms/v4.md; tests/unit/test_norms_prompts_v4.py
-  (draft until B144's last tere4ai2 task).
+  verify: prompts/extract_norms/v4.md and prompts/judge_norms/v4.md;
+  src/tere4ai/extract_norms/pipeline.py (DEFAULT_PROMPT_VERSION,
+  judge_inference_block), actor_audit.py and __main__.py;
+  scripts/sample_judge_decisions.py and scripts/estimate_benchmark_cost.py
+  (the same inference text as the judge); eval/config_evaluated.yaml;
+  tests/unit/test_norms_prompts_v4.py, test_extract_norms.py,
+  test_judge_sampling.py, test_actor_audit.py (Layer 1's Section 2
+  included), test_extract_norms_cli.py and test_section_2_provider_rule.py
+  (the mock-model command line run, the requirements tool and the facade
+  over its output); docs/benchmark_cost_estimate.md is regenerated with v4;
+  CHANGELOG.md names the contract change.
 
 ## 17. Implementation-traceability convention
 
