@@ -26,7 +26,9 @@
   (REF-24). None close the loop to the developer. TERE4AI generates engineering
   requirements and evaluates project evidence inside the coding agent's
   workflow, gated by a build-time and a runtime judge, evaluated for calibrated
-  reliance rather than raw accuracy.
+  reliance rather than raw accuracy. Which experiment step measures calibrated
+  reliance is open (card B152 in the private research repository); the build
+  judges' false-accept and false-reject rates are step E1 (card B150).
 
 ## 1. Layered graph model
 grounded_by: REF-08, REF-09, REF-24, ADD-01
@@ -40,7 +42,7 @@ tests/unit/test_architecture_layers.py holds this section to that set (rewritten
 - Layer 0 Source corpus: `SourceDocument`, `SourceFile`. `BuildRun` is accepted by the store and the node schema but created by no code: a build is recorded in the dump's build block and in the build record file (DEC-16). Spans are not nodes: each node that cites a source holds its span (file, sha256, offsets).
 - Layer 1 Legal structure: `Regulation`, `Chapter`, `Section`, `Article`, `Paragraph`, `Subparagraph`, `Point`, `Annex`, `AnnexItem`, `Recital`, `Definition`, `CrossReference`, and `UnitVersion` (the 2024 wording of a unit the Digital Omnibus changed, DEC-23).
 - Layer 2 Normative statements: `NormativeStatement`, `Condition`, `Exception`. The deontic type, the actor, the lifecycle phase and the requirement type are slots of a normative statement, and its required artifacts and evidence expectations are id lists on it (Section 3), not nodes.
-- Layer 3 Ethics and alignment: `HLEGRequirement`, `HLEGRequirementSubtopic`, `AlignmentAssertion`, `MappingRun`, `JudgeRun`. ALTAI questions are not in the graph, by decision (ALTAI redistribution still needs its licence check, task C2, Section 15); an assertion's evidence is held as span ids on the assertion.
+- Layer 3 Ethics and alignment: `HLEGRequirement`, `HLEGRequirementSubtopic`, `AlignmentAssertion`, `MappingRun`, `JudgeRun`. ALTAI questions are not in the graph, by decision (ALTAI redistribution would need its licence check, a future study, B111, Section 15); an assertion's evidence is held as span ids on the assertion.
 - Layer 4 Runtime project evidence: not in the graph. A project's facts, evidence and backlog are held by the dashboard's project store and in the MCP tools' answers (Section 8).
 - Not built: the plan of 2026-07-08 named further types, none of which was built or is a label the store accepts: SourceVersion and SourceSpan (Layer 0); Obligation, Prohibition, Permission, Right, ActorRole, LifecyclePhase, RequiredArtifact, RequiredProcess, EvidenceExpectation, RiskCategory, ApplicabilityRule and ComplianceControl (Layer 2); ALTAIQuestion, EthicalPrinciple, MappingEvidence, StandardRequirement and OntologyConcept (Layer 3); and twenty Layer 4 types, from Project to BacklogItem.
 
@@ -61,7 +63,8 @@ paragraph, point, or annex item, never a recital.
 - Provenance classes (grounded_by: REF-32): EXTRACTED_SOURCE,
   EXTRACTED_CROSS_REFERENCE, RESOLVED_DETERMINISTIC, LLM_CANDIDATE,
   LLM_JUDGED_ACCEPTED, LLM_JUDGED_REJECTED, HUMAN_REVIEWED_ACCEPTED,
-  HUMAN_REVIEWED_REJECTED, AMBIGUOUS_NEEDS_REVIEW.
+  HUMAN_REVIEWED_REJECTED, HUMAN_AUTHORED (a norm a reviewer replaced or added),
+  AMBIGUOUS_NEEDS_REVIEW.
 - Field-level JSON schemas for nodes and edges live in `schema/json_schemas/`
   and are the machine-readable source of truth; this document is the
   human-readable one.
@@ -95,7 +98,9 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   unit outside the rule table. grounded_by: REF-01
 - Schema is grounded in Institutional Grammar (OVR-9): actor maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
-  Aim. Pull the primary sources (REF-14c) before citing.
+  Aim. The grammar is cited through REF-13 and the deontic strand through
+  REF-14c; the Institutional Grammar primaries were dropped from the register as
+  out of scope (references.md).
 - Actors are canonicalised (provider, deployer, importer, distributor,
   authorised representative, product manufacturer, and so on). Inferred actors
   record their inference source node (for example provider inferred via Article
@@ -115,13 +120,14 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
 grounded_by: REF-24, REF-21, REF-10
 
 - Do not store `Article --ALIGNS_WITH--> HLEGRequirement` as a truth edge. Store
-  an AlignmentAssertion node connected to source norm, target HLEG or ALTAI
+  an AlignmentAssertion node connected to source norm, target HLEG
   requirement, mapping evidence spans on both sides, a MappingRun, and a
   JudgeRun.
 - AlignmentAssertion carries the score dimensions (semantic similarity,
   normative relevance, operational utility, evidence strength, judge
-  confidence), a final score, generator and judge model and prompt versions,
-  judge verdict, rationale, and review status.
+  confidence), a final score, the ids of its MappingRun and JudgeRun (which carry
+  the generator and judge models and prompt versions), judge verdict, rationale,
+  and review status.
 - Relation types: directly_operationalizes, partially_operationalizes, supports,
   related_to, conflicts_with, no_clear_relation.
 
@@ -132,12 +138,18 @@ OVR-8. grounded_by: REF-21, REF-22, REF-08, REF-25, REF-23
   on every edge, which is native to property graphs and awkward in RDF
   (reification or RDF-star); the task is to reject (validation gates), not to
   infer via OWL reasoning; property-graph legislation pipelines are established.
-- RDF/OWL export via neosemantics (n10s) used only for alignment to AIRO and
-  TAIR (OWL) and for legal-informatics interoperability artifacts. Do not run a
-  triplestore as the primary store in v2.
+  The MCP server and the HTTP facade answer from the published JSON dumps
+  (data/graph_dumps/); Neo4j is loaded from them (scripts/load_layer1.py,
+  scripts/publish_layer23.py) for Cypher queries, the post-load gates and the
+  RDF export.
+- RDF/OWL export via neosemantics (n10s) used for legal-informatics
+  interoperability artifacts (the judged Layer 2 and 3 subgraph as N-Triples);
+  the alignment to AIRO and TAIR (OWL) is deferred. Do not run a triplestore as
+  the primary store in v2.
 - Reified AlignmentAssertion nodes port to both models, so this choice does not
-  lock out RDF later. Validation is Pydantic plus Cypher constraints; RDF export
-  is the interoperability path.
+  lock out RDF later. Validation is JSON Schema, the dump gates of
+  Section 13, Cypher constraints and the post-load Cypher checks; RDF export is
+  the interoperability path.
 
 ## 6. Build-time pipeline and ingestion
 Engineering MUST (determinism and reproducibility, see Section 13);
@@ -151,23 +163,28 @@ Two lanes: deterministic first, LLM-assisted second.
    LLMs hallucinate hierarchy, REF-27).
 3. resolve cross-references by rule first; LLM repair only for unresolved or
    ambiguous cases, stored as AMBIGUOUS_NEEDS_REVIEW until judged (references
-   and conditionals are the highest-error zone, REF-26).
-4. extract normative statements (rules for structure and modals, LLM for deontic
-   content, judge for grounding).
+   and conditionals are the highest-error zone, REF-26). (LLM repair is not
+   built: the rule pass sends unresolved and other-instrument references to the
+   dump's review queue.)
+4. extract normative statements (units from the deterministic parse; the deontic
+   slots and the modal from an LLM; target_system_category and the
+   requirement-type scope by rule; a judge for grounding).
 5. canonicalise terms and actors.
-6. align to HLEG/ALTAI with an LLM, then judge.
-7. validate graph, then publish a versioned dump and the MCP contract version.
+6. align to the seven HLEG requirements with an LLM, then judge.
+7. validate graph, then publish a versioned build (its build chain and
+   publication manifest); each answer names the build in graph_version.
 
 Ingestion route (OVR-2, spike-confirmed 2026-07-08): the ELI URL
 `http://data.europa.eu/eli/reg/2024/1689/oj` resolves only to EUR-Lex HTML and
 ignores content negotiation; it does not serve structured XML and carries no eId
-attributes. Layer 1 therefore uses two authoritative manifestations, each frozen
-by checksum:
+attributes. Layer 1 therefore reads these manifestations, each frozen
+by checksum (since B132 the units come from (c), checked against (b) and the
+Omnibus; the recitals from (a)):
 (a) EUR-Lex HTML manifestation, for coarse structure: article (`id="art_9"`, 113
     of them), recital (`id="rct_12"`, 180), annex (`id="anx_III"`, 13), and
     paragraph (numeric `id="009.001"`, article.paragraph, about 509). It has no
-    point or annex-item anchors. Sufficient for the M1 structural mirror and the
-    113 / 180 / 13 acceptance.
+    point or annex-item anchors. It was the source of the M1 structural mirror
+    (113 / 180 / 13); since B132 it gives the recitals only.
 (b) Formex 4 (fmx4) manifestation from CELLAR, for point, subparagraph, and
     annex-item granularity, which the HTML lacks and the high-risk core needs.
     Retrieval (verified 2026-07-08): GET the CELLAR work URI
@@ -218,8 +235,9 @@ by checksum:
     Layer 0+1 build checks them against the PDF with a second reader, pypdf
     (checks C0 to C4, DEC-25), a failure stopping the parse.
 Node IDs are derived deterministically by the parser from this structure
-(Section 2); this Regulation carries no eId attributes to lift. HTML and PDF
-renderings are also kept for human verification. Do not plan to download clean
+(Section 2); this Regulation carries no eId attributes to lift. HTML renderings
+of the Act, the Omnibus and the consolidated text are also kept for human
+verification. Do not plan to download clean
 Akoma Ntoso XML; it is not served that way for this Regulation.
 
 ## 7. Judges and model configuration
@@ -259,7 +277,9 @@ Why the judge matters, and the claim discipline: sibling systems ground legal
 references correctly only around 50 to 68 percent of the time without gating
 (REF-16), so the judge is the control that closes that gap. The thesis claim is
 therefore calibrated reliance and improved grounding, with judge false-accept
-and false-reject rates as headline metrics, never "accurate compliance".
+and false-reject rates as headline metrics, never "accurate compliance". (Which
+step measures calibrated reliance is open, card B152; the extraction judge's
+false-accept and false-reject rates are step E1, card B150.)
 
 Model configuration (updated per @USER.md, supersedes the earlier OVR-4
 recommendation):
@@ -270,16 +290,18 @@ recommendation):
   same-family judges have correlated failure modes, which weakens the control
   (REF-24). Both are config values in .env / eval config, never hardcoded.
 - All judge models are config values, never hardcoded. Every judge decision is
-  logged (input, verdict, scores, rationale, model, prompt version, timestamp).
-- The HTTP facade's demo mode (added 2026-10-06, DEC-24): /api/backlog and
-  /api/evidence can answer from the generator alone, signed, and a judge
-  route judges the kept answer later with a demo judge of the generator's
-  own family (TERE4AI_DEMO_JUDGE_MODEL, never the generator's model id),
+  logged (input hash, verdict, scores, rationale, model, prompt version,
+  timestamp; never the full input).
+- The HTTP facade's demo mode (added 2026-10-06, DEC-24): /api/backlog can
+  answer from the generator alone (judge "on_demand"), signed, and
+  /api/backlog/judge judges the kept answer later with a demo judge of the
+  generator's own family (TERE4AI_DEMO_JUDGE_MODEL, never the generator's model id),
   every such answer labelled so. The MCP tools and the inline routes keep
-  the independent judge above.
-- Note: the coding agents that BUILD the software (Opus 4.8 planning, Fable 5
-  implementation) are a separate layer from these internal runtime models. Do
-  not confuse them.
+  the independent judge above. The same for /api/evidence is card B140, not
+  built.
+- Note: the coding agents that BUILD the software (the planning, implementation
+  and review sessions) are a separate layer from these internal runtime
+  models. Do not confuse them.
 
 ## 8. MCP access and tool contract
 grounded_by: REF-31, REF-32
@@ -291,7 +313,9 @@ grounded_by: REF-31, REF-32
   scoped.
 - Required tools: classify_ai_system, get_applicable_requirements,
   explain_requirement, evaluate_project_evidence, trace_alignment,
-  generate_control_backlog, coverage_report, source_trace.
+  generate_control_backlog, coverage_report, source_trace. Also served:
+  resolve_span, trace_implementation, evaluate_project_evidence_batch,
+  elicit_features (twelve tools in all).
   (classify_ai_system: the FLI rule-based checker, REF-30, is a
   classification-logic source and a baseline to beat, not a grounding for a
   MUST.)
@@ -331,8 +355,9 @@ grounded_by: REF-31, REF-32
   server-side configuration), statelessness with no state handles, and scope
   minimization (six narrow scopes; paid tools behind their own scopes).
   Engineering MUSTs of this project, corroborated but not mandated by the
-  spec: read-only default, request logging, rate limiting, secret redaction,
-  no arbitrary command execution, no unscoped filesystem access. Treat project
+  spec: read-only default, request logging, rate limiting (on the HTTP facade;
+  the MCP server's HTTP transport has none), secret redaction, no arbitrary
+  command execution, no unscoped filesystem access. Treat project
   artifacts and legal source text as untrusted input; keep instructions
   separate from evidence so retrieved text cannot override policy (engineering
   MUST; the spec's tool-safety principle treats tool descriptions as
@@ -357,7 +382,9 @@ grounded_by: REF-31, REF-32
 - Mode A Hosted SaaS: TERE4AI operates the MCP server and graph; consumers use a
   URL and API key; HTTPS; EU-region hosting by default; usage accounting.
 - Mode B Self-hosted Docker: the consumer runs the MCP server and graph locally;
-  docker-compose plus a graph dump and source manifest; stdio or localhost/HTTP.
+  docker-compose (Neo4j; the facade and the web UI under the demo profile) plus
+  a graph dump and source manifest; the MCP server runs from the package over
+  stdio or localhost HTTP.
 - Same server code across both; only transport, authentication, graph location,
   and model configuration vary. Phase 1 is self-hosted and INCLUDES a thin demo
   Web UI; Phase 2+ is the multi-tenant hosted SaaS (accounts, keys, metering)
@@ -373,7 +400,7 @@ grounded_by: REF-31, REF-32
   give full sovereignty, because the coding agent's prompts still reach whatever
   LLM it uses. Tier 1 hosted graph plus cloud LLM; Tier 2 self-hosted graph plus
   cloud LLM; Tier 3 self-hosted graph plus local model (strongest, lower model
-  quality, experimental in v2, not promised to match cloud quality).
+  quality, not built in v2, not promised to match cloud quality).
 
 ## 10. Scope for v2
 OVR-1. grounded_by: REF-17, REF-15

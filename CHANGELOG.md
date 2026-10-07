@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B148: architecture.md read whole against the code (2026-10-07)
+- docs/architecture.md Sections 0 to 9 state what the code does today: no ALTAI target, HUMAN_AUTHORED among the provenance classes, the JSON dumps as what the server reads with Neo4j loaded from them, JSON Schema validation, the pipeline steps as built, the twelve served tools, the facade's demo mode on /api/backlog only, the deployment modes as built. No decision text and no code changes.
+
 ### B144: a requirement of Articles 8 to 15 whose text names no person who must act is the provider's, through Article 16(a) (2026-10-07)
 - Prompts extract_norms v4 and judge_norms v4, the default and the version
   of record (eval/config_evaluated.yaml): such a requirement, whatever its
