@@ -1,0 +1,171 @@
+[
+  {
+    "id": "w01",
+    "page": 18,
+    "offset": 2377,
+    "derived": [
+      "as"
+    ],
+    "other": [
+      "a",
+      "s"
+    ],
+    "reason": "The page prints 'as' as one word (read on the page image, printed page 16); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w02",
+    "page": 19,
+    "offset": 5950,
+    "derived": [
+      "depends"
+    ],
+    "other": [
+      "depend",
+      "s"
+    ],
+    "reason": "The page prints 'depends' as one word (read on the page image, printed page 17); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w03",
+    "page": 19,
+    "offset": 6039,
+    "derived": [
+      "system’s"
+    ],
+    "other": [
+      "system",
+      "’s"
+    ],
+    "reason": "The page prints 'system’s' as one word with its apostrophe; pypdf's layout reading splits it."
+  },
+  {
+    "id": "w04",
+    "page": 19,
+    "offset": 6147,
+    "derived": [
+      "particularly"
+    ],
+    "other": [
+      "part",
+      "icularly"
+    ],
+    "reason": "The page prints 'particularly' as one word (read on the page image, printed page 17); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w05",
+    "page": 19,
+    "offset": 6765,
+    "derived": [
+      "errors"
+    ],
+    "other": [
+      "erro",
+      "rs"
+    ],
+    "reason": "The page prints 'errors' as one word (read on the page image, printed page 17); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w06",
+    "page": 19,
+    "offset": 6972,
+    "derived": [
+      "reproducible,"
+    ],
+    "other": [
+      "reproducible",
+      ","
+    ],
+    "reason": "The page prints 'reproducible,' with the punctuation mark attached to the word; pypdf's layout reading places a space before it."
+  },
+  {
+    "id": "w07",
+    "page": 19,
+    "offset": 9626,
+    "derived": [
+      "Only"
+    ],
+    "other": [
+      "O",
+      "nly"
+    ],
+    "reason": "The page prints 'Only' as one word (read on the page image, printed page 17); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w08",
+    "page": 20,
+    "offset": 13227,
+    "derived": [
+      "removed"
+    ],
+    "other": [
+      "remov",
+      "ed"
+    ],
+    "reason": "The page prints 'removed' as one word (read on the page image, printed page 18); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w09",
+    "page": 21,
+    "offset": 14236,
+    "derived": [
+      "following"
+    ],
+    "other": [
+      "follow",
+      "ing"
+    ],
+    "reason": "The page prints 'following' as one word (read on the page image, printed page 19); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w10",
+    "page": 21,
+    "offset": 14469,
+    "derived": [
+      "Participation."
+    ],
+    "other": [
+      "Participation",
+      "."
+    ],
+    "reason": "The page prints 'Participation.' with the punctuation mark attached to the word; pypdf's layout reading places a space before it."
+  },
+  {
+    "id": "w11",
+    "page": 21,
+    "offset": 14654,
+    "derived": [
+      "cycle."
+    ],
+    "other": [
+      "cycle",
+      "."
+    ],
+    "reason": "The page prints 'cycle.' with the punctuation mark attached to the word; pypdf's layout reading places a space before it."
+  },
+  {
+    "id": "w12",
+    "page": 21,
+    "offset": 14746,
+    "derived": [
+      "term"
+    ],
+    "other": [
+      "te",
+      "rm"
+    ],
+    "reason": "The page prints 'term' as one word (read on the page image, printed page 19); pypdf's layout reading splits it."
+  },
+  {
+    "id": "w13",
+    "page": 21,
+    "offset": 16454,
+    "derived": [
+      "physical"
+    ],
+    "other": [
+      "physic",
+      "al"
+    ],
+    "reason": "The page prints 'physical' as one word (read on the page image, printed page 19); pypdf's layout reading splits it."
+  }
+]

@@ -177,3 +177,204 @@ def test_a_stretch_pypdf_reads_that_is_not_in_the_derived_text_leaves_a_residue_
     failures = hc.check_c2(altered, record, readings[0], reviewed, hc.body_bottoms(facts))
     assert any(f.startswith("C2 page 20: pypdf reads ") and f.endswith(", which is neither derived nor excluded")
                for f in failures)
+
+
+@pytest.fixture(scope="module")
+def rows():
+    return json.loads((ht.SNAPSHOTS_DIR / ht.WORD_ROWS_FILE).read_text(encoding="utf-8"))
+
+
+def _other(frozen, readings, reviewed):
+    _, _, _, record = frozen
+    return {n: hc.body_words(readings[1][n], n, record, reviewed) for n in ht.PAGES}
+
+
+def test_c3_every_difference_has_its_reviewed_row(frozen, readings, reviewed, rows):
+    _, _, text, record = frozen
+    failures, used = hc.check_c3(text, record, _other(frozen, readings, reviewed), rows)
+    assert failures == [] and used == [r["id"] for r in rows] and len(rows) == 13  # measured
+    assert all(r["reason"].strip() and r["derived"] != r["other"] for r in rows)
+
+
+def test_c3_is_ordered_and_sees_two_swapped_sentences():
+    derived = "It is a part. It is apart."
+    record = {"paragraphs": [{"start": 0, "end": len(derived), "pages": [ht.PAGES[0]]}],
+              "markers_removed": [], "page_joins": []}
+    other = {n: [] for n in ht.PAGES}
+    other[ht.PAGES[0]] = "It is apart. It is a part.".split()
+    assert sorted(derived.split()) == sorted(other[ht.PAGES[0]]), "the same words, so a set test would pass"
+    failures, used = hc.check_c3(derived, record, other, [])
+    assert failures and failures[0].startswith(f"C3 page {ht.PAGES[0]}, offset ") and used == []
+
+
+def test_a_difference_without_its_row_fails_with_its_location(frozen, readings, reviewed, rows):
+    _, _, text, record = frozen
+    failures, _ = hc.check_c3(text, record, _other(frozen, readings, reviewed), rows[1:])
+    assert failures == [f"C3 page {rows[0]['page']}, offset {rows[0]['offset']}: derived {rows[0]['derived']} "
+                        f"against pypdf {rows[0]['other']}"]
+
+
+def test_a_row_that_matches_no_difference_fails(frozen, readings, reviewed, rows):
+    _, _, text, record = frozen
+    moved = [*rows, {**rows[0], "id": "w99", "offset": rows[0]["offset"] + 1}]
+    failures, _ = hc.check_c3(text, record, _other(frozen, readings, reviewed), moved)
+    assert any(f.endswith("reviewed row w99 matches no difference") for f in failures)
+
+
+@pytest.mark.parametrize("phrase, replacement, glued, page", [
+    # the prototype's fault before layout spacing, at footnote marker 47 (C1 and C2 cannot see it)
+    ("social AI systems in all areas", "social AI systemsin all areas", "systemsin", 21),
+    ("Like many technologies", "Likemany technologies", "Likemany", 17),
+])
+def test_a_glued_word_in_the_derived_text_is_a_c3_difference(frozen, readings, reviewed, rows, phrase, replacement,
+                                                             glued, page):
+    _, _, text, record = frozen
+    altered = text.replace(phrase, replacement, 1)
+    assert glued in altered and altered != text
+    failures, _ = hc.check_c3(altered, record, _other(frozen, readings, reviewed), rows)
+    assert any(f.startswith(f"C3 page {page}, offset ") and glued in f for f in failures)
+
+
+def test_c4_passes_and_names_a_missing_heading(frozen):
+    _, _, text, record = frozen
+    assert hc.check_c4(text, record) == []
+    broken = text.replace("1.4 Transparency\n", "1.4 Transparence\n", 1)
+    assert any(f.startswith("C4 the requirement headings are") for f in hc.check_c4(broken, record))
+    lonely = text.replace("\n\n1.2 Technical", "\n\n17\n\n1.2 Technical", 1)
+    assert any(f.startswith("C4 line ") and "only digits" in f for f in hc.check_c4(lonely, record))
+
+
+def test_run_hleg_checks_passes_and_returns_the_outcome():
+    outcome = hc.run_hleg_checks()
+    assert outcome["checks_passed"] == ["C0", "C1", "C2", "C3", "C4"]
+    assert (outcome["paragraphs"], outcome["requirement_headings"], outcome["subtopic_headings"]) == (30, 7, 23)
+    assert (outcome["page_joins"], outcome["hyphen_joins"], outcome["markers_removed"]) == (4, 2, 15)
+    assert (outcome["exclusions_reviewed"], outcome["stretches_checked"], len(outcome["word_rows_used"])) == (39, 52, 13)
+    assert outcome["derived_text"]["file"] == ht.TEXT_FILE and len(outcome["word_rows"]["sha256"]) == 64
+
+
+@pytest.mark.parametrize("name, check", [(ht.EXCLUSIONS_FILE, "C2"), (ht.WORD_ROWS_FILE, "C3")])
+def test_a_missing_reviewed_file_fails_the_check_that_reads_it(tmp_path, name, check):
+    """Review M4: the error names its check and the file, never a bare FileNotFoundError."""
+    manifest = json.loads(ht.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    keep = [e for e in manifest["snapshots"] if e["file"] in (ht.PDF_FILE, ht.TEXT_FILE, ht.RECORD_FILE)]
+    for entry in keep:
+        (tmp_path / entry["file"]).write_bytes((ht.SNAPSHOTS_DIR / entry["file"]).read_bytes())
+    for other in (ht.EXCLUSIONS_FILE, ht.WORD_ROWS_FILE):
+        if other != name:
+            (tmp_path / other).write_bytes((ht.SNAPSHOTS_DIR / other).read_bytes())
+    (tmp_path / "MANIFEST.json").write_text(json.dumps({"snapshots": keep}, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(hc.HlegCheckError, match=f"^{check} failed: {check} the reviewed file {name} cannot be read"):
+        hc.run_hleg_checks(tmp_path / "MANIFEST.json")
+
+
+def test_the_check_command_reports_pass_and_fail(tmp_path, capsys):
+    assert ht.main(["--check"]) == 0
+    assert "C0, C1, C2, C3, C4 pass" in capsys.readouterr().out
+    manifest = json.loads(ht.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    for entry in manifest["snapshots"]:
+        source = ht.SNAPSHOTS_DIR / entry["file"]
+        if entry["file"] in (ht.PDF_FILE, ht.TEXT_FILE, ht.RECORD_FILE):
+            (tmp_path / entry["file"]).write_bytes(source.read_bytes())
+    for name in (ht.EXCLUSIONS_FILE, ht.WORD_ROWS_FILE):
+        (tmp_path / name).write_bytes((ht.SNAPSHOTS_DIR / name).read_bytes())
+    text = (tmp_path / ht.TEXT_FILE).read_bytes().replace(b"Accuracy pertains", b"Accuracy pertain", 1)
+    (tmp_path / ht.TEXT_FILE).write_bytes(text)
+    import hashlib
+    for entry in manifest["snapshots"]:
+        if entry["file"] == ht.TEXT_FILE:
+            entry["sha256"] = hashlib.sha256(text).hexdigest()
+    keep = [e for e in manifest["snapshots"] if e["file"] in (ht.PDF_FILE, ht.TEXT_FILE, ht.RECORD_FILE)]
+    (tmp_path / "MANIFEST.json").write_text(json.dumps({"snapshots": keep}, indent=2) + "\n", encoding="utf-8")
+    assert ht.main(["--check", "--manifest", str(tmp_path / "MANIFEST.json")]) == 1
+    assert "CHECK FAIL C0 failed: C0 hleg_ethics_guidelines_2019_en_requirements.txt differs" in capsys.readouterr().err
+
+
+def test_a_word_pypdf_reads_after_the_last_derived_word_is_a_difference_at_the_end():
+    derived = "One two three."
+    record = {"paragraphs": [{"start": 0, "end": len(derived), "pages": [ht.PAGES[0]]}],
+              "markers_removed": [], "page_joins": []}
+    other = {n: [] for n in ht.PAGES}
+    other[ht.PAGES[0]] = ["One", "two", "three.", "four"]
+    failures, _ = hc.check_c3(derived, record, other, [])
+    assert failures == [f"C3 page {ht.PAGES[0]}, offset {len(derived)}: derived [] against pypdf ['four']"]
+
+
+def test_c4_names_a_wrong_subtopic_count_and_a_subtopic_that_does_not_open_its_paragraph(frozen):
+    _, _, text, record = frozen
+    fewer = {**record, "subtopic_headings": record["subtopic_headings"][1:]}
+    assert any(f.startswith("C4 22 subtopic headings, not 23") for f in hc.check_c4(text, fewer))
+    moved = copy.deepcopy(record)
+    moved["subtopic_headings"][3]["start"] += 1
+    moved["subtopic_headings"][3]["end"] += 1
+    assert any(f.startswith(f"C4 offset {moved['subtopic_headings'][3]['start']}: subtopic heading")
+               for f in hc.check_c4(text, moved))
+
+
+def test_an_unparsable_reviewed_file_fails_the_check_that_reads_it(tmp_path):
+    (tmp_path / "rows.json").write_text("[not json", encoding="utf-8")
+    with pytest.raises(hc.HlegCheckError, match="^C3 failed: C3 the reviewed file rows.json cannot be read"):
+        hc._reviewed_file(tmp_path, "rows.json", "C3")
+
+
+def test_a_missing_library_names_its_check(monkeypatch):
+    def refuse(_):
+        raise ImportError("No module named 'pdfplumber'")
+
+    monkeypatch.setattr(ht, "read_pdf", refuse)
+    with pytest.raises(hc.HlegCheckError, match=r"^C0 failed: C0 the hleg extra is not installed"):
+        hc.run_hleg_checks()
+    monkeypatch.undo()
+    monkeypatch.setattr(hc, "pypdf_pages", refuse)
+    with pytest.raises(hc.HlegCheckError, match=r"^C1 failed: C1 the hleg extra is not installed"):
+        hc.run_hleg_checks()
+
+
+def test_a_row_at_another_offset_does_not_cover_the_difference(frozen, readings, reviewed, rows):
+    _, _, text, record = frozen
+    shifted = [{**rows[0], "offset": rows[0]["offset"] + 1}, *rows[1:]]
+    failures, used = hc.check_c3(text, record, _other(frozen, readings, reviewed), shifted)
+    assert any(f.startswith(f"C3 page {rows[0]['page']}, offset {rows[0]['offset']}: derived") for f in failures)
+    assert any(f.endswith("reviewed row w01 matches no difference") for f in failures) and "w01" not in used
+
+
+def _copy_snapshots(tmp_path, rows=None):
+    """The manifest's three files and the two reviewed files in tmp_path; rows replaces the rows file."""
+    manifest = json.loads(ht.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    keep = [e for e in manifest["snapshots"] if e["file"] in (ht.PDF_FILE, ht.TEXT_FILE, ht.RECORD_FILE)]
+    for entry in keep:
+        (tmp_path / entry["file"]).write_bytes((ht.SNAPSHOTS_DIR / entry["file"]).read_bytes())
+    (tmp_path / ht.EXCLUSIONS_FILE).write_bytes((ht.SNAPSHOTS_DIR / ht.EXCLUSIONS_FILE).read_bytes())
+    content = json.dumps(rows) if rows is not None else (ht.SNAPSHOTS_DIR / ht.WORD_ROWS_FILE).read_text(encoding="utf-8")
+    (tmp_path / ht.WORD_ROWS_FILE).write_text(content, encoding="utf-8")
+    (tmp_path / "MANIFEST.json").write_text(json.dumps({"snapshots": keep}, indent=2) + "\n", encoding="utf-8")
+    return tmp_path / "MANIFEST.json"
+
+
+def test_run_hleg_checks_stops_at_c3_when_a_row_is_missing(tmp_path, rows):
+    manifest = _copy_snapshots(tmp_path, rows=rows[1:])
+    with pytest.raises(hc.HlegCheckError, match=r"^C3 failed: C3 page 18, offset 2377: derived \['as'\]") as raised:
+        hc.run_hleg_checks(manifest)
+    assert raised.value.check == "C3"
+
+
+def test_run_hleg_checks_stops_at_c4_when_the_structure_check_fails(tmp_path, monkeypatch):
+    manifest = _copy_snapshots(tmp_path)
+    monkeypatch.setattr(hc, "check_c4", lambda text, record: ["C4 line 1 is only digits: '7'"])
+    with pytest.raises(hc.HlegCheckError, match=r"^C4 failed: C4 line 1") as raised:
+        hc.run_hleg_checks(manifest)
+    assert raised.value.check == "C4"
+
+
+def test_a_file_that_differs_from_its_manifest_digest_fails_c0(tmp_path):
+    manifest = _copy_snapshots(tmp_path)
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    source = json.loads(ht.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    digests = {e["file"]: e["sha256"] for e in source["snapshots"]}
+    for entry in data["snapshots"]:
+        entry["sha256"] = digests[entry["file"]]
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+    (tmp_path / ht.TEXT_FILE).write_bytes((tmp_path / ht.TEXT_FILE).read_bytes() + b"x")
+    with pytest.raises(hc.HlegCheckError, match=r"^C0 failed: C0 ") as raised:
+        hc.run_hleg_checks(manifest)
+    assert raised.value.check == "C0"

@@ -9,16 +9,24 @@ derived stretch (the text between two removed markers or page joins) in
 pypdf's text of its page, whitespace removed; C2 accounts for every
 character pypdf reads on the pages: derived, or one of the excluded items,
 which must equal the reviewed list item by item and each pass the test of
-its kind; C3 and C4 are added by the next part. A failing check raises
-HlegCheckError, which names the check and carries its diagnostics, each
-with its location. Deterministic, no model.
+its kind; C3 compares each page's words, in order, with pypdf's layout
+reading and accepts only the differences a reviewed row names (page, offset,
+both readings, the reason); C4 checks the structure (the seven headings, the
+23 subtopic headings opening their paragraphs, no line of only digits).
+run_hleg_checks runs C0 to C4 and returns the outcome the build records. A
+failing check raises HlegCheckError, which names the check and carries its
+diagnostics, each with its location. Deterministic, no model.
 """
 
 from __future__ import annotations
 
+import difflib
+import hashlib
 import io
+import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from tere4ai.ingest import hleg_text as ht
@@ -169,3 +177,166 @@ def check_c2(text: str, record: dict[str, Any], plain: dict[int, str], reviewed:
         if rest:
             failures.append(f"C2 page {n}: pypdf reads {rest[:60]!r}, which is neither derived nor excluded")
     return failures
+
+
+CANONICAL_HEADINGS = [
+    "1.1 Human agency and oversight", "1.2 Technical robustness and safety", "1.3 Privacy and data governance",
+    "1.4 Transparency", "1.5 Diversity, non-discrimination and fairness",
+    "1.6 Societal and environmental well-being", "1.7 Accountability",
+]
+SUBTOPIC_COUNT = 23
+
+
+def _find(words: list[str], seq: list[str], start: int = 0) -> int:
+    for i in range(start, len(words) - len(seq) + 1):
+        if words[i:i + len(seq)] == seq:
+            return i
+    return -1
+
+
+def body_words(layout_text: str, page: int, record: dict[str, Any], reviewed: list[dict[str, Any]]) -> list[str]:
+    """pypdf's layout reading of the page's body, in order: from the start heading on
+    the first page, up to the page's first footnote, its page number, and the end
+    heading on the last page, located by the reviewed exclusions (R13); a marker
+    number glued to a word or standing alone is removed and a line-end hyphen is
+    joined, the derivation's own rules applied to the other reading."""
+    words = layout_text.split()
+    start, end = 0, len(words)
+    if page == ht.PAGES[0]:
+        start = max(_find(words, ht.START_HEADING.split()), 0)
+    anchors = [[i["text"]] for i in reviewed if i["page"] == page and i["kind"] == "page_number"]
+    notes = sorted((i for i in reviewed if i["page"] == page and i["kind"] in ("footnote", "outside_section")
+                    and i.get("number")), key=lambda i: i["top"])
+    if notes:
+        anchors.append(notes[0]["text"].split()[:3])
+    if page == ht.PAGES[-1]:
+        anchors.append(ht.END_HEADING.split()[:4])
+    for anchor in anchors:
+        at = _find(words, anchor, start)
+        if at >= 0:
+            end = min(end, at)
+    numbers = {m["number"] for m in record["markers_removed"] if m["page"] == page}
+    out: list[str] = []
+    for word in words[start:end]:
+        for number in numbers:
+            if word.endswith(number) and len(word) > len(number) and not word[: -len(number)].isdigit():
+                word = word[: -len(number)]
+                break
+        if word in numbers:
+            continue
+        if out and out[-1].endswith("-") and len(out[-1]) > 1:
+            out[-1] += word
+            continue
+        out.append(word)
+    return out
+
+
+def word_differences(derived: list[str], other: list[str]) -> list[tuple[str, int, int, int, int]]:
+    return [op for op in difflib.SequenceMatcher(None, derived, other, autojunk=False).get_opcodes() if op[0] != "equal"]
+
+
+def check_c3(text: str, record: dict[str, Any], other_body: dict[int, list[str]],
+             rows: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+    failures: list[str] = []
+    used: list[str] = []
+    # Whole words: the text is cut at page joins only, never at a removed marker,
+    # so a word glued across a marker ("systems47 in" read as "systemsin") is one
+    # derived word and is seen (the planner's mock data test found the gap).
+    pieces = stretches(text, record, at_markers=False)
+    for n in ht.PAGES:
+        located = [(m.group(0), s.start + m.start()) for s in pieces if s.page == n for m in re.finditer(r"\S+", s.text)]
+        derived = [w for w, _ in located]
+        for _tag, i1, i2, j1, j2 in word_differences(derived, other_body.get(n, [])):
+            if i1 < len(located):
+                offset = located[i1][1]
+            else:
+                offset = located[-1][1] + len(located[-1][0]) if located else 0
+            found = {"page": n, "offset": offset, "derived": derived[i1:i2], "other": other_body[n][j1:j2]}
+            row = next((r for r in rows if {k: r[k] for k in found} == found), None)
+            if row is None:
+                failures.append(f"C3 page {n}, offset {offset}: derived {found['derived']} against pypdf {found['other']}")
+            else:
+                used.append(row["id"])
+    failures += [f"C3 page {r['page']}, offset {r['offset']}: reviewed row {r['id']} matches no difference"
+                 for r in rows if r["id"] not in used]
+    return failures, used
+
+
+def check_c4(text: str, record: dict[str, Any]) -> list[str]:
+    failures = []
+    lines = text.split("\n")
+    headings = [line for line in lines if re.match(r"^1\.[1-7] ", line)]
+    if headings != CANONICAL_HEADINGS:
+        failures.append(f"C4 the requirement headings are {headings}, not the seven in order")
+    if len(record["subtopic_headings"]) != SUBTOPIC_COUNT:
+        failures.append(f"C4 {len(record['subtopic_headings'])} subtopic headings, not {SUBTOPIC_COUNT}")
+    for s in record["subtopic_headings"]:
+        opens = s["start"] == 0 or text[s["start"] - 2:s["start"]] == "\n\n"
+        if not opens or text[s["start"]:s["end"] + 1] != s["label"] + ".":
+            failures.append(f"C4 offset {s['start']}: subtopic heading {s['label']!r} does not open its paragraph")
+    failures += [f"C4 line {i + 1} is only digits: {line!r}" for i, line in enumerate(lines) if line.strip().isdigit()]
+    return failures
+
+
+def _reviewed_file(folder: Path, name: str, check: str) -> bytes:
+    """A reviewed file beside the manifest; a missing or unreadable one fails the check that reads it."""
+    try:
+        raw = (folder / name).read_bytes()
+        json.loads(raw)
+    except (OSError, ValueError) as exc:
+        raise HlegCheckError(check, [f"{check} the reviewed file {name} cannot be read: {exc}"]) from exc
+    return raw
+
+
+def run_hleg_checks(manifest_path: Path | str = ht.DEFAULT_MANIFEST) -> dict[str, Any]:
+    """C0 to C4 over the files the manifest lists (each read through its sha256) and
+    the two reviewed files beside it; raises HlegCheckError at the first failing check."""
+    manifest_path = Path(manifest_path)
+    folder = manifest_path.parent
+    try:
+        pdf_bytes = ht.read_checked(manifest_path, ht.PDF_FILE)
+        text_bytes = ht.read_checked(manifest_path, ht.TEXT_FILE)
+        record_raw = ht.read_checked(manifest_path, ht.RECORD_FILE)
+    except (ValueError, OSError) as exc:
+        raise HlegCheckError("C0", [f"C0 {exc}"]) from exc
+    try:
+        facts = ht.read_pdf(pdf_bytes)
+    except ImportError as exc:  # review M4: a missing library names its check
+        raise HlegCheckError("C0", [f"C0 the hleg extra is not installed ({exc}): pip install -e '.[hleg]'"]) from exc
+    c0 = check_c0(text_bytes, record_raw, facts)
+    if c0:
+        raise HlegCheckError("C0", c0)
+    text, record = text_bytes.decode("utf-8"), json.loads(record_raw)
+    reviewed_raw = _reviewed_file(folder, ht.EXCLUSIONS_FILE, "C2")
+    rows_raw = _reviewed_file(folder, ht.WORD_ROWS_FILE, "C3")
+    reviewed, rows = json.loads(reviewed_raw), json.loads(rows_raw)
+    try:
+        plain, layout = pypdf_pages(pdf_bytes)
+    except ImportError as exc:
+        raise HlegCheckError("C1", [f"C1 the hleg extra is not installed ({exc}): pip install -e '.[hleg]'"]) from exc
+    for check, failures in (("C1", check_c1(text, record, plain)),
+                            ("C2", check_c2(text, record, plain, reviewed, body_bottoms(facts)))):
+        if failures:
+            raise HlegCheckError(check, failures)
+    c3, used = check_c3(text, record, {n: body_words(layout[n], n, record, reviewed) for n in ht.PAGES}, rows)
+    if c3:
+        raise HlegCheckError("C3", c3)
+    c4 = check_c4(text, record)
+    if c4:
+        raise HlegCheckError("C4", c4)
+
+    def ref(name: str, raw: bytes) -> dict[str, str]:
+        return {"file": name, "sha256": hashlib.sha256(raw).hexdigest()}
+
+    return {
+        "pdf": ref(ht.PDF_FILE, pdf_bytes), "derived_text": ref(ht.TEXT_FILE, text_bytes),
+        "derivation_record": ref(ht.RECORD_FILE, record_raw),
+        "reviewed_exclusions": ref(ht.EXCLUSIONS_FILE, reviewed_raw), "word_rows": ref(ht.WORD_ROWS_FILE, rows_raw),
+        "checks_passed": ["C0", "C1", "C2", "C3", "C4"],
+        "paragraphs": sum(1 for p in record["paragraphs"] if p["kind"] == "paragraph"),
+        "requirement_headings": len(record["requirement_headings"]),
+        "subtopic_headings": len(record["subtopic_headings"]),
+        "page_joins": len(record["page_joins"]), "hyphen_joins": len(record["hyphen_joins"]),
+        "markers_removed": len(record["markers_removed"]), "exclusions_reviewed": len(reviewed),
+        "stretches_checked": len(stretches(text, record)), "word_rows_used": used,
+    }
