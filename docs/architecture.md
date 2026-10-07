@@ -730,6 +730,7 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   verify: src/tere4ai/eval/harness.py loads REF-15
   (eval/gold/benchmark_sample.json); src/tere4ai/eval/strategies.py
   implements the vector-RAG and no-judge baseline conditions.
+  Note (2026-10-07, B148): since B104 decision 1 the benchmark is the secondary answer key and the hand-made legal test set the main one, and the siblings are related work, not run as conditions (Section 12); the defence above is kept as history.
 - DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02, REF-04.
   Defense: it is adopted and changes the in-force text and the dates.
   Amended 2026-10-03 (B132, DEC-23): the Omnibus is no longer kept apart
@@ -737,7 +738,7 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   SourceDocument records the merge (merged_into_base true, merged_on,
   marker_list_sha256); the parse enforces the checks and gate G6 verifies
   the build's record of them.
-  verify: SourceDocument for COM(2025)836 with AMENDS/HAS_VERSION;
+  verify: the Omnibus SourceDocument, Regulation (EU) 2026/1744 (node src:omnibus-com-2025-836, the id keeps the proposal's number), with AMENDS/HAS_VERSION;
   tests/unit/test_sources.py, tests/unit/test_in_force_build.py.
 - DEC-13: feature elicitation splits fact extraction from decision (added
   2026-07-09). Engineering MUST (the trust split of Section 0: the LLM never

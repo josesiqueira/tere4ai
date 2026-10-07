@@ -94,6 +94,7 @@ assertions, not the eval items above. Assignment:
   (`data/graph_dumps/norms_core.json`), stratified by judge verdict
   (accepted, rejected, needs_human_review) so both error directions are
   measurable.
+- Note (2026-10-07, B148): data/graph_dumps/norms_core.json is the July 2026 dump; B74 writes its norms under its own record slug, and which file, sample and stratification E1 draws on the B74 build is card B150's.
 - For each sampled norm the annotator reads the source span text and
   labels `accept` if ALL of the extraction-judge criteria hold
   (architecture.md Section 7): the span exists, the deontic type is

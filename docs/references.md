@@ -151,6 +151,10 @@ Reproducible Evaluation Dataset for NLP and RAG Systems", Davvetas et al.,
 arXiv:2603.09435 (2026), DOI 10.48550/arXiv.2603.09435. VERIFIED. CORE. Grounds:
 risk-level classification, article retrieval, obligation generation, and QA
 tasks. Primary reusable evaluation set (OVR-10, M4).
+Note (2026-10-07, B148): since B104 decision 1 (2026-10-03) the benchmark is
+the ablation's secondary answer key, a frozen 47-item sample
+(eval/gold/benchmark_sample.json) read as agreement with its own labels; the
+hand-made legal test set is the main key (architecture.md Section 12).
 
 **[REF-16]** PEER. "LLM-assisted Extraction of Regulatory Requirements: A Case
 Study on the GDPR" (XTRAREG), Abualhaija et al., IEEE RE 2025, DOI
@@ -158,6 +162,9 @@ Study on the GDPR" (XTRAREG), Abualhaija et al., IEEE RE 2025, DOI
 81.8% ACC and 85.7% PRT, legal-reference grounding 68.2% ACC and 50% PRT
 (verbatim confirmed). The number the runtime judge must beat; closest sibling
 (GDPR).
+Note (2026-10-07, B148): the figure motivates the judges (architecture.md
+Section 7); no step of the experiment compares TERE4AI with XTRAREG (Section
+12: related work, not run as a condition).
 
 **[REF-17]** PRE. "Assessing High-Risk AI Systems under the EU AI Act: From
 Legal Requirements to Technical Verification", Buscemi et al.,
@@ -247,6 +254,9 @@ confidence edge-tag pattern donor; deterministic-parse-before-semantic-extract.
 **[REF-33]** OFF. Assessment List for Trustworthy AI (ALTAI) for self-assessment,
 High-Level Expert Group on AI, European Commission, 2020. VERIFIED. CORE.
 Grounds: the ethics layer (Layer 3). Redistribution needs a license check.
+Note (2026-10-07, B148): ALTAI is not in the graph and never was; it grounds no
+part of the build and is future study B111 (thesis paper/THESIS_MAP.md, the
+ALTAI paragraph).
 
 ## Added literature (2026-07 consolidation)
 
@@ -845,7 +855,6 @@ provide PropBank semantic role label annotations" (abstract, p. 112), with
 (pp. 115 and 118) against "the reported PropBank human average of 88.3%"
 (p. 113). The B107 decision brief cites it only for this; the rule that a
 model never decides a reference label rests on the brief's reasoning and on
-ADD-16, not on this paper.
 ADD-16, not on this paper.
 
 **[ADD-83]** OFF. Council Regulation (EU) No 216/2013 of 7 March 2013 on the
