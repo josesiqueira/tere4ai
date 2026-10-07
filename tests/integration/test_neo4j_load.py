@@ -68,3 +68,64 @@ def test_crossref_queryable(driver):
             "MATCH (:Article {number: '6'})-[:REFERS_TO]->(x:Annex) RETURN collect(x.number) AS a"
         ).single()["a"]
     assert set(annexes) >= {"I", "III"}
+
+
+def test_a_reload_removes_the_layer0_files_and_edges_the_dump_no_longer_lists(driver):
+    """Final review F1 (Codex P2, R30): load a dump that has an extra SourceFile and an extra
+    ownership edge (the shape of a pre-B143 database), then the B143-shaped dump; the stale
+    ones are gone, the listed ones stay. Test ids start with test:f1: and are removed in the
+    finally block.
+
+    load_dump reconciles Layer 0 of the WHOLE database to the dump, so the test refuses to
+    run (skips) on a database that holds any Layer 0 node of its own; point NEO4J_URI at an
+    empty or scratch database to run it."""
+    from tere4ai.graph_store.store import GraphStore
+
+    with driver.session() as s:
+        foreign = s.run("MATCH (n) WHERE (n:SourceFile OR n:SourceDocument) AND NOT n.id STARTS WITH 'test:f1:' "
+                        "RETURN count(n) AS c").single()["c"]
+    if foreign:
+        pytest.skip(f"the database holds {foreign} Layer 0 nodes of its own; load_dump would reconcile them away")
+
+    def node(id_, type_, **props):
+        return {"id": id_, "layer": 0, "type": type_, **props}
+
+    def edge(id_, edge_type, from_, to):
+        return {"edge_id": id_, "edge_type": edge_type, "from": from_, "to": to,
+                "provenance_class": "RESOLVED_DETERMINISTIC", "method": "test", "confidence": 1.0,
+                "review_status": "auto_accepted", "build_id": "test:f1:build"}
+
+    act = node("test:f1:act", "SourceDocument", title="Act")
+    guidelines = node("test:f1:guidelines", "SourceDocument", title="Guidelines")
+    pdf = node("test:f1:pdf", "SourceFile", file="g.pdf", sha256="1" * 64)
+    text = node("test:f1:text", "SourceFile", file="g.txt", sha256="2" * 64)
+    v1 = node("test:f1:v1", "SourceFile", file="v1.txt", sha256="3" * 64)
+    old = {"build": {"build_id": "test:f1:build"}, "nodes": [act, guidelines, pdf, text, v1], "edges": [
+        edge("test:f1:e-pdf-act", "DERIVED_FROM_SOURCE", "test:f1:pdf", "test:f1:act"),
+        edge("test:f1:e-v1-act", "DERIVED_FROM_SOURCE", "test:f1:v1", "test:f1:act"),
+        edge("test:f1:e-text-pdf", "DERIVED_FROM", "test:f1:text", "test:f1:pdf")]}
+    new = {"build": {"build_id": "test:f1:build"}, "nodes": [act, guidelines, pdf, text], "edges": [
+        edge("test:f1:e-pdf-guidelines", "DERIVED_FROM_SOURCE", "test:f1:pdf", "test:f1:guidelines"),
+        edge("test:f1:e-text-pdf", "DERIVED_FROM", "test:f1:text", "test:f1:pdf")]}
+
+    def state():
+        with driver.session() as s:
+            nodes = {r["id"] for r in s.run("MATCH (n) WHERE n.id STARTS WITH 'test:f1:' RETURN n.id AS id")}
+            edges = {r["id"] for r in s.run(
+                "MATCH (:SourceFile)-[r]->() WHERE r.edge_id STARTS WITH 'test:f1:' RETURN r.edge_id AS id")}
+        return nodes, edges
+
+    store = GraphStore()
+    try:
+        store.load_dump(old, driver)
+        nodes, edges = state()
+        assert "test:f1:v1" in nodes and "test:f1:e-pdf-act" in edges
+        counts = store.load_dump(new, driver)
+        nodes, edges = state()
+        assert nodes == {"test:f1:act", "test:f1:guidelines", "test:f1:pdf", "test:f1:text"}
+        assert edges == {"test:f1:e-pdf-guidelines", "test:f1:e-text-pdf"}
+        assert counts["removed:node:SourceFile"] == 1 and counts["removed:edge:SourceFile"] == 2  # the old pdf edge and the v1 edge
+        assert counts["removed:node:SourceDocument"] == 0
+    finally:
+        with driver.session() as s:
+            s.run("MATCH (n) WHERE n.id STARTS WITH 'test:f1:' DETACH DELETE n")

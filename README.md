@@ -307,8 +307,9 @@ chain, as before.
 A run that stops (a usage limit, a crash) leaves its checkpoint; rerun
 with `--resume` to continue it under a new run id that names the one it
 resumes, after the inputs and configuration are checked; add
-`--accept-legacy-checkpoint` for a checkpoint written before build records
-existed. Starting the same output without `--resume` while a checkpoint
+`--accept-legacy-checkpoint` (extract_norms only) for a checkpoint written
+before build records existed; align_hleg always refuses checkpoint lines
+without a run id. Starting the same output without `--resume` while a checkpoint
 exists is refused. A provider overload is waited out: before each of five
 pauses (10, 30, 90, 270 and 600 s, longer when the provider asks for it,
 never above 600 s) the command prints one alert line on standard error;

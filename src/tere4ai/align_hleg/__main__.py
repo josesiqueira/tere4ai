@@ -1,6 +1,7 @@
 """Build entry point: python -m tere4ai.align_hleg --norms data/graph_dumps/norms_<slug>.json
 
-@implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the L3.1 to L3.3 execution record), DEC-25
+@implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the L3.1 to L3.3 execution record)
+@implements: DEC-25
 @grounded_by: REF-24, REF-21, REF-10, REF-16, ADD-20
 
 Runs the judged alignment pipeline over the accepted norms in the given
@@ -65,7 +66,7 @@ RESULT_KEYS = ("assertions", "mapping_runs", "judge_runs", "stats")
 
 def _attach_source_text(norms: list[dict], layer1: dict) -> None:
     """Resolve each norm's source_text from its layer1 source node."""
-    nodes = {node["id"]: node for node in layer1["nodes"]}
+    nodes = {node["id"]: node for node in layer1["nodes"] if isinstance(node, dict)}
     for norm in norms:
         if norm.get("source_text"):
             continue
@@ -190,7 +191,11 @@ def _main(argv: list[str] | None = None) -> int:
     except HlegSourceError as exc:
         print(f"refusing to start: the HLEG text cannot be read: {exc}", file=sys.stderr)
         return 2
-    unlisted = pair_refusal(layer1, hleg_pair)
+    try:
+        unlisted = pair_refusal(layer1, hleg_pair)
+    except HlegSourceError as exc:  # a dump node that is not a JSON object (final review F2, M1)
+        print(f"refusing to start: the Layer 1 dump cannot be read for the HLEG pair: {exc}", file=sys.stderr)
+        return 2
     if unlisted:
         print(f"refusing to start: {unlisted}; publication refuses alignments made on a text the Layer 1 dump "
               "does not list (spec G D-G75 (8))", file=sys.stderr)

@@ -166,3 +166,66 @@ def test_the_integer_label_constraints_are_dropped_before_the_string_ones_are_cr
         assert drop < create, (label, prop)
         assert f"CONSTRAINT {old_name} " not in statements[create], "a new name, so a later run drops nothing"
         assert not any(f"FOR (n:{label}) REQUIRE n.{prop} IS :: INTEGER" in s for s in statements)
+
+
+class _CountingSession(FakeSession):
+    """A session whose reconcile queries answer {"c": 2}, as a Neo4j result does."""
+
+    def run(self, query, params=None, **kwargs):
+        super().run(query, params, **kwargs)
+
+        class Result:
+            def single(self):
+                return {"c": 2}
+
+        return Result() if "DELETE" in query and "REMOVE" not in query else []
+
+
+class _CountingDriver(FakeDriver):
+    def session(self, **kw):
+        return _CountingSession(self.log)
+
+
+def _layer0_dump():
+    dump = _tiny_dump()
+    dump["nodes"] += [
+        {"id": "srcdoc:eu-ai-act", "layer": 0, "type": "SourceDocument", "title": "AI Act"},
+        {"id": "srcfile:a.pdf", "layer": 0, "type": "SourceFile", "file": "a.pdf", "sha256": "1" * 64},
+        {"id": "srcfile:a.txt", "layer": 0, "type": "SourceFile", "file": "a.txt", "sha256": "2" * 64},
+    ]
+    dump["edges"] += [{"edge_id": "e-derived", "edge_type": "DERIVED_FROM", "from": "srcfile:a.txt",
+                       "to": "srcfile:a.pdf", "provenance_class": "RESOLVED_DETERMINISTIC", "method": "m",
+                       "confidence": 1.0, "review_status": "auto_accepted", "build_id": "build-test"}]
+    return dump
+
+
+def test_a_reload_removes_the_layer0_nodes_and_edges_the_dump_no_longer_lists():
+    """Final review F1 (Codex P2, R30): MERGE alone keeps a pre-B143 load's SourceFile nodes and
+    their ownership edges; load_dump reconciles Layer 0 to the dump after the merges and names
+    the counts removed in its summary."""
+    driver = _CountingDriver()
+    counts = GraphStore().load_dump(_layer0_dump(), driver)
+    deletes = [(q, p) for q, p in driver.log if "DELETE" in q]
+    edge_q = next(d for d in deletes if "DETACH" not in d[0])
+    node_qs = {label: next(d for d in deletes if "DETACH" in d[0] and f"(n:{label})" in d[0])
+               for label in ("SourceFile", "SourceDocument")}
+    assert len(deletes) == 3, "one query removes stale edges, one per label removes stale nodes"
+    assert "(:SourceFile)-[r]->()" in edge_q[0] and "r.edge_id" in edge_q[0]
+    assert set(edge_q[1]["edge_ids"]) == {"e1", "e-derived"}
+    assert set(node_qs["SourceFile"][1]["ids"]) == {"srcfile:a.pdf", "srcfile:a.txt"}
+    assert node_qs["SourceDocument"][1]["ids"] == ["srcdoc:eu-ai-act"]
+    last_merge = max(i for i, (q, _) in enumerate(driver.log) if "MERGE" in q)
+    assert all(driver.log.index(d) > last_merge for d in deletes), "after every MERGE"
+    assert driver.log.index(edge_q) < min(driver.log.index(d) for d in node_qs.values())
+    assert counts["removed:edge:SourceFile"] == 2
+    assert counts["removed:node:SourceFile"] == 2 and counts["removed:node:SourceDocument"] == 2
+    assert not any(k.startswith(("node:", "edge:")) and "removed" in k for k in counts)
+
+
+def test_a_dump_with_no_layer0_node_leaves_layer0_alone():
+    """Final review F1: a Layer 2 and 3 dump (publish_layer23) or a Layer 1 fragment lists no
+    SourceFile or SourceDocument, and must not remove the database's Layer 0."""
+    driver = FakeDriver()
+    counts = GraphStore().load_dump(_tiny_dump(), driver)
+    assert not any("DELETE" in q for q, _ in driver.log)
+    assert not any(k.startswith("removed:") for k in counts)

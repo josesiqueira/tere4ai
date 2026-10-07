@@ -79,3 +79,16 @@ def test_a_file_that_differs_from_its_recorded_sha256_is_refused(tmp_path, pair)
 
 def test_deterministic(pair):
     assert build_hleg_nodes(pair) == build_hleg_nodes(load_pair())
+
+
+@pytest.mark.parametrize("content", ["[1, 2]", '"text"', "null", "42", "not json at all"])
+def test_a_record_that_is_not_a_json_object_is_refused(tmp_path, content):
+    """Final review F2 (M1): a record whose sha256 matches but which is not a JSON
+    object is an HlegSourceError, never an AttributeError or a JSONDecodeError."""
+    import hashlib
+
+    (tmp_path / ht.TEXT_FILE).write_bytes((ht.SNAPSHOTS_DIR / ht.TEXT_FILE).read_bytes())
+    (tmp_path / ht.RECORD_FILE).write_text(content, encoding="utf-8")
+    expected = {name: hashlib.sha256((tmp_path / name).read_bytes()).hexdigest() for name in (ht.TEXT_FILE, ht.RECORD_FILE)}
+    with pytest.raises(HlegSourceError, match="not a JSON object"):
+        read_pair(tmp_path, expected)

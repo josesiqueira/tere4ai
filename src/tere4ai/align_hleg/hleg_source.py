@@ -51,7 +51,12 @@ def read_pair(snapshots_dir: Path | str, expected: dict[str, str]) -> HlegPair:
         if actual != expected[name]:
             raise HlegSourceError(f"checksum mismatch for {name}: recorded {expected[name]}, file {actual}")
         raw[name] = (data, actual)
-    record = json.loads(raw[RECORD_FILE][0].decode("utf-8"))
+    try:
+        record = json.loads(raw[RECORD_FILE][0].decode("utf-8"))
+    except ValueError as exc:  # JSONDecodeError and UnicodeDecodeError (final review F2, M1)
+        raise HlegSourceError(f"{RECORD_FILE} is not a JSON object: {type(exc).__name__}: {exc}") from exc
+    if not isinstance(record, dict):
+        raise HlegSourceError(f"{RECORD_FILE} is not a JSON object: it holds a JSON {type(record).__name__}")
     if record.get("derived_file") != TEXT_FILE:
         raise HlegSourceError(f"{RECORD_FILE} is the record of {record.get('derived_file')!r}, not of {TEXT_FILE}")
     return HlegPair(raw[TEXT_FILE][0].decode("utf-8"), record, raw[TEXT_FILE][1], raw[RECORD_FILE][1])
@@ -67,9 +72,17 @@ def load_pair(manifest_path: Path | str = DEFAULT_MANIFEST) -> HlegPair:
 
 
 def listed_pair(layer1: dict[str, Any] | None) -> dict[str, str]:
-    """{file: sha256} of the derived text and the record among the dump's SourceFile nodes."""
-    return {n["file"]: n["sha256"] for n in (layer1 or {}).get("nodes", [])
-            if n.get("type") == "SourceFile" and n.get("file") in (TEXT_FILE, RECORD_FILE)}
+    """{file: sha256} of the derived text and the record among the dump's SourceFile nodes.
+
+    Raises HlegSourceError when a node of the dump is not a JSON object (final review F2, M1).
+    """
+    listed: dict[str, str] = {}
+    for n in (layer1 or {}).get("nodes", []):
+        if not isinstance(n, dict):
+            raise HlegSourceError(f"a node of the Layer 1 dump is not a JSON object: {type(n).__name__}")
+        if n.get("type") == "SourceFile" and n.get("file") in (TEXT_FILE, RECORD_FILE):
+            listed[n["file"]] = n["sha256"]
+    return listed
 
 
 def pair_refusal(layer1: dict[str, Any] | None, pair: HlegPair) -> str | None:

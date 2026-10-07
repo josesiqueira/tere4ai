@@ -129,6 +129,12 @@ def flatten_edge_properties(edge: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in edge.items() if k not in ("from", "to")}
 
 
+def _removed_count(result: Any) -> int:
+    """The count a reconcile query returns; 0 for a driver stub whose result has no rows."""
+    single = getattr(result, "single", None)
+    return int(single()["c"]) if single else 0
+
+
 class GraphStore:
     """Idempotent loader for the Layer 0+1 dump into Neo4j."""
 
@@ -138,8 +144,22 @@ class GraphStore:
         Idempotent: nodes MERGE on id, edges MERGE on edge_id, so re-loading
         the same dump does not duplicate anything. A node the dump marks
         deleted loses any text, title and span_* property an earlier load
-        stored. Returns a summary of node
-        and edge counts submitted per label and relationship type.
+        stored.
+
+        Layer 0 is reconciled to the dump (final review F1, R30, the way a deleted
+        unit's stale properties are removed above): when the dump lists any
+        SourceDocument or SourceFile node, then after every MERGE each edge
+        leaving a SourceFile node whose edge_id the dump does not list is deleted,
+        and so is each SourceFile or SourceDocument node whose id it does not list
+        (DETACH DELETE), so a database loaded before B143 loses the PDF's old
+        ownership edge and the removed v1 SourceFile. A dump that lists no Layer 0
+        node (Layers 2 and 3, a fragment) leaves Layer 0 alone, and Layers 1, 2 and
+        3 are never touched by it.
+
+        Returns a summary of node and edge counts submitted per label and
+        relationship type ("node:<label>", "edge:<type>"), and, when Layer 0 was
+        reconciled, the counts removed: "removed:edge:SourceFile",
+        "removed:node:SourceFile" and "removed:node:SourceDocument".
         """
         nodes_by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for node in dump.get("nodes", []):
@@ -188,7 +208,27 @@ class GraphStore:
                 session.run(query, {"rows": rows})
                 summary[f"edge:{rel}"] = len(rows)
 
+            summary.update(self._reconcile_layer0(session, dump))
+
         return summary
+
+    @staticmethod
+    def _reconcile_layer0(session: Any, dump: dict[str, Any]) -> dict[str, int]:
+        """Remove the Layer 0 nodes and SourceFile edges the dump does not list (see load_dump)."""
+        layer0 = [n for n in dump.get("nodes", []) if n["type"] in ("SourceDocument", "SourceFile")]
+        if not layer0:
+            return {}
+        edge_ids = [e["edge_id"] for e in dump.get("edges", [])]
+        removed: dict[str, int] = {}
+        removed["removed:edge:SourceFile"] = _removed_count(session.run(
+            "MATCH (:SourceFile)-[r]->() WHERE r.edge_id IS NULL OR NOT r.edge_id IN $edge_ids "
+            "DELETE r RETURN count(r) AS c", {"edge_ids": edge_ids}))
+        for label in ("SourceFile", "SourceDocument"):
+            ids = [n["id"] for n in layer0 if n["type"] == label]
+            removed[f"removed:node:{label}"] = _removed_count(session.run(
+                f"MATCH (n:{label}) WHERE NOT n.id IN $ids WITH n, n.id AS gone DETACH DELETE n "
+                "RETURN count(gone) AS c", {"ids": ids}))
+        return removed
 
     def apply_constraints(
         self, driver: Any, constraints_path: Path | str = DEFAULT_CONSTRAINTS_PATH

@@ -533,3 +533,35 @@ def test_a_layer1_dump_that_does_not_list_the_pair_is_refused_before_any_client(
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(tmp_path / "alignments_test.json")])
     err = capsys.readouterr().err
     assert rc == 2 and f"{TEXT_FILE} not at all" in err and cli._TEST_POLICIES == []
+
+
+def test_a_record_that_is_not_a_json_object_is_refused_by_the_command(tmp_path, monkeypatch, capsys):
+    """Final review F2 (M1): the command reports the refusal as its other refusals, no traceback."""
+    import hashlib
+
+    import tere4ai.align_hleg.__main__ as cli
+    from tere4ai.align_hleg.hleg_source import read_pair
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    folder = tmp_path / "hleg"
+    folder.mkdir()
+    (folder / TEXT_FILE).write_bytes(b"text")
+    (folder / RECORD_FILE).write_text("[1, 2]", encoding="utf-8")
+    expected = {n: hashlib.sha256((folder / n).read_bytes()).hexdigest() for n in (TEXT_FILE, RECORD_FILE)}
+    _fakes(monkeypatch, cli, [])
+    monkeypatch.setattr(cli, "load_pair", lambda: read_pair(folder, expected))
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(tmp_path / "alignments_test.json")])
+    err = capsys.readouterr().err
+    assert rc == 2 and "refusing to start" in err and "not a JSON object" in err and cli._TEST_POLICIES == []
+
+
+def test_a_layer1_dump_node_that_is_not_an_object_is_refused_by_the_command(tmp_path, monkeypatch, capsys):
+    """Final review F2 (M1): listed_pair's refusal on a dump node is reported, not raised."""
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    layer1.write_text(json.dumps({"build": {}, "nodes": [None, *_hleg_source_files()], "edges": []}))
+    _fakes(monkeypatch, cli, [])
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(tmp_path / "alignments_test.json")])
+    err = capsys.readouterr().err
+    assert rc == 2 and "refusing to start" in err and "not a JSON object" in err and cli._TEST_POLICIES == []

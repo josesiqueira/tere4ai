@@ -23,7 +23,7 @@ for example the first publication of the B74 re-run:
 ```bash
 docker compose up -d neo4j
 .venv/bin/python -m tere4ai.parse_legal_structure          # regenerate layer1 dump if absent
-.venv/bin/python scripts/load_layer1.py                    # constraints + Layer 0/1 (idempotent MERGE)
+.venv/bin/python scripts/load_layer1.py                    # constraints + Layer 0/1 (idempotent MERGE; Layer 0 is reconciled to the dump: SourceFile and SourceDocument nodes and SourceFile edges it does not list are removed, the counts printed as removed:*)
 .venv/bin/python scripts/publish_layer23.py \
     --norms data/graph_dumps/norms_core.json \
     --alignments data/graph_dumps/alignments_core.json

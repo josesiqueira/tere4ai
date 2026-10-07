@@ -56,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
     nodes = sum(v for k, v in counts.items() if k.startswith("node:"))
     edges = sum(v for k, v in counts.items() if k.startswith("edge:"))
     print(f"loaded {build_id} to {uri}: {nodes} nodes, {edges} edges")
+    for key in sorted(k for k in counts if k.startswith("removed:")):
+        print(f"  {key}: {counts[key]}")
     return 0
 
 

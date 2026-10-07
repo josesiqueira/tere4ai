@@ -161,7 +161,7 @@ merit, this document says so explicitly instead of inventing a citation.
   problem and practice), REF-27.
 - Implementation: src/tere4ai/parse_legal_structure/parser.py:97-110, :226-238;
   span resolution re-verifies the snapshot checksum before slicing
-  (src/tere4ai/mcp_server/spans.py:88-92).
+  (src/tere4ai/mcp_server/spans.py:96-102).
 - Tests: tests/unit/test_mcp_tools.py:211, :226; the census
   tests/unit/test_norm_span_census.py resolves EVERY accepted norm's span.
 - See it: any envelope's source_spans carries snapshot_sha256 plus code point

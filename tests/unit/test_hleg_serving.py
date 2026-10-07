@@ -169,3 +169,29 @@ def test_the_facade_and_the_mcp_server_import_no_pdf_library():
     code = ("import sys, tere4ai.http_facade.app, tere4ai.mcp_server.server; "
             "assert not {'pdfplumber', 'pypdf', 'pdfminer'} & set(sys.modules), sorted(sys.modules)")
     assert subprocess.run([sys.executable, "-c", code], capture_output=True).returncode == 0
+
+
+@pytest.mark.parametrize("bad_node", [None, "SourceFile", ["SourceFile"], 7])
+def test_a_dump_node_that_is_not_an_object_is_refused_never_raised(bad_node):
+    """Final review F2 (M1): listed_pair refuses a node that is not a JSON object with
+    HlegSourceError, and served_hleg, which never raises, turns it into its refusal."""
+    from tere4ai.align_hleg.hleg_source import HlegSourceError, listed_pair
+
+    dump = {"nodes": [bad_node, *_listing("a" * 64, "b" * 64)]}
+    with pytest.raises(HlegSourceError, match="not a JSON object"):
+        listed_pair(dump)
+    served = served_hleg(dump)
+    assert served.nodes == [] and served.refusal.startswith(REFUSAL_PREFIX)
+    assert "not a JSON object" in served.refusal
+
+
+@pytest.mark.parametrize("content", ["[1, 2]", "null", "not json at all"])
+def test_served_hleg_refuses_a_listed_record_that_is_not_a_json_object(tmp_path, content):
+    """Final review F2 (M1): the record's sha256 matches the dump's listing, the record is
+    valid JSON but not an object (or not JSON): a refusal, not an AttributeError."""
+    (tmp_path / TEXT_FILE).write_bytes((SNAPSHOTS_DIR / TEXT_FILE).read_bytes())
+    (tmp_path / RECORD_FILE).write_text(content, encoding="utf-8")
+    dump = {"nodes": _listing(_sha(tmp_path / TEXT_FILE), _sha(tmp_path / RECORD_FILE))}
+    served = served_hleg(dump, tmp_path)
+    assert served.nodes == [] and served.refusal.startswith(REFUSAL_PREFIX)
+    assert "not a JSON object" in served.refusal
