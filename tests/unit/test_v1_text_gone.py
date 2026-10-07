@@ -22,10 +22,10 @@ def test_the_v1_copy_is_gone():
 
 def test_no_tracked_code_test_or_document_names_it():
     try:
-        out = subprocess.run(["git", "-C", str(ROOT), "grep", "-l", V1], capture_output=True, text=True, check=False)
+        out = subprocess.run(["git", "-C", str(ROOT), "grep", "-lz", V1], capture_output=True, text=True, check=False)
     except OSError:
         pytest.skip("git is not available")
     if out.returncode not in (0, 1):
         pytest.skip("not a git checkout")
-    naming = [p for p in out.stdout.split() if not p.startswith(KEPT_AS_RECORDED) and p != "tests/unit/test_v1_text_gone.py"]
+    naming = [p for p in out.stdout.split("\0") if p and not p.startswith(KEPT_AS_RECORDED) and p != "tests/unit/test_v1_text_gone.py"]
     assert naming == []

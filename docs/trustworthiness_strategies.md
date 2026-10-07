@@ -330,7 +330,7 @@ merit, this document says so explicitly instead of inventing a citation.
 ### 29. Closed vocabularies everywhere (tiers, 7 HLEG principles, actor roles)
 - Grounding: ADD-01 and REF-33 (OFF, the closed HLEG source set), REF-11 and
   REF-12 (PEER, actor canonicalisation lineage), ADD-24.
-- Implementation: classify.py:248-254; hleg_nodes.py:28-37 and 55-60 (exactly seven,
+- Implementation: classify.py:248-254; hleg_nodes.py:28-39 and 55-60 (exactly seven,
   hard raise); canonicalize/canonicalizer.py:30-82 (unresolved actors are
   reported, never guessed).
 - Tests: tests/unit/test_hleg_nodes.py:25; tests/unit/test_canonicalize.py:30.
