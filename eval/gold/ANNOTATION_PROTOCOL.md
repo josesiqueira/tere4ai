@@ -6,9 +6,10 @@ break.
 
 ## Target
 
-- 60 to 80 items in total, all on the v2 high-risk core (Section 10 scope:
-  Articles 3, 5, 6 to 7 plus Annex III, 8 to 15 plus Annex IV, 16 to 27,
-  50, 72 to 73, plus the seven HLEG requirements).
+- 60 to 80 items in total, all on the v2 high-risk core (architecture.md
+  Section 10: Articles 3, 4a, 5, 6 to 7 plus Annex III, 8 to 15 plus
+  Annex IV, 16 to 27, 50, 72 to 73, plus the seven HLEG requirements;
+  Article 4a joined the core with the Digital Omnibus, B132).
 - The 10 items in `gold_seed.json` are the seed; they were authored by one
   annotator ("seed") and verified mechanically (every cited node id exists
   in the published Layer 1 dump). Their `gold` is that one annotator's
