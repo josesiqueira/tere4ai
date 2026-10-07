@@ -1,0 +1,282 @@
+[
+ {
+  "kind": "outside_section",
+  "page": 17,
+  "top": 409.0,
+  "text": "Figure 2: Interrelationship of the seven requirements: all are of equal importance, support each other, and should be implemented and evaluated throughout the AI system’s lifecycle While all requirements are of equal importance, context and potential tensions between them will need to be taken into account when applying them across different domains and industries. Implementation of these requirements should occur throughout an AI system’s entire life cycle and depends on the specific application. While most requirements apply to all AI systems, special attention is given to those directly or indirectly affecting individuals. Therefore, for some applications (for instance in industrial settings), they may be of lesser relevance. The above requirements include elements that are in some cases already reflected in existing laws. We reiterate that – in line with Trustworthy AI’s first component – it is the responsibility of AI practitioners to ensure that they comply with their legal obligations, both as regards horizontally applicable rules as well as domain-specific regulation. In the following paragraphs, each requirement is explained in more detail."
+ },
+ {
+  "kind": "page_number",
+  "page": 17,
+  "top": 782.73,
+  "text": "15"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 18,
+  "top": 195.92,
+  "number": "36",
+  "offset": 2181,
+  "text": "36"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 18,
+  "top": 610.72,
+  "number": "37",
+  "offset": 5076,
+  "text": "37"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 18,
+  "top": 638.8,
+  "number": "38",
+  "offset": 5296,
+  "text": "38"
+ },
+ {
+  "kind": "footnote",
+  "page": 18,
+  "top": 693.4,
+  "number": "36",
+  "text": "36 Reference can be made to Article 22 of the GDPR where this right is already enshrined."
+ },
+ {
+  "kind": "footnote",
+  "page": 18,
+  "top": 704.68,
+  "number": "37",
+  "text": "37 See e.g. considerations under 2.7 of the European Union’s Coordinated Plan on Artificial Intelligence."
+ },
+ {
+  "kind": "footnote",
+  "page": 18,
+  "top": 715.96,
+  "number": "38",
+  "text": "38 There may be a strong imperative to develop a virtuous circle in research and development between understanding of attacks, development of adequate protection, and improvement of evaluation methodologies. To achieve this, convergence between the AI community and the security community should be promoted. In addition, it is the responsibility of all relevant actors to create common cross-border safety and security norms and to establish an environment of mutual trust, fostering international collaboration. For possible measures, see Malicious Use of AI, Avin S., Brundage M. et. al., 2018."
+ },
+ {
+  "kind": "page_number",
+  "page": 18,
+  "top": 782.73,
+  "text": "16"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 19,
+  "top": 77.72,
+  "number": "39",
+  "offset": 5565,
+  "text": "39"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 19,
+  "top": 328.31,
+  "number": "40",
+  "offset": 7405,
+  "text": "40"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 19,
+  "top": 470.29,
+  "number": "41",
+  "offset": 8051,
+  "text": "41"
+ },
+ {
+  "kind": "footnote",
+  "page": 19,
+  "top": 719.8,
+  "number": "39",
+  "text": "39 Scenarios where human intervention would not immediately be possible should also be considered."
+ },
+ {
+  "kind": "footnote",
+  "page": 19,
+  "top": 731.1,
+  "number": "40",
+  "text": "40 This concerns files that will replicate each step of the AI system’s development process, from research and initial data collection to the results."
+ },
+ {
+  "kind": "footnote",
+  "page": 19,
+  "top": 756.06,
+  "number": "41",
+  "text": "41 Reference can be made to existing privacy laws, such as the GDPR or the forthcoming ePrivacy Regulation."
+ },
+ {
+  "kind": "page_number",
+  "page": 19,
+  "top": 782.73,
+  "text": "17"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 20,
+  "top": 539.89,
+  "number": "42",
+  "offset": 12887,
+  "text": "42"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 20,
+  "top": 582.04,
+  "number": "43",
+  "offset": 13179,
+  "text": "43"
+ },
+ {
+  "kind": "footnote",
+  "page": 20,
+  "top": 715.0,
+  "number": "42",
+  "text": "42 For a definition of direct and indirect discrimination, see for instance Article 2 of Council Directive 2000/78/EC of 27 November 2000 establishing a general framework for equal treatment in employment and occupation. See also Article 21 of the Charter of Fundamental Rights of the EU."
+ },
+ {
+  "kind": "footnote",
+  "page": 20,
+  "top": 747.18,
+  "number": "43",
+  "text": "43 See the EU Agency for Fundamental Rights’ paper: “BigData: Discrimination in data-supported decision making”, 2018, http://fra.europa.eu/en/publication/2018/big-data-discrimination."
+ },
+ {
+  "kind": "page_number",
+  "page": 20,
+  "top": 782.73,
+  "text": "18"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 21,
+  "top": 77.72,
+  "number": "44",
+  "offset": 14177,
+  "text": "44"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 21,
+  "top": 91.76,
+  "number": "45",
+  "offset": 14279,
+  "text": "45"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 21,
+  "top": 105.8,
+  "number": "46",
+  "offset": 14455,
+  "text": "46"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 21,
+  "top": 386.03,
+  "number": "47",
+  "offset": 16144,
+  "text": "47"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 21,
+  "top": 414.13,
+  "number": "48",
+  "offset": 16369,
+  "text": "48"
+ },
+ {
+  "kind": "footnote",
+  "page": 21,
+  "top": 660.28,
+  "number": "44",
+  "text": "44 Article 42 of the Public Procurement Directive requires technical specifications to consider accessibility and ‘design for all’."
+ },
+ {
+  "kind": "footnote",
+  "page": 21,
+  "top": 671.56,
+  "number": "45",
+  "text": "45 For instance EN 301 549."
+ },
+ {
+  "kind": "footnote",
+  "page": 21,
+  "top": 682.96,
+  "number": "46",
+  "text": "46 This requirement links to the United Nations Convention on the Rights of Persons with Disabilities."
+ },
+ {
+  "kind": "footnote",
+  "page": 21,
+  "top": 694.24,
+  "number": "47",
+  "text": "47 This denotes AI systems communicating and interacting with humans by simulating sociality in human robot interaction (embodied AI) or as avatars in virtual reality. By doing so, those systems have the potential to change our socio-cultural practices and the fabric of our social life."
+ },
+ {
+  "kind": "footnote",
+  "page": 21,
+  "top": 726.4,
+  "number": "48",
+  "text": "48 See for instance the EU-funded project developing AI-based software that enables robots to interact more effectively with autistic children in human-led therapy sessions, helping to improve their social and communication skills: http://ec.europa.eu/research/infocentre/article_en.cfm?id=/research/headlines/news/article_19_03_12_en.html?infocentre&it em=Infocentre&artid=49968"
+ },
+ {
+  "kind": "page_number",
+  "page": 21,
+  "top": 782.73,
+  "text": "19"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 22,
+  "top": 342.35,
+  "number": "49",
+  "offset": 19718,
+  "text": "49"
+ },
+ {
+  "kind": "removed_marker",
+  "page": 22,
+  "top": 376.43,
+  "number": "50",
+  "offset": 19834,
+  "text": "50"
+ },
+ {
+  "kind": "outside_section",
+  "page": 22,
+  "top": 421.24,
+  "text": "2. Technical and non-technical methods to realise Trustworthy AI To implement the above requirements, both technical and non-technical methods can be employed. These encompass all stages of an AI system’s life cycle. An evaluation of the methods employed to implement the requirements, as well as reporting and justifying51 changes to the implementation processes, should occur on an ongoing basis. AI systems are continuously evolving and acting in a dynamic environment. The realisation of Trustworthy AI is therefore a continuous process, as depicted in Figure 3 here below. Figure 3: Realising Trustworthy AI throughout the system’s entire life cycle"
+ },
+ {
+  "kind": "footnote",
+  "page": 22,
+  "top": 693.28,
+  "number": "49",
+  "text": "49 Different governance models can help achieving this. E.g. the presence of an internal and/or external ethical (and sector specific) expert or board might be useful to highlight areas of potential conflict and suggest ways in which that conflict might best be resolved. Meaningful consultation and discussion with stakeholders, including those at risk of being adversely affected by an AI system is useful too. European universities should take a leading role in training the ethics experts needed."
+ },
+ {
+  "kind": "footnote",
+  "page": 22,
+  "top": 735.78,
+  "number": "50",
+  "text": "50 See also the European Union Agency for Fundamental Rights' Opinion on ‘Improving access to remedy in the area of business and human rights at the EU level’, 2017, https://fra.europa.eu/en/opinion/2017/business-human-rights."
+ },
+ {
+  "kind": "outside_section",
+  "page": 22,
+  "top": 757.62,
+  "number": "51",
+  "text": "51 This entails e.g. justification of the choices in the system’s design, development and deployment to implement the requirements."
+ },
+ {
+  "kind": "page_number",
+  "page": 22,
+  "top": 782.73,
+  "text": "20"
+ }
+]
