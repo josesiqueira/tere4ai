@@ -73,8 +73,8 @@ Spec G Section 10.4 (B104, decision 2) and Section 6, steps 4 and 5.
   - qa: citation agreement (exact node id); free-text answers are not
     scored by string match, and their differences go to adjudication.
 - Disagreements are adjudicated by a person who did not produce the
-  disagreeing labels, blind to who chose what, against the frozen source
-  text, with the rationale recorded in the item's `adjudication`. There is
+  disagreeing labels, blind to who chose what, against the source text of
+  the source baseline, with the rationale recorded in the item's `adjudication`. There is
   no discussion between the two annotators and no majority vote. Items
   the adjudicator cannot settle against the source text are marked
   `contested: true` and excluded from headline metrics (reported

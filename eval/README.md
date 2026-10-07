@@ -24,7 +24,7 @@ sentence break.
   of their disagreements (agreement statistic before adjudication), and
   how judge FA/FR gold labels are assigned. A label comes from the Act,
   never from the classifier the ablation scores.
-- `gold/benchmark_sample.json`: a frozen 47-item sample of the REF-15
+- `gold/benchmark_sample.json`: a fixed 47-item sample of the REF-15
   benchmark (see below), with full provenance.
 - `results/`: results artifacts written by the harness. Names are
   deterministic (graph build id plus a digest of the strategy set), never
@@ -46,7 +46,7 @@ Davvetas, Papademas, Ziouvelou, Karkaletsis) exists and is public:
   86, limited 84, minimal 99).
 - QA item format: `question`, `answer`, `relevant_article` (one number).
 
-`gold/benchmark_sample.json` freezes a deterministic sample (first 8
+`gold/benchmark_sample.json` fixes a deterministic sample (first 8
 scenarios per risk level in file order plus the first 15 QA pairs, 47
 items) verbatim, with the source file sha256 checksums and retrieval date
 in its `provenance` block. `harness.load_benchmark_items` parses this real
@@ -165,8 +165,9 @@ CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the
 hand-made legal test set and the benchmark sample.
 
 Elicited features (DEC-13) plus requirements-citation wiring changed the ladder:
-graph strategies went from blanket abstention (0/32) to 18/32 correct on
-free-text scenarios with abstentions down to 4, and checkable citation
+graph strategies went from blanket abstention (0/32, so 32 abstentions) to
+18/32 correct on free-text scenarios: the 32 abstentions became 28 answers
+(18 correct), with 4 abstentions left, and checkable citation
 completeness rose from 0.02 to 0.38 while plain_llm still emits zero checkable
 citations. Of the 14 remaining mismatches, 7 are minimal-vs-Article-50 taxonomy
 disagreements (reported as disagreement with the benchmark's labels; neither
@@ -186,7 +187,11 @@ The full REF-15 run (all 339 scenarios + 137 QA pairs + 10 gold seed,
 prompt v2 elicitation, 0 errors over 2,926 model calls) confirms the run-2
 pattern at 10x scale: plain_llm 207/339 with zero checkable citations vs
 the graph ladder 144/339 with 0.45 article-level citation completeness and
-a measured 0.000 hallucinated-citation rate over ~4,380 emitted citations.
+at most 1 hallucinated citation in about 4,380 emitted citations (the
+checker caught it; an earlier claim of exactly zero was withdrawn on
+2026-07-19, thesis HISTORY.md: graph_build_judge emitted
+1 of 4,376, a rate of 0.000229, and the other graph conditions 0 of 4,391
+and 0 of 4,372).
 The dominant graph loss is one cell: 88 gold-minimal items predicted
 limited_risk (the Article 50 taxonomy disagreement from run 2, now
 the priority annotation set). Measured spend exceeded the dry-run
@@ -201,7 +206,7 @@ July 2026 build, before B74, disposable: never reported as a result (thesis
 CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the
 hand-made legal test set and the benchmark sample.
 
-A full repeat of the ladder (same items, same frozen features, cost
+A full repeat of the ladder (same items, same fixed features, cost
 approved) measured provider-side nondeterminism at temperature 0: the
 graph conditions flipped 0 of 345 risk labels (deterministic
 classification empirically confirmed, citation Jaccard 0.95 to 0.97),

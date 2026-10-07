@@ -543,7 +543,7 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
   traverse the graph, spec G Section 10.4).
 - Main answer key: the hand-made legal test set (eval/gold/gold_seed.json, the
   harness's --gold default; 10 seed items of 60 to 80; B104 decision 1, spec G
-  Section 10.4). Secondary: a frozen 47-item sample of the open AI Act
+  Section 10.4). Secondary: a fixed 47-item sample of the open AI Act
   Evaluation Benchmark (REF-15, eval/gold/benchmark_sample.json), reported as
   agreement with its own published labels, never as legal truth; its coverage
   of the core is measured in eval/README.md.
