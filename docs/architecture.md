@@ -439,9 +439,10 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   draft, non_binding, superseded, unknown_needs_review.
 - The Digital Omnibus on AI (REF-02) is in force (Regulation (EU) 2026/1744,
   OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026) and changes the base
-  text and the high-risk dates (Chapter III Sections 1 to 3 from 2 December
-  2027 for systems high-risk under Article 6(2) and Annex III and from 2 August
-  2028 under Article 6(1) and Annex I, Article 113(c) as amended). It is a
+  text and the high-risk dates (Chapter III Sections 1 to 3, except
+  Article 6(5), from 2 December 2027 for systems high-risk under Article 6(2)
+  and Annex III and from 2 August 2028 under Article 6(1) and Annex I, Article
+  113(c) as amended). It is a
   distinct SourceDocument linked to the base Act by AMENDS and HAS_VERSION
   edges.
 - THE ACT IN FORCE (B132, 2026-10-03, DEC-23; it replaces the version pin
@@ -543,8 +544,8 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
   Evaluation Benchmark (REF-15, eval/gold/benchmark_sample.json), reported as
   agreement with its own published labels, never as legal truth; its coverage
   of the core is measured in eval/README.md.
-- The hand-made legal test set: around 60 to 80 items on the high-risk core, each
-  labelled by two annotators independently and their disagreements
+- The hand-made legal test set: around 60 to 80 items on the high-risk core,
+  each labelled by two annotators independently and their disagreements
   adjudicated by a person who did not produce them (spec G Sections 6 and
   10.4); report the agreement before adjudication with a chance-corrected
   statistic. A label comes from the Act, never from the classifier, whose
@@ -659,9 +660,10 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   reproducibility, no-silent-degradation, Section 13); corroborated by REF-27, REF-08.
   Defense: the authoritative structure must be deterministic and reproducible;
   LLMs also hallucinate legal hierarchy, so no model touches Layer 1.
-  verify: src/tere4ai/parse_legal_structure/ has no model calls; tests assert 119/180/14
-  for the Act in force (tests/integration/test_acceptance_in_force.py) and
-  113/180/13 for the 2024 parse (tests/integration/test_acceptance_m1.py).
+  verify: src/tere4ai/parse_legal_structure/ has no model
+  calls; tests assert 119/180/14 for the Act in force
+  (tests/integration/test_acceptance_in_force.py) and 113/180/13 for the 2024
+  parse (tests/integration/test_acceptance_m1.py).
 - DEC-02: cross-references resolved by rule first. Engineering MUST (determinism);
   corroborated by REF-26, REF-29.
   Defense: references are exact pointers, so rule resolution is deterministic;
@@ -689,7 +691,9 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   verify: the extraction judge in src/tere4ai/extract_norms/pipeline.py, the
   alignment judge in src/tere4ai/align_hleg/pipeline.py and the runtime
   grounding judge in src/tere4ai/judge/runtime_grounding.py (ground_check);
-  runtime_grounding test asserts no answer without a verdict.
+  tests/unit/test_runtime_grounding.py asserts every call yields a verdict
+  (accepted, rejected, or the needs_human_review fallback for unusable or
+  invalid judge output), so no answer goes out without one.
 - DEC-07: OpenAI generator, independent non-OpenAI judge (decided 2026-07-08).
   grounded_by REF-24.
   Defense: same-family judge failure modes correlate; an independent judge
@@ -712,8 +716,8 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   tests/unit/test_banned_term_scope.py encodes the scoped contract.
 - DEC-09: Neo4j primary plus RDF export. grounded_by REF-21, REF-22, REF-08, REF-25, REF-23.
   Defense: edge-native provenance and a reject-not-infer task fit property graphs.
-  verify: src/tere4ai/graph_store/ uses Neo4j; tests/integration/test_rdf_roundtrip.py,
-  tests/unit/test_rdf_export.py.
+  verify: src/tere4ai/graph_store/ uses Neo4j;
+  tests/integration/test_rdf_roundtrip.py, tests/unit/test_rdf_export.py.
 - DEC-10: full structural mirror, deep only on high-risk core. grounded_by
   REF-17, REF-15, ADD-24.
   Defense: value and benchmarks concentrate on the high-risk regime.
@@ -721,8 +725,8 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
 - DEC-11: reuse open benchmark plus sibling baselines. grounded_by REF-15, REF-16, REF-17.
   Defense: an open benchmark covers our tasks; siblings are the baselines.
   verify: src/tere4ai/eval/harness.py loads REF-15
-  (eval/gold/benchmark_sample.json); src/tere4ai/eval/strategies.py implements the
-  vector-RAG and no-judge baseline conditions.
+  (eval/gold/benchmark_sample.json); src/tere4ai/eval/strategies.py
+  implements the vector-RAG and no-judge baseline conditions.
 - DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02, REF-04.
   Defense: it is adopted and changes the in-force text and the dates.
   Amended 2026-10-03 (B132, DEC-23): the Omnibus is no longer kept apart
@@ -1545,8 +1549,8 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   field and two settings to remove; the MCP tools and the inline routes
   never change.
   verify: src/tere4ai/http_facade/app.py (the judge field, the expected
-  build, the caller reference, the judge route /api/backlog/judge, the signed record, each
-  route's configuration, /api/health's readiness); mcp_server/
+  build, the caller reference, the judge route /api/backlog/judge, the signed
+  record, each route's configuration, /api/health's readiness); mcp_server/
   backlog.py (the tool split into a generator part and a judge part, the MCP
   answer unchanged; the evidence half is card B140's); judge/config.py (the demo
   judge's loading, refusals and price loader); judge/runtime_grounding.py
@@ -1736,8 +1740,8 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   MUST that makes a research or empirical claim needs at least one PEER, STD, or
   OFF grounding; PRE, PROJ, and PRAC may support but never be sole grounding. An
   engineering or non-functional MUST stands on engineering merit and needs no
-  literature grounding. The CI tag-checker checks only that each cited source id exists; the bar is
-  applied in review.
+  literature grounding. The CI tag-checker checks only that each cited source
+  id exists; the bar is applied in review.
 - To answer "is decision X built": grep `@implements`, open the cited test, run
   it, report code paths plus test result plus grounding. Report status honestly
   as implemented, partial, or not_started. Never report done on the basis of the
