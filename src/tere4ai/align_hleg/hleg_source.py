@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from tere4ai.ingest.hleg_text import DEFAULT_MANIFEST, RECORD_FILE, TEXT_FILE
+from tere4ai.ingest.hleg_text import DEFAULT_MANIFEST, RECORD_FILE, SNAPSHOTS_DIR, TEXT_FILE
 
 HLEG_SPAN_PREFIX = "span:hleg:"
 
@@ -80,3 +80,39 @@ def pair_refusal(layer1: dict[str, Any] | None, pair: HlegPair) -> str | None:
     return (f"the Layer 1 dump lists {TEXT_FILE} {listed.get(TEXT_FILE, 'not at all')} and {RECORD_FILE} "
             f"{listed.get(RECORD_FILE, 'not at all')}; the HLEG text read is {pair.text_sha256} and its record "
             f"{pair.record_sha256}")
+
+
+REFUSAL_PREFIX = "HLEG span resolution refused (D-G75 (8)):"
+
+
+@dataclass(frozen=True)
+class ServedHleg:
+    """The HLEG requirement nodes a served build resolves spans into, or why none."""
+
+    nodes: list[dict[str, Any]]
+    refusal: str | None
+
+
+def served_hleg(dump: dict[str, Any] | None, snapshots_dir: Path | str | None = None) -> ServedHleg:
+    """The one loader of HLEG spans for a served build (the facade, the MCP server,
+    explain): the nodes are built from the files on disk only when the served
+    layer1.json lists the derived text and its record with exactly their sha256;
+    otherwise the refusal names both files. Never raises."""
+    from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
+
+    listed: dict[str, str] = {}
+    disk: dict[str, str] = {}
+    try:
+        folder = Path(snapshots_dir) if snapshots_dir is not None else SNAPSHOTS_DIR
+        listed = listed_pair(dump)
+        disk = {name: hashlib.sha256((folder / name).read_bytes()).hexdigest() if (folder / name).is_file()
+                else "missing" for name in (TEXT_FILE, RECORD_FILE)}
+        if all(listed.get(name) == disk[name] for name in (TEXT_FILE, RECORD_FILE)):
+            return ServedHleg(build_hleg_nodes(read_pair(folder, listed)), None)
+    except (OSError, HlegSourceError, ValueError, KeyError, TypeError) as exc:  # review M3: never raises
+        return ServedHleg([], f"{REFUSAL_PREFIX} {TEXT_FILE} and {RECORD_FILE} cannot be used: "
+                              f"{type(exc).__name__}: {exc}")
+    return ServedHleg([], (
+        f"{REFUSAL_PREFIX} the served build's layer1.json lists {TEXT_FILE} as {listed.get(TEXT_FILE, 'not listed')} "
+        f"and {RECORD_FILE} as {listed.get(RECORD_FILE, 'not listed')}; the files on disk are {disk[TEXT_FILE]} and "
+        f"{disk[RECORD_FILE]}. A span of this build resolves only into the text it was made on."))

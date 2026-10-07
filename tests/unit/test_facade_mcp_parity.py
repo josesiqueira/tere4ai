@@ -166,13 +166,15 @@ def test_span_parity(client):
         span_id,
         client.app.state.dump,
         SNAPSHOTS_DIR,
-        extra_nodes=client.app.state.hleg_nodes,
+        extra_nodes=client.app.state.served_hleg.nodes,
+        extra_refusal=client.app.state.served_hleg.refusal,
     )
     span = resolve_span(
         span_id,
         client.app.state.dump,
         SNAPSHOTS_DIR,
-        extra_nodes=client.app.state.hleg_nodes,
+        extra_nodes=client.app.state.served_hleg.nodes,
+        extra_refusal=client.app.state.served_hleg.refusal,
     )
     assert _canon({key: via_http[key] for key in envelope}) == _canon(envelope)
     for key in span:

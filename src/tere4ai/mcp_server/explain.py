@@ -25,6 +25,7 @@ text it follows.
 @implements: DEC-08
 @implements: DEC-19
 @implements: DEC-23
+@implements: DEC-25
 @grounded_by: REF-17, REF-16
 """
 
@@ -33,6 +34,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from tere4ai.align_hleg.hleg_source import HLEG_SPAN_PREFIX, served_hleg
 from tere4ai.extract_norms.recorded import extraction_generator_settings
 from tere4ai.mcp_server.application_dates import legal_text
 from tere4ai.mcp_server.tools import make_envelope
@@ -117,17 +119,6 @@ def _accepted_alignments(
         else:
             non_accepted += 1
     return accepted, non_accepted
-
-
-def _hleg_nodes() -> list[dict[str, Any]]:
-    """The seven HLEG requirement nodes (deterministic, checksum-verified
-    builder); empty when the frozen HLEG text is unavailable or drifted."""
-    try:
-        from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
-
-        return build_hleg_nodes()
-    except Exception:  # noqa: BLE001 - degrade to dump-only span files
-        return []
 
 
 def _earlier_version(
@@ -224,10 +215,11 @@ def explain_requirement(
     # Span trace: the norm's own source span plus the evidence spans of its
     # accepted alignments, each with the snapshot file when resolvable. HLEG
     # target spans live outside the Layer 0+1 dump; their snapshot file comes
-    # from the deterministic HLEG node builder when the frozen text is
-    # available, else stays None (degraded, never an exception).
+    # from the one loader bound to the served build, or stays None with the
+    # loader's refusal in missing_facts.
     span_files: dict[str, str | None] = {}
-    for node in list(dump.get("nodes", [])) + _hleg_nodes():
+    served = served_hleg(dump)
+    for node in list(dump.get("nodes", [])) + served.nodes:
         span = node.get("source_span") if isinstance(node, dict) else None
         if isinstance(span, dict) and span.get("span_id"):
             span_files[span["span_id"]] = span.get("snapshot_file")
@@ -241,6 +233,8 @@ def explain_requirement(
     span_trace = [
         {"span_id": s, "snapshot_file": span_files.get(s)} for s in span_ids
     ]
+    if served.refusal and any(s.startswith(HLEG_SPAN_PREFIX) for s in span_ids):
+        missing_facts.append(served.refusal)
 
     review_status = norm.get("review_status")
     build_judge_verdict = norm.get("judge_verdict")

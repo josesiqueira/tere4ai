@@ -8,6 +8,7 @@ the frozen source (architecture.md Sections 6 and 13). Spans may point into subp
 example data/snapshots/formex/. Deterministic, no model calls.
 
 @implements: DEC-01 (partial: span rendering)
+@implements: DEC-25 (partial: HLEG spans refused when the served build was not made on the text)
 @grounded_by: REF-27
 """
 
@@ -17,6 +18,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from tere4ai.align_hleg.hleg_source import HLEG_SPAN_PREFIX
 from tere4ai.mcp_server.tools import make_envelope
 
 
@@ -51,6 +53,7 @@ def resolve_span(
     dump: dict[str, Any],
     snapshots_dir: Path | str,
     extra_nodes: list[dict[str, Any]] | None = None,
+    extra_refusal: str | None = None,
 ) -> dict[str, Any]:
     """Resolve span_id to {span_id, snapshot_file, sha256, start, end, text}.
 
@@ -58,10 +61,15 @@ def resolve_span(
     file's sha256 against the span's recorded checksum, and slices the
     decoded text exactly at [start:end] (offsets are over the utf-8 decoded
     snapshot). Raises SpanNotFoundError for an unknown span_id and
-    SpanIntegrityError for a missing, escaping, or drifted snapshot.
+    SpanIntegrityError for a missing, escaping, or drifted snapshot. An HLEG
+    span is refused with SpanIntegrityError when the loader of the served build
+    refused its text (extra_refusal, spec G D-G75 (8)).
     """
     span = _find_span(span_id, dump, extra_nodes)
     if span is None:
+        if extra_refusal and isinstance(span_id, str) and span_id.startswith(HLEG_SPAN_PREFIX):
+            # D-G75 (8): the served build was not made on the HLEG text on disk.
+            raise SpanIntegrityError(extra_refusal)
         raise SpanNotFoundError(
             f"span_id '{span_id}' does not match any node source_span in the graph dump"
         )
@@ -129,6 +137,7 @@ def resolve_span_envelope(
     dump: dict[str, Any],
     snapshots_dir: Path | str,
     extra_nodes: list[dict[str, Any]] | None = None,
+    extra_refusal: str | None = None,
 ) -> dict[str, Any]:
     """resolve_span wrapped in the Section 8 envelope, never an exception.
 
@@ -138,7 +147,9 @@ def resolve_span_envelope(
     """
     graph_version = str(dump.get("build", {}).get("build_id", "unknown"))
     try:
-        resolved = resolve_span(span_id, dump, snapshots_dir, extra_nodes=extra_nodes)
+        resolved = resolve_span(
+            span_id, dump, snapshots_dir, extra_nodes=extra_nodes, extra_refusal=extra_refusal
+        )
     except SpanNotFoundError as exc:
         return make_envelope(
             answer={"span_id": span_id, "found": False},

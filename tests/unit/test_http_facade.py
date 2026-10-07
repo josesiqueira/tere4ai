@@ -16,9 +16,12 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from tests.fixtures.model_parameters import declared, write_table
+from tests.unit.test_explain_trace_spans import hleg_pair_listed_as_on_disk
 
 import tere4ai.http_facade.app as facade
+from tere4ai.align_hleg.hleg_source import REFUSAL_PREFIX
 from tere4ai.extract_norms.model_clients import FakeClient
+from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
 from tere4ai.judge import config as config_module
 from tere4ai.judge.config import ModelConfigError
 from tere4ai.mcp_server.tools import (
@@ -532,7 +535,14 @@ def test_explain_endpoint_returns_full_explanation(client):
     response = client.post("/api/explain", json={"norm_id": ACCEPTED_NORM_ID})
     assert response.status_code == 200
     envelope = response.json()
-    assert envelope["status"] == "satisfied_with_evidence"
+    dump = client.app.state.dump
+    if hleg_pair_listed_as_on_disk(dump):
+        assert envelope["status"] == "satisfied_with_evidence"
+        assert not any(f.startswith(REFUSAL_PREFIX) for f in envelope["missing_facts"])
+    else:
+        assert envelope["status"] == "requires_human_review"
+        assert any(f.startswith(REFUSAL_PREFIX) and TEXT_FILE in f and RECORD_FILE in f
+                   for f in envelope["missing_facts"])
     answer = envelope["answer"]
     assert answer["norm_id"] == ACCEPTED_NORM_ID
     assert "risk management system" in answer["source"]["text"]
@@ -714,12 +724,13 @@ def test_span_endpoint_carries_section_8_envelope(client):
     assert len(body["sha256"]) == 64
 
 
-def test_span_endpoint_resolves_hleg_target_spans(client):
+def test_span_endpoint_refuses_hleg_spans_of_a_build_not_made_on_the_text(client):
+    # D-G75 (8) and (9): the tracked build lists the v1 copy, not the derived text and its record.
+    if hleg_pair_listed_as_on_disk(client.app.state.dump):
+        pytest.skip("the served build already lists the derived text (after B74)")
     response = client.get("/api/span/span:hleg:req2")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["snapshot_file"] == "hleg_ethics_guidelines_2019_en_requirements.txt"
-    assert "robustness" in body["text"].lower()
+    assert response.status_code == 503
+    assert response.json()["error"].startswith(REFUSAL_PREFIX)
 
 
 def test_span_endpoint_unknown_span_returns_clean_404(client):

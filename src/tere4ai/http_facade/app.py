@@ -5,6 +5,7 @@
 @implements: DEC-19
 @implements: DEC-23
 @implements: DEC-24
+@implements: DEC-25
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
@@ -90,6 +91,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field, model_validator
 
+from tere4ai.align_hleg.hleg_source import served_hleg
 from tere4ai.eval.evaluation_record import RECORD_FILE_STEM as _EVAL_REF_RE
 from tere4ai.eval.evaluation_record import EvaluationRecordStore, reduce_paths
 from tere4ai.eval.present_evaluation import (
@@ -352,17 +354,6 @@ def _sanitize_unencodable(value: Any) -> Any:
     return value
 
 
-def _load_hleg_nodes() -> list[dict[str, Any]]:
-    """The seven HLEG requirement nodes for target-side span resolution;
-    empty when the frozen HLEG text or its checksum is unavailable."""
-    try:
-        from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
-
-        return build_hleg_nodes()
-    except Exception:  # noqa: BLE001 - degrade to dump-only span resolution
-        return []
-
-
 def _build_paid_clients() -> tuple[Any, Any]:
     """Construct the real generator and judge lazily, per paid request.
 
@@ -398,7 +389,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             if core_path.is_file()
             else None
         )
-        app.state.hleg_nodes = _load_hleg_nodes()
+        app.state.served_hleg = served_hleg(loaded.dump)
         try:
             raw = FEATURES_SCHEMA_PATH.read_bytes()
             app.state.features_schema = json.loads(raw)
@@ -1064,7 +1055,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 span_id,
                 request.app.state.dump,
                 SNAPSHOTS_DIR,
-                extra_nodes=request.app.state.hleg_nodes,
+                extra_nodes=request.app.state.served_hleg.nodes,
+                extra_refusal=request.app.state.served_hleg.refusal,
             )
         except SpanNotFoundError as exc:
             return JSONResponse(

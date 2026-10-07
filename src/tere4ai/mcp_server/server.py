@@ -27,6 +27,7 @@ TERE4AI_MCP_REQUIRE_KEY=1. Every tool call is metered body-free.
 
 @implements: DEC-08, DEC-10
 @implements: DEC-23
+@implements: DEC-25
 @grounded_by: REF-16, REF-17, REF-15, REF-31
 """
 
@@ -44,6 +45,7 @@ from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
 from mcp import MCPError
 
+from tere4ai.align_hleg.hleg_source import served_hleg
 from tere4ai.graph_store.build_chain import stamp_served_build
 from tere4ai.graph_store.publication import (
     ACTIVE_POINTER,
@@ -407,20 +409,10 @@ def resolve_span(span_id: str) -> dict[str, Any]:
     dump = loaded.dump
     if dump is None:
         return _dump_missing_envelope(loaded.error)
+    served = served_hleg(dump)
     return spans_rules.resolve_span_envelope(
-        span_id, dump, SNAPSHOTS_DIR, extra_nodes=_hleg_nodes()
+        span_id, dump, SNAPSHOTS_DIR, extra_nodes=served.nodes, extra_refusal=served.refusal
     )
-
-
-def _hleg_nodes() -> list[dict[str, Any]]:
-    """The seven HLEG requirement nodes (target-side spans live outside the
-    Layer 0+1 dump); empty when the frozen HLEG text is unavailable."""
-    try:
-        from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
-
-        return build_hleg_nodes()
-    except Exception:  # noqa: BLE001 - degrade to dump-only span resolution
-        return []
 
 
 @mcp.tool(annotations=_READ_ONLY)

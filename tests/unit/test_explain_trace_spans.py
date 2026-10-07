@@ -11,11 +11,14 @@ the tool's own text.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
+from tere4ai.align_hleg.hleg_source import REFUSAL_PREFIX
+from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
 from tere4ai.mcp_server.explain import HLEG_MAPPING_CAVEAT, explain_requirement
 from tere4ai.mcp_server.spans import (
     SpanIntegrityError,
@@ -101,6 +104,16 @@ def assert_envelope_invariants(envelope: dict, node_ids: set) -> None:
 # explain_requirement --------------------------------------------------------
 
 
+def hleg_pair_listed_as_on_disk(dump: dict) -> bool:
+    """From the data alone: the dump lists the derived text and the record with the sha256 of the files on disk."""
+    listed = {n.get("file"): n.get("sha256") for n in dump["nodes"] if n.get("type") == "SourceFile"}
+    for name in (TEXT_FILE, RECORD_FILE):
+        path = SNAPSHOTS_DIR / name
+        if not path.is_file() or listed.get(name) != hashlib.sha256(path.read_bytes()).hexdigest():
+            return False
+    return True
+
+
 def test_explain_accepted_norm_full_chain(
     dump, norms_payload, alignments_payload, node_ids, span_ids_in_dump
 ):
@@ -108,7 +121,14 @@ def test_explain_accepted_norm_full_chain(
         ACCEPTED_NORM_ID, dump, norms_payload, alignments_payload
     )
     assert_envelope_invariants(envelope, node_ids)
-    assert envelope["status"] == "satisfied_with_evidence"
+    # D-G75 (8), R26: the outcome follows the data (the dump lists the HLEG pair as on disk or not).
+    if hleg_pair_listed_as_on_disk(dump):
+        assert envelope["status"] == "satisfied_with_evidence"
+        assert not any(f.startswith(REFUSAL_PREFIX) for f in envelope["missing_facts"])
+    else:
+        assert envelope["status"] == "requires_human_review"
+        assert any(f.startswith(REFUSAL_PREFIX) and TEXT_FILE in f and RECORD_FILE in f
+                   for f in envelope["missing_facts"])
     answer = envelope["answer"]
     assert answer["found"] is True
     assert answer["review_status"] == "accepted"
@@ -142,13 +162,13 @@ def test_explain_accepted_norm_full_chain(
     # Span trace: valid span ids; the norm's own span resolves in the dump.
     trace_ids = [s["span_id"] for s in answer["span_trace"]]
     assert KNOWN_SPAN_ID in trace_ids
-    hleg_text = SNAPSHOTS_DIR / "hleg_ethics_guidelines_2019_en_requirements.txt"
+    listed_as_on_disk = hleg_pair_listed_as_on_disk(dump)
     for entry in answer["span_trace"]:
         assert entry["span_id"].startswith("span:")
         if entry["span_id"] in span_ids_in_dump:
             assert entry["snapshot_file"]
-        if entry["span_id"].startswith("span:hleg:") and hleg_text.is_file():
-            assert entry["snapshot_file"] == hleg_text.name
+        if entry["span_id"].startswith("span:hleg:"):
+            assert entry["snapshot_file"] == (TEXT_FILE if listed_as_on_disk else None)
     assert envelope["source_spans"][0]["span_id"] == KNOWN_SPAN_ID
 
 
@@ -304,8 +324,9 @@ def test_resolve_span_envelope_known_and_unknown(dump, node_ids):
 
 def test_resolve_span_extra_nodes_cover_hleg_spans(dump):
     from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
+    from tere4ai.align_hleg.hleg_source import load_pair
 
-    hleg_nodes = build_hleg_nodes()
+    hleg_nodes = build_hleg_nodes(load_pair())
     resolved = resolve_span(
         "span:hleg:req2", dump, SNAPSHOTS_DIR, extra_nodes=hleg_nodes
     )
