@@ -20,6 +20,7 @@ from tere4ai.extract_norms.pipeline import (
     _inference_source_block,
     expand_source_units,
     extract_norms,
+    judge_inference_block,
     load_prompt,
 )
 from tere4ai.extract_norms.requirement_type import DEFINITIONS_TEXT, SCOPE_TEXT
@@ -607,3 +608,114 @@ def test_under_v3_the_judge_never_sees_the_field_and_the_norm_takes_the_rule_val
     norm = result["norms"][0]
     NORM_VALIDATOR.validate(norm)
     assert norm["target_system_category"] == "high_risk_ai_system"
+
+
+# B144 (DEC-26, spec G D-G76 (4)): from judge_norms v4 on, a Point given as
+# the actor-inference source reaches the judge with the Paragraph that holds
+# it; every other source, and every v1 to v3 run, keeps its input.
+
+D3_POINT_A = "eu-ai-act:article-16:paragraph-1:point-a"
+D3_DUMP = {
+    "build": {"build_id": "build-test"},
+    "nodes": FAKE_DUMP["nodes"] + [
+        {"id": "eu-ai-act:article-16", "layer": 1, "type": "Article", "number": 16,
+         "title": "Obligations of providers of high-risk AI systems", "source_span": _span("art_16")},
+        {"id": "eu-ai-act:article-16:paragraph-1", "layer": 1, "type": "Paragraph", "index": 1,
+         "text": "Providers of high-risk AI systems shall: (a) ensure compliance with Section 2; (c) keep a system.",
+         "source_span": _span("016.001")},
+        {"id": D3_POINT_A, "layer": 1, "type": "Point", "marker": "a",
+         "text": "ensure compliance with Section 2;", "source_span": _span("016.001.a")},
+        {"id": "eu-ai-act:article-16:paragraph-1:point-a:point-i", "layer": 1, "type": "Point", "marker": "i",
+         "text": "first indent;", "source_span": _span("016.001.a.i")},
+        {"id": "eu-ai-act:article-16:paragraph-2", "layer": 1, "type": "Paragraph", "index": 2,
+         "text": "2. Providers shall keep it.", "source_span": _span("016.002")},
+        {"id": "eu-ai-act:article-16:paragraph-2:subparagraph-1", "layer": 1, "type": "Subparagraph",
+         "text": "Providers shall keep it.", "source_span": _span("016.002.1")},
+        {"id": "eu-ai-act:annex-iii", "layer": 1, "type": "Annex", "number": "III", "title": "Annex III",
+         "source_span": _span("anx_iii")},
+        {"id": "eu-ai-act:annex-iii:point-1:point-a", "layer": 1, "type": "Point", "marker": "a",
+         "text": "remote biometric identification systems;", "source_span": _span("anx_iii.1.a")},
+    ],
+    "edges": [],
+}
+D3_PARAGRAPH = (
+    "Verbatim text of the paragraph that holds it:\n"
+    "[eu-ai-act:article-16:paragraph-1] Providers of high-risk AI systems shall: (a) ensure compliance with "
+    "Section 2; (c) keep a system."
+)
+
+
+def _judge_input(tmp_path, version, source_id, dump=D3_DUMP):
+    generator = FakeClient({PARA_ID: _generator_with(actor_inference_source_node_id=source_id)}, model="fake-generator")
+    judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
+    extract_norms(dump, [PARA_ID], generator, judge, prompt_version=version, log_path=tmp_path / f"log-{version}.jsonl")
+    return judge.calls[0][1]
+
+
+def test_a_v4_judge_receives_the_paragraph_that_holds_a_point_source(tmp_path):
+    user = _judge_input(tmp_path, "v4", D3_POINT_A)
+    assert (
+        f"Actor-inference source: {D3_POINT_A} (Point)\n"
+        "Verbatim text of the actor-inference source:\n"
+        f"[{D3_POINT_A}] ensure compliance with Section 2;\n"
+        f"{D3_PARAGRAPH}\n\nCandidate norm (JSON):"
+    ) in user
+
+
+def test_a_v3_judge_keeps_the_point_text_alone(tmp_path):
+    """The version gate: a v1 to v3 run keeps the input it had."""
+    user = _judge_input(tmp_path, "v3", D3_POINT_A)
+    assert f"[{D3_POINT_A}] ensure compliance with Section 2;\n\nCandidate norm (JSON):" in user
+    assert "paragraph that holds it" not in user
+
+
+def test_under_v4_a_paragraph_or_a_container_source_reaches_the_judge_as_under_v3(tmp_path):
+    for source_id in ("eu-ai-act:article-16:paragraph-1", "eu-ai-act:article-16"):
+        assert _judge_input(tmp_path, "v4", source_id) == _judge_input(tmp_path, "v3", source_id), source_id
+
+
+def test_a_subparagraph_source_gets_no_paragraph_under_v4(tmp_path):
+    """Only a Point is given its paragraph (R9): the type guard."""
+    user = _judge_input(tmp_path, "v4", "eu-ai-act:article-16:paragraph-2:subparagraph-1")
+    assert "[eu-ai-act:article-16:paragraph-2:subparagraph-1] Providers shall keep it.\n\nCandidate norm" in user
+    assert "paragraph that holds it" not in user
+
+
+def test_a_nested_point_gets_its_nearest_paragraph(tmp_path):
+    user = _judge_input(tmp_path, "v4", "eu-ai-act:article-16:paragraph-1:point-a:point-i")
+    assert f"[eu-ai-act:article-16:paragraph-1:point-a:point-i] first indent;\n{D3_PARAGRAPH}" in user
+
+
+def test_a_point_without_a_paragraph_above_it_keeps_its_text_alone():
+    nodes = {n["id"]: n for n in D3_DUMP["nodes"]}
+    candidate = {"actor_inferred": "provider", "actor_inference_source_node_id": "eu-ai-act:annex-iii:point-1:point-a"}
+    with_paragraph = _inference_source_block(D3_DUMP, nodes, {"node_id": PARA_ID}, candidate, paragraph_of_point=True)
+    assert with_paragraph == _inference_source_block(D3_DUMP, nodes, {"node_id": PARA_ID}, candidate)
+    assert with_paragraph.endswith("[eu-ai-act:annex-iii:point-1:point-a] remote biometric identification systems;")
+
+
+def test_a_point_that_is_the_source_unit_itself_is_named_as_before():
+    nodes = {n["id"]: n for n in D3_DUMP["nodes"]}
+    candidate = {"actor_inferred": "unspecified_needs_review", "actor_inference_source_node_id": D3_POINT_A}
+    block = judge_inference_block(D3_DUMP, nodes, {"node_id": D3_POINT_A}, candidate, "v4")
+    assert block == f"Actor-inference source: {D3_POINT_A}, the source unit above."
+
+
+def test_judge_inference_block_follows_the_prompt_version():
+    nodes = {n["id"]: n for n in D3_DUMP["nodes"]}
+    candidate = {"actor_inferred": "provider", "actor_inference_source_node_id": D3_POINT_A}
+    unit = {"node_id": PARA_ID}
+    assert judge_inference_block(D3_DUMP, nodes, unit, candidate, "v1") is None
+    for version in ("v2", "v3"):
+        assert "paragraph that holds it" not in judge_inference_block(D3_DUMP, nodes, unit, candidate, version)
+    assert judge_inference_block(D3_DUMP, nodes, unit, candidate, "v4").endswith(D3_PARAGRAPH)
+
+
+def test_the_holding_paragraph_is_the_nearest_one_above_the_point():
+    from tere4ai.extract_norms.pipeline import _holding_paragraph
+
+    outer = {"id": "x:paragraph-1", "type": "Paragraph", "text": "outer"}
+    inner = {"id": "x:paragraph-1:paragraph-2", "type": "Paragraph", "text": "inner"}
+    point = {"id": "x:paragraph-1:paragraph-2:point-a", "type": "Point", "text": "p"}
+    nodes = {n["id"]: n for n in (outer, inner, point)}
+    assert _holding_paragraph(nodes, point["id"]) is inner

@@ -433,13 +433,12 @@ def recompute_chars_per_token(
     nodes = extract_pipeline._index_nodes(dump)
     judge_system = extract_pipeline.load_prompt("judge_norms", version)
     fields = [k for k in extract_pipeline._NORM_CANDIDATE_FIELDS if k != "requirement_type"]
-    with_inference = version not in extract_pipeline._PROMPTS_WITHOUT_INFERENCE_TEXT
     judge_chars = 0
     for norm in b74["norms"]:
         node = nodes[norm["source_node_id"]]
         unit = {"node_id": node["id"], "text": node.get("text", "")}
         candidate = {key: norm.get(key) for key in fields if key in norm}
-        block = extract_pipeline._inference_source_block(dump, nodes, unit, candidate) if with_inference else None
+        block = extract_pipeline.judge_inference_block(dump, nodes, unit, candidate, version)
         judge_chars += len(judge_system) + len(extract_pipeline._judge_user_message(unit, candidate, block))
     return {"openai": gen_chars / usage["generator"]["input_tokens"],
             "anthropic": judge_chars / usage["judge"]["input_tokens"]}

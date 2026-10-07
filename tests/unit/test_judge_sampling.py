@@ -1323,3 +1323,26 @@ def test_the_sheet_never_shows_the_target_system_category():
     sheet = sampling.build_sheet(norms, alignments, layer1, total=4, minimum=4)
     assert all("target_system_category" not in item["judged_content"] for item in sheet["items"])
     assert "target_system_category" not in sampling.render_sheet_md(sheet)
+
+
+B144_POINT_A = "eu-ai-act:article-16:paragraph-1:point-a"
+B144_DUMP = {**B4_DUMP, "nodes": B4_DUMP["nodes"] + [
+    {"id": B144_POINT_A, "type": "Point", "text": "ensure the logging;", "source_span": _span("016.001.a")}]}
+B144_GENERATOR = json.dumps({"norms": [{**json.loads(B4_GENERATOR)["norms"][0],
+                                        "actor_inference_source_node_id": B144_POINT_A}]})
+
+
+def test_the_e1_sheet_of_a_v4_run_shows_the_paragraph_of_a_point_source_as_the_judge_received_it(tmp_path):
+    """B144 ruling R10 (Jose, B4: "Show the same text (Recommended)"): the
+    labeller reads the paragraph the v4 judge read; a v3 run shows neither."""
+    for version, shown in (("v4", True), ("v3", False)):
+        generator = FakeClient({B4_UNIT: B144_GENERATOR}, model="fake-generator")
+        judge = FakeClient({B4_UNIT: B4_JUDGE}, model="fake-judge")
+        result = extract_norms(B144_DUMP, [B4_UNIT], generator, judge, prompt_version=version,
+                               log_path=tmp_path / f"log-{version}.jsonl")
+        payload = {"build": {"build_id": "b-test"}, **result}
+        sheet = sampling.build_sheet(payload, {"assertions": [], "judge_runs": []}, B144_DUMP, total=1, minimum=1)
+        text = sheet["items"][0]["actor_inference_source"]
+        assert f"{text}\n\nCandidate norm (JSON):" in judge.calls[0][1], version
+        assert ("[eu-ai-act:article-16:paragraph-1] Providers of high-risk AI systems shall ensure the logging."
+                in text) is shown, version

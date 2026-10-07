@@ -194,3 +194,87 @@ def test_the_v4_extractor_carries_the_requirement_type_texts_and_the_output_exam
     assert V3_EXAMPLE_ACTOR not in v4 and v4.count(V4_EXAMPLE_ACTOR) == 1
     assert "## Output format\n\n" + EXAMPLE_UNIT + EXAMPLE_ANCHOR + "```json" in v4
     assert "Article 9(1)" in _flat(EXAMPLE_UNIT) and "outside Articles 8 to 15 never takes that source" in _flat(EXAMPLE_UNIT)
+
+
+V3_CHECK_3 = """3. Actor: the actor is either explicitly named in the text (actor_explicit
+   matches the text) or a valid recorded inference (actor_inferred with an
+   actor_inference_source_node_id, for example provider duties inferred via
+   Article 16). Check an inference against the actor-inference source text
+   you receive: that provision must assign the duty to the inferred actor.
+   An invented actor, or an inference its source text does not support, is
+   grounds for rejection. An actor of "unspecified_needs_review" is
+   acceptable only when the text truly names no actor and no valid
+   inference applies.
+"""
+
+V4_CHECK_3 = """3. Actor: the actor is either explicitly named in the text (actor_explicit
+   matches the text) or a valid recorded inference (actor_inferred with an
+   actor_inference_source_node_id, for example provider duties inferred via
+   Article 16). Check an inference against the actor-inference source text
+   you receive: that provision must assign the duty to the inferred actor.
+   When the source is a point, you also receive the text of the paragraph
+   that holds it, which names who the point's duty falls on.
+   An invented actor, or an inference its source text does not support, is
+   grounds for rejection. An actor of "unspecified_needs_review" is
+   acceptable only when the text truly names no actor and no valid
+   inference applies.
+   Articles 8 to 15 (Chapter III, Section 2; read the Article from the
+   source unit node id): actor_inferred "provider" with
+   actor_inference_source_node_id
+   "eu-ai-act:article-16:paragraph-1:point-a" is a valid inference when
+   the norm states one of the Section's requirements for the high-risk AI
+   system, or qualifies one (how it may be met, or when it does not
+   apply), and the text names no person or body that must act, whatever
+   the grammatical subject (the system, a part of it, its data, its
+   documentation, its instructions for use, its risk management system,
+   its oversight measures) and whether the verb is active or passive.
+   Article 16(a) requires providers to "ensure that their high-risk AI
+   systems are compliant with the requirements set out in Section 2".
+   Grounds for rejection under this check, beside those above: that
+   inference on a unit outside Articles 8 to 15; that inference where the
+   text names the person or body that must act, as the subject or as the
+   agent of the passive verb that carries the duty (a person named only
+   inside what a requirement must ensure, as the deployer in Article
+   14(5), is not the one who must act); that inference for a permission
+   or an ability of a person the system must enable; the system, or
+   another thing, in actor_explicit on a unit of Articles 8 to 15. Every other inference
+   resting on Article 16 (point (c) for Article 17, for instance) is
+   judged as above, against the source text you receive.
+"""
+
+FOUR_GROUNDS = (
+    "that inference on a unit outside Articles 8 to 15",
+    "that inference where the text names the person or body that must act",
+    "that inference for a permission or an ability of a person the system must enable",
+    "the system, or another thing, in actor_explicit on a unit of Articles 8 to 15",
+)
+
+
+def rebuild_v4_judge() -> str:
+    """v3 with its version line and check 3 changed, and nothing else."""
+    v3 = load_prompt("judge_norms", "v3")
+    assert v3.count(V3_CHECK_3) == 1
+    return (
+        v3.replace("# judge_norms system prompt, version v3", "# judge_norms system prompt, version v4", 1)
+        .replace(V3_CHECK_3, V4_CHECK_3, 1)
+    )
+
+
+def test_the_v4_judge_is_v3_with_check_3_rewritten():
+    assert load_prompt("judge_norms", "v4") == rebuild_v4_judge()
+
+
+def test_the_v4_check_3_names_the_range_the_point_a_node_and_the_four_grounds():
+    check = _flat(V4_CHECK_3)
+    assert "Articles 8 to 15 (Chapter III, Section 2;" in check
+    assert f'"{POINT_A}"' in check
+    for ground in FOUR_GROUNDS:
+        assert ground in check, ground
+    # every v3 sentence of check 3 stays
+    for sentence in _flat(V3_CHECK_3).split(". "):
+        assert sentence.rstrip(".") in check
+
+
+def test_the_v4_judge_carries_the_requirement_type_texts_byte_for_byte():
+    judge = load_prompt("judge_norms", "v4")
+    assert DEFINITIONS_TEXT in judge and SCOPE_TEXT in judge

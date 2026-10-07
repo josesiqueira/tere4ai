@@ -3,6 +3,7 @@
 @implements: DEC-03, DEC-06 (partial: extraction judge only)
 @implements: DEC-19
 @implements: DEC-21
+@implements: DEC-26
 @grounded_by: REF-11, REF-12, REF-13, REF-16, REF-24
 
 An Article is not one requirement: each extracted norm is a NormativeStatement
@@ -27,6 +28,11 @@ Section 7 before it may be accepted. Hard invariants enforced here:
   null and is counted in stats["without_target_system_category"].
 - DEC-21, from prompt v3 on: the extractor is not asked for
   target_system_category and the judge's candidate does not carry it.
+- DEC-26 (B144), from prompt v4 on: a requirement of Articles 8 to 15
+  whose text names no person or body that must act takes the provider
+  through Article 16(a) (the prompts carry the rule); a Point given as the
+  actor-inference source reaches the judge with the Paragraph that holds
+  it.
 - Every generator and judge call is logged to
   data/review_queue/extraction_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
@@ -73,6 +79,11 @@ _PROMPTS_WITHOUT_INFERENCE_TEXT = frozenset({"v1"})
 # target_system_category. Their judge keeps reading the candidate it always
 # read; the norm takes the rule's value under every version.
 _PROMPTS_WITH_MODEL_CATEGORY = frozenset({"v1", "v2"})
+# D-G76 (4), B144: from judge_norms v4 on, a Point given as the
+# actor-inference source reaches the judge with the Paragraph that holds it
+# (point (a) of Article 16(1) alone does not say "Providers"). Earlier
+# versions keep the input they had.
+_PROMPTS_WITHOUT_PARAGRAPH_OF_POINT = frozenset({"v1", "v2", "v3"})
 
 # Node types that carry extractable operative text (Layer 1, Section 6).
 SOURCE_UNIT_TYPES = ("Paragraph", "Point", "AnnexItem")
@@ -229,11 +240,23 @@ def _generator_user_message(unit: dict[str, Any]) -> str:
     )
 
 
+def _holding_paragraph(nodes: dict[str, dict[str, Any]], point_id: str) -> dict[str, Any] | None:
+    """The nearest Paragraph above a Point, read from its id (D-G76 (4)); None when there is none."""
+    parts = point_id.split(":")
+    for depth in range(len(parts) - 1, 0, -1):
+        ancestor = nodes.get(":".join(parts[:depth]))
+        if ancestor is not None and ancestor.get("type") == "Paragraph":
+            return ancestor
+    return None
+
+
 def _inference_source_block(
     dump: dict[str, Any],
     nodes: dict[str, dict[str, Any]],
     unit: dict[str, Any],
     candidate: dict[str, Any],
+    *,
+    paragraph_of_point: bool = False,
 ) -> str:
     """B4 (DEC-04, DEC-19): the verbatim text the candidate's inferred actor rests on.
 
@@ -241,6 +264,8 @@ def _inference_source_block(
     the usual source) gives every source unit under it in the Act's order.
     The node type is named, so a recital or an unknown id is visible to the
     judge rather than hidden; an inference that names no source says so.
+    With paragraph_of_point (judge_norms v4 on), a Point source also gives
+    the Paragraph that holds it (D-G76 (4)).
     """
     if not candidate.get("actor_inferred"):
         return "Actor-inference source: none (the candidate's actor is not inferred)."
@@ -272,9 +297,36 @@ def _inference_source_block(
     if not texts:
         return f"Actor-inference source: {source_id} ({node.get('type')}), no text in the graph dump."
     body = "\n".join(f"[{node_id}] {text}" for node_id, text in texts)
-    return (
+    block = (
         f"Actor-inference source: {source_id} ({node.get('type')})\n"
         f"Verbatim text of the actor-inference source:\n{body}"
+    )
+    if paragraph_of_point and node.get("type") == "Point" and node.get("text"):
+        paragraph = _holding_paragraph(nodes, source_id)
+        if paragraph is not None and paragraph.get("text"):
+            block += (
+                "\nVerbatim text of the paragraph that holds it:\n"
+                f"[{paragraph['id']}] {paragraph['text']}"
+            )
+    return block
+
+
+def judge_inference_block(
+    dump: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    unit: dict[str, Any],
+    candidate: dict[str, Any],
+    prompt_version: str,
+) -> str | None:
+    """The actor-inference text the extraction judge of this prompt version
+    receives: none under v1 (B4), the source's text from v2 on, and from v4
+    on a Point source with the Paragraph that holds it (D-G76 (4)). The one
+    rule the pipeline, the E1 label sheet and the cost estimator share."""
+    if prompt_version in _PROMPTS_WITHOUT_INFERENCE_TEXT:
+        return None
+    return _inference_source_block(
+        dump, nodes, unit, candidate,
+        paragraph_of_point=prompt_version not in _PROMPTS_WITHOUT_PARAGRAPH_OF_POINT,
     )
 
 
@@ -372,7 +424,6 @@ def extract_norms(
 
     units = expand_source_units(dump, node_ids)
     nodes = _index_nodes(dump)
-    with_inference_text = prompt_version not in _PROMPTS_WITHOUT_INFERENCE_TEXT
     typed = types_for(prompt_version)  # B65 ruling 49
     with_model_category = prompt_version in _PROMPTS_WITH_MODEL_CATEGORY
     candidate_fields = tuple(
@@ -451,9 +502,7 @@ def extract_norms(
                 candidate["requirement_type"] = scoped_type({**candidate, "source_node_id": node_id})
 
             judge_user = _judge_user_message(
-                unit,
-                candidate,
-                _inference_source_block(dump, nodes, unit, candidate) if with_inference_text else None,
+                unit, candidate, judge_inference_block(dump, nodes, unit, candidate, prompt_version)
             )
             judge_started = _now()
             judged, judge_error = _call_json_with_retry(judge, judge_prompt, judge_user)

@@ -90,10 +90,7 @@ from tere4ai.eval.metrics import (  # noqa: E402
     METRICS_VERSION,
     judge_error_rates_by_kind,
 )
-from tere4ai.extract_norms.pipeline import (  # noqa: E402
-    _PROMPTS_WITHOUT_INFERENCE_TEXT,
-    _inference_source_block,
-)
+from tere4ai.extract_norms.pipeline import judge_inference_block  # noqa: E402
 from tere4ai.extract_norms.requirement_type import type_label  # noqa: E402
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
@@ -363,14 +360,13 @@ def build_sheet(
             # B4 (Jose, 2026-10-01: "Show the same text (Recommended)"): the
             # labeller reads the actor-inference source text the judge read,
             # from the same function, wherever the judge's prompt version
-            # gave it to the judge.
+            # gave it to the judge. B144 (R10): from v4 on a point source
+            # also shows its paragraph, as the judge received it.
             inference = None
-            if (
-                decision["judge_kind"] == "extraction"
-                and (run.get("prompt_version") or "v1") not in _PROMPTS_WITHOUT_INFERENCE_TEXT
-            ):
-                inference = _inference_source_block(
-                    layer1_payload, layer1_index, {"node_id": content.get("source_node_id")}, content
+            if decision["judge_kind"] == "extraction":
+                inference = judge_inference_block(
+                    layer1_payload, layer1_index, {"node_id": content.get("source_node_id")}, content,
+                    run.get("prompt_version") or "v1",
                 )
             items.append(
                 {
