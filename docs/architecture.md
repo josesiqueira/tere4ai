@@ -1607,12 +1607,11 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   exemption that qualifies one (Article 9(7), 15(4), 14(5)), whatever the
   grammatical subject (the system, a part of it, a thing the Section
   requires of it) and whether the verb is active or passive; never a
-  right, nor a norm read as the person's own permission, ability or duty
-  of a person the system must enable or inform (Article 14(4)(d) read
-  alone); the duty to enable that person is the system's and is covered.
-  A person or body
-  the text names as the one that acts keeps its written actor (the
-  Commission, notified bodies, SMEs and SMCs, providers); a person named
+  right, nor a norm read as the permission, ability or duty of a
+  person the system must enable or inform (Article 14(4)(d) read alone);
+  the duty to enable that person is the system's and is covered. A person
+  or body the text names as the one that acts keeps its written actor
+  (the Commission, notified bodies, SMEs and SMCs, providers); a person named
   only inside what a requirement must ensure is not its actor (Article
   14(5)'s measures, which must ensure that no decision is taken "by the
   deployer" unless verified, are the provider's).
@@ -1623,9 +1622,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   judge_norms v4's check 3 accepts that inference for a unit of Articles
   8 to 15 and rejects it outside them, where the text names the person
   who acts, for a norm read as an enabled person's own permission or
-  ability, and the system in actor_explicit there; from v4 on a point given as the inference
-  source reaches the judge with the paragraph that holds it, and the E1
-  label sheet shows the same text. v4 is the default and the version of
+  ability, and the system in actor_explicit there; from v4 on a point
+  given as the inference source reaches the judge with the paragraph that
+  holds it, and the E1 label sheet shows the same text. v4 is the default and the version of
   record (eval/config_evaluated.yaml), so B74 extracts with it; v1 to v3
   stay runnable with the input they had. The extraction command stores
   two checks in the execution's counts: the accepted norms of Articles 8
