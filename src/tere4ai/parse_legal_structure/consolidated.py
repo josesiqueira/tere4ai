@@ -2,6 +2,7 @@
 
 @implements: DEC-01 (partial: the in-force parse)
 @implements: DEC-12, DEC-23
+@implements: DEC-25 (partial: the HLEG checks inside L1.1)
 @grounded_by: REF-01, REF-02, REF-03, REF-04, REF-05
 
 Spec G D-G68: every build is made from Regulation (EU) 2024/1689 as amended
@@ -31,6 +32,10 @@ links are added:
   span:<name>@2024-07-12 in the 2024 Formex file), linked by HAS_VERSION;
   UnitVersion is not a unit type, so nothing that walks the unit types
   meets it.
+
+Before any of this, the HLEG text Layer 3 reads is checked against the Guidelines'
+PDF (checks C0 to C4, tere4ai.ingest.hleg_checks, spec G D-G75 (3)); the outcome is
+the build block's hleg entry.
 
 The build id is build-<12 hex> of a sha256 over every frozen legal source
 the parse reads (legal_sources_digest), so a build with the Omnibus and one
@@ -236,8 +241,13 @@ def build_in_force_dump(manifest_path: Path | str = DEFAULT_MANIFEST_PATH,
                         exceptions_path: Path | str = amend.DEFAULT_EXCEPTIONS_PATH,
                         inventory_path: Path | str = amend.DEFAULT_INVENTORY_PATH) -> dict[str, Any]:
     """Layer 0 and Layer 1 of the Act in force (module docstring), every check passed."""
+    from tere4ai.ingest.hleg_checks import run_hleg_checks
     from tere4ai.ingest.sources import layer0
 
+    # D-G75 (3): the HLEG text is checked against the Guidelines' PDF before any
+    # node is built; a failure raises HlegCheckError, and the parse command
+    # writes no dump and records the failed execution with the check.
+    hleg_outcome = run_hleg_checks(manifest_path)
     sources = read_sources(manifest_path)
     consolidated, baseline, formex_files = read_trees(sources)
     changes, rows = checked_amendments(sources, consolidated, baseline, exceptions_path, inventory_path)
@@ -275,6 +285,7 @@ def build_in_force_dump(manifest_path: Path | str = DEFAULT_MANIFEST_PATH,
                 "exceptions_sha256": hashlib.sha256(Path(exceptions_path).read_bytes()).hexdigest(),
                 "inventory_sha256": hashlib.sha256(Path(inventory_path).read_bytes()).hexdigest(),
             },
+            "hleg": hleg_outcome,
         },
         "nodes": l0_nodes + nodes,
         "edges": l0_edges + edges,

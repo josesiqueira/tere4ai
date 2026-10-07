@@ -123,6 +123,9 @@ def test_the_build_context_leaves_out_secrets_local_state_and_work_files(path):
     "data/graph_dumps/evaluation_records/52ba2c33da35/artifact.json",
     "data/graph_dumps/LICENSE",
     "data/snapshots/MANIFEST.json",
+    "data/amendments/omnibus_exceptions.json",
+    "data/amendments/omnibus_markers.json",
+    "docs/omnibus_amendments.md",
     "src/tere4ai/http_facade/app.py",
     "schema/json_schemas/system_features.json",
     "web/package.json",
@@ -232,3 +235,23 @@ def test_served_build_id_refuses_a_directory_that_serves_no_graph(tmp_path):
     result = _run("--dump-dir", str(empty))
     assert result.returncode == 1
     assert "layer1.json" in result.stderr
+
+
+def test_the_image_parse_installs_the_hleg_libraries_and_removes_them_in_the_same_step():
+    """B143 (R8): the build-time parse runs the HLEG checks, which need pdfplumber and
+    pypdf; the served image does not carry them, so they are installed and removed in
+    the one RUN step that parses (a removal in a later step would keep them in a layer)."""
+    stage = _core_stage()
+    run = next(step for step in re.split(r"\nRUN ", stage) if "python -m tere4ai.parse_legal_structure" in step)
+    assert 'pip install --no-cache-dir -e ".[hleg]"' in run
+    assert re.search(r"pip uninstall -y pdfplumber pdfminer\.six pypdf pypdfium2", run)
+    assert run.index('".[hleg]"') < run.index("parse_legal_structure") < run.index("pip uninstall")
+
+
+def test_the_core_stage_copies_what_its_parse_reads():
+    """R25 (review I5): since B132 the parse reads data/amendments and docs/omnibus_amendments.md
+    (parse_legal_structure/amendments.py), which the core stage did not copy, so the image's
+    build-time parse failed before B143."""
+    stage = _core_stage()
+    assert re.search(r"^COPY data/amendments \./data/amendments$", stage, re.MULTILINE)
+    assert re.search(r"^COPY docs/omnibus_amendments\.md \./docs/omnibus_amendments\.md$", stage, re.MULTILINE)

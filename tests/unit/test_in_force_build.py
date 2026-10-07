@@ -158,3 +158,43 @@ def test_a_stale_marker_list_stops_the_parse(tmp_path):
     stale.write_text("{}\n", encoding="utf-8")
     with pytest.raises(amend.AmendmentCheckError, match="omnibus_markers.json differs"):
         build_in_force_dump(MANIFEST, marker_list_path=stale)
+
+
+def test_the_build_block_records_the_hleg_checks(built):
+    hleg = built["build"]["hleg"]
+    assert hleg["checks_passed"] == ["C0", "C1", "C2", "C3", "C4"]
+    assert hleg["derived_text"]["file"] == "hleg_ethics_guidelines_2019_en_requirements.txt"
+    assert (hleg["exclusions_reviewed"], len(hleg["word_rows_used"])) == (39, 13)
+
+
+def test_the_build_id_does_not_cover_the_hleg_files(built):
+    assert not [s for s in built["build"]["snapshots"] if s["file"].startswith("hleg_")]
+
+
+def _snapshots_with_altered_hleg_text(tmp_path):
+    """A copy of data/snapshots (links, so nothing large is copied) whose derived HLEG
+    text has one word changed and whose manifest carries the changed file's sha256."""
+    import json
+
+    from tere4ai.ingest import hleg_text as ht
+
+    folder = tmp_path / "snapshots"
+    folder.mkdir()
+    for item in MANIFEST.parent.iterdir():
+        if item.name not in ("MANIFEST.json", ht.TEXT_FILE):
+            (folder / item.name).symlink_to(item)
+    text = (MANIFEST.parent / ht.TEXT_FILE).read_bytes().replace(b"Redress. When", b"Redress. Where", 1)
+    (folder / ht.TEXT_FILE).write_bytes(text)
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    for entry in manifest["snapshots"]:
+        if entry["file"] == ht.TEXT_FILE:
+            entry["sha256"] = hashlib.sha256(text).hexdigest()
+    (folder / "MANIFEST.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return folder / "MANIFEST.json"
+
+
+def test_an_altered_hleg_text_stops_the_parse_before_any_node(tmp_path):
+    from tere4ai.ingest.hleg_checks import HlegCheckError
+
+    with pytest.raises(HlegCheckError, match=r"^C0 failed: C0 hleg_ethics_guidelines_2019_en_requirements.txt differs"):
+        build_in_force_dump(_snapshots_with_altered_hleg_text(tmp_path))

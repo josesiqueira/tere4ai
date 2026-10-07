@@ -63,8 +63,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install python core (for the UI data export)
-        run: python -m pip install -e .
+      - name: Install python core and the hleg extra (the parse checks the HLEG text, DEC-25)
+        run: python -m pip install -e ".[hleg]"
       - name: Build layer1 dump and UI data
         run: |
           python -m tere4ai.parse_legal_structure

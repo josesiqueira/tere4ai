@@ -117,3 +117,26 @@ def test_parse_never_overwrites_a_published_layer1(tmp_path, monkeypatch, capsys
     err = capsys.readouterr().err
     assert "publication c1" in err and "--dump-dir" in err and layer1.read_bytes() == before
     assert not (tmp_path / "build_records").exists() or BuildRecordStore(tmp_path).list_records() == []
+
+
+def test_an_altered_derived_text_stops_the_parse_and_keeps_the_previous_dump(tmp_path):
+    """B143 (D-G75 (3), acceptance 4): the parse writes no new layer1.json, keeps the
+    previous one and records the failed execution with the check and its diagnostics."""
+    from tests.unit.test_in_force_build import _snapshots_with_altered_hleg_text
+
+    import tere4ai.parse_legal_structure.__main__ as cli
+    from tere4ai.ingest.hleg_checks import HlegCheckError
+
+    manifest = _snapshots_with_altered_hleg_text(tmp_path)
+    dumps = tmp_path / "dumps"
+    dumps.mkdir()
+    previous = b'{"build": {"build_id": "build-previous"}, "nodes": [], "edges": []}\n'
+    (dumps / "layer1.json").write_bytes(previous)
+    with pytest.raises(HlegCheckError):
+        cli.main(["--dump-dir", str(dumps), "--manifest", str(manifest)])
+    assert (dumps / "layer1.json").read_bytes() == previous
+    assert not (dumps / "layer1.building.json").exists()
+    ex = BuildRecordStore(dumps).list_records()[0]["executions"][0]
+    assert ex["status"] == "failed" and ex["covers_steps"] == ["L0.1", "L1.1"]
+    assert ex["error"].startswith("HlegCheckError: C0 failed: C0 hleg_ethics_guidelines_2019_en_requirements.txt differs")
+    assert "at byte" in ex["error"]

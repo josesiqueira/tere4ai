@@ -23,6 +23,11 @@
               "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
             }
           }
+        },
+        "hleg": {
+          "type": "object",
+          "description": "B143 (DEC-25): the outcome of the HLEG text checks C0 to C4 against the Guidelines' PDF: the five files with their sha256, the checks passed and the counts.",
+          "required": ["checks_passed", "derived_text", "derivation_record"]
         }
       }
     },

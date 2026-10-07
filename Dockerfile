@@ -9,12 +9,14 @@ COPY config ./config
 COPY prompts ./prompts
 COPY scripts ./scripts
 COPY data/snapshots ./data/snapshots
+# B132 and B143: the parse reads the reviewed Omnibus marker list and
+# exception rows and the amendment inventory (parse_legal_structure/amendments.py)
+COPY data/amendments ./data/amendments
+COPY docs/omnibus_amendments.md ./docs/omnibus_amendments.md
 # the judged Layer 2/3 dumps ship with the Mode B image (architecture.md
 # Section 9: "docker-compose plus a graph dump and source manifest")
 COPY data/graph_dumps ./data/graph_dumps
 COPY SKILL.md ./
-
-RUN pip install --no-cache-dir -e .
 
 # deterministic rebuild of Layer 1 at image build time (verifies the frozen
 # snapshot checksums and the Section 13 gates) plus the UI data export. B70:
@@ -22,10 +24,15 @@ RUN pip install --no-cache-dir -e .
 # new built_at, so writing data/graph_dumps/layer1.json would change the
 # served chain id, and it refuses once a publication names that file. The
 # image serves the copied dumps unchanged.
-RUN mkdir -p web/public \
+# B143 (DEC-25): the parse checks the HLEG text against the Guidelines' PDF,
+# which needs the hleg extra (pdfplumber, pypdf); the served image does not
+# carry it, so it is installed and removed in the one step that parses.
+RUN pip install --no-cache-dir -e ".[hleg]" \
+    && mkdir -p web/public \
     && python -m tere4ai.parse_legal_structure --dump-dir /tmp/layer1-check \
     && rm -rf /tmp/layer1-check \
-    && python scripts/export_ui_data.py
+    && python scripts/export_ui_data.py \
+    && pip uninstall -y pdfplumber pdfminer.six pypdf pypdfium2
 
 # B70: the served build id, read from the copied dumps by the facade's own
 # loader. A label takes only a build argument, so the release script passes
