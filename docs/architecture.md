@@ -29,16 +29,20 @@
   reliance rather than raw accuracy.
 
 ## 1. Layered graph model
-grounded_by: REF-08, REF-09, REF-24
+grounded_by: REF-08, REF-09, REF-24, ADD-01
 
 Explicit layers in one physical store; every node and edge carries a layer and
-provenance fields.
+provenance fields. The labels in backticks below are exactly the node labels the
+graph store accepts (src/tere4ai/graph_store/store.py, NODE_LABELS), and
+tests/unit/test_architecture_layers.py holds this section to that set (rewritten
+2026-10-07, DEC-25, from the plan of 2026-07-08, which listed types never built).
 
-- Layer 0 Source corpus: SourceDocument, SourceVersion, SourceFile, SourceSpan, BuildRun.
-- Layer 1 Legal structure: Regulation, Chapter, Section, Article, Paragraph, Subparagraph, Point, Annex, AnnexItem, Recital, Definition, CrossReference, and UnitVersion (the 2024 wording of a unit the Digital Omnibus changed, DEC-23).
-- Layer 2 Normative/compliance: NormativeStatement, Obligation, Prohibition, Permission, Right, Condition, Exception, ActorRole, LifecyclePhase, RequiredArtifact, RequiredProcess, EvidenceExpectation, RiskCategory, ApplicabilityRule, ComplianceControl.
-- Layer 3 Ethics and alignment: HLEGRequirement, ALTAIQuestion, EthicalPrinciple, AlignmentAssertion, MappingEvidence, MappingRun, JudgeRun, StandardRequirement, OntologyConcept.
-- Layer 4 Runtime project evidence: Project, AISystem, SystemPurpose, DeploymentContext, Provider, Deployer, UserGroup, AffectedPerson, Dataset, Model, TechnicalDocumentation, RiskAssessment, TestReport, LogMechanism, HumanOversightMeasure, MonitoringPlan, IncidentReport, CodeArtifact, EvaluationFinding, BacklogItem.
+- Layer 0 Source corpus: `SourceDocument`, `SourceFile`. `BuildRun` is accepted by the store and the node schema but created by no code: a build is recorded in the dump's build block and in the build record file (DEC-16). Spans are not nodes: each node that cites a source holds its span (file, sha256, offsets).
+- Layer 1 Legal structure: `Regulation`, `Chapter`, `Section`, `Article`, `Paragraph`, `Subparagraph`, `Point`, `Annex`, `AnnexItem`, `Recital`, `Definition`, `CrossReference`, and `UnitVersion` (the 2024 wording of a unit the Digital Omnibus changed, DEC-23).
+- Layer 2 Normative statements: `NormativeStatement`, `Condition`, `Exception`. The deontic type, the actor, the lifecycle phase and the requirement type are slots of a normative statement (Section 3), not nodes.
+- Layer 3 Ethics and alignment: `HLEGRequirement`, `HLEGRequirementSubtopic`, `AlignmentAssertion`, `MappingRun`, `JudgeRun`. ALTAI questions are not in the graph, by decision (the ALTAI licence check is open, OPEN-LICENSE); an assertion's evidence is held as span ids on the assertion.
+- Layer 4 Runtime project evidence: not in the graph. A project's facts, evidence and backlog are held by the dashboard's project store and in the MCP tools' answers (Section 8).
+- Not built: the plan of 2026-07-08 named further types, none of which was built or is a label the store accepts: SourceVersion and SourceSpan (Layer 0); Obligation, Prohibition, Permission, Right, ActorRole, LifecyclePhase, RequiredArtifact, RequiredProcess, EvidenceExpectation, RiskCategory, ApplicabilityRule and ComplianceControl (Layer 2); ALTAIQuestion, EthicalPrinciple, MappingEvidence, StandardRequirement and OntologyConcept (Layer 3); and twenty Layer 4 types, from Project to BacklogItem.
 
 Recitals are context only. A runtime requirement must cite an operative article,
 paragraph, point, or annex item, never a recital.
@@ -128,7 +132,7 @@ OVR-8. grounded_by: REF-21, REF-22, REF-08, REF-25, REF-23
 ## 6. Build-time pipeline and ingestion
 Engineering MUST (determinism and reproducibility, see Section 13);
 corroborated by REF-27, REF-26. Structure and identifiers grounded by REF-03,
-REF-08, REF-05.
+REF-08, REF-05; the Ethics Guidelines (route (d)) by ADD-01.
 
 Two lanes: deterministic first, LLM-assisted second.
 
@@ -185,6 +189,24 @@ by checksum:
     their members and the XHTML are frozen under data/snapshots/ with
     per-file checksums. As for the 2024 files, no fetch script exists: the
     freeze is done once.
+(d) Since B143 (2026-10-07, DEC-25), the Ethics Guidelines for Trustworthy AI
+    (High-Level Expert Group on Artificial Intelligence, 2019; ADD-01), which
+    Layer 3 reads: the Publications Office edition, publication
+    d3988569-0434-11ea-8c1f-01aa75ed71a1 (English PDF, ISBN
+    978-92-76-11998-2, DOI 10.2759/346720, catalogue number
+    KK-02-19-841-EN-N), the only edition with an ISBN, a DOI and a CELLAR
+    identifier. No structured manifestation is served: read 2026-10-07, the
+    publication record and the CELLAR branch notice of the English expression
+    list pdf, pdfx and print only, and the Commission's page offers PDFs only.
+    Retrieval (verified 2026-10-07): GET the item
+    `http://publications.europa.eu/resource/cellar/d3988569-0434-11ea-8c1f-01aa75ed71a1.0004.03/DOC_1`,
+    byte-identical to the PDF frozen under data/snapshots/ on 2026-07-08. As
+    for the legal files, no fetch script exists: the freeze is done once. The
+    text of Chapter II Section 1 (the seven requirements) is derived from the
+    PDF's own tags by `python -m tere4ai.ingest.hleg_text --write`, which
+    writes the derived text and its derivation record beside the PDF; every
+    Layer 0+1 build checks them against the PDF with a second reader, pypdf
+    (checks C0 to C4, DEC-25), a failure stopping the parse.
 Node IDs are derived deterministically by the parser from this structure
 (Section 2); this Regulation carries no eId attributes to lift. HTML and PDF
 renderings are also kept for human verification. Do not plan to download clean
@@ -1473,8 +1495,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   from a text derived from their official PDF by a committed command and
   checked against that PDF in every Layer 0+1 build, under a
   SourceDocument of their own, each of the seven requirements given whole
-  (added 2026-10-07, draft until B143's last
-  tere4ai2 task; thesis task B143, spec G D-G75 and the rulings in
+  (added 2026-10-07; thesis task B143, spec G D-G75 and the rulings in
   sdd/2026-10-07-B143-hleg-source/progress.md in the private research
   repository; the owner's words: "this can mean that we have a different
   approach from just me giving you a .txt that is a ctrl c ctrl vo f the
@@ -1490,7 +1511,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   1.7 ran 2,114 characters into the next part of the Guidelines.
   The source: the Publications Office PDF frozen on 2026-07-08, the only
   edition with an ISBN, a DOI and a CELLAR identifier; no structured
-  manifestation exists (read 2026-10-07).
+  manifestation exists (read 2026-10-07; Section 6 (d)).
   The derivation: `python -m tere4ai.ingest.hleg_text --write` reads the
   PDF through its checksum and writes the text of Chapter II Section 1,
   from "1.1 Human agency and oversight" to "2. Technical and
@@ -1526,7 +1547,20 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   this decision proves the text given is the publisher's.
   Cost if wrong: before B74, a derivation and its checks to redo, with no
   model call; after B74, every alignment made and graded again.
-  verify: src/tere4ai/ingest/hleg_text.py; tests/unit/test_hleg_text.py.
+  verify: src/tere4ai/ingest/hleg_text.py and hleg_checks.py (the
+  derivation, its record and the checks); parse_legal_structure/
+  consolidated.py (the checks inside L1.1, the build block's hleg entry);
+  ingest/sources.py (the SourceDocument, the table, DERIVED_FROM);
+  validate_graph/postload.py (P5) and gates.py (hleg_failures);
+  align_hleg/hleg_source.py, hleg_nodes.py, hleg_subtopics.py and
+  __main__.py; scripts/publish_layer23.py; http_facade/app.py,
+  mcp_server/server.py, explain.py and spans.py (the loader bound to the
+  served build); tests/unit/test_hleg_text.py, test_hleg_checks.py,
+  test_hleg_nodes.py, test_hleg_subtopics_crosscheck.py,
+  test_hleg_serving.py, test_sources.py, test_postload_scope.py,
+  test_in_force_build.py, test_parse_cli_record.py, test_align_cli.py,
+  test_align_hleg.py, test_publish_layer23.py, test_v1_text_gone.py and
+  test_architecture_layers.py; tests/integration/test_postload_gates.py.
 
 ## 17. Implementation-traceability convention
 

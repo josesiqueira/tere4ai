@@ -5,6 +5,28 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B143: the HLEG text from the Guidelines' official PDF, checked in every build, each requirement whole (2026-10-07)
+- Layer 3 reads the Ethics Guidelines for Trustworthy AI from a text derived
+  from the Publications Office PDF by `python -m tere4ai.ingest.hleg_text`
+  (structure tree, footnotes and page numbers left out, words spaced from
+  positions, line-end hyphens kept, paragraphs rejoined across pages) with a
+  derivation record; every Layer 0+1 build checks both against the PDF with
+  pypdf (checks C0 to C4), a failure stopping the parse (DEC-25).
+- Each requirement's text is its whole section (19,715 characters for the
+  seven, against 14,392), so all 23 subtopics can be quoted; the subtopics are
+  the publisher's bold italic headings; section 1.7's span ends at its end.
+- Layer 0: the Guidelines are a non-binding SourceDocument
+  (src:hleg:ethics-guidelines-2019, DOI 10.2759/346720) holding the PDF, the
+  derived text and the record; every manifest source_document is named and an
+  unknown one stops layer0(); post-load gate P5 counts only Layer 2 and 3 edges.
+- The alignment run records the text's and the record's sha256 and refuses
+  checkpoint lines without a run id; publication refuses alignments made on
+  another pair; the facade, the MCP server and explain refuse HLEG spans of a
+  build that does not list the text on disk.
+- The hand-made v1 copy is removed; architecture.md Section 1 lists the labels
+  the store accepts; the optional extra `hleg` pins pdfplumber 0.11.10,
+  pdfminer.six 20260107 and pypdf 6.19.0 for the build and the tests only.
+
 ### B132: the graph and the answers follow the AI Act as amended by the Digital Omnibus (2026-10-04)
 - Layer 1 is Regulation (EU) 2024/1689 as amended by Regulation (EU)
   2026/1744, parsed from EUR-Lex's consolidated text of 27 July 2026 in
