@@ -26,6 +26,9 @@ prompt_versions:
   # The runtime judge (runtime_grounding) runs at a version per path in code:
   # the evaluate_project_evidence tool at v1, the backlog tool at v2 and the
   # ablation's graph_full condition at v1 (strategies.py judge_prompt_version).
+  # The split is DEC-19's (B65 ruling 16): v2 adds only the control-backlog
+  # type record, and for any other answer, the ablation's included, v2 asks
+  # for an empty type_views, so the non-backlog paths keep v1.
   runtime_grounding_evidence: v1
   runtime_grounding_backlog: v2
   runtime_grounding_ablation: v1
