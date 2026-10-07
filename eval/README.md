@@ -160,23 +160,27 @@ subsets while iterating.
 
 ## Run 2 findings (2026-07-09)
 
-July 2026 build, before B74, disposable: never reported as a result (thesis CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the hand-made legal test set and the benchmark sample.
+July 2026 build, before B74, disposable: never reported as a result (thesis
+CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the
+hand-made legal test set and the benchmark sample.
 
-Elicited features (DEC-13) plus requirements-citation wiring changed the
-ladder: graph strategies went from blanket abstention (0/32) to 18/32
-correct on free-text scenarios with abstentions down to 4, and checkable
-citation completeness rose from 0.02 to 0.38 while plain_llm still emits
-zero checkable citations. Of the 14 remaining mismatches, 7 are
-minimal-vs-Article-50 taxonomy disagreements (reported as disagreement
-with the benchmark's labels; neither reading is claimed right), 4 are honest abstentions, 3 are real
-over-classifications traced to elicited flags (see
-results/ELICITATION_ERRORS.md once generated). Full analysis:
-results/RUN2_ANALYSIS.md. Treat single-run deltas of a few items as within
-provider variance until the repeat-run study below bounds it.
+Elicited features (DEC-13) plus requirements-citation wiring changed the ladder:
+graph strategies went from blanket abstention (0/32) to 18/32 correct on
+free-text scenarios with abstentions down to 4, and checkable citation
+completeness rose from 0.02 to 0.38 while plain_llm still emits zero checkable
+citations. Of the 14 remaining mismatches, 7 are minimal-vs-Article-50 taxonomy
+disagreements (reported as disagreement with the benchmark's labels; neither
+reading is claimed right), 4 are honest abstentions, 3 are real
+over-classifications traced to elicited flags (see results/ELICITATION_ERRORS.md
+once generated). Full analysis: results/RUN2_ANALYSIS.md. Treat single-run
+deltas of a few items as within provider variance until the repeat-run study
+below bounds it.
 
 ## Full-benchmark run findings (2026-07-10/11)
 
-July 2026 build, before B74, disposable: never reported as a result (thesis CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the hand-made legal test set and the benchmark sample.
+July 2026 build, before B74, disposable: never reported as a result (thesis
+CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the
+hand-made legal test set and the benchmark sample.
 
 The full REF-15 run (all 339 scenarios + 137 QA pairs + 10 gold seed,
 prompt v2 elicitation, 0 errors over 2,926 model calls) confirms the run-2
@@ -193,7 +197,9 @@ results/ablation_full_checkpoint.jsonl and ablation_full_summary.json.
 
 ## Variance study findings (2026-07-11)
 
-July 2026 build, before B74, disposable: never reported as a result (thesis CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the hand-made legal test set and the benchmark sample.
+July 2026 build, before B74, disposable: never reported as a result (thesis
+CLAUDE.md). The B74 study is spec G Section 10.4's six conditions on the
+hand-made legal test set and the benchmark sample.
 
 A full repeat of the ladder (same items, same frozen features, cost
 approved) measured provider-side nondeterminism at temperature 0: the

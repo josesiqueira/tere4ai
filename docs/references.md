@@ -152,7 +152,7 @@ arXiv:2603.09435 (2026), DOI 10.48550/arXiv.2603.09435. VERIFIED. CORE. Grounds:
 risk-level classification, article retrieval, obligation generation, and QA
 tasks. Primary reusable evaluation set (OVR-10, M4).
 Note (2026-10-07, B148): since B104 decision 1 (2026-10-03) the benchmark is
-the ablation's secondary answer key, a frozen 47-item sample
+the ablation's secondary answer key, a fixed 47-item sample
 (eval/gold/benchmark_sample.json) read as agreement with its own labels; the
 hand-made legal test set is the main key (architecture.md Section 12).
 
@@ -163,8 +163,8 @@ Study on the GDPR" (XTRAREG), Abualhaija et al., IEEE RE 2025, DOI
 (verbatim confirmed). The number the runtime judge must beat; closest sibling
 (GDPR).
 Note (2026-10-07, B148): the figure motivates the judges (architecture.md
-Section 7); no step of the experiment compares TERE4AI with XTRAREG (Section
-12: related work, not run as a condition).
+Section 7); no step of the experiment compares TERE4AI with XTRAREG (architecture.md
+Section 12: related work, not run as a condition).
 
 **[REF-17]** PRE. "Assessing High-Risk AI Systems under the EU AI Act: From
 Legal Requirements to Technical Verification", Buscemi et al.,

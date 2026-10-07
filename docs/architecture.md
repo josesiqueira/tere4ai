@@ -125,9 +125,9 @@ grounded_by: REF-24, REF-21, REF-10
   JudgeRun.
 - AlignmentAssertion carries the score dimensions (semantic similarity,
   normative relevance, operational utility, evidence strength, judge
-  confidence), a final score, the ids of its MappingRun and JudgeRun (which carry
-  the generator and judge models and prompt versions), judge verdict, rationale,
-  and review status.
+  confidence), a final score, the ids of its MappingRun and JudgeRun (which
+  carry the generator and judge models and prompt versions), judge verdict,
+  rationale, and review status.
 - Relation types: directly_operationalizes, partially_operationalizes, supports,
   related_to, conflicts_with, no_clear_relation.
 
@@ -298,8 +298,8 @@ recommendation):
 - The HTTP facade's demo mode (added 2026-10-06, DEC-24): /api/backlog can
   answer from the generator alone (judge "on_demand"), signed, and
   /api/backlog/judge judges the kept answer later with a demo judge of the
-  generator's own family (TERE4AI_DEMO_JUDGE_MODEL, never the generator's model id),
-  every such answer labelled so. The MCP tools and the inline routes keep
+  generator's own family (TERE4AI_DEMO_JUDGE_MODEL, never the generator's model
+  id), every such answer labelled so. The MCP tools and the inline routes keep
   the independent judge above. The same for /api/evidence is card B140, not
   built.
 - Note: the coding agents that BUILD the software (the planning, implementation
@@ -725,20 +725,27 @@ Per decision: grounded_by, a one-sentence defence argument, and a verify line
   REF-17, REF-15, ADD-24.
   Defense: value and benchmarks concentrate on the high-risk regime.
   verify: coverage_report shows full Layer 1, Layer 2/3 only on Section 10 set.
-- DEC-11: reuse open benchmark plus sibling baselines. grounded_by REF-15, REF-16, REF-17.
+- DEC-11: reuse open benchmark plus sibling baselines. grounded_by REF-15,
+  REF-16, REF-17.
   Defense: an open benchmark covers our tasks; siblings are the baselines.
   verify: src/tere4ai/eval/harness.py loads REF-15
   (eval/gold/benchmark_sample.json); src/tere4ai/eval/strategies.py
   implements the vector-RAG and no-judge baseline conditions.
-  Note (2026-10-07, B148): since B104 decision 1 the benchmark is the secondary answer key and the hand-made legal test set the main one, and the siblings are related work, not run as conditions (Section 12); the defence above is kept as history.
-- DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02, REF-04.
+  Note (2026-10-07, B148): since B104 decision 1 the benchmark is the secondary
+  answer key and the hand-made legal test set the main one, and the siblings
+  are related work, not run as conditions (Section 12); the defence above is
+  kept as history.
+- DEC-12: Omnibus modelled as an amending, versioned source. grounded_by REF-02,
+  REF-04.
   Defense: it is adopted and changes the in-force text and the dates.
   Amended 2026-10-03 (B132, DEC-23): the Omnibus is no longer kept apart
   from the base text. Layer 1 is the Act as amended, and the Omnibus
   SourceDocument records the merge (merged_into_base true, merged_on,
   marker_list_sha256); the parse enforces the checks and gate G6 verifies
   the build's record of them.
-  verify: the Omnibus SourceDocument, Regulation (EU) 2026/1744 (node src:omnibus-com-2025-836, the id keeps the proposal's number), with AMENDS/HAS_VERSION;
+  verify: the Omnibus SourceDocument, Regulation (EU) 2026/1744 (node
+  src:omnibus-com-2025-836, the id keeps the proposal's number), with
+  AMENDS/HAS_VERSION;
   tests/unit/test_sources.py, tests/unit/test_in_force_build.py.
 - DEC-13: feature elicitation splits fact extraction from decision (added
   2026-07-09). Engineering MUST (the trust split of Section 0: the LLM never
