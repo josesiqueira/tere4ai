@@ -1,4 +1,4 @@
-"""Layer 0 source registry: the version pin for M1.
+"""Layer 0 source registry: the version pin for MILESTONE1.
 
 @implements: DEC-12, DEC-23, DEC-25
 @grounded_by: REF-01, REF-02, REF-04
@@ -66,7 +66,7 @@ SOURCE_DOCUMENT_IDS = {
     "hleg-ethics-guidelines": HLEG_ID,
 }
 
-# Deferred application dates introduced by the Omnibus (architecture.md S11).
+# Deferred application dates introduced by the Omnibus (architecture.md Section 11).
 OMNIBUS_DEFERRED_DEADLINES = {
     "annex_iii_standalone_high_risk": "2027-12-02",
     "annex_i_embedded_high_risk": "2028-08-02",
@@ -116,7 +116,7 @@ def layer0(
             "celex": "32024R1689",
             "eli": "http://data.europa.eu/eli/reg/2024/1689/oj",
             "legal_status": "in_force",
-            "notes": "Base act, version pin for M1 (architecture.md Section 11).",
+            "notes": "Base act, version pin for MILESTONE1 (architecture.md Section 11).",
         },
         {
             "id": OMNIBUS_ID,

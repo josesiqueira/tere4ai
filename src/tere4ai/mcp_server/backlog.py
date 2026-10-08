@@ -1,4 +1,4 @@
-"""generate_control_backlog: the judged M3 backlog-generation tool.
+"""generate_control_backlog: the judged MILESTONE3 backlog-generation tool.
 
 @implements: DEC-06 (partial: runtime grounding judge), DEC-08
 @implements: DEC-19

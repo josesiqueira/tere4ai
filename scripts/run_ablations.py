@@ -1,4 +1,4 @@
-"""Checkpointed live ablation runner (M4, user-triggered spend).
+"""Checkpointed live ablation runner (MILESTONE4, user-triggered spend).
 
 @implements: DEC-11, DEC-17
 @grounded_by: REF-15, REF-16, REF-17

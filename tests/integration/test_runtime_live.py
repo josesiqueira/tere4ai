@@ -1,4 +1,4 @@
-"""Live smoke test for the M3 runtime tools and the runtime grounding judge.
+"""Live smoke test for the MILESTONE3 runtime tools and the runtime grounding judge.
 
 COSTS REAL API MONEY: it calls the configured OpenAI generator and the
 Anthropic judge twice each (one evaluate_project_evidence call and one
@@ -6,7 +6,7 @@ generate_control_backlog call, each of which is one generator call plus one
 runtime-grounding judge call). It is skipped unless the environment
 variable TERE4AI_LIVE_TESTS is set to "1", and it requires a fully
 configured .env (TERE4AI_GENERATOR_MODEL, TERE4AI_JUDGE_MODEL,
-OPENAI_API_KEY, ANTHROPIC_API_KEY) plus the judged M2 norms dump. Run it
+OPENAI_API_KEY, ANTHROPIC_API_KEY) plus the judged MILESTONE2 norms dump. Run it
 deliberately, for example:
 
     TERE4AI_LIVE_TESTS=1 .venv/bin/python -m pytest \

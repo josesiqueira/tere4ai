@@ -1,6 +1,6 @@
 "use client";
 
-/* M3 demo flow (docs/architecture.md Sections 8, 9, 14): describe a system,
+/* MILESTONE3 demo flow (docs/architecture.md Sections 8, 9, 14): describe a system,
    see the deterministic classification, load judge-accepted requirements
    with citations, evaluate evidence, generate a backlog. The UI never
    touches the database or model APIs: every call goes to the thin HTTP
@@ -1410,7 +1410,7 @@ export default function AssessPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold tracking-tight">Assess an AI system</h1>
           <p className="text-sm text-muted-foreground">
-            M3 demo flow: deterministic classification, judge-accepted requirements with
+            MILESTONE3 demo flow: deterministic classification, judge-accepted requirements with
             citations, evidence evaluation, and a control backlog. All calls go through the
             local facade at <code className="font-mono">{FACADE_URL}</code>.
           </p>

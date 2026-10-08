@@ -1,4 +1,4 @@
-"""M1 MCP tools: coverage_report and source_trace as pure functions.
+"""MILESTONE1 MCP tools: coverage_report and source_trace as pure functions.
 
 Both tools operate on the offline Layer 0+1 dump dict
 (schema/json_schemas/layer1_dump.schema.json) and require no database.
@@ -145,7 +145,7 @@ NON_LEGAL_ADVICE_NOTICE = (
 
 DETERMINISTIC_JUDGE_VERDICT = "not_applicable_deterministic"
 
-# Structural expectations for the M1 acceptance (docs/architecture.md Section 10):
+# Structural expectations for the MILESTONE1 acceptance (docs/architecture.md Section 10):
 # the Act as enacted (113 articles, 13 annexes) and, since B132, the Act as
 # amended by the Digital Omnibus (119 articles, 14 annexes; spec G D-G68 (4)).
 # A dump whose Omnibus SourceDocument says merged_into_base true is the latter.
@@ -282,7 +282,7 @@ def coverage_report(
     norms_payload: dict[str, Any] | None = None,
     alignments_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Structural coverage of the Layer 0+1 dump against the M1 acceptance.
+    """Structural coverage of the Layer 0+1 dump against the MILESTONE1 acceptance.
 
     Checks the expected counts (for the Act in force 119 articles and 14
     annexes, for a build of the Act as enacted 113 and 13; 180 recitals,
@@ -290,7 +290,7 @@ def coverage_report(
     chapter, reports layer 2 and layer 3 node counts, and verifies structural
     presence of the Section 10 high-risk core article set.
 
-    When the judged M2 build artifacts are passed (norms_payload from
+    When the judged MILESTONE2 build artifacts are passed (norms_payload from
     extract_norms, alignments_payload from align_hleg), the layer 2 and
     3 blocks report the real judged counts with verdict breakdowns instead of
     the dump-derived zeros.

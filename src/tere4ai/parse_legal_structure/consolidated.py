@@ -34,7 +34,7 @@ links are added:
   meets it.
 
 Before any of this, the HLEG text Layer 3 reads is checked against the Guidelines'
-PDF (checks C0 to C4, tere4ai.ingest.hleg_checks, spec G D-G75 (3)); the outcome is
+PDF (checks HLEG_CHECK0 to HLEG_CHECK4, tere4ai.ingest.hleg_checks, spec G D-G75 (3)); the outcome is
 the build block's hleg entry.
 
 The build id is build-<12 hex> of a sha256 over every frozen legal source

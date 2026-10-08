@@ -67,7 +67,7 @@ def test_the_omnibus_is_merged_with_the_marker_lists_digest(built):
     assert built["build"]["amendments"] == {
         "marker_list": "data/amendments/omnibus_markers.json", "marker_list_sha256": digest,
         "markers_read": 77, "markers_checked": 77, "units_checked": 1603, "units_failed": 0,
-        "exception_rows": [f"E{i}" for i in range(1, 10)],
+        "exception_rows": [f"OMNIBUS_EXCEPTION{i}" for i in range(1, 10)],
         # final review M1: the exception list and the inventory the checks read, by digest
         "exceptions_sha256": hashlib.sha256(amend.DEFAULT_EXCEPTIONS_PATH.read_bytes()).hexdigest(),
         "inventory_sha256": hashlib.sha256(amend.DEFAULT_INVENTORY_PATH.read_bytes()).hexdigest(),
@@ -162,7 +162,7 @@ def test_a_stale_marker_list_stops_the_parse(tmp_path):
 
 def test_the_build_block_records_the_hleg_checks(built):
     hleg = built["build"]["hleg"]
-    assert hleg["checks_passed"] == ["C0", "C1", "C2", "C3", "C4"]
+    assert hleg["checks_passed"] == ["HLEG_CHECK0", "HLEG_CHECK1", "HLEG_CHECK2", "HLEG_CHECK3", "HLEG_CHECK4"]
     assert hleg["derived_text"]["file"] == "hleg_ethics_guidelines_2019_en_requirements.txt"
     assert (hleg["exclusions_reviewed"], len(hleg["word_rows_used"])) == (39, 13)
 
@@ -196,5 +196,5 @@ def _snapshots_with_altered_hleg_text(tmp_path):
 def test_an_altered_hleg_text_stops_the_parse_before_any_node(tmp_path):
     from tere4ai.ingest.hleg_checks import HlegCheckError
 
-    with pytest.raises(HlegCheckError, match=r"^C0 failed: C0 hleg_ethics_guidelines_2019_en_requirements.txt differs"):
+    with pytest.raises(HlegCheckError, match=r"^HLEG_CHECK0 failed: HLEG_CHECK0 hleg_ethics_guidelines_2019_en_requirements.txt differs"):
         build_in_force_dump(_snapshots_with_altered_hleg_text(tmp_path))

@@ -1,4 +1,4 @@
-"""v1-slice regression fixture (architecture.md Section 14, M2).
+"""v1-slice regression fixture (architecture.md Section 14, MILESTONE2).
 
 The old v1 poster's flagship claim was the mapping of the Chapter III core
 articles to their HLEG requirements. Instead of migrating v1's unvalidated

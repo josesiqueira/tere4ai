@@ -7,7 +7,7 @@ python -m tere4ai.ingest.hleg_text --write derives, from the frozen
 Publications Office PDF (read through its manifest sha256), the text of
 Chapter II Section 1 of the Ethics Guidelines for Trustworthy AI and its
 derivation record, writes both to data/snapshots and sets their sha256 in
-MANIFEST.json; --check runs the checks C0 to C4 (hleg_checks.py). The PDF
+MANIFEST.json; --check runs the checks HLEG_CHECK0 to HLEG_CHECK4 (hleg_checks.py). The PDF
 is tagged: reading follows its structure tree, footnotes (Note) and figures
 are skipped, page numbers are artifacts outside the tree. RULES lists the
 rules and is copied into the record. pdfplumber is imported inside the
@@ -372,7 +372,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--write", action="store_true", help="derive the text and record, set their sha256")
-    group.add_argument("--check", action="store_true", help="run the checks C0 to C4")
+    group.add_argument("--check", action="store_true", help="run the checks HLEG_CHECK0 to HLEG_CHECK4")
     args = parser.parse_args(argv)
     if args.check:
         from tere4ai.ingest.hleg_checks import HlegCheckError, run_hleg_checks

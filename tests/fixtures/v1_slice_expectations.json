@@ -1,5 +1,5 @@
 {
-  "_comment": "Regression fixture for the v1 slice (architecture.md Section 14, M2). Derived from the first full judged build (build-3b753e5e9297, 2026-07-08) instead of migrating the unvalidated v1 mappings (user decision). Asserts each article's DOMINANT accepted HLEG target and a minimum accepted-assertion count, robust to count jitter across pipeline re-runs. The dominant targets reproduce the v1 poster's flagship mappings. B132 (2026-10-04): the assertions of norms on units the Digital Omnibus changed were dropped (D9), so article-10's minimum is 11 (15 before) and a dominant target may share the top count.",
+  "_comment": "Regression fixture for the v1 slice (architecture.md Section 14, MILESTONE2). Derived from the first full judged build (build-3b753e5e9297, 2026-07-08) instead of migrating the unvalidated v1 mappings (user decision). Asserts each article's DOMINANT accepted HLEG target and a minimum accepted-assertion count, robust to count jitter across pipeline re-runs. The dominant targets reproduce the v1 poster's flagship mappings. B132 (2026-10-04): the assertions of norms on units the Digital Omnibus changed were dropped (D9), so article-10's minimum is 11 (15 before) and a dominant target may share the top count.",
   "expectations": {
     "article-9": {
       "dominant_target": "hleg:technical-robustness-and-safety",

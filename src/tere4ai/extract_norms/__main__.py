@@ -101,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m tere4ai.extract_norms",
-        description="Judged norm extraction over Layer 1 source units (M2).",
+        description="Judged norm extraction over Layer 1 source units (MILESTONE2).",
     )
     parser.add_argument(
         "--nodes",

@@ -1,4 +1,4 @@
-"""Offline tests for the M2 norm-extraction pipeline (DEC-03, DEC-06 partial).
+"""Offline tests for the MILESTONE2 norm-extraction pipeline (DEC-03, DEC-06 partial).
 
 Uses FakeClient only: no network, no keys. Verifies the hard invariants:
 schema-valid output, judge gating (never accepted without an accepting

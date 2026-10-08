@@ -1,4 +1,4 @@
-# Gold Set Annotation Protocol (M4)
+# Gold Set Annotation Protocol (MILESTONE4)
 
 Implements the hand-built gold set of docs/architecture.md Section 12.
 Formatting rule: never use em dashes, and never use en dashes as a sentence

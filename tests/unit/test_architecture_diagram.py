@@ -23,11 +23,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from make_architecture_diagram import OUT_PATH, build  # noqa: E402
 
 STALE_CLAIMS = (
-    # No eId attributes exist in the served manifestations (architecture.md S6).
+    # No eId attributes exist in the served manifestations (architecture.md Section 6).
     "eIds",
     # DEC-07 closed the judge-family decision on 2026-07-08.
     "judge family: OPEN",
-    # M2 replaced v1-slice migration with regeneration; the poster query is a fixture.
+    # MILESTONE2 replaced v1-slice migration with regeneration; the poster query is a fixture.
     "migration seed",
 )
 

@@ -8,7 +8,7 @@ prefers-color-scheme emulation. The assess flow uses the "hospital
 triage" preset; classification runs through the real facade and the
 deterministic ladder (free, no model call).
 
-- coverage_{light,dark}.png: the M1 coverage matrix and Act structure.
+- coverage_{light,dark}.png: the MILESTONE1 coverage matrix and Act structure.
 - review_{light,dark}.png: the human review queue (41 flagged norms with
   span citations, pending alignment and cross-reference counts).
 - assess_{light,dark}.png: the describe-system form with the preset filled.

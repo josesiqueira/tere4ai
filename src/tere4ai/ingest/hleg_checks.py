@@ -1,19 +1,19 @@
-"""The checks C0 to C4 of the derived HLEG text against the Guidelines' official PDF.
+"""The checks HLEG_CHECK0 to HLEG_CHECK4 of the derived HLEG text against the Guidelines' official PDF.
 
 @implements: DEC-25 (partial: the checks)
 @grounded_by: ADD-01
 
 Spec G D-G75 (3). pypdf, a parser separate from pdfplumber's pdfminer.six,
-is the second reader. C0 re-derives both files byte for byte; C1 finds every
+is the second reader. HLEG_CHECK0 re-derives both files byte for byte; HLEG_CHECK1 finds every
 derived stretch (the text between two removed markers or page joins) in
-pypdf's text of its page, whitespace removed; C2 accounts for every
+pypdf's text of its page, whitespace removed; HLEG_CHECK2 accounts for every
 character pypdf reads on the pages: derived, or one of the excluded items,
 which must equal the reviewed list item by item and each pass the test of
-its kind; C3 compares each page's words, in order, with pypdf's layout
+its kind; HLEG_CHECK3 compares each page's words, in order, with pypdf's layout
 reading and accepts only the differences a reviewed row names (page, offset,
-both readings, the reason); C4 checks the structure (the seven headings, the
+both readings, the reason); HLEG_CHECK4 checks the structure (the seven headings, the
 23 subtopic headings opening their paragraphs, no line of only digits).
-run_hleg_checks runs C0 to C4 and returns the outcome the build records. A
+run_hleg_checks runs HLEG_CHECK0 to HLEG_CHECK4 and returns the outcome the build records. A
 failing check raises HlegCheckError, which names the check and carries its
 diagnostics, each with its location. Deterministic, no model.
 """
@@ -35,7 +35,7 @@ _SPACE = re.compile(r"\s+")
 
 
 class HlegCheckError(RuntimeError):
-    """A check failed: check is C0 to C4, diagnostics carry the locations."""
+    """A check failed: check is HLEG_CHECK0 to HLEG_CHECK4, diagnostics carry the locations."""
 
     def __init__(self, check: str, diagnostics: list[str]):
         self.check, self.diagnostics = check, list(diagnostics)
@@ -67,7 +67,7 @@ def pypdf_pages(pdf_bytes: bytes) -> tuple[dict[int, str], dict[int, str]]:
 
 def stretches(text: str, record: dict[str, Any], at_markers: bool = True) -> list[Stretch]:
     """The derived text cut at every page join, and at every removed marker unless
-    at_markers is False (C3 compares whole words, so it never cuts at a marker),
+    at_markers is False (HLEG_CHECK3 compares whole words, so it never cuts at a marker),
     paragraph by paragraph."""
     markers = {m["offset"] for m in record["markers_removed"]} if at_markers else set()
     cuts = sorted(markers | {j["offset"] for j in record["page_joins"]})
@@ -86,21 +86,21 @@ def first_difference(frozen: bytes, fresh: bytes) -> str:
     return f"at byte {at}: frozen {frozen[at:at + 40]!r}, derived again {fresh[at:at + 40]!r}"
 
 
-def check_c0(text_bytes: bytes, record_bytes_: bytes, facts: ht.PdfFacts) -> list[str]:
+def check_hleg0(text_bytes: bytes, record_bytes_: bytes, facts: ht.PdfFacts) -> list[str]:
     try:
         text, record = ht.derive_from(facts)
     except ht.DerivationError as exc:
-        return [f"C0 the derivation stops: {exc}"]
+        return [f"HLEG_CHECK0 the derivation stops: {exc}"]
     failures = []
     for name, frozen, fresh in ((ht.TEXT_FILE, text_bytes, text.encode("utf-8")),
                                 (ht.RECORD_FILE, record_bytes_, ht.record_bytes(record))):
         if frozen != fresh:
-            failures.append(f"C0 {name} differs from a fresh derivation {first_difference(frozen, fresh)}")
+            failures.append(f"HLEG_CHECK0 {name} differs from a fresh derivation {first_difference(frozen, fresh)}")
     return failures
 
 
-def check_c1(text: str, record: dict[str, Any], plain: dict[int, str]) -> list[str]:
-    return [f"C1 page {s.page}, offset {s.start}: {s.text[:60]!r} is not in pypdf's text of the page"
+def check_hleg1(text: str, record: dict[str, Any], plain: dict[int, str]) -> list[str]:
+    return [f"HLEG_CHECK1 page {s.page}, offset {s.start}: {s.text[:60]!r} is not in pypdf's text of the page"
             for s in stretches(text, record) if _nows(s.text) not in _nows(plain[s.page])]
 
 
@@ -116,7 +116,7 @@ def kind_failures(item: dict[str, Any], record: dict[str, Any], bottoms: dict[in
                   items: list[dict[str, Any]]) -> list[str]:
     """The test of an exclusion's kind, independent of the tag that excluded it."""
     page, kind = item["page"], item["kind"]
-    where = f"C2 page {page}, top {item['top']}"
+    where = f"HLEG_CHECK2 page {page}, top {item['top']}"
     numbers = {m["number"] for m in record["markers_removed"] if m["page"] == page}
     if kind == "footnote":
         if not item.get("number") or not item["text"].startswith(item["number"]):
@@ -146,15 +146,15 @@ def kind_failures(item: dict[str, Any], record: dict[str, Any], bottoms: dict[in
     return []
 
 
-def check_c2(text: str, record: dict[str, Any], plain: dict[int, str], reviewed: list[dict[str, Any]],
+def check_hleg2(text: str, record: dict[str, Any], plain: dict[int, str], reviewed: list[dict[str, Any]],
              bottoms: dict[int, float]) -> list[str]:
     made = record["exclusions"]
-    failures = [f"C2 page {i['page']}, top {i['top']}: exclusion not in the reviewed list: {i['kind']} {i['text'][:60]!r}"
+    failures = [f"HLEG_CHECK2 page {i['page']}, top {i['top']}: exclusion not in the reviewed list: {i['kind']} {i['text'][:60]!r}"
                 for i in made if i not in reviewed]
-    failures += [f"C2 page {i['page']}, top {i['top']}: reviewed exclusion the derivation did not make: "
+    failures += [f"HLEG_CHECK2 page {i['page']}, top {i['top']}: reviewed exclusion the derivation did not make: "
                  f"{i['kind']} {i['text'][:60]!r}" for i in reviewed if i not in made]
     if not failures and made != reviewed:
-        failures.append("C2 the exclusions are the reviewed ones in another order")
+        failures.append("HLEG_CHECK2 the exclusions are the reviewed ones in another order")
     for item in made:
         failures += kind_failures(item, record, bottoms, made)
     pieces = stretches(text, record)
@@ -175,7 +175,7 @@ def check_c2(text: str, record: dict[str, Any], plain: dict[int, str], reviewed:
             if item["page"] == n and item["kind"] == "removed_marker":
                 rest = rest.replace(item["text"], "", 1)
         if rest:
-            failures.append(f"C2 page {n}: pypdf reads {rest[:60]!r}, which is neither derived nor excluded")
+            failures.append(f"HLEG_CHECK2 page {n}: pypdf reads {rest[:60]!r}, which is neither derived nor excluded")
     return failures
 
 
@@ -235,7 +235,7 @@ def word_differences(derived: list[str], other: list[str]) -> list[tuple[str, in
     return [op for op in difflib.SequenceMatcher(None, derived, other, autojunk=False).get_opcodes() if op[0] != "equal"]
 
 
-def check_c3(text: str, record: dict[str, Any], other_body: dict[int, list[str]],
+def check_hleg3(text: str, record: dict[str, Any], other_body: dict[int, list[str]],
              rows: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     failures: list[str] = []
     used: list[str] = []
@@ -254,27 +254,27 @@ def check_c3(text: str, record: dict[str, Any], other_body: dict[int, list[str]]
             found = {"page": n, "offset": offset, "derived": derived[i1:i2], "other": other_body[n][j1:j2]}
             row = next((r for r in rows if {k: r[k] for k in found} == found), None)
             if row is None:
-                failures.append(f"C3 page {n}, offset {offset}: derived {found['derived']} against pypdf {found['other']}")
+                failures.append(f"HLEG_CHECK3 page {n}, offset {offset}: derived {found['derived']} against pypdf {found['other']}")
             else:
                 used.append(row["id"])
-    failures += [f"C3 page {r['page']}, offset {r['offset']}: reviewed row {r['id']} matches no difference"
+    failures += [f"HLEG_CHECK3 page {r['page']}, offset {r['offset']}: reviewed row {r['id']} matches no difference"
                  for r in rows if r["id"] not in used]
     return failures, used
 
 
-def check_c4(text: str, record: dict[str, Any]) -> list[str]:
+def check_hleg4(text: str, record: dict[str, Any]) -> list[str]:
     failures = []
     lines = text.split("\n")
     headings = [line for line in lines if re.match(r"^1\.[1-7] ", line)]
     if headings != CANONICAL_HEADINGS:
-        failures.append(f"C4 the requirement headings are {headings}, not the seven in order")
+        failures.append(f"HLEG_CHECK4 the requirement headings are {headings}, not the seven in order")
     if len(record["subtopic_headings"]) != SUBTOPIC_COUNT:
-        failures.append(f"C4 {len(record['subtopic_headings'])} subtopic headings, not {SUBTOPIC_COUNT}")
+        failures.append(f"HLEG_CHECK4 {len(record['subtopic_headings'])} subtopic headings, not {SUBTOPIC_COUNT}")
     for s in record["subtopic_headings"]:
         opens = s["start"] == 0 or text[s["start"] - 2:s["start"]] == "\n\n"
         if not opens or text[s["start"]:s["end"] + 1] != s["label"] + ".":
-            failures.append(f"C4 offset {s['start']}: subtopic heading {s['label']!r} does not open its paragraph")
-    failures += [f"C4 line {i + 1} is only digits: {line!r}" for i, line in enumerate(lines) if line.strip().isdigit()]
+            failures.append(f"HLEG_CHECK4 offset {s['start']}: subtopic heading {s['label']!r} does not open its paragraph")
+    failures += [f"HLEG_CHECK4 line {i + 1} is only digits: {line!r}" for i, line in enumerate(lines) if line.strip().isdigit()]
     return failures
 
 
@@ -289,7 +289,7 @@ def _reviewed_file(folder: Path, name: str, check: str) -> bytes:
 
 
 def run_hleg_checks(manifest_path: Path | str = ht.DEFAULT_MANIFEST) -> dict[str, Any]:
-    """C0 to C4 over the files the manifest lists (each read through its sha256) and
+    """HLEG_CHECK0 to HLEG_CHECK4 over the files the manifest lists (each read through its sha256) and
     the two reviewed files beside it; raises HlegCheckError at the first failing check."""
     manifest_path = Path(manifest_path)
     folder = manifest_path.parent
@@ -298,32 +298,32 @@ def run_hleg_checks(manifest_path: Path | str = ht.DEFAULT_MANIFEST) -> dict[str
         text_bytes = ht.read_checked(manifest_path, ht.TEXT_FILE)
         record_raw = ht.read_checked(manifest_path, ht.RECORD_FILE)
     except (ValueError, OSError) as exc:
-        raise HlegCheckError("C0", [f"C0 {exc}"]) from exc
+        raise HlegCheckError("HLEG_CHECK0", [f"HLEG_CHECK0 {exc}"]) from exc
     try:
         facts = ht.read_pdf(pdf_bytes)
     except ImportError as exc:  # review M4: a missing library names its check
-        raise HlegCheckError("C0", [f"C0 the hleg extra is not installed ({exc}): pip install -e '.[hleg]'"]) from exc
-    c0 = check_c0(text_bytes, record_raw, facts)
-    if c0:
-        raise HlegCheckError("C0", c0)
+        raise HlegCheckError("HLEG_CHECK0", [f"HLEG_CHECK0 the hleg extra is not installed ({exc}): pip install -e '.[hleg]'"]) from exc
+    hleg0 = check_hleg0(text_bytes, record_raw, facts)
+    if hleg0:
+        raise HlegCheckError("HLEG_CHECK0", hleg0)
     text, record = text_bytes.decode("utf-8"), json.loads(record_raw)
-    reviewed_raw = _reviewed_file(folder, ht.EXCLUSIONS_FILE, "C2")
-    rows_raw = _reviewed_file(folder, ht.WORD_ROWS_FILE, "C3")
+    reviewed_raw = _reviewed_file(folder, ht.EXCLUSIONS_FILE, "HLEG_CHECK2")
+    rows_raw = _reviewed_file(folder, ht.WORD_ROWS_FILE, "HLEG_CHECK3")
     reviewed, rows = json.loads(reviewed_raw), json.loads(rows_raw)
     try:
         plain, layout = pypdf_pages(pdf_bytes)
     except ImportError as exc:
-        raise HlegCheckError("C1", [f"C1 the hleg extra is not installed ({exc}): pip install -e '.[hleg]'"]) from exc
-    for check, failures in (("C1", check_c1(text, record, plain)),
-                            ("C2", check_c2(text, record, plain, reviewed, body_bottoms(facts)))):
+        raise HlegCheckError("HLEG_CHECK1", [f"HLEG_CHECK1 the hleg extra is not installed ({exc}): pip install -e '.[hleg]'"]) from exc
+    for check, failures in (("HLEG_CHECK1", check_hleg1(text, record, plain)),
+                            ("HLEG_CHECK2", check_hleg2(text, record, plain, reviewed, body_bottoms(facts)))):
         if failures:
             raise HlegCheckError(check, failures)
-    c3, used = check_c3(text, record, {n: body_words(layout[n], n, record, reviewed) for n in ht.PAGES}, rows)
-    if c3:
-        raise HlegCheckError("C3", c3)
-    c4 = check_c4(text, record)
-    if c4:
-        raise HlegCheckError("C4", c4)
+    hleg3, used = check_hleg3(text, record, {n: body_words(layout[n], n, record, reviewed) for n in ht.PAGES}, rows)
+    if hleg3:
+        raise HlegCheckError("HLEG_CHECK3", hleg3)
+    hleg4 = check_hleg4(text, record)
+    if hleg4:
+        raise HlegCheckError("HLEG_CHECK4", hleg4)
 
     def ref(name: str, raw: bytes) -> dict[str, str]:
         return {"file": name, "sha256": hashlib.sha256(raw).hexdigest()}
@@ -332,7 +332,7 @@ def run_hleg_checks(manifest_path: Path | str = ht.DEFAULT_MANIFEST) -> dict[str
         "pdf": ref(ht.PDF_FILE, pdf_bytes), "derived_text": ref(ht.TEXT_FILE, text_bytes),
         "derivation_record": ref(ht.RECORD_FILE, record_raw),
         "reviewed_exclusions": ref(ht.EXCLUSIONS_FILE, reviewed_raw), "word_rows": ref(ht.WORD_ROWS_FILE, rows_raw),
-        "checks_passed": ["C0", "C1", "C2", "C3", "C4"],
+        "checks_passed": ["HLEG_CHECK0", "HLEG_CHECK1", "HLEG_CHECK2", "HLEG_CHECK3", "HLEG_CHECK4"],
         "paragraphs": sum(1 for p in record["paragraphs"] if p["kind"] == "paragraph"),
         "requirement_headings": len(record["requirement_headings"]),
         "subtopic_headings": len(record["subtopic_headings"]),

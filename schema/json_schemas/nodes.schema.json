@@ -208,7 +208,7 @@
       "required": ["term", "source_span"]
     },
     {
-      "title": "Point (Layer 1; populated from Formex in M2)",
+      "title": "Point (Layer 1; populated from Formex in MILESTONE2)",
       "allOf": [{ "$ref": "#/$defs/baseNode" }, { "$ref": "#/$defs/spanOrDeleted" }],
       "properties": {
         "type": { "const": "Point" },
@@ -242,7 +242,7 @@
       "required": ["number", "source_span"]
     },
     {
-      "title": "AnnexItem (Layer 1; populated from Formex in M2)",
+      "title": "AnnexItem (Layer 1; populated from Formex in MILESTONE2)",
       "allOf": [{ "$ref": "#/$defs/baseNode" }, { "$ref": "#/$defs/spanOrDeleted" }],
       "properties": {
         "type": { "const": "AnnexItem" },

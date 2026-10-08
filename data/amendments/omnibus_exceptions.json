@@ -2,7 +2,7 @@
   "description": "Reviewed exception list for the B132 checks (tere4ai.parse_legal_structure.amendments). Each row names the one difference it covers and why it is not an error; a difference no row covers stops the parse, and so does a row no check needs.",
   "rows": [
     {
-      "id": "E1",
+      "id": "OMNIBUS_EXCEPTION1",
       "kind": "marker_label",
       "marker_id": "O001001M006000",
       "marker_label": "AR:1;PT:14;PT:b",
@@ -10,7 +10,7 @@
       "reason": "The consolidated text labels the insertion of Article 3, points (14a) and (14b) as Article 1, point (14)(b) of the Omnibus; the Omnibus enacts that wording in point (4)(b), and point (14) adds Article 28(8) and (9). The Omnibus decides."
     },
     {
-      "id": "E2",
+      "id": "OMNIBUS_EXCEPTION2",
       "kind": "punctuation",
       "marker_id": "O001001M837000",
       "text": ";",
@@ -18,7 +18,7 @@
       "reason": "Point (23)(b) adds Article 58(1), point (d); the full stop that ended point (c) becomes a semicolon. The Omnibus quotes only the new point."
     },
     {
-      "id": "E3",
+      "id": "OMNIBUS_EXCEPTION3",
       "kind": "punctuation",
       "marker_id": "O001001M957000",
       "text": ";",
@@ -26,7 +26,7 @@
       "reason": "Point (36)(b) adds Article 96(1), point (g); the full stop that ended point (f) becomes a semicolon. The Omnibus quotes only the new point."
     },
     {
-      "id": "E4",
+      "id": "OMNIBUS_EXCEPTION4",
       "kind": "punctuation",
       "marker_id": "O001001M970000",
       "text": ";",
@@ -34,7 +34,7 @@
       "reason": "Point (41)(b) adds Annex I, Section B, point 21; the full stop that ended point 20 becomes a semicolon. The Omnibus quotes only the new point."
     },
     {
-      "id": "E5",
+      "id": "OMNIBUS_EXCEPTION5",
       "kind": "punctuation",
       "marker_id": "O001001M972000",
       "text": ".",
@@ -42,14 +42,14 @@
       "reason": "Point (42) deletes Annex VIII, Section B, points 7 and 9; point 8 becomes the last point and ends with a full stop. A deletion quotes nothing."
     },
     {
-      "id": "E6",
+      "id": "OMNIBUS_EXCEPTION6",
       "kind": "trailing_punctuation",
       "marker_id": "O001001M062000",
       "trailing": ";",
       "reason": "Article 99(4), point (da) ends with a semicolon in the consolidated text, as a point followed by another point does; the Omnibus quotation in point (38)(b) ends without it."
     },
     {
-      "id": "E7",
+      "id": "OMNIBUS_EXCEPTION7",
       "kind": "annex_member",
       "marker_id": "O001001M073000",
       "unit_id": "eu-ai-act:annex-xiv",
@@ -57,7 +57,7 @@
       "reason": "Point (43) adds Annex XIV, whose text is the Omnibus annex member file L_202601744EN.003601 rather than a quotation inside Article 1. The member's heading reads 'Annex XIV' after the opening quotation mark, the consolidated heading 'ANNEX XIV', and the member ends with the closing quotation mark and the full stop of the amending sentence."
     },
     {
-      "id": "E8",
+      "id": "OMNIBUS_EXCEPTION8",
       "kind": "unmarked_title",
       "unit_id": "eu-ai-act:article-1",
       "baseline": "Subject matter`",
@@ -65,7 +65,7 @@
       "reason": "The heading of Article 1 carries a stray character after 'Subject matter' in both Formex files, a backtick in the 2024 file and an apostrophe in the consolidated file, with no marker; no Omnibus point amends the heading. The node keeps the consolidated file's characters."
     },
     {
-      "id": "E9",
+      "id": "OMNIBUS_EXCEPTION9",
       "kind": "nested_quotation_marks",
       "omnibus": "“ ”",
       "consolidated": "‘ ’",

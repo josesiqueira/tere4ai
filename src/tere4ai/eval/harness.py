@@ -1,4 +1,4 @@
-"""M4 evaluation harness: run the ablation ladder over gold/benchmark items.
+"""MILESTONE4 evaluation harness: run the ablation ladder over gold/benchmark items.
 
 @implements: DEC-11, DEC-17
 @implements: DEC-20

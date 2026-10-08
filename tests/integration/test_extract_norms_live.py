@@ -1,4 +1,4 @@
-"""Live smoke test for the M2 norm-extraction pipeline.
+"""Live smoke test for the MILESTONE2 norm-extraction pipeline.
 
 COSTS REAL API MONEY: it calls the configured OpenAI generator and the
 Anthropic judge on one real source unit. It is skipped unless the

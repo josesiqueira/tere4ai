@@ -105,7 +105,7 @@
         "eu-ai-act:article-3",
         "eu-ai-act:article-3:paragraph-1"
       ],
-      "exception": "E1"
+      "exception": "OMNIBUS_EXCEPTION1"
     },
     {
       "marker_id": "O001001M007000",
@@ -632,7 +632,7 @@
         "eu-ai-act:article-58:paragraph-1",
         "eu-ai-act:article-58:paragraph-1:point-c"
       ],
-      "exception": "E2"
+      "exception": "OMNIBUS_EXCEPTION2"
     },
     {
       "marker_id": "O001001M037000",
@@ -1040,7 +1040,7 @@
         "eu-ai-act:article-96:paragraph-1",
         "eu-ai-act:article-96:paragraph-1:point-f"
       ],
-      "exception": "E3"
+      "exception": "OMNIBUS_EXCEPTION3"
     },
     {
       "marker_id": "O001001M057000",
@@ -1135,7 +1135,7 @@
         "eu-ai-act:article-99",
         "eu-ai-act:article-99:paragraph-4"
       ],
-      "exception": "E6"
+      "exception": "OMNIBUS_EXCEPTION6"
     },
     {
       "marker_id": "O001001M063000",
@@ -1258,7 +1258,7 @@
         "eu-ai-act:annex-i",
         "eu-ai-act:annex-i:section-b:point-20"
       ],
-      "exception": "E4"
+      "exception": "OMNIBUS_EXCEPTION4"
     },
     {
       "marker_id": "O001001M070000",
@@ -1300,7 +1300,7 @@
         "eu-ai-act:annex-viii",
         "eu-ai-act:annex-viii:section-b:point-8"
       ],
-      "exception": "E5"
+      "exception": "OMNIBUS_EXCEPTION5"
     },
     {
       "marker_id": "O001001M072000",
@@ -1359,7 +1359,7 @@
         "eu-ai-act:annex-xiv:point-4"
       ],
       "units_partly": [],
-      "exception": "E7"
+      "exception": "OMNIBUS_EXCEPTION7"
     }
   ],
   "units": {

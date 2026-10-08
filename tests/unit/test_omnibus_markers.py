@@ -119,7 +119,7 @@ def test_every_marker_passes_the_three_checks(world):
 
 
 def test_without_the_label_row_the_mislabelled_insertion_fails(world):
-    rows = [r for r in world[3] if r["id"] != "E1"]
+    rows = [r for r in world[3] if r["id"] != "OMNIBUS_EXCEPTION1"]
     failures = _check(world, rows=rows)
     assert "O001001M006000: its wording is not in the Omnibus quotation of point (14)(b)" in failures
     assert "docs/omnibus_amendments.md has no entry for point (14)(b)" in failures
@@ -160,7 +160,7 @@ def test_the_committed_marker_list_is_the_generated_one(world):
     assert deletion["omnibus_point"] == "(9)(b)"
     assert "eu-ai-act:article-10:paragraph-5" in deletion["units_inside"]
     label = next(m for m in payload["markers"] if m["marker_id"] == "O001001M006000")
-    assert (label["marker_label"], label["omnibus_point"], label["exception"]) == ("AR:1;PT:14;PT:b", "(4)(b)", "E1")
+    assert (label["marker_label"], label["omnibus_point"], label["exception"]) == ("AR:1;PT:14;PT:b", "(4)(b)", "OMNIBUS_EXCEPTION1")
     assert {k: len(v) for k, v in payload["units"].items()} == {
         "replaced": 42, "inserted": 182, "deleted": 11, "composed": 77}
 
@@ -172,7 +172,7 @@ def test_the_command_reports_the_marker_list_current(capsys):
 
 def test_every_exception_row_has_a_reason_and_a_known_kind():
     rows = amend.load_exceptions()
-    assert [r["id"] for r in rows] == [f"E{i}" for i in range(1, 10)]
+    assert [r["id"] for r in rows] == [f"OMNIBUS_EXCEPTION{i}" for i in range(1, 10)]
     assert all(r["reason"].strip() for r in rows)
 
 

@@ -1,4 +1,4 @@
-"""Unit tests for the M3 HTTP facade (DEC-08, REF-31).
+"""Unit tests for the MILESTONE3 HTTP facade (DEC-08, REF-31).
 
 The facade calls the same pure functions the MCP server exposes over the
 real committed graph dumps. All paid model constructors are monkeypatched

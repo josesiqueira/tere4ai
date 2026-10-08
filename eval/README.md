@@ -1,6 +1,6 @@
-# eval/ : M4 Evaluation Harness
+# eval/ : MILESTONE4 Evaluation Harness
 
-Evaluation assets for the M4 milestone (docs/architecture.md Sections 12
+Evaluation assets for MILESTONE4 (docs/architecture.md Sections 12
 and 14, DEC-11). Code lives in `src/tere4ai/eval/` (harness.py,
 strategies.py, metrics.py); this directory holds the config of record, the
 gold data, and the results artifacts.

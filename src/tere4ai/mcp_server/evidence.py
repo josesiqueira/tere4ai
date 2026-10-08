@@ -1,4 +1,4 @@
-"""evaluate_project_evidence: the judged M3 evidence-evaluation tool.
+"""evaluate_project_evidence: the judged MILESTONE3 evidence-evaluation tool.
 
 @implements: DEC-06 (partial: runtime grounding judge), DEC-08
 @implements: DEC-19

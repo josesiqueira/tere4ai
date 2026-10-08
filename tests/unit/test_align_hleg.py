@@ -1,4 +1,4 @@
-"""Offline tests for the M2 alignment pipeline (DEC-05, DEC-06 partial).
+"""Offline tests for the MILESTONE2 alignment pipeline (DEC-05, DEC-06 partial).
 
 Uses FakeClient only: no network, no keys. Verifies the hard invariants:
 schema-valid reified assertions with evidence spans on both sides, judge

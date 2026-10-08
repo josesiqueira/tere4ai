@@ -1,4 +1,4 @@
-"""Unit tests for classify_ai_system (M3 deterministic runtime classification).
+"""Unit tests for classify_ai_system (MILESTONE3 deterministic runtime classification).
 
 Offline only: runs against the real published Layer 0+1 dump on disk and
 skips when it has not been built. No model, no network, no database.

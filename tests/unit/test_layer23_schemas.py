@@ -1,7 +1,7 @@
 """Layer 2/3 schema contract tests (architecture.md Sections 3 and 4).
 
 The schemas are the machine-readable source of truth (Section 2); these tests
-pin the invariants that the M2 extraction and judge pipelines build against.
+pin the invariants that the MILESTONE2 extraction and judge pipelines build against.
 """
 
 import json

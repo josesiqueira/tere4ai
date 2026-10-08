@@ -1,4 +1,4 @@
-"""Formex 4 enrichment acceptance fixtures (DEC-01 partial, M2 point depth).
+"""Formex 4 enrichment acceptance fixtures (DEC-01 partial, MILESTONE2 point depth).
 
 Covers the Point and AnnexItem granularity parsed deterministically from the
 frozen Formex fmx4 member files (docs/architecture.md Section 6, ingestion

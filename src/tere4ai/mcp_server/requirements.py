@@ -1,4 +1,4 @@
-"""M3 runtime tool: get_applicable_requirements as a pure, deterministic function.
+"""MILESTONE3 runtime tool: get_applicable_requirements as a pure, deterministic function.
 
 Consumes the deterministic classification (classify_ai_system), the judged
 Layer 2 norms payload (extract_norms build artifact, judged at build time by

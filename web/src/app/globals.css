@@ -8,7 +8,7 @@
    24px containers, 10px nested.
 
    Deviation, documented: dark mode uses the prefers-color-scheme media query
-   instead of next-themes for the M1 read-only page (no client JS needed).
+   instead of next-themes for the MILESTONE1 read-only page (no client JS needed).
    The dark scheme is the same achromatic system inverted; it is derived, not
    a second identity.
 

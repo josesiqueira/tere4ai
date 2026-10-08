@@ -95,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m tere4ai.align_hleg",
-        description="Judged alignment of accepted norms to the seven HLEG requirements (M2).",
+        description="Judged alignment of accepted norms to the seven HLEG requirements (MILESTONE2).",
     )
     parser.add_argument(
         "--norms",

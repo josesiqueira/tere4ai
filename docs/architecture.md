@@ -166,7 +166,7 @@ by checksum:
 (a) EUR-Lex HTML manifestation, for coarse structure: article (`id="art_9"`, 113
     of them), recital (`id="rct_12"`, 180), annex (`id="anx_III"`, 13), and
     paragraph (numeric `id="009.001"`, article.paragraph, about 509). It has no
-    point or annex-item anchors. Sufficient for the M1 structural mirror and the
+    point or annex-item anchors. Sufficient for the MILESTONE1 structural mirror and the
     113 / 180 / 13 acceptance.
 (b) Formex 4 (fmx4) manifestation from CELLAR, for point, subparagraph, and
     annex-item granularity, which the HTML lacks and the high-risk core needs.
@@ -216,7 +216,7 @@ by checksum:
     PDF's own tags by `python -m tere4ai.ingest.hleg_text --write`, which
     writes the derived text and its derivation record beside the PDF; every
     Layer 0+1 build checks them against the PDF with a second reader, pypdf
-    (checks C0 to C4, DEC-25), a failure stopping the parse.
+    (checks HLEG_CHECK0 to HLEG_CHECK4, DEC-25), a failure stopping the parse.
 Node IDs are derived deterministically by the parser from this structure
 (Section 2); this Regulation carries no eId attributes to lift. HTML and PDF
 renderings are also kept for human verification. Do not plan to download clean
@@ -417,7 +417,7 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   distinct SourceDocument linked to the base Act by AMENDS and HAS_VERSION
   edges.
 - THE ACT IN FORCE (B132, 2026-10-03, DEC-23; it replaces the version pin
-  of M1 and the overlay of B59): every build is made from Regulation (EU)
+  of MILESTONE1 and the overlay of B59): every build is made from Regulation (EU)
   2024/1689 as amended by Regulation (EU) 2026/1744.
   (1) Layer 1 parses the in-force tree from EUR-Lex's consolidated text of
   27 July 2026 in Formex (CELEX 02024R1689-20260727, Section 6 (c)), one
@@ -543,13 +543,13 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
 
 ## 14. Milestones
 
-- M1 (DONE 2026-07-08) Structural mirror plus versioning plus coverage_report. Deterministic Layer
+- MILESTONE1 (DONE 2026-07-08) Structural mirror plus versioning plus coverage_report. Deterministic Layer
   1 over the full Act from the frozen EUR-Lex HTML manifestation (Section 6;
-  Formex point-depth deferred to M2); Omnibus modelled as an amending
+  Formex point-depth deferred to MILESTONE2); Omnibus modelled as an amending
   source; source_trace and coverage_report tools. Demo UI increment: a single
   page rendering the coverage matrix and a browsable Act structure (first
   screenshot artifact).
-  Build order for M1: (1) freeze the HTML snapshot and derive the ID scheme from
+  Build order for MILESTONE1: (1) freeze the HTML snapshot and derive the ID scheme from
   its anchors (ingestion spike done, Section 6); (2)
   apply the version pin (Section 11); (3) write schema/json_schemas/ first, since
   Section 2 declares them the machine-readable source of truth; (4) Neo4j plus
@@ -558,27 +558,27 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
   missing @implements or an unknown REF id. Write the acceptance fixtures
   (113 / 180 / 13; Chapter III Section 2 equals Articles 8 to 15; Article 6 links
   Annexes I and III; Article 11 links Annex IV) first, as the target.
-- M2 (DONE 2026-07-08; v1-slice migration replaced by regeneration through the
+- MILESTONE2 (DONE 2026-07-08; v1-slice migration replaced by regeneration through the
   judged pipeline per user decision, regression fixture from the new graph)
   High-risk-core normative graph plus reified alignments plus build judges.
   Layers 2 and 3 over the v2 core only. Migrate the existing v1 slice (Articles
   9, 10, 13, 14, 15 and the seven HLEG nodes) into the new judged, reified
   pipeline; keep the old poster query as a regression fixture.
-- M3 (DONE 2026-07-08/09 for the four journey tools, facade, MCP, demo flow;
+- MILESTONE3 (DONE 2026-07-08/09 for the four journey tools, facade, MCP, demo flow;
   explain_requirement and trace_alignment in progress, tasks 41-42)
   Runtime tools plus runtime judge. classify_ai_system,
   get_applicable_requirements, evaluate_project_evidence,
   generate_control_backlog, end-to-end audit log. Demo UI increment: the full
   demo flow (describe system, see classification, requirements with citations,
   evidence evaluation, judge verdicts), screenshot-ready for the tool paper.
-- M4 (harness DONE, first two live sweeps run 2026-07-08/09; open: full gold
+- MILESTONE4 (harness DONE, first two live sweeps run 2026-07-08/09; open: full gold
   set authoring, judge FA/FR labeling, full-benchmark run, variance study)
   Evaluation harness plus gold set plus ablations.
 - Deferred to post-thesis / v2.1: GPAI deep extraction, standards mapping (TAIR),
   full-Act deep extraction, the trust/HCI study.
 
-Paper mapping (RES-3): M1 to M3 produce the tool/method paper (RE or SE venue);
-M4 produces the empirical ablation paper (empirical SE venue); together they
+Paper mapping (RES-3): MILESTONE1 to MILESTONE3 produce the tool/method paper (RE or SE venue);
+MILESTONE4 produces the empirical ablation paper (empirical SE venue); together they
 feed the integrative journal article. A legal-informatics paper (deontic
 extraction plus reified alignment) and a trust/HCI calibrated-reliance study are
 stretch, not on the critical path.
@@ -590,7 +590,7 @@ Highest-risk components (evaluate explicitly, do not fold into general numbers):
   step and the least de-risked by prior work; the siblings do generation and
   mapping, not evidence evaluation, so there is no external accuracy baseline.
 - Applying the Omnibus amendments to the base text deterministically is fiddly.
-- The end-2026 timeline is tight even scoped; protect M1 to M3, the tool paper,
+- The end-2026 timeline is tight even scoped; protect MILESTONE1 to MILESTONE3, the tool paper,
   and one evaluation paper.
 
 Open decisions:
@@ -1540,14 +1540,14 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   line-end hyphen kept and joined, a page's last paragraph that reaches
   the margin joined to the next page's first.
   The checks (`tere4ai.ingest.hleg_checks`, inside the parse before any
-  node is built, and in the tests), against pypdf as a second reader: C0
-  the derivation reproduces both files byte for byte; C1 every derived
-  stretch between markers and joins is in pypdf's text of its page; C2
+  node is built, and in the tests), against pypdf as a second reader: HLEG_CHECK0
+  the derivation reproduces both files byte for byte; HLEG_CHECK1 every derived
+  stretch between markers and joins is in pypdf's text of its page; HLEG_CHECK2
   pypdf's text of the pages, less the derived stretches, leaves only the
   excluded items, which equal a reviewed list item by item, location
-  included, and each pass the test of its kind; C3 each page's words
+  included, and each pass the test of its kind; HLEG_CHECK3 each page's words
   compared in order with pypdf's layout reading, every difference a
-  reviewed row bound to its location; C4 the seven headings in order, the
+  reviewed row bound to its location; HLEG_CHECK4 the seven headings in order, the
   23 subtopic headings opening their paragraphs, no line of only digits.
   A failure raises HlegCheckError naming the check and its first
   differences; the parse writes no new layer1.json and records the failed

@@ -1,10 +1,10 @@
-"""M4 evaluation metrics: pure functions over eval results and gold labels.
+"""MILESTONE4 evaluation metrics: pure functions over eval results and gold labels.
 
 @implements: DEC-11, DEC-17
 @implements: DEC-20
 @grounded_by: REF-16, REF-15
 
-Implements the Section 12 metric set that the M4 harness reports per
+Implements the Section 12 metric set that the MILESTONE4 harness reports per
 ablation condition: risk classification accuracy, runtime citation
 completeness, hallucinated citation rate, judge false-accept and
 false-reject rates, plus plain precision/recall/F1 helpers. Every function

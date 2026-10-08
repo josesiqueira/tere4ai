@@ -189,7 +189,7 @@ See docs/architecture.md Section 18. Key paths: `src/tere4ai/` (core),
 `data/snapshots/` (frozen, checksummed legal sources), `data/graph_dumps/`
 (versioned build artifacts), `web/` (thin read-only demo UI).
 
-## Quick start (M1, structural mirror)
+## Quick start (MILESTONE1, structural mirror)
 
 ```bash
 python3 -m venv .venv
@@ -245,7 +245,7 @@ published into `data/graph_dumps/`: a rehearsal publishes into a temporary
 cd web && npm install && npm run build && npx next start
 ```
 
-## Demo flow (M3)
+## Demo flow (MILESTONE3)
 
 The full demo flow (classify, requirements, evidence evaluation, backlog)
 runs against the thin HTTP facade, which calls the same pure functions the
@@ -434,27 +434,27 @@ the checkpoint one no record names.
 
 ## Status
 
-M1 to M3 implemented, M4 harness ready (see docs/architecture.md Section 14
+MILESTONE1 to MILESTONE3 implemented, MILESTONE4 harness ready (see docs/architecture.md Section 14
 and docs/traceability.md, which is generated from code tags):
 
-- M1: deterministic Layer 1 mirror of the full Act in force, Regulation (EU)
+- MILESTONE1: deterministic Layer 1 mirror of the full Act in force, Regulation (EU)
   2024/1689 as amended by Regulation (EU) 2026/1744 (119 articles, 180
   recitals, 14 annexes, 521 points, 247 annex items), parsed from EUR-Lex's
   consolidated text and checked unit by unit against the Official Journal
   wording, each changed unit keeping its 2024 wording as an earlier version
   (DEC-23); crossrefs, coverage and trace tools, traceability gate.
-- M2: judged Layer 2/3 over the high-risk core: extracted norms and reified
+- MILESTONE2: judged Layer 2/3 over the high-risk core: extracted norms and reified
   HLEG alignment assertions, each checked by an independent judge family
   (OpenAI generator, Anthropic judges), all in Neo4j with per-edge
   provenance and full audit logs. coverage_report serves the counts of the
   served build.
-- M3: runtime tools. Deterministic classify_ai_system (rules over real
+- MILESTONE3: runtime tools. Deterministic classify_ai_system (rules over real
   Article 5 and Annex III nodes, never an LLM) and
   get_applicable_requirements; judged evaluate_project_evidence and
   generate_control_backlog gated by the runtime grounding judge; every
   tool on the MCP server; HTTP facade plus the /assess demo flow,
   the recorded-session /mcp-demo page and the agent replay.
-- M4: evaluation harness with the six-condition ablation ladder, Section 12
+- MILESTONE4: evaluation harness with the six-condition ablation ladder, Section 12
   metrics, a 10-item seed gold set, and the located REF-15 benchmark. Live
   ablation runs and the full 60-80 item gold set are pending research work
   (cost-gated; see eval/README.md).

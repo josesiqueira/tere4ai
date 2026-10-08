@@ -138,5 +138,5 @@ def test_an_altered_derived_text_stops_the_parse_and_keeps_the_previous_dump(tmp
     assert not (dumps / "layer1.building.json").exists()
     ex = BuildRecordStore(dumps).list_records()[0]["executions"][0]
     assert ex["status"] == "failed" and ex["covers_steps"] == ["LAYER0_STEP1", "LAYER1_STEP1"]
-    assert ex["error"].startswith("HlegCheckError: C0 failed: C0 hleg_ethics_guidelines_2019_en_requirements.txt differs")
+    assert ex["error"].startswith("HlegCheckError: HLEG_CHECK0 failed: HLEG_CHECK0 hleg_ethics_guidelines_2019_en_requirements.txt differs")
     assert "at byte" in ex["error"]

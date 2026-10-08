@@ -61,7 +61,7 @@ def make_fake_repo(
         encoding="utf-8",
     )
     (root / "scripts" / "ci_expected_decisions.json").write_text(
-        json.dumps({"milestone": "M1", "expected": ["DEC-01"]}),
+        json.dumps({"milestone": "MILESTONE1", "expected": ["DEC-01"]}),
         encoding="utf-8",
     )
     (root / "src" / "pkg" / "mod.py").write_text(

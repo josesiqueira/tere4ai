@@ -1,4 +1,4 @@
-"""M2 alignment pipeline: norms to HLEG requirements, with the mapping judge.
+"""MILESTONE2 alignment pipeline: norms to HLEG requirements, with the mapping judge.
 
 @implements: DEC-05, DEC-06 (partial: mapping judge)
 @grounded_by: REF-24, REF-21, REF-10, REF-16

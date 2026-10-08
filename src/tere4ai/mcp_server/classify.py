@@ -1,4 +1,4 @@
-"""M3 runtime tool: classify_ai_system as a pure, deterministic function.
+"""MILESTONE3 runtime tool: classify_ai_system as a pure, deterministic function.
 
 Risk classification is decided by a fixed rule ladder over the structured
 system features (schema/json_schemas/system_features.schema.json), never by

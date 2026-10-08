@@ -1,4 +1,4 @@
-"""Unit tests for the M4 evaluation harness, strategies, and loaders.
+"""Unit tests for the MILESTONE4 evaluation harness, strategies, and loaders.
 
 Offline only: every strategy runs on FakeClient (scripted, no network).
 Live behaviour is tested exclusively as refusal paths (the gate and the

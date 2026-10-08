@@ -1,4 +1,4 @@
-"""M2 norm-extraction pipeline: generator plus build-time extraction judge.
+"""MILESTONE2 norm-extraction pipeline: generator plus build-time extraction judge.
 
 @implements: DEC-03, DEC-06 (partial: extraction judge only)
 @implements: DEC-19

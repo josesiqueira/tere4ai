@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-/* Thin, read-only demo page (docs/architecture.md Sections 9 and 14, M1).
+/* Thin, read-only demo page (docs/architecture.md Sections 9 and 14, MILESTONE1).
    Renders the coverage matrix and the browsable Act structure from
    public/ui_data.json, which scripts/export_ui_data.py produces by calling
    the same coverage_report used by the MCP tool. Every screen shows the

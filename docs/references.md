@@ -151,7 +151,7 @@ NOT PURSUED 2026-10-08 (Jose): no full text is available through TUNI (Andor); t
 Reproducible Evaluation Dataset for NLP and RAG Systems", Davvetas et al.,
 arXiv:2603.09435 (2026), DOI 10.48550/arXiv.2603.09435. VERIFIED. CORE. Grounds:
 risk-level classification, article retrieval, obligation generation, and QA
-tasks. Primary reusable evaluation set (OVR-10, M4).
+tasks. Primary reusable evaluation set (OVR-10, MILESTONE4).
 
 **[REF-16]** PEER. "LLM-assisted Extraction of Regulatory Requirements: A Case
 Study on the GDPR" (XTRAREG), Abualhaija et al., IEEE RE 2025, DOI

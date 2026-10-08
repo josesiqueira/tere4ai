@@ -1,4 +1,4 @@
-"""Thin HTTP facade for the M3 demo web UI.
+"""Thin HTTP facade for the MILESTONE3 demo web UI.
 
 @implements: DEC-08 (partial: also Section 8 hardening, rate limit and request log)
 @implements: DEC-17
@@ -33,7 +33,7 @@ Behavioral contract:
   a consumer can detect drift (503 when the schema file is missing or
   unreadable).
 - GET /api/coverage and GET /api/alignments are deterministic and free: the
-  M1 structural coverage view and the corpus-wide accepted HLEG assertions
+  MILESTONE1 structural coverage view and the corpus-wide accepted HLEG assertions
   plus the accepted norms that have none (alignments additionally needs
   alignments_core.json, same clean 503 as /api/explain).
 - GET /api/units is deterministic and free: the Layer 2 annotation queue,
@@ -718,7 +718,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
 
     @app.get("/api/coverage")
     def coverage(request: Request) -> JSONResponse:
-        # Deterministic and free: the M1 structural coverage view.
+        # Deterministic and free: the MILESTONE1 structural coverage view.
         unavailable = _unavailable(request)
         if unavailable is not None:
             return unavailable

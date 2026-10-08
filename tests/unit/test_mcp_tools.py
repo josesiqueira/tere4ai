@@ -1,4 +1,4 @@
-"""Unit tests for the M1 MCP tools (DEC-08, DEC-10) over synthetic dumps."""
+"""Unit tests for the MILESTONE1 MCP tools (DEC-08, DEC-10) over synthetic dumps."""
 
 import json
 from pathlib import Path
@@ -60,7 +60,7 @@ def _edge(edge_id: str, edge_type: str, from_id: str, to_id: str) -> dict:
 
 
 def make_complete_dump() -> dict:
-    """Synthetic dump satisfying every structural expectation of M1."""
+    """Synthetic dump satisfying every structural expectation of MILESTONE1."""
     nodes = [
         {
             "id": "eu-ai-act",

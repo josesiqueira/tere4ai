@@ -109,7 +109,7 @@ def test_an_exception_row_no_check_needs_stops_the_parse(world, tmp_path):
 
 
 def test_without_the_title_row_article_1_stops_the_parse(world):
-    rows = [r for r in amend.load_exceptions() if r["id"] != "E8"]
+    rows = [r for r in amend.load_exceptions() if r["id"] != "OMNIBUS_EXCEPTION8"]
     assert "eu-ai-act:article-1: its title changed and no marker over the heading enacts it" in _units(world, rows=rows)
 
 
@@ -148,9 +148,9 @@ def test_a_changed_annex_opening_sentence_stops_the_parse(world):
 
 
 def test_without_the_nested_marks_row_the_quotations_do_not_match(world):
-    """Row E9 is reviewed, not a hidden normalisation: without it the Omnibus's
+    """Row OMNIBUS_EXCEPTION9 is reviewed, not a hidden normalisation: without it the Omnibus's
     double marks inside its quotations do not read as the Act's single marks."""
-    rows = [r for r in amend.load_exceptions() if r["id"] != "E9"]
+    rows = [r for r in amend.load_exceptions() if r["id"] != "OMNIBUS_EXCEPTION9"]
     failures = _units(world, rows=rows)
     assert "eu-ai-act:article-3:paragraph-1:point-14a: not in the Omnibus quotation of point (4)(b)" in failures
     assert "the Omnibus quotation of point (7)(a) is in no marked range (left unapplied?)" in failures
@@ -162,13 +162,13 @@ def test_a_nested_marks_row_with_other_marks_is_not_used(world, tmp_path):
     sources, consolidated, baseline = world
     payload = json.loads(amend.DEFAULT_EXCEPTIONS_PATH.read_text(encoding="utf-8"))
     for row in payload["rows"]:
-        if row["id"] == "E9":
+        if row["id"] == "OMNIBUS_EXCEPTION9":
             row["omnibus"], row["consolidated"] = "x y", "x y"
     exceptions = tmp_path / "exceptions.json"
     exceptions.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(amend.AmendmentCheckError) as error:
         checked_amendments(sources, consolidated, baseline, exceptions_path=exceptions)
-    assert "exception row E9 (nested_quotation_marks) was not needed by any check: review it" in error.value.failures
+    assert "exception row OMNIBUS_EXCEPTION9 (nested_quotation_marks) was not needed by any check: review it" in error.value.failures
     assert "eu-ai-act:article-5:paragraph-1:point-bb: not in the Omnibus quotation of point (7)(a)" in error.value.failures
 
 
@@ -179,7 +179,7 @@ def _checked(world, text):
 
 def test_an_unmarked_deletion_beside_a_punctuation_replacement_stops_the_parse(world):
     """Final review F1 (Codex P1): the full stop of Article 58(1)(c) became a
-    semicolon (row E2); that replacement must not let the unmarked words before
+    semicolon (row OMNIBUS_EXCEPTION2); that replacement must not let the unmarked words before
     it disappear. Only the wording the marked range replaced may differ."""
     mutated = _mutated(world, 'IDENTIFIER="058.001"', "the terms and conditions applicable to the participants",
                        "the terms and conditions")

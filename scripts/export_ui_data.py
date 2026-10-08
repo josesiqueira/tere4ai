@@ -1,6 +1,6 @@
 """Export the demo UI data file from the service layer.
 
-@implements: DEC-10 (partial: M1 structural coverage view only)
+@implements: DEC-10 (partial: MILESTONE1 structural coverage view only)
 @implements: DEC-19
 @grounded_by: REF-17, REF-15
 

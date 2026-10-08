@@ -1,4 +1,4 @@
-"""Unit tests for the M4 evaluation metrics (pure functions, synthetic data).
+"""Unit tests for the MILESTONE4 evaluation metrics (pure functions, synthetic data).
 
 Every expected value below is hand-computed from the synthetic counts; no
 model, no network, no real results file. DEC-17: the judge error rate tests

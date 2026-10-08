@@ -1,4 +1,4 @@
-"""Live smoke test for the M2 alignment pipeline.
+"""Live smoke test for the MILESTONE2 alignment pipeline.
 
 COSTS REAL API MONEY: it calls the configured OpenAI generator once and the
 Anthropic mapping judge once per surviving candidate (up to three), aligning

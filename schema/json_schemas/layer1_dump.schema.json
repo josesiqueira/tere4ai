@@ -26,7 +26,7 @@
         },
         "hleg": {
           "type": "object",
-          "description": "B143 (DEC-25): the outcome of the HLEG text checks C0 to C4 against the Guidelines' PDF: the five files with their sha256, the checks passed and the counts.",
+          "description": "B143 (DEC-25): the outcome of the HLEG text checks HLEG_CHECK0 to HLEG_CHECK4 against the Guidelines' PDF: the five files with their sha256, the checks passed and the counts.",
           "required": ["checks_passed", "derived_text", "derivation_record"]
         }
       }

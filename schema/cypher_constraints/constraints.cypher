@@ -28,7 +28,7 @@ CREATE CONSTRAINT article_id_unique IF NOT EXISTS FOR (n:Article) REQUIRE n.id I
 // Uniqueness of Paragraph.id (Layer 1)
 CREATE CONSTRAINT paragraph_id_unique IF NOT EXISTS FOR (n:Paragraph) REQUIRE n.id IS UNIQUE;
 
-// Uniqueness of Point.id (Layer 1, populated from Formex in M2)
+// Uniqueness of Point.id (Layer 1, populated from Formex in MILESTONE2)
 CREATE CONSTRAINT point_id_unique IF NOT EXISTS FOR (n:Point) REQUIRE n.id IS UNIQUE;
 
 // Uniqueness of Recital.id (Layer 1)
@@ -37,7 +37,7 @@ CREATE CONSTRAINT recital_id_unique IF NOT EXISTS FOR (n:Recital) REQUIRE n.id I
 // Uniqueness of Annex.id (Layer 1)
 CREATE CONSTRAINT annex_id_unique IF NOT EXISTS FOR (n:Annex) REQUIRE n.id IS UNIQUE;
 
-// Uniqueness of AnnexItem.id (Layer 1, populated from Formex in M2)
+// Uniqueness of AnnexItem.id (Layer 1, populated from Formex in MILESTONE2)
 CREATE CONSTRAINT annexitem_id_unique IF NOT EXISTS FOR (n:AnnexItem) REQUIRE n.id IS UNIQUE;
 
 // Uniqueness of UnitVersion.id (Layer 1, the 2024 wording of a changed unit, B132)

@@ -1,4 +1,4 @@
-"""M4 ablation strategies: the six conditions of the Section 12 ladder.
+"""MILESTONE4 ablation strategies: the six conditions of the Section 12 ladder.
 
 @implements: DEC-11
 @grounded_by: REF-15, REF-16, REF-17

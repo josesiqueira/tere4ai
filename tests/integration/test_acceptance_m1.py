@@ -1,4 +1,4 @@
-"""M1 acceptance fixtures (docs/architecture.md Sections 10 and 14).
+"""MILESTONE1 acceptance fixtures (docs/architecture.md Sections 10 and 14).
 
 Covers DEC-01 (deterministic Layer 1) and DEC-02 (rule-based crossrefs)
 against the real frozen snapshot.

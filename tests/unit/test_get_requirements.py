@@ -1,4 +1,4 @@
-"""Unit tests for get_applicable_requirements (M3 deterministic runtime tool).
+"""Unit tests for get_applicable_requirements (MILESTONE3 deterministic runtime tool).
 
 Offline only: runs against the real published Layer 0+1 dump and the judged
 norms build artifact on disk, skipping when either has not been built. No

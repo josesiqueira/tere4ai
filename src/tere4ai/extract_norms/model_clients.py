@@ -1,4 +1,4 @@
-"""Model clients for the M2 norm-extraction pipeline.
+"""Model clients for the MILESTONE2 norm-extraction pipeline.
 
 @implements: DEC-07
 @implements: DEC-24
