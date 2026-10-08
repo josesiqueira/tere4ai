@@ -861,6 +861,130 @@ Article 3, only the Official Journal published in electronic form (hereinafter
 'the electronic edition of the Official Journal') shall be authentic and shall
 produce legal effects." (Article 1(2), printed page L 69/2).
 
+**[ADD-84]** PEER. "LLM Evaluators Recognize and Favor Their Own
+Generations", Panickssery, Bowman, Feng, Advances in Neural Information
+Processing Systems 37 (NeurIPS 2024); the camera-ready PDF carries the
+NeurIPS 2024 footer and no DOI (passes the bar by peer review).
+NEEDS-CHECK 2026-10-08: the proceedings identifier (OpenReview id or
+proceedings DOI) is to be confirmed before the thesis cites it. CORE.
+Grounds: DEC-07's cross-family rule (OpenAI generator, independent
+non-OpenAI judge) and spec F's judge selection: "By fine-tuning LLMs, we
+discover a linear correlation between self-recognition capability and the
+strength of self-preference bias; using controlled experiments, we show
+that the causal explanation resists straightforward confounders" (abstract,
+p. 1), and the authors' reading for model-judged benchmarks, "a model's
+rating can be inflated simply because it is similar to the evaluator model"
+(Section 5.1, p. 8); spec F H2 tests this on the project's data.
+
+**[ADD-85]** PEER. "Justice or Prejudice? Quantifying Biases in
+LLM-as-a-Judge", Ye, Wang, Huang, Chen, Zhang, Moniz, Gao, Geyer, Huang,
+Chen, Chawla, Zhang, The Thirteenth International Conference on Learning
+Representations (ICLR 2025), proceedings PDF ("Published as a conference
+paper at ICLR 2025"); ICLR issues no DOI; also arXiv 2410.02736 (passes the
+bar by peer review). NEEDS-CHECK 2026-10-08: the OpenReview identifier is
+to be confirmed; venue confirmed from the PDF. CORE. Grounds: the bias
+taxonomy ("we identify 12 key potential biases", abstract, p. 1); the
+capability-effect motivation of spec F H1, "weaker LLMs may exhibit greater
+randomness in their judgments, which can undermine the reliability of
+judging results" (Section 3, p. 7); and DEC-07, "a significant
+self-enhancement bias among LLMs ... the importance of using separate
+models for answer generation and evaluation" (Section 4.2, p. 9), with the
+warning to "avoid assuming that the most advanced model will always be the
+most reliable" (Section 4.2, p. 8), the reason spec F D-F1 selects the
+judge by calibration.
+
+**[ADD-86]** PEER. "A survey on LLM-as-a-judge", Gu, Jiang, Shi, Tan, Zhai,
+Xu, Li, Shen, Ma, Liu, Wang, Zhang, Lin, Zhang, Ni, Gao, Wang, Guo, The
+Innovation 7(6):101253, 2026 (published online 2026-01-09), DOI
+10.1016/j.xinn.2025.101253 (open access, CC BY-NC-ND). VERIFIED
+2026-10-08 (DOI and venue from the PDF). CORE. Grounds: the
+calibrate-against-humans framing of spec F: "agreement with human judgments
+... serves as the validation mechanism, quantifying whether LLM evaluations
+align with expert annotations through metrics such as Cohen's κ, Spearman
+correlation, and percentage agreement" (Results and Discussion, p. 14), and
+"the best way to evaluate LLMs is human judgment" (Materials and Methods,
+p. 7); and the coverage evidence behind the "to our knowledge" gap claim
+(spec F Section 10): its legal-domain coverage lists specialised evaluators
+and legal-reasoning benchmarks (Applications, "Law", pp. 21 and 22), no
+calibration of a judge against domain specialists on requirements extracted
+from a regulation.
+
+**[ADD-87]** PEER. "LLM-as-a-Judge for Software Engineering: Literature
+Review, Vision, and the Road Ahead", He, Shi, Zhuo, Treude, Sun, Du, Xing,
+Lo, ACM Transactions on Software Engineering and Methodology 35(9), Article
+266, September 2026, 30 pages, DOI 10.1145/3797276 (CC BY 4.0). VERIFIED
+2026-10-08 (DOI and venue from the PDF). SUPPORTING. Grounds: the
+related-work shelf and gap framing of spec F Section 10 from the software
+engineering side: "LLM-as-a-Judge research in the SE community is still in
+its early stages" (abstract, p. 266:1); the survey "covers four areas:
+requirements engineering, coding assistance, software maintenance, and
+quality assurance" (Section 4, p. 266:6), where the requirements
+engineering studies judge requirements documents, user stories and system
+specifications (Table 2, p. 266:6), a different task from grading
+requirements extracted from a law against domain specialists.
+
+**[ADD-88]** PEER. "A Coefficient of Agreement for Nominal Scales", Cohen,
+Educational and Psychological Measurement 20(1):37-46, 1960, DOI
+10.1177/001316446002000104 (SAGE version of record). VERIFIED 2026-10-08
+(DOI and venue from the PDF's cover sheet). CORE. Grounds: the kappa
+statistic for the categorical HLEG campaign (spec F D-F10's agreement
+measures; ADD-86 names it among the validation metrics): "po = the
+proportion of units in which the judges agreed", pc the proportion expected
+by chance (p. 39), and kappa "is simply the proportion of chance-expected
+disagreements which do not occur, or alternatively, it is the proportion of
+agreement after chance agreement is removed from consideration" (p. 40),
+with the upper limit 1 at perfect agreement (p. 41). The text layer is an
+OCR; the Greek kappa reads "x" or "K" in the sidecar.
+
+**[ADD-89]** PEER. "The Earth Mover's Distance as a Metric for Image
+Retrieval", Rubner, Tomasi, Guibas, International Journal of Computer
+Vision 40(2):99-121, 2000 (Kluwer; the publisher's typeset PDF prints no
+DOI). NEEDS-CHECK 2026-10-08: the DOI is to be confirmed from the
+publisher's page; venue, volume and pages confirmed from the PDF. CORE.
+Grounds: the distribution metric of the rubric campaign (spec F D-F5, earth
+mover's distance only for the ordinal rubric scores, with a permutation
+null): "The transportation problem is to find the minimal cost that must be
+paid to transform one distribution into the other" (Section 1, p. 100),
+"the EMD measures the least amount of work needed to fill the holes with
+earth" with "a unit of work" as "transporting a unit of earth by a unit of
+ground distance" (Section 4, p. 104), and "When used to compare
+distributions with the same overall mass, the EMD is a true metric"
+(abstract, p. 99; proof in Appendix A, p. 120).
+
+**[ADD-90]** STD. JCGM 100:2008, "Evaluation of measurement data: Guide to
+the expression of uncertainty in measurement" (GUM 1995 with minor
+corrections), Joint Committee for Guides in Metrology (BIPM, IEC, IFCC,
+ILAC, ISO, IUPAC, IUPAP, OIML), first edition September 2008, published
+free of charge on the BIPM website. A guide of the standards bodies'
+joint committee, tagged STD as the closest tag (it is not a numbered ISO
+standard; ISO/IEC Guide 98-3 is its ISO issue). VERIFIED 2026-10-08
+(identifier and edition from the PDF). CORE. Grounds: the three-repeats
+measurement protocol and the instrument framing of spec F (D-F4,
+repeatability measured, never assumed): repeatability is the "closeness of
+the agreement between the results of successive measurements of the same
+measurand carried out under the same conditions of measurement" (B.2.15,
+p. 35); random error is the "result of a measurement minus the mean that
+would result from an infinite number of measurements of the same measurand
+carried out under repeatability conditions" (B.2.21, p. 37) and systematic
+error that mean "minus a true value of the measurand" (B.2.22, p. 37);
+random effects "give rise to variations in repeated observations of the
+measurand" (3.2.2, p. 5). The repeat spread of the judge is the
+experimental standard deviation (4.2.2, p. 10, n minus 1).
+
+**[ADD-91]** PRE. "Play Favorites: A Statistical Method to Measure
+Self-Bias in LLM-as-a-Judge", Spiliopoulou, Fogliato, Burnsky, Soliman, Ma,
+Horwood, Ballesteros (Amazon Web Services), arXiv 2508.06709v1 [cs.CL],
+8 August 2025. VERIFIED 2026-10-08 as a preprint (arXiv identifier from
+the PDF); no peer-reviewed version known. SUPPORTING; related work only,
+never sole grounding (Jose's ruling 2026-09-16, refs/triage-judge-calibration/TRIAGE.md).
+Grounds: the statistical measurement of self-bias and family bias with the
+completions' quality held fixed by a third-party reference, related work
+for DEC-07's cross-family rule and spec F H2: "These models also display
+family-bias; systematically assigning higher ratings to outputs produced by
+other models of the same family" (abstract, p. 1); family bias defined as
+"a tendency to favor completions from models within the same family"
+(Section 1, p. 2). The rule's grounding is ADD-84 and ADD-85.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
