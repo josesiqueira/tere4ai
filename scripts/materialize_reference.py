@@ -33,7 +33,7 @@ from tere4ai.review_queue.materialize import (  # noqa: E402
 )
 
 SUFFIX = {"norms": ".reference", "alignments": ".adjudicated"}
-STEP = {"norms": ["L2.4"], "alignments": ["L3.5"]}
+STEP = {"norms": ["LAYER2_STEP4"], "alignments": ["LAYER3_STEP5"]}
 
 
 def _source_build_id(args, store: BuildRecordStore, rid: str | None, pristine_digest: str, base: str | None,

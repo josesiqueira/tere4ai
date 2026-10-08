@@ -33,7 +33,7 @@ def test_list_and_detail_validate_and_carry_liveness_progress_and_target(tmp_pat
     _legacy_dumps(tmp_path)
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core.b74", "build-b", "x")
-    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=["--norms", "n"],
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=["--norms", "n"],
         inputs=[], config={"batch_size": 20}, expected_total=26, work_unit="batches",
         checkpoint_file="alignments_core.b74.checkpoint.jsonl")
     (tmp_path / "alignments_core.b74.checkpoint.jsonl").write_text("".join(
@@ -46,9 +46,9 @@ def test_list_and_detail_validate_and_carry_liveness_progress_and_target(tmp_pat
         assert not list(_validator("builds_list").iter_errors(listed))
         assert listed["publication_target"]["state"] == "available" and listed["observed_at"]
         by = {b["record_id"]: b for b in listed["builds"]}
-        assert by[rid]["steps"]["L3.1"] == "running" and by[rid]["served"] is False and by[rid]["synthesised"] is False
+        assert by[rid]["steps"]["LAYER3_STEP1"] == "running" and by[rid]["served"] is False and by[rid]["synthesised"] is False
         assert by["0000000b0000"]["unreadable"] and by["0000000b0000"]["reason"]
-        assert by["legacy-core"]["synthesised"] and by["legacy-core"]["steps"]["P.1"] == "not_recorded"
+        assert by["legacy-core"]["synthesised"] and by["legacy-core"]["steps"]["PUBLICATION_STEP1"] == "not_recorded"
         detail = client.get("/api/builds/core.b74").json()
         assert not list(_validator("presented_record").iter_errors(detail))
         ex = detail["executions"][0]
@@ -81,7 +81,7 @@ def test_one_unreadable_artefact_or_record_never_fails_the_list(tmp_path):
     (tmp_path / "norms_x.json").mkdir()  # unreadable as a file whatever the user running the suite
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core.b75", "build-b", None)
-    store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
+    store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                           expected_total=1, work_unit="groups", checkpoint_file=None)
     path = tmp_path / "build_records" / f"{rid}.json"
     record = json.loads(path.read_text())
@@ -96,7 +96,7 @@ def test_one_unreadable_artefact_or_record_never_fails_the_list(tmp_path):
         assert by["legacy-x"]["unreadable"] and "norms_x.json" in by["legacy-x"]["reason"]
         assert str(tmp_path) not in by["legacy-x"]["reason"], "the reason names the file, never its path"
         assert by[rid]["unreadable"] and "not a timestamp" in by[rid]["reason"]
-        assert by["legacy-core"]["unreadable"] is False and by["legacy-core"]["steps"]["L2.1"] == "done"
+        assert by["legacy-core"]["unreadable"] is False and by["legacy-core"]["steps"]["LAYER2_STEP1"] == "done"
         assert client.get("/api/builds/legacy-x").status_code == 404
         assert client.get(f"/api/builds/{rid}").status_code == 404
 

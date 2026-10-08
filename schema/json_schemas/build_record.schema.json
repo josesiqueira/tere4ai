@@ -90,21 +90,21 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "L0.1": {"$ref": "#/$defs/stepState"},
-        "L1.1": {"$ref": "#/$defs/stepState"},
-        "L2.1": {"$ref": "#/$defs/stepState"},
-        "L2.2": {"$ref": "#/$defs/stepState"},
-        "L2.3": {"$ref": "#/$defs/stepState"},
-        "L2.4": {"$ref": "#/$defs/stepState"},
-        "L3.1": {"$ref": "#/$defs/stepState"},
-        "L3.2": {"$ref": "#/$defs/stepState"},
-        "L3.3": {"$ref": "#/$defs/stepState"},
-        "L3.4": {"$ref": "#/$defs/stepState"},
-        "L3.5": {"$ref": "#/$defs/stepState"},
-        "P.1": {"$ref": "#/$defs/stepState"},
-        "P.2": {"$ref": "#/$defs/stepState"}
+        "LAYER0_STEP1": {"$ref": "#/$defs/stepState"},
+        "LAYER1_STEP1": {"$ref": "#/$defs/stepState"},
+        "LAYER2_STEP1": {"$ref": "#/$defs/stepState"},
+        "LAYER2_STEP2": {"$ref": "#/$defs/stepState"},
+        "LAYER2_STEP3": {"$ref": "#/$defs/stepState"},
+        "LAYER2_STEP4": {"$ref": "#/$defs/stepState"},
+        "LAYER3_STEP1": {"$ref": "#/$defs/stepState"},
+        "LAYER3_STEP2": {"$ref": "#/$defs/stepState"},
+        "LAYER3_STEP3": {"$ref": "#/$defs/stepState"},
+        "LAYER3_STEP4": {"$ref": "#/$defs/stepState"},
+        "LAYER3_STEP5": {"$ref": "#/$defs/stepState"},
+        "PUBLICATION_STEP1": {"$ref": "#/$defs/stepState"},
+        "PUBLICATION_STEP2": {"$ref": "#/$defs/stepState"}
       },
-      "required": ["L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.3", "L3.4", "L3.5", "P.1", "P.2"]
+      "required": ["LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2", "LAYER2_STEP3", "LAYER2_STEP4", "LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3", "LAYER3_STEP4", "LAYER3_STEP5", "PUBLICATION_STEP1", "PUBLICATION_STEP2"]
     },
     "stepState": {
       "enum": ["done", "inherited", "running", "failed", "not_started", "not_recorded"]
@@ -273,7 +273,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "schema_version": {"const": "build_record.v1"},
+        "schema_version": {"const": "build_record.v2"},
         "record_id": {"type": "string"},
         "aliases": {"type": "array", "items": {"type": "string"}},
         "parent_record_id": {"type": ["string", "null"]},
@@ -292,7 +292,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "schema_version": {"const": "build_record.v1"},
+        "schema_version": {"const": "build_record.v2"},
         "record_id": {"type": "string"},
         "aliases": {"type": "array", "items": {"type": "string"}},
         "parent_record_id": {"type": ["string", "null"]},

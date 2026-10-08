@@ -180,7 +180,7 @@ def _publish_once(tmp_path, monkeypatch, variant: str):
     payload = json.loads(norms.read_text())
     payload["variant"] = variant
     norms.write_text(json.dumps(payload))
-    run = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+    run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done",
                            outputs=[{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}])

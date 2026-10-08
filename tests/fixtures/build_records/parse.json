@@ -6,17 +6,17 @@
  "base_build_id": "build-b",
  "created_at": "2026-09-19T00:00:00+00:00",
  "depends_on_state": {
-  "L2.1": "done",
-  "L2.2": "not_started",
-  "L2.3": "not_started",
-  "L2.4": "not_started",
-  "L3.1": "not_started",
-  "L3.2": "not_started",
-  "L3.3": "not_started",
-  "L3.4": "not_started",
-  "L3.5": "not_started",
-  "P.1": "not_started",
-  "P.2": "not_started"
+  "LAYER2_STEP1": "done",
+  "LAYER2_STEP2": "not_started",
+  "LAYER2_STEP3": "not_started",
+  "LAYER2_STEP4": "not_started",
+  "LAYER3_STEP1": "not_started",
+  "LAYER3_STEP2": "not_started",
+  "LAYER3_STEP3": "not_started",
+  "LAYER3_STEP4": "not_started",
+  "LAYER3_STEP5": "not_started",
+  "PUBLICATION_STEP1": "not_started",
+  "PUBLICATION_STEP2": "not_started"
  },
  "executions": [
   {
@@ -47,8 +47,8 @@
     "review_queue": 1
    },
    "covers_steps": [
-    "L0.1",
-    "L1.1"
+    "LAYER0_STEP1",
+    "LAYER1_STEP1"
    ],
    "ended_at": "2026-09-19T00:00:00+00:00",
    "error": null,
@@ -190,22 +190,22 @@
   "publication": "the record is not published"
  },
  "record_id": "a00000000001",
- "schema_version": "build_record.v1",
+ "schema_version": "build_record.v2",
  "served": false,
  "steps": {
-  "L0.1": "done",
-  "L1.1": "done",
-  "L2.1": "not_started",
-  "L2.2": "not_started",
-  "L2.3": "not_started",
-  "L2.4": "not_started",
-  "L3.1": "not_started",
-  "L3.2": "not_started",
-  "L3.3": "not_started",
-  "L3.4": "not_started",
-  "L3.5": "not_started",
-  "P.1": "not_started",
-  "P.2": "not_started"
+  "LAYER0_STEP1": "done",
+  "LAYER1_STEP1": "done",
+  "LAYER2_STEP1": "not_started",
+  "LAYER2_STEP2": "not_started",
+  "LAYER2_STEP3": "not_started",
+  "LAYER2_STEP4": "not_started",
+  "LAYER3_STEP1": "not_started",
+  "LAYER3_STEP2": "not_started",
+  "LAYER3_STEP3": "not_started",
+  "LAYER3_STEP4": "not_started",
+  "LAYER3_STEP5": "not_started",
+  "PUBLICATION_STEP1": "not_started",
+  "PUBLICATION_STEP2": "not_started"
  },
  "synthesised": false
 }

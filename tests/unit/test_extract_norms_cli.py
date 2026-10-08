@@ -71,7 +71,7 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     # a prior attempt on this record wrote group A under its own run id
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
-    prev = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[],
+    prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
                                  inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
                                  config={"prompt_version": "v4", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
                                  expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
@@ -117,7 +117,7 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     assert rc == 0 and seen and all("run_id" in line for line in seen)
     store = BuildRecordStore(tmp_path)
     ex = store.read(store.resolve("test"))["executions"][0]
-    assert ex["command"] == "extract_norms" and ex["covers_steps"] == ["L2.1", "L2.2"] and ex["status"] == "done"
+    assert ex["command"] == "extract_norms" and ex["covers_steps"] == ["LAYER2_STEP1", "LAYER2_STEP2"] and ex["status"] == "done"
     assert ex["expected_total"] == 2 and ex["work_unit"] == "groups" and ex["checkpoint_file"] == "norms_test.checkpoint.jsonl"
     assert ex["completed_keys"] == ["eu-ai-act:article-9", "eu-ai-act:article-10"] and ex["inherited_keys"] == []
     # B84: the record carries the efforts (models requested, sampling applied), so the assertions are exact dicts now
@@ -303,7 +303,7 @@ def test_extract_never_overwrites_an_artefact_a_published_build_names(tmp_path, 
     before = out.read_bytes()
     store = BuildRecordStore(dumps)
     rid = store.create_record(slug, "build-b", None)
-    run = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+    run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[],
                                 config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
     store.finish_execution(rid, run, status="done", outputs=[{"role": "norms", "file": out.name, "sha256": cli.sha256_of_file(out)}])
     store.set_publication(rid, PUBLISHED)
@@ -383,7 +383,7 @@ def test_a_resume_is_refused_while_the_first_run_of_the_record_is_live(tmp_path,
     _fakes(monkeypatch, cli, calls)
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
-    first = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+    first = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[],
                                   config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
     rc = cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out), "--resume"])
     err = capsys.readouterr().err

@@ -2,7 +2,7 @@
 
 @implements: DEC-01 (partial: the in-force parse)
 @implements: DEC-12, DEC-23
-@implements: DEC-25 (partial: the HLEG checks inside L1.1)
+@implements: DEC-25 (partial: the HLEG checks inside LAYER1_STEP1)
 @grounded_by: REF-01, REF-02, REF-03, REF-04, REF-05
 
 Spec G D-G68: every build is made from Regulation (EU) 2024/1689 as amended

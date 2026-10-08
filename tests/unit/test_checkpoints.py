@@ -62,7 +62,7 @@ def test_unique_results_newest_wins():
 def _record_with_run(tmp_path, config, inputs, run_id_holder):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("t", "b", None)
-    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1"], argv=[], inputs=inputs,
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1"], argv=[], inputs=inputs,
                                 config=config, expected_total=3, work_unit="batches", checkpoint_file="x.checkpoint.jsonl")
     run_id_holder.append(run)
     return store, rid
@@ -136,7 +136,7 @@ def test_prepare_resume_refuses_other_models_or_prompts(tmp_path):
     rid = store.create_record("t", "b", None)
     models = {"generator_model": "g", "judge_model": "j"}
     prompts = {"generator": "1" * 64, "judge": "2" * 64}
-    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1"], argv=[], inputs=[], config={},
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1"], argv=[], inputs=[], config={},
                                 expected_total=1, work_unit="batches", checkpoint_file="x.checkpoint.jsonl",
                                 models=models, prompt_sha256=prompts)
     ck = tmp_path / "x.checkpoint.jsonl"
@@ -174,7 +174,7 @@ def test_prepare_resume_names_a_changed_declaration(tmp_path):
     models = {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh",
               "generator_temperature": "N/A", "judge_temperature": "N/A", "generator_json_mode": "sent",
               "model_parameters_sha256": "1" * 64}
-    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1"], argv=[], inputs=[], config={},
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1"], argv=[], inputs=[], config={},
                                 expected_total=1, work_unit="batches", checkpoint_file="x.checkpoint.jsonl",
                                 models=models, prompt_sha256={})
     ck = tmp_path / "x.checkpoint.jsonl"

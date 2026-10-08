@@ -114,7 +114,7 @@ def test_cli_writes_reference_as_descendant_of_the_published_record(tmp_path):
     pristine.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [dict(NORM)], "judge_runs": []}))
     store = BuildRecordStore(tmp_path)
     src = store.create_record("core", "build-b", None)
-    run = store.start_execution(src, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
+    run = store.start_execution(src, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                 expected_total=1, work_unit="groups", checkpoint_file=None)
     store.finish_execution(src, run, status="done", outputs=[{"role": "norms", "file": "norms_core.json", "sha256": sha256_of_file(pristine)}])
     store.set_publication(src, {"chain_id": "0" * 12, "build_id": "build-b+chain-000000000000", "published_at": "t",
@@ -130,7 +130,7 @@ def test_cli_writes_reference_as_descendant_of_the_published_record(tmp_path):
     child = store.resolve("core.reference")
     assert store.read(child)["parent_record_id"] == src
     ex = store.read(child)["executions"][0]
-    assert ex["command"] == "materialize_reference" and ex["covers_steps"] == ["L2.4"] and ex["status"] == "done"
+    assert ex["command"] == "materialize_reference" and ex["covers_steps"] == ["LAYER2_STEP4"] and ex["status"] == "done"
     assert {i["role"] for i in ex["inputs"]} == {"norms", "decisions", "freeze_manifest"}
     assert ex["outputs"][0] == {"role": "norms_reference", "file": out.name, "sha256": sha256_of_file(out)}
     assert store.find_by_output_digest(sha256_of_file(out)) == child
@@ -291,7 +291,7 @@ def test_cli_materialises_an_alignments_file_under_step_l3_5(tmp_path):
     assert written["assertions"][0]["judge_verdict"] == "rejected"
     store = BuildRecordStore(tmp_path)
     ex = store.read(store.resolve("core.adjudicated"))["executions"][0]
-    assert ex["covers_steps"] == ["L3.5"] and ex["status"] == "done"
+    assert ex["covers_steps"] == ["LAYER3_STEP5"] and ex["status"] == "done"
     assert ex["outputs"] == [{"role": "alignments_reference", "file": out.name, "sha256": sha256_of_file(out)}]
 
 

@@ -43,9 +43,13 @@ NUMBERED_GLOBS = (("build_chain_*.json", re.compile(r"^build_chain_[0-9a-f]{12}$
                   ("publications/*.json", re.compile(r"^[0-9a-f]{12}$")))
 NUMBERING_UNBLOCK = ("repair or move each file aside, or write build_records/numbering.json as "
                      '{"last_number": N} with N at least the highest number those files held')
-SCHEMA_VERSION = "build_record.v1"
+SCHEMA_VERSION = "build_record.v2"
 HEARTBEAT_EXPIRY_SECONDS = 300
-STEP_IDS = ("L0.1", "L1.1", "L2.1", "L2.2", "L2.3", "L2.4", "L3.1", "L3.2", "L3.3", "L3.4", "L3.5", "P.1", "P.2")
+# The step ids in full words (B155): a capital letter and a number meant two
+# things, so each id names its layer or the publication and its step.
+STEP_IDS = ("LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2", "LAYER2_STEP3", "LAYER2_STEP4",
+            "LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3", "LAYER3_STEP4", "LAYER3_STEP5",
+            "PUBLICATION_STEP1", "PUBLICATION_STEP2")
 _REDACT_MARKERS = ("key", "token", "secret", "password", "passwd", "credential", "auth")
 RECORD_FILE_STEM = re.compile(r"^(?:[0-9a-f]{12}|legacy-.+)$")
 _SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "build_record.schema.json"
@@ -244,6 +248,13 @@ class BuildRecordStore:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise RecordError(f"{path.name}: not readable JSON: {exc}") from exc
+        # Checked before the schema, so an old record is named by its version
+        # (B155: the step ids became full words in build_record.v2).
+        version = data.get("schema_version") if isinstance(data, dict) else None
+        if version != SCHEMA_VERSION:
+            raise RecordError(
+                f"build record {path.name} has schema_version {version!r}; this store reads {SCHEMA_VERSION} "
+                "(pre-B74 records are disposable; rewrite them with scripts/rename_build_record_steps.py)")
         errors = sorted(_stored_record_validator().iter_errors(data), key=lambda e: list(e.path))
         if errors:
             first = errors[0]

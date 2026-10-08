@@ -30,7 +30,7 @@ from tere4ai.graph_store.build_record import (
 
 
 def _start(store, rid, **over):
-    kw = dict(command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=["--nodes", "x"], inputs=[],
+    kw = dict(command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=["--nodes", "x"], inputs=[],
               config={"prompt_version": "v1"}, expected_total=3, work_unit="groups", checkpoint_file="norms_t.checkpoint.jsonl")
     kw.update(over)
     return store.start_execution(rid, **kw)
@@ -96,7 +96,7 @@ def test_execution_lifecycle_and_lookups(tmp_path):
 def test_find_parse_record_matches_only_parse_outputs(tmp_path):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("parse-1", None, None)
-    run = _start(store, rid, command="parse_legal_structure", covers_steps=["L0.1", "L1.1"], expected_total=None,
+    run = _start(store, rid, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], expected_total=None,
                  work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done", outputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": "L" * 64}])
     other = store.create_record("x", None, "L" * 64)
@@ -130,7 +130,9 @@ def test_invalid_file_is_reported_not_raised_in_list_and_raised_on_read(tmp_path
     store = BuildRecordStore(tmp_path)
     store.create_record("t", "b", None)
     (tmp_path / "build_records" / "0000000b0000.json").write_text("{not json", encoding="utf-8")
-    (tmp_path / "build_records" / "00000005a0e0.json").write_text(json.dumps({"record_id": "x"}), encoding="utf-8")
+    # the current version, so the schema check (not the version check) names the fault
+    (tmp_path / "build_records" / "00000005a0e0.json").write_text(
+        json.dumps({"schema_version": SCHEMA_VERSION, "record_id": "x"}), encoding="utf-8")
     listed = {r["record_id"]: r for r in store.list_records()}
     assert listed["0000000b0000"]["unreadable"] and "JSON" in listed["0000000b0000"]["reason"]
     assert listed["00000005a0e0"]["unreadable"] and "is a required property" in listed["00000005a0e0"]["reason"]
@@ -341,7 +343,7 @@ def test_publication_is_refused_while_another_execution_is_live(tmp_path):
 def test_the_publishing_execution_itself_never_blocks_its_publication(tmp_path):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core", "b", None)
-    publish = _start(store, rid, command="publish_layer23", covers_steps=["P.1", "P.2"], expected_total=None,
+    publish = _start(store, rid, command="publish_layer23", covers_steps=["PUBLICATION_STEP1", "PUBLICATION_STEP2"], expected_total=None,
                      work_unit=None, checkpoint_file=None)
     store.set_publication(rid, PUB, run_id=publish)
     store.finish_execution(rid, publish, status="done")
@@ -349,10 +351,10 @@ def test_the_publishing_execution_itself_never_blocks_its_publication(tmp_path):
 
 
 def test_a_second_live_publish_blocks_and_may_not_write_after_the_first_published(tmp_path):
-    """Review fix C1: the exemption is the publishing run, not every execution covering P.2."""
+    """Review fix C1: the exemption is the publishing run, not every execution covering PUBLICATION_STEP2."""
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core", "b", None)
-    kw = dict(command="publish_layer23", covers_steps=["P.1", "P.2"], expected_total=None, work_unit=None,
+    kw = dict(command="publish_layer23", covers_steps=["PUBLICATION_STEP1", "PUBLICATION_STEP2"], expected_total=None, work_unit=None,
               checkpoint_file=None)
     first, second = _start(store, rid, **kw), _start(store, rid, **kw)
     assert {ex["run_id"] for ex in store.live_executions(rid)} == {first, second}
@@ -388,7 +390,7 @@ def test_a_beat_right_after_the_publication_write_is_allowed_for_the_publisher(t
     return never reads the record as frozen against its own run."""
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core", "b", None)
-    publish = _start(store, rid, command="publish_layer23", covers_steps=["P.1", "P.2"], expected_total=None,
+    publish = _start(store, rid, command="publish_layer23", covers_steps=["PUBLICATION_STEP1", "PUBLICATION_STEP2"], expected_total=None,
                      work_unit=None, checkpoint_file=None)
     original = store._update
     beats: list[str] = []

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -63,18 +64,18 @@ def test_fixtures_state_the_honesty_rules():
     assert align["status"] == "running" and align["liveness"] == "unknown"
     assert align["progress"]["expected_total"] is None and align["progress"]["completed"] == 15
     assert align["provenance"]["run_id"] == "unavailable" and align["provenance"]["inherited_keys"] == "derived"
-    assert b74["publication"] is None and b74["steps"]["P.1"] == "not_recorded"
+    assert b74["publication"] is None and b74["steps"]["PUBLICATION_STEP1"] == "not_recorded"
     core = json.loads((FIXTURES / "legacy_core.json").read_text())
     assert core["provenance"]["publication"] == "derived" and core["publication"]["published_at"] is None
-    assert core["steps"]["P.1"] == core["steps"]["P.2"] == "not_recorded", "a legacy chain record proves no load"
-    assert "predates the load" in core["reasons"]["P.2"] and "G1 to G6" in core["reasons"]["P.1"]
+    assert core["steps"]["PUBLICATION_STEP1"] == core["steps"]["PUBLICATION_STEP2"] == "not_recorded", "a legacy chain record proves no load"
+    assert "predates the load" in core["reasons"]["PUBLICATION_STEP2"] and "G1 to G6" in core["reasons"]["PUBLICATION_STEP1"]
     mid = json.loads((FIXTURES / "intermediate_build.json").read_text())
     parent = mid["parent_record_id"]
     assert all(mid["steps"][s] == "inherited" and mid["reasons"][s] == f"done in record {parent}"
-               for s in ("L0.1", "L1.1", "L2.1", "L2.2"))
-    assert all(mid["steps"][s] == "done" for s in ("L2.4", "L3.1", "L3.2", "L3.3"))
-    assert mid["steps"]["P.1"] == mid["steps"]["P.2"] == "not_started" and mid["publication"] is None
-    assert mid["depends_on_state"]["P.1"] == "done" and mid["depends_on_state"]["P.2"] == "not_started"
+               for s in ("LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2"))
+    assert all(mid["steps"][s] == "done" for s in ("LAYER2_STEP4", "LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"))
+    assert mid["steps"]["PUBLICATION_STEP1"] == mid["steps"]["PUBLICATION_STEP2"] == "not_started" and mid["publication"] is None
+    assert mid["depends_on_state"]["PUBLICATION_STEP1"] == "done" and mid["depends_on_state"]["PUBLICATION_STEP2"] == "not_started"
     resumed = json.loads((FIXTURES / "resumed_align.json").read_text())
     ex = resumed["executions"][-1]
     assert ex["resumes_run_id"] == "run2prev0000" and ex["inherited_from"] == "run2prev0000"
@@ -246,3 +247,32 @@ def test_records_the_commands_write_match_the_contract(tmp_path, monkeypatch):
     regenerated = next(e for e in parent["executions"] if e["command"] == "extract_norms")
     assert set(extract) == set(regenerated)
     assert set(extract["counts"]) == set(regenerated["counts"])
+
+
+def test_step_ids_are_full_words_and_the_schema_version_is_v2():
+    from tere4ai.graph_store.build_record import SCHEMA_VERSION, STEP_IDS
+    assert SCHEMA_VERSION == "build_record.v2"
+    assert STEP_IDS == ("LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2", "LAYER2_STEP3", "LAYER2_STEP4",
+                        "LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3", "LAYER3_STEP4", "LAYER3_STEP5",
+                        "PUBLICATION_STEP1", "PUBLICATION_STEP2")
+    schema = _schema()
+    assert tuple(schema["$defs"]["step_map"]["required"]) == STEP_IDS
+    assert tuple(schema["$defs"]["step_map"]["properties"]) == STEP_IDS
+    assert not any(re.fullmatch(r"[A-Z]\d(\.\d)?|P\.\d", s) for s in STEP_IDS)
+
+
+def test_a_stored_record_with_the_old_step_keys_is_refused(tmp_path):
+    """A pre-B74 record (disposable) with L0.1 step keys and schema_version build_record.v1 never reads as a record."""
+    from tere4ai.graph_store.build_record import BuildRecordStore, RecordError
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("old.alias", None, "abc")
+    store.start_execution(rid, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"],
+                          argv=[], inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    path = tmp_path / "build_records" / f"{rid}.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["schema_version"] = "build_record.v1"
+    data["executions"][0]["covers_steps"] = ["L0.1", "L1.1"]
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(RecordError) as err:
+        store.read(rid)
+    assert "build_record.v2" in str(err.value)

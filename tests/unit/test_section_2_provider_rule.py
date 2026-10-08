@@ -4,7 +4,7 @@ amended, read from a copy of the tracked layer1.json, then the requirements
 tool and the facade over its output. The brief's acceptance A2 and A3. The
 scripted replies stand for a model that follows v4 on some norms and fails
 it on others; what a real model does under v4 is measured by B74, the
-build record's checks, E1 and L2.3, not here."""
+build record's checks, E1 and LAYER2_STEP3, not here."""
 
 from __future__ import annotations
 

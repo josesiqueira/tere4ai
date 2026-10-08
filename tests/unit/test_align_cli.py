@@ -81,7 +81,7 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
     inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
               {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
               *_hleg_inputs()]
-    prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    prev = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
@@ -114,7 +114,7 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
     assert rc == 0 and batches == [2, 1]
     store = BuildRecordStore(tmp_path)
     ex = store.read(store.resolve("test"))["executions"][0]
-    assert ex["covers_steps"] == ["L3.1", "L3.2", "L3.3"] and ex["expected_total"] == 2 and ex["config"]["batch_size"] == 2
+    assert ex["covers_steps"] == ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"] and ex["expected_total"] == 2 and ex["config"]["batch_size"] == 2
     assert {i["role"] for i in ex["inputs"]} == {"norms", "layer1_dump", "hleg_text", "hleg_derivation_record"} and ex["counts"]["mechanical_rejects_count"] == 0
     assert ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0} and ex["prompt_sha256"]["judge"]
     assert ex["counts"]["norms_total"] == 3 and ex["counts"]["candidates"] is None, "a count the stats lack is null"
@@ -134,7 +134,7 @@ def test_align_over_a_materialised_file_joins_that_files_record(tmp_path, monkey
     _fakes(monkeypatch, cli, [])
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core.reference", "b", None)
-    run = store.start_execution(rid, command="materialize_reference", covers_steps=["L2.4"], argv=[], inputs=[], config={},
+    run = store.start_execution(rid, command="materialize_reference", covers_steps=["LAYER2_STEP4"], argv=[], inputs=[], config={},
                                 expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done",
                            outputs=[{"role": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
@@ -230,7 +230,7 @@ def test_resume_over_a_published_producer_continues_in_the_same_descendant(tmp_p
     _fakes(monkeypatch, cli, batches)
     store = BuildRecordStore(tmp_path)
     producer = store.create_record("test", "b", sha256_of_file(layer1))
-    run = store.start_execution(producer, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[],
+    run = store.start_execution(producer, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[],
                                 config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
     store.finish_execution(producer, run, status="done",
                            outputs=[{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
@@ -268,7 +268,7 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
     inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
               {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
               *_hleg_inputs()]
-    prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    prev = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
                                  work_unit="batches", checkpoint_file="alignments_test.checkpoint.jsonl",
                                  models={"generator_model": "g-old", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
@@ -352,7 +352,7 @@ def test_a_resume_is_refused_while_the_first_align_run_is_live(tmp_path, monkeyp
     _fakes(monkeypatch, cli, batches)
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "b", None)
-    first = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    first = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                   inputs=[], config={}, expected_total=2, work_unit="batches", checkpoint_file=None)
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume"])
     err = capsys.readouterr().err
@@ -509,7 +509,7 @@ def test_a_resume_across_two_hleg_texts_is_refused(tmp_path, monkeypatch, capsys
     other_text = [{**i, "sha256": "0" * 64} if k == changed else i for k, i in enumerate(_hleg_inputs())]
     inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
               {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}, *other_text]
-    prev = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[], inputs=inputs,
+    prev = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[], inputs=inputs,
                                  config={"prompt_version": "v1", "batch_size": 20}, expected_total=1, work_unit="batches",
                                  checkpoint_file="alignments_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh",

@@ -58,7 +58,7 @@ def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None, layer
     alignments.write_text(json.dumps({"build": build, "assertions": [], "mapping_runs": [], "judge_runs": []}))
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core.reference" if reference else "core", "build-b", sha256_of_file(layer1))
-    run = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
+    run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                 expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done", outputs=[{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}])
     return layer1, norms, alignments, store, rid
@@ -113,7 +113,7 @@ def test_chain_record_and_pointer_only_after_postload_gates_pass(tmp_path, monke
     assert not (tmp_path / "publications").exists()
     assert read_target_state(tmp_path)["state"] == "unavailable" and "P1" in read_target_state(tmp_path)["reason"]
     ex = store.read(rid)["executions"][-1]
-    assert ex["status"] == "failed" and "P1" in ex["error"] and ex["covers_steps"] == ["P.1", "P.2"]
+    assert ex["status"] == "failed" and "P1" in ex["error"] and ex["covers_steps"] == ["PUBLICATION_STEP1", "PUBLICATION_STEP2"]
     assert [g["ok"] for g in ex["gates"]] == [True] * 6 + [False, True, True, True, True] and driver.closed
     assert store.read(rid)["publication"] is None
 
@@ -198,7 +198,7 @@ def test_gate_failure_records_per_gate_and_gates_only_covers_p1(tmp_path, monkey
     _fakes(monkeypatch, cli)
     assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--dump-dir", str(tmp_path), "--gates-only"]) == 0
     ex = store.read(rid)["executions"][-1]
-    assert ex["covers_steps"] == ["P.1"] and ex["status"] == "done" and store.read(rid)["publication"] is None
+    assert ex["covers_steps"] == ["PUBLICATION_STEP1"] and ex["status"] == "done" and store.read(rid)["publication"] is None
 
 
 def test_alignment_input_digest_is_mandatory_for_reference_norms_and_checked_always(tmp_path, monkeypatch, capsys):
@@ -423,7 +423,7 @@ def test_publish_refuses_before_any_gate_while_an_execution_of_the_record_is_liv
     """B79 item 15: the refusal comes before the load, never after Neo4j holds the build."""
     cli = _publish()
     layer1, norms, alignments, store, rid = _files(tmp_path)
-    live = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    live = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                  inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     seen: list = []
     _fakes(monkeypatch, cli, seen=seen)
@@ -445,7 +445,7 @@ def test_an_execution_started_during_the_load_leaves_neo4j_unavailable_and_nothi
 
     class StartsAnotherRun(loader):
         def load_dump(self, dump, driver):
-            store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+            store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                   inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
             return super().load_dump(dump, driver)
 
@@ -698,7 +698,7 @@ def test_a_republish_does_not_land_in_a_descendant_holding_a_different_norms_ext
     other_norms = tmp_path / "norms_other.json"
     other_norms.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [{"different": True}]}))
     descendant = store.create_record("core", parent["base_build_id"], parent["layer1_digest"], parent_record_id=rid)
-    run = store.start_execution(descendant, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[],
+    run = store.start_execution(descendant, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
                                 inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(descendant, run, status="done",
                            outputs=[{"role": "norms", "file": other_norms.name, "sha256": sha256_of_file(other_norms)}])
@@ -762,7 +762,7 @@ def _gates_only(tmp_path, monkeypatch, *, layer1_nodes=LISTED, alignments_build=
 
 def test_gates_only_builds_and_checks_the_hleg_nodes_before_it_returns(tmp_path, monkeypatch):
     cli, rc, ex, g2 = _gates_only(tmp_path, monkeypatch)
-    assert rc == 0 and ex["status"] == "done" and ex["covers_steps"] == ["P.1"] and g2["ok"]
+    assert rc == 0 and ex["status"] == "done" and ex["covers_steps"] == ["PUBLICATION_STEP1"] and g2["ok"]
     # review M5: the 7 requirement and 23 subtopic nodes were built and checked before the return
     assert any("hleg_targets_checked=30" in g["detail"] for g in ex["gates"])
 

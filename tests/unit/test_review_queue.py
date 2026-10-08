@@ -400,7 +400,7 @@ def test_materialised_reference_reaches_the_gates(tmp_path, monkeypatch):
 
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core.reference", "b-test", sha256_of_file(dump_path))
-    run = store.start_execution(rid, command="materialize_reference", covers_steps=["L2.4"], argv=[], inputs=[],
+    run = store.start_execution(rid, command="materialize_reference", covers_steps=["LAYER2_STEP4"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done",
                            outputs=[{"role": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
@@ -450,7 +450,7 @@ def test_materialised_reference_reaches_the_gates(tmp_path, monkeypatch):
     assert pristine_norms["norms"][0]["judge_verdict"] == "needs_human_review"
     assert "human_review" not in pristine_norms["norms"][0]
     ex = store.read(rid)["executions"][-1]
-    assert ex["status"] == "done" and ex["covers_steps"] == ["P.1"]
+    assert ex["status"] == "done" and ex["covers_steps"] == ["PUBLICATION_STEP1"]
 
 
 def test_publish_retires_the_decisions_flag(tmp_path, capsys):

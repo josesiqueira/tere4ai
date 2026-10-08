@@ -1,4 +1,4 @@
-"""The parse command writes an execution record covering L0.1 and L1.1 (D-G20)."""
+"""The parse command writes an execution record covering LAYER0_STEP1 and LAYER1_STEP1 (D-G20)."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def test_parse_records_manifest_counts_gates_and_digest(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     record = store.list_records()[0]
     ex = record["executions"][0]
-    assert ex["command"] == "parse_legal_structure" and ex["covers_steps"] == ["L0.1", "L1.1"] and ex["status"] == "done"
+    assert ex["command"] == "parse_legal_structure" and ex["covers_steps"] == ["LAYER0_STEP1", "LAYER1_STEP1"] and ex["status"] == "done"
     assert ex["counts"]["nodes_by_type"] == {"Article": 1, "Recital": 1} and ex["counts"]["review_queue"] == 1
     assert ex["counts"]["manifest_files"] == [{"file": "a0.html", "sha256": "0" * 64}] and ex["counts"]["manifest_files_count"] == 1
     assert [g["name"] for g in ex["gates"]] == ["G1", "G2", "G3", "G4", "G5", "G6"] and all(g["ok"] for g in ex["gates"])
@@ -137,6 +137,6 @@ def test_an_altered_derived_text_stops_the_parse_and_keeps_the_previous_dump(tmp
     assert (dumps / "layer1.json").read_bytes() == previous
     assert not (dumps / "layer1.building.json").exists()
     ex = BuildRecordStore(dumps).list_records()[0]["executions"][0]
-    assert ex["status"] == "failed" and ex["covers_steps"] == ["L0.1", "L1.1"]
+    assert ex["status"] == "failed" and ex["covers_steps"] == ["LAYER0_STEP1", "LAYER1_STEP1"]
     assert ex["error"].startswith("HlegCheckError: C0 failed: C0 hleg_ethics_guidelines_2019_en_requirements.txt differs")
     assert "at byte" in ex["error"]

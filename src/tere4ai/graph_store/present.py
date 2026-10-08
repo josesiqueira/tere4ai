@@ -39,13 +39,16 @@ from tere4ai.graph_store.build_record import (
 from tere4ai.graph_store.checkpoints import progress, read_checkpoint
 from tere4ai.graph_store.publication import manifest_path
 
-DEPENDS_ON = {"L1.1": "L0.1", "L2.1": "L1.1", "L2.2": "L2.1", "L2.3": "L2.2", "L2.4": "L2.3", "L3.1": "L2.2",
-              "L3.2": "L3.1", "L3.3": "L3.2", "L3.4": "L3.3", "L3.5": "L3.4", "P.1": "L3.3", "P.2": "P.1"}
+DEPENDS_ON = {"LAYER1_STEP1": "LAYER0_STEP1", "LAYER2_STEP1": "LAYER1_STEP1", "LAYER2_STEP2": "LAYER2_STEP1",
+              "LAYER2_STEP3": "LAYER2_STEP2", "LAYER2_STEP4": "LAYER2_STEP3", "LAYER3_STEP1": "LAYER2_STEP2",
+              "LAYER3_STEP2": "LAYER3_STEP1", "LAYER3_STEP3": "LAYER3_STEP2", "LAYER3_STEP4": "LAYER3_STEP3",
+              "LAYER3_STEP5": "LAYER3_STEP4", "PUBLICATION_STEP1": "LAYER3_STEP3",
+              "PUBLICATION_STEP2": "PUBLICATION_STEP1"}
 RESULT_KEYS_OF = {"extract_norms": ("norms", "judge_runs", "stats"),
                   "align_hleg": ("assertions", "mapping_runs", "judge_runs", "stats")}
 KEY_FIELD_OF = {"extract_norms": "group", "align_hleg": "batch"}
 MODEL_COMMANDS = ("extract_norms", "align_hleg")
-PARSE_STEPS = ("L0.1", "L1.1")
+PARSE_STEPS = ("LAYER0_STEP1", "LAYER1_STEP1")
 
 NOT_RECORDED = "not recorded by the command"
 NOT_RECORDED_LEGACY = "not recorded before DEC-16"
@@ -91,15 +94,16 @@ def _artefact_problem(execution: dict[str, Any], dump_dir: Path) -> str | None:
 # synthesised from a chain record written before it.
 NO_NUMBER_BEFORE_B94 = "published before build numbers (B94)"
 
-LEGACY_P1_REASON = ("a legacy chain record was written only after G1 to G6 passed; "
-                    "per-gate outcomes were not recorded before DEC-16")
-LEGACY_P2_REASON = ("the chain record predates the load; load and post-load gates "
-                    "were not recorded before DEC-16")
+LEGACY_PUBLICATION_STEP1_REASON = ("a legacy chain record was written only after G1 to G6 passed; "
+                                   "per-gate outcomes were not recorded before DEC-16")
+LEGACY_PUBLICATION_STEP2_REASON = ("the chain record predates the load; load and post-load gates "
+                                   "were not recorded before DEC-16")
 PRODUCED_BEFORE_RECORDS = "produced before DEC-16"
 # Steps a record can share with the records it builds on. Publication is
 # never inherited: a build is published only by its own publish execution.
-SHAREABLE_STEPS = tuple(s for s in STEP_IDS if not s.startswith("P."))
-STEPS_OF_INPUT_ROLE = {"norms": ("L2.1", "L2.2"), "alignments": ("L3.1", "L3.2", "L3.3")}
+SHAREABLE_STEPS = tuple(s for s in STEP_IDS if not s.startswith("PUBLICATION_STEP"))
+STEPS_OF_INPUT_ROLE = {"norms": ("LAYER2_STEP1", "LAYER2_STEP2"),
+                       "alignments": ("LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3")}
 
 
 def _own_states(record: dict[str, Any], dump_dir: Path, verify: bool) -> tuple[dict[str, str], dict[str, str]]:
@@ -250,20 +254,20 @@ def step_states(record: dict[str, Any], store: BuildRecordStore | None, dump_dir
 
     # A legacy chain record was written after the critical gates and BEFORE
     # the load (the defect D-G21 names): it proves neither the per-gate
-    # outcomes nor the load, so both P steps stay not recorded, with why.
+    # outcomes nor the load, so both publication steps stay not recorded, with why.
     if synthesised and record.get("publication") is not None:
-        problems.setdefault("P.1", LEGACY_P1_REASON)
-        problems.setdefault("P.2", LEGACY_P2_REASON)
+        problems.setdefault("PUBLICATION_STEP1", LEGACY_PUBLICATION_STEP1_REASON)
+        problems.setdefault("PUBLICATION_STEP2", LEGACY_PUBLICATION_STEP2_REASON)
     default = _default_state(record)
     for step in STEP_IDS:
         steps.setdefault(step, default)
     ordered = {step: steps[step] for step in STEP_IDS}
 
-    materialised = any(ex.get("command") == "materialize_reference" and "L2.4" in ex.get("covers_steps", [])
+    materialised = any(ex.get("command") == "materialize_reference" and "LAYER2_STEP4" in ex.get("covers_steps", [])
                        for ex in record.get("executions", []))
     depends = dict(DEPENDS_ON)
     if materialised:
-        depends["L3.1"] = "L2.4"
+        depends["LAYER3_STEP1"] = "LAYER2_STEP4"
     depends_on_state = {step: ordered[depends[step]] for step in STEP_IDS
                         if ordered[step] == "not_started" and step in depends}
     if reasons is not None:
@@ -416,7 +420,7 @@ _SEPARATOR_RE = re.compile(r"[\\/]")
 def _file_name_of_path(match: re.Match[str]) -> str:
     """A token that looks like a path, reduced to its last segment: it starts
     with a separator, a drive letter, "~", "./" or "../", or holds two or more
-    separators. Any other token with one separator ("L2.1/L2.2") is kept."""
+    separators. Any other token with one separator ("LAYER2_STEP1/LAYER2_STEP2") is kept."""
     token = match.group(0)
     looks_like_path = (token[0] in "\\/" or re.match(r"[A-Za-z]:[\\/]", token) is not None
                        or token.startswith(("~", "./", ".\\", "../", "..\\"))
@@ -442,7 +446,7 @@ def unreadable(record_id: str, reason: str, aliases: list[str] | None = None) ->
 
 
 _INHERITED_RE = re.compile(r"done in record (\S+)")
-_FREEZE_STEP = {2: "L2.4", 3: "L3.5"}  # manifest refs carry the layer as an integer (schema line 185)
+_FREEZE_STEP = {2: "LAYER2_STEP4", 3: "LAYER3_STEP5"}  # manifest refs carry the layer as an integer (schema line 185)
 
 
 def lineage_of(presented: dict[str, Any]) -> dict[str, Any]:
@@ -473,7 +477,7 @@ def lineage_of(presented: dict[str, Any]) -> dict[str, Any]:
             if ex.get("command") != "materialize_reference" or ex.get("status") != "done":
                 continue
             manifest = next((i for i in ex.get("inputs", []) if i.get("role") == "freeze_manifest"), None)
-            step = next((s for s in ex.get("covers_steps", []) if s in ("L2.4", "L3.5")), None)
+            step = next((s for s in ex.get("covers_steps", []) if s in ("LAYER2_STEP4", "LAYER3_STEP5")), None)
             consumed.append({"campaign_id": None, "freeze_id": None, "campaign_type": None, "stage": None,
                              "layer": None, "step": step, "manifest_sha256": (manifest or {}).get("sha256")})
     return {"inherited_from": inherited, "consumed_freezes": consumed}
@@ -581,7 +585,7 @@ def _sampling_with_effort(build: dict[str, Any], prefix: str) -> dict[str, Any] 
 def _extract_execution(payload: dict[str, Any], name: str, digest: str) -> dict[str, Any]:
     build, stats = _build_block(payload), _stats(payload)
     return _derived_execution(
-        "extract_norms", ["L2.1", "L2.2"],
+        "extract_norms", ["LAYER2_STEP1", "LAYER2_STEP2"],
         models=build.get("extraction_models"), sampling=_sampling_with_effort(build, "extraction"),
         usage=build.get("extraction_usage"),
         prompt_sha256={"generator": None, "judge": _first_judge_prompt(payload)},
@@ -600,7 +604,7 @@ def _align_execution(payload: dict[str, Any], name: str, digest: str) -> dict[st
         rejects = None
     version = build.get("alignment_prompt_version")
     return _derived_execution(
-        "align_hleg", ["L3.1", "L3.2", "L3.3"],
+        "align_hleg", ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"],
         models=build.get("alignment_models"), sampling=_sampling_with_effort(build, "alignment"),
         usage=build.get("alignment_usage"),
         prompt_sha256={"generator": None, "judge": _first_judge_prompt(payload)},
@@ -678,13 +682,13 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
         executions.append(_extract_execution(norms_payload, norms_path.name, norms_digest))
     else:
         problem = "malformed" if isinstance(norms_payload, dict) else "unreadable"
-        for step in ("L2.1", "L2.2"):
+        for step in ("LAYER2_STEP1", "LAYER2_STEP2"):
             reasons[step] = f"artefact {problem}: {norms_path.name}"
 
     align_path = dump_dir / f"alignments_{slug}.json"
     checkpoint_path = dump_dir / f"alignments_{slug}.checkpoint.jsonl"
     has_alignments = align_path.is_file() and align_path.stat().st_size > 0
-    align_steps = ("L3.1", "L3.2", "L3.3")
+    align_steps = ("LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3")
     if has_alignments:
         payload = _read_json_or_none(align_path)
         if isinstance(payload, dict) and isinstance(payload.get("assertions"), list):
@@ -706,7 +710,7 @@ def _synthesise_one(dump_dir: Path, slug: str, norms_path: Path, layer1_path: Pa
                 checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir), work_unit="batches",
                 expected_total=None, inherited_keys=keys, inherited_from="legacy",
             ))
-            reasons["L3.1"] = "legacy checkpoint: results not validated" + (
+            reasons["LAYER3_STEP1"] = "legacy checkpoint: results not validated" + (
                 "; corrupt lines in the middle were skipped" if read.corrupt_middle else "")
     elif align_path.is_file():
         for step in align_steps:

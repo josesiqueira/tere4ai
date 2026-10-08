@@ -26,24 +26,24 @@ def test_steps_prefer_the_newest_execution_and_share_the_parse(tmp_path):
     (tmp_path / "layer1.json").write_text("{}")
     layer1_digest = sha256_of_file(tmp_path / "layer1.json")
     parse = store.create_record("parse-x", None, None)
-    run = store.start_execution(parse, command="parse_legal_structure", covers_steps=["L0.1", "L1.1"], argv=[], inputs=[],
+    run = store.start_execution(parse, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(parse, run, status="done", outputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": layer1_digest}])
     rid = store.create_record("core", "b", layer1_digest)
-    first = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
+    first = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                   expected_total=2, work_unit="groups", checkpoint_file="norms_core.checkpoint.jsonl")
     store.finish_execution(rid, first, status="failed", error="x")
-    second = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
+    second = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                    expected_total=2, work_unit="groups", checkpoint_file="norms_core.checkpoint.jsonl",
                                    resumes_run_id=first, inherited_from=first)
     steps, depends, parse_id = step_states(store.read(rid), store, tmp_path)
-    assert steps["L2.1"] == "running" and steps["L0.1"] == "inherited" and parse_id == parse
-    assert steps["L3.1"] == "not_started"
-    assert depends["L3.1"] == "running"
-    assert "L1.1" not in depends, "a shared parse step is done, not pending"
-    assert steps["P.1"] == "not_started" and depends["P.1"] == "not_started"
+    assert steps["LAYER2_STEP1"] == "running" and steps["LAYER0_STEP1"] == "inherited" and parse_id == parse
+    assert steps["LAYER3_STEP1"] == "not_started"
+    assert depends["LAYER3_STEP1"] == "running"
+    assert "LAYER1_STEP1" not in depends, "a shared parse step is done, not pending"
+    assert steps["PUBLICATION_STEP1"] == "not_started" and depends["PUBLICATION_STEP1"] == "not_started"
     store.finish_execution(rid, second, status="done")
-    assert step_states(store.read(rid), store, tmp_path)[0]["L2.2"] == "done"
+    assert step_states(store.read(rid), store, tmp_path)[0]["LAYER2_STEP2"] == "done"
 
 
 def test_done_needs_the_artefact_with_the_recorded_digest(tmp_path):
@@ -51,24 +51,24 @@ def test_done_needs_the_artefact_with_the_recorded_digest(tmp_path):
     rid = store.create_record("core", "b", None)
     out = tmp_path / "norms_core.json"
     out.write_text("{}")
-    run = store.start_execution(rid, command="extract_norms", covers_steps=["L2.1", "L2.2"], argv=[], inputs=[], config={},
+    run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                 expected_total=1, work_unit="groups", checkpoint_file=None)
     store.finish_execution(rid, run, status="done", outputs=[{"role": "norms", "file": "norms_core.json", "sha256": sha256_of_file(out)}])
     reasons: dict = {}
-    assert step_states(store.read(rid), store, tmp_path, reasons)[0]["L2.2"] == "done" and not reasons
+    assert step_states(store.read(rid), store, tmp_path, reasons)[0]["LAYER2_STEP2"] == "done" and not reasons
     out.write_text('{"edited": true}')
     steps = step_states(store.read(rid), store, tmp_path, reasons)[0]
-    assert steps["L2.1"] == steps["L2.2"] == "failed"
-    assert reasons["L2.2"] == "artefact norms_core.json drifted from the recorded digest"
+    assert steps["LAYER2_STEP1"] == steps["LAYER2_STEP2"] == "failed"
+    assert reasons["LAYER2_STEP2"] == "artefact norms_core.json drifted from the recorded digest"
     out.unlink()
     p = present_record(store.read(rid), tmp_path, NOW, None, store)
-    assert p["steps"]["L2.1"] == "failed" and p["reasons"]["L2.1"] == "artefact norms_core.json missing"
+    assert p["steps"]["LAYER2_STEP1"] == "failed" and p["reasons"]["LAYER2_STEP1"] == "artefact norms_core.json missing"
 
 
 def test_present_marks_recorded_unavailable_and_derived(tmp_path):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core", "b", None)
-    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=["--norms", "n"],
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=["--norms", "n"],
                                 inputs=[], config={"batch_size": 20}, expected_total=26, work_unit="batches",
                                 checkpoint_file="alignments_core.checkpoint.jsonl")
     ck = tmp_path / "alignments_core.checkpoint.jsonl"
@@ -79,10 +79,10 @@ def test_present_marks_recorded_unavailable_and_derived(tmp_path):
     assert ex["provenance"]["argv"] == "recorded" and ex["provenance"]["models"] == "unavailable"
     assert ex["reasons"]["models"] == "not recorded by the command" and ex["provenance"]["progress"] == "derived"
     assert p["provenance"]["steps"] == "derived" and p["provenance"]["layer1_digest"] == "unavailable"
-    assert p["served"] is False and p["synthesised"] is False and p["steps"]["L3.1"] == "running"
+    assert p["served"] is False and p["synthesised"] is False and p["steps"]["LAYER3_STEP1"] == "running"
     assert all(p["reasons"].get(k) for k, v in p["provenance"].items() if v == "unavailable"), "every null carries a reason"
     s = summary_of(p)
-    assert s["record_id"] == rid and s["steps"]["L3.1"] == "running" and s["publication"] is None and s["unreadable"] is False
+    assert s["record_id"] == rid and s["steps"]["LAYER3_STEP1"] == "running" and s["publication"] is None and s["unreadable"] is False
 
 
 def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_path):
@@ -120,16 +120,16 @@ def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_pat
     ex = next(e for e in p["executions"] if e["command"] == "align_hleg")
     assert ex["liveness"] == "unknown" and ex["progress"] == {"completed": 15, "expected_total": None, "work_unit": "batches", "inherited": 15, "source": "checkpoint"}
     assert ex["provenance"]["run_id"] == "unavailable" and ex["reasons"]["run_id"] == "not recorded before DEC-16"
-    assert ex["provenance"]["inherited_keys"] == "derived" and p["steps"]["P.1"] == "not_recorded"
+    assert ex["provenance"]["inherited_keys"] == "derived" and p["steps"]["PUBLICATION_STEP1"] == "not_recorded"
     assert p["provenance"]["publication"] == "unavailable" and "no chain record" in p["reasons"]["publication"]
     pc = present_record(core, tmp_path, NOW, full["chain_id"], None)
     assert pc["served"] is True and pc["provenance"]["publication"] == "derived"
-    assert pc["steps"]["P.2"] == "not_recorded" and pc["steps"]["P.1"] == "not_recorded", "a legacy chain record proves no recorded gate"
-    assert pc["reasons"]["P.1"] == ("a legacy chain record was written only after G1 to G6 passed; "
+    assert pc["steps"]["PUBLICATION_STEP2"] == "not_recorded" and pc["steps"]["PUBLICATION_STEP1"] == "not_recorded", "a legacy chain record proves no recorded gate"
+    assert pc["reasons"]["PUBLICATION_STEP1"] == ("a legacy chain record was written only after G1 to G6 passed; "
                                     "per-gate outcomes were not recorded before DEC-16")
-    assert pc["reasons"]["P.2"] == ("the chain record predates the load; load and post-load gates "
+    assert pc["reasons"]["PUBLICATION_STEP2"] == ("the chain record predates the load; load and post-load gates "
                                     "were not recorded before DEC-16")
-    assert p["steps"]["P.2"] == "not_recorded" and p["steps"]["P.1"] == "not_recorded"
+    assert p["steps"]["PUBLICATION_STEP2"] == "not_recorded" and p["steps"]["PUBLICATION_STEP1"] == "not_recorded"
     assert present_record(core, tmp_path, NOW, "000000000000", None)["served"] is False
 
 
@@ -180,7 +180,7 @@ def test_unreadable_artefact_yields_not_recorded_with_a_reason(tmp_path):
     record = synthesise_legacy_records(tmp_path)[0]
     assert all(e["command"] != "parse_legal_structure" for e in record["executions"])
     p = present_record(record, tmp_path, NOW, None, None)
-    assert p["steps"]["L1.1"] == "not_recorded" and "unreadable" in p["reasons"]["L1.1"]
+    assert p["steps"]["LAYER1_STEP1"] == "not_recorded" and "unreadable" in p["reasons"]["LAYER1_STEP1"]
 
 
 def test_a_stored_alias_suppresses_the_legacy_synthesis(tmp_path):
@@ -209,34 +209,34 @@ def test_lineage_steps_are_inherited_only_while_the_ancestor_artefact_stands(tmp
     store = BuildRecordStore(tmp_path)
     layer1 = _out(tmp_path, "layer1.json", "layer1_dump", "{}")
     parent = store.create_record("core", "b", layer1["sha256"])
-    _done(store, parent, "parse_legal_structure", ["L0.1", "L1.1"], [layer1])
+    _done(store, parent, "parse_legal_structure", ["LAYER0_STEP1", "LAYER1_STEP1"], [layer1])
     norms = _out(tmp_path, "norms_core.json", "norms", '{"norms": []}')
-    _done(store, parent, "extract_norms", ["L2.1", "L2.2"], [norms])
+    _done(store, parent, "extract_norms", ["LAYER2_STEP1", "LAYER2_STEP2"], [norms])
     store.set_publication(parent, PUB)
     child = store.create_record("core.reference", "b", layer1["sha256"], parent_record_id=parent)
     ref = _out(tmp_path, "norms_core.reference.json", "norms_reference", '{"norms": [1]}')
-    _done(store, child, "materialize_reference", ["L2.4"], [ref], inputs=[{**norms, "role": "norms"}])
+    _done(store, child, "materialize_reference", ["LAYER2_STEP4"], [ref], inputs=[{**norms, "role": "norms"}])
     align = _out(tmp_path, "alignments_core.reference.json", "alignments", '{"assertions": []}')
-    _done(store, child, "align_hleg", ["L3.1", "L3.2", "L3.3"], [align], inputs=[{**ref, "role": "norms"}])
+    _done(store, child, "align_hleg", ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], [align], inputs=[{**ref, "role": "norms"}])
 
     reasons: dict = {}
     steps, depends, parse_id = step_states(store.read(child), store, tmp_path, reasons)
-    assert [steps[s] for s in ("L0.1", "L1.1", "L2.1", "L2.2")] == ["inherited"] * 4 and parse_id == parent
-    assert all(reasons[s] == f"done in record {parent}" for s in ("L0.1", "L1.1", "L2.1", "L2.2"))
-    assert steps["L2.4"] == steps["L3.3"] == "done" and steps["L2.3"] == "not_started"
-    assert steps["P.1"] == steps["P.2"] == "not_started", "a publication is never inherited"
-    assert depends["P.1"] == "done" and depends["P.2"] == "not_started" and depends["L2.3"] == "inherited"
+    assert [steps[s] for s in ("LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2")] == ["inherited"] * 4 and parse_id == parent
+    assert all(reasons[s] == f"done in record {parent}" for s in ("LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2"))
+    assert steps["LAYER2_STEP4"] == steps["LAYER3_STEP3"] == "done" and steps["LAYER2_STEP3"] == "not_started"
+    assert steps["PUBLICATION_STEP1"] == steps["PUBLICATION_STEP2"] == "not_started", "a publication is never inherited"
+    assert depends["PUBLICATION_STEP1"] == "done" and depends["PUBLICATION_STEP2"] == "not_started" and depends["LAYER2_STEP3"] == "inherited"
 
     (tmp_path / "norms_core.json").unlink()
     reasons = {}
     steps = step_states(store.read(child), store, tmp_path, reasons)[0]
-    assert steps["L2.1"] == steps["L2.2"] == "failed" and reasons["L2.1"] == "artefact norms_core.json missing"
+    assert steps["LAYER2_STEP1"] == steps["LAYER2_STEP2"] == "failed" and reasons["LAYER2_STEP1"] == "artefact norms_core.json missing"
 
     # parent_record_id alone: a descendant that has done nothing yet
     empty = store.create_record("core.next", "b", layer1["sha256"], parent_record_id=parent)
     reasons = {}
     steps = step_states(store.read(empty), store, tmp_path, reasons)[0]
-    assert steps["L1.1"] == "inherited" and steps["L2.1"] == "failed" and steps["L3.1"] == "not_started"
+    assert steps["LAYER1_STEP1"] == "inherited" and steps["LAYER2_STEP1"] == "failed" and steps["LAYER3_STEP1"] == "not_started"
 
 
 def test_an_input_without_a_producing_record_is_not_recorded(tmp_path):
@@ -244,14 +244,14 @@ def test_an_input_without_a_producing_record_is_not_recorded(tmp_path):
     (tmp_path / "layer1.json").write_text("{}")
     norms = _out(tmp_path, "norms_core.b74.json", "norms", '{"norms": []}')
     rid = store.create_record("core.b74", "b", sha256_of_file(tmp_path / "layer1.json"))
-    run = store.start_execution(rid, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"], argv=[],
+    run = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                 inputs=[norms], config={}, expected_total=26, work_unit="batches", checkpoint_file=None)
     assert run
     reasons: dict = {}
     steps, _, parse_id = step_states(store.read(rid), store, tmp_path, reasons)
-    assert steps["L2.1"] == steps["L2.2"] == steps["L0.1"] == steps["L1.1"] == "not_recorded" and parse_id is None
-    assert reasons["L2.1"] == reasons["L0.1"] == "produced before DEC-16"
-    assert steps["L3.1"] == "running" and steps["L2.3"] == "not_started"
+    assert steps["LAYER2_STEP1"] == steps["LAYER2_STEP2"] == steps["LAYER0_STEP1"] == steps["LAYER1_STEP1"] == "not_recorded" and parse_id is None
+    assert reasons["LAYER2_STEP1"] == reasons["LAYER0_STEP1"] == "produced before DEC-16"
+    assert steps["LAYER3_STEP1"] == "running" and steps["LAYER2_STEP3"] == "not_started"
 
 
 def test_a_malformed_legacy_payload_yields_no_execution_and_a_reason(tmp_path):
@@ -260,20 +260,20 @@ def test_a_malformed_legacy_payload_yields_no_execution_and_a_reason(tmp_path):
     record = synthesise_legacy_records(tmp_path)[0]
     assert record["executions"] == []
     p = present_record(record, tmp_path, NOW, None, None)
-    assert p["steps"]["L2.1"] == p["steps"]["L3.1"] == "not_recorded"
-    assert p["reasons"]["L2.2"] == "artefact malformed: norms_core.json"
-    assert p["reasons"]["L3.3"] == "artefact malformed: alignments_core.json"
+    assert p["steps"]["LAYER2_STEP1"] == p["steps"]["LAYER3_STEP1"] == "not_recorded"
+    assert p["reasons"]["LAYER2_STEP2"] == "artefact malformed: norms_core.json"
+    assert p["reasons"]["LAYER3_STEP3"] == "artefact malformed: alignments_core.json"
 
 
 def test_lineage_of_names_inherited_records_and_consumed_freezes():
     presented = {
         "record_id": "r2", "aliases": [], "base_build_id": "b", "created_at": "t", "synthesised": False,
-        "steps": {"L0.1": "inherited", "L1.1": "inherited", "L2.1": "inherited", "L2.2": "inherited", "L2.3": "done",
-                  "L2.4": "done", "L3.1": "done", "L3.2": "done", "L3.3": "done", "L3.4": "none", "L3.5": "none",
-                  "P.1": "done", "P.2": "done"},
-        "reasons": {"L0.1": "done in record r1", "L1.1": "done in record r1", "L2.1": "done in record r1",
-                    "L2.2": "unexpected wording"},
-        "executions": [{"command": "materialize_reference", "status": "done", "covers_steps": ["L2.4"],
+        "steps": {"LAYER0_STEP1": "inherited", "LAYER1_STEP1": "inherited", "LAYER2_STEP1": "inherited", "LAYER2_STEP2": "inherited", "LAYER2_STEP3": "done",
+                  "LAYER2_STEP4": "done", "LAYER3_STEP1": "done", "LAYER3_STEP2": "done", "LAYER3_STEP3": "done", "LAYER3_STEP4": "none", "LAYER3_STEP5": "none",
+                  "PUBLICATION_STEP1": "done", "PUBLICATION_STEP2": "done"},
+        "reasons": {"LAYER0_STEP1": "done in record r1", "LAYER1_STEP1": "done in record r1", "LAYER2_STEP1": "done in record r1",
+                    "LAYER2_STEP2": "unexpected wording"},
+        "executions": [{"command": "materialize_reference", "status": "done", "covers_steps": ["LAYER2_STEP4"],
                         "inputs": [{"role": "freeze_manifest", "file": "m.json", "sha256": "7" * 64}]}],
         "publication": {"chain_id": "c", "label": None, "published_at": "t",
                         "manifests": [{"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation",
@@ -281,15 +281,15 @@ def test_lineage_of_names_inherited_records_and_consumed_freezes():
         "served": False,
     }
     lineage = lineage_of(presented)
-    assert lineage["inherited_from"] == {"L0.1": "r1", "L1.1": "r1", "L2.1": "r1", "L2.2": None}
+    assert lineage["inherited_from"] == {"LAYER0_STEP1": "r1", "LAYER1_STEP1": "r1", "LAYER2_STEP1": "r1", "LAYER2_STEP2": None}
     assert lineage["consumed_freezes"] == [{"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation",
-                                            "stage": "production", "layer": 2, "step": "L2.4", "manifest_sha256": None}]
+                                            "stage": "production", "layer": 2, "step": "LAYER2_STEP4", "manifest_sha256": None}]
     presented["publication"] = None
     assert lineage_of(presented)["consumed_freezes"] == [{"campaign_id": None, "freeze_id": None, "campaign_type": None,
-                                                          "stage": None, "layer": None, "step": "L2.4",
+                                                          "stage": None, "layer": None, "step": "LAYER2_STEP4",
                                                           "manifest_sha256": "7" * 64}]
     row = summary_of(presented)
-    assert row["lineage"]["inherited_from"]["L0.1"] == "r1"
+    assert row["lineage"]["inherited_from"]["LAYER0_STEP1"] == "r1"
     assert summary_of({"record_id": "x", "unreadable": True, "reason": "r"})["lineage"] is None
 
 
@@ -307,14 +307,17 @@ def test_lineage_of_reads_consumed_freezes_from_a_real_publication(tmp_path):
     presented = present_record(store.read(rid), tmp_path, NOW, None, store)
     assert summary_of(presented)["lineage"]["consumed_freezes"] == [
         {"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation", "stage": "production",
-         "layer": 2, "step": "L2.4", "manifest_sha256": None}]
+         "layer": 2, "step": "LAYER2_STEP4", "manifest_sha256": None}]
 
 
 # ---- B102 task 3 (B79 items 3 and 24)
 
 
 def test_exception_reason_shortens_only_tokens_that_look_like_paths():
-    assert "L2.1/L2.2" in exception_reason(ValueError("L2.1/L2.2 differ"))
+    assert "LAYER2_STEP1/LAYER2_STEP2" in exception_reason(ValueError("LAYER2_STEP1/LAYER2_STEP2 differ"))
+    # B155: the step ids carry no dot now; a pair of them with one separator still reaches the reader whole
+    assert exception_reason(ValueError("LAYER2_STEP1/LAYER2_STEP2 differ")) == (
+        "ValueError: LAYER2_STEP1/LAYER2_STEP2 differ")
     reason = exception_reason(OSError("cannot read /tmp/a/b/norms.json"))
     assert "norms.json" in reason and "/tmp" not in reason
     assert exception_reason(OSError("cannot read C:\\x\\y.json")) == "OSError: cannot read y.json"
@@ -383,14 +386,14 @@ def test_a_materialise_execution_makes_l3_1_wait_on_l2_4(tmp_path):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("core.reference", "b", None)
     ref = _out(tmp_path, "norms_core.reference.json", "norms_reference", '{"norms": []}')
-    run = store.start_execution(rid, command="materialize_reference", covers_steps=["L2.4"], argv=[], inputs=[],
+    run = store.start_execution(rid, command="materialize_reference", covers_steps=["LAYER2_STEP4"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     steps, depends, _ = step_states(store.read(rid), store, tmp_path)
-    assert steps["L2.4"] == "running" and steps["L3.1"] == "not_started"
-    assert depends["L3.1"] == steps["L2.4"] == "running", "L3.1 waits on L2.4, not on L2.2"
+    assert steps["LAYER2_STEP4"] == "running" and steps["LAYER3_STEP1"] == "not_started"
+    assert depends["LAYER3_STEP1"] == steps["LAYER2_STEP4"] == "running", "LAYER3_STEP1 waits on LAYER2_STEP4, not on LAYER2_STEP2"
     store.finish_execution(rid, run, status="done", outputs=[ref])
     steps, depends, _ = step_states(store.read(rid), store, tmp_path)
-    assert depends["L3.1"] == steps["L2.4"] == "done"
+    assert depends["LAYER3_STEP1"] == steps["LAYER2_STEP4"] == "done"
 
 
 def test_a_legacy_checkpoint_with_a_damaged_middle_line_says_so(tmp_path):
@@ -400,5 +403,5 @@ def test_a_legacy_checkpoint_with_a_damaged_middle_line_says_so(tmp_path):
     (tmp_path / "alignments_core.checkpoint.jsonl").write_text("\n".join(lines) + "\n")
     record = synthesise_legacy_records(tmp_path)[0]
     p = present_record(record, tmp_path, NOW, None, None)
-    assert p["steps"]["L3.1"] == "running"
-    assert p["reasons"]["L3.1"].endswith("corrupt lines in the middle were skipped")
+    assert p["steps"]["LAYER3_STEP1"] == "running"
+    assert p["reasons"]["LAYER3_STEP1"].endswith("corrupt lines in the middle were skipped")

@@ -1,6 +1,6 @@
 """Build entry point: python -m tere4ai.extract_norms --nodes eu-ai-act:article-9
 
-@implements: DEC-03, DEC-06 (partial: extraction judge only), DEC-16 (partial: the L2.1 and L2.2 execution record)
+@implements: DEC-03, DEC-06 (partial: extraction judge only), DEC-16 (partial: the LAYER2_STEP1 and LAYER2_STEP2 execution record)
 @implements: DEC-19
 @implements: DEC-21
 @implements: DEC-26
@@ -10,7 +10,7 @@ Runs the judged norm-extraction pipeline over the given Layer 1 node ids
 (article ids expand to their paragraphs and points) and writes
 data/graph_dumps/norms_<slug>.json. Use --dry-run to list the source units
 without calling any model. Every attempt writes an execution record covering
-L2.1 and L2.2 into the build record store (D-G20), with run ids on every
+LAYER2_STEP1 and LAYER2_STEP2 into the build record store (D-G20), with run ids on every
 checkpoint line and a validated resume.
 """
 
@@ -218,7 +218,7 @@ def _main(argv: list[str] | None = None) -> int:
         print(message)
     run_argv = list(sys.argv[1:] if argv is None else argv)
     run_id = store.start_execution(
-        record_id, command="extract_norms", covers_steps=["L2.1", "L2.2"],
+        record_id, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"],
         argv=run_argv, inputs=inputs, config=config,
         expected_total=len(node_ids), work_unit="groups",
         checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),

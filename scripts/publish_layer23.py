@@ -270,7 +270,7 @@ def _main(argv: list[str] | None = None) -> int:
             # A gates-only check of a published record (B97 item 2; the
             # restore runbook runs one) writes nothing into the build, so it
             # records nothing: the frozen record takes no execution (D-G20)
-            # and a descendant holding only a P.1 check would take the alias
+            # and a descendant holding only a PUBLICATION_STEP1 check would take the alias
             # from the published record.
             unrecorded = True
             print(f"record {record_id} is published as {parent['publication']['chain_id']}; checking the gates "
@@ -319,7 +319,7 @@ def _main(argv: list[str] | None = None) -> int:
         inputs.append({"role": "alignments", "file": args.alignments.name, "sha256": sha256_of_file(args.alignments)})
     for m in args.manifest:
         inputs.append({"role": "freeze_manifest", "file": m.name, "sha256": sha256_of_file(m)})
-    steps = ["P.1"] if args.gates_only else ["P.1", "P.2"]
+    steps = ["PUBLICATION_STEP1"] if args.gates_only else ["PUBLICATION_STEP1", "PUBLICATION_STEP2"]
     run_id = None if unrecorded else store.start_execution(
         record_id, command="publish_layer23", covers_steps=steps, argv=raw_argv, inputs=inputs,
         config={"gates_only": args.gates_only}, expected_total=None, work_unit=None, checkpoint_file=None)
@@ -395,7 +395,7 @@ def _main(argv: list[str] | None = None) -> int:
             if assertions is not None:
                 acc_a = sum(1 for a in assertions if a.get("judge_verdict") == "accepted")
                 print(f"assertions: {len(assertions)} total, {acc_a} judge-accepted")
-            # (5) Gates only: step P.1, nothing published.
+            # (5) Gates only: step PUBLICATION_STEP1, nothing published.
             if args.gates_only:
                 finish("done", gates=gates)
                 return 0

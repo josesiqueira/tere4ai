@@ -5,11 +5,11 @@
  "base_build_id": "build-b",
  "created_at": "2026-09-19T00:00:00+00:00",
  "depends_on_state": {
-  "L2.3": "inherited",
-  "L3.4": "done",
-  "L3.5": "not_started",
-  "P.1": "done",
-  "P.2": "not_started"
+  "LAYER2_STEP3": "inherited",
+  "LAYER3_STEP4": "done",
+  "LAYER3_STEP5": "not_started",
+  "PUBLICATION_STEP1": "done",
+  "PUBLICATION_STEP2": "not_started"
  },
  "executions": [
   {
@@ -31,7 +31,7 @@
     "decisions_applied": 1
    },
    "covers_steps": [
-    "L2.4"
+    "LAYER2_STEP4"
    ],
    "ended_at": "2026-09-19T00:00:00+00:00",
    "error": null,
@@ -146,9 +146,9 @@
     "zero_alignment_norms": 0
    },
    "covers_steps": [
-    "L3.1",
-    "L3.2",
-    "L3.3"
+    "LAYER3_STEP1",
+    "LAYER3_STEP2",
+    "LAYER3_STEP3"
    ],
    "ended_at": "2026-09-19T00:00:00+00:00",
    "error": null,
@@ -290,29 +290,29 @@
  },
  "publication": null,
  "reasons": {
-  "L0.1": "done in record a00000000003",
-  "L1.1": "done in record a00000000003",
-  "L2.1": "done in record a00000000003",
-  "L2.2": "done in record a00000000003",
+  "LAYER0_STEP1": "done in record a00000000003",
+  "LAYER1_STEP1": "done in record a00000000003",
+  "LAYER2_STEP1": "done in record a00000000003",
+  "LAYER2_STEP2": "done in record a00000000003",
   "publication": "the record is not published"
  },
  "record_id": "a00000000004",
- "schema_version": "build_record.v1",
+ "schema_version": "build_record.v2",
  "served": false,
  "steps": {
-  "L0.1": "inherited",
-  "L1.1": "inherited",
-  "L2.1": "inherited",
-  "L2.2": "inherited",
-  "L2.3": "not_started",
-  "L2.4": "done",
-  "L3.1": "done",
-  "L3.2": "done",
-  "L3.3": "done",
-  "L3.4": "not_started",
-  "L3.5": "not_started",
-  "P.1": "not_started",
-  "P.2": "not_started"
+  "LAYER0_STEP1": "inherited",
+  "LAYER1_STEP1": "inherited",
+  "LAYER2_STEP1": "inherited",
+  "LAYER2_STEP2": "inherited",
+  "LAYER2_STEP3": "not_started",
+  "LAYER2_STEP4": "done",
+  "LAYER3_STEP1": "done",
+  "LAYER3_STEP2": "done",
+  "LAYER3_STEP3": "done",
+  "LAYER3_STEP4": "not_started",
+  "LAYER3_STEP5": "not_started",
+  "PUBLICATION_STEP1": "not_started",
+  "PUBLICATION_STEP2": "not_started"
  },
  "synthesised": false
 }

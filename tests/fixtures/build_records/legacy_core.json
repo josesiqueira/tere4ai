@@ -22,8 +22,8 @@
     "review_queue": 1
    },
    "covers_steps": [
-    "L0.1",
-    "L1.1"
+    "LAYER0_STEP1",
+    "LAYER1_STEP1"
    ],
    "ended_at": null,
    "error": null,
@@ -125,8 +125,8 @@
     }
    },
    "covers_steps": [
-    "L2.1",
-    "L2.2"
+    "LAYER2_STEP1",
+    "LAYER2_STEP2"
    ],
    "ended_at": null,
    "error": null,
@@ -232,9 +232,9 @@
     }
    },
    "covers_steps": [
-    "L3.1",
-    "L3.2",
-    "L3.3"
+    "LAYER3_STEP1",
+    "LAYER3_STEP2",
+    "LAYER3_STEP3"
    ],
    "ended_at": null,
    "error": null,
@@ -361,8 +361,8 @@
   "published_at": null
  },
  "reasons": {
-  "P.1": "a legacy chain record was written only after G1 to G6 passed; per-gate outcomes were not recorded before DEC-16",
-  "P.2": "the chain record predates the load; load and post-load gates were not recorded before DEC-16",
+  "PUBLICATION_STEP1": "a legacy chain record was written only after G1 to G6 passed; per-gate outcomes were not recorded before DEC-16",
+  "PUBLICATION_STEP2": "the chain record predates the load; load and post-load gates were not recorded before DEC-16",
   "created_at": "not recorded before DEC-16",
   "parent_record_id": "not recorded before DEC-16",
   "parse_record_id": "the record holds its own parse execution",
@@ -373,22 +373,22 @@
   "publication.published_at": "not recorded before DEC-16"
  },
  "record_id": "legacy-core",
- "schema_version": "build_record.v1",
+ "schema_version": "build_record.v2",
  "served": true,
  "steps": {
-  "L0.1": "done",
-  "L1.1": "done",
-  "L2.1": "done",
-  "L2.2": "done",
-  "L2.3": "not_recorded",
-  "L2.4": "not_recorded",
-  "L3.1": "done",
-  "L3.2": "done",
-  "L3.3": "done",
-  "L3.4": "not_recorded",
-  "L3.5": "not_recorded",
-  "P.1": "not_recorded",
-  "P.2": "not_recorded"
+  "LAYER0_STEP1": "done",
+  "LAYER1_STEP1": "done",
+  "LAYER2_STEP1": "done",
+  "LAYER2_STEP2": "done",
+  "LAYER2_STEP3": "not_recorded",
+  "LAYER2_STEP4": "not_recorded",
+  "LAYER3_STEP1": "done",
+  "LAYER3_STEP2": "done",
+  "LAYER3_STEP3": "done",
+  "LAYER3_STEP4": "not_recorded",
+  "LAYER3_STEP5": "not_recorded",
+  "PUBLICATION_STEP1": "not_recorded",
+  "PUBLICATION_STEP2": "not_recorded"
  },
  "synthesised": true
 }

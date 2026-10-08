@@ -58,7 +58,7 @@ def test_each_span_is_the_whole_section_and_1_7_ends_with_it(pair):
 
 
 def test_every_subtopic_heading_and_first_sentence_is_quotable_from_its_parent(pair):
-    """Acceptance 1, first half: L3.2's own check, _quote_found, over every subtopic."""
+    """Acceptance 1, first half: LAYER3_STEP2's own check, _quote_found, over every subtopic."""
     parents = {n["id"]: n["description"] for n in build_hleg_nodes(pair)}
     subtopics = build_hleg_subtopics(pair)["nodes"]
     assert len(subtopics) == 23

@@ -83,7 +83,7 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     layer1 = _write(root / "layer1.json", _layer1(1))
     parse = store.create_record("parse-20260919T000000", None, None)
     run = store.start_execution(
-        parse, command="parse_legal_structure", covers_steps=["L0.1", "L1.1"],
+        parse, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"],
         argv=["--manifest", "manifest.json"],
         inputs=[{"role": "manifest", "file": manifest.name, "sha256": sha256_of_file(manifest)}],
         config={"manifest_files_count": 1}, expected_total=None, work_unit=None, checkpoint_file=None,
@@ -103,7 +103,7 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     inputs = [{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)},
               {"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}]
     rid = store.create_record("align-test", BASE, layer1_digest)
-    common = {"command": "align_hleg", "covers_steps": ["L3.1", "L3.2", "L3.3"], "inputs": inputs,
+    common = {"command": "align_hleg", "covers_steps": ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], "inputs": inputs,
               "config": {"batch_size": 20, "prompt_version": "v1"}, "expected_total": 5, "work_unit": "batches",
               "checkpoint_file": "alignments_align-test.checkpoint.jsonl",
               "models": {"generator_model": "g", "judge_model": "j"},
@@ -195,8 +195,8 @@ def _legacy_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any], str]:
 def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """(e) the intermediate build of D-G27: a published LLM-gated record
     (parse, extract, align, publish with recorded gates), then on its
-    descendant core.reference a materialise execution (L2.4) and an align
-    execution over the reference norms (L3.1 to L3.3). Returns the
+    descendant core.reference a materialise execution (LAYER2_STEP4) and an align
+    execution over the reference norms (LAYER3_STEP1 to LAYER3_STEP3). Returns the
     descendant presented with the published chain served, and both records
     presented for the list under the list's served chain."""
     store = BuildRecordStore(root)
@@ -206,7 +206,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     layer1_input = {"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}
     parent = store.create_record("core", BASE, None)
     run = store.start_execution(
-        parent, command="parse_legal_structure", covers_steps=["L0.1", "L1.1"], argv=["--manifest", "manifest.json"],
+        parent, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], argv=["--manifest", "manifest.json"],
         inputs=[{"role": "manifest", "file": manifest.name, "sha256": sha256_of_file(manifest)}],
         config={"manifest_files_count": 1}, expected_total=None, work_unit=None, checkpoint_file=None,
     )
@@ -225,7 +225,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     norms = _write(root / "norms_core.json", {"build": {"build_id": BASE}, "norms": [], "judge_runs": []})
     norms_input = {"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}
     run = store.start_execution(
-        parent, command="extract_norms", covers_steps=["L2.1", "L2.2"],
+        parent, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"],
         argv=["--nodes", "eu-ai-act:article-1", "--out", "norms_core.json"], inputs=[layer1_input],
         config={"prompt_version": "v1", "nodes": ["eu-ai-act:article-1"]}, expected_total=1, work_unit="groups",
         checkpoint_file="norms_core.checkpoint.jsonl", models=MODELS, prompt_sha256=prompts, sampling=sampling,
@@ -243,7 +243,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
                "point_a_source_outside_section_2": {"count": 0, "norm_ids": []}},
         work_failures={"nodes_failed": 0, "norms_failed": 0},
     )
-    align_common = {"command": "align_hleg", "covers_steps": ["L3.1", "L3.2", "L3.3"],
+    align_common = {"command": "align_hleg", "covers_steps": ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"],
                     "config": {"batch_size": 20, "prompt_version": "v1"}, "expected_total": 1,
                     "work_unit": "batches", "models": MODELS, "prompt_sha256": prompts, "sampling": sampling}
     align_counts = {"norms_total": 1, "norms_skipped_not_accepted": 0, "zero_alignment_norms": 0, "candidates": 1,
@@ -264,7 +264,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
                    "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": gates,
                    "postload_gates": POSTLOAD_GATES, "manifests": [], "build_number": 1}
     run = store.start_execution(
-        parent, command="publish_layer23", covers_steps=["P.1", "P.2"],
+        parent, command="publish_layer23", covers_steps=["PUBLICATION_STEP1", "PUBLICATION_STEP2"],
         argv=["--norms", "norms_core.json", "--alignments", "alignments_core.json"],
         inputs=[layer1_input, norms_input, alignments_input], config={"gates_only": False}, expected_total=None,
         work_unit=None, checkpoint_file=None,
@@ -287,7 +287,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     freeze = _write(root / "freeze-f1.json", {"campaign_type": "layer2_annotation", "freeze_id": "f1"})
     child = store.create_record("core.reference", BASE, layer1_digest, parent_record_id=parent)
     run = store.start_execution(
-        child, command="materialize_reference", covers_steps=["L2.4"],
+        child, command="materialize_reference", covers_steps=["LAYER2_STEP4"],
         argv=["--pristine", "norms_core.json", "--decisions", "decisions.json", "--manifest", "freeze-f1.json"],
         inputs=[norms_input, {"role": "decisions", "file": decisions.name, "sha256": sha256_of_file(decisions)},
                 {"role": "freeze_manifest", "file": freeze.name, "sha256": sha256_of_file(freeze)}],

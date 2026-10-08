@@ -1,6 +1,6 @@
 """Build entry point: python -m tere4ai.align_hleg --norms data/graph_dumps/norms_<slug>.json
 
-@implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the L3.1 to L3.3 execution record)
+@implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the LAYER3_STEP1 to LAYER3_STEP3 execution record)
 @implements: DEC-25
 @grounded_by: REF-24, REF-21, REF-10, REF-16, ADD-20
 
@@ -9,7 +9,7 @@ norms dump, against the seven HLEG requirement nodes, and writes
 data/graph_dumps/alignments_<slug>.json. Norm source text is resolved from
 the layer1 dump via each norm's source_node_id. Use --dry-run to list the
 norms that would be aligned without calling any model. Every attempt writes
-an execution record covering L3.1 to L3.3 into the build record store
+an execution record covering LAYER3_STEP1 to LAYER3_STEP3 into the build record store
 (D-G20), with run ids on every checkpoint line and a validated resume.
 
 The HLEG text and its derivation record it aligns on are inputs of the
@@ -254,7 +254,7 @@ def _main(argv: list[str] | None = None) -> int:
         print(message)
     run_argv = list(sys.argv[1:] if argv is None else argv)
     run_id = store.start_execution(
-        record_id, command="align_hleg", covers_steps=["L3.1", "L3.2", "L3.3"],
+        record_id, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"],
         argv=run_argv, inputs=inputs, config=config,
         expected_total=len(batches), work_unit="batches", checkpoint_file=relative_to_dump_dir(checkpoint_path, dump_dir),
         resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,

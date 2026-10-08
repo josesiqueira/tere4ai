@@ -1,13 +1,13 @@
 """Build entry point: python -m tere4ai.parse_legal_structure
 
-@implements: DEC-01, DEC-16 (partial: the L0.1 and L1.1 execution record)
+@implements: DEC-01, DEC-16 (partial: the LAYER0_STEP1 and LAYER1_STEP1 execution record)
 @grounded_by: REF-27, REF-08, ADD-20
 
 Builds the merged Layer 0 + Layer 1 dump from the frozen snapshot, runs the
 deterministic cross-reference rule pass (DEC-02), validates the result against
 the Section 13 critical gates, and publishes data/graph_dumps/layer1.json only
 when every gate passes. Every attempt writes an execution record covering
-L0.1 (the manifest check) and L1.1 (the parse) into the build record store
+LAYER0_STEP1 (the manifest check) and LAYER1_STEP1 (the parse) into the build record store
 (D-G20), with one outcome per gate.
 """
 
@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     record_id = store.create_record(f"parse-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}", None, None)
     run_id = store.start_execution(
-        record_id, command="parse_legal_structure", covers_steps=["L0.1", "L1.1"], argv=raw_argv, inputs=inputs,
+        record_id, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], argv=raw_argv, inputs=inputs,
         config={"manifest_files_count": len(manifest_files)}, expected_total=None, work_unit=None,
         checkpoint_file=None,
     )
