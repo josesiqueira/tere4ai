@@ -700,8 +700,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
     @app.get("/api/schema/system_features")
     def features_schema(request: Request) -> JSONResponse:
         # The dashboard validates project features against THIS document
-        # (spec A8): serving it, rather than letting consumers vendor a
-        # copy, is what keeps both sides of the wire on one contract.
+        # (spec B revision A8): serving it, rather than letting consumers
+        # vendor a copy, is what keeps both sides of the wire on one contract.
         schema = request.app.state.features_schema
         if schema is None:
             return JSONResponse(
