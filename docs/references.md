@@ -411,6 +411,7 @@ Engineering: A Systematic Classification and Analysis", M. Mahmudul Hasan
 paywall, no preprint; see thesis refs/paywalled.md); every field [VERIFY]
 until the PDF is obtained. SUPPORTING. Grounds: systematic classification of
 regulatory-compliance approaches in RE.
+DROPPED 2026-10-08 (Jose: a 2016 review of the field's approaches is out of date; "of course it has changed, so this is not good reference"); never obtained, cited nowhere in the thesis records; the current survey of the same ground is ADD-29 (Kosenkov et al., IST 2025). Do not cite, do not acquire.
 
 **[ADD-34]** PEER. "Assessing the Accuracy of Legal Implementation Readiness
 Decisions", Massey, Smith, Otto, Anton, IEEE RE 2011, pp. 207-216, DOI
@@ -1004,3 +1005,5 @@ reintroduced.
 - REF-28 (LexRel, Chinese civil-case legal relation extraction,
   arXiv:2512.12643): out of scope for actor and object canonicalisation; DEC-04
   now grounds on REF-11 and REF-12.
+
+- ADD-33 (Hasan 2016, IJSSOE systematic classification of regulatory-compliance approaches): dropped 2026-10-08 by Jose as out of date and never obtained; ADD-29 (Kosenkov et al. 2025) covers the ground.
