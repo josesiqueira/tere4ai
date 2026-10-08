@@ -145,6 +145,7 @@ IntelliSys 2022 (Springer), DOI 10.1007/978-3-031-16072-1_4. VERIFIED.
 SUPPORTING. Grounds: machine classification of deontic sentences (obligation,
 prohibition, permission); the deontic strand of the norm schema. Confirm the
 exact printed title against the DOI landing page.
+NOT PURSUED 2026-10-08 (Jose): no full text is available through TUNI (Andor); the chapter has 3 citations and passes the bar by peer review (Springer IntelliSys 2022, title as the landing page prints it: "Deontic Sentence Classification Using Tree Kernel Classifiers"); it is cited in no thesis record and stays NOT HELD. If a later chapter wants a deontic classification source, it is cited only after the PDF is obtained.
 
 **[REF-15]** PRE. "AI Act Evaluation Benchmark: An Open, Transparent, and
 Reproducible Evaluation Dataset for NLP and RAG Systems", Davvetas et al.,
