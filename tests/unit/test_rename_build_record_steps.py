@@ -44,8 +44,20 @@ def test_rewrites_keys_and_version_once_and_the_record_reads_again(tmp_path):
     out = _run(tmp_path / "build_records")
     assert out.returncode == 0 and f"{rid}.json" in out.stdout
     data = json.loads(path.read_text(encoding="utf-8"))
+    assert path.read_text(encoding="utf-8") == json.dumps(data, ensure_ascii=False, indent=1) + "\n"
     covered = data["executions"][0]["covers_steps"]
     assert data["schema_version"] == "build_record.v2" and covered == list(STEP_IDS) and "L0.1" not in covered
     assert store.read(rid)["record_id"] == rid
     again = _run(tmp_path / "build_records")
     assert again.returncode == 0 and f"{rid}.json" not in again.stdout
+
+
+def test_a_file_that_is_not_json_is_reported_and_skipped_and_the_run_exits_1(tmp_path):
+    store, rid, path = _old_shape(tmp_path)
+    bad = tmp_path / "build_records" / "tmp123.json"
+    bad.write_text("{", encoding="utf-8")
+    out = _run(tmp_path / "build_records")
+    assert out.returncode == 1 and f"{rid}.json" in out.stdout
+    assert "skipped tmp123.json:" in out.stderr and "Traceback" not in out.stderr
+    assert json.loads(path.read_text(encoding="utf-8"))["schema_version"] == "build_record.v2"
+    assert store.read(rid)["record_id"] == rid and bad.read_text(encoding="utf-8") == "{"

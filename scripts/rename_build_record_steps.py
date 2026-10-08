@@ -35,15 +35,23 @@ def rename(value):
 
 def main(argv: list[str]) -> int:
     root = Path(argv[0])
+    skipped = 0
     for path in sorted(root.rglob("*.json")):
-        data = json.loads(path.read_text(encoding="utf-8"))
+        # A file that is not readable JSON (a tmp*.json left by a crash, a
+        # corrupt file) is reported and skipped; the run goes on and exits 1.
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"skipped {path.name}: {exc}", file=sys.stderr)
+            skipped += 1
+            continue
         after = rename(data)
         if isinstance(after, dict) and after.get("schema_version") == "build_record.v1":
             after["schema_version"] = SCHEMA_VERSION
         if after != data:
             atomic_write_json(path, after)
             print(path.name)
-    return 0
+    return 1 if skipped else 0
 
 
 if __name__ == "__main__":
