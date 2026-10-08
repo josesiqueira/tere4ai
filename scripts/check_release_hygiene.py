@@ -5,11 +5,11 @@
 @grounded_by: REF-27
 
 Checks (stdlib only, exit 1 on failure):
-  H1 CHANGELOG.md exists and has at least one "## [<version>]" entry.
-  H2 The newest CHANGELOG entry names a version that has a matching git tag
+  RELEASE_CHECK1 CHANGELOG.md exists and has at least one "## [<version>]" entry.
+  RELEASE_CHECK2 The newest CHANGELOG entry names a version that has a matching git tag
      when tags are available (skipped with a notice in tag-less checkouts,
      e.g. shallow CI clones).
-  H3 License readiness: while OPEN-LICENSE (architecture.md Section 15) is
+  RELEASE_CHECK3 License readiness: while OPEN-LICENSE (architecture.md Section 15) is
      unresolved, a missing LICENSE file is reported as a NOTICE, never a
      failure. Once a LICENSE file lands, it must be non-empty and every
      release after it must keep it; per-file headers stay out of scope until
@@ -53,33 +53,33 @@ def main() -> int:
 
     changelog = ROOT / "CHANGELOG.md"
     if not changelog.is_file():
-        failures.append("H1 CHANGELOG.md is missing")
+        failures.append("RELEASE_CHECK1 CHANGELOG.md is missing")
         version = None
     else:
         version = newest_changelog_version(changelog.read_text(encoding="utf-8"))
         if version is None:
-            failures.append("H1 CHANGELOG.md has no '## [<version>]' entry")
+            failures.append("RELEASE_CHECK1 CHANGELOG.md has no '## [<version>]' entry")
 
     if version:
         tags = git_tags(ROOT)
         if version.lower() == "unreleased":
             # Keep a Changelog convention: [Unreleased] collects work ahead
-            # of the next tag and never has one; H2 applies to the first
+            # of the next tag and never has one; RELEASE_CHECK2 applies to the first
             # TAGGED entry below it instead.
             versions = all_changelog_versions(changelog.read_text(encoding="utf-8"))
             tagged = [v for v in versions if v.lower() != "unreleased"]
             version = tagged[0] if tagged else version
         if version.lower() == "unreleased":
-            notices.append("H2 skipped: only an [Unreleased] entry exists, no tagged release yet")
+            notices.append("RELEASE_CHECK2 skipped: only an [Unreleased] entry exists, no tagged release yet")
             tags = None
         if tags is None or not tags:
             notices.append(
-                "H2 skipped: no git tags visible in this checkout "
+                "RELEASE_CHECK2 skipped: no git tags visible in this checkout "
                 "(shallow clone or archive)"
             )
         elif f"v{version}" not in tags and version not in tags:
             failures.append(
-                f"H2 newest CHANGELOG entry [{version}] has no matching git tag "
+                f"RELEASE_CHECK2 newest CHANGELOG entry [{version}] has no matching git tag "
                 f"(tags: {', '.join(sorted(tags))})"
             )
 
@@ -88,11 +88,11 @@ def main() -> int:
     )
     if license_file is None:
         notices.append(
-            "H3 notice: no LICENSE file yet (OPEN-LICENSE unresolved, "
+            "RELEASE_CHECK3 notice: no LICENSE file yet (OPEN-LICENSE unresolved, "
             "architecture.md Section 15); decide before public release"
         )
     elif not license_file.read_text(encoding="utf-8").strip():
-        failures.append(f"H3 {license_file.name} exists but is empty")
+        failures.append(f"RELEASE_CHECK3 {license_file.name} exists but is empty")
 
     for notice in notices:
         print(notice)

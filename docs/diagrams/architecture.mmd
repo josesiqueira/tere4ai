@@ -38,7 +38,7 @@ subgraph EVALUATE["EVALUATE (measuring the tool; views designed, not built; sepa
   direction LR
   GRADE["Specialist grading<br/>dashboard campaigns, personal links;<br/>HLEG alignments: correct / incorrect / cannot decide;<br/>tailored requirements: 1 to 5 rubric;<br/>Layer 2 blind subset for recall (designed)"]
   CALIB["Judge calibration (B68)<br/>eight candidate models grade the same items;<br/>EMD with permutation null, weighted kappa,<br/>inter-specialist ceiling; Python cross-check;<br/>code shipped 2026-09-16, first run pending"]
-  ERR["Judge error rates (H1)<br/>50 blind-labelled judge decisions;<br/>false accept, false reject;<br/>sheet drawn, labels pending"]
+  ERR["Judge error rates (OWNER_TASK1)<br/>50 blind-labelled judge decisions;<br/>false accept, false reject;<br/>sheet drawn, labels pending"]
   BENCH["Benchmark and ablations<br/>REF-15 AI Act Evaluation Benchmark;<br/>ladder: plain LLM, RAG, graph,<br/>graph + build judge, graph + runtime judge; run 2026-07"]
 end
 

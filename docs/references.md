@@ -647,14 +647,14 @@ Crossref, 2026-10-02). VERIFIED 2026-10-02. CORE. Grounds: training directly
 with soft labels beat aggregated or gold labels on substantial datasets with
 many high-quality judgments (p. 1385), the reason the full distribution of
 Layer 3 verdicts is kept beside the adjudicated reference (spec G Section 6,
-L3-3).
+LAYER3_DECISION3).
 
 **[ADD-64]** PEER. "Anchoring and Agreement in Syntactic Annotations",
 Berzak, Huang, Barbu, Korhonen, Katz, Proceedings of EMNLP 2016, pp.
 2215-2224, DOI 10.18653/v1/D16-1239. VERIFIED 2026-10-02. CORE. Grounds: a
 "clear anchoring effect" when annotators edit parser output, with
 "overestimation of parsing performance" (p. 2215), the reason for the blind
-subset (spec G Section 6 step 3, L3-4).
+subset (spec G Section 6 step 3, LAYER3_DECISION4).
 
 **[ADD-65]** PEER. "Influence of Pre-Annotation on POS-Tagged Corpus
 Development", Fort, Sagot, Proceedings of the Fourth Linguistic Annotation
@@ -885,7 +885,7 @@ strength of self-preference bias; using controlled experiments, we show
 that the causal explanation resists straightforward confounders" (abstract,
 p. 1), and the authors' reading for model-judged benchmarks, "a model's
 rating can be inflated simply because it is similar to the evaluator model"
-(Section 5.1, p. 8); spec F H2 tests this on the project's data.
+(Section 5.1, p. 8); spec F HYPOTHESIS2 tests this on the project's data.
 
 **[ADD-85]** PEER. "Justice or Prejudice? Quantifying Biases in
 LLM-as-a-Judge", Ye, Wang, Huang, Chen, Zhang, Moniz, Gao, Geyer, Huang,
@@ -895,7 +895,7 @@ paper at ICLR 2025"); ICLR issues no DOI; also arXiv 2410.02736 (passes the
 bar by peer review). NEEDS-CHECK 2026-10-08: the OpenReview identifier is
 to be confirmed; venue confirmed from the PDF. CORE. Grounds: the bias
 taxonomy ("we identify 12 key potential biases", abstract, p. 1); the
-capability-effect motivation of spec F H1, "weaker LLMs may exhibit greater
+capability-effect motivation of spec F HYPOTHESIS1, "weaker LLMs may exhibit greater
 randomness in their judgments, which can undermine the reliability of
 judging results" (Section 3, p. 7); and DEC-07, "a significant
 self-enhancement bias among LLMs ... the importance of using separate
@@ -990,7 +990,7 @@ the PDF); no peer-reviewed version known. SUPPORTING; related work only,
 never sole grounding (Jose's ruling 2026-09-16, refs/triage-judge-calibration/TRIAGE.md).
 Grounds: the statistical measurement of self-bias and family bias with the
 completions' quality held fixed by a third-party reference, related work
-for DEC-07's cross-family rule and spec F H2: "These models also display
+for DEC-07's cross-family rule and spec F HYPOTHESIS2: "These models also display
 family-bias; systematically assigning higher ratings to outputs produced by
 other models of the same family" (abstract, p. 1); family bias defined as
 "a tendency to favor completions from models within the same family"

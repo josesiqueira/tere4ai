@@ -308,7 +308,7 @@ def build() -> str:
     eval_h = 150
     eboxes = [
         ("Benchmark and ablations", ["REF-15 AI Act Evaluation Benchmark;", "ladder: plain LLM, RAG, graph,", "graph + build judge,", "graph + runtime judge; run 2026-07"], "#9aa4ad", "#141920"),
-        ("Judge error rates (H1)", ["50 blind-labelled judge decisions;", "false accept, false reject;", "sheet drawn, labels pending"], "#a371f7", "#191426"),
+        ("Judge error rates (OWNER_TASK1)", ["50 blind-labelled judge decisions;", "false accept, false reject;", "sheet drawn, labels pending"], "#a371f7", "#191426"),
         ("Judge calibration (B68)", ["eight candidate models grade the same", "items; EMD with permutation null,", "weighted kappa, inter-specialist", "ceiling; Python cross-check;", "code shipped 2026-09-16, first run pending"], "#a371f7", "#191426"),
         ("Specialist grading", ["dashboard campaigns, personal links;", "HLEG alignments: correct / incorrect /", "cannot decide; tailored requirements:", "1 to 5 rubric; Layer 2 blind subset", "for recall (designed)"], "#d2649a", "#231018"),
     ]

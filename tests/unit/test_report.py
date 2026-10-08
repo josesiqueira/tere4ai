@@ -227,7 +227,7 @@ def test_duplicate_classify_last_wins_with_call_history(tmp_path: Path) -> None:
     assert "call-history" in classification
     assert "seq 1" in classification
     assert "re-classified: inputs changed" in classification
-    # Last call wins the H1 identity too.
+    # Last call wins the project identity too.
     assert "ShopBot rev2" in html
 
 
