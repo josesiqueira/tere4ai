@@ -5,6 +5,8 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+- B155: the build record's step ids are written in full words (LAYER0_STEP1 to LAYER3_STEP5, PUBLICATION_STEP1 and PUBLICATION_STEP2; before: L0.1 to L3.5, P.1 and P.2) and the schema version is build_record.v2; the stored pre-B74 records (untracked local state) are rewritten once by scripts/rename_build_record_steps.py; the release hygiene checks are RELEASE_CHECK1 to RELEASE_CHECK3 (before: H1 to H3). Past entries of this file keep the old ids.
+
 ### B144: a requirement of Articles 8 to 15 whose text names no person who must act is the provider's, through Article 16(a) (2026-10-07)
 - Prompts extract_norms v4 and judge_norms v4, the default and the version
   of record (eval/config_evaluated.yaml): such a requirement, whatever its

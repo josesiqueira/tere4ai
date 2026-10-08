@@ -1565,7 +1565,8 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   model call; after B74, every alignment made and graded again.
   verify: src/tere4ai/ingest/hleg_text.py and hleg_checks.py (the
   derivation, its record and the checks); parse_legal_structure/
-  consolidated.py (the checks inside L1.1, the build block's hleg entry);
+  consolidated.py (the checks inside LAYER1_STEP1, the build block's
+  hleg entry);
   ingest/sources.py (the SourceDocument, the table, DERIVED_FROM);
   validate_graph/postload.py (P5) and gates.py (hleg_failures);
   align_hleg/hleg_source.py, hleg_nodes.py, hleg_subtopics.py and
@@ -1641,7 +1642,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   REF-11 (Section 3.3, p. 4) reads the addressee of Article 14's "the
   oversight measures shall be commensurate with the risks" as the
   deployer. The reading is recorded on every norm with its source,
-  checked by the judge and open to the annotators of L2.3 (the
+  checked by the judge and open to the annotators of LAYER2_STEP3 (the
   dashboard's annotation guideline v3).
   Defense: who must act decides who is told; the Act makes the provider
   answer for every Section 2 requirement whatever the sentence's
@@ -1650,7 +1651,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Cost if wrong: before B74, two prompt versions, a judge input, two
   counts and a guideline version to redo, with no model call; after B74,
   a Section 2 norm the Act gives to someone else without naming them is
-  served to the provider until L2.3 corrects it.
+  served to the provider until LAYER2_STEP3 corrects it.
   verify: prompts/extract_norms/v4.md and prompts/judge_norms/v4.md;
   src/tere4ai/extract_norms/pipeline.py (DEFAULT_PROMPT_VERSION,
   judge_inference_block), actor_audit.py and __main__.py;
