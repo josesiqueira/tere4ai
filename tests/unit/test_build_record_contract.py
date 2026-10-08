@@ -262,7 +262,7 @@ def test_step_ids_are_full_words_and_the_schema_version_is_v2():
 
 
 def test_a_stored_record_with_the_old_step_keys_is_refused(tmp_path):
-    """A pre-B74 record (disposable) with L0.1 step keys and schema_version build_record.v1 never reads as a record."""
+    """A pre-B74 record (disposable) with old step names in covers_steps and schema_version build_record.v1 never reads as a record."""
     from tere4ai.graph_store.build_record import BuildRecordStore, RecordError
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("old.alias", None, "abc")
@@ -289,3 +289,18 @@ def test_an_old_step_name_in_covers_steps_fails_the_stored_record_schema(tmp_pat
     assert not list(validator.iter_errors(data))
     data["executions"][0]["covers_steps"] = ["L2.1"]
     assert [list(e.path) for e in validator.iter_errors(data)] == [["executions", 0, "covers_steps", 0]]
+
+
+def test_a_start_naming_an_old_step_is_refused_and_the_record_still_reads(tmp_path):
+    from tere4ai.graph_store.build_record import RecordError
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("start.alias", None, "abc")
+    first = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1"], argv=[],
+                                  inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    with pytest.raises(RecordError) as err:
+        store.start_execution(rid, command="extract_norms", covers_steps=["L2.1"], argv=[],
+                              inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    assert "'L2.1'" in str(err.value) and rid in str(err.value)
+    record = store.read(rid)
+    assert [ex["run_id"] for ex in record["executions"]] == [first]
+    assert record["executions"][0]["covers_steps"] == ["LAYER2_STEP1"]

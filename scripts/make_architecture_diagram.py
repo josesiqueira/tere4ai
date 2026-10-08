@@ -43,7 +43,7 @@ MUTED = "#9aa4ad"
 FAINT = "#6e7681"
 ARROW = "#8b98a5"
 
-DIAGRAM_DATE = "2026-09-17"
+DIAGRAM_DATE = "2026-10-08"
 OUT_PATH = (
     Path(__file__).resolve().parents[1]
     / f"tere4ai_v2_architecture_{DIAGRAM_DATE}.svg"
@@ -356,7 +356,7 @@ def build() -> str:
     text(W / 2, 2076,
          "Spec: docs/architecture.md; references: docs/references.md; visual system: "
          "DESIGN.md; agent rules: AGENTS.md. Regenerate: scripts/make_architecture_diagram.py. "
-         f"Diagram date {DIAGRAM_DATE}; the 2026-07-19 version is kept beside it.",
+         f"Diagram date {DIAGRAM_DATE}; the 2026-07-19 and 2026-09-17 versions are kept beside it.",
          size=12, fill=FAINT, style="italic")
     text(W / 2, 2096,
          "Items marked designed are intent as of the diagram date, not shipped code; "

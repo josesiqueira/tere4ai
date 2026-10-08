@@ -437,6 +437,12 @@ class BuildRecordStore:
                         work_unit: str | None, checkpoint_file: str | None, resumes_run_id: str | None = None,
                         inherited_keys: list[str] | None = None, inherited_from: str | None = None,
                         models=None, prompt_sha256=None, sampling=None) -> str:
+        unknown = [step for step in covers_steps if step not in STEP_IDS]
+        if unknown:
+            raise RecordError(
+                f"record {record_id}: covers_steps names {', '.join(repr(s) for s in unknown)}, "
+                f"which is not a build step id (known: {', '.join(STEP_IDS)})"
+            )
         run_id = _new_id()
 
         def mutate(record):

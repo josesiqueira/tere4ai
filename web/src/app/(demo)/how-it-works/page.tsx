@@ -68,7 +68,7 @@ export default function HowItWorksPage() {
             Architecture
           </h2>
           <img
-            src="/tere4ai_v2_architecture_2026-09-17.svg"
+            src="/tere4ai_v2_architecture_2026-10-08.svg"
             alt="TERE4AI v2 architecture: frozen sources, deterministic parser, knowledge graph, judged pipelines, MCP server and facade"
             className="w-full rounded-lg border bg-card p-2"
           />
