@@ -121,3 +121,16 @@ def test_the_script_finds_the_package_without_an_installed_copy(tmp_path):
     )
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
     assert out.returncode == 0 and f"{rid}.json" in out.stdout, out.stderr
+
+
+def test_gate_names_are_rewritten_in_gates_and_postload_gates(tmp_path):
+    rec = {"schema_version": "build_record.v2", "record_id": "x", "executions": [{
+        "gates": [{"name": "G1", "ok": True, "detail": "article count matches"},
+                  {"name": "G3", "ok": False, "detail": "G3 norm without source span: n1; G3 norm without source span: n2"}],
+        "postload_gates": [{"name": "P5", "ok": True, "detail": "db_norms=0"}]}]}
+    (tmp_path / "x.json").write_text(json.dumps(rec), encoding="utf-8")
+    assert _run(tmp_path).returncode == 0  # the file's own subprocess runner (scripts/ is not a package)
+    out = json.loads((tmp_path / "x.json").read_text(encoding="utf-8"))["executions"][0]
+    assert [g["name"] for g in out["gates"]] == ["PUBLICATION_GATE1", "PUBLICATION_GATE3"]
+    assert out["gates"][1]["detail"] == "PUBLICATION_GATE3 norm without source span: n1; PUBLICATION_GATE3 norm without source span: n2"
+    assert out["postload_gates"] == [{"name": "POSTLOAD_GATE5", "ok": True, "detail": "db_norms=0"}]

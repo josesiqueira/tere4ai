@@ -180,7 +180,7 @@ merit, this document says so explicitly instead of inventing a citation.
 - Grounding: REF-21 (PEER, edge-information tradeoff), REF-10 (PEER), REF-24.
 - Implementation: align_hleg/pipeline.py:391-409;
   graph_store/layer23.py:204-275 (no direct norm-to-HLEG edge exists);
-  gate G4 validate_graph/gates.py:112-119.
+  gate PUBLICATION_GATE4 validate_graph/gates.py:112-119.
 - Tests: tests/unit/test_align_hleg.py:150; tests/unit/test_validate_graph.py:40.
 - See it: POST /api/trace renders the assertion with evidence spans both sides.
 
@@ -196,8 +196,8 @@ merit, this document says so explicitly instead of inventing a citation.
 
 ### 14. Validation gates, reject-not-infer, failing builds unpublished
 - Grounding: ADD-21 (STD, SHACL validation modelling), REF-27, REF-26.
-- Implementation: src/tere4ai/validate_graph/gates.py:56-143 (G1-G6),
-  postload.py:65-110 (P1-P5); publish blocked on failure
+- Implementation: src/tere4ai/validate_graph/gates.py:56-143 (PUBLICATION_GATE1 to PUBLICATION_GATE6),
+  postload.py:65-110 (POSTLOAD_GATE1 to POSTLOAD_GATE5); publish blocked on failure
   (scripts/publish_layer23.py:77-83, :169-173).
 - Tests: tests/unit/test_validate_graph.py; tests/integration/test_postload_gates.py.
 - See it: python scripts/publish_layer23.py --gates-only.
@@ -214,7 +214,7 @@ merit, this document says so explicitly instead of inventing a citation.
 - Grounding: REF-01, REF-02, REF-04 (all OFF).
 - Implementation: src/tere4ai/ingest/sources.py:66-110 (base in_force,
   Omnibus in_force with merged_into_base false, AMENDS and HAS_VERSION edges, never
-  merged); gate G6 gates.py:126-141.
+  merged); gate PUBLICATION_GATE6 gates.py:126-141.
 - Tests: tests/unit/test_sources.py:10, :32.
 - See it: the coverage page's sources card with legal_status badges.
 

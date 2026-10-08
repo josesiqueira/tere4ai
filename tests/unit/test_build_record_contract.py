@@ -68,7 +68,7 @@ def test_fixtures_state_the_honesty_rules():
     core = json.loads((FIXTURES / "legacy_core.json").read_text())
     assert core["provenance"]["publication"] == "derived" and core["publication"]["published_at"] is None
     assert core["steps"]["PUBLICATION_STEP1"] == core["steps"]["PUBLICATION_STEP2"] == "not_recorded", "a legacy chain record proves no load"
-    assert "predates the load" in core["reasons"]["PUBLICATION_STEP2"] and "G1 to G6" in core["reasons"]["PUBLICATION_STEP1"]
+    assert "predates the load" in core["reasons"]["PUBLICATION_STEP2"] and "PUBLICATION_GATE1 to PUBLICATION_GATE6" in core["reasons"]["PUBLICATION_STEP1"]
     mid = json.loads((FIXTURES / "intermediate_build.json").read_text())
     parent = mid["parent_record_id"]
     assert all(mid["steps"][s] == "inherited" and mid["reasons"][s] == f"done in record {parent}"

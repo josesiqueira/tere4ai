@@ -16,7 +16,7 @@ reference block materialise_reference.py stamped, the alignments must have
 been computed over this exact norms file, and every reference block is
 bound to exactly one --manifest), then (with alignments) the HLEG targets built from the
 frozen text and record and checked with the gates (D-G75 (8)), the critical
-gates G1 to G6, then the load into Neo4j and the post-load gates P1 to P5. Only after the
+gates PUBLICATION_GATE1 to PUBLICATION_GATE6, then the load into Neo4j and the post-load gates POSTLOAD_GATE1 to POSTLOAD_GATE5. Only after the
 post-load gates pass are the chain record, the publication manifest and
 BUILD_CHAIN_CURRENT.txt written and the record frozen; activation is a
 separate step (scripts/activate_build.py). Decisions are never applied
@@ -381,7 +381,7 @@ def _main(argv: list[str] | None = None) -> int:
                     hleg_problems = hleg_failures(layer1, alignments_payload.get("build", {}), pair, hleg_nodes,
                                                   subtopics["nodes"])
                 except (HlegSourceError, ValueError) as exc:
-                    hleg_problems = [f"G2 the HLEG text cannot be read: {exc}"]
+                    hleg_problems = [f"PUBLICATION_GATE2 the HLEG text cannot be read: {exc}"]
             report = validate_build(layer1, norms=norms, alignments=assertions)
             report.failures.extend(hleg_problems)
             report.stats["hleg_targets_checked"] = len(hleg_nodes) + len(subtopics["nodes"])

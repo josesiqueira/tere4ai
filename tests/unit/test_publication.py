@@ -92,12 +92,12 @@ def test_target_state_round_trip(tmp_path):
     assert read_target_state(tmp_path) is None
     set_target_state(tmp_path, state="loading", build_id="b", uri="bolt://x", reason=None)
     assert read_target_state(tmp_path)["state"] == "loading"
-    set_target_state(tmp_path, state="unavailable", build_id="b", uri="bolt://x", reason="P1 failed")
+    set_target_state(tmp_path, state="unavailable", build_id="b", uri="bolt://x", reason="POSTLOAD_GATE1 failed")
     state = read_target_state(tmp_path)
-    assert state["state"] == "unavailable" and state["reason"] == "P1 failed" and state["since"]
+    assert state["state"] == "unavailable" and state["reason"] == "POSTLOAD_GATE1 failed" and state["since"]
 
 
-@pytest.mark.parametrize(("state", "reason"), [("loading", None), ("available", None), ("unavailable", "P1 failed")])
+@pytest.mark.parametrize(("state", "reason"), [("loading", None), ("available", None), ("unavailable", "POSTLOAD_GATE1 failed")])
 def test_each_target_state_validates_against_the_neo4j_target_schema(tmp_path, state, reason):
     """B79 item 22: the three states the publish writes, as returned and as read back."""
     payload = set_target_state(tmp_path, state=state, build_id="b", uri="bolt://x", reason=reason)
@@ -260,3 +260,16 @@ def test_activate_names_the_manifest_path_and_refuses_a_root_that_is_not_an_obje
     with pytest.raises(ActivationError, match=rf"publications/{chain_id}\.json is malformed: its root is not an object"):
         activate(tmp_path, chain_id)
     assert not (tmp_path / ACTIVE_POINTER).exists()
+
+
+def test_every_failure_string_of_the_postload_module_starts_with_a_gate_name():
+    # Review Focus 1: gate_entries matches by prefix, so every f-string the module can emit must open with a name in POSTLOAD_GATES
+    import re
+
+    from tere4ai.graph_store.publication import POSTLOAD_GATES
+    from tere4ai.validate_graph import postload
+    src = Path(postload.__file__).read_text(encoding="utf-8")
+    prefixes = set(re.findall(r'f?"([A-Z][A-Z_0-9]*) ', src))
+    assert not {p for p in prefixes if re.fullmatch(r"[GP][1-6]", p)}
+    assert {p for p in prefixes if "_GATE" in p} <= set(POSTLOAD_GATES)
+    assert {p for p in prefixes if "_GATE" in p}, "no gate-named failure string found"

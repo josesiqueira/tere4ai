@@ -35,7 +35,7 @@ from tere4ai.parse_legal_structure.parser import (
 from tere4ai.resolve_crossrefs.resolver import resolve
 from tere4ai.validate_graph.gates import validate_build
 
-GATES = ("G1", "G2", "G3", "G4", "G5", "G6")
+GATES = ("PUBLICATION_GATE1", "PUBLICATION_GATE2", "PUBLICATION_GATE3", "PUBLICATION_GATE4", "PUBLICATION_GATE5", "PUBLICATION_GATE6")
 
 
 def main(argv: list[str] | None = None) -> int:

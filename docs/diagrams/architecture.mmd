@@ -29,7 +29,7 @@ subgraph BUILD["BUILD TIME (offline), producing the knowledge graph. Full struct
   EXTRACT["LLM extraction<br/>deontic norms + HLEG alignments<br/>(OpenAI generator, judged next)"]
   JUDGES["JUDGES<br/>extraction + mapping judges<br/>(Anthropic Claude, DEC-07)<br/>accept / reject / review"]
   QUEUE["Human review queue<br/>today: needs_human_review items via scripts/review_cli.py (accept / reject);<br/>rejected candidates are dropped; never served as accepted<br/>direction (2026-09-17): every core source unit reviewable in the dashboard Build view<br/>with accept, reject, correct and add, plus a blind subset for recall"]
-  NEO["Neo4j KG + gates<br/>validation gates G1-G6;<br/>a failing build is not published"]
+  NEO["Neo4j KG + gates<br/>the six publication gates,<br/>PUBLICATION_GATE1 to 6;<br/>a failing build is not published"]
   DUMPS["Versioned dumps<br/>published JSON artifacts,<br/>sha256 build chain;<br/>what the runtime serves"]
   SRC --> PARSE --> EXTRACT --> JUDGES --> QUEUE --> NEO --> DUMPS
 end

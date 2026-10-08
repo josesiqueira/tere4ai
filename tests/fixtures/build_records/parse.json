@@ -56,32 +56,32 @@
    "gates": [
     {
      "detail": "article count matches the frozen snapshot",
-     "name": "G1",
+     "name": "PUBLICATION_GATE1",
      "ok": true
     },
     {
      "detail": "recital count matches the frozen snapshot",
-     "name": "G2",
+     "name": "PUBLICATION_GATE2",
      "ok": true
     },
     {
      "detail": "annex count matches the frozen snapshot",
-     "name": "G3",
+     "name": "PUBLICATION_GATE3",
      "ok": true
     },
     {
      "detail": "no orphan legal node",
-     "name": "G4",
+     "name": "PUBLICATION_GATE4",
      "ok": true
     },
     {
      "detail": "cross references resolve within the parsed structure",
-     "name": "G5",
+     "name": "PUBLICATION_GATE5",
      "ok": true
     },
     {
      "detail": "merged_into_base marker present on the Omnibus source",
-     "name": "G6",
+     "name": "PUBLICATION_GATE6",
      "ok": true
     }
    ],

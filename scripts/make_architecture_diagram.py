@@ -265,7 +265,7 @@ def build() -> str:
         ("LLM extraction", ["deontic norms + HLEG", "alignments (OpenAI", "generator, judged next)"], "#e3b341", "#1d1704"),
         ("JUDGES", ["extraction + mapping judges", "(Anthropic Claude, DEC-07)", "accept / reject / review"], "#a371f7", "#191426"),
         ("Human review queue", ["today: needs_human_review", "items via scripts/review_cli.py", "(accept / reject); rejected", "candidates are dropped;", "never served as accepted"], "#d2649a", "#231018"),
-        ("Neo4j KG + gates", ["validation gates G1-G6;", "a failing build is not", "published"], "#4493f8", "#0d1726"),
+        ("Neo4j KG + gates", ["the six publication gates,", "PUBLICATION_GATE1 to 6;", "a failing build is not", "published"], "#4493f8", "#0d1726"),
         ("Versioned dumps", ["published JSON artifacts,", "sha256 build chain;", "what the runtime serves"], "#39d2c0", "#0a1a18"),
     ]
     n = len(boxes)

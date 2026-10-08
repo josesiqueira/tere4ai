@@ -16,7 +16,7 @@ PAIRS = [
         "tere4ai_v2_architecture_2026-10-08.svg",
         "web/public/tere4ai_v2_architecture_2026-10-08.svg",
     ),
-    ("judge_diagram_2026-07-20.svg", "web/public/judge_diagram_2026-07-20.svg"),
+    ("judge_diagram_2026-10-09.svg", "web/public/judge_diagram_2026-10-09.svg"),
 ]
 
 

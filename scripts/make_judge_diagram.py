@@ -36,7 +36,7 @@ HUMAN = "#d2649a"    # human review
 OK = "#3fb950"       # accepted
 BAD = "#f85149"      # rejected / degraded
 
-DIAGRAM_DATE = "2026-07-20"
+DIAGRAM_DATE = "2026-10-09"
 OUT_PATH = Path(__file__).resolve().parents[1] / f"judge_diagram_{DIAGRAM_DATE}.svg"
 
 _parts: list[str] = []
@@ -163,7 +163,7 @@ def build() -> str:
     arrow(1200, y + 40, 1280, y + 20, "accepted", color=OK, lx=1216, ly=y + 16)
     arrow(1200, y + 84, 1280, y + 128, "rejected / review", color=HUMAN, lx=1272, ly=y + 122, lanchor="end")
     box(1280, y - 12, 360, 112, "Reified AlignmentAssertion",
-        ["never a bare truth edge; gate G4 fails", "any accepted assertion missing evidence", "spans on both sides; served with the", "not-expert-validated caveat"],
+        ["never a bare truth edge; gate PUBLICATION_GATE4 fails", "any accepted assertion missing evidence", "spans on both sides; served with the", "not-expert-validated caveat"],
         OK, "#0c1a10", title_size=13)
     box(1280, y + 112, 360, 72, "Held, never served as accepted",
         ["145 pending assertions live in the", "review queue today"],

@@ -79,7 +79,7 @@ export default function HowItWorksPage() {
             The judge pipeline
           </h2>
           <img
-            src="/judge_diagram_2026-07-20.svg"
+            src="/judge_diagram_2026-10-09.svg"
             alt="Judge pipeline: generator proposals gated by build-time extraction and mapping judges and a runtime grounding judge from an independent model family"
             className="w-full rounded-lg border bg-card p-2"
           />

@@ -94,7 +94,7 @@ def _artefact_problem(execution: dict[str, Any], dump_dir: Path) -> str | None:
 # synthesised from a chain record written before it.
 NO_NUMBER_BEFORE_B94 = "published before build numbers (B94)"
 
-LEGACY_PUBLICATION_STEP1_REASON = ("a legacy chain record was written only after G1 to G6 passed; "
+LEGACY_PUBLICATION_STEP1_REASON = ("a legacy chain record was written only after PUBLICATION_GATE1 to PUBLICATION_GATE6 passed; "
                                    "per-gate outcomes were not recorded before DEC-16")
 LEGACY_PUBLICATION_STEP2_REASON = ("the chain record predates the load; load and post-load gates "
                                    "were not recorded before DEC-16")

@@ -48,7 +48,7 @@ def test_parse_records_manifest_counts_gates_and_digest(tmp_path, monkeypatch):
     assert ex["command"] == "parse_legal_structure" and ex["covers_steps"] == ["LAYER0_STEP1", "LAYER1_STEP1"] and ex["status"] == "done"
     assert ex["counts"]["nodes_by_type"] == {"Article": 1, "Recital": 1} and ex["counts"]["review_queue"] == 1
     assert ex["counts"]["manifest_files"] == [{"file": "a0.html", "sha256": "0" * 64}] and ex["counts"]["manifest_files_count"] == 1
-    assert [g["name"] for g in ex["gates"]] == ["G1", "G2", "G3", "G4", "G5", "G6"] and all(g["ok"] for g in ex["gates"])
+    assert [g["name"] for g in ex["gates"]] == ["PUBLICATION_GATE1", "PUBLICATION_GATE2", "PUBLICATION_GATE3", "PUBLICATION_GATE4", "PUBLICATION_GATE5", "PUBLICATION_GATE6"] and all(g["ok"] for g in ex["gates"])
     digest = ex["outputs"][0]["sha256"]
     assert ex["outputs"][0]["role"] == "layer1_dump" and len(digest) == 64
     assert record["layer1_digest"] == digest and record["base_build_id"] == "build-abc"
@@ -61,12 +61,12 @@ def test_parse_gate_failure_records_failed_execution_with_per_gate_detail(tmp_pa
     import tere4ai.parse_legal_structure.__main__ as cli
 
     manifest = _manifest(tmp_path, 0)
-    _setup(monkeypatch, cli, tmp_path, _Report(["G1 orphan legal node: n9"], {}))
+    _setup(monkeypatch, cli, tmp_path, _Report(["PUBLICATION_GATE1 orphan legal node: n9"], {}))
     rc = cli.main(["--dump-dir", str(tmp_path), "--manifest", str(manifest)])
     assert rc == 1 and not (tmp_path / "layer1.json").exists()
     ex = BuildRecordStore(tmp_path).list_records()[0]["executions"][0]
-    assert ex["status"] == "failed" and "G1" in ex["error"]
-    assert ex["gates"][0] == {"name": "G1", "ok": False, "detail": "G1 orphan legal node: n9"} and ex["gates"][1]["ok"]
+    assert ex["status"] == "failed" and "PUBLICATION_GATE1" in ex["error"]
+    assert ex["gates"][0] == {"name": "PUBLICATION_GATE1", "ok": False, "detail": "PUBLICATION_GATE1 orphan legal node: n9"} and ex["gates"][1]["ok"]
 
 
 def test_parse_exception_in_final_write_is_recorded(tmp_path, monkeypatch):

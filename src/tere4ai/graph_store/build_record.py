@@ -743,7 +743,7 @@ def relative_to_dump_dir(path: Path, dump_dir: Path) -> str:
 
 
 def gate_entries(failures: list[str], names: tuple[str, ...], stats: dict[str, Any]) -> list[dict[str, Any]]:
-    """One entry per named gate: ok unless a failure string carries its prefix."""
+    """One entry per named gate (PUBLICATION_GATEn or POSTLOAD_GATEn): ok unless a failure string starts with its name and a space."""
     entries = []
     rendered_stats = ", ".join(f"{k}={v}" for k, v in sorted(stats.items()))
     for name in names:

@@ -40,8 +40,8 @@ NOW = datetime(2026, 9, 19, tzinfo=UTC)
 BASE = "build-b"
 GENERATOR_PROMPT = "4" * 64
 JUDGE_PROMPT = "5" * 64
-POSTLOAD_GATES = [{"name": f"P{i}", "ok": True, "detail": ""} for i in range(1, 5)] + [
-    {"name": "P5", "ok": True, "detail": "db_assertions=0, db_norms=0"}]
+POSTLOAD_GATES = [{"name": f"POSTLOAD_GATE{i}", "ok": True, "detail": ""} for i in range(1, 5)] + [
+    {"name": "POSTLOAD_GATE5", "ok": True, "detail": "db_assertions=0, db_norms=0"}]
 MODELS = {"generator_model": "g", "judge_model": "j"}
 # B99 (spec F D-F29): an execution made after the declared table, for the
 # dashboard to render beside the older shape
@@ -51,12 +51,12 @@ DECLARED_MODELS = {"generator_model": "g", "judge_model": "j", "generator_effort
 DECLARED_SAMPLING = {"generator": "N/A", "judge": "N/A", "generator_temperature": "N/A", "judge_temperature": "N/A",
                      "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
 PARSE_GATES = [
-    {"name": "G1", "ok": True, "detail": "article count matches the frozen snapshot"},
-    {"name": "G2", "ok": True, "detail": "recital count matches the frozen snapshot"},
-    {"name": "G3", "ok": True, "detail": "annex count matches the frozen snapshot"},
-    {"name": "G4", "ok": True, "detail": "no orphan legal node"},
-    {"name": "G5", "ok": True, "detail": "cross references resolve within the parsed structure"},
-    {"name": "G6", "ok": True, "detail": "merged_into_base marker present on the Omnibus source"},
+    {"name": "PUBLICATION_GATE1", "ok": True, "detail": "article count matches the frozen snapshot"},
+    {"name": "PUBLICATION_GATE2", "ok": True, "detail": "recital count matches the frozen snapshot"},
+    {"name": "PUBLICATION_GATE3", "ok": True, "detail": "annex count matches the frozen snapshot"},
+    {"name": "PUBLICATION_GATE4", "ok": True, "detail": "no orphan legal node"},
+    {"name": "PUBLICATION_GATE5", "ok": True, "detail": "cross references resolve within the parsed structure"},
+    {"name": "PUBLICATION_GATE6", "ok": True, "detail": "merged_into_base marker present on the Omnibus source"},
 ]
 
 

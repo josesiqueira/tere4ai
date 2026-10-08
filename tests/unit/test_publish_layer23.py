@@ -66,7 +66,7 @@ def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None, layer
 
 def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=False, seen=None,
            real_norms_to_graph=False, capture=None, real_hleg=False):
-    monkeypatch.setattr(cli, "validate_build", lambda dump, norms=None, alignments=None: _Report([] if gates_ok else ["G3 norm without source span: x"], {"layer1_nodes": 0}))
+    monkeypatch.setattr(cli, "validate_build", lambda dump, norms=None, alignments=None: _Report([] if gates_ok else ["PUBLICATION_GATE3 norm without source span: x"], {"layer1_nodes": 0}))
     if not real_norms_to_graph:
         monkeypatch.setattr(cli, "norms_to_graph", lambda payload, build_id: {"nodes": [], "edges": []})
     monkeypatch.setattr(cli, "alignments_to_graph", lambda payload, hleg, build_id: {"nodes": [], "edges": []})
@@ -97,7 +97,7 @@ def _fakes(monkeypatch, cli, *, gates_ok=True, postload_ok=True, load_raises=Fal
     def fake_postload(driver, build_id, expected_norms, expected_assertions=None):
         if seen is not None:
             seen.append(("postload", build_id))
-        return _Report([] if postload_ok else ["P1 db_norms 0 != 1"], {"db_norms": 0})
+        return _Report([] if postload_ok else ["POSTLOAD_GATE1 db_norms 0 != 1"], {"db_norms": 0})
 
     monkeypatch.setattr(cli, "validate_postload", fake_postload)
     monkeypatch.setitem(sys.modules, "neo4j", types.SimpleNamespace(GraphDatabase=types.SimpleNamespace(driver=lambda uri, auth: FakeDriver())))
@@ -111,9 +111,9 @@ def test_chain_record_and_pointer_only_after_postload_gates_pass(tmp_path, monke
     rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)])
     assert rc == 1 and not list(tmp_path.glob("build_chain_*.json")) and not (tmp_path / "BUILD_CHAIN_CURRENT.txt").exists()
     assert not (tmp_path / "publications").exists()
-    assert read_target_state(tmp_path)["state"] == "unavailable" and "P1" in read_target_state(tmp_path)["reason"]
+    assert read_target_state(tmp_path)["state"] == "unavailable" and "POSTLOAD_GATE1" in read_target_state(tmp_path)["reason"]
     ex = store.read(rid)["executions"][-1]
-    assert ex["status"] == "failed" and "P1" in ex["error"] and ex["covers_steps"] == ["PUBLICATION_STEP1", "PUBLICATION_STEP2"]
+    assert ex["status"] == "failed" and "POSTLOAD_GATE1" in ex["error"] and ex["covers_steps"] == ["PUBLICATION_STEP1", "PUBLICATION_STEP2"]
     assert [g["ok"] for g in ex["gates"]] == [True] * 6 + [False, True, True, True, True] and driver.closed
     assert store.read(rid)["publication"] is None
 
@@ -194,7 +194,7 @@ def test_gate_failure_records_per_gate_and_gates_only_covers_p1(tmp_path, monkey
     _fakes(monkeypatch, cli, gates_ok=False)
     assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments), "--dump-dir", str(tmp_path)]) == 1
     ex = store.read(rid)["executions"][-1]
-    assert ex["gates"][2] == {"name": "G3", "ok": False, "detail": "G3 norm without source span: x"} and ex["gates"][0]["ok"]
+    assert ex["gates"][2] == {"name": "PUBLICATION_GATE3", "ok": False, "detail": "PUBLICATION_GATE3 norm without source span: x"} and ex["gates"][0]["ok"]
     _fakes(monkeypatch, cli)
     assert cli.main(["--dump", str(layer1), "--norms", str(norms), "--dump-dir", str(tmp_path), "--gates-only"]) == 0
     ex = store.read(rid)["executions"][-1]
@@ -756,36 +756,36 @@ def _gates_only(tmp_path, monkeypatch, *, layer1_nodes=LISTED, alignments_build=
     rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
                    "--dump-dir", str(tmp_path), "--gates-only"])
     ex = store.read(rid)["executions"][-1]
-    g2 = next(g for g in ex["gates"] if g["name"] == "G2") if ex["gates"] else None
-    return cli, rc, ex, g2
+    publication_gate2 = next(g for g in ex["gates"] if g["name"] == "PUBLICATION_GATE2") if ex["gates"] else None
+    return cli, rc, ex, publication_gate2
 
 
 def test_gates_only_builds_and_checks_the_hleg_nodes_before_it_returns(tmp_path, monkeypatch):
-    cli, rc, ex, g2 = _gates_only(tmp_path, monkeypatch)
-    assert rc == 0 and ex["status"] == "done" and ex["covers_steps"] == ["PUBLICATION_STEP1"] and g2["ok"]
+    cli, rc, ex, publication_gate2 = _gates_only(tmp_path, monkeypatch)
+    assert rc == 0 and ex["status"] == "done" and ex["covers_steps"] == ["PUBLICATION_STEP1"] and publication_gate2["ok"]
     # review M5: the 7 requirement and 23 subtopic nodes were built and checked before the return
     assert any("hleg_targets_checked=30" in g["detail"] for g in ex["gates"])
 
 
 def test_gates_only_fails_for_alignments_made_on_another_text(tmp_path, monkeypatch):
-    _, rc, ex, g2 = _gates_only(tmp_path, monkeypatch, alignments_build={**MADE_ON, "hleg_text_sha256": "0" * 64})
-    assert rc == 1 and ex["status"] == "failed" and not g2["ok"]
-    assert f"G2 the alignments were made on {TEXT_FILE} {'0' * 64}" in g2["detail"]
+    _, rc, ex, publication_gate2 = _gates_only(tmp_path, monkeypatch, alignments_build={**MADE_ON, "hleg_text_sha256": "0" * 64})
+    assert rc == 1 and ex["status"] == "failed" and not publication_gate2["ok"]
+    assert f"PUBLICATION_GATE2 the alignments were made on {TEXT_FILE} {'0' * 64}" in publication_gate2["detail"]
 
 
 def test_gates_only_fails_for_alignments_made_on_another_record(tmp_path, monkeypatch):
-    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, alignments_build={**MADE_ON, "hleg_derivation_record_sha256": "1" * 64})
-    assert rc == 1 and f"G2 the alignments were made on {RECORD_FILE} {'1' * 64}" in g2["detail"]
+    _, rc, _, publication_gate2 = _gates_only(tmp_path, monkeypatch, alignments_build={**MADE_ON, "hleg_derivation_record_sha256": "1" * 64})
+    assert rc == 1 and f"PUBLICATION_GATE2 the alignments were made on {RECORD_FILE} {'1' * 64}" in publication_gate2["detail"]
 
 
 def test_gates_only_fails_for_alignments_that_name_no_hleg_text(tmp_path, monkeypatch):
-    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, alignments_build={})
-    assert rc == 1 and "G2 the alignments name no hleg_text_sha256" in g2["detail"]
+    _, rc, _, publication_gate2 = _gates_only(tmp_path, monkeypatch, alignments_build={})
+    assert rc == 1 and "PUBLICATION_GATE2 the alignments name no hleg_text_sha256" in publication_gate2["detail"]
 
 
 def test_gates_only_fails_when_layer0_does_not_list_the_pair(tmp_path, monkeypatch):
-    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, layer1_nodes=[])
-    assert rc == 1 and f"G2 Layer 0 does not list {TEXT_FILE}" in g2["detail"]
+    _, rc, _, publication_gate2 = _gates_only(tmp_path, monkeypatch, layer1_nodes=[])
+    assert rc == 1 and f"PUBLICATION_GATE2 Layer 0 does not list {TEXT_FILE}" in publication_gate2["detail"]
 
 
 def test_gates_only_fails_for_an_hleg_span_citing_a_file_layer0_does_not_list(tmp_path, monkeypatch):
@@ -797,8 +797,8 @@ def test_gates_only_fails_for_an_hleg_span_citing_a_file_layer0_does_not_list(tm
     monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair=None: stale)
     rc = cli.main(["--dump", str(layer1), "--norms", str(norms), "--alignments", str(alignments),
                    "--dump-dir", str(tmp_path), "--gates-only"])
-    g2 = next(g for g in store.read(rid)["executions"][-1]["gates"] if g["name"] == "G2")
-    assert rc == 1 and "G2 node hleg:human-agency-and-oversight cites hleg_unlisted_copy.txt" in g2["detail"]
+    publication_gate2 = next(g for g in store.read(rid)["executions"][-1]["gates"] if g["name"] == "PUBLICATION_GATE2")
+    assert rc == 1 and "PUBLICATION_GATE2 node hleg:human-agency-and-oversight cites hleg_unlisted_copy.txt" in publication_gate2["detail"]
 
 
 def test_the_published_subtopic_edges_carry_the_published_build_id(tmp_path, monkeypatch):
@@ -816,5 +816,5 @@ def test_the_published_subtopic_edges_carry_the_published_build_id(tmp_path, mon
 
 def test_gates_only_fails_when_layer0_lists_the_text_with_another_sha256(tmp_path, monkeypatch):
     other = [{**n, "sha256": "2" * 64} if n["file"] == TEXT_FILE else n for n in LISTED]
-    _, rc, _, g2 = _gates_only(tmp_path, monkeypatch, layer1_nodes=other)
-    assert rc == 1 and f"G2 Layer 0 lists {TEXT_FILE} with sha256 {'2' * 64}, the frozen file is {PAIR.text_sha256}" in g2["detail"]
+    _, rc, _, publication_gate2 = _gates_only(tmp_path, monkeypatch, layer1_nodes=other)
+    assert rc == 1 and f"PUBLICATION_GATE2 Layer 0 lists {TEXT_FILE} with sha256 {'2' * 64}, the frozen file is {PAIR.text_sha256}" in publication_gate2["detail"]

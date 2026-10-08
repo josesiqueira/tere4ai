@@ -361,7 +361,7 @@
   "published_at": null
  },
  "reasons": {
-  "PUBLICATION_STEP1": "a legacy chain record was written only after G1 to G6 passed; per-gate outcomes were not recorded before DEC-16",
+  "PUBLICATION_STEP1": "a legacy chain record was written only after PUBLICATION_GATE1 to PUBLICATION_GATE6 passed; per-gate outcomes were not recorded before DEC-16",
   "PUBLICATION_STEP2": "the chain record predates the load; load and post-load gates were not recorded before DEC-16",
   "created_at": "not recorded before DEC-16",
   "parent_record_id": "not recorded before DEC-16",

@@ -22,7 +22,7 @@ docs/architecture.md Section 11:
 Since B132 (spec G D-G68) Layer 1 is the Act as amended: the Omnibus's
 changes are read from the consolidated text's markers and checked against
 the Official Journal wording, so the Omnibus is merged into the base text,
-and gate G6 lets that through only with the record of the checks. Without
+and gate PUBLICATION_GATE6 lets that through only with the record of the checks. Without
 a marker list (the Act as enacted) merged_into_base stays False.
 Published identity verified on EUR-Lex 2026-09-02: Regulation (EU) 2026/1744,
 OJ L, 2026/1744, 24.7.2026, in force since 27.7.2026 (REF-02).
@@ -160,7 +160,7 @@ def layer0(
     ]
     if marker_list_path is not None:
         # B132: the Omnibus is merged into the base text; the reviewed marker
-        # list's digest ties the merge to the checks gate G6 verifies.
+        # list's digest ties the merge to the checks gate PUBLICATION_GATE6 verifies.
         omnibus = next(n for n in nodes if n["id"] == OMNIBUS_ID)
         omnibus.update({
             "merged_into_base": True,

@@ -1,15 +1,15 @@
-"""Post-load gate P5 counts only Layer 2 and 3 edges (B143, spec G D-G75 (4), ruling R4).
+"""Post-load gate POSTLOAD_GATE5 counts only Layer 2 and 3 edges (B143, spec G D-G75 (4), ruling R4).
 
 Layer 0 now holds two DERIVED_FROM edges (from the derived HLEG text and its
 record to the PDF), stamped with the parse's build id, which never equals a
-published chained id; P5 must not count them. The database half is in
+published chained id; POSTLOAD_GATE5 must not count them. The database half is in
 tests/integration/test_postload_gates.py.
 """
 
 from tere4ai.validate_graph import postload
 
 
-def test_p5_names_the_layer2_and_3_edges_only():
+def test_postload_gate5_names_the_layer2_and_3_edges_only():
     query = postload._STALE_BUILD_EDGES
     assert "a:NormativeStatement" in query and "type(r) = 'DERIVED_FROM'" in query
     assert "['ASSERTS_ALIGNMENT_OF', 'ASSERTS_ALIGNMENT_TO']" in query
@@ -17,7 +17,7 @@ def test_p5_names_the_layer2_and_3_edges_only():
     assert "$build_id" in query
 
 
-def test_p5_runs_with_the_published_build_id():
+def test_postload_gate5_runs_with_the_published_build_id():
     seen = []
 
     class Session:

@@ -1,7 +1,7 @@
 """Live post-load gate test against the published Layer 2/3 graph.
 
 Skipped without a reachable Neo4j (same env gate as test_neo4j_load.py).
-Asserts the published database passes P1..P5 for the current dumps, and that
+Asserts the published database passes POSTLOAD_GATE1 to POSTLOAD_GATE5 for the current dumps, and that
 a wrong expectation is caught rather than absorbed.
 """
 
@@ -63,17 +63,17 @@ def test_published_graph_passes_postload_gates(driver, published_build_id):
     assert report.passed, report.failures
 
 
-def test_wrong_expected_count_fails_p1(driver, published_build_id):
+def test_wrong_expected_count_fails_postload_gate1(driver, published_build_id):
     from tere4ai.validate_graph.postload import validate_postload
 
     report = validate_postload(
         driver, build_id=published_build_id, expected_norms=1
     )
     assert not report.passed
-    assert any(f.startswith("P1") for f in report.failures)
+    assert any(f.startswith("POSTLOAD_GATE1") for f in report.failures)
 
 
-def test_wrong_build_id_fails_p5(driver):
+def test_wrong_build_id_fails_postload_gate5(driver):
     from tere4ai.validate_graph.postload import validate_postload
 
     norms = json.loads(NORMS.read_text(encoding="utf-8"))["norms"]
@@ -81,11 +81,11 @@ def test_wrong_build_id_fails_p5(driver):
         driver, build_id="not-the-published-build", expected_norms=len(norms)
     )
     assert not report.passed
-    assert any(f.startswith("P5") for f in report.failures)
+    assert any(f.startswith("POSTLOAD_GATE5") for f in report.failures)
 
 
-def test_p5_passes_a_layer0_derived_from_edge_and_fails_a_stale_norm_edge(driver):
-    """B143 (R4, R23): a Layer 0 DERIVED_FROM edge with the parse's build id passes P5;
+def test_postload_gate5_passes_a_layer0_derived_from_edge_and_fails_a_stale_norm_edge(driver):
+    """B143 (R4, R23): a Layer 0 DERIVED_FROM edge with the parse's build id passes POSTLOAD_GATE5;
     a NormativeStatement's DERIVED_FROM edge with a stale build id fails it. The
     test's nodes have ids starting test:b143: and are removed in the finally block."""
     from tere4ai.validate_graph.postload import _STALE_BUILD_EDGES

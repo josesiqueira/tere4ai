@@ -462,7 +462,7 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   consolidated text with legal_status non_binding. The Omnibus
   SourceDocument says merged_into_base true with the date and the marker
   list's sha256. The checks run in the parse, which raises on any failure,
-  so no dump is written; gate G6 does not run them again: it verifies that a
+  so no dump is written; gate PUBLICATION_GATE6 does not run them again: it verifies that a
   merged Omnibus comes with the build's record of the checks and the same
   marker list digest, which catches a record that is missing or edited. The
   build id is a digest over every frozen legal
@@ -497,7 +497,7 @@ OVR-3. grounded_by: REF-01, REF-02, REF-04
   a note on Article 50(2)), as data; every answer names the text it
   follows. The elicitor prompt is v7, the extraction scope holds Article 4a
   (424 core source units), the dev norms and alignments keep only those on
-  units unchanged in force, and gates G3 and G4 refuse a norm or alignment
+  units unchanged in force, and gates PUBLICATION_GATE3 and PUBLICATION_GATE4 refuse a norm or alignment
   on a deleted unit, as the evaluation harness refuses a test-set item
   citing one.
 
@@ -675,7 +675,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Amended 2026-10-03 (B132, DEC-23): the Omnibus is no longer kept apart
   from the base text. Layer 1 is the Act as amended, and the Omnibus
   SourceDocument records the merge (merged_into_base true, merged_on,
-  marker_list_sha256); the parse enforces the checks and gate G6 verifies
+  marker_list_sha256); the parse enforces the checks and gate PUBLICATION_GATE6 verifies
   the build's record of them.
   verify: SourceDocument for COM(2025)836 with AMENDS/HAS_VERSION;
   tests/unit/test_sources.py, tests/unit/test_in_force_build.py.
@@ -1314,13 +1314,13 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   keeps its 2024 wording as a UnitVersion node (id
   version:2024-07-12:<unit id>, span <name>@2024-07-12 in the 2024 Formex,
   valid 2024-08-01 to 2026-07-26, legal_status superseded), linked by
-  HAS_VERSION, which gate G1 follows; gate G2 refuses a span id carried by
+  HAS_VERSION, which gate PUBLICATION_GATE1 follows; gate PUBLICATION_GATE2 refuses a span id carried by
   an in-force node and a version node.
   The build: Layer 0 freezes the Omnibus and the consolidated text in
   Formex (the consolidated text non_binding); the build id is a digest over
   every frozen legal source the parse reads. The checks are enforced by the
   parse itself (build_in_force_dump raises AmendmentCheckError, so no dump is
-  written); gate G6 does not re-check the units: it accepts the Omnibus as
+  written); gate PUBLICATION_GATE6 does not re-check the units: it accepts the Omnibus as
   merged only when the dump carries the build's record of the checks and the
   reviewed marker list's digest, so a dump whose record is missing or edited
   is refused. Counts: 119 articles, 571 paragraphs, 91 subparagraphs,
@@ -1351,14 +1351,14 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Article 50(2)); every answer names the text it follows.
   explain_requirement shows the source unit's earlier version on request,
   or why it has none. The elicitor prompt is v7, the version of record for
-  B74; the extraction scope gains Article 4a; gates G3 and G4 refuse a norm
+  B74; the extraction scope gains Article 4a; gates PUBLICATION_GATE3 and PUBLICATION_GATE4 refuse a norm
   or alignment whose source unit is deleted, and the evaluation harness a
   test-set item that cites one; the pre-B74 dev norms and alignments on
   changed units are dropped.
   verify: src/tere4ai/parse_legal_structure/labels.py, units.py,
   amendments.py, consolidated.py and parser.py (build_layer1);
-  src/tere4ai/ingest/sources.py; src/tere4ai/validate_graph/gates.py (G1,
-  G2, G3, G4, G6); src/tere4ai/mcp_server/spans.py (exclude);
+  src/tere4ai/ingest/sources.py; src/tere4ai/validate_graph/gates.py (PUBLICATION_GATE1,
+  PUBLICATION_GATE2, PUBLICATION_GATE3, PUBLICATION_GATE4, PUBLICATION_GATE6); src/tere4ai/mcp_server/spans.py (exclude);
   src/tere4ai/mcp_server/application_dates.py, classify.py, requirements.py,
   explain.py, backlog.py; prompts/elicit_features/v7.md;
   data/amendments/omnibus_markers.json, omnibus_exceptions.json;
@@ -1554,7 +1554,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   execution; on success the outcome is in the build block (hleg).
   Layer 0 and Layer 3: as spec G D-G75 (4) to (8) state (the
   SourceDocument, the explicit table of source documents, DERIVED_FROM
-  from the derived files to the PDF, post-load gate P5 limited to the
+  from the derived files to the PDF, post-load gate POSTLOAD_GATE5 limited to the
   Layer 2 and 3 edges, each requirement's section body as its
   description, the publisher's headings as subtopics, the pair's sha256
   recorded by the alignment run and checked by publication and by the one
@@ -1568,7 +1568,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   consolidated.py (the checks inside LAYER1_STEP1, the build block's
   hleg entry);
   ingest/sources.py (the SourceDocument, the table, DERIVED_FROM);
-  validate_graph/postload.py (P5) and gates.py (hleg_failures);
+  validate_graph/postload.py (POSTLOAD_GATE5) and gates.py (hleg_failures);
   align_hleg/hleg_source.py, hleg_nodes.py, hleg_subtopics.py and
   __main__.py; scripts/publish_layer23.py; http_facade/app.py,
   mcp_server/server.py, explain.py and spans.py (the loader bound to the

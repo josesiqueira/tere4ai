@@ -126,7 +126,7 @@ def test_legacy_synthesis_matches_the_full_input_set_and_invents_nothing(tmp_pat
     pc = present_record(core, tmp_path, NOW, full["chain_id"], None)
     assert pc["served"] is True and pc["provenance"]["publication"] == "derived"
     assert pc["steps"]["PUBLICATION_STEP2"] == "not_recorded" and pc["steps"]["PUBLICATION_STEP1"] == "not_recorded", "a legacy chain record proves no recorded gate"
-    assert pc["reasons"]["PUBLICATION_STEP1"] == ("a legacy chain record was written only after G1 to G6 passed; "
+    assert pc["reasons"]["PUBLICATION_STEP1"] == ("a legacy chain record was written only after PUBLICATION_GATE1 to PUBLICATION_GATE6 passed; "
                                     "per-gate outcomes were not recorded before DEC-16")
     assert pc["reasons"]["PUBLICATION_STEP2"] == ("the chain record predates the load; load and post-load gates "
                                     "were not recorded before DEC-16")

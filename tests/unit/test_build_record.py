@@ -191,12 +191,21 @@ def test_add_alias_indexes_and_records(tmp_path):
 
 
 def test_gate_entries_one_per_gate():
-    entries = gate_entries(["G1 orphan legal node: x", "G1 plus 3 more orphans", "G6 base act missing"],
-                           ("G1", "G2", "G3", "G4", "G5", "G6"), {"layer1_nodes": 2})
+    entries = gate_entries(["PUBLICATION_GATE1 orphan legal node: x", "PUBLICATION_GATE1 plus 3 more orphans",
+                            "PUBLICATION_GATE6 base act missing"],
+                           ("PUBLICATION_GATE1", "PUBLICATION_GATE2", "PUBLICATION_GATE3", "PUBLICATION_GATE4",
+                            "PUBLICATION_GATE5", "PUBLICATION_GATE6"), {"layer1_nodes": 2})
     by = {e["name"]: e for e in entries}
-    assert by["G1"] == {"name": "G1", "ok": False, "detail": "G1 orphan legal node: x; G1 plus 3 more orphans"}
-    assert by["G2"]["ok"] and by["G6"]["ok"] is False and len(entries) == 6
-    assert gate_entries([], ("P1", "P2"), {"db_norms": 3})[-1]["detail"] == "db_norms=3"
+    assert by["PUBLICATION_GATE1"] == {"name": "PUBLICATION_GATE1", "ok": False,
+                                       "detail": "PUBLICATION_GATE1 orphan legal node: x; PUBLICATION_GATE1 plus 3 more orphans"}
+    assert by["PUBLICATION_GATE2"]["ok"] and by["PUBLICATION_GATE6"]["ok"] is False and len(entries) == 6
+    assert gate_entries([], ("POSTLOAD_GATE1", "POSTLOAD_GATE2"), {"db_norms": 3})[-1]["detail"] == "db_norms=3"
+
+
+def test_a_failure_string_with_an_old_gate_name_is_not_matched_to_a_gate():
+    # Review Focus 1: a string that still starts with "G1 " belongs to no gate and would hide a failure
+    entries = gate_entries(["G1 orphan legal node: x"], ("PUBLICATION_GATE1",), {})
+    assert entries == [{"name": "PUBLICATION_GATE1", "ok": True, "detail": ""}]
 
 
 def test_select_record_creates_reuses_or_continues_as_descendant(tmp_path):

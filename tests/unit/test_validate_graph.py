@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from tere4ai.validate_graph import gates as gates_module
 from tere4ai.validate_graph.gates import validate_build
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +24,7 @@ def test_orphan_detection():
     dump = _real_dump()
     dump["nodes"].append({"id": "eu-ai-act:article-999", "layer": 1, "type": "Article", "number": 999})
     report = validate_build(dump)
-    assert any("G1" in f and "article-999" in f for f in report.failures)
+    assert any("PUBLICATION_GATE1" in f and "article-999" in f for f in report.failures)
 
 
 def test_norm_gates():
@@ -33,8 +34,8 @@ def test_norm_gates():
         {"norm_id": "norm:x:n2", "source_span_id": "span:ok", "source_node_id": "eu-ai-act:recital-12"},
     ]
     report = validate_build(dump, norms=norms)
-    assert any("G3" in f and "norm:x:n1" in f for f in report.failures)
-    assert any("G5" in f and "norm:x:n2" in f for f in report.failures)
+    assert any("PUBLICATION_GATE3" in f and "norm:x:n1" in f for f in report.failures)
+    assert any("PUBLICATION_GATE5" in f and "norm:x:n2" in f for f in report.failures)
 
 
 def test_accepted_alignment_needs_two_sided_evidence():
@@ -54,7 +55,7 @@ def test_accepted_alignment_needs_two_sided_evidence():
         },
     ]
     report = validate_build(dump, alignments=alignments)
-    assert any("G4" in f and "align:bad" in f for f in report.failures)
+    assert any("PUBLICATION_GATE4" in f and "align:bad" in f for f in report.failures)
     assert not any("align:pending-ok" in f for f in report.failures)
 
 
@@ -66,7 +67,7 @@ def test_version_pin_gate():
     assert omnibus["merged_into_base"] is True
     dump["build"].pop("amendments")
     report = validate_build(dump)
-    assert any("G6" in f and "silent replacement" in f for f in report.failures)
+    assert any("PUBLICATION_GATE6" in f and "silent replacement" in f for f in report.failures)
 
 
 def test_version_pin_gate_missing_merge_marker():
@@ -78,7 +79,7 @@ def test_version_pin_gate_missing_merge_marker():
             n["legal_status"] = "in_force"
             n.pop("merged_into_base", None)
     report = validate_build(dump)
-    assert any("G6" in f and "silent replacement" in f for f in report.failures)
+    assert any("PUBLICATION_GATE6" in f and "silent replacement" in f for f in report.failures)
 
 
 # B132 (spec G D-G68 (3)): a gate refuses a norm, an alignment or a test-set
@@ -87,14 +88,14 @@ def test_version_pin_gate_missing_merge_marker():
 DELETED_UNIT = "eu-ai-act:article-10:paragraph-5"
 
 
-def test_a_norm_or_an_alignment_on_a_deleted_unit_fails_g3_and_g4():
+def test_a_norm_or_an_alignment_on_a_deleted_unit_fails_publication_gate3_and_gate4():
     dump = _real_dump()
     norms = [{"norm_id": f"norm:{DELETED_UNIT}:n1", "source_span_id": "span:010.005",
               "source_node_id": DELETED_UNIT}]
     alignments = [{"id": "align:x", "source_norm_id": f"norm:{DELETED_UNIT}:n1", "judge_verdict": "rejected"}]
     failures = validate_build(dump, norms=norms, alignments=alignments).failures
-    assert any(f.startswith("G3 norm on a unit the Omnibus deleted") and DELETED_UNIT in f for f in failures)
-    assert any(f.startswith("G4 alignment of a norm on a unit the Omnibus deleted: align:x") for f in failures)
+    assert any(f.startswith("PUBLICATION_GATE3 norm on a unit the Omnibus deleted") and DELETED_UNIT in f for f in failures)
+    assert any(f.startswith("PUBLICATION_GATE4 alignment of a norm on a unit the Omnibus deleted: align:x") for f in failures)
 
 
 def test_the_published_dev_norms_and_alignments_stand_on_no_deleted_unit():
@@ -136,3 +137,17 @@ def test_a_test_set_item_citing_a_deleted_unit_is_named():
     item = {"id": "gold:x", "kind": "retrieval", "gold": {"node_id": DELETED_UNIT}, "gold_citations": []}
     assert deleted_unit_citations(dump, [item]) == [
         f"test-set item gold:x cites a unit the Omnibus deleted: {DELETED_UNIT}"]
+
+
+def test_every_failure_string_of_the_gates_module_starts_with_a_gate_name():
+    # Review Focus 1: gate_entries matches by prefix, so every f-string the module can emit must open with a name in GATES
+    import re
+    from pathlib import Path
+
+    from tere4ai.graph_store.publication import GATES
+    root = Path(gates_module.__file__).resolve().parents[3]
+    for rel in ("src/tere4ai/validate_graph/gates.py", "scripts/publish_layer23.py"):
+        src = (root / rel).read_text(encoding="utf-8")
+        prefixes = set(re.findall(r'f?"([A-Z][A-Z_0-9]*) ', src))
+        assert not {p for p in prefixes if re.fullmatch(r"[GP][1-6]", p)}, rel
+        assert {p for p in prefixes if "_GATE" in p} <= set(GATES), rel
