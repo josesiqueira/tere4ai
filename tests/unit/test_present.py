@@ -10,6 +10,7 @@ from tere4ai.graph_store import present
 from tere4ai.graph_store.build_chain import build_chain, sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import (
+    SHAREABLE_STEPS,
     exception_reason,
     lineage_of,
     present_record,
@@ -212,6 +213,8 @@ def test_lineage_steps_are_inherited_only_while_the_ancestor_artefact_stands(tmp
     _done(store, parent, "parse_legal_structure", ["LAYER0_STEP1", "LAYER1_STEP1"], [layer1])
     norms = _out(tmp_path, "norms_core.json", "norms", '{"norms": []}')
     _done(store, parent, "extract_norms", ["LAYER2_STEP1", "LAYER2_STEP2"], [norms])
+    # the parent's own publish execution is done, so only the predicate keeps it from the child
+    _done(store, parent, "publish_layer23", ["PUBLICATION_STEP1", "PUBLICATION_STEP2"], [])
     store.set_publication(parent, PUB)
     child = store.create_record("core.reference", "b", layer1["sha256"], parent_record_id=parent)
     ref = _out(tmp_path, "norms_core.reference.json", "norms_reference", '{"norms": [1]}')
@@ -225,6 +228,7 @@ def test_lineage_steps_are_inherited_only_while_the_ancestor_artefact_stands(tmp
     assert all(reasons[s] == f"done in record {parent}" for s in ("LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2"))
     assert steps["LAYER2_STEP4"] == steps["LAYER3_STEP3"] == "done" and steps["LAYER2_STEP3"] == "not_started"
     assert steps["PUBLICATION_STEP1"] == steps["PUBLICATION_STEP2"] == "not_started", "a publication is never inherited"
+    assert not any(s.startswith("PUBLICATION_STEP") for s in SHAREABLE_STEPS)
     assert depends["PUBLICATION_STEP1"] == "done" and depends["PUBLICATION_STEP2"] == "not_started" and depends["LAYER2_STEP3"] == "inherited"
 
     (tmp_path / "norms_core.json").unlink()

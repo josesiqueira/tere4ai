@@ -319,7 +319,8 @@ def _main(argv: list[str] | None = None) -> int:
         inputs.append({"role": "alignments", "file": args.alignments.name, "sha256": sha256_of_file(args.alignments)})
     for m in args.manifest:
         inputs.append({"role": "freeze_manifest", "file": m.name, "sha256": sha256_of_file(m)})
-    steps = ["PUBLICATION_STEP1"] if args.gates_only else ["PUBLICATION_STEP1", "PUBLICATION_STEP2"]
+    steps = (["PUBLICATION_STEP1"] if args.gates_only
+             else ["PUBLICATION_STEP1", "PUBLICATION_STEP2"])
     run_id = None if unrecorded else store.start_execution(
         record_id, command="publish_layer23", covers_steps=steps, argv=raw_argv, inputs=inputs,
         config={"gates_only": args.gates_only}, expected_total=None, work_unit=None, checkpoint_file=None)

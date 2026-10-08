@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tere4ai/schema/build_record.v1",
+  "$id": "https://tere4ai/schema/build_record.v2",
   "title": "TERE4AI v2 build record",
   "description": "Machine-readable contract for build records (docs/architecture.md DEC-16): one execution record per command attempt, publication written only after the post-load gates, and the presented shape served over the API. Every presented field carries a provenance of recorded, derived or unavailable; nothing is guessed.",
   "$defs": {
@@ -106,6 +106,9 @@
       },
       "required": ["LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2", "LAYER2_STEP3", "LAYER2_STEP4", "LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3", "LAYER3_STEP4", "LAYER3_STEP5", "PUBLICATION_STEP1", "PUBLICATION_STEP2"]
     },
+    "step_id": {
+      "enum": ["LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2", "LAYER2_STEP3", "LAYER2_STEP4", "LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3", "LAYER3_STEP4", "LAYER3_STEP5", "PUBLICATION_STEP1", "PUBLICATION_STEP2"]
+    },
     "stepState": {
       "enum": ["done", "inherited", "running", "failed", "not_started", "not_recorded"]
     },
@@ -130,7 +133,7 @@
       "properties": {
         "run_id": {"type": ["string", "null"]},
         "command": {"type": "string"},
-        "covers_steps": {"type": "array", "items": {"type": "string"}},
+        "covers_steps": {"type": "array", "items": {"$ref": "#/$defs/step_id"}},
         "status": {"enum": ["running", "done", "failed"]},
         "started_at": {"type": ["string", "null"]},
         "ended_at": {"type": ["string", "null"]},
@@ -180,7 +183,7 @@
       "properties": {
         "run_id": {"type": ["string", "null"]},
         "command": {"type": "string"},
-        "covers_steps": {"type": "array", "items": {"type": "string"}},
+        "covers_steps": {"type": "array", "items": {"$ref": "#/$defs/step_id"}},
         "status": {"enum": ["running", "done", "failed"]},
         "started_at": {"type": ["string", "null"]},
         "ended_at": {"type": ["string", "null"]},

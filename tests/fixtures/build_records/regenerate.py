@@ -103,7 +103,8 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     inputs = [{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)},
               {"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}]
     rid = store.create_record("align-test", BASE, layer1_digest)
-    common = {"command": "align_hleg", "covers_steps": ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], "inputs": inputs,
+    common = {"command": "align_hleg", "covers_steps": ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"],
+              "inputs": inputs,
               "config": {"batch_size": 20, "prompt_version": "v1"}, "expected_total": 5, "work_unit": "batches",
               "checkpoint_file": "alignments_align-test.checkpoint.jsonl",
               "models": {"generator_model": "g", "judge_model": "j"},
@@ -206,7 +207,8 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     layer1_input = {"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}
     parent = store.create_record("core", BASE, None)
     run = store.start_execution(
-        parent, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], argv=["--manifest", "manifest.json"],
+        parent, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"],
+        argv=["--manifest", "manifest.json"],
         inputs=[{"role": "manifest", "file": manifest.name, "sha256": sha256_of_file(manifest)}],
         config={"manifest_files_count": 1}, expected_total=None, work_unit=None, checkpoint_file=None,
     )

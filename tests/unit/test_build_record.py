@@ -130,9 +130,8 @@ def test_invalid_file_is_reported_not_raised_in_list_and_raised_on_read(tmp_path
     store = BuildRecordStore(tmp_path)
     store.create_record("t", "b", None)
     (tmp_path / "build_records" / "0000000b0000.json").write_text("{not json", encoding="utf-8")
-    # the current version, so the schema check (not the version check) names the fault
-    (tmp_path / "build_records" / "00000005a0e0.json").write_text(
-        json.dumps({"schema_version": SCHEMA_VERSION, "record_id": "x"}), encoding="utf-8")
+    # no schema_version: the record falls through to the schema check, which names the fault
+    (tmp_path / "build_records" / "00000005a0e0.json").write_text(json.dumps({"record_id": "x"}), encoding="utf-8")
     listed = {r["record_id"]: r for r in store.list_records()}
     assert listed["0000000b0000"]["unreadable"] and "JSON" in listed["0000000b0000"]["reason"]
     assert listed["00000005a0e0"]["unreadable"] and "is a required property" in listed["00000005a0e0"]["reason"]

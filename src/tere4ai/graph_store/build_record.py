@@ -249,9 +249,10 @@ class BuildRecordStore:
         except (OSError, json.JSONDecodeError) as exc:
             raise RecordError(f"{path.name}: not readable JSON: {exc}") from exc
         # Checked before the schema, so an old record is named by its version
-        # (B155: the step ids became full words in build_record.v2).
+        # (B155: the step ids became full words in build_record.v2); a file
+        # with no version falls through to the schema and its own message.
         version = data.get("schema_version") if isinstance(data, dict) else None
-        if version != SCHEMA_VERSION:
+        if version is not None and version != SCHEMA_VERSION:
             raise RecordError(
                 f"build record {path.name} has schema_version {version!r}; this store reads {SCHEMA_VERSION} "
                 "(pre-B74 records are disposable; rewrite them with scripts/rename_build_record_steps.py)")

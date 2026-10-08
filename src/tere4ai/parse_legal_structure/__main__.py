@@ -63,7 +63,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     record_id = store.create_record(f"parse-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}", None, None)
     run_id = store.start_execution(
-        record_id, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], argv=raw_argv, inputs=inputs,
+        record_id, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], argv=raw_argv,
+        inputs=inputs,
         config={"manifest_files_count": len(manifest_files)}, expected_total=None, work_unit=None,
         checkpoint_file=None,
     )

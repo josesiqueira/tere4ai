@@ -275,4 +275,17 @@ def test_a_stored_record_with_the_old_step_keys_is_refused(tmp_path):
     path.write_text(json.dumps(data), encoding="utf-8")
     with pytest.raises(RecordError) as err:
         store.read(rid)
-    assert "build_record.v2" in str(err.value)
+    # only the explicit version check says this; the schema's const alone would not
+    assert "has schema_version 'build_record.v1'; this store reads build_record.v2" in str(err.value)
+
+
+def test_an_old_step_name_in_covers_steps_fails_the_stored_record_schema(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("steps.alias", None, "abc")
+    store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
+                          inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
+    data = json.loads((tmp_path / "build_records" / f"{rid}.json").read_text(encoding="utf-8"))
+    validator = validator_for("stored_record")
+    assert not list(validator.iter_errors(data))
+    data["executions"][0]["covers_steps"] = ["L2.1"]
+    assert [list(e.path) for e in validator.iter_errors(data)] == [["executions", 0, "covers_steps", 0]]
