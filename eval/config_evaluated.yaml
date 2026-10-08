@@ -1,6 +1,11 @@
 # Model configuration of record for evaluated builds (DEC-07 verify target).
 # Generated values must match the .env used for the run; the eval harness
 # (M4) refuses to report results whose config does not match this file.
+# Note added 2026-10-08: the models and counts below describe the July 2026
+# build (gpt-5.2, claude-opus-4-8, built 2026-07-08), which is disposable; the
+# prompt versions were moved to v4 on 2026-10-07 (B144). B74 rewrites this
+# file for the build the thesis reports, with a row per model in
+# config/model_parameters.json (sdd/2026-09-27-B99-before-rehearsal/ledger.md:16).
 generator:
   family: openai
   model: gpt-5.2
