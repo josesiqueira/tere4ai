@@ -483,7 +483,12 @@ Sabetzadeh, Amyot, Empirical Software Engineering 30(3):72, 2025, DOI
 10.1007/s10664-025-10619-z (VoR paywalled; arXiv:2501.14683 held as preprint;
 quote only from the VoR once obtained). VERIFIED (DBLP, Crossref). CORE.
 Grounds: provision classification by requirements-related concepts, domain
-classes rather than an engineering-response taxonomy.
+classes rather than an engineering-response taxonomy. 2026-10-08: the VoR is
+held since 2026-10-08 as ADD-43_FoodSafetyProvisions.pdf (supplied by Jose
+through TUNI; Empirical Software Engineering (2025) 30:72, 40 pages, accepted
+28 January 2025, published online 26 February 2025); quote from it
+(refs/notes/ADD-43.md); the _PREPRINT file stays as history and is never
+quoted.
 
 **[ADD-44]** PRE. "Executable Governance for AI: Translating Policies into
 Rules Using LLMs", Datla, Vurity, Dash, Ahmad, Adnan, Rafi, arXiv:2512.04408,
