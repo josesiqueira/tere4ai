@@ -747,6 +747,7 @@ incorrectly", whatever the number of classes (Section 2, author copy p. 6),
 and "does not directly measure variability due to the choice of the
 training set or the internal randomness" (Section 3.1, author copy p. 7):
 the ablation's result is worded for the one frozen build (B104 R2, R7).
+VoR held since 2026-10-08 (ADD-74_ApproximateStatisticalTests.pdf, supplied by Jose through TUNI; the MIT Press version of record, 29 pages, its first page printing "Neural Computation 10, 1895-1923 (1998)", neither the issue number nor the DOI printed; an image-only scan with no text layer, so the quotes were re-found by eye on the page images); the quotes are re-anchored with the VoR's pages (refs/notes/ADD-74.md): Section 2 is p. 1901, where the VoR reads "none of the results in this article depend on this assumption, since our only concern will be whether an example is classified correctly or incorrectly" (the author copy read "in this paper"), and Section 3.1 is p. 1903; these replace the author copy's pages 6 and 7 above. The ADD-74_ApproximateStatisticalTests_PREPRINT.pdf author copy stays as history and as the gate's searchable text surrogate only, never quoted.
 
 **[ADD-75]** PEER. "LegalBench: A Collaboratively Built Benchmark for
 Measuring Legal Reasoning in Large Language Models", Guha, Nyarko, Ho, Ré,
