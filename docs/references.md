@@ -1289,6 +1289,102 @@ apart from each other" (Ordinal metric differences, p. 6), the primary
 metric for the rubric scores, not a fixed step. The text layer renders the
 alpha glyph as "D" and garbles the formulas.
 
+**[ADD-107]** PEER. *Software Engineering*, Sommerville, 10th edition,
+Pearson, 2016, ISBN 978-0-13-394303-0 (textbook; tagged as the register
+tags books, ADD-46; its standing under the motivation-grade bar is the
+textbook's citation count, not measured here: [VERIFY] before the thesis
+cites it). Full text NOT HELD: no PDF, staged by edition and ISBN in
+refs/triage-textbooks/TRIAGE.md, so no gate note exists; quote nothing
+until a text copy is in hand. NEEDS-CHECK 2026-10-08 (edition, year and
+ISBN from the staging record, not read from the book). SUPPORTING. Grounds:
+the contrary reading paper/design_decisions.md (2026-10-01) names: the
+textbook's three-way split of requirements into functional, non-functional
+and organisational, organisational being a sub-type of non-functional,
+which ISO/IEC/IEEE 29148:2018's requirement types (ADD-54: functional,
+quality and process as peers; Glinz, ADD-56; SWEBOK, ADD-57) replaced in the
+design. Cited for what the textbook says, never for the design's own
+classification. Staged and approved by Jose on 2026-10-08 ("f6 yes").
+
+**[ADD-108]** PEER. "The Probabilistic Relevance Framework: BM25 and
+Beyond", Robertson, Zaragoza, Foundations and Trends in Information
+Retrieval 3(4):333-389, 2009, DOI 10.1561/1500000019 (the publisher-typeset
+text as posted on the first author's staff page at City, University of
+London, staff.city.ac.uk/~sbrp622/papers/foundations_bm25_review.pdf; the
+publisher's page is paywalled and was not used). VERIFIED 2026-10-08 (DOI,
+venue, volume, issue, pages and year from the first page). CORE. Grounds:
+the ranking function spec G D-G73 (3) names for the evidence step, Okapi
+BM25 with its saturation parameter k1 and length normalisation b: "This is
+the classic BM25 term-weighting and document-scoring function. As with all
+term-document weights defined in this survey, the full document score is
+obtained by summing these term-weights over the (original or expanded) set
+of query terms" (Section 3.4, after Equation (3.15), p. 360); and the usual
+ranges of k1 and b within which Lucene's defaults (ADD-110) sit, the reason
+the thesis adopts the defaults without tuning them on the repository: "the
+model provides no guidance on how these should be set ... A significant
+number of such experiments have been done, and suggest that in general
+values such as 0.5 < b < 0.8 and 1.2 < k1 < 2 are reasonably good in many
+circumstances. However, there is also evidence that optimal values do
+depend on other factors" (Section 3.5, pp. 360 to 361); "A common
+combination would be b = 0.5 and k1 = 2. (However, many experiments suggest
+a somewhat lower value of k1 and a somewhat higher value of b.)" (Section
+3.5.1, p. 361). The survey's list of open-source implementations (Section
+3.9, p. 369: "Lucene [29] does not implement BM25") predates Lucene's
+BM25Similarity, so Lucene's defaults are cited to ADD-110, never to this
+survey. The text layer garbles the formulas, so the notes quote prose only.
+Staged and approved by Jose on 2026-10-08 ("f6 yes").
+
+**[ADD-109]** PEER. "An algorithm for suffix stripping", Porter, Program
+14(3):130-137, July 1980, DOI 10.1108/eb046814. The file is the author's
+plain-text reprint from his own site (tartarus.org/martin/PorterStemmer/
+def.txt, "A few typos have been corrected"), with no page numbers; the
+journal's typeset pages are not held, so quotes carry section headings
+only. VERIFIED 2026-10-08 as to venue, volume, issue, pages and year (from
+the reprint's header); NEEDS-CHECK for the DOI, which the reprint does not
+print and which is to be confirmed from the publisher's page. CORE.
+Grounds: the stemmer of spec G D-G73 (3), applied to passages and queries
+alike (ruling S8; plan R1 checked the porter-stemmer package against
+Porter's own vocabulary with no mismatch): "Removing suffixes by automatic
+means is an operation which is especially useful in the field of
+information retrieval" (Section 1); the algorithm is specified in full,
+"it is simple enough to be described in full as an algorithm in this
+paper" (Section 1), which is why Lucene's PorterStemFilter (ADD-110) and
+the dashboard's package compute the same stems; and the order of its
+effect, "the suffix stripping process reduced the size of the vocabulary
+by about one third" (Section 2, on a vocabulary of 10,000 words). Staged
+and approved by Jose on 2026-10-08 ("f6 yes").
+
+**[ADD-110]** PROJ. Apache Lucene 10.5.2 documentation: the class pages of
+BM25Similarity (lucene.apache.org/core/10_5_2/core/org/apache/lucene/
+search/similarities/BM25Similarity.html) and EnglishAnalyzer
+(lucene.apache.org/core/10_5_2/analysis/common/org/apache/lucene/
+analysis/en/EnglishAnalyzer.html), with EnglishAnalyzer.java at the
+release tag releases/lucene/10.5.2 on github.com/apache/lucene for the
+stop words the page names but does not list; fetched 2026-10-08 (the
+current release that day; no plan or code of the dashboard names a
+release, since the dashboard reimplements the defaults and does not run
+Lucene), text copies in refs/ADD-110_LuceneDocs.txt. A project's
+documentation, not a motivation-grade source: never sole grounding; it
+fixes what Lucene's defaults are, not that they are good (BM25 is cited to
+ADD-108, the stemmer to ADD-109). VERIFIED 2026-10-08 (release and URLs
+from the pages). SUPPORTING. Grounds: the values spec G D-G73 (3) adopts as
+"Lucene's defaults" (ruling S9): "BM25 with these default values: k1 = 1.2
+b = 0.75 discountOverlaps = true" (BM25Similarity(), Constructor Summary);
+the inverse document frequency form D-G73 writes as ln(1 + (N - n + 0.5) /
+(n + 0.5)): "Implemented as log(1 + (docCount - docFreq + 0.5)/(docFreq +
+0.5))" (idf, Method Summary); Lucene's own attribution, "BM25 Similarity.
+Introduced in Stephen E. Robertson, Steve Walker, Susan Jones, Micheline
+Hancock-Beaulieu, and Mike Gatford. Okapi at TREC-3" (class description);
+the order of the English analysis the dashboard follows (ruling S8, plan
+R2): "StandardTokenizer filtered with EnglishPossessiveFilter,
+LowerCaseFilter, StopFilter, SetKeywordMarkerFilter if a stem exclusion set
+is provided and PorterStemFilter" (createComponents, Returns); and the 33
+words of the default English stop set, listed in the source's static
+initialiser of ENGLISH_STOP_WORDS_SET ("a", "an", "and", "are", "as", "at",
+"be", "but", "by", "for", "if", "in", "into", "is", "it", "no", "not", "of",
+"on", "or", "such", "that", "the", "their", "then", "there", "these",
+"they", "this", "to", "was", "will", "with"). Staged and approved by Jose
+on 2026-10-08 ("f6 yes").
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
