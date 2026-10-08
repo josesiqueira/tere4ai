@@ -1385,6 +1385,33 @@ initialiser of ENGLISH_STOP_WORDS_SET ("a", "an", "and", "are", "as", "at",
 "they", "this", "to", "was", "will", "with"). Staged and approved by Jose
 on 2026-10-08 ("f6 yes").
 
+**[ADD-111]** PEER. "Passage Retrieval Revisited", Kaszkiel, Zobel, Proc.
+20th Annual International ACM SIGIR Conference on Research and Development
+in Information Retrieval (SIGIR 1997), Philadelphia, ACM, pp. 178-185, 1997,
+DOI 10.1145/258525.258561 (the copy Jose downloaded on 2026-10-08, the ACM
+Digital Library being paywalled; a scan of the printed pages with an OCR
+text layer, refs/ADD-111_PassageRetrievalRevisited.pdf). VERIFIED
+2026-10-08 (title, authors, venue and year from the first page; the paper
+does not print the DOI, which Crossref's record matches to the title,
+authors, proceedings and pages 178-185). CORE. Grounds: the fixed-length
+passages of spec G D-G73 (2) and their size (ruling S5): a passage as "a
+contiguous block of text in the original document" (Section 1, p. 178);
+"For fixed-length passages, having around 150 to 350 words per passage
+provided the best overall performance" (Section 4, p. 181), the range whose
+upper end the 500 estimated tokens of S5 hold; "That is, semantic
+information does not appear to add value to ranking via passages" (Section
+5, p. 181); "fixed-length arbitrary passages have proved robust, working at
+least reasonably well in every experiment" (Section 5, p. 182); and
+"Starting a passage at every sentence has not worked well, probably because
+of variation in sentence length" (Section 6, p. 183). The sizes were
+measured on TREC's English news and government text with a cosine measure,
+not on repositories, and the paper's best passages overlap heavily (Table 4,
+p. 184) where D-G73 (2) ranks disjoint ones; the thesis states both. The
+OCR text layer misreads many words ("beet" for "best", "freed-length" for
+"fixed-length"), so the anchored quotes are the stretches it renders as
+printed; the quotes above are as printed. Staged and approved by Jose on
+2026-10-08 ("f6 yes").
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
