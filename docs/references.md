@@ -365,9 +365,10 @@ Grounds: semantic modelling of high-risk classification (OVR-1, DEC-10).
 et al., arXiv:2510.26309 (2025), DOI 10.48550/arXiv.2510.26309. VERIFIED. CORE.
 Grounds: graph-based compliance reasoning; a recent sibling.
 
-**[ADD-26]** PRE. "RAGulating Compliance", Agarwal et al., arXiv:2508.09893
+**[ADD-26]** PEER. "RAGulating Compliance", Agarwal et al., arXiv:2508.09893
 (2025), also CEUR-WS Vol. 4085. VERIFIED. SUPPORTING. Grounds: retrieval plus
 regulation compliance pipeline.
+(Tag corrected 2026-10-08, records question F7: refs/MANIFEST.md:25 lists the CEUR-WS Vol-4085 copy among the versions of record, so the entry reads PEER; the arXiv copy stays as history.)
 
 **[ADD-27]** PRE. "PrivComp-KG" (privacy compliance knowledge graph),
 arXiv:2404.19744 (2024), also IEEE. NEEDS-CHECK (authors and IEEE venue to
@@ -857,7 +858,6 @@ provide PropBank semantic role label annotations" (abstract, p. 112), with
 (p. 113). The B107 decision brief cites it only for this; the rule that a
 model never decides a reference label rests on the brief's reasoning and on
 ADD-16, not on this paper.
-ADD-16, not on this paper.
 
 **[ADD-83]** OFF. Council Regulation (EU) No 216/2013 of 7 March 2013 on the
 electronic publication of the Official Journal of the European Union, OJ L 69,
@@ -1021,6 +1021,273 @@ conditional. Fleiss and Cohen 1973 (refs/triage-judge-calibration/, verdict
 pending) is the companion that relates the quadratic form to the intraclass
 correlation. The text layer is an OCR; kappa reads "K" and weighted kappa "KW"
 in the sidecar.
+
+**[ADD-93]** PEER. "Answering the Call for a Standard Reliability Measure for
+Coding Data", Hayes, Krippendorff, Communication Methods and Measures
+1(1):77-89, 2007. The file is the authors' manuscript from the Annenberg
+School ("Manuscript as submitted to and published in Communication Methods
+and Measures 1,1: 77-89, 2007"), so quotes carry the manuscript's PDF pages;
+no DOI printed. NEEDS-CHECK 2026-10-08: the DOI 10.1080/19312450709336664
+named by the triage record is to be confirmed from the publisher's page;
+authors, title, venue, volume, issue, pages and year from the manuscript's
+first line. CORE. Grounds: the alpha statistic of spec F D-F20 (the
+between-instrument row) and D-F21 (one coefficient on one measurement level
+for every agreement comparison) and of spec G Section 6 and D-G17 (the human
+annotators): "we propose Krippendorff's alpha as the standard reliability
+measure. It is general in that it can be used regardless of the number of
+observers, levels of measurement, sample sizes, and presence or absence of
+missing data" (abstract, manuscript p. 1); and the bootstrap reading D-G17
+adopts, the share of draws below a reference value: "The probability, q, of
+failing to achieve amin is displayed for five values of amin ... if this
+research problem demands that reliability must not be below amin = 0.800,
+our reliability data would suggest serious trouble" (manuscript p. 7).
+
+**[ADD-94]** PEER. "The Measurement of Observer Agreement for Categorical
+Data", Landis, Koch, Biometrics 33(1):159-174, March 1977 (the JSTOR scan of
+the journal pages; the cover sheet prints the stable URL
+jstor.org/stable/2529310; no DOI printed). NEEDS-CHECK 2026-10-08: the DOI
+10.2307/2529310 named by the triage record is to be confirmed from the
+publisher's page; authors, title, venue, volume, issue, pages and year from
+the cover sheet and the first page. CORE. Grounds: the reading bands the
+annotation code and the calibration report print with every kappa and alpha
+(spec G Section 6 and D-G17, "the Landis and Koch band"; spec F D-F20 reads
+the between-instrument alpha with no threshold): "the following labels will
+be assigned to the corresponding ranges of kappa" (Section 3.2, p. 164),
+Table 3 (p. 165: below 0.00 poor, 0.00 to 0.20 slight, 0.21 to 0.40 fair,
+0.41 to 0.60 moderate, 0.61 to 0.80 substantial, 0.81 to 1.00 almost
+perfect), and the authors' own standing for them: "Although these divisions
+are clearly arbitrary, they do provide useful 'benchmarks' for the
+discussion of the specific example in Table 1" (p. 165), the reason the
+band is a label beside the interval and never a criterion. The text layer
+is an OCR; Table 3's first rows are interleaved in the sidecar.
+
+**[ADD-95]** PEER. "Reliability in Content Analysis: Some Common
+Misconceptions and Recommendations", Krippendorff, Human Communication
+Research 30(3):411-433, July 2004 (the publisher's typeset PDF; no DOI
+printed). NEEDS-CHECK 2026-10-08: the DOI 10.1111/j.1468-2958.2004.tb00738.x
+named by the triage record is to be confirmed from the publisher's page;
+author, title, venue, volume, issue, pages and year from the first page.
+CORE. Grounds: the two reference values in their peer-reviewed article
+form, which spec F D-F20 reports beside the bootstrap interval as contextual
+reference values, never acceptance criteria, and spec G Section 6 and D-G17
+read kappa and alpha with (0.800 firm, 0.667 tentative): "it is customary to
+require α ≥ .800. Where tentative conclusions are still acceptable, α ≥ .667
+is the lowest conceivable limit" and "Except for perfect agreement, there
+are no magical numbers, however ... one should consult confidence intervals"
+(Recommendations, p. 429); and the measurement-level rule behind D-F20 and
+D-F21's ordinal-primary ruling: "The coefficient chosen must not assume a
+metric of an order higher than warranted by the data in hand (nominal <
+ordinal < interval < ratio)" (Recommendations, p. 428).
+
+**[ADD-96]** PEER. "The Equivalence of Weighted Kappa and the Intraclass
+Correlation Coefficient as Measures of Reliability", Fleiss, Cohen,
+Educational and Psychological Measurement 33(3):613-619, 1973, DOI
+10.1177/001316447303300309 (SAGE version of record with its cover sheet).
+VERIFIED 2026-10-08 (DOI, venue, volume, issue, pages and year from the
+cover sheet and the first page). CORE. Grounds: the relation spec F D-F20
+states for the quadratic-weighted kappa of D-F10, and the equal-spacing
+assumption D-F20 and D-F21 declare once for the D-F10 measures: "This paper
+establishes the equivalence of weighted kappa with the intraclass
+correlation coefficient under general conditions" (p. 614); weighted kappa
+"is interpretable (aside from a term which goes to zero as n becomes large)
+as the intraclass correlation coefficient of reliability when systematic
+variability between raters is included as a component of total variation"
+(p. 617); "Thus the intraclass correlation coefficient is the special case
+of weighted kappa when the categories are equally spaced points along one
+dimension" (Comments, p. 618). The relation does not establish equal spacing
+for the rubric, which is why the ordinal alpha is primary (D-F21) and the
+D-F10 measures are supplementary. The text layer is an OCR; the weights and
+formulas are garbled in the sidecar; the companion of ADD-92.
+
+**[ADD-97]** PEER. "Commentary: A Dissenting View on So-Called Paradoxes of
+Reliability Coefficients", Krippendorff, Communication Yearbook 36 (chapter
+20):481-499, 2013, DOI 10.1080/23808985.2013.11679143 (the Taylor and
+Francis PDF, whose cover page cites the yearbook under its later journal
+name, Annals of the International Communication Association 36:1). VERIFIED
+2026-10-08 (DOI, pages and year from the cover page; the running head prints
+"COMMUNICATION YEARBOOK 36"). SUPPORTING. Grounds: the dissenting side of
+the paradox debate, the rebuttal to ADD-101, cited when the thesis defends
+alpha under the skewed alignment labels (spec F D-F20, D-F21): "I contend
+that most of the authors' discoveries are the artifacts of being led astray
+by strange, almost conspiratorial uses of language" (p. 481); the
+resolution of the high-agreement-low-reliability paradox by the information
+in the data, "inferences from high agreement coefficients to the
+reliability of data or of measuring instruments is compromised by low
+amounts of information in the data" (p. 485), the reason D-F20 prints the
+label distributions and the cannot_decide rates beside every alpha; and on
+AC1 (ADD-100): "Gwet's (2002) AC1, intended to overcome the paradox of 'high
+agreement but low reliability,' has to be disqualified as well" (p. 490).
+
+**[ADD-98]** PEER. "Can LLMs Replace Manual Annotation of Software
+Engineering Artifacts?", Ahmed, Devanbu, Treude, Pradel, 2025 IEEE/ACM 22nd
+International Conference on Mining Software Repositories (MSR 2025), pp.
+526-538, DOI 10.1109/MSR66628.2025.00086 (the IEEE proceedings PDF).
+VERIFIED 2026-10-08 (DOI, venue, pages and year from the first page). CORE.
+Grounds: the empirical software engineering precedent for spec F D-F20's
+between-instrument row, model-model Krippendorff's alpha beside human-model
+and human-human: "we compute the inter-rater agreement metric
+Krippendorff's α for each human-human, human-model, and model-model pair"
+(Section III-A, p. 529); the training-corpus mechanism behind the first
+pattern of D-F20 (models agree and miss the specialists), "Because of the
+way models are trained, we can expect powerful models to tend to reflect
+the 'majority opinion' they learn from the training corpus" (Section IV-A,
+p. 530, where model-model alpha is 0.68 to 0.76 against human-model 0.24 to
+0.40 and human-human 0.21 to 0.48); the predictor reading with its outlier,
+"the mean model-model agreement of the top 3 models is positively
+correlated with the mean human-model agreement, with a Spearman correlation
+of 0.65 (p < 0.05) ... There is an outlier (high model-model agreement but
+low human-model agreement) ... human-human agreement is also low (0.24)"
+(Section IV-B, p. 532), which D-F20 adopts as a pattern that motivates
+follow-up analyses and never as a mechanism; and the warning behind D-F20's
+rule that the row selects nothing (D-F1): "replacing more than one human
+can inflate inter-rater agreement because model-model agreements are much
+higher" (Section V, p. 534).
+
+**[ADD-99]** PEER. "Measuring Nominal Scale Agreement Among Many Raters",
+Fleiss, Psychological Bulletin 76(5):378-382, 1971 (the APA PsycNet PDF of
+the typeset article; no DOI printed). NEEDS-CHECK 2026-10-08: the DOI
+10.1037/h0031619 named by the triage record is to be confirmed from the
+publisher's page; author, title, venue, volume, issue, pages and year from
+the journal header on the first page. SUPPORTING. Grounds: the many-raters
+kappa, the alternative to alpha from Cohen's family that spec F D-F20 and
+D-F21 do not take: "kappa is generalized to the case where each of a sample
+of subjects is rated on a nominal scale by the same number of raters, but
+where the raters rating one subject are not necessarily the same as those
+rating another" (abstract, p. 378); a model that fails an item breaks "the
+same number of raters", which alpha does not need; and the pairwise scope
+of kappa and weighted kappa, "restricted to the case both where the number
+of raters is two and where the same two raters rate each subject" (p. 378),
+why ADD-88 and ADD-92 stay pairwise measures and the group values of D-F21
+are alphas.
+
+**[ADD-100]** PEER. "Computing inter-rater reliability and its variance in
+the presence of high agreement", Gwet, British Journal of Mathematical and
+Statistical Psychology 61:29-48, 2008, DOI 10.1348/000711006X126600 (the
+Wiley version of record). VERIFIED 2026-10-08 (DOI, venue, volume, pages and
+year from the first page). SUPPORTING. Grounds: the paradox-resistant
+alternative the thesis names and gives its reason for not adopting (spec F
+D-F20 and D-F21 keep Krippendorff's alpha; ADD-97 disqualifies AC1 as a
+reliability coefficient): "these coefficients occasionally yield unexpected
+results in situations known as the paradoxes of kappa. This paper explores
+the origin of these limitations, and introduces an alternative and more
+stable agreement coefficient referred to as the AC1 coefficient" (abstract,
+p. 29); its scope is "inter-rater reliability estimation when the extent of
+agreement between raters is high" (Concluding remarks, p. 47), the case the
+alignment labels will present.
+
+**[ADD-101]** PEER. "Assumptions behind Intercoder Reliability Indices",
+Zhao, Liu, Deng, Communication Yearbook 36 (chapter 19):419-480, 2013, DOI
+10.1080/23808985.2013.11679142 (the Taylor and Francis PDF, whose cover
+page cites the yearbook under its later journal name, Annals of the
+International Communication Association 36:1). VERIFIED 2026-10-08 (DOI,
+pages and year from the cover page; the running head prints "COMMUNICATION
+YEARBOOK 36"). SUPPORTING. Grounds: the published critique of alpha the
+thesis answers when it defends the coefficient under skewed labels (spec F
+D-F20, D-F21), with ADD-97 as the rebuttal: 22 indices analysed, "Most of
+the assumptions are unexamined in the literature, and yet these assumptions
+have implications for assessments of reliability that need to be
+understood, and that result in paradoxes and abnormalities. This chapter
+discusses 13 paradoxes and nine abnormalities to illustrate the 24
+assumptions. To facilitate understanding, the analysis focuses on
+categorical scales with two coders" (abstract, p. 419), 13 of the 24
+attributed to alpha ("The 13 Krippendorff Assumptions", p. 451); and the
+authors' claim of scope, "these boundaries also apply to more categories
+and more coders" (p. 451), why the critique cannot be set aside for a
+many-rater row. The Greek letters of the indices are dropped by the text
+layer.
+
+**[ADD-102]** PEER. "Measuring inter-rater reliability for nominal data:
+which coefficients and confidence intervals are appropriate?", Zapf,
+Castell, Morawietz, Karch, BMC Medical Research Methodology 16:93, pp. 1-10,
+2016, DOI 10.1186/s12874-016-0200-9 (open access, CC BY; the printed title
+joins its halves with a dash). VERIFIED 2026-10-08 (DOI, venue, article
+number and year from the first page). SUPPORTING. Grounds: which
+coefficient and which interval for nominal data, the bootstrap interval the
+dashboard computes for alpha (spec G D-G17, spec F D-F20) and the choice of
+alpha where ratings are missing or ordinal (D-F20, D-F21): "Fleiss' K and
+Krippendorff's alpha with bootstrap confidence intervals are equally
+suitable for the analysis of reliability of complete nominal data. The
+asymptotic confidence interval for Fleiss' K should not be used. In the
+case of missing data or data or higher than nominal order, Krippendorff's
+alpha is recommended" (abstract, p. 1); the open question it addresses,
+"there is a lack of evidence which reliability measure performs best under
+different circumstances (with respect to missing data, prevalence
+distribution and number of raters or categories)" (Background, p. 2). A
+methods paper from a medical statistics venue, cited for the simulation
+evidence on the coefficients, never for a clinical claim.
+
+**[ADD-103]** PEER. "Likert scales, levels of measurement and the 'laws' of
+statistics", Norman, Advances in Health Sciences Education 15:625-632,
+2010, DOI 10.1007/s10459-010-9222-y (the Springer version of record,
+"Methodologist's Corner"). VERIFIED 2026-10-08 (DOI, venue, volume, pages
+and year from the first page). SUPPORTING. Grounds: one side of the Likert
+level-of-measurement debate, the side spec F D-F20 and D-F21 do not take as
+primary but keep as the supplementary analyses conditional on equal
+spacing (ruling 2 of research/2026-09-24-between-model-agreement.md Section
+6): "many studies, dating back to the 1930s consistently show that
+parametric statistics are robust with respect to violations of these
+assumptions" (abstract, p. 625); "Parametric statistics can be used with
+Likert data, with small sample sizes, with unequal variances, and with
+non-normal distributions" (Summary, p. 631). A methods column from a health
+education venue, cited for the robustness argument, never for a clinical
+claim.
+
+**[ADD-104]** PEER. "Likert scales: how to (ab)use them?", Jamieson, Medical
+Education 38(12):1217-1218, 2004, DOI 10.1111/j.1365-2929.2004.02012.x. The
+file is the AUTHOR COPY from the University of Glasgow Enlighten repository
+(eprints.gla.ac.uk/59552; its cover sheet prints the citation and the DOI
+and warns that the version may differ from the published one), so quotes
+carry the manuscript's pages. VERIFIED 2026-10-08 as to the citation
+(from the repository cover sheet); the journal's typeset pages are not
+held, confirm any quote against them before the thesis cites it.
+SUPPORTING. Grounds: the other side of the Likert debate, the side spec F
+D-F20 and D-F21 take for the primary agreement claim (ordinal alpha
+primary, the five rubric categories establish an order and not equal
+spacing): "the response categories have a rank order, but the intervals
+between values cannot be presumed equal" (manuscript p. 1); "the average
+of 'fair' and 'good' is not 'fair-and-a-half', and this is true even when
+one assigns integers to represent 'fair' and 'good'!" (manuscript p. 3,
+after Kuzon, Urbanchek and McCabe 1996). A commentary from a medical
+education venue, cited for the measurement-level argument, never for a
+clinical claim.
+
+**[ADD-105]** PEER. "Reliability in software engineering qualitative
+research through Inter-Coder Agreement", González-Prieto, Perez, Diaz,
+López-Fernández, The Journal of Systems and Software 202 (2023) 111707, DOI
+10.1016/j.jss.2023.111707 (the Elsevier version of record, pages 1 to 18
+within the article; the author line prints "Perez" and "Diaz" without
+accents). VERIFIED 2026-10-08 (DOI, venue, volume, article number and year
+from the first page). SUPPORTING. Grounds: the software engineering guide to
+alpha, the reference values and the standing of the bands in an empirical
+software engineering venue (spec F D-F20, spec G Section 6): "A common
+rule-of-thumb in the literature (Krippendorff, 2018) is that α ≥ 0.667 is
+the minimal threshold required to draw conclusions from the data. For α ≥
+0.80, we can consider that there exists statistical evidence of reliability
+in the evaluations. Apart from these considerations, there are doubts in
+the community that more partitioned interpretations, such as the one of
+Landis & Koch of Table 4, are valid in this context" (Section 3.1, p. 7);
+and the field's practice the calibration report improves on (D-F21's
+reading order): "In most of the 49 primary studies analyzed, Krippendorff's
+α or Cohen's κ coefficients were used, but in a very shallow way with a
+mere mention to the final value of the statistics without any further
+analysis of the underlying causes" (Section 1, p. 2).
+
+**[ADD-106]** PRE. "Computing Krippendorff's Alpha-Reliability",
+Krippendorff, University of Pennsylvania, Annenberg School for
+Communication, departmental paper dated 2011.1.25 (literature updated
+2013.9.13), 10 pages; no DOI. A University of Pennsylvania departmental
+paper, not peer reviewed; supports the computation the dashboard's code
+follows, never sole grounding; cite ADD-93 for the statistic. VERIFIED
+2026-10-08 as a departmental paper (author, title and dates from the first
+page). SUPPORTING. Grounds: the computation tere4ai-dashboard's
+coefficients code follows and the two rules spec F D-F20 takes from it:
+alpha "evaluates reliability one variable at a time" (p. 1), so alpha runs
+per rubric dimension and never pooled across dimensions; and the
+frequency-dependent ordinal difference function, "Values have the meaning
+of ranks and differences between ranks depend on how many ranks they are
+apart from each other" (Ordinal metric differences, p. 6), the primary
+metric for the rubric scores, not a fixed step. The text layer renders the
+alpha glyph as "D" and garbles the formulas.
 
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
