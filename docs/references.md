@@ -440,6 +440,8 @@ Emenecker, ICSE 2010, pp. 155-164, DOI 10.1145/1806799.1806825. VERIFIED
 (Crossref; full text NOT HELD, ACM paywall, quote nothing until the PDF is in
 hand). CORE. Grounds: the classic evaluated regulation-to-requirement
 trace-recovery work the last-mile claim positions against.
+Reading fixed 2026-10-08 (Jose, on downloading it): a motivating source for the problem (tracing regulatory codes to requirements is an established, evaluated problem since 2010), never a method source ("since it is from 2010 it cannot be used like 'so we used their methods' ... because today in 2026 they are different, but im including"). Jose supplies the version of record through TUNI.
+VoR held since 2026-10-08 (ADD-37_RegulatoryCodesTracing.pdf, supplied by Jose through TUNI; the IEEE Xplore manifestation of the ACM/IEEE ICSE 2010 proceedings paper, printed pages 155 to 164, no DOI printed); quote from it (refs/notes/ADD-37.md).
 
 **[ADD-38]** PRE. "R2Code: A Self-Reflective LLM Framework for
 Requirements-to-Code Traceability", Wang, Keung, Ma, Mao, Chen, Li,
@@ -460,6 +462,7 @@ Engineering 31(4):85, 2026, DOI 10.1007/s10664-026-10827-1 (VoR paywalled;
 arXiv:2502.04916 held as preprint; quote only from the VoR once obtained).
 VERIFIED (Crossref). CORE. Grounds: strongest recent empirical
 legal-requirements trace-recovery comparison in the LLM era.
+VoR held since 2026-10-08 (ADD-40_ClassifierOrPrompt.pdf, supplied by Jose through TUNI; Springer version of record, 47 pages, DOI printed on the first page, published online 2 March 2026); quote from it (refs/notes/ADD-40.md). The ADD-40_ClassifierOrPrompt_PREPRINT.pdf file stays as history and is never quoted.
 
 **[ADD-41]** PEER. "Identification and Visual Representation of Explicit Legal
 Definitions, Their Relations and Implicit Actors in Regulatory Documents",
@@ -986,6 +989,32 @@ family-bias; systematically assigning higher ratings to outputs produced by
 other models of the same family" (abstract, p. 1); family bias defined as
 "a tendency to favor completions from models within the same family"
 (Section 1, p. 2). The rule's grounding is ADD-84 and ADD-85.
+
+**[ADD-92]** PEER. "Weighted Kappa: Nominal Scale Agreement with Provision for
+Scaled Disagreement or Partial Credit", Cohen, Psychological Bulletin
+70(4):213-220, October 1968 (the APA PsycNet PDF of the typeset article; no
+DOI printed). NEEDS-CHECK 2026-10-08: the DOI 10.1037/h0026256 named by spec F
+is to be confirmed from the publisher's page; author, title, venue, volume,
+issue, pages and year confirmed from the PDF's first page. CORE. Grounds: the
+quadratic-weighted kappa per rubric dimension, the paired ordinal agreement
+measure between the instrument and the specialists, item by item (spec F
+D-F10), and D-F21's note that it is kept as a supplementary analysis
+conditional on equal spacing (the assumption Section 9 declares once for the
+D-F10 measures): weighted kappa "provides for the incorporation of
+ratio-scaled degrees of disagreement (or agreement) to each of the cells of
+the k X k table of joint nominal scale assignments such that disagreements of
+varying gravity (or agreements of varying degree) are weighted accordingly.
+Although providing for partial credit, KW is fully chance corrected"
+(abstract, p. 213); "The weights assigned are an integral part of how
+agreement is defined" (p. 215); "K is the special case of KW where all
+disagreements are given the same weight" (p. 218); and, with the
+squared-distance weights and the categories scored by their index numbers
+("the first category is scored 1, the second is scored 2, etc."), "r is found
+identical to the KW above" (p. 218), the equal-step reading behind the
+conditional. Fleiss and Cohen 1973 (refs/triage-judge-calibration/, verdict
+pending) is the companion that relates the quadratic form to the intraclass
+correlation. The text layer is an OCR; kappa reads "K" and weighted kappa "KW"
+in the sidecar.
 
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
