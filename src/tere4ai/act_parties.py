@@ -161,6 +161,26 @@ def _after_of(words: list[str], start: int) -> bool:
     return k >= 0 and words[k] == "of"
 
 
+def _coordinated_after_descriptor(text: str) -> bool:
+    """R98: after a descriptor ("of ... AI systems"), and before any relative
+    marker, a party joined by "and" or "or" makes the phrase several parties."""
+    match = re.search(r"\s+of\s+(?:such\s+)?(?:the\s+)?(?:high-risk\s+)?(?:general-purpose\s+)?ai\s+(?:systems?|models?)", text)
+    if match is None:
+        return False
+    rest = text[match.end():]
+    cut = min((rest.find(m) for m in _RELATIVE_MARKERS if m in rest), default=-1)
+    if cut >= 0:
+        rest = rest[:cut]
+    words = _words(rest)
+    for start, _end, _value in _find(words):
+        k = start - 1
+        while k >= 0 and words[k] in ("the", "a", "an", "any"):
+            k -= 1
+        if k >= 0 and words[k] in ("and", "or", "and/or"):
+            return True
+    return False
+
+
 def place(phrase: Any) -> str | None:
     """The value a written addressee is placed on, or None when the list cannot place it.
 
@@ -171,6 +191,8 @@ def place(phrase: Any) -> str | None:
         return None
     text = " ".join(phrase.lower().replace("’", "'").split()).strip(" ,.;:")
     text = _strip_leading(text)
+    if _coordinated_after_descriptor(text):
+        return None  # R98: a party coordinated after a descriptor is still several parties
     # second step: the full name, with the descriptor tail removed or not
     for candidate in (text, _DESCRIPTOR_TAIL.sub("", text).strip(" ,.")):
         words = _words(candidate)

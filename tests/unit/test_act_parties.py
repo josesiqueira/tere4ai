@@ -156,6 +156,8 @@ PLACED = {
     "subjects of testing": "subject_of_testing",
     # R91: a closed list of words may stand before the head
     "national market surveillance authorities": "market_surveillance_authority",
+    # R98: a descriptor with no coordinated party still places
+    "providers of general-purpose AI models with systemic risk": "provider",
 }
 UNPLACED = (
     "that system", "the post-market monitoring system", "it", "they", "the provider or the deployer",
@@ -167,6 +169,11 @@ UNPLACED = (
     "the report submitted by the provider",
     "the technical documentation drawn up by the provider",
     "any information obtained by a competent authority pursuant to this article",
+    # R98: a party coordinated after a descriptor is still several parties
+    "providers of AI systems and deployers of AI systems",
+    "deployers of high-risk AI systems and importers",
+    # R58: only the guard on the one word "subject" decides these
+    "subject", "the subject",
 )
 
 
