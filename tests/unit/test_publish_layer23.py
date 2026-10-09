@@ -188,7 +188,7 @@ def test_load_exception_marks_target_unavailable_and_closes_driver(tmp_path, mon
     assert store.read(rid)["executions"][-1]["status"] == "failed"
 
 
-def test_gate_failure_records_per_gate_and_gates_only_covers_p1(tmp_path, monkeypatch):
+def test_gate_failure_records_per_gate_and_gates_only_covers_publication_step1(tmp_path, monkeypatch):
     cli = _publish()
     layer1, norms, alignments, store, rid = _files(tmp_path)
     _fakes(monkeypatch, cli, gates_ok=False)

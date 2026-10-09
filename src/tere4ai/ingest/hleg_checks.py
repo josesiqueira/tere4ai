@@ -147,7 +147,7 @@ def kind_failures(item: dict[str, Any], record: dict[str, Any], bottoms: dict[in
 
 
 def check_hleg2(text: str, record: dict[str, Any], plain: dict[int, str], reviewed: list[dict[str, Any]],
-             bottoms: dict[int, float]) -> list[str]:
+                bottoms: dict[int, float]) -> list[str]:
     made = record["exclusions"]
     failures = [f"HLEG_CHECK2 page {i['page']}, top {i['top']}: exclusion not in the reviewed list: {i['kind']} {i['text'][:60]!r}"
                 for i in made if i not in reviewed]
@@ -236,7 +236,7 @@ def word_differences(derived: list[str], other: list[str]) -> list[tuple[str, in
 
 
 def check_hleg3(text: str, record: dict[str, Any], other_body: dict[int, list[str]],
-             rows: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+                rows: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     failures: list[str] = []
     used: list[str] = []
     # Whole words: the text is cut at page joins only, never at a removed marker,

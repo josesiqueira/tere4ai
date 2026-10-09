@@ -227,8 +227,8 @@ def test_a_row_that_matches_no_difference_fails(frozen, readings, reviewed, rows
     ("social AI systems in all areas", "social AI systemsin all areas", "systemsin", 21),
     ("Like many technologies", "Likemany technologies", "Likemany", 17),
 ])
-def test_a_glued_word_in_the_derived_text_is_a_hleg3_difference(frozen, readings, reviewed, rows, phrase, replacement,
-                                                             glued, page):
+def test_a_glued_word_in_the_derived_text_is_an_hleg3_difference(frozen, readings, reviewed, rows, phrase, replacement,
+                                                              glued, page):
     _, _, text, record = frozen
     altered = text.replace(phrase, replacement, 1)
     assert glued in altered and altered != text

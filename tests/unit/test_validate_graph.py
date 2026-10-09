@@ -150,4 +150,5 @@ def test_every_failure_string_of_the_gates_module_starts_with_a_gate_name():
         src = (root / rel).read_text(encoding="utf-8")
         prefixes = set(re.findall(r'f?"([A-Z][A-Z_0-9]*) ', src))
         assert not {p for p in prefixes if re.fullmatch(r"[GP][1-6]", p)}, rel
+        assert {p for p in prefixes if "_GATE" in p}, rel
         assert {p for p in prefixes if "_GATE" in p} <= set(GATES), rel
