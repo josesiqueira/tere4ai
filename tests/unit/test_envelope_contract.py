@@ -178,7 +178,7 @@ def test_requirements_response_is_a_calibrated_envelope(client):
     classification = client.post("/api/classify", json={"features": HIGH_RISK_FEATURES}).json()
     env = client.post(
         "/api/requirements",
-        json={"classification": classification["answer"], "actor": "provider"},
+        json={"classification": classification["answer"], "addressee": "provider"},
     ).json()
     assert_section8_envelope(env)
 

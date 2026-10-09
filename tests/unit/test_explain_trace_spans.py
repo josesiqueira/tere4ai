@@ -137,8 +137,8 @@ def test_explain_accepted_norm_full_chain(
     deontic = answer["deontic"]
     assert deontic["deontic_type"] == "obligation"
     assert deontic["modal"] == "shall"
-    assert deontic["actor"]["inferred"] == "provider"
-    assert deontic["actor"]["inference_source_node_id"] == "eu-ai-act:article-16"
+    assert deontic["addressee"]["inferred"] == "provider"
+    assert deontic["addressee"]["inference_source_node_id"] == "eu-ai-act:article-16"
     assert deontic["object"] == "a risk management system"
     assert deontic["conditions"] == ["in relation to high-risk AI systems"]
     # Source unit full text, resolved via source_node_id from the dump.

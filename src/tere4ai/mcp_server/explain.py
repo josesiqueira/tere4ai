@@ -34,6 +34,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from tere4ai.act_parties import addressee_of
 from tere4ai.align_hleg.hleg_source import HLEG_SPAN_PREFIX, served_hleg
 from tere4ai.extract_norms.recorded import extraction_generator_settings
 from tere4ai.mcp_server.application_dates import legal_text
@@ -154,6 +155,13 @@ def _earlier_version(
             "note": f"the unit is marked {amendment} but its earlier version is not in the graph dump"}
 
 
+def _addressee_object(norm: dict[str, Any]) -> dict[str, Any]:
+    """B145 (D-G80 (10), (21)): the norm's addressee, its stored value and both slots."""
+    addressee = addressee_of(norm)
+    return {"value": addressee.value, "explicit": addressee.explicit, "inferred": addressee.inferred,
+            "inference_source_node_id": addressee.source_node_id}
+
+
 def explain_requirement(
     norm_id: str,
     dump: dict[str, Any],
@@ -259,11 +267,7 @@ def explain_requirement(
         "deontic": {
             "deontic_type": norm.get("deontic_type"),
             "modal": norm.get("modal"),
-            "actor": {
-                "explicit": norm.get("actor_explicit"),
-                "inferred": norm.get("actor_inferred"),
-                "inference_source_node_id": norm.get("actor_inference_source_node_id"),
-            },
+            "addressee": _addressee_object(norm),
             "action": norm.get("action"),
             "object": norm.get("object"),
             "conditions": list(norm.get("conditions") or []),

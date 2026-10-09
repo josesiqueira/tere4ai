@@ -46,7 +46,7 @@ Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence
    unknown), decided by the same deterministic rules from the flags and the
    optional `deployer` facts. It reports only whether a FRIA is required, not
    the assessment content.
-3. `get_applicable_requirements(classification, actor?)`: judge-accepted
+3. `get_applicable_requirements(classification, addressee?)`: judge-accepted
    normative statements for the classified category, grouped by article,
    each with its source node and span ids.
 4. `explain_requirement(norm_id)`: one norm in depth: deontic reading,
@@ -64,7 +64,7 @@ Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence
 8. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`:
    one artifact against every judge-accepted norm of one article, in a
    single envelope with per-norm results and worst-case aggregation.
-9. `trace_implementation(classification, tags, actor?)`: the
+9. `trace_implementation(classification, tags, addressee?)`: the
    requirement-to-code traceability matrix. Scan your own project for
    `@implements: <norm-id>` tags (reference scanner:
    `python -m tere4ai.trace_scan <dir>`) and pass them in; the server never

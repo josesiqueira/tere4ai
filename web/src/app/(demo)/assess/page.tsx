@@ -76,8 +76,10 @@ type Requirement = {
   norm_id: string;
   deontic_type: string;
   modal: string;
-  actor: string | null;
-  actor_source: string;
+  actor?: string | null;
+  actor_source?: string;
+  addressee?: string;
+  addressee_source?: string;
   action: string;
   object: string;
   source_node_id: string;
@@ -1806,14 +1808,14 @@ export default function AssessPage() {
                               <div className="space-y-2 min-w-0">
                                 <p className="text-sm leading-6">
                                   <span className="font-semibold">
-                                    {norm.actor ?? "unspecified actor"}
+                                    {norm.addressee ?? norm.actor ?? "unspecified actor"}
                                   </span>{" "}
                                   <span className="text-xs font-semibold uppercase text-muted-foreground">
                                     {norm.modal}
                                   </span>{" "}
                                   {norm.action}{" "}
                                   <span className="text-muted-foreground">{norm.object}</span>
-                                  {norm.actor_source === "inferred" && (
+                                  {(norm.addressee_source ?? norm.actor_source) === "inferred" && (
                                     <span className="text-xs text-muted-foreground">
                                       {" "}
                                       (actor inferred)

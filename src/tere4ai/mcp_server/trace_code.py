@@ -117,6 +117,8 @@ def trace_implementation(
     norms_payload: dict[str, Any],
     alignments_payload: dict[str, Any],
     dump: dict[str, Any],
+    addressee: str | None = None,
+    *,
     actor: str | None = None,
 ) -> dict[str, Any]:
     """Coverage matrix between applicable judge-accepted norms and tag records.
@@ -139,7 +141,7 @@ def trace_implementation(
         )
 
     req_env = get_applicable_requirements(
-        classification_answer, norms_payload, dump, actor=actor
+        classification_answer, norms_payload, dump, addressee, actor=actor
     )
     req_answer = req_env.get("answer") or {}
     by_article = req_answer.get("requirements_by_article") or {}
@@ -180,7 +182,7 @@ def trace_implementation(
                     "article": article,
                     "source_node_id": n.get("source_node_id"),
                     "source_span_id": n.get("source_span_id"),
-                    "actor": n.get("actor"),
+                    "addressee": n.get("addressee"),
                     "hleg_alignments": alignments.get(norm_id, []),
                     "trace_locations": locations,
                     "trace_status": "traced" if locations else "untraced",

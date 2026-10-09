@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai import act_parties as ap
 from tere4ai.mcp_server import classify as classify_module
 from tere4ai.mcp_server import requirements as requirements_module
 from tere4ai.mcp_server.classify import classify_ai_system
@@ -177,7 +178,7 @@ def test_high_risk_returns_only_accepted_norms_grouped(dump, norms_payload, node
             "norm_id",
             "deontic_type",
             "modal",
-            "actor",
+            "addressee",
             "action",
             "object",
             "source_node_id",
@@ -215,9 +216,9 @@ def test_high_risk_entries_carry_conditions_when_present(dump, norms_payload):
     assert len(with_conditions) == len(conditioned_accepted)
 
 
-def test_actor_filter_provider(dump, norms_payload, node_ids):
+def test_addressee_filter_provider(dump, norms_payload, node_ids):
     envelope = get_applicable_requirements(
-        {"risk_category": "high_risk"}, norms_payload, dump, actor="provider"
+        {"risk_category": "high_risk"}, norms_payload, dump, "provider"
     )
     assert_envelope_invariants(envelope, node_ids)
     entries = [
@@ -229,23 +230,22 @@ def test_actor_filter_provider(dump, norms_payload, node_ids):
     norms_by_id = {n["norm_id"]: n for n in norms_payload["norms"]}
     for entry in entries:
         norm = norms_by_id[entry["norm_id"]]
-        assert norm.get("actor_inferred") == "provider" or "provider" in (
-            norm.get("actor_explicit") or ""
-        ).lower(), entry["norm_id"]
-    assert envelope["answer"]["summary"]["actor_filter"] == "provider"
+        assert entry["addressee"] in ("provider", "operator_general"), entry["norm_id"]
+        assert ap.addressee_of(norm).value in ("provider", "operator_general"), entry["norm_id"]
+    assert envelope["answer"]["summary"]["addressee_filter"] == "provider"
     assert envelope["answer"]["summary"]["returned"] == len(entries)
     accepted = [n for n in norms_payload["norms"] if n["judge_verdict"] == "accepted"]
     assert len(entries) < len(accepted)
 
 
-def test_actor_filter_rejects_non_canonical_actor(dump, norms_payload, node_ids):
+def test_addressee_filter_refuses_a_value_outside_the_list(dump, norms_payload, node_ids):
     envelope = get_applicable_requirements(
-        {"risk_category": "high_risk"}, norms_payload, dump, actor="vendor"
+        {"risk_category": "high_risk"}, norms_payload, dump, "vendor"
     )
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["status"] == "not_applicable"
     assert envelope["answer"]["requirements_by_article"] == {}
-    assert any("canonical actor vocabulary" in f for f in envelope["missing_facts"])
+    assert any("is not a party a request can name" in f for f in envelope["missing_facts"])
 
 
 # Transparency only: Article 50 norms only --------------------------------------

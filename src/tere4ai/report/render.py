@@ -995,20 +995,29 @@ def _render_requirements(
             meta_parts = [
                 emit_field("deontic_type", norm.get("deontic_type")),
                 emit_field("modal", norm.get("modal")),
-                "actor " + emit_field("actor", norm.get("actor")),
+                # B145: a session recorded before names its fields actor, one
+                # recorded after names them as served (addressee).
+                (
+                    "addressee " + emit_field("addressee", norm.get("addressee"))
+                    if "addressee" in norm
+                    else "actor " + emit_field("actor", norm.get("actor"))
+                ),
             ]
-            if norm.get("actor_source") is not None:
-                meta_parts.append(
-                    "(" + emit_field("actor_source", norm.get("actor_source")) + ")"
-                )
+            source_key = "addressee_source" if "addressee" in norm else "actor_source"
+            if norm.get(source_key) is not None:
+                meta_parts.append("(" + emit_field(source_key, norm.get(source_key)) + ")")
             # DEC-19: the requirement type, when the recorded entry carries it.
             if "requirement_type" in norm:
-                explicit = norm.get("actor_source") == "explicit"
+                explicit = norm.get(source_key) == "explicit"
+                written = norm.get("addressee_explicit") if "addressee" in norm else (
+                    norm.get("actor") if explicit else None
+                )
+                value = norm.get("addressee", norm.get("actor"))
                 meta_parts.append(_requirement_type_html(norm.get("requirement_type"), {
                     "deontic_type": norm.get("deontic_type"),
                     "source_node_id": norm.get("source_node_id"),
-                    "actor_explicit": norm.get("actor") if explicit else None,
-                    "actor_inferred": None if explicit else norm.get("actor"),
+                    "actor_explicit": written,
+                    "actor_inferred": None if explicit else value,
                 }))
             conditions = norm.get("conditions") or []
             exceptions = norm.get("exceptions") or []
@@ -1088,7 +1097,10 @@ def _render_requirements(
             out.append(
                 f'<p class="caption">{emit_field("review_note", explain_ans.get("review_note"))}</p>'
             )
-        actor = deontic.get("actor") if isinstance(deontic.get("actor"), dict) else {}
+        actor = (
+            deontic.get("addressee") if isinstance(deontic.get("addressee"), dict)
+            else (deontic.get("actor") if isinstance(deontic.get("actor"), dict) else {})
+        )
         type_html = (
             " · " + _requirement_type_html(deontic.get("requirement_type"), {
                 "deontic_type": deontic.get("deontic_type"),

@@ -238,6 +238,9 @@ class ClassifyRequest(_Utf8GuardedModel):
 
 class RequirementsRequest(_Utf8GuardedModel):
     classification: dict[str, Any]
+    addressee: str | None = None
+    # B145 (D-G80 (21), R61): retired; a body that still sends it is refused
+    # by get_applicable_requirements with a message naming addressee.
     actor: str | None = None
 
 
@@ -749,6 +752,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             body.classification,
             request.app.state.norms,
             request.app.state.dump,
+            body.addressee,
             actor=body.actor,
         )
         return JSONResponse(content=envelope)
@@ -820,8 +824,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             candidate = {
                 key: norm.get(key)
                 for key in (
-                    "norm_id", "deontic_type", "modal", "actor_explicit", "actor_inferred",
-                    "actor_inference_source_node_id", "action", "object", "conditions",
+                    "norm_id", "deontic_type", "modal", "addressee_explicit", "addressee_inferred",
+                    "addressee_inference_source_node_id", "addressee", "action", "object", "conditions",
                     "exceptions", "lifecycle_phase_ids", "extractor_model",
                     "extractor_prompt_version", "judge_verdict", "review_status",
                 )

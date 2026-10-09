@@ -175,7 +175,7 @@ def test_matrix_covers_every_applicable_norm_traced_or_untraced(
     }
 
 
-def test_matrix_rows_carry_the_requirements_actor(
+def test_matrix_rows_carry_the_requirements_addressee(
     transparency_classification, norms, alignments, dump
 ):
     """Every matrix row (traced or untraced) carries the same actor the
@@ -192,14 +192,14 @@ def test_matrix_rows_carry_the_requirements_actor(
     rows = env["answer"]["matrix"]
     req_env = get_applicable_requirements(transparency_classification, norms, dump)
     actors_by_norm = {
-        entry["norm_id"]: entry["actor"]
+        entry["norm_id"]: entry["addressee"]
         for entries in req_env["answer"]["requirements_by_article"].values()
         for entry in entries
     }
     assert rows, "transparency classification must yield matrix rows"
     for row in rows:
-        assert row["actor"] is not None, f"row {row['norm_id']} lost its actor"
-        assert row["actor"] == actors_by_norm[row["norm_id"]]
+        assert row["addressee"] is not None, f"row {row['norm_id']} lost its addressee"
+        assert row["addressee"] == actors_by_norm[row["norm_id"]]
 
 
 def test_non_accepted_and_unknown_ids_are_rejected_with_reasons(

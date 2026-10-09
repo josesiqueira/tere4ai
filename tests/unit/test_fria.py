@@ -520,7 +520,7 @@ def test_requirements_pass_the_fria_block_through_verbatim(dump):
     norms_payload = json.loads(NORMS_PATH.read_text(encoding="utf-8"))
     classification = classify_ai_system(_credit_scorer_features(), dump)
     envelope = get_applicable_requirements(
-        classification, norms_payload, dump, actor="deployer"
+        classification, norms_payload, dump, "deployer"
     )
     answer = envelope["answer"]
     assert "article-27" in answer["requirements_by_article"]

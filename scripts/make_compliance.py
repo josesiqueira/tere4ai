@@ -269,7 +269,7 @@ def render(classify: dict[str, Any], requirements: dict[str, Any]) -> str:
                 "| `{norm_id}` | {deontic} | {actor} | {modal} | {action} | {obj} | `{span}` |".format(
                     norm_id=_cell(norm.get("norm_id")),
                     deontic=_cell(norm.get("deontic_type")),
-                    actor=_cell(norm.get("actor")),
+                    actor=_cell(norm.get("addressee_explicit") or norm.get("addressee") or norm.get("actor")),
                     modal=_cell(norm.get("modal")),
                     action=_cell(norm.get("action")),
                     obj=_cell(norm.get("object")),

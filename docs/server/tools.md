@@ -192,8 +192,15 @@ system, grouped by source article.
 
 classification is the classify_ai_system envelope (or its bare answer).
 Only judge-ACCEPTED NormativeStatements are returned; unacceptable-risk systems
-get zero requirements, only the prohibition citation. The optional actor
-filter uses the canonical actor vocabulary (provider, deployer, ...).
+get zero requirements, only the prohibition citation. The optional addressee
+names one party of the Act (schema/act_parties.json): one of the six AI Act
+roles (provider, product_manufacturer, deployer, authorised_representative,
+importer, distributor) or an authority, body, institution or person the Act
+names; the norms the facade serves to it are those whose stored addressee is
+that party, operators in general for an AI Act role, and the AI Office's for
+the Commission and the national competent authorities' for a notifying or
+market surveillance authority (Article 3(47), 3(48)). The argument actor is
+retired and refused.
 Deterministic selection over the judged build artifact; free, no model
 calls.
 ```
@@ -201,6 +208,7 @@ calls.
 | Input | Type | Required |
 |---|---|---|
 | `actor` | string or null | no |
+| `addressee` | string or null | no |
 | `classification` | object | yes |
 
 ## `resolve_span`
@@ -276,11 +284,14 @@ source span, accepted HLEG alignments, claiming code locations, and
 trace_status traced or untraced, plus invalid_tags for any tag citing an
 unknown or non-accepted norm id (review-queue norms never count). A trace
 is a developer claim, not evidence; it never raises an evidence status.
+addressee, as get_applicable_requirements takes it; the argument actor is
+retired and refused.
 Deterministic and free.
 ```
 
 | Input | Type | Required |
 |---|---|---|
 | `actor` | string or null | no |
+| `addressee` | string or null | no |
 | `classification` | object | yes |
 | `tags` | array of object | yes |

@@ -277,15 +277,15 @@ def test_the_provider_is_served_article_12_1_by_get_applicable_requirements(tmp_
     dump = json.loads((tmp_path / "layer1.json").read_text(encoding="utf-8"))
 
     def article_12(actor):
-        answer = get_applicable_requirements({"risk_category": "high_risk"}, payload, dump, actor=actor)["answer"]
+        answer = get_applicable_requirements({"risk_category": "high_risk"}, payload, dump, actor)["answer"]
         return {e["norm_id"]: e for e in answer["requirements_by_article"].get("article-12", [])}
 
     provider = article_12("provider")
     assert list(provider) == [_id(U12, 1)]
-    assert (provider[_id(U12, 1)]["actor"], provider[_id(U12, 1)]["actor_source"]) == ("provider", "inferred")
+    assert (provider[_id(U12, 1)]["addressee"], provider[_id(U12, 1)]["addressee_source"]) == ("provider", "inferred")
     everyone = article_12(None)
     assert set(everyone) == {_id(U12, 1), _id(U12, 2)}
-    assert (everyone[_id(U12, 1)]["actor"], everyone[_id(U12, 1)]["actor_source"]) == ("provider", "inferred")
+    assert (everyone[_id(U12, 1)]["addressee"], everyone[_id(U12, 1)]["addressee_source"]) == ("provider", "inferred")
     assert _id(U12, 1) not in article_12("deployer")
 
 
@@ -296,14 +296,14 @@ def test_the_facade_serves_article_12_1_to_the_provider_and_not_to_the_deployer(
     _run(tmp_path, monkeypatch)
     with TestClient(facade.create_app(tmp_path)) as client:
         def served(actor):
-            body = {"classification": {"risk_category": "high_risk"}, **({"actor": actor} if actor else {})}
+            body = {"classification": {"risk_category": "high_risk"}, **({"addressee": actor} if actor else {})}
             response = client.post("/api/requirements", json=body)
             assert response.status_code == 200, response.text
             return {e["norm_id"]: e for e in response.json()["answer"]["requirements_by_article"].get("article-12", [])}
 
         provider = served("provider")
         assert list(provider) == [_id(U12, 1)]
-        assert provider[_id(U12, 1)]["actor_source"] == "inferred"
+        assert provider[_id(U12, 1)]["addressee_source"] == "inferred"
         assert set(served(None)) == {_id(U12, 1), _id(U12, 2)}
         assert _id(U12, 1) not in served("deployer")
 

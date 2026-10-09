@@ -112,7 +112,7 @@ def _norm_texts(requirements: dict[str, Any] | None) -> dict[str, dict[str, Any]
                     "modal": norm.get("modal"),
                     "action": norm.get("action"),
                     "object": norm.get("object"),
-                    "actor": norm.get("actor"),
+                    "actor": norm.get("addressee", norm.get("actor")),
                     "article": norm.get("source_node_id"),
                 }
     return out

@@ -20,12 +20,10 @@ judged data.
 
 from __future__ import annotations
 
-import json
 import re
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
+from tere4ai.act_parties import addressee_of, requestable, serves
 from tere4ai.mcp_server.application_dates import (
     ROUTE_ANNEX_I,
     ROUTE_ANNEX_III,
@@ -46,8 +44,14 @@ from tere4ai.mcp_server.tools import make_envelope
 from tere4ai.parse_legal_structure.amendments import is_deleted
 from tere4ai.parse_legal_structure.labels import LABEL_PATTERN, sort_key
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-NORMS_SCHEMA_PATH = _REPO_ROOT / "schema" / "json_schemas" / "norms.schema.json"
+# B145 (spec G D-G80 (10), (21); brief R49): the argument that names the
+# party a request is for is addressee; "actor" is retired and refused, the
+# message naming the new argument, so a caller of the old tool is told
+# rather than served every party's norms (R61).
+ACTOR_RETIRED = (
+    "the argument 'actor' is retired (spec G D-G80 (21)); name the party with "
+    "'addressee', one value of schema/act_parties.json"
+)
 
 TRANSPARENCY_GROUP = "article-50"
 
@@ -142,12 +146,6 @@ SECTION_UNKNOWN_NOTE = (
 )
 
 
-@lru_cache(maxsize=1)
-def _canonical_actor_roles() -> tuple[str, ...]:
-    schema = json.loads(NORMS_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return tuple(schema["$defs"]["actorRole"]["enum"])
-
-
 def _graph_version(dump: dict[str, Any]) -> str:
     return str(dump.get("build", {}).get("build_id", "unknown"))
 
@@ -201,27 +199,24 @@ def _group_sort_key(group: str) -> tuple[int, Any]:
     return (1, group)
 
 
-def _actor_matches(norm: dict[str, Any], actor: str) -> bool:
-    """Deterministic actor filter against the canonical vocabulary.
-
-    Matches when actor_inferred equals the canonical role, or when the
-    canonical role's words appear in the lowercased free-text actor_explicit
-    (for example 'provider' matches 'providers of high-risk AI systems').
-    """
-    if norm.get("actor_inferred") == actor:
-        return True
-    explicit = (norm.get("actor_explicit") or "").lower()
-    return bool(explicit) and actor.replace("_", " ") in explicit
+def _actor_matches(norm: dict[str, Any], addressee: str) -> bool:
+    """D-G80 (10): the norm's stored addressee value, read in either norms
+    schema version (act_parties.addressee_of), is served to the requested
+    value: equal, by the Act's one-way construction (Article 3(47), 3(48)),
+    or as operators in general to an AI Act role. Never a substring."""
+    return serves(addressee_of(norm).value, addressee)
 
 
 def _requirement_entry(norm: dict[str, Any]) -> dict[str, Any]:
-    explicit = norm.get("actor_explicit")
+    addressee = addressee_of(norm)
     entry = {
         "norm_id": norm.get("norm_id"),
         "deontic_type": norm.get("deontic_type"),
         "modal": norm.get("modal"),
-        "actor": explicit or norm.get("actor_inferred"),
-        "actor_source": "explicit" if explicit else "inferred",
+        "addressee": addressee.value,
+        "addressee_explicit": addressee.explicit,
+        "addressee_source": "explicit" if addressee.explicit else "inferred",
+        "addressee_inference_source_node_id": addressee.source_node_id,
         "action": norm.get("action"),
         "object": norm.get("object"),
         "source_node_id": norm.get("source_node_id"),
@@ -247,6 +242,8 @@ def get_applicable_requirements(
     classification_answer: dict[str, Any],
     norms_payload: dict[str, Any],
     dump: dict[str, Any],
+    addressee: str | None = None,
+    *,
     actor: str | None = None,
 ) -> dict[str, Any]:
     """Judge-accepted engineering requirements applicable to a classified system.
@@ -254,8 +251,9 @@ def get_applicable_requirements(
     Deterministic selection over the judged norms build artifact: high_risk
     returns all accepted norms grouped by source article; limited_risk
     returns only Article 50 norms; unacceptable_risk, minimal_risk, and undetermined
-    return no requirements with an explanatory message. The optional actor
-    filter uses the canonical actor vocabulary of norms.schema.json.
+    return no requirements with an explanatory message. The optional addressee
+    filter takes one value of the Act's parties (schema/act_parties.json) but
+    the two sentinels; the argument actor is retired and refused (ACTOR_RETIRED).
     """
     graph_version = _graph_version(dump)
     text = legal_text(dump)
@@ -281,16 +279,21 @@ def get_applicable_requirements(
         or risk_category == "undetermined"
     )
 
-    if actor is not None and actor not in _canonical_actor_roles():
+    refusal = None
+    if actor is not None:
+        refusal = ACTOR_RETIRED
+    elif addressee is not None and addressee not in requestable():
+        refusal = (
+            f"addressee filter '{addressee}' is not a party a request can name; "
+            f"the accepted values of schema/act_parties.json: {', '.join(requestable())}"
+        )
+    if refusal is not None:
         return make_envelope(
             answer={"risk_category": risk_category, "requirements_by_article": {}, "summary": {}, "legal_text": text},
             status="not_applicable",
             graph_version=graph_version,
             confidence=0.0,
-            missing_facts=[
-                f"actor filter '{actor}' is not in the canonical actor vocabulary "
-                f"of norms.schema.json: {', '.join(_canonical_actor_roles())}"
-            ],
+            missing_facts=[refusal],
         )
 
     # Prohibited: zero requirements, only the prohibition citation.
@@ -457,7 +460,7 @@ def get_applicable_requirements(
     accepted = [n for n in in_scope if n.get("judge_verdict") == "accepted"]
     needs_review = [n for n in in_scope if n.get("judge_verdict") == "needs_human_review"]
 
-    returned = [n for n in accepted if actor is None or _actor_matches(n, actor)]
+    returned = [n for n in accepted if addressee is None or _actor_matches(n, addressee)]
 
     grouped: dict[str, list[dict[str, Any]]] = {}
     for norm in returned:
@@ -494,7 +497,7 @@ def get_applicable_requirements(
 
     summary = {
         "risk_category": risk_category,
-        "actor_filter": actor,
+        "addressee_filter": addressee,
         "total_accepted_in_scope": len(accepted),
         "returned": len(returned),
         "needs_human_review_total": len(needs_review),
@@ -515,7 +518,7 @@ def get_applicable_requirements(
         # Applicable category but nothing survives the filter: say so.
         missing_facts.append(
             "no judge-accepted norms match the requested scope"
-            + (f" and actor filter '{actor}'" if actor else "")
+            + (f" and addressee filter '{addressee}'" if addressee else "")
         )
 
     # R43: Article 2(2) excludes point (c)(ii)'s Article 6(1) systems for a

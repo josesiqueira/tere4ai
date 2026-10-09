@@ -454,6 +454,7 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
 def trace_implementation(
     classification: dict[str, Any],
     tags: list[dict[str, Any]],
+    addressee: str | None = None,
     actor: str | None = None,
 ) -> dict[str, Any]:
     """Requirement-to-code traceability matrix for a classified system.
@@ -467,6 +468,8 @@ def trace_implementation(
     trace_status traced or untraced, plus invalid_tags for any tag citing an
     unknown or non-accepted norm id (review-queue norms never count). A trace
     is a developer claim, not evidence; it never raises an evidence status.
+    addressee, as get_applicable_requirements takes it; the argument actor is
+    retired and refused.
     Deterministic and free."""
     loaded = _active()
     dump = loaded.dump
@@ -485,21 +488,28 @@ def trace_implementation(
             dump,
         )
     return trace_code_rules.trace_implementation(
-        classification, tags, norms_payload, alignments_payload, dump, actor=actor
+        classification, tags, norms_payload, alignments_payload, dump, addressee, actor=actor
     )
 
 
 @mcp.tool(annotations=_READ_ONLY)
 def get_applicable_requirements(
-    classification: dict[str, Any], actor: str | None = None
+    classification: dict[str, Any], addressee: str | None = None, actor: str | None = None
 ) -> dict[str, Any]:
     """Judge-accepted engineering requirements applicable to a classified
     system, grouped by source article.
 
     classification is the classify_ai_system envelope (or its bare answer).
     Only judge-ACCEPTED NormativeStatements are returned; unacceptable-risk systems
-    get zero requirements, only the prohibition citation. The optional actor
-    filter uses the canonical actor vocabulary (provider, deployer, ...).
+    get zero requirements, only the prohibition citation. The optional addressee
+    names one party of the Act (schema/act_parties.json): one of the six AI Act
+    roles (provider, product_manufacturer, deployer, authorised_representative,
+    importer, distributor) or an authority, body, institution or person the Act
+    names; the norms the facade serves to it are those whose stored addressee is
+    that party, operators in general for an AI Act role, and the AI Office's for
+    the Commission and the national competent authorities' for a notifying or
+    market surveillance authority (Article 3(47), 3(48)). The argument actor is
+    retired and refused.
     Deterministic selection over the judged build artifact; free, no model
     calls."""
     loaded = _active()
@@ -516,7 +526,7 @@ def get_applicable_requirements(
     if norms_payload is None:
         return _norms_missing_envelope()
     return requirements_rules.get_applicable_requirements(
-        classification, norms_payload, dump, actor=actor
+        classification, norms_payload, dump, addressee, actor=actor
     )
 
 

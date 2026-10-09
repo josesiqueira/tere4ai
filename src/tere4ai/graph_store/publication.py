@@ -233,7 +233,8 @@ class LoadedBuild:
 
     source is "manifest" when an activation pointer exists, "legacy" when
     the three fixed dump files are served; error is set, and the payloads
-    are None, when the activated publication's files have drifted."""
+    are None, when the activated publication's files have drifted. norms is
+    in norms schema version 2's names whatever the file's version (B145)."""
 
     dump: dict[str, Any] | None
     norms: dict[str, Any] | None
@@ -273,6 +274,15 @@ def _stamp(payload: dict[str, Any] | None, build_id: str) -> dict[str, Any] | No
     return payload
 
 
+def _in_v2_names(payload: dict[str, Any] | None) -> dict[str, Any] | None:
+    """B145 (spec G D-G80 (4), (21); R60): the norms read into version 2's
+    names in memory, each norm's addressee placed on the Act's parties; the
+    file on disk is never rewritten. A version 2 file is read as stored."""
+    from tere4ai.act_parties import payload_in_v2_names
+
+    return payload_in_v2_names(payload) if isinstance(payload, dict) else payload
+
+
 def load_active(dump_dir: Path | str) -> LoadedBuild:
     """The one loader: the activated publication when a pointer exists
     (verified, then its three files stamped with its build id), otherwise
@@ -288,7 +298,7 @@ def load_active(dump_dir: Path | str) -> LoadedBuild:
         # Each payload keeps its own base id under the directory's chain,
         # exactly as the per-file stamping did before the loader existed.
         dump = stamp_served_build(_read(dump_dir / _LEGACY_FILES["layer1_dump"]), dump_dir)
-        norms = stamp_served_build(_read(dump_dir / _LEGACY_FILES["norms"]), dump_dir)
+        norms = _in_v2_names(stamp_served_build(_read(dump_dir / _LEGACY_FILES["norms"]), dump_dir))
         alignments = stamp_served_build(_read(dump_dir / _LEGACY_FILES["alignments"]), dump_dir)
         build_id = None
         if dump is not None:
@@ -304,6 +314,6 @@ def load_active(dump_dir: Path | str) -> LoadedBuild:
     files = manifest["files"]
     build_id = str(manifest["build_id"])
     dump = _stamp(_read(dump_dir / files["layer1_dump"]), build_id)
-    norms = _stamp(_read(dump_dir / files["norms"]), build_id)
+    norms = _in_v2_names(_stamp(_read(dump_dir / files["norms"]), build_id))
     alignments = _stamp(_read(dump_dir / files["alignments"]), build_id) if files.get("alignments") else None
     return LoadedBuild(dump, norms, alignments, build_id, "manifest", None)
