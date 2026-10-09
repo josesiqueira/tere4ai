@@ -25,7 +25,7 @@ import hashlib
 from typing import Any
 
 from tere4ai.act_parties import METHOD as ACT_PARTIES_METHOD
-from tere4ai.act_parties import addressee_fields, is_v2, place
+from tere4ai.act_parties import UNSPECIFIED, addressee_fields, is_v2, place
 
 METHOD = "canonicalize_rule_v1"
 
@@ -66,7 +66,9 @@ def canonicalize_norms(norms_payload: dict[str, Any]) -> dict[str, Any]:
             # B145 (D-G80 (4)): a version 2 norm carries the stored value, its
             # stamp and its outcome; the counts below keep their names.
             norm.update(addressee_fields(norm))
-            placed = norm["addressee_placement"] != "unplaced"
+            # review Minor 1: resolved means a party, as for version 1 (an
+            # inferred sentinel is not resolved)
+            placed = norm["addressee"] != UNSPECIFIED
             raw_actor = norm.get("addressee_explicit") or norm.get("addressee_inferred")
         else:
             raw_actor = norm.get("actor_explicit") or norm.get("actor_inferred")

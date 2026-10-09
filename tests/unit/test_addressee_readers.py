@@ -174,6 +174,16 @@ def test_canonicalize_norms_computes_the_stored_value_a_version_2_norm_lacks():
     assert out["canonicalization"]["actors_unresolved"] == {"quantum widget": 1}
 
 
+def test_an_inferred_sentinel_counts_as_unresolved_in_either_version():
+    """Final review Minor 1: an inferred unspecified_needs_review names no party,
+    so it is unresolved for a version 2 norm as for the same norm in version 1."""
+    sentinel = {**_without_stored(V2), "addressee_explicit": None,
+                "addressee_inferred": "unspecified_needs_review"}
+    v2 = canonicalize_norms({"norms_schema_version": 2, "norms": [sentinel]})["canonicalization"]
+    v1 = canonicalize_norms({"norms": [ap.in_v1_names(sentinel)]})["canonicalization"]
+    assert v2["actors_resolved"] == v1["actors_resolved"] == 0
+
+
 def test_a_replace_on_a_version_2_norm_in_a_version_2_file_takes_the_new_addressee():
     existing = {**V2, "norm_id": "norm:eu-ai-act:article-25:paragraph-4:n1",
                 "source_node_id": "eu-ai-act:article-25:paragraph-4", "source_span_id": "span:025.004"}

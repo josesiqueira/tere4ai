@@ -198,7 +198,7 @@ def addressee_counts(norms: list[dict[str, Any]]) -> dict[str, Any]:
     norms whose inferred party (not a sentinel) rests on a set-up row of their
     unit or on their own unit; set_up_thing_as_written_addressee: the norms on
     a covered unit whose written addressee is the row's thing (the rule missed
-    by the model and passed by the judge)."""
+    by the model and passed by the judge: judge-accepted norms only, R117)."""
     per_value: dict[str, int] = {}
     unplaced: dict[str, list[str]] = {}
     applied: list[str] = []
@@ -216,7 +216,7 @@ def addressee_counts(norms: list[dict[str, Any]]) -> dict[str, Any]:
             or any(row.source == addressee.source_node_id and row.party == addressee.inferred for row in rows)
         ):
             applied.append(norm_id)
-        if addressee.explicit is not None and any(
+        if norm.get("judge_verdict") == "accepted" and addressee.explicit is not None and any(
             _thing_words(addressee.explicit) == _thing_words(thing) for row in rows for thing in row.things
         ):
             thing_written.append(norm_id)

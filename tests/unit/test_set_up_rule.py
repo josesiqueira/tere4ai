@@ -47,7 +47,13 @@ def test_every_row_names_a_live_unit_and_source_holding_its_words_verbatim(nodes
         assert row.party in ap.values() and row.party not in ap.SENTINELS, row.unit
 
 
-def test_the_setting_up_words_name_the_rows_party(nodes):
+def test_every_not_covered_entry_quotes_its_unit_verbatim(nodes):
+    # final review, Task 5 minor: the words of each case left alone are the Act's
+    for case in su.NOT_COVERED:
+        assert case.unit in nodes and case.words in nodes[case.unit]["text"], (case.unit, case.words)
+
+
+def test_the_setting_up_words_name_the_rows_party():
     by_value = {p.value: p for p in ap.parties()}
     for row in su.ROWS:
         assert ap.place(row.setting_up.split(" shall ")[0].split(" may ")[0]) == row.party or any(

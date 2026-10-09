@@ -31,7 +31,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from tere4ai.act_parties import addressee_condition, compute, is_v2
+from tere4ai.act_parties import addressee_condition, compute, slots_of
 from tere4ai.extract_norms.scope_first_reading import (
     FIRST_READING_VERSIONS,
     is_operator_actor_first_reading,
@@ -98,9 +98,9 @@ def is_operator_actor(explicit: Any, inferred: Any, prompt_version: str | None =
 
 
 def _slots(norm: dict[str, Any]) -> tuple[Any, Any]:
-    if is_v2(norm):
-        return norm.get("addressee_explicit"), norm.get("addressee_inferred")
-    return norm.get("actor_explicit"), norm.get("actor_inferred")
+    # review Minor 3: the one reader of the slots in either version (D-G80 (21))
+    explicit, inferred, _source = slots_of(norm)
+    return explicit, inferred
 
 
 def in_scope(norm: dict[str, Any], prompt_version: str | None = None) -> bool:

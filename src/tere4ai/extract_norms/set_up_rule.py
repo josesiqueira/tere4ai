@@ -22,8 +22,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-POINT_A_NODE = "eu-ai-act:article-16:paragraph-1:point-a"
-
 
 @dataclass(frozen=True)
 class SetUpRow:
@@ -163,7 +161,7 @@ NOT_COVERED: tuple[NotCovered, ...] = (
     NotCovered(_a("5", "4"), "The notification", "the setting-up sentence names no party (each use shall be notified)"),
     NotCovered(_a("6", "1"), "that AI system", "the subject is the AI system, which no sentence of the Article makes a party set up"),
     NotCovered(_a("24", "2"), "that a high-risk AI system", "a that-clause, not a subject: the sentence's subject is the distributor"),
-    NotCovered("eu-ai-act:article-61:paragraph-2", "the consent", "the setting-up sentence names no party (consent obtained in the passive, Article 61(1))"),
+    NotCovered("eu-ai-act:article-61:paragraph-2", "The informed consent", "the setting-up sentence names no party (consent obtained in the passive, Article 61(1))"),
     NotCovered(_a("22", "3") + ":point-a", "verify", "a point of Article 22(3), whose actions the paragraph's first sentence gives to the authorised representative"),
     NotCovered(_a("17", "1") + ":point-a", "a strategy for regulatory compliance", "a point of Article 17(1), a bare noun with no norm of its own"),
 )

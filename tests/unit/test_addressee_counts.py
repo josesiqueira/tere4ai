@@ -49,6 +49,15 @@ def test_the_four_counts_over_the_run():
     assert counts["set_up_thing_as_written_addressee"] == {"count": 1, "norm_ids": ["72-2-thing"]}
 
 
+def test_a_thing_written_counts_only_when_the_judge_accepted_the_norm():
+    # R117 (D-G80 (11): "the rule missed by the model and passed by the judge")
+    accepted = _n("72-2-accepted", U72_2, explicit="the post-market monitoring system")
+    rejected = {**_n("72-2-rejected", U72_2, explicit="the post-market monitoring system"),
+                "judge_verdict": "rejected"}
+    counts = addressee_counts([accepted, rejected])
+    assert counts["set_up_thing_as_written_addressee"] == {"count": 1, "norm_ids": ["72-2-accepted"]}
+
+
 def test_the_counts_are_the_same_for_version_1_norms():
     assert addressee_counts([ap.in_v1_names(n) for n in NORMS]) == addressee_counts(NORMS)
 
