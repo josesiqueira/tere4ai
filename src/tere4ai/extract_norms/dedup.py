@@ -54,7 +54,7 @@ def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     Blocking on (article, the addressee's value of the Act's parties, deontic_type)
     (B145, brief R16) keeps this O(block^2) instead
-    of O(n^2) and encodes that two norms with different actors or deontic
+    of O(n^2) and encodes that two norms with different addressees or deontic
     force are never duplicates of each other.
     """
     blocks: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
