@@ -717,3 +717,18 @@ def test_the_holding_paragraph_is_the_nearest_one_above_the_point():
     point = {"id": "x:paragraph-1:paragraph-2:point-a", "type": "Point", "text": "p"}
     nodes = {n["id"]: n for n in (outer, inner, point)}
     assert _holding_paragraph(nodes, point["id"]) is inner
+
+
+# B145 (brief R27, A14): the scope step of a v1 to v4 run reads the first
+# reading, so "the Board" keeps its proposed type, as at 8440c99.
+def test_the_scope_step_of_a_v4_run_reads_the_first_reading(tmp_path):
+    generator = FakeClient(
+        {PARA_ID: _generator_with(actor_explicit="the Board", actor_inferred=None,
+                                  actor_inference_source_node_id=None, requirement_type="process")},
+        model="fake-generator")
+    judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
+    result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, prompt_version="v4",
+                           log_path=tmp_path / "extraction_log.jsonl")
+    (norm,) = result["norms"]
+    assert norm["actor_explicit"] == "the Board"
+    assert norm["requirement_type"] == "process"
