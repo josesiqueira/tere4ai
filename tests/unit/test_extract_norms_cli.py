@@ -1,10 +1,13 @@
 """Regression tests for the extraction CLI (the lost-run bug of 2026-07-08)."""
 
 import json
+import os
 
 import pytest
 
+from tere4ai.act_parties import ACT_PARTIES_PATH
 from tere4ai.extract_norms.__main__ import _slug
+from tere4ai.extract_norms.actor_audit import ADDRESSEE_COUNT_KEYS
 from tere4ai.graph_store.build_record import BuildRecordStore
 
 
@@ -72,7 +75,9 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
-                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
+                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
+                                         {"role": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
+                                          "sha256": cli.sha256_of_file(ACT_PARTIES_PATH)}],
                                  config={"prompt_version": "v5", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
                                  expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
@@ -94,6 +99,9 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     ex = store.read(rid)["executions"][1]
     assert ex["resumes_run_id"] == prev and ex["inherited_from"] == prev
     assert ex["inherited_keys"] == ["eu-ai-act:article-9"] and ex["completed_keys"] == ["eu-ai-act:article-10"]
+    # B145 (Review Focus 2): the four counts cover the inherited group and the new one
+    assert set(ex["counts"]) >= set(ADDRESSEE_COUNT_KEYS)
+    assert ex["counts"]["addressee_values"] == {"unspecified_needs_review": 2}
 
 
 def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path, monkeypatch):
@@ -753,7 +761,9 @@ def test_a_v4_checkpoint_is_refused_by_a_v5_resume(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
-                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
+                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
+                                         {"role": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
+                                          "sha256": cli.sha256_of_file(ACT_PARTIES_PATH)}],
                                  config={"prompt_version": "v4", "nodes": ["eu-ai-act:article-9"]},
                                  expected_total=1, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
@@ -796,7 +806,9 @@ def test_a_v5_checkpoint_is_refused_by_a_v4_resume(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
-                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
+                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
+                                         {"role": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
+                                          "sha256": cli.sha256_of_file(ACT_PARTIES_PATH)}],
                                  config={"prompt_version": "v5", "nodes": ["eu-ai-act:article-9"]},
                                  expected_total=1, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},

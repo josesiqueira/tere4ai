@@ -242,7 +242,10 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
                                          "outside_the_rule": {"count": 0, "norms": []},
                                          "against_the_representation": {"count": 0, "norms": []},
                                          "sum": 0, "norms_of_section_2": 0},
-               "point_a_source_outside_section_2": {"count": 0, "norm_ids": []}},
+               "point_a_source_outside_section_2": {"count": 0, "norm_ids": []},
+               "addressee_values": {}, "unplaced_written_addressees": [],
+               "set_up_rule_applied": {"count": 0, "norm_ids": []},
+               "set_up_thing_as_written_addressee": {"count": 0, "norm_ids": []}},
         work_failures={"nodes_failed": 0, "norms_failed": 0},
     )
     align_common = {"command": "align_hleg", "covers_steps": ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"],

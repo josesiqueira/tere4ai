@@ -13,13 +13,18 @@ representation, the rule applied, a written party, outside the rule; and
 the norms outside Articles 8 to 15 whose actor source is the Article 16(a)
 node. Nothing is removed or changed: the checks read the norms. They run
 over the merged norms of a run, inherited checkpoint groups included.
+
+B145 (spec G D-G80 (11)): every reader goes through tere4ai.act_parties, so a
+v5 run's version 2 norms are audited as a v4 run's were, and four counts of
+the addressee are added.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from tere4ai.canonicalize.canonicalizer import canonicalize_actor
+from tere4ai import act_parties as ap
+from tere4ai.extract_norms.set_up_rule import rows_for
 from tere4ai.mcp_server.requirements import _actor_matches
 from tere4ai.parse_legal_structure.amendments import is_deleted
 
@@ -50,13 +55,17 @@ def in_section_2(source_node_id: Any) -> bool:
 
 
 def _written(norm: dict[str, Any]) -> str | None:
-    value = norm.get("actor_explicit")
+    value = ap.slots_of(norm)[0]
     return value if isinstance(value, str) and value.strip() else None
 
 
 def _inferred(norm: dict[str, Any]) -> str | None:
-    value = norm.get("actor_inferred")
+    value = ap.slots_of(norm)[1]
     return value if isinstance(value, str) and value.strip() else None
+
+
+def _source(norm: dict[str, Any]) -> Any:
+    return ap.slots_of(norm)[2]
 
 
 def not_served_to_provider(norms: list[dict[str, Any]], dump: dict[str, Any]) -> list[str]:
@@ -79,7 +88,7 @@ def _against_reason(norm: dict[str, Any]) -> str | None:
     if not written and not inferred:
         return "both actor slots empty"
     if inferred == PROVIDER:
-        source = norm.get("actor_inference_source_node_id")
+        source = _source(norm)
         if not source:
             return "provider inferred with no source"
         if source != POINT_A_NODE:
@@ -105,9 +114,9 @@ def actor_audit(norms: list[dict[str, Any]]) -> dict[str, Any]:
             # or _against_reason would have named it
             rule_applied.append(norm_id)
         elif written:
-            canonical, _method = canonicalize_actor(written)
+            addressee = ap.addressee_of(norm)
             written_party.append(
-                {"norm_id": norm_id, "label": canonical} if canonical is not None
+                {"norm_id": norm_id, "label": addressee.value} if addressee.placement == "placed"
                 else {"norm_id": norm_id, "label": "unresolved", "phrase": written}
             )
         else:
@@ -130,7 +139,7 @@ def point_a_outside_section_2(norms: list[dict[str, Any]]) -> list[str]:
         str(norm.get("norm_id"))
         for norm in norms
         if not in_section_2(norm.get("source_node_id"))
-        and norm.get("actor_inference_source_node_id") == POINT_A_NODE
+        and _source(norm) == POINT_A_NODE
     ]
 
 
@@ -164,4 +173,71 @@ def report_lines(checks: dict[str, Any]) -> list[str]:
     ]
     lines.append(f"Norms outside Articles 8 to 15 whose actor source is {POINT_A_NODE}: {outside['count']}")
     lines += [f"  {norm_id}" for norm_id in outside["norm_ids"]]
+    return lines
+
+
+# B145 (spec G D-G80 (11)): the four counts of the addressee over every norm
+# of the run, inherited checkpoint groups included.
+ADDRESSEE_COUNT_KEYS = (
+    "addressee_values",
+    "unplaced_written_addressees",
+    "set_up_rule_applied",
+    "set_up_thing_as_written_addressee",
+)
+
+
+def _thing_words(text: str) -> str:
+    return ap._strip_leading(" ".join(text.lower().replace("\u2019", "'").split()))
+
+
+def addressee_counts(norms: list[dict[str, Any]]) -> dict[str, Any]:
+    """addressee_values: norms per value of the Act's parties (the list's order,
+    values with none left out); unplaced_written_addressees: each written
+    phrase the list could not place, with its norms; set_up_rule_applied: the
+    norms whose inferred party (not a sentinel) rests on a set-up row of their
+    unit or on their own unit; set_up_thing_as_written_addressee: the norms on
+    a covered unit whose written addressee is the row's thing (the rule missed
+    by the model and passed by the judge)."""
+    per_value: dict[str, int] = {}
+    unplaced: dict[str, list[str]] = {}
+    applied: list[str] = []
+    thing_written: list[str] = []
+    for norm in norms:
+        norm_id = str(norm.get("norm_id"))
+        addressee = ap.addressee_of(norm)
+        per_value[addressee.value] = per_value.get(addressee.value, 0) + 1
+        if addressee.placement == "unplaced" and addressee.explicit is not None:
+            unplaced.setdefault(addressee.explicit, []).append(norm_id)
+        unit = str(norm.get("source_node_id") or "")
+        rows = rows_for(unit)
+        if addressee.inferred and addressee.inferred not in ap.SENTINELS and (
+            addressee.source_node_id == unit
+            or any(row.source == addressee.source_node_id and row.party == addressee.inferred for row in rows)
+        ):
+            applied.append(norm_id)
+        if addressee.explicit is not None and any(
+            _thing_words(addressee.explicit) == _thing_words(thing) for row in rows for thing in row.things
+        ):
+            thing_written.append(norm_id)
+    return {
+        "addressee_values": {value: per_value[value] for value in ap.values() if value in per_value},
+        "unplaced_written_addressees": [{"phrase": phrase, "norm_ids": ids} for phrase, ids in unplaced.items()],
+        "set_up_rule_applied": {"count": len(applied), "norm_ids": applied},
+        "set_up_thing_as_written_addressee": {"count": len(thing_written), "norm_ids": thing_written},
+    }
+
+
+def addressee_report_lines(counts: dict[str, Any]) -> list[str]:
+    """What the command prints of the four counts, zeros included (D-G80 (11))."""
+    values = ", ".join(f"{value} {n}" for value, n in counts["addressee_values"].items()) or "none"
+    lines = [f"Addressees by value of the Act's parties: {values}"]
+    unplaced = counts["unplaced_written_addressees"]
+    lines.append(f"Written addressees the Act's parties could not place: {sum(len(e['norm_ids']) for e in unplaced)}")
+    lines += [f"  \"{entry['phrase']}\": {', '.join(entry['norm_ids'])}" for entry in unplaced]
+    applied = counts["set_up_rule_applied"]
+    lines.append(f"Norms whose addressee rests on the set-up rule: {applied['count']}")
+    lines += [f"  {norm_id}" for norm_id in applied["norm_ids"]]
+    thing = counts["set_up_thing_as_written_addressee"]
+    lines.append(f"Norms on a set-up unit whose written addressee is the row's thing: {thing['count']}")
+    lines += [f"  {norm_id}" for norm_id in thing["norm_ids"]]
     return lines

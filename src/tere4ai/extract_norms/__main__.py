@@ -18,11 +18,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tere4ai.extract_norms.actor_audit import report_lines, section_2_checks
+from tere4ai.act_parties import ACT_PARTIES_PATH
+from tere4ai.extract_norms.actor_audit import (
+    addressee_counts,
+    addressee_report_lines,
+    report_lines,
+    section_2_checks,
+)
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     AnthropicJudge,
@@ -179,6 +186,10 @@ def _main(argv: list[str] | None = None) -> int:
     layer1_digest = sha256_of_file(args.dump)
     inputs = [{"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir),
                "sha256": layer1_digest}]
+    # B145 (D-G80 (11), R76): the Act's parties the run read, by digest
+    inputs.append({"role": "act_parties",
+                   "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), Path(dump_dir).resolve()),
+                   "sha256": sha256_of_file(ACT_PARTIES_PATH)})
     config = {"prompt_version": args.prompt_version, "nodes": node_ids}
     # B79 item 10: the record is chosen here and created only after every
     # refusal below, so a refused run leaves no record and moves no alias
@@ -292,6 +303,7 @@ def _main(argv: list[str] | None = None) -> int:
 
         # B144 (spec G D-G76 (7)): over every group of the run, inherited ones included
         section_2 = section_2_checks(merged["norms"], dump)
+        addressees = addressee_counts(merged["norms"])
 
         generator_sampling = declared_sampling(generator, judge)
         payload = {
@@ -324,6 +336,7 @@ def _main(argv: list[str] | None = None) -> int:
                     "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"]),
                     "without_target_system_category": stats["without_target_system_category"],
                     **section_2,
+                    **addressees,
                     **({"untyped_in_scope": stats["untyped_in_scope"]} if "untyped_in_scope" in stats else {})},
             usage=usage(),
             sampling=declared_sampling(generator, judge),
@@ -354,6 +367,8 @@ def _main(argv: list[str] | None = None) -> int:
     print(f"source units: {stats['source_units']}, candidates: {stats['candidates']}")
     print(f"verdicts: {stats['verdicts']}")
     for line in report_lines(section_2):
+        print(line)
+    for line in addressee_report_lines(addressees):
         print(line)
     if stats["nodes_failed"]:
         print(f"failed nodes: {len(stats['nodes_failed'])} (see stats in the output file)")
