@@ -133,6 +133,8 @@ def test_the_one_way_constructions_are_grounded_in_article_3_47_and_3_48():
 # A3: the normaliser, run in the order of D-G80 (4). Expected values come from
 # the brief's table of cases, never from the code under test.
 PLACED = {
+    "European Commission": "commission",
+    "the European Commission": "commission",
     "providers of high-risk AI systems": "provider",
     "the provider": "provider",
     "that initial provider": "provider",

@@ -41,7 +41,8 @@ _COORDINATION = {"and", "or", "and/or", "other", "the", "a", "an", "any"}
 # names ("national market surveillance authorities", "the EU AI Office";
 # plan R91). Any other first word is the head, and a head that is not a
 # party leaves the phrase unplaced (plan R91, review Important 2).
-_HEAD_MODIFIERS = frozenset({"national", "eu", "union"})
+# "european" before a party's name ("the European Commission"): plan R99
+_HEAD_MODIFIERS = frozenset({"national", "eu", "union", "european"})
 # A value whose act_term is one word the Act also uses for something else is
 # matched by its phrases only: "subject" is the grammatical subject too.
 _TERM_NOT_MATCHED = frozenset({"subject_of_testing"})
