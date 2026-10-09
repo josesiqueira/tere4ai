@@ -765,3 +765,47 @@ def test_a_v4_checkpoint_is_refused_by_a_v5_resume(tmp_path, monkeypatch):
     }}) + "\n")
     rc = cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out), "--resume"])
     assert rc == 2 and calls == []
+
+
+@pytest.mark.parametrize(("version", "expected"), [("v5", 2), ("v4", None)])
+def test_the_norms_file_names_its_schema_version_only_for_v5(tmp_path, monkeypatch, version, expected):
+    """B145 (D-G80 (21)): a v5 run's norms file names norms schema version 2 at its top level; v4's has no such key."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    _fakes(monkeypatch, cli, [])
+    rc = cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out),
+                   "--prompt-version", version])
+    assert rc == 0
+    payload = json.loads(out.read_text())
+    if expected is None:
+        assert "norms_schema_version" not in payload
+    else:
+        assert payload["norms_schema_version"] == expected
+
+
+def test_a_v5_checkpoint_is_refused_by_a_v4_resume(tmp_path, monkeypatch):
+    """The reverse of the v4 checkpoint test: a v4 run never inherits groups written by v5."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("test", "build-b", None)
+    prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
+                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
+                                 config={"prompt_version": "v5", "nodes": ["eu-ai-act:article-9"]},
+                                 expected_total=1, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
+                                 models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
+                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v5"),
+                                                "judge": cli.prompt_sha256("judge_norms-v5")})
+    store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
+    out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "group": "eu-ai-act:article-9", "result": {
+        "norms": [], "judge_runs": [], "stats": {"source_units": 0, "candidates": 0, "verdicts": {}, "nodes_failed": [], "invalid_norms": []},
+    }}) + "\n")
+    rc = cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out), "--resume",
+                   "--prompt-version", "v4"])
+    assert rc == 2 and calls == []
