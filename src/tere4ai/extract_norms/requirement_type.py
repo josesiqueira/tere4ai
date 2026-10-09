@@ -1,6 +1,7 @@
 """The requirement type of a norm or a control: one closed slot, three values.
 
 @implements: DEC-19
+@implements: DEC-27
 @grounded_by: ADD-54, ADD-55, ADD-56, ADD-57
 
 Every operator obligation or prohibition carries requirement_type,

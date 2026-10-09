@@ -15,6 +15,7 @@ judged data.
 @implements: DEC-19
 @implements: DEC-20
 @implements: DEC-23
+@implements: DEC-27
 @grounded_by: REF-17, REF-16
 """
 

@@ -2,6 +2,7 @@
 the norms of Articles 8 to 15.
 
 @implements: DEC-26
+@implements: DEC-27
 @grounded_by: REF-01, REF-11
 
 (i) The served count: the accepted norms of Articles 8 to 15, on units the

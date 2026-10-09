@@ -1,6 +1,7 @@
 """Publication evidence and the activation of a published build.
 
 @implements: DEC-16 (partial: publication and activation, D-G21, D-G27)
+@implements: DEC-27 (partial: the build record holds the Act's parties and four counts)
 @grounded_by: REF-27, ADD-20
 
 A build is published only after the gates, the load and the post-load

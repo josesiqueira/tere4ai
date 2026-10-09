@@ -331,8 +331,9 @@ merit, this document says so explicitly instead of inventing a citation.
 - Grounding: ADD-01 and REF-33 (OFF, the closed HLEG source set), REF-11 and
   REF-12 (PEER, actor canonicalisation lineage), ADD-24.
 - Implementation: classify.py:248-254; hleg_nodes.py:28-39 and 55-60 (exactly seven,
-  hard raise); canonicalize/canonicalizer.py:30-82 (unresolved actors are
-  reported, never guessed).
+  hard raise); src/tere4ai/act_parties.py (the list and its normaliser;
+  unplaced phrases are reported, never guessed).
+- Note added 2026-10-09 (B145, DEC-27): the closed party vocabulary is now one file, schema/act_parties.json, read by every step through src/tere4ai/act_parties.py (tests/unit/test_act_parties.py, test_party_names_guard.py); before B145 fifteen lists of parties disagreed, against this strategy's claim.
 - Tests: tests/unit/test_hleg_nodes.py:25; tests/unit/test_canonicalize.py:30.
 - See it: schema validation fails on any invented category.
 

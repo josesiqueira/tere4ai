@@ -93,13 +93,20 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   about; the addressee stays in the actor fields. A rule sets it from the
   norm's source Article or Annex, never a model; null only for a source
   unit outside the rule table. grounded_by: REF-01
-- Schema is grounded in Institutional Grammar (OVR-9): actor maps to Attribute,
+- Schema is grounded in Institutional Grammar (OVR-9): actor (the addressee from norms schema version 2, DEC-27) maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
   Aim. Pull the primary sources (REF-14c) before citing.
-- Actors are canonicalised (provider, deployer, importer, distributor,
-  authorised representative, product manufacturer, and so on). Inferred actors
-  record their inference source node (for example provider inferred via Article
-  16). grounded_by: REF-12
+- The addressee (the Institutional Grammar's Attribute; until B145 the
+  "actor") is placed on one value of the Act's parties, the one list
+  schema/act_parties.json (37 values: the six AI Act roles of Article
+  3(8), 9 authorities, 2 bodies, 9 institutions, 9 persons and 2 values
+  that name no single party), and the value is stored on every norm a v5
+  run writes (norms schema version 2: addressee_explicit,
+  addressee_inferred, addressee_inference_source_node_id, addressee,
+  addressee_method, addressee_placement; DEC-27). Inferred addressees
+  record their inference source node (for example provider inferred via
+  Article 16(a), or via the sentence of the same Article that sets up the
+  thing the norm's subject names). grounded_by: REF-11, REF-12
 - Requirements of Articles 8 to 15 (added 2026-10-07, DEC-26): a norm of
   Chapter III Section 2 that states or qualifies one of its requirements
   for the high-risk AI system and whose text names no person or body that
@@ -109,7 +116,9 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   is active or passive. The system's words stay in the norm's source unit
   and span; no slot holds them. A person or body the text names keeps its
   written actor; outside Articles 8 to 15 a thing may still stand as the
-  written actor (Article 17's "that system"). grounded_by: REF-01, REF-11
+  written actor (Article 17's "that system") (until B145; from
+  extract_norms v5 a covered thing's duty is the party's that sets it up,
+  DEC-27). grounded_by: REF-01, REF-11
 
 ## 4. Reified alignments
 grounded_by: REF-24, REF-21, REF-10
@@ -242,7 +251,13 @@ Three judges, kept separate:
   (eu-ai-act:article-16:paragraph-1:point-a) for a requirement of Articles
   8 to 15 whose text names no person or body that must act and rejects
   that inference elsewhere, and a point given as the inference source
-  reaches the judge with the paragraph that holds it.
+  reaches the judge with the paragraph that holds it. Since judge_norms v5
+  (2026-10-09, DEC-27) its check 3 also accepts an inference resting on
+  the set-up rule and rejects, on a unit the set-up table covers, the
+  row's thing or a pronoun in addressee_explicit; for a candidate on such
+  a unit it receives the unit's set-up rows with the setting-up node's
+  text, and its input labels say "Addressee-inference source"; its six
+  checks, verdict values and scores do not change.
 - Build-time mapping judge: before an alignment is accepted, scores it, may
   correct the relation type, and rejects any mapping whose rationale relies on
   concepts absent from both source spans.
@@ -633,6 +648,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-04: actor inferred via Article 16, canonicalised. grounded_by REF-11, REF-12.
   Defense: multi-party texts cause object/actor misidentification.
   verify: src/canonicalize/ actor table; actor_inference test.
+  Amended 2026-10-09 (B145, DEC-27): the closed table is
+  schema/act_parties.json, the Act's parties; src/canonicalize/canonicalizer.py's
+  canonicalize_actor reads it through tere4ai.act_parties.place; the 13-value
+  table is gone.
 - DEC-05: reified AlignmentAssertion nodes. grounded_by REF-24, REF-21, REF-10.
   Defense: a mapping is an auditable claim, not law; store-portable.
   verify: src/align_hleg/; query for accepted mapping without evidence returns zero.
@@ -1011,7 +1030,15 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   (DEC-04), is an operator: one of the actorRole values provider,
   deployer, importer, distributor, authorised_representative,
   product_manufacturer, operator_general and unspecified_needs_review
-  (norms.schema.json). A norm carries null, shown "not an operator
+  (norms.schema.json). (Amended 2026-10-09, B145, DEC-27: from
+  extract_norms v5 the condition reads the addressee's value of
+  schema/act_parties.json: the six AI Act roles and the two sentinels,
+  operator_general and unspecified_needs_review; an addressee the list
+  cannot place is unsettled and in scope; a norm addressed to an
+  authority, a body, an institution or a person carries null. Runs under
+  v1 to v4 read the condition as written above, frozen in
+  src/tere4ai/extract_norms/scope_first_reading.py, because the scope is
+  applied to the candidate before the judge sees it.) A norm carries null, shown "not an operator
   requirement", whatever the extractor proposed, when it is not an
   obligation or a prohibition (a definition, a right, a permission, an
   exemption), when its source unit is outside the requirement groups, or
@@ -1663,6 +1690,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   (the mock-model command line run, the requirements tool and the facade
   over its output); docs/benchmark_cost_estimate.md is regenerated with v4;
   CHANGELOG.md names the contract change.
+  Amended 2026-10-09 (B145, DEC-27): outside Articles 8 to 15 a thing a
+  sentence of the same Article makes a named party set up no longer
+  stands as the written actor under extract_norms v5; it is that party's
+  (DEC-27). Inside Articles 8 to 15 this decision stands unchanged.
 - DEC-27: the Act's parties are one fixed list, every norm's addressee is
   placed on one value of it and the value is stored, and outside Articles
   8 to 15 a duty whose subject is a thing a sentence of the same Article
@@ -1688,11 +1719,69 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   addressee in either norms schema version, and serves a norm to a
   request when the values are equal, by also_served_to, or when the norm
   is addressed to operators in general and the request names an AI Act
-  role. (Draft: the norms schema version 2, the set-up rule, the prompts
-  v5 and the served names are added by the card's later tasks, which
-  complete this entry and its verify list.)
-  verify: schema/act_parties.json; src/tere4ai/act_parties.py;
-  tests/unit/test_act_parties.py.
+  role.
+  The set-up rule: outside Articles 8 to 15, a norm whose grammatical
+  subject is a thing is the duty of the party that a sentence of the same
+  Article makes set up, draw up, produce or carry that thing, when the
+  subject refers to it (by its name, by another name the Article gives
+  it, by "that", "this", "such" or "those", or by "referred to in
+  paragraph N"), to a part of it, a copy of it, its implementation or the
+  time set for it; never across Articles; one norm per party when two
+  parties set it up. The extractor reads one unit, so the setting-up
+  sentence of another paragraph reaches it as a row of a closed table
+  (src/tere4ai/extract_norms/set_up_rule.py, 26 paragraph units of the
+  core of B74 and the rows outside it), printed into extract_norms v5 for
+  the core; the cases left alone are listed with their reasons. A point
+  read alone that yields a norm under the rule takes as its source the
+  paragraph that holds the setting-up sentence, never the point (R107);
+  Article 22(3)'s points are not covered (their party is the authorised
+  representative the paragraph's first sentence names, with node 22(3)).
+  judge_norms v5 receives a covered unit's rows and checks the inference
+  against the setting-up text; its check 3 accepts the set-up case (R107).
+  The stored value is written by code when the norm is written after the
+  verdict, so no judge input changes by it; a v5 run writes norms schema
+  version 2 (schema/json_schemas/norms.v2.schema.json); version 1
+  (norms.schema.json) is never edited and every reader reads either
+  version through tere4ai.act_parties; the facade and the MCP server load
+  a version 1 file into version 2's names in memory. A human norm added to
+  a version 2 file is validated against norms.v2.schema.json (all 37
+  values), a version 1 file keeps its version 1 check (R100). The
+  normaliser leaves a phrase unplaced when a party is coordinated after an
+  "of ... AI systems/models" descriptor (R98), and "european" is one of
+  its head modifiers, with "national", "eu" and "union" (R99). The served
+  requirements entry names the value and the written words, and the
+  argument is addressee (actor is refused). The extraction's build record
+  holds schema/act_parties.json as an input with its digest and four
+  counts: the norms per value, the written addressees the list could not
+  place, the norms resting on the set-up rule, and the norms on a covered
+  unit whose written addressee is the row's thing. The digests that pass a
+  norm's party to other instruments' models keep the key "actor" and their
+  content. The prompts are extract_norms v5 (24,863 characters) and
+  judge_norms v5 (11,851 characters).
+  Defense: one list read by every step, placed by deterministic code and
+  checked against the Act's text, where fifteen lists disagreed; the
+  set-up rule follows the Act's own back references within the Article
+  that makes them, and the reading lives on the norm, where the judge
+  checks it, the build record counts it and the annotators can correct
+  it. Cost if wrong: before B74, a list, a normaliser, a rule table, two
+  prompt versions, a judge input and four counts to redo, with no model
+  call; after B74, a misplaced value or a misread back reference is
+  listed by the counts and corrected in LAYER2_STEP3.
+  verify: schema/act_parties.json; schema/json_schemas/norms.v2.schema.json;
+  src/tere4ai/act_parties.py; src/tere4ai/extract_norms/set_up_rule.py,
+  scope_first_reading.py, requirement_type.py, pipeline.py, actor_audit.py
+  and __main__.py; src/tere4ai/mcp_server/requirements.py, explain.py,
+  trace_code.py, server.py; src/tere4ai/http_facade/app.py;
+  src/tere4ai/graph_store/publication.py and layer23.py;
+  prompts/extract_norms/v5.md, prompts/judge_norms/v5.md,
+  prompts/requirement_type/scope_v2.md; eval/config_evaluated.yaml;
+  tests/unit/test_act_parties.py, test_norms_schema_v2.py,
+  test_addressee_readers.py, test_served_addressee.py, test_set_up_rule.py,
+  test_norms_prompts_v5.py, test_extract_norms_v5.py,
+  test_addressee_counts.py, test_b145_mock_run.py (the mock-model command
+  line run, the requirements tool and the facade over its output) and
+  test_party_names_guard.py; docs/benchmark_cost_estimate.md is
+  regenerated with v5; CHANGELOG.md names the contract change.
 
 ## 17. Implementation-traceability convention
 

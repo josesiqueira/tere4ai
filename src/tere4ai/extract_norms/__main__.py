@@ -4,6 +4,7 @@
 @implements: DEC-19
 @implements: DEC-21
 @implements: DEC-26
+@implements: DEC-27
 @grounded_by: REF-01, REF-11, REF-12, REF-13, REF-16, REF-24, REF-27, ADD-20
 
 Runs the judged norm-extraction pipeline over the given Layer 1 node ids
