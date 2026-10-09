@@ -30,7 +30,7 @@ from tere4ai.canonicalize.canonicalizer import canonicalize_actor, canonicalize_
 def test_actor_table_resolves_observed_wordings(raw, expected):
     canonical, method = canonicalize_actor(raw)
     assert canonical == expected
-    assert method == "canonicalize_rule_v1"
+    assert method == "act_parties_v1"
 
 
 @pytest.mark.parametrize(

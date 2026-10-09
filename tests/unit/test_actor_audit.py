@@ -86,7 +86,7 @@ def test_the_four_groups_take_every_norm_once_in_the_stated_order():
     ]}
     assert audit["rule_applied"] == {"count": 1, "norm_ids": ["rule"]}
     assert audit["written_party"] == {"count": 1, "norms": [
-        {"norm_id": "party", "label": "unresolved", "phrase": "SMEs, including start-ups, and SMCs"}]}
+        {"norm_id": "party", "label": "provider"}]}
     assert audit["outside_the_rule"] == {"count": 2, "norms": [
         {"norm_id": "enabled", "actor_inferred": "unspecified_needs_review", "deontic_type": "permission"},
         {"norm_id": "deployer-inferred", "actor_inferred": "deployer", "deontic_type": "obligation"}]}

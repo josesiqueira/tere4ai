@@ -21,6 +21,8 @@ read, and the extractor, the extraction judge, the backlog generator and the
 runtime judge read the same words; the dashboard pins its copy for the
 specialists, the judge template and the annotation guideline against the
 same file.
+
+B145 (DEC-27): the addressee condition reads schema/act_parties.json from extract_norms v5 on; v1 to v4 read the first reading, frozen in scope_first_reading.py.
 """
 
 from __future__ import annotations
@@ -28,7 +30,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from tere4ai.canonicalize.canonicalizer import canonicalize_actor
+from tere4ai.act_parties import addressee_condition, compute, is_v2
+from tere4ai.extract_norms.scope_first_reading import (
+    FIRST_READING_VERSIONS,
+    is_operator_actor_first_reading,
+)
 from tere4ai.mcp_server.requirements import _is_requirement_group, _source_group
 
 REQUIREMENT_TYPES = ("functional", "quality", "process")
@@ -50,6 +56,11 @@ DEFINITIONS_PATH = TEXT_DIR / "definitions.md"
 SCOPE_PATH = TEXT_DIR / "scope.md"
 DEFINITIONS_TEXT = DEFINITIONS_PATH.read_text(encoding="utf-8")
 SCOPE_TEXT = SCOPE_PATH.read_text(encoding="utf-8")
+# B145 (spec G D-G80 (3)): the scope's second version, carried by
+# extract_norms v5, judge_norms v5 and guideline v4; scope.md stays the
+# first, carried by v2 to v4 (brief R20).
+SCOPE_V2_PATH = TEXT_DIR / "scope_v2.md"
+SCOPE_TEXT_V2 = SCOPE_V2_PATH.read_text(encoding="utf-8")
 
 TYPED_DEONTIC_TYPES = ("obligation", "prohibition")
 
@@ -64,82 +75,49 @@ def types_for(prompt_version: str) -> bool:
     return prompt_version not in UNTYPED_PROMPT_VERSIONS
 
 
-# DEC-19 (ruling 17): the actorRole values that are operators. An
-# unspecified actor is a pending human decision, so it is in scope.
-OPERATOR_ROLES = (
-    "provider",
-    "deployer",
-    "importer",
-    "distributor",
-    "authorised_representative",
-    "product_manufacturer",
-    "operator_general",
-    "unspecified_needs_review",
-)
-NON_OPERATOR_ROLES = (
-    "commission",
-    "ai_office",
-    "member_state",
-    "notifying_authority",
-    "market_surveillance_authority",
-    "notified_body",
-    "affected_person",
-)
-# canonicalize_actor's closed table names "operator" for the Act's
-# operators; every other canonical value maps to itself.
-_OPERATOR_CANONICAL = frozenset(
-    {"provider", "deployer", "importer", "distributor", "authorised_representative",
-     "product_manufacturer", "operator"}
-)
-# Words that decide an explicit actor canonicalize_actor cannot resolve
-# ("that initial provider", "the competent judicial authority"): an operator
-# word keeps the norm in scope, otherwise a non-operator word takes it out,
-# otherwise the actor is unspecified and in scope.
-_OPERATOR_WORDS = ("provider", "deployer", "importer", "distributor",
-                   "authorised representative", "manufacturer", "operator")
-_NON_OPERATOR_WORDS = ("commission", "ai office", "member state", "authorit",
-                       "notified bod", "affected person")
-
-
 def clean_type(value: Any) -> str | None:
     """A type value as recorded: one of REQUIREMENT_TYPES, else None."""
     return value if isinstance(value, str) and value in REQUIREMENT_TYPES else None
 
 
-def is_operator_actor(actor_explicit: Any, actor_inferred: Any) -> bool:
-    """True when the norm's actor, explicit or inferred, is an operator.
+def is_operator_actor(explicit: Any, inferred: Any, prompt_version: str | None = None) -> bool:
+    """True when the norm's addressee meets DEC-19's addressee condition.
 
-    An inferred actor is an actorRole value and decides alone. An explicit
-    actor goes through the canonical actor table (DEC-04); one the table
-    cannot resolve is read by its words. No actor at all is unspecified,
-    a pending human decision, and counts as an operator (ruling 17).
+    Under prompt versions v1 to v4 the condition is read as it was at
+    tere4ai2 8440c99 (scope_first_reading, brief R27); from v5, and for a
+    norm that names no extraction version (a human norm), the addressee's
+    value of schema/act_parties.json decides: one of the six AI Act roles or
+    the two sentinels (spec G D-G80 (3)). No addressee at all is unsettled,
+    a pending human decision, and counts (ruling 17).
     """
-    if isinstance(actor_inferred, str) and actor_inferred:
-        return actor_inferred in OPERATOR_ROLES
-    if not isinstance(actor_explicit, str) or not actor_explicit.strip():
-        return True
-    canonical, _method = canonicalize_actor(actor_explicit)
-    if canonical is not None:
-        return canonical in _OPERATOR_CANONICAL
-    text = " ".join(actor_explicit.lower().split())
-    if any(word in text for word in _OPERATOR_WORDS):
-        return True
-    return not any(word in text for word in _NON_OPERATOR_WORDS)
+    if prompt_version in FIRST_READING_VERSIONS:
+        return is_operator_actor_first_reading(explicit, inferred)
+    value, _placement = compute(explicit, inferred)
+    return value in addressee_condition()
 
 
-def in_scope(norm: dict[str, Any]) -> bool:
-    """DEC-19's scope: an operator obligation or prohibition in a requirement group."""
+def _slots(norm: dict[str, Any]) -> tuple[Any, Any]:
+    if is_v2(norm):
+        return norm.get("addressee_explicit"), norm.get("addressee_inferred")
+    return norm.get("actor_explicit"), norm.get("actor_inferred")
+
+
+def in_scope(norm: dict[str, Any], prompt_version: str | None = None) -> bool:
+    """DEC-19's scope: an obligation or prohibition addressed to an operator in
+    a requirement group. prompt_version, when not given, is the norm's
+    extractor_prompt_version."""
     if norm.get("deontic_type") not in TYPED_DEONTIC_TYPES:
         return False
     if not _is_requirement_group(_source_group(str(norm.get("source_node_id") or ""))):
         return False
-    return is_operator_actor(norm.get("actor_explicit"), norm.get("actor_inferred"))
+    version = prompt_version if prompt_version is not None else norm.get("extractor_prompt_version")
+    return is_operator_actor(*_slots(norm), prompt_version=version)
 
 
-def scoped_type(norm: dict[str, Any]) -> str | None:
+def scoped_type(norm: dict[str, Any], prompt_version: str | None = None) -> str | None:
     """The type a norm keeps: null outside the scope whatever was proposed,
     and null for a missing or invalid proposal inside it."""
-    if not in_scope(norm):
+    if not in_scope(norm, prompt_version):
         return None
     return clean_type(norm.get("requirement_type"))
 

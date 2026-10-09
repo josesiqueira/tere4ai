@@ -501,7 +501,7 @@ def extract_norms(
                 # candidate, so the judge is never asked about a type the
                 # code discards; a missing or invalid proposal is null, never
                 # a dropped norm.
-                candidate["requirement_type"] = scoped_type({**candidate, "source_node_id": node_id})
+                candidate["requirement_type"] = scoped_type({**candidate, "source_node_id": node_id}, prompt_version)
 
             judge_user = _judge_user_message(
                 unit, candidate, judge_inference_block(dump, nodes, unit, candidate, prompt_version)

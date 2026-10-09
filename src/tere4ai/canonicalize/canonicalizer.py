@@ -1,15 +1,16 @@
 """Canonicalisation step: actors to the closed table, conditions to nodes.
 
 @implements: DEC-04
+@implements: DEC-27
 @grounded_by: REF-11, REF-12
 
 Build pipeline step 5 (architecture.md Section 6). Two deterministic passes
 over the judged norms payload, no model involved:
 
-- Actor canonicalisation (Section 3): raw actor strings map onto the closed
-  actor table via normalisation rules (article stripping, plural folding,
-  descriptor-tail removal). A string that does not map stays untouched and
-  is reported; nothing is guessed (REF-12: multi-party texts cause actor
+- Actor canonicalisation (Section 3): a raw actor string is placed on one
+  value of the Act's parties (schema/act_parties.json, DEC-27) by
+  tere4ai.act_parties.place. A string the list cannot place stays untouched
+  and is reported; nothing is guessed (REF-12: multi-party texts cause actor
   misidentification, so unresolved means human review, not a default).
 - Condition/Exception materialisation (Section 3): each distinct normalised
   condition or exception text becomes one shared node with a content-hash
@@ -21,65 +22,21 @@ over the judged norms payload, no model involved:
 from __future__ import annotations
 
 import hashlib
-import re
 from typing import Any
+
+from tere4ai.act_parties import METHOD as ACT_PARTIES_METHOD
+from tere4ai.act_parties import place
 
 METHOD = "canonicalize_rule_v1"
 
-# The closed actor table (architecture.md Section 3; roles named by the Act).
-CANONICAL_ACTORS = (
-    "provider",
-    "deployer",
-    "importer",
-    "distributor",
-    "authorised_representative",
-    "product_manufacturer",
-    "operator",
-    "notified_body",
-    "national_competent_authority",
-    "market_surveillance_authority",
-    "commission",
-    "ai_office",
-    "member_state",
-)
-
-# Normalised phrase -> canonical actor, for wordings that survive the
-# mechanical normalisation but are not the bare role name.
-_SYNONYMS = {
-    "european commission": "commission",
-    "the eu ai office": "ai_office",
-    "office": None,  # too ambiguous alone; never map
-    "member states": "member_state",
-    "national competent authorities": "national_competent_authority",
-    "market surveillance authorities": "market_surveillance_authority",
-    "authorised representatives": "authorised_representative",
-    "product manufacturers": "product_manufacturer",
-    "notified bodies": "notified_body",
-}
-
-_DESCRIPTOR_TAIL = re.compile(
-    r"\s+of\s+(?:such\s+)?(?:the\s+)?(?:high-risk\s+)?(?:general-purpose\s+)?ai\s+(?:systems?|models?).*$"
-)
-
-
 def canonicalize_actor(raw: str | None) -> tuple[str | None, str]:
-    """(canonical actor, method) or (None, reason) when it does not map."""
+    """(value of the Act's parties, "act_parties_v1") or (None, reason): the
+    normaliser of schema/act_parties.json (DEC-27, spec G D-G80 (4)), kept
+    under its old name for its callers and the dashboard's parity test."""
     if not raw or not str(raw).strip():
         return None, "empty"
-    text = " ".join(str(raw).lower().split())
-    text = re.sub(r"^(?:the|a|an)\s+", "", text)
-    text = _DESCRIPTOR_TAIL.sub("", text).strip(" ,.")
-    if text in _SYNONYMS:
-        mapped = _SYNONYMS[text]
-        return (mapped, METHOD) if mapped else (None, "ambiguous")
-    candidates = {text, text.replace(" ", "_")}
-    if text.endswith("s"):
-        singular = text[:-1]
-        candidates |= {singular, singular.replace(" ", "_")}
-    for candidate in candidates:
-        if candidate in CANONICAL_ACTORS:
-            return candidate, METHOD
-    return None, "unresolved"
+    value = place(str(raw))
+    return (value, ACT_PARTIES_METHOD) if value is not None else (None, "unplaced")
 
 
 def _clause_id(kind: str, text: str) -> str:

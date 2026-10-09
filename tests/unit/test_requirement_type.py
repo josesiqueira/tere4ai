@@ -17,18 +17,19 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai import act_parties
 from tere4ai.eval.strategies import GraphStrategy
-from tere4ai.extract_norms import pipeline
+from tere4ai.extract_norms import pipeline, scope_first_reading
 from tere4ai.extract_norms.requirement_type import (
     DEFINITIONS_PATH,
     DEFINITIONS_TEXT,
     NO_TYPE,
-    NON_OPERATOR_ROLES,
     NOT_AN_OPERATOR_REQUIREMENT,
-    OPERATOR_ROLES,
     REQUIREMENT_TYPES,
     SCOPE_PATH,
     SCOPE_TEXT,
+    SCOPE_TEXT_V2,
+    SCOPE_V2_PATH,
     clean_type,
     in_scope,
     is_operator_actor,
@@ -37,6 +38,7 @@ from tere4ai.extract_norms.requirement_type import (
     type_label,
     types_for,
 )
+from tere4ai.extract_norms.scope_first_reading import OPERATOR_ROLES as FIRST_READING_OPERATOR_ROLES
 from tere4ai.graph_store import layer23
 from tere4ai.judge import runtime_grounding
 from tere4ai.mcp_server import backlog
@@ -53,15 +55,19 @@ def _norm(**overrides):
         "actor_explicit": None,
         "actor_inferred": "provider",
         "requirement_type": "functional",
+        "extractor_prompt_version": "v4",
     }
     norm.update(overrides)
     return norm
 
 
-def test_the_three_types_and_the_roles_match_the_schema():
+def test_the_three_types_match_the_schema_and_the_addressee_condition_is_the_lists():
     assert SCHEMA["$defs"]["requirementType"]["enum"] == list(REQUIREMENT_TYPES)
-    roles = SCHEMA["$defs"]["actorRole"]["enum"]
-    assert sorted(OPERATOR_ROLES + NON_OPERATOR_ROLES) == sorted(roles)
+    # the first reading's operator roles are version 1's enum values, frozen
+    assert set(FIRST_READING_OPERATOR_ROLES) <= set(SCHEMA["$defs"]["actorRole"]["enum"])
+    # from v5 the addressee condition is the six AI Act roles and the two sentinels
+    assert act_parties.addressee_condition() == act_parties.ai_act_roles() + (
+        "operator_general", "unspecified_needs_review")
 
 
 def test_the_type_fields_are_optional_and_nullable_in_the_schema():
@@ -250,3 +256,71 @@ def test_the_generation_and_ablation_digests_leave_the_norms_types_out():
     assert "requirement_type" not in runtime_grounding._NORM_DIGEST_FIELDS
     typed = {"norm_id": "norm:x:n1", "deontic_type": "obligation", "requirement_type": "process"}
     assert "requirement_type" not in GraphStrategy._norm_digest(None, typed)
+
+
+# B145 (spec G D-G80 (3), (15); brief R27, A14): the addressee condition per
+# prompt version. Expected values come from the brief's examples.
+V5_IN = [
+    {"actor_inferred": "provider"},
+    {"actor_inferred": "operator_general"},
+    {"actor_inferred": "unspecified_needs_review"},
+    {"actor_inferred": None, "actor_explicit": None},
+    {"actor_inferred": None, "actor_explicit": "SMEs, including start-ups, and SMCs"},
+    {"actor_inferred": None, "actor_explicit": "providers of high-risk AI systems"},
+    {"actor_inferred": None, "actor_explicit": "that system"},
+    {"actor_inferred": None, "actor_explicit": "the competent judicial authority"},
+]
+V5_OUT = [
+    {"actor_inferred": "commission"},
+    {"actor_inferred": None, "actor_explicit": "the Board"},
+    {"actor_inferred": None, "actor_explicit": "notified bodies"},
+    {"actor_inferred": None, "actor_explicit": "the Commission"},
+    {"actor_inferred": None, "actor_explicit": "Member States"},
+]
+
+
+@pytest.mark.parametrize("overrides", V5_IN)
+def test_under_v5_an_operator_or_an_unsettled_addressee_keeps_the_type(overrides):
+    assert scoped_type(_norm(extractor_prompt_version="v5", **overrides)) == "functional"
+
+
+@pytest.mark.parametrize("overrides", V5_OUT)
+def test_under_v5_an_authority_a_body_an_institution_or_a_person_carries_null(overrides):
+    assert scoped_type(_norm(extractor_prompt_version="v5", **overrides)) is None
+
+
+def test_the_board_keeps_process_under_v4_and_carries_null_under_v5():
+    """A14: "the Board" was an operator under the first reading (no listed
+    word); under v5 the list places it on board, an institution."""
+    candidate = {"source_node_id": "eu-ai-act:article-17:paragraph-1", "deontic_type": "obligation",
+                 "actor_explicit": "the Board", "actor_inferred": None, "requirement_type": "process"}
+    assert scoped_type(candidate, "v4") == "process"
+    assert scoped_type(candidate, "v5") is None
+    v2_names = {"source_node_id": "eu-ai-act:article-17:paragraph-1", "deontic_type": "obligation",
+                "addressee_explicit": "the Board", "addressee_inferred": None, "requirement_type": "process"}
+    assert scoped_type(v2_names, "v5") is None
+
+
+def test_a_norm_with_no_extraction_version_reads_the_list():
+    human = {"source_node_id": "eu-ai-act:article-17:paragraph-1", "deontic_type": "obligation",
+             "actor_explicit": "the Board", "actor_inferred": None, "requirement_type": None}
+    assert type_label(human) == NOT_AN_OPERATOR_REQUIREMENT
+    assert type_label({**human, "extractor_prompt_version": "v4"}) == NO_TYPE
+
+
+@pytest.mark.parametrize("version", ["v1", "v2", "v3", "v4"])
+def test_the_first_reading_is_the_one_read_for_v1_to_v4(version):
+    assert version in scope_first_reading.FIRST_READING_VERSIONS
+    for explicit in ("that system", "data sets", "the Board", "any distributor, importer, deployer or other third party"):
+        assert is_operator_actor(explicit, None, version)
+    for explicit in ("the Commission", "Member States", "national competent authorities", "the competent judicial authority"):
+        assert not is_operator_actor(explicit, None, version)
+    assert "v5" not in scope_first_reading.FIRST_READING_VERSIONS
+
+
+def test_the_scope_text_has_a_second_version_named_by_the_kinds():
+    assert SCOPE_TEXT_V2 == SCOPE_V2_PATH.read_text(encoding="utf-8")
+    text = _normalised(SCOPE_TEXT_V2)
+    assert "is an operator: one of the six AI Act roles (provider, product manufacturer, deployer, authorised representative, importer, distributor), operators in general, or an addressee not yet settled." in text
+    assert "a norm addressed to an authority, a body, an institution or a person." in text
+    assert SCOPE_TEXT_V2 != SCOPE_TEXT
