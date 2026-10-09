@@ -151,3 +151,37 @@ def test_r100_an_addressee_outside_version_1s_enumeration_lands_in_a_version_2_f
     assert into_v2["addressee_inferred"] == "board"
     with pytest.raises(ValueError, match="norms.schema.json"):
         apply_decisions({"norms": []}, decisions)
+
+
+_STORED = ("addressee", "addressee_method", "addressee_placement")
+
+
+def _without_stored(norm):
+    return {k: v for k, v in norm.items() if k not in _STORED}
+
+
+def test_canonicalize_norms_computes_the_stored_value_a_version_2_norm_lacks():
+    """The brief's table: written "providers of high-risk AI systems" places on provider;
+    words that name no party give unspecified_needs_review and count as unresolved."""
+    placed = _without_stored(V2)
+    unplaced = {**_without_stored(V2), "norm_id": "n2", "addressee_explicit": "quantum widget"}
+    out = canonicalize_norms({"norms_schema_version": 2, "norms": [placed, unplaced]})
+    first, second = out["norms"]
+    assert (first["addressee"], first["addressee_method"], first["addressee_placement"]) == (
+        "provider", "act_parties_v1", "placed")
+    assert (second["addressee"], second["addressee_placement"]) == ("unspecified_needs_review", "unplaced")
+    assert out["canonicalization"]["actors_resolved"] == 1
+    assert out["canonicalization"]["actors_unresolved"] == {"quantum widget": 1}
+
+
+def test_a_replace_on_a_version_2_norm_in_a_version_2_file_takes_the_new_addressee():
+    existing = {**V2, "norm_id": "norm:eu-ai-act:article-25:paragraph-4:n1",
+                "source_node_id": "eu-ai-act:article-25:paragraph-4", "source_span_id": "span:025.004"}
+    assert existing["addressee"] == "provider"
+    decisions = {}
+    record_decision(decisions, existing["norm_id"], "replace", "Article 25(4)", "annotator a", payload=HUMAN_V2)
+    out = apply_decisions({"norms_schema_version": 2, "norms": [existing]}, decisions)["norms"][0]
+    assert out["addressee_explicit"] == HUMAN_V2["addressee_explicit"]
+    assert (out["addressee"], out["addressee_method"], out["addressee_placement"]) == (
+        "third_party_supplier", "act_parties_v1", "placed")
+    assert not [k for k in out if k.startswith("actor_")]
