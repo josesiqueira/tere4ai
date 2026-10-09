@@ -33,10 +33,16 @@ _LEADING = ("the", "a", "an", "any", "each", "such", "that", "relevant")
 # The words that end the governing part of a phrase (D-G80 (4), third step).
 _RELATIVE_MARKERS = (" that ", " which ", " who ", " whose ", " established ",
                      " placed ", " participating ", " referred to ")
-_DESCRIPTOR_TAIL = re.compile(
-    r"\s+of\s+(?:such\s+)?(?:the\s+)?(?:high-risk\s+)?(?:general-purpose\s+)?ai\s+(?:systems?|models?).*$"
-)
+# The descriptor "of ... AI systems" (D-G80 (4)); one pattern for the tail
+# the second and third steps remove and for R98's check (review Minor 4).
+_DESCRIPTOR = r"\s+of\s+(?:such\s+)?(?:the\s+)?(?:high-risk\s+)?(?:general-purpose\s+)?ai\s+(?:systems?|models?)"
+_DESCRIPTOR_TAIL = re.compile(_DESCRIPTOR + r".*$")
+_DESCRIPTOR_START = re.compile(_DESCRIPTOR)
 _COORDINATION = {"and", "or", "and/or", "other", "the", "a", "an", "any"}
+# R116: a gap between two party terms that holds one of these words joins
+# them, whatever other words stand in it ("the provider or, where
+# applicable, the deployer"; "providers and their authorised representatives").
+_COORDINATORS = frozenset({"and", "or", "and/or"})
 # The words that may stand before the head without changing which party it
 # names ("national market surveillance authorities", "the EU AI Office";
 # plan R91). Any other first word is the head, and a head that is not a
@@ -164,8 +170,10 @@ def _after_of(words: list[str], start: int) -> bool:
 
 def _coordinated_after_descriptor(text: str) -> bool:
     """R98: after a descriptor ("of ... AI systems"), and before any relative
-    marker, a party joined by "and" or "or" makes the phrase several parties."""
-    match = re.search(r"\s+of\s+(?:such\s+)?(?:the\s+)?(?:high-risk\s+)?(?:general-purpose\s+)?ai\s+(?:systems?|models?)", text)
+    marker, a party joined by "and" or "or" makes the phrase several parties;
+    R116: whatever other words stand before it ("and their authorised
+    representatives")."""
+    match = _DESCRIPTOR_START.search(text)
     if match is None:
         return False
     rest = text[match.end():]
@@ -173,12 +181,11 @@ def _coordinated_after_descriptor(text: str) -> bool:
     if cut >= 0:
         rest = rest[:cut]
     words = _words(rest)
-    for start, _end, _value in _find(words):
-        k = start - 1
-        while k >= 0 and words[k] in ("the", "a", "an", "any"):
-            k -= 1
-        if k >= 0 and words[k] in ("and", "or", "and/or"):
+    previous_end = 0
+    for start, end, _value in _find(words):
+        if _COORDINATORS.intersection(words[previous_end:start]):
             return True
+        previous_end = end
     return False
 
 
@@ -216,9 +223,11 @@ def place(phrase: Any) -> str | None:
     found = {value for _s, _e, value in hits}
     if len(found) == 1:
         return found.pop()
-    between = [w for k in range(len(hits) - 1) for w in words[hits[k][1]:hits[k + 1][0]]]
-    if all(w in _COORDINATION for w in between):
+    gaps = [words[hits[k][1]:hits[k + 1][0]] for k in range(len(hits) - 1)]
+    if all(w in _COORDINATION for gap in gaps for w in gap):
         return None  # several parties joined by a coordination: one norm per party
+    if any(_COORDINATORS.intersection(gap) for gap in gaps):
+        return None  # R116: joined by "and" or "or", whatever words stand between
     # fourth step: the head, the term at the start of the governing part
     return hits[0][2]
 
@@ -268,7 +277,9 @@ def addressee_of(norm: dict[str, Any]) -> Addressee:
     if is_v2(norm):
         explicit, inferred = norm.get("addressee_explicit"), norm.get("addressee_inferred")
         source = norm.get("addressee_inference_source_node_id")
-        if norm.get("addressee_method") == METHOD and norm.get("addressee"):
+        # a stored value is read as stored only when it is a value of the list
+        # (final review, the Task 1 guard)
+        if norm.get("addressee_method") == METHOD and norm.get("addressee") in values():
             return Addressee(_clean(explicit), _clean(inferred), _clean(source),
                              str(norm["addressee"]), str(norm.get("addressee_placement") or ""))
     else:

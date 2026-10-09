@@ -160,6 +160,9 @@ PLACED = {
     "national market surveillance authorities": "market_surveillance_authority",
     # R98: a descriptor with no coordinated party still places
     "providers of general-purpose AI models with systemic risk": "provider",
+    # R116 keeps the fourth step for a gap with no "and" or "or" in it
+    "deployers, other than providers": "deployer",
+    "the AI Office, in collaboration with the Board": "ai_office",
 }
 UNPLACED = (
     "that system", "the post-market monitoring system", "it", "they", "the provider or the deployer",
@@ -176,6 +179,16 @@ UNPLACED = (
     "deployers of high-risk AI systems and importers",
     # R58: only the guard on the one word "subject" decides these
     "subject", "the subject",
+    # R116: two parties joined by "and" or "or", whatever words stand between
+    # them (Article 73(5): "the provider or, where applicable, the deployer";
+    # Article 18(2): "provider or its authorised representative")
+    "the provider or, where applicable, the deployer",
+    "providers and their authorised representatives",
+    "the provider or, where applicable, the authorised representative",
+    "the provider and its authorised representative",
+    "the market surveillance authority or, where applicable, the notified body",
+    "providers of high-risk AI systems and their authorised representatives",
+    "provider or its authorised representative",
 )
 
 
@@ -218,6 +231,12 @@ def test_a_version_2_norm_is_read_as_stored_and_an_old_stamp_is_computed_again()
     assert ap.addressee_of(stored).value == "deployer"
     old = {**V2, "addressee": "deployer", "addressee_method": "canonicalize_rule_v1"}
     assert ap.addressee_of(old).value == "provider"
+
+
+def test_a_stored_value_that_is_not_a_value_of_the_list_is_computed_again():
+    # final review, the Task 1 guard: only a value of the list is read as stored
+    unknown = {**V2, "addressee": "a_value_not_in_the_list"}
+    assert ap.addressee_of(unknown).value == "provider"
 
 
 def test_in_v2_names_drops_the_version_1_keys_and_keeps_every_other():
