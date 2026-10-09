@@ -315,3 +315,40 @@ def serves(value: str, requested: str) -> bool:
     if party is not None and requested in party.also_served_to:
         return True
     return value == OPERATOR_GENERAL and requested in ai_act_roles()
+
+
+# --- the two norms schema versions and the readers outside the served path
+# (spec G D-G80 (21); brief R47, R48, R50)
+
+NORMS_SCHEMA_PATHS = {
+    1: REPO_ROOT / "schema" / "json_schemas" / "norms.schema.json",
+    2: REPO_ROOT / "schema" / "json_schemas" / "norms.v2.schema.json",
+}
+
+
+def norms_schema_version(payload: Any) -> int:
+    """2 when a norms file names norms_schema_version 2 at its top level, else 1."""
+    return 2 if isinstance(payload, dict) and payload.get("norms_schema_version") == 2 else 1
+
+
+def slots_of(norm: dict[str, Any]) -> tuple[Any, Any, Any]:
+    """The three addressee slots as stored, in either version's names (never cleaned)."""
+    if is_v2(norm):
+        return (norm.get("addressee_explicit"), norm.get("addressee_inferred"),
+                norm.get("addressee_inference_source_node_id"))
+    return norm.get("actor_explicit"), norm.get("actor_inferred"), norm.get("actor_inference_source_node_id")
+
+
+def actor_slots_for_digests(norm: dict[str, Any]) -> dict[str, Any]:
+    """brief R50: the digests other instruments give their models keep the
+    key "actor" and their content; they read either version through this."""
+    explicit, inferred, source = slots_of(norm)
+    return {"actor_explicit": explicit, "actor_inferred": inferred, "actor_inference_source_node_id": source}
+
+
+def in_v1_names(norm: dict[str, Any]) -> dict[str, Any]:
+    """A copy of the norm in version 1's names (a human norm written in
+    version 2's names, stamped into a version 1 file)."""
+    out = {k: v for k, v in norm.items() if k not in V2_FIELDS}
+    out.update(actor_slots_for_digests(norm))
+    return out

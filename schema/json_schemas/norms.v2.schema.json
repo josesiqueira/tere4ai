@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tere4ai.org/schema/norms.v2.schema.json",
+  "title": "TERE4AI v2 Layer 2 normative statement, norms schema version 2",
+  "description": "Machine-readable contract for NormativeStatement nodes (docs/architecture.md Section 3, grounded in Institutional Grammar: addressee = Attribute, deontic_type and modal = Deontic, action/object/conditions = Aim). An Article is not one requirement; each extracted norm is one node. No norm exists without a source span, and no norm is accepted without a judge verdict. Version 2 (B145, spec G D-G80 (21)): a norms file that names norms_schema_version 2 at its top level holds norms in these names; a file without it is version 1 (norms.schema.json).",
+  "$defs": {
+    "deonticType": {
+      "enum": [
+        "obligation",
+        "prohibition",
+        "permission",
+        "right",
+        "exemption"
+      ]
+    },
+    "modal": {
+      "description": "The literal modal signal in the text",
+      "enum": [
+        "shall",
+        "shall_not",
+        "may",
+        "may_not",
+        "must",
+        "should",
+        "is_prohibited",
+        "other_explicit"
+      ]
+    },
+    "actParty": {
+      "description": "The Act's parties (schema/act_parties.json, DEC-27); never extended ad hoc",
+      "enum": [
+        "provider",
+        "product_manufacturer",
+        "deployer",
+        "authorised_representative",
+        "importer",
+        "distributor",
+        "notifying_authority",
+        "market_surveillance_authority",
+        "law_enforcement_authority",
+        "ai_office",
+        "national_competent_authority",
+        "european_data_protection_supervisor",
+        "national_data_protection_authority",
+        "fundamental_rights_authority",
+        "judicial_or_administrative_authority",
+        "conformity_assessment_body",
+        "notified_body",
+        "commission",
+        "member_state",
+        "board",
+        "scientific_panel",
+        "advisory_forum",
+        "european_parliament",
+        "council",
+        "court_of_justice",
+        "union_ai_testing_support_structure",
+        "affected_person",
+        "subject_of_testing",
+        "natural_or_legal_person",
+        "independent_expert",
+        "standardisation_participant",
+        "third_party_supplier",
+        "member_state_representative",
+        "notified_body_staff",
+        "scientific_panel_expert",
+        "operator_general",
+        "unspecified_needs_review"
+      ]
+    },
+    "lifecyclePhase": {
+      "enum": [
+        "design_development",
+        "data_and_training",
+        "verification_validation",
+        "placing_on_market",
+        "putting_into_service",
+        "operation_monitoring",
+        "substantial_modification",
+        "post_market",
+        "decommissioning",
+        "cross_phase"
+      ]
+    },
+    "judgeVerdict": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "needs_human_review",
+        "pending"
+      ]
+    },
+    "requirementType": {
+      "description": "DEC-19: three of the requirements type attribute examples of ISO/IEC/IEEE 29148:2018 clause 5.2.8.3",
+      "enum": [
+        "functional",
+        "quality",
+        "process"
+      ]
+    },
+    "targetSystemCategory": {
+      "description": "DEC-21: the Act's own scope terms, one per part of its rules: Chapter I (any_ai_system), Chapter II (prohibited_ai_practice), Chapter III with Annexes III and IV and Articles 72 and 73 (high_risk_ai_system), Chapter IV (article_50_ai_system)",
+      "enum": [
+        "any_ai_system",
+        "prohibited_ai_practice",
+        "high_risk_ai_system",
+        "article_50_ai_system"
+      ]
+    }
+  },
+  "type": "object",
+  "required": [
+    "norm_id",
+    "source_node_id",
+    "source_span_id",
+    "deontic_type",
+    "modal",
+    "addressee_explicit",
+    "action",
+    "object",
+    "extraction_method",
+    "extractor_model",
+    "confidence",
+    "judge_verdict",
+    "review_status",
+    "addressee",
+    "addressee_method",
+    "addressee_placement"
+  ],
+  "properties": {
+    "norm_id": {
+      "type": "string",
+      "description": "e.g. norm:eu-ai-act:article-9:paragraph-1:n1",
+      "pattern": "^norm:[a-z0-9][a-z0-9:._-]*$"
+    },
+    "layer": {
+      "const": 2
+    },
+    "type": {
+      "const": "NormativeStatement"
+    },
+    "source_node_id": {
+      "type": "string",
+      "description": "Operative Layer 1 node (article, paragraph, point, annex item). NEVER a recital (Section 1)."
+    },
+    "source_span_id": {
+      "type": "string"
+    },
+    "deontic_type": {
+      "$ref": "#/$defs/deonticType"
+    },
+    "modal": {
+      "$ref": "#/$defs/modal"
+    },
+    "addressee_explicit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The addressee as the text literally names it, null when absent"
+    },
+    "addressee_inferred": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/actParty"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "addressee_inference_source_node_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Required when addressee_inferred is set: the node that licenses the inference"
+    },
+    "addressee": {
+      "$ref": "#/$defs/actParty",
+      "description": "The stored value: addressee_inferred, else the written words placed on the Act's parties, else unspecified_needs_review (D-G80 (4))"
+    },
+    "addressee_method": {
+      "const": "act_parties_v1"
+    },
+    "addressee_placement": {
+      "enum": [
+        "inferred",
+        "placed",
+        "unplaced"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "object": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_system_category": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/targetSystemCategory"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "DEC-21: the part of the Act's rules the norm belongs to, named by the category of AI systems those rules govern; not the system a single paragraph talks about (the addressee stays in the actor fields). Set by rule from the norm's source Article or Annex (src/tere4ai/extract_norms/target_system_category.py), never by a model; null only for a source unit outside the rule table."
+    },
+    "condition_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exception_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requirement_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/requirementType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "DEC-19: set only on an operator obligation or prohibition in a requirement group; null otherwise, shown \"not an operator requirement\". Optional so a norm from a build before DEC-19, or a reply that omits it, is never dropped for it."
+    },
+    "judge_type_agrees": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "DEC-19: whether the extraction judge agrees with requirement_type; null when the judge recorded no view or the type is null. Never changes judge_verdict."
+    },
+    "judge_requirement_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/requirementType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "DEC-19: the extraction judge's view of the type (the agreed type, or its own when it disagrees); null when no view was recorded."
+    },
+    "lifecycle_phase_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lifecyclePhase"
+      }
+    },
+    "required_artifact_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_expectation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extraction_method": {
+      "type": "string",
+      "description": "e.g. llm_extract_v1"
+    },
+    "extractor_model": {
+      "type": "string",
+      "description": "exact model id, never 'latest'"
+    },
+    "extractor_prompt_version": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "judge_verdict": {
+      "$ref": "#/$defs/judgeVerdict"
+    },
+    "judge_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "review_status": {
+      "enum": [
+        "auto_accepted",
+        "needs_review",
+        "accepted",
+        "rejected"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "addressee_inferred": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "addressee_inferred"
+        ]
+      },
+      "then": {
+        "properties": {
+          "addressee_inference_source_node_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "addressee_inference_source_node_id"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": true
+}

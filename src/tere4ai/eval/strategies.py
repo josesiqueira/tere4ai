@@ -46,6 +46,7 @@ import re
 from collections import Counter
 from typing import Any, Protocol
 
+from tere4ai.act_parties import actor_slots_for_digests
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.mcp_server.classify import classify_ai_system
 
@@ -317,8 +318,9 @@ class GraphStrategy:
 
     @staticmethod
     def _norm_text(norm: dict[str, Any]) -> str:
+        slots = actor_slots_for_digests(norm)
         pieces = [
-            str(norm.get("actor_explicit") or norm.get("actor_inferred") or ""),
+            str(slots["actor_explicit"] or slots["actor_inferred"] or ""),
             str(norm.get("action") or ""),
             str(norm.get("object") or ""),
             " ".join(norm.get("conditions") or []),
@@ -342,12 +344,13 @@ class GraphStrategy:
         return [self._norms_by_id[norm_id] for norm_id, _score, _text in hits]
 
     def _norm_digest(self, norm: dict[str, Any]) -> dict[str, Any]:
+        slots = actor_slots_for_digests(norm)
         return {
             "norm_id": norm.get("norm_id"),
             "source_node_id": norm.get("source_node_id"),
             "deontic_type": norm.get("deontic_type"),
             "modal": norm.get("modal"),
-            "actor": norm.get("actor_explicit") or norm.get("actor_inferred"),
+            "actor": slots["actor_explicit"] or slots["actor_inferred"],
             "action": norm.get("action"),
             "object": norm.get("object"),
             "conditions": norm.get("conditions") or [],

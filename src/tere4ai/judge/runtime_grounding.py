@@ -36,6 +36,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from tere4ai.act_parties import actor_slots_for_digests
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import (
     REPO_ROOT,
@@ -84,7 +85,7 @@ _NORM_DIGEST_FIELDS = (
 
 
 def _norm_digest(norm: dict[str, Any]) -> dict[str, Any]:
-    return {key: norm.get(key) for key in _NORM_DIGEST_FIELDS}
+    return {key: {**norm, **actor_slots_for_digests(norm)}.get(key) for key in _NORM_DIGEST_FIELDS}
 
 
 def _judge_user_message(

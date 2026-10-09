@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from tere4ai.act_parties import addressee_of
 from tere4ai.extract_norms.requirement_type import type_label
 
 # Pairs at or above HIGH are near-duplicates; between REVIEW and HIGH they
@@ -51,7 +52,8 @@ def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
 def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """All pairs above REVIEW_SIMILARITY, most similar first.
 
-    Blocking on (article, actor, deontic_type) keeps this O(block^2) instead
+    Blocking on (article, the addressee's value of the Act's parties, deontic_type)
+    (B145, brief R16) keeps this O(block^2) instead
     of O(n^2) and encodes that two norms with different actors or deontic
     force are never duplicates of each other.
     """
@@ -59,13 +61,13 @@ def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for norm in norms:
         key = (
             _article_of(norm.get("source_node_id", "")),
-            (norm.get("actor_explicit") or norm.get("actor_inferred") or "").lower(),
+            addressee_of(norm).value,
             (norm.get("deontic_type") or "").lower(),
         )
         blocks.setdefault(key, []).append(norm)
 
     pairs: list[dict[str, Any]] = []
-    for (article, actor, deontic), members in blocks.items():
+    for (article, addressee, deontic), members in blocks.items():
         if len(members) < 2:
             continue
         toks = [(n, _tokens(n)) for n in members]
@@ -92,7 +94,7 @@ def find_near_duplicates(norms: list[dict[str, Any]]) -> list[dict[str, Any]]:
                             if score >= HIGH_SIMILARITY
                             else "review",
                             "article": article,
-                            "actor": actor,
+                            "addressee": addressee,
                             "deontic_type": deontic,
                             # DEC-19: the type is not part of the block, so
                             # two near-duplicates typed differently are shown

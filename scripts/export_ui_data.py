@@ -22,6 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.act_parties import actor_slots_for_digests  # noqa: E402
 from tere4ai.elicit_features.elicitor import schema_flag_names  # noqa: E402
 from tere4ai.mcp_server.tools import article_order, coverage_report  # noqa: E402
 
@@ -126,6 +127,7 @@ def build_review_queue(dump: dict, norms_payload: dict | None, alignments_payloa
         for n in norms_payload.get("norms", []):
             if n.get("judge_verdict") != "needs_human_review":
                 continue
+            slots = actor_slots_for_digests(n)
             norm_items.append(
                 {
                     "norm_id": n["norm_id"],
@@ -133,8 +135,8 @@ def build_review_queue(dump: dict, norms_payload: dict | None, alignments_payloa
                     "source_span_id": n.get("source_span_id", ""),
                     "deontic_type": n.get("deontic_type", ""),
                     "modal": n.get("modal", ""),
-                    "actor": n.get("actor_explicit") or n.get("actor_inferred"),
-                    "actor_source": "explicit" if n.get("actor_explicit") else "inferred",
+                    "actor": slots["actor_explicit"] or slots["actor_inferred"],
+                    "actor_source": "explicit" if slots["actor_explicit"] else "inferred",
                     "action": n.get("action", ""),
                     "object": n.get("object", ""),
                     "conditions": n.get("conditions", []),

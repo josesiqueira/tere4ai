@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from tere4ai.act_parties import actor_slots_for_digests, in_v1_names, is_v2
 from tere4ai.extract_norms.requirement_type import REQUIREMENT_TYPES, type_label
 
 EXCERPT_CHARS = 280
@@ -75,7 +76,8 @@ def _judge_rationales(payload: dict[str, Any] | None) -> dict[str, str]:
 
 
 def _norm_digest(norm: dict[str, Any]) -> str:
-    actor = norm.get("actor_explicit") or norm.get("actor_inferred") or "?"
+    slots = actor_slots_for_digests(norm)
+    actor = slots["actor_explicit"] or slots["actor_inferred"] or "?"
     digest = (
         f"{norm.get('deontic_type', '?')}/{norm.get('modal', '?')} "
         f"actor={actor} action={norm.get('action', '?')} "
@@ -203,6 +205,17 @@ def validate_human_payload(decision: Any, payload: dict[str, Any] | None) -> Non
         return
     if not isinstance(payload, dict):
         raise ValueError(f"decision {decision!r} requires a payload with the norm's slots")
+    if is_v2(payload):
+        # B145 (R65): a human norm in version 2's names is checked in version
+        # 1's, the names the queue's field lists keep; its own key is named.
+        if "addressee_explicit" not in payload:
+            raise ValueError("payload is missing addressee_explicit")
+        inferred, source = payload.get("addressee_inferred"), payload.get("addressee_inference_source_node_id")
+        if inferred is not None and not source:
+            raise ValueError(
+                f"payload sets addressee_inferred={inferred!r} but is missing addressee_inference_source_node_id"
+            )
+        payload = in_v1_names(payload)
     missing = [k for k in HUMAN_NORM_REQUIRED if k not in payload]
     if missing:
         raise ValueError(f"payload is missing {', '.join(missing)}")

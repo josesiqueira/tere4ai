@@ -25,12 +25,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from tere4ai.act_parties import in_v2_names
+
 _NORM_SCALAR_FIELDS = (
     "deontic_type",
     "modal",
-    "actor_explicit",
-    "actor_inferred",
-    "actor_inference_source_node_id",
+    "addressee_explicit",
+    "addressee_inferred",
+    "addressee_inference_source_node_id",
+    "addressee",
     "action",
     "object",
     "target_system_category",
@@ -138,6 +141,7 @@ def norms_to_graph(norms_result: dict[str, Any], build_id: str | None = None) ->
         nodes.append(_judge_run_node(run))
 
     for norm in norms_result.get("norms", []):
+        norm = in_v2_names(norm)
         node: dict[str, Any] = {"id": norm["norm_id"], "layer": 2, "type": "NormativeStatement"}
         for k in _NORM_SCALAR_FIELDS:
             if norm.get(k) is not None:

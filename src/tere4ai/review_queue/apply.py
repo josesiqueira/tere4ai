@@ -33,6 +33,13 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from tere4ai.act_parties import (
+    NORMS_SCHEMA_PATHS,
+    in_v1_names,
+    in_v2_names,
+    is_v2,
+    norms_schema_version,
+)
 from tere4ai.extract_norms.target_system_category import category_for
 from tere4ai.review_queue.queue import validate_human_payload
 
@@ -78,6 +85,35 @@ def _validate_human_norm(item: dict[str, Any]) -> None:
     )
 
 
+@lru_cache(maxsize=1)
+def _norm_validator_v2() -> Draft202012Validator:
+    return Draft202012Validator(json.loads(NORMS_SCHEMA_PATHS[2].read_text(encoding="utf-8")))
+
+
+def _validate_v2(item: dict[str, Any]) -> None:
+    """A human norm stamped into a version 2 file, against norms.v2.schema.json."""
+    errors = sorted(_norm_validator_v2().iter_errors(item), key=lambda e: list(e.path))
+    if errors:
+        first = errors[0]
+        field = ".".join(str(part) for part in first.path) or "the norm"
+        raise ValueError(f"human norm {item.get('norm_id')!r} fails norms.v2.schema.json at {field}: {first.message}")
+
+
+def _stamp_and_validate(item: dict[str, Any], entry: dict[str, Any], version: int) -> None:
+    """Stamp a human norm in version 1's names and write it in the names of
+    the file it goes into. A version 2 file is checked against version 2's
+    schema only (plan R100): version 1's enumeration holds 15 of the Act's 37
+    parties, and the dashboard form offers all of them."""
+    _stamp_human_norm(item, entry)
+    if version == 2:
+        converted = in_v2_names(item)
+        item.clear()
+        item.update(converted)
+        _validate_v2(item)
+    else:
+        _validate_human_norm(item)
+
+
 def _items_and_id_field(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
     if "norms" in payload:
         return payload["norms"], "norm_id"
@@ -96,7 +132,7 @@ def _human_review(entry: dict[str, Any], decision: str) -> dict[str, Any]:
 
 
 def _stamp_human_norm(item: dict[str, Any], entry: dict[str, Any]) -> None:
-    payload = entry["payload"]
+    payload = in_v1_names(entry["payload"]) if is_v2(entry["payload"]) else entry["payload"]
     for field in _SLOT_FIELDS:
         default: Any = [] if field in _LIST_SLOTS else None
         item[field] = copy.deepcopy(payload.get(field, default))
@@ -150,8 +186,14 @@ def apply_decisions(
     producer of the decisions file does not matter: a malformed human norm
     raises ValueError naming the norm and the failing field instead of
     reaching the graph.
+
+    B145 (R65): a human norm arrives in either names; it is stamped in
+    version 1's names and written in the names of the file it goes into
+    (version 2's for a file that names norms_schema_version 2), with the
+    stored value computed.
     """
     new_payload = copy.deepcopy(payload)
+    version = norms_schema_version(new_payload)
     if not decisions:
         return new_payload
     items, id_field = _items_and_id_field(new_payload)
@@ -177,8 +219,11 @@ def apply_decisions(
                         "use reject plus add"
                     )
             validate_human_payload(decision, entry.get("payload"))
-            _stamp_human_norm(item, entry)
-            _validate_human_norm(item)
+            if version == 2:
+                original = dict(item)
+                item.clear()
+                item.update(in_v1_names(original))
+            _stamp_and_validate(item, entry, version)
         else:
             item["judge_verdict"] = _VERDICT[decision]
             item["review_status"] = _VERDICT[decision]
@@ -196,8 +241,7 @@ def apply_decisions(
                 "type": "NormativeStatement",
             }
             validate_human_payload("add", entry.get("payload"))
-            _stamp_human_norm(new_norm, entry)
-            _validate_human_norm(new_norm)
+            _stamp_and_validate(new_norm, entry, version)
             new_norm["human_review"] = _human_review(entry, "add")
             items.append(new_norm)
         elif entry["decision"] == "replace" and queue_id not in present:

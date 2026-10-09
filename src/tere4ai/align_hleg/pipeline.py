@@ -38,6 +38,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from tere4ai.act_parties import actor_slots_for_digests
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import (
     REPO_ROOT,
@@ -109,10 +110,11 @@ def _id_suffix(prefixed_id: str) -> str:
 
 
 def _generator_user_message(norm: dict[str, Any], hleg_nodes: list[dict[str, Any]]) -> str:
+    slots = actor_slots_for_digests(norm)
     lines = [
         f"Norm id: {norm['norm_id']}",
         f"Deontic type: {norm['deontic_type']}",
-        f"Actor: {norm.get('actor_explicit') or norm.get('actor_inferred') or 'unspecified'}",
+        f"Actor: {slots['actor_explicit'] or slots['actor_inferred'] or 'unspecified'}",
         f"Action: {norm['action']}",
         f"Object: {norm['object']}",
         f"Conditions: {json.dumps(norm.get('conditions') or [], ensure_ascii=False)}",

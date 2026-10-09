@@ -61,6 +61,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tere4ai.act_parties import actor_slots_for_digests
 from tere4ai.extract_norms.model_clients import ModelClient, usage_since, usage_snapshot
 from tere4ai.extract_norms.pipeline import (
     _call_json_with_retry,
@@ -129,7 +130,9 @@ def deleted_source_refusals(norms: list[dict[str, Any]], dump: dict[str, Any]) -
 
 
 def _generator_user_message(norms: list[dict[str, Any]], system_context: str) -> str:
-    digests = [{key: norm.get(key) for key in _NORM_PROMPT_FIELDS} for norm in norms]
+    digests = [
+        {key: {**norm, **actor_slots_for_digests(norm)}.get(key) for key in _NORM_PROMPT_FIELDS} for norm in norms
+    ]
     return "\n".join(
         [
             _CONTEXT_BEGIN,

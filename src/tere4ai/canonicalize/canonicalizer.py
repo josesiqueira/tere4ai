@@ -25,7 +25,7 @@ import hashlib
 from typing import Any
 
 from tere4ai.act_parties import METHOD as ACT_PARTIES_METHOD
-from tere4ai.act_parties import place
+from tere4ai.act_parties import addressee_fields, is_v2, place
 
 METHOD = "canonicalize_rule_v1"
 
@@ -62,14 +62,24 @@ def canonicalize_norms(norms_payload: dict[str, Any]) -> dict[str, Any]:
     norms_out = []
     for norm in payload.get("norms", []):
         norm = dict(norm)
-        raw_actor = norm.get("actor_explicit") or norm.get("actor_inferred")
-        canonical, method = canonicalize_actor(raw_actor)
-        if canonical is not None:
-            norm["actor_canonical"] = canonical
-            norm["actor_canonicalization_method"] = method
+        if is_v2(norm):
+            # B145 (D-G80 (4)): a version 2 norm carries the stored value, its
+            # stamp and its outcome; the counts below keep their names.
+            norm.update(addressee_fields(norm))
+            placed = norm["addressee_placement"] != "unplaced"
+            raw_actor = norm.get("addressee_explicit") or norm.get("addressee_inferred")
+        else:
+            raw_actor = norm.get("actor_explicit") or norm.get("actor_inferred")
+            canonical, method = canonicalize_actor(raw_actor)
+            placed = canonical is not None
+            if placed:
+                norm["actor_canonical"] = canonical
+                norm["actor_canonicalization_method"] = method
+            else:
+                norm.pop("actor_canonical", None)
+        if placed:
             resolved += 1
         else:
-            norm.pop("actor_canonical", None)
             key = str(raw_actor)
             unresolved[key] = unresolved.get(key, 0) + 1
 

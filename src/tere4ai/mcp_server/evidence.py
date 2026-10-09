@@ -35,6 +35,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tere4ai.act_parties import actor_slots_for_digests
 from tere4ai.align_hleg.pipeline import _quote_found
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import (
@@ -115,11 +116,12 @@ def _validate_evidence(evidence: dict[str, Any]) -> None:
 
 
 def _generator_user_message(norm: dict[str, Any], evidence: dict[str, Any]) -> str:
+    slots = actor_slots_for_digests(norm)
     lines = [
         f"Norm id: {norm['norm_id']}",
         f"Source node: {norm.get('source_node_id')}",
         f"Deontic type: {norm.get('deontic_type')} (modal: {norm.get('modal')})",
-        f"Actor: {norm.get('actor_explicit') or norm.get('actor_inferred') or 'unspecified'}",
+        f"Actor: {slots['actor_explicit'] or slots['actor_inferred'] or 'unspecified'}",
         f"Action: {norm.get('action')}",
         f"Object: {norm.get('object')}",
         f"Conditions: {norm.get('conditions') or []}",

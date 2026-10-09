@@ -30,6 +30,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.act_parties import actor_slots_for_digests  # noqa: E402
 from tere4ai.eval.agreement import cohen_kappa, raw_agreement  # noqa: E402
 
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -219,7 +220,7 @@ def draft_qa(dump: dict[str, Any], norms_payload: dict[str, Any], limit: int = 3
         # QA questions are phrased per article and actor; annex-sourced norms
         # and unresolved actors make unusable question drafts.
         and str(n.get("source_node_id", "")).startswith("eu-ai-act:article-")
-        and (n.get("actor_explicit") or n.get("actor_inferred") or "").strip()
+        and (actor_slots_for_digests(n)["actor_explicit"] or actor_slots_for_digests(n)["actor_inferred"] or "").strip()
         not in ("", "unspecified_needs_review")
     ]
     by_paragraph: dict[str, dict[str, Any]] = {}
@@ -235,7 +236,8 @@ def draft_qa(dump: dict[str, Any], norms_payload: dict[str, Any], limit: int = 3
         article_id = ":".join(parts[:2])
         article_no = parts[1].removeprefix("article-")
         paragraph_no = parts[2].removeprefix("paragraph-") if len(parts) > 2 else ""
-        actor = norm.get("actor_explicit") or norm.get("actor_inferred") or "the provider"
+        slots = actor_slots_for_digests(norm)
+        actor = slots["actor_explicit"] or slots["actor_inferred"] or "the provider"
         items.append(
             {
                 "id": f"draft:qa-{number:02d}",
