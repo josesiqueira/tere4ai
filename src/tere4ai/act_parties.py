@@ -352,3 +352,14 @@ def in_v1_names(norm: dict[str, Any]) -> dict[str, Any]:
     out = {k: v for k, v in norm.items() if k not in V2_FIELDS}
     out.update(actor_slots_for_digests(norm))
     return out
+
+
+def render_vocabulary(slot: str = "addressee_inferred") -> str:
+    """The prompt's line for the slot's closed values (extract_norms v5): the
+    Act's parties by kind, each value quoted, in the list's order."""
+    lines = [f"- {slot}: one value of the Act's parties (schema/act_parties.json), or null:"]
+    for kind in ("role", "authority", "body", "institution", "person", "sentinel"):
+        quoted = ", ".join(f'"{v}"' for v in values_of_kind(kind))
+        lines.append(f"  {kind}: {quoted};")
+    lines[-1] = lines[-1].rstrip(";") + "."
+    return "\n".join(lines)

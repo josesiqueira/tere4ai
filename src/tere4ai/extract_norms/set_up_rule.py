@@ -187,3 +187,9 @@ def render_rows(rows: tuple[SetUpRow, ...] = ROWS) -> str:
         things = "; ".join(f"“{t}”" for t in row.things)
         lines.append(f"- {row.unit}: {things} is {row.party}'s; source {row.source}: “{row.setting_up}”")
     return "\n".join(lines)
+
+
+def rows_in(core_nodes: list[str]) -> tuple[SetUpRow, ...]:
+    """The rows of the units under the given core node ids (extract_norms v5
+    prints the rows of the core of B74, data/graph_dumps/core_nodes.txt)."""
+    return tuple(row for row in ROWS if any(row.unit.startswith(node + ":") for node in core_nodes))
