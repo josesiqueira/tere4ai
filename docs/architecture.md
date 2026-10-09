@@ -1663,6 +1663,36 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   (the mock-model command line run, the requirements tool and the facade
   over its output); docs/benchmark_cost_estimate.md is regenerated with v4;
   CHANGELOG.md names the contract change.
+- DEC-27: the Act's parties are one fixed list, every norm's addressee is
+  placed on one value of it and the value is stored, and outside Articles
+  8 to 15 a duty whose subject is a thing a sentence of the same Article
+  makes a named party set up is that party's (added 2026-10-09; thesis
+  task B145, spec G D-G80 and the rulings in
+  sdd/2026-10-09-B145-act-roles/progress.md in the private research
+  repository; the owner's words: "This should be normalized with the
+  legal text and the provides be a fixed list that can't change").
+  grounded_by REF-11. Article 3(8): "‘operator’ means a provider, product
+  manufacturer, deployer, authorised representative, importer or
+  distributor;"; REF-11 (Section 3.3, p. 3): "The addressee must
+  individually or collectively possess the capacity to act, such as a
+  natural or legal person."
+  The list: schema/act_parties.json, 37 values by kind (role 6, the AI
+  Act roles of Article 3(8) in its order; authority 9; body 2; institution
+  9; person 9; sentinel 2), each with its Act term, its ground node, its
+  Definition node where Article 3 defines it, the Act's other wordings
+  placed on it with their grounds, and the values a request may name and
+  still be served it (Article 3(47) and 3(48), one way). Written by hand
+  and tested against layer1.json. src/tere4ai/act_parties.py places a
+  written addressee on one value (full name, then the parties in the
+  governing part, then the head; never a substring), reads a norm's
+  addressee in either norms schema version, and serves a norm to a
+  request when the values are equal, by also_served_to, or when the norm
+  is addressed to operators in general and the request names an AI Act
+  role. (Draft: the norms schema version 2, the set-up rule, the prompts
+  v5 and the served names are added by the card's later tasks, which
+  complete this entry and its verify list.)
+  verify: schema/act_parties.json; src/tere4ai/act_parties.py;
+  tests/unit/test_act_parties.py.
 
 ## 17. Implementation-traceability convention
 
