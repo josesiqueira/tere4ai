@@ -57,6 +57,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.act_parties import slots_of  # noqa: E402
 from tere4ai.align_hleg import pipeline as align_pipeline  # noqa: E402
 from tere4ai.align_hleg.__main__ import _attach_source_text  # noqa: E402
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes  # noqa: E402
@@ -252,8 +253,11 @@ def _judge_reply_chars(run: dict[str, Any], keys: tuple[str, ...]) -> int:
 
 def _norm_reply(norms: list[dict[str, Any]]) -> dict[str, Any]:
     """The reply the extractor sent for one unit: the candidate fields of its norms."""
-    fields = [key for key in extract_pipeline._NORM_CANDIDATE_FIELDS if key != "target_system_category"]
-    return {"norms": [{key: norm[key] for key in fields if key in norm} for norm in norms]}
+    fields = [key for key in extract_pipeline.candidate_fields(extract_pipeline.DEFAULT_PROMPT_VERSION)
+              if key != "target_system_category"]
+    names = ("addressee_explicit", "addressee_inferred", "addressee_inference_source_node_id")
+    read = [{**norm, **dict(zip(names, slots_of(norm), strict=True))} for norm in norms]
+    return {"norms": [{key: norm[key] for key in fields if key in norm} for norm in read]}
 
 
 def extraction_lines(

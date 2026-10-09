@@ -38,6 +38,7 @@ from tere4ai.extract_norms.pipeline import (
     extract_norms,
     load_prompt,
     prompt_sha256,
+    writes_addressee,
 )
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import (
@@ -294,6 +295,8 @@ def _main(argv: list[str] | None = None) -> int:
 
         generator_sampling = declared_sampling(generator, judge)
         payload = {
+            # B145 (D-G80 (21)): a v5 run writes norms schema version 2
+            **({"norms_schema_version": 2} if writes_addressee(args.prompt_version) else {}),
             "build": {
                 **dump.get("build", {}),
                 "extraction_models": cfg.as_public_dict(),

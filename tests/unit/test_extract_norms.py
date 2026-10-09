@@ -485,15 +485,15 @@ def test_the_v2_prompts_carry_the_definitions_and_the_scope_verbatim():
     assert "requirement_type" not in load_prompt("judge_norms", "v1")
 
 
-def test_extraction_defaults_to_the_v4_prompts(tmp_path):
-    assert DEFAULT_PROMPT_VERSION == "v4"
+def test_extraction_defaults_to_the_v5_prompts(tmp_path):
+    assert DEFAULT_PROMPT_VERSION == "v5"
     generator = FakeClient({PARA_ID: GENERATOR_ANSWER}, model="fake-generator")
     judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
     result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, log_path=tmp_path / "log.jsonl")
-    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v4")
-    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v4")
-    assert result["norms"][0]["extractor_prompt_version"] == "v4"
-    assert result["judge_runs"][0]["prompt_version"] == "v4"
+    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v5")
+    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v5")
+    assert result["norms"][0]["extractor_prompt_version"] == "v5"
+    assert result["judge_runs"][0]["prompt_version"] == "v5"
 
 
 def test_the_v2_judge_receives_the_actor_inference_source_text(tmp_path):

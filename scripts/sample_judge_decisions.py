@@ -77,6 +77,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.act_parties import is_v2  # noqa: E402
 from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordError,
     EvaluationRecordStore,
@@ -90,7 +91,7 @@ from tere4ai.eval.metrics import (  # noqa: E402
     METRICS_VERSION,
     judge_error_rates_by_kind,
 )
-from tere4ai.extract_norms.pipeline import judge_inference_block  # noqa: E402
+from tere4ai.extract_norms.pipeline import judge_inference_block, judge_set_up_block  # noqa: E402
 from tere4ai.extract_norms.requirement_type import type_label  # noqa: E402
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
@@ -125,6 +126,13 @@ NORM_SHEET_FIELDS = (
     # DEC-19: the extractor's type, scoped (a null reads by the scope, ruling 53)
     "requirement_type",
 )
+
+# B145: the three slots in norms schema version 2's names
+_V2_SHEET_NAMES = {
+    "actor_explicit": "addressee_explicit",
+    "actor_inferred": "addressee_inferred",
+    "actor_inference_source_node_id": "addressee_inference_source_node_id",
+}
 
 # Assertion fields shown to the annotator (the judged content of a mapping
 # decision), including both evidence quotes.
@@ -352,6 +360,9 @@ def build_sheet(
                 NORM_SHEET_FIELDS if decision["judge_kind"] == "extraction"
                 else ASSERTION_SHEET_FIELDS
             )
+            if decision["judge_kind"] == "extraction" and is_v2(content):
+                # B145: a norm of norms schema version 2 names the addressee's slots
+                fields = tuple(_V2_SHEET_NAMES.get(f, f) for f in NORM_SHEET_FIELDS)
             judged_content = {f: content.get(f) for f in fields}
             if decision["judge_kind"] == "extraction" and "requirement_type" not in content:
                 # DEC-19: a build before DEC-19 records no type, and no
@@ -363,10 +374,15 @@ def build_sheet(
             # gave it to the judge. B144 (R10): from v4 on a point source
             # also shows its paragraph, as the judge received it.
             inference = None
+            set_up = None
             if decision["judge_kind"] == "extraction":
                 inference = judge_inference_block(
                     layer1_payload, layer1_index, {"node_id": content.get("source_node_id")}, content,
                     run.get("prompt_version") or "v1",
+                )
+                # B145 (R75): the labeller reads the set-up rows the judge read
+                set_up = judge_set_up_block(
+                    layer1_index, {"node_id": content.get("source_node_id")}, run.get("prompt_version") or "v1"
                 )
             items.append(
                 {
@@ -388,6 +404,7 @@ def build_sheet(
                     "judged_content": judged_content,
                     "source_excerpt": _source_excerpt(decision, layer1_index, norms_by_id),
                     **({"actor_inference_source": inference} if inference is not None else {}),
+                    **({"set_up_rows": set_up} if set_up is not None else {}),
                     "human_label": None,
                     "human_rationale": None,
                 }
@@ -518,8 +535,13 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
         else:
             lines.append(f"Not resolvable: {excerpt.get('note', 'no source text')}")
         if item.get("actor_inference_source") is not None:
-            lines += ["", "### Actor-inference source (as the judge received it)", ""]
+            heading = ("Addressee-inference source" if item["actor_inference_source"].startswith("Addressee")
+                       else "Actor-inference source")
+            lines += ["", f"### {heading} (as the judge received it)", ""]
             lines += [f"> {line}" for line in item["actor_inference_source"].splitlines()]
+        if item.get("set_up_rows"):
+            lines += ["", "### Set-up rows for this unit (as the judge received them)", ""]
+            lines += [f"> {line}" for line in item["set_up_rows"].splitlines()]
         lines += ["", "### Your label", ""]
         if item.get("human_label"):
             lines.append(f"- human_label: {item['human_label']}")

@@ -73,11 +73,11 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
                                  inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
-                                 config={"prompt_version": "v4", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
+                                 config={"prompt_version": "v5", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
                                  expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
                                  models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
-                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v4"),
-                                                "judge": cli.prompt_sha256("judge_norms-v4")})
+                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v5"),
+                                                "judge": cli.prompt_sha256("judge_norms-v5")})
     # Changed by final review A1: a resume is refused while the run it resumes
     # is live, so the prior attempt ends failed here as an interrupted run does.
     store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
@@ -739,3 +739,29 @@ def test_the_command_stores_and_prints_the_section_2_checks_over_the_merged_grou
     assert f"Articles 8 to 15, accepted norms the provider is not served: 1\n  {n12['norm_id']}\n" in printed
     assert ("Norms outside Articles 8 to 15 whose actor source is eu-ai-act:article-16:paragraph-1:point-a: 1\n"
             f"  {n17['norm_id']}\n") in printed
+
+
+def test_a_v4_checkpoint_is_refused_by_a_v5_resume(tmp_path, monkeypatch):
+    """B145 (Review Focus 2): a v5 run never inherits groups written by v4, whose norms are in
+    norms schema version 1's names; the resume is refused before any model call."""
+    import tere4ai.extract_norms.__main__ as cli
+
+    dump_path = _dump(tmp_path)
+    out = tmp_path / "norms_test.json"
+    calls: list[str] = []
+    _fakes(monkeypatch, cli, calls)
+    store = BuildRecordStore(tmp_path)
+    rid = store.create_record("test", "build-b", None)
+    prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
+                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)}],
+                                 config={"prompt_version": "v4", "nodes": ["eu-ai-act:article-9"]},
+                                 expected_total=1, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
+                                 models={"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"},
+                                 prompt_sha256={"generator": cli.prompt_sha256("extract_norms-v4"),
+                                                "judge": cli.prompt_sha256("judge_norms-v4")})
+    store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
+    out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "group": "eu-ai-act:article-9", "result": {
+        "norms": [], "judge_runs": [], "stats": {"source_units": 0, "candidates": 0, "verdicts": {}, "nodes_failed": [], "invalid_norms": []},
+    }}) + "\n")
+    rc = cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out), "--resume"])
+    assert rc == 2 and calls == []

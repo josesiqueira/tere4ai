@@ -125,8 +125,8 @@ def _prepare(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "AnthropicJudge", lambda cfg, **kw: judge)
     monkeypatch.setattr(pipeline, "DEFAULT_LOG_PATH", tmp_path / "extraction_log.jsonl")
     out = tmp_path / "norms_core.json"
-    # no --prompt-version: the run takes the default, as B74 does
-    argv = ["--nodes", ",".join(UNITS), "--dump", str(dump_path), "--out", str(out)]
+    # B144's mock run is v4's (B145 made v5 the default; its run is test_b145_mock_run.py)
+    argv = ["--nodes", ",".join(UNITS), "--dump", str(dump_path), "--out", str(out), "--prompt-version", "v4"]
     return cli, argv, out, generator, judge
 
 

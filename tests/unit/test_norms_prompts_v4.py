@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tere4ai.extract_norms.pipeline import DEFAULT_PROMPT_VERSION, load_prompt
+from tere4ai.extract_norms.pipeline import load_prompt
 from tere4ai.extract_norms.requirement_type import DEFINITIONS_TEXT, SCOPE_TEXT
 
 POINT_A = "eu-ai-act:article-16:paragraph-1:point-a"
@@ -283,9 +283,3 @@ def test_the_v4_judge_carries_the_requirement_type_texts_byte_for_byte():
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def test_v4_is_the_default_and_the_version_of_record_for_b74():
-    assert DEFAULT_PROMPT_VERSION == "v4"
-    record = (REPO_ROOT / "eval" / "config_evaluated.yaml").read_text(encoding="utf-8")
-    assert "  extract_norms: v4\n" in record and "  judge_norms: v4\n" in record

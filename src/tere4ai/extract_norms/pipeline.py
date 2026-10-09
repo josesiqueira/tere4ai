@@ -4,6 +4,7 @@
 @implements: DEC-19
 @implements: DEC-21
 @implements: DEC-26
+@implements: DEC-27
 @grounded_by: REF-11, REF-12, REF-13, REF-16, REF-24
 
 An Article is not one requirement: each extracted norm is a NormativeStatement
@@ -33,6 +34,7 @@ Section 7 before it may be accepted. Hard invariants enforced here:
   through Article 16(a) (the prompts carry the rule); a Point given as the
   actor-inference source reaches the judge with the Paragraph that holds
   it.
+- DEC-27 (B145), from prompt v5 on: the extractor writes the addressee's settled names; each norm carries the stored value of the Act's parties (addressee, addressee_method, addressee_placement) and validates against norms.v2.schema.json; the judge reads 'Addressee-inference source' and, on a unit the set-up table covers, that unit's set-up rows.
 - Every generator and judge call is logged to
   data/review_queue/extraction_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
@@ -50,6 +52,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from tere4ai.act_parties import NORMS_SCHEMA_PATHS, addressee_fields, slots_of
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.requirement_type import (
     in_scope,
@@ -57,6 +60,7 @@ from tere4ai.extract_norms.requirement_type import (
     scoped_type,
     types_for,
 )
+from tere4ai.extract_norms.set_up_rule import rows_for
 from tere4ai.extract_norms.target_system_category import category_for
 from tere4ai.judge.config import require_independent_clients
 
@@ -72,8 +76,9 @@ EXTRACTION_METHOD = "llm_extract_v1"
 # the requirement type and thesis task B4's actor-inference source text;
 # DEC-21: v3 no longer asks the extractor for target_system_category;
 # DEC-26: v4 gives every requirement of Articles 8 to 15 whose text names no
-# person or body that must act to the provider through Article 16(a)).
-DEFAULT_PROMPT_VERSION = "v4"
+# person or body that must act to the provider through Article 16(a));
+# DEC-27: v5 carries the set-up rule and the settled words.
+DEFAULT_PROMPT_VERSION = "v5"
 # B4: judge_norms v1 never received the actor-inference source text; a v1
 # run keeps the input v1 had, so the version names one instrument.
 _PROMPTS_WITHOUT_INFERENCE_TEXT = frozenset({"v1"})
@@ -86,6 +91,20 @@ _PROMPTS_WITH_MODEL_CATEGORY = frozenset({"v1", "v2"})
 # (point (a) of Article 16(1) alone does not say "Providers"). Earlier
 # versions keep the input they had.
 _PROMPTS_WITHOUT_PARAGRAPH_OF_POINT = frozenset({"v1", "v2", "v3"})
+# B145 (spec G D-G80 (8), (9), (21)): the prompt versions whose extractor
+# writes the addressee's settled names, whose norms are norms schema version
+# 2 with the stored value, and whose judge reads the labels "Addressee-
+# inference source" and a covered unit's set-up rows. v1 to v4 keep the
+# names, the schema and the judge input they had.
+_PROMPTS_WITH_ADDRESSEE = frozenset({"v5"})
+_V1_SLOTS = ("actor_explicit", "actor_inferred", "actor_inference_source_node_id")
+_V2_SLOTS = ("addressee_explicit", "addressee_inferred", "addressee_inference_source_node_id")
+
+
+def writes_addressee(prompt_version: str) -> bool:
+    """True when a run under this prompt version writes norms schema version 2 (B145)."""
+    return prompt_version in _PROMPTS_WITH_ADDRESSEE
+
 
 # Node types that carry extractable operative text (Layer 1, Section 6).
 SOURCE_UNIT_TYPES = ("Paragraph", "Point", "AnnexItem")
@@ -111,6 +130,13 @@ _NORM_CANDIDATE_FIELDS = (
 )
 
 
+def candidate_fields(prompt_version: str) -> tuple[str, ...]:
+    """The candidate fields the extractor of this prompt version writes, the
+    three addressee slots in that version's names (B145)."""
+    names = dict(zip(_V1_SLOTS, _V2_SLOTS, strict=True)) if writes_addressee(prompt_version) else {}
+    return tuple(names.get(key, key) for key in _NORM_CANDIDATE_FIELDS)
+
+
 def load_prompt(kind: str, version: str) -> str:
     """Load a versioned system prompt, e.g. prompts/extract_norms/v1.md."""
     path = PROMPTS_DIR / kind / f"{version}.md"
@@ -130,8 +156,9 @@ def prompt_sha256(text: str) -> str:
     return _input_hash(text)
 
 
-def _norm_validator() -> Draft202012Validator:
-    schema = json.loads(NORMS_SCHEMA_PATH.read_text(encoding="utf-8"))
+def _norm_validator(prompt_version: str = "v1") -> Draft202012Validator:
+    path = NORMS_SCHEMA_PATHS[2] if writes_addressee(prompt_version) else NORMS_SCHEMA_PATH
+    schema = json.loads(path.read_text(encoding="utf-8"))
     return Draft202012Validator(schema)
 
 
@@ -269,9 +296,9 @@ def _inference_source_block(
     With paragraph_of_point (judge_norms v4 on), a Point source also gives
     the Paragraph that holds it (D-G76 (4)).
     """
-    if not candidate.get("actor_inferred"):
+    _explicit, inferred, source_id = slots_of(candidate)
+    if not inferred:
         return "Actor-inference source: none (the candidate's actor is not inferred)."
-    source_id = candidate.get("actor_inference_source_node_id")
     if not source_id:
         return (
             "Actor-inference source: none recorded (the candidate infers its actor "
@@ -326,20 +353,56 @@ def judge_inference_block(
     rule the pipeline, the E1 label sheet and the cost estimator share."""
     if prompt_version in _PROMPTS_WITHOUT_INFERENCE_TEXT:
         return None
-    return _inference_source_block(
+    block = _inference_source_block(
         dump, nodes, unit, candidate,
         paragraph_of_point=prompt_version not in _PROMPTS_WITHOUT_PARAGRAPH_OF_POINT,
     )
+    return _addressee_words(block) if writes_addressee(prompt_version) else block
+
+
+def _addressee_words(block: str) -> str:
+    """From v5 the judge input's labels say addressee (D-G80 (9), (21))."""
+    for old, new in (("Actor-inference source", "Addressee-inference source"),
+                     ("actor-inference source", "addressee-inference source"),
+                     ("the candidate's actor", "the candidate's addressee"),
+                     ("infers its actor", "infers its addressee")):
+        block = block.replace(old, new)
+    return block
+
+
+def judge_set_up_block(nodes: dict[str, dict[str, Any]], unit: dict[str, Any], prompt_version: str) -> str | None:
+    """D-G80 (9), brief R28: from v5 the judge of a candidate on a unit the
+    set-up table covers receives that unit's rows, whatever the candidate's
+    addressee, each with its setting-up node's verbatim text (the unit itself
+    named as the source unit above); None on every other unit and for v1 to
+    v4, whose judge input stays byte for byte."""
+    if not writes_addressee(prompt_version):
+        return None
+    rows = rows_for(unit["node_id"])
+    if not rows:
+        return None
+    lines = ["Set-up rows for this unit:"]
+    for row in rows:
+        things = "; ".join(f"\u201c{t}\u201d" for t in row.things)
+        lines.append(f"- {things} is {row.party}'s; setting-up node {row.source}")
+        if row.source == unit["node_id"]:
+            lines.append("  Verbatim text of the setting-up node: the source unit above.")
+        else:
+            text = (nodes.get(row.source) or {}).get("text", "")
+            lines.append(f"  Verbatim text of the setting-up node: [{row.source}] {text}")
+    return "\n".join(lines)
 
 
 def _judge_user_message(
-    unit: dict[str, Any], candidate: dict[str, Any], inference_block: str | None = None
+    unit: dict[str, Any], candidate: dict[str, Any], inference_block: str | None = None,
+    set_up_block: str | None = None,
 ) -> str:
     inference = f"{inference_block}\n\n" if inference_block is not None else ""
+    set_up = f"{set_up_block}\n\n" if set_up_block is not None else ""
     return (
         f"Source unit node id: {unit['node_id']}\n"
         f"Verbatim source text:\n{unit['text']}\n\n"
-        f"{inference}"
+        f"{inference}{set_up}"
         f"Candidate norm (JSON):\n{json.dumps(candidate, ensure_ascii=False, indent=1)}"
     )
 
@@ -421,16 +484,18 @@ def extract_norms(
     judge_prompt = load_prompt("judge_norms", prompt_version)
     extract_prompt_sha256 = prompt_sha256(extract_prompt)
     judge_prompt_sha256 = prompt_sha256(judge_prompt)
-    validator = _norm_validator()
+    validator = _norm_validator(prompt_version)
+    addressee_names = writes_addressee(prompt_version)
+    slot_names = _V2_SLOTS if addressee_names else _V1_SLOTS
     build_id = dump.get("build", {}).get("build_id", "build-unknown")
 
     units = expand_source_units(dump, node_ids)
     nodes = _index_nodes(dump)
     typed = types_for(prompt_version)  # B65 ruling 49
     with_model_category = prompt_version in _PROMPTS_WITH_MODEL_CATEGORY
-    candidate_fields = tuple(
+    fields = tuple(
         key
-        for key in _NORM_CANDIDATE_FIELDS
+        for key in candidate_fields(prompt_version)
         if (typed or key != "requirement_type")
         and (with_model_category or key != "target_system_category")
     )
@@ -495,7 +560,7 @@ def extract_norms(
                 )
                 continue
             stats["candidates"] += 1
-            candidate = {key: candidate.get(key) for key in candidate_fields if key in candidate}
+            candidate = {key: candidate.get(key) for key in fields if key in candidate}
             if typed:
                 # DEC-19: the scope is applied before the judge sees the
                 # candidate, so the judge is never asked about a type the
@@ -504,7 +569,8 @@ def extract_norms(
                 candidate["requirement_type"] = scoped_type({**candidate, "source_node_id": node_id}, prompt_version)
 
             judge_user = _judge_user_message(
-                unit, candidate, judge_inference_block(dump, nodes, unit, candidate, prompt_version)
+                unit, candidate, judge_inference_block(dump, nodes, unit, candidate, prompt_version),
+                judge_set_up_block(nodes, unit, prompt_version),
             )
             judge_started = _now()
             judged, judge_error = _call_json_with_retry(judge, judge_prompt, judge_user)
@@ -569,11 +635,7 @@ def extract_norms(
                 "source_span_id": unit["span_id"],
                 "deontic_type": candidate.get("deontic_type"),
                 "modal": candidate.get("modal"),
-                "actor_explicit": candidate.get("actor_explicit"),
-                "actor_inferred": candidate.get("actor_inferred"),
-                "actor_inference_source_node_id": candidate.get(
-                    "actor_inference_source_node_id"
-                ),
+                **{name: candidate.get(name) for name in slot_names},
                 "action": candidate.get("action"),
                 "object": candidate.get("object"),
                 # B124: the rule's value from the source unit, never the model's label
@@ -593,6 +655,9 @@ def extract_norms(
                 "review_status": "accepted" if verdict == "accepted" else "needs_review",
             }
 
+            if addressee_names:
+                # B145 (D-G80 (4)): the stored value, its stamp and its outcome
+                norm.update(addressee_fields(norm))
             errors = sorted(validator.iter_errors(norm), key=lambda e: list(e.path))
             if errors:
                 stats["invalid_norms"].append(
