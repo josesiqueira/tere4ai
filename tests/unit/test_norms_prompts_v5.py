@@ -71,7 +71,8 @@ V5_OTHER_UNIT = """   - Any other unit. If the text literally names the person o
      subject is a pronoun ("it", "they"), write the phrase it stands for,
      word for word from this same unit; if that phrase is not in this
      unit, the text names no addressee.
-   - A thing is never the addressee. When the subject is a thing (a
+   - A thing is never the addressee, outside Articles 8 to 15 (inside
+     them the Article 16(a) rule above decides). When the subject is a thing (a
      system, a document, a report, information, a mandate, a template,
      rules, guidance, an obligation) that a sentence of the same Article
      makes one named party set up, draw up, produce or carry, or a part
@@ -86,7 +87,9 @@ V5_OTHER_UNIT = """   - Any other unit. If the text literally names the person o
      make two parties each set the thing up, write one norm per party,
      each with its own node. When the sentence that sets the thing up
      names no party, the set-up rule does not apply. A point given
-     alone takes the paragraph above it as the node, never the point.
+     alone that yields a norm under the set-up rule takes as its source
+     the paragraph that holds the setting-up sentence, never the point
+     (Article 17(1)'s points take eu-ai-act:article-17:paragraph-1).
    - If the text names no addressee and the set-up rule does not apply:
      - set addressee_explicit to null, and
      - if a valid, recorded inference applies, set addressee_inferred to
@@ -144,7 +147,11 @@ pipeline places those words on the Act's parties, never you.
 Each line names a paragraph of the units you may be given, the thing as
 the Act writes it there, the party whose duty it is, and the node that
 holds the setting-up sentence with its words. A point of a listed
-paragraph takes the same node.
+paragraph whose subject is the row's thing takes the same node. The set-up
+rule does not cover Article 22(3)'s points (a) to (e): their party is the
+authorised representative, whom the paragraph's first sentence names ("The
+authorised representative shall perform the tasks specified in the
+mandate"), with eu-ai-act:article-22:paragraph-3 as the node.
 
 """
 
@@ -167,6 +174,15 @@ def expected_extract_v5() -> str:
 V4_CHECK_3_TAIL = """another thing, in actor_explicit on a unit of Articles 8 to 15. Every other inference
    resting on Article 16 (point (c) for Article 17, for instance) is
    judged as above, against the source text you receive.
+"""
+V4_CHECK_3_SENTENCE = """Check an inference against the actor-inference source text
+   you receive: that provision must assign the duty to the inferred actor.
+"""
+V5_CHECK_3_SENTENCE = """Check an inference against the actor-inference source text
+   you receive: that provision must assign the duty to the inferred actor
+   or, under the set-up rule below (outside Articles 8 to 15), make that
+   party set up, draw up, produce or carry the thing the candidate's
+   subject refers to.
 """
 V5_CHECK_3_TAIL = """another thing, in addressee_explicit on a unit of Articles 8 to 15.
    Every other recorded inference is judged as above, against the source
@@ -191,6 +207,7 @@ def expected_judge_v5() -> str:
     text = _read("judge_norms", "v4")
     for old, new in (
         ("# judge_norms system prompt, version v4\n", "# judge_norms system prompt, version v5\n"),
+        (V4_CHECK_3_SENTENCE, V5_CHECK_3_SENTENCE),
         (V4_CHECK_3_TAIL, V5_CHECK_3_TAIL),
         (SCOPE_TEXT, SCOPE_TEXT_V2),
     ):
