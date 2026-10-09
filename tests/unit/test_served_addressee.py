@@ -140,6 +140,20 @@ def test_the_facade_serves_a_version_1_file_in_version_2_names_and_leaves_it_unc
         candidate = next(c for u in units["units"] for c in u["candidates"])
         assert {"addressee_explicit", "addressee_inferred", "addressee_inference_source_node_id", "addressee"} <= set(candidate)
         assert not [k for k in candidate if k.startswith("actor")]
+        # The values, not only the keys: the written words are the file's own
+        # actor_explicit, and the stored value is placed from them (the loader).
+        raw_norms = {n["norm_id"]: n for n in json.loads((tmp_path / "norms_core.json").read_text(encoding="utf-8"))["norms"]}
+        placed = {"the provider": "provider", "deployers": "deployer", "importers": "importer"}
+        seen = set()
+        for unit in units["units"]:
+            for c in unit["candidates"]:
+                raw = raw_norms[c["norm_id"]]
+                assert c["addressee_explicit"] == raw["actor_explicit"]
+                assert c["addressee_inferred"] == raw["actor_inferred"]
+                if raw["actor_explicit"] in placed:
+                    assert c["addressee"] == placed[raw["actor_explicit"]]
+                    seen.add(raw["actor_explicit"])
+        assert seen == set(placed)
         norm_id = entries[0]["norm_id"]
         explained = client.post("/api/explain", json={"norm_id": norm_id}).json()
         assert set(explained["answer"]["deontic"]["addressee"]) == {"value", "explicit", "inferred", "inference_source_node_id"}
@@ -147,3 +161,25 @@ def test_the_facade_serves_a_version_1_file_in_version_2_names_and_leaves_it_unc
     assert hashlib.sha256((tmp_path / "norms_core.json").read_bytes()).hexdigest() == before
     raw = json.loads((tmp_path / "norms_core.json").read_text(encoding="utf-8"))
     assert "norms_schema_version" not in raw and "actor_explicit" in raw["norms"][0]
+
+
+def test_load_active_reads_a_version_1_file_in_version_2_names_and_leaves_it_unchanged(tmp_path):
+    """R60: the one loader, directly, over scripted version 1 norms (mock data)."""
+    from tere4ai.graph_store.publication import load_active
+
+    for name in ("layer1.json", "alignments_core.json", "core_nodes.txt"):
+        shutil.copyfile(DUMPS / name, tmp_path / name)
+    path = tmp_path / "norms_core.json"
+    path.write_text(json.dumps(PAYLOAD), encoding="utf-8")
+    before = hashlib.sha256(path.read_bytes()).hexdigest()
+    norms = {n["norm_id"].rsplit(":n", 1)[1]: n for n in load_active(tmp_path).norms["norms"]}
+    assert (norms["1"]["addressee"], norms["1"]["addressee_explicit"]) == ("provider", "providers of high-risk AI systems")
+    assert (norms["4"]["addressee"], norms["4"]["addressee_explicit"]) == ("notified_body", "notified bodies")
+    assert (norms["7"]["addressee"], norms["7"]["addressee_explicit"], norms["7"]["addressee_inferred"]) == (
+        "ai_office", None, "ai_office")
+    assert norms["7"]["addressee_inference_source_node_id"] == U72
+    assert norms["9"]["addressee"] == "unspecified_needs_review"
+    for n in norms.values():
+        assert not [k for k in n if k.startswith("actor")]
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == before
+    assert "actor_explicit" in json.loads(path.read_text(encoding="utf-8"))["norms"][0]
