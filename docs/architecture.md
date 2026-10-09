@@ -1748,7 +1748,12 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   values), a version 1 file keeps its version 1 check (R100). The
   normaliser leaves a phrase unplaced when a party is coordinated after an
   "of ... AI systems/models" descriptor (R98), and "european" is one of
-  its head modifiers, with "national", "eu" and "union" (R99). The served
+  its head modifiers, with "national", "eu" and "union" (R99). Two party
+  terms joined by "and" or "or", whatever words stand between them ("the
+  provider or, where applicable, the deployer"), leave the phrase unplaced
+  as well (R116), and the build record's count of norms on a covered unit
+  whose written addressee is the row's thing counts judge-accepted norms
+  only (R117). The served
   requirements entry names the value and the written words, and the
   argument is addressee (actor is refused). The extraction's build record
   holds schema/act_parties.json as an input with its digest and four
