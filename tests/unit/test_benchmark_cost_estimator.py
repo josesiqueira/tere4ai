@@ -351,6 +351,37 @@ def test_the_backlog_dry_run_makes_one_call_per_component(tmp_path):
     assert lines["generator"]["in_chars"] > 0 and lines["judge"]["in_chars"] > 0
 
 
+# spec G D-G82 (12), rulings R8, R9, R21: the estimate regenerates from the
+# tracked tree and prices the every-role click. DEC-24 (spec G D-G74 (9)): the
+# frozen judge reply size counts DEC-07's judge only, the demo judge's lines left out.
+def test_the_judge_reply_size_is_a_frozen_ratio_with_its_source():
+    entry = est.RATIOS["runtime_judge_reply_chars"]
+    assert entry["value"] == 636.6847826086956
+    assert "non-demo" in entry["source"]
+    assert "1,104" in entry["source"] and "2026-07-08" in entry["source"] and "2026-09-23" in entry["source"]
+    assert not hasattr(est, "RUNTIME_LOG") and not hasattr(est, "observed_judge_reply_chars")
+
+
+def test_the_backlog_generator_output_scales_with_the_norms_sent(tmp_path):
+    base = _mock_norm("eu-ai-act:article-25:paragraph-1")
+    norms = [dict(base, norm_id=f"norm:eu-ai-act:article-25:paragraph-1:n{i}") for i in range(1, 5)]
+    two = est.backlog_lines(norms[:2], "Mock system description.", tmp_path, judge_reply_chars=600.0)
+    four = est.backlog_lines(norms, "Mock system description.", tmp_path, judge_reply_chars=600.0)
+    assert four["generator"]["out_chars"] == pytest.approx(2 * two["generator"]["out_chars"])
+    assert est.RATIOS["backlog_generator_measured_norms"]["value"] == 2.0
+
+
+def test_the_backlog_step_sends_every_ai_act_roles_norms_and_the_unsettled_ones():
+    b74 = json.loads(B74_NORMS.read_text(encoding="utf-8"))
+    dump = json.loads(est.ELICIT_DUMP.read_text(encoding="utf-8"))
+    norms = est.every_role_backlog_norms(b74["norms"], dump)
+    ids = {n["norm_id"].split("article-25:")[1] for n in norms}
+    assert len(norms) == 18
+    assert "paragraph-1:n7" in ids and "paragraph-4:n8" in ids          # addressee not settled
+    assert "paragraph-4:n2" not in ids and "paragraph-4:n4" not in ids  # a third-party supplier, the AI Office
+    assert all(n.get("source_text") for n in norms)
+
+
 @pytest.mark.skipif(not est.ELICIT_DUMP.is_file(), reason="layer1.json dump not built")
 def test_the_extraction_dry_run_expands_core_nodes_to_424_units():
     dump = json.loads(est.ELICIT_DUMP.read_text(encoding="utf-8"))
@@ -604,14 +635,3 @@ def test_a_measured_path_that_is_missing_or_not_a_record_is_refused_by_name(tmp_
 def test_without_measured_usage_the_bands_are_the_declared_ones():
     assert est.reasoning_bands({"generator": 0.1}) == est.reasoning_bands({"generator": 0.1}, {})
     assert est.reasoning_bands({"generator": 0.1})["generator"]["low"] == 0.1
-
-
-# DEC-24 (spec G D-G74 (9)): the demo judge's lines never enter a figure of
-# DEC-07's judge.
-def test_the_judge_reply_size_leaves_the_demo_judge_lines_out(tmp_path):
-    log = tmp_path / "runtime_log.jsonl"
-    plain = {"direction": "judge", "verdict": "accepted", "scores": {}, "rationale": "r" * 10}
-    demo = {**plain, "rationale": "d" * 5000, "judge_setting": "demo"}
-    log.write_text("\n".join(json.dumps(line) for line in (plain, demo, {"direction": "generator"})) + "\n", encoding="utf-8")
-    expected = len(json.dumps({k: plain.get(k) for k in ("verdict", "scores", "rationale")}))
-    assert est.observed_judge_reply_chars(log) == expected

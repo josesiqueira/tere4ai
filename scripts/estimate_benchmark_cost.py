@@ -26,7 +26,8 @@ Token model, stated plainly so nobody mistakes this for a measurement:
   declared). Nothing is measured at xhigh for either declared model.
 - The visible reply sizes come from stored replies: July norms and
   alignments (tracked dumps), the run-2 ablation checkpoint, the runtime
-  log and eval/gold/benchmark_features.json.
+  judge's mean reply size (frozen in RATIOS, runtime_judge_reply_chars) and
+  eval/gold/benchmark_features.json. Nothing outside the tracked tree is read.
 - Input is priced uncached: the clients send no cache_control and record no
   cached tokens; automatic caching can only lower the figure.
 
@@ -57,6 +58,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai import act_parties  # noqa: E402
 from tere4ai.act_parties import slots_of  # noqa: E402
 from tere4ai.align_hleg import pipeline as align_pipeline  # noqa: E402
 from tere4ai.align_hleg.__main__ import _attach_source_text  # noqa: E402
@@ -82,7 +84,6 @@ from tere4ai.mcp_server.backlog import generate_control_backlog  # noqa: E402
 BENCH_DIR = ROOT / "data" / "snapshots" / "benchmark"
 SAMPLE_PATH = ROOT / "eval" / "gold" / "benchmark_sample.json"
 CHECKPOINT = ROOT / "eval" / "results" / "ablation_checkpoint.jsonl"
-RUNTIME_LOG = ROOT / "data" / "review_queue" / "runtime_log.jsonl"
 FEATURES = ROOT / "eval" / "gold" / "benchmark_features.json"
 ELICIT_PROMPT = ROOT / "prompts" / "elicit_features" / f"{DEFAULT_PROMPT_VERSION}.md"
 ELICIT_DUMP = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -214,6 +215,18 @@ RATIOS: dict[str, dict[str, Any]] = {
             "the one measured xhigh backlog call of the declared generator (dashboard project_events 111209, "
             "2026-09-27, Article 8): 1,510 billed output tokens, reasoning not separable; read as "
             "carrying the central reasoning share"
+        ),
+    },
+    "backlog_generator_measured_norms": {
+        "value": 2.0,
+        "source": "the norms that one measured backlog call sent (dashboard project_events 111209, 2026-09-27, Article 8)",
+    },
+    "runtime_judge_reply_chars": {
+        "value": 636.6847826086956,
+        "source": (
+            "the mean reply size of 1,104 non-demo runtime judge lines (verdict, scores and rationale as JSON) "
+            "of the local data/review_queue/runtime_log.jsonl, 2026-07-08 to 2026-09-23, recomputed 2026-10-10 "
+            "(B147); frozen here so the estimate regenerates from the tracked tree"
         ),
     },
 }
@@ -382,8 +395,11 @@ def backlog_lines(
     """Backlog dry run: generate_control_backlog() with counting clients over
     the accepted norms and the system description. One generator call and one
     runtime-judge call. The generator's output is the one measured call's
-    billed tokens, turned back into visible characters at the central
-    reasoning share (the report prices it at every share from that)."""
+    billed tokens scaled by the norms sent over the norms that call sent (a
+    planning assumption, no source; spec G D-G82 (12)), turned back into
+    visible characters at the central reasoning share (the report prices it
+    at every share from that). The judge's output is the runtime judge's
+    frozen mean reply size unless judge_reply_chars is given."""
     norm_ids = [norm["norm_id"] for norm in norms]
     item = {"title": "Dry-run control", "description": "Dry-run stub.", "norm_ids": norm_ids,
             "suggested_evidence": ["dry-run evidence"], "priority": "must", "requirement_type": None}
@@ -394,16 +410,35 @@ def backlog_lines(
     # keeps the central share on purpose; a measured share (--measured-usage)
     # applies to the priced steps only
     visible_tokens = (ratio("backlog_generator_billed_tokens")
+                      * len(norm_ids) / ratio("backlog_generator_measured_norms")
                       * (1 - ratio("reasoning_share_central")))
     return {
         "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars,
                       "out_chars": visible_tokens * ratio("chars_per_token_openai"),
                       "max_chars": gen.max_prompt_chars},
         "judge": {"calls": judge.calls, "in_chars": judge.prompt_chars,
-                  "out_chars": (observed_judge_reply_chars() if judge_reply_chars is None
+                  "out_chars": (ratio("runtime_judge_reply_chars") if judge_reply_chars is None
                                 else judge_reply_chars),
                   "max_chars": judge.max_prompt_chars},
     }
+
+
+def every_role_backlog_norms(b74_norms: list[dict[str, Any]], dump: dict[str, Any]) -> list[dict[str, Any]]:
+    """Spec G D-G82 (1), (12): Article 25's accepted norms of the aborted B74
+    extraction that one click sends: served to one of the six AI Act roles
+    (act_parties.serves) or with an addressee not settled. The facade's click
+    also applies applicability by classification and target system category,
+    which this offline selection does not."""
+    roles = act_parties.ai_act_roles()
+    out = []
+    for norm in b74_norms:
+        if norm.get("judge_verdict") != "accepted" or not norm["source_node_id"].startswith(BACKLOG_ARTICLE + ":"):
+            continue
+        value = act_parties.addressee_of(norm).value
+        if value == act_parties.UNSPECIFIED or any(act_parties.serves(value, role) for role in roles):
+            out.append(dict(norm))
+    _attach_source_text(out, dump)
+    return out
 
 
 def _b74_source_units(dump: dict[str, Any], node_ids: list[str]) -> list[dict[str, Any]]:
@@ -577,30 +612,6 @@ def observed_output_chars() -> dict[str, dict[str, float]]:
     for (strategy, kind), sizes in by_key.items():
         out.setdefault(strategy, {})[kind] = statistics.mean(sizes)
     return out
-
-
-def observed_judge_reply_chars(log_path: Path | None = None) -> float:
-    """Mean judge reply size from the real run-2 runtime grounding log. The
-    demo judge's lines (judge_setting "demo", DEC-24) are left out: they are
-    not DEC-07's judge (spec G D-G74 (9))."""
-    sizes = []
-    log_path = log_path or RUNTIME_LOG
-    if log_path.exists():
-        with log_path.open(encoding="utf-8") as fh:
-            for line in fh:
-                rec = json.loads(line)
-                if rec.get("direction") == "judge" and rec.get("judge_setting") != "demo":
-                    sizes.append(
-                        len(
-                            json.dumps(
-                                {k: rec.get(k) for k in ("verdict", "scores", "rationale")}
-                            )
-                        )
-                    )
-    # Fallback if no log is present: verdict + five scores + rationale.
-    return statistics.mean(sizes) if sizes else 700.0
-
-
 
 
 # ------------------------------------------------------------------ B120 token model
@@ -832,7 +843,7 @@ def compute(
     total_rows = build_rows + n_rows
     result: dict[str, Any] = {
         "declared": declared, "rows": rows, "bands": bands, "measured": inputs.get("measured") or {}, "n": n_repetitions,
-        "candidates": candidates, "accepted": accepted,
+        "candidates": candidates, "accepted": accepted, "backlog_norms": len(inputs["backlog_norms"]),
         "build_rows": build_rows, "one_rep": one_rep, "n_rows": n_rows,
         "total": sum_cost(total_rows), "batch_total": sum_cost(total_rows, "batch_cost"),
         "one_rep_cost": sum_cost(one_rep), "per_strategy": per_strategy, "proxied": proxied,
@@ -920,6 +931,11 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "",
         "Both ids come from the environment (TERE4AI_GENERATOR_MODEL and TERE4AI_JUDGE_MODEL),",
         "checked against config/model_parameters.json; the prices are in config/model_prices.json.",
+        # the values the run read, so this script still names no model (B120)
+        f"Regenerate with {GENERATOR_VARIABLE}={declared['generator'].model_id} and "
+        f"{JUDGE_VARIABLE}={declared['judge'].model_id}",
+        "exported: `.venv/bin/python scripts/estimate_benchmark_cost.py`; no other file outside the",
+        "tracked tree is read.",
         "Input is priced uncached: the clients send no cache_control (Anthropic caches nothing)",
         "and record no cached tokens; automatic caching on the OpenAI side can only lower the figure.",
         f"Every request stays under {CONTEXT_LIMIT_TOKENS:,} input tokens (asserted; the largest is "
@@ -933,7 +949,9 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
     lines += ["", "Reasoning share of billed output, r (billed output = visible reply / (1 - r)):", ""]
     lines += _reasoning_share_lines(res, low_sources)
     lines += [
-        "- The backlog generator's central output is the one measured call, see backlog_generator_billed_tokens.",
+        "- The backlog generator's central output is the one measured call scaled by the norms sent over the "
+        "norms that call sent, see backlog_generator_billed_tokens and backlog_generator_measured_norms "
+        "(a planning assumption, no source).",
         "",
         "## Steps, with the ablation at N = " + str(n),
         "",
@@ -943,6 +961,11 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         lines.append(_step_row(row))
     lines += [
         "| Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |",
+        "",
+        "The control backlog prices one click on CredScore Article 25 sending every AI Act role's norms and "
+        f"the norms whose addressee is not settled: {res['backlog_norms']} of the article's accepted norms in "
+        "the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability "
+        "by classification and target system category, which this offline selection does not.",
         "",
         "Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.",
         "",
@@ -1041,8 +1064,6 @@ def load_inputs() -> dict[str, Any]:
     july_norms = json.loads(JULY_NORMS.read_text(encoding="utf-8"))
     july_alignments = json.loads(JULY_ALIGNMENTS.read_text(encoding="utf-8"))
     b74 = json.loads(B74_NORMS.read_text(encoding="utf-8"))
-    norms = [dict(n) for n in july_norms["norms"]]
-    _attach_source_text(norms, dump)
     elicit_out, elicit_note = elicitation_output_chars(json.loads(FEATURES.read_text(encoding="utf-8")))
     full_items, full_note = None, None
     if (BENCH_DIR / "scenarios.json").exists() and (BENCH_DIR / "qa_pairs.json").exists():
@@ -1066,12 +1087,11 @@ def load_inputs() -> dict[str, Any]:
         "full_items": full_items,
         "full_note": full_note,
         "out_chars": observed_output_chars(),
-        "judge_reply_chars": observed_judge_reply_chars(),
+        "judge_reply_chars": ratio("runtime_judge_reply_chars"),
         "elicit_system_chars": len(elicit_system_prompt()),
         "elicit_out_chars": elicit_out,
         "elicit_note": elicit_note,
-        "backlog_norms": [n for n in norms if n.get("judge_verdict") == "accepted"
-                          and n["source_node_id"].startswith(BACKLOG_ARTICLE + ":")],
+        "backlog_norms": every_role_backlog_norms(b74["norms"], dump),
     }
 
 

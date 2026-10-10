@@ -13,9 +13,12 @@
 
 Both ids come from the environment (TERE4AI_GENERATOR_MODEL and TERE4AI_JUDGE_MODEL),
 checked against config/model_parameters.json; the prices are in config/model_prices.json.
+Regenerate with TERE4AI_GENERATOR_MODEL=gpt-6-astra and TERE4AI_JUDGE_MODEL=claude-opus-5-5
+exported: `.venv/bin/python scripts/estimate_benchmark_cost.py`; no other file outside the
+tracked tree is read.
 Input is priced uncached: the clients send no cache_control (Anthropic caches nothing)
 and record no cached tokens; automatic caching on the OpenAI side can only lower the figure.
-Every request stays under 272,000 input tokens (asserted; the largest is 10,784), so the short-context prices apply. Standard tier.
+Every request stays under 272,000 input tokens (asserted; the largest is 17,467), so the short-context prices apply. Standard tier.
 
 ## Ratios and their sources
 
@@ -28,12 +31,14 @@ Every request stays under 272,000 input tokens (asserted; the largest is 10,784)
 - reasoning_share_central = 0.82: the only xhigh measurement, the luna model of the GPT-6 family in the dashboard's B88 run (2026-09-26): 310 of 379 output tokens were reasoning; applied to both declared models
 - reasoning_share_high = 0.9: declared: reasoning ten times the visible output
 - backlog_generator_billed_tokens = 1510.0: the one measured xhigh backlog call of the declared generator (dashboard project_events 111209, 2026-09-27, Article 8): 1,510 billed output tokens, reasoning not separable; read as carrying the central reasoning share
+- backlog_generator_measured_norms = 2.0: the norms that one measured backlog call sent (dashboard project_events 111209, 2026-09-27, Article 8)
+- runtime_judge_reply_chars = 636.6847826086956: the mean reply size of 1,104 non-demo runtime judge lines (verdict, scores and rationale as JSON) of the local data/review_queue/runtime_log.jsonl, 2026-07-08 to 2026-09-23, recomputed 2026-10-10 (B147); frozen here so the estimate regenerates from the tracked tree
 
 Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 
 - generator: low 0.308 (measured at the API default in the aborted B74 extraction: billed output per call against the visible reply the stored norms and verdicts give, default_reasoning_shares), central 0.82 (reasoning_share_central above), high 0.90 (reasoning_share_high above).
 - judge: low 0.446 (measured at the API default in the aborted B74 extraction: billed output per call against the visible reply the stored norms and verdicts give, default_reasoning_shares), central 0.82 (reasoning_share_central above), high 0.90 (reasoning_share_high above).
-- The backlog generator's central output is the one measured call, see backlog_generator_billed_tokens.
+- The backlog generator's central output is the one measured call scaled by the norms sent over the norms that call sent, see backlog_generator_billed_tokens and backlog_generator_measured_norms (a planning assumption, no source).
 
 ## Steps, with the ablation at N = 10
 
@@ -43,12 +48,14 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 | Layer 2 extraction | judge (claude-opus-5-5) | 529 | 2,510,397 | 173,672 | 964,845 (313,587 to 1,736,721) | 15.31 | 29.34 | 45.78 |
 | Layer 3 alignment | generator (gpt-6-astra) | 468 | 2,817,737 | 252,264 | 1,401,464 (364,493 to 2,522,635) | 43.58 | 98.25 | 157.13 |
 | Layer 3 alignment | judge (claude-opus-5-5) | 538 | 1,593,935 | 182,433 | 1,013,519 (329,406 to 1,824,334) | 12.33 | 26.65 | 43.50 |
-| Control backlog | generator (gpt-6-astra) | 1 | 3,891 | 272 | 1,510 (393 to 2,718) | 0.05 | 0.11 | 0.18 |
-| Control backlog | judge (claude-opus-5-5) | 1 | 6,252 | 218 | 1,211 (394 to 2,180) | 0.03 | 0.05 | 0.07 |
+| Control backlog | generator (gpt-6-astra) | 1 | 11,727 | 2,446 | 13,590 (3,534 to 24,462) | 0.28 | 0.80 | 1.35 |
+| Control backlog | judge (claude-opus-5-5) | 1 | 17,467 | 218 | 1,211 (394 to 2,180) | 0.07 | 0.09 | 0.12 |
 | E6 elicitation | generator (gpt-6-astra) | 32 | 344,237 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
 | E6 ablation, 10 repetitions | generator (gpt-6-astra) | 2,140 | 2,693,340 | 326,335 | 1,812,972 (471,518 to 3,263,350) | 47.82 | 117.58 | 192.79 |
 | E6 ablation, 10 repetitions | judge (claude-opus-5-5) | 1,140 | 2,540,877 | 248,569 | 1,380,937 (448,822 to 2,485,687) | 18.12 | 37.78 | 60.89 |
 | Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |
+
+The control backlog prices one click on CredScore Article 25 sending every AI Act role's norms and the norms whose addressee is not settled: 18 of the article's accepted norms in the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability by classification and target system category, which this offline selection does not.
 
 Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.
 
@@ -79,7 +86,7 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 ## Alignment rationale: a proxy, and the cost without it
 
 - A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, in the generator's output and in the judge's input. The direction of the proxy's error is unknown, because the generator's rationale is not recorded: it may be shorter or longer.
-- Sensitivity calculation, not a bound: the total without the rationale in both places is 316.32 USD central (157.54 low, 491.80 high), against the stated total of 360.47 (169.38 low, 570.89 high).
+- Sensitivity calculation, not a bound: the total without the rationale in both places is 317.04 USD central (157.81 low, 493.03 high), against the stated total of 361.20 (169.65 low, 572.12 high).
 
 ## Reference outside the total
 
@@ -91,10 +98,10 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 
 ## Batch
 
-- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 180.24 USD (band 84.69 to 285.45). It is a lever and not in the total: the clients call the synchronous APIs.
+- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 180.60 USD (band 84.83 to 286.06). It is a lever and not in the total: the clients call the synchronous APIs.
 
 ## Total
 
-Total for the B74 sequence: 360.47 USD (band 169.38 to 570.89)
+Total for the B74 sequence: 361.20 USD (band 169.65 to 572.12)
 
 The band takes the low input and the low reasoning share at its low end, and the high input and the high reasoning share at its high end. It includes the ablation at N = 10.
