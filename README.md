@@ -351,7 +351,7 @@ item and when and refuse (exit code 2) a
 sheet whose bytes are not the bytes the last recorded draw or label act of
 its sample wrote, so a `--no-record` label act breaks the chain for the
 next one; `--compute`, which refuses a
-label without who labelled it and when and writes an analysis record with the
+label without who labelled it or when and writes an analysis record with the
 false accept and false reject rates per judge kind and pooled, a rate with
 an empty denominator being null, never 0.0, and every rate a sample
 estimate). `--dump-dir` is where `layer1.json`, `norms_core.json` and

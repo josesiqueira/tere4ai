@@ -123,12 +123,12 @@ def test_one_manifest_binds_one_reference_of_its_own_kind():
 
 def _dumps(tmp_path):
     files = {}
-    for role, name, payload in (("layer1_dump", "layer1.json", {"build": {"build_id": "build-b"}, "nodes": [], "edges": []}),
+    for kind, name, payload in (("layer1_dump", "layer1.json", {"build": {"build_id": "build-b"}, "nodes": [], "edges": []}),
                                 ("norms", "norms_core.json", {"build": {"build_id": "build-b"}, "norms": []}),
                                 ("alignments", "alignments_core.json", {"build": {"build_id": "build-b"}, "assertions": []})):
         p = tmp_path / name
         p.write_text(json.dumps(payload))
-        files[role] = p
+        files[kind] = p
     return files
 
 

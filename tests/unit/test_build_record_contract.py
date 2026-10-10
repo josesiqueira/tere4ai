@@ -278,6 +278,7 @@ def test_a_stored_record_with_the_old_step_keys_is_refused(tmp_path):
         store.read(rid)
     # only the explicit version check says this; the schema's const alone would not
     assert "has schema_version 'build_record.v1'; this store reads build_record.v3" in str(err.value)
+    assert "rename_build_record_steps.py" in str(err.value)
 
 
 def test_an_old_step_name_in_covers_steps_fails_the_stored_record_schema(tmp_path):

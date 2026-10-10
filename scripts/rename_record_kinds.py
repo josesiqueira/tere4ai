@@ -13,11 +13,19 @@ Usage: python scripts/rename_record_kinds.py <file>... [--dump-dir DIR]
 In every inputs list the key role becomes input_kind, in every outputs list
 output_kind; build_record.v2 becomes build_record.v3, evaluation_record.v1
 evaluation_record.v2 and publication.v1 publication.v2. The chain files are
-rewritten first; an output whose kind is build_chain then takes the sha256
-of that file in DIR (default data/graph_dumps), since the rewrite changed
-its bytes. Each file keeps its own indent, so a diff shows only the changed
-lines. A second run changes nothing. A file that is not readable JSON is
-reported and skipped, and the run exits 1.
+rewritten first; in a record whose version this run moves, an output whose
+kind is build_chain then takes the sha256 of that file in DIR (default
+data/graph_dumps), since the rewrite changed its bytes. A record already at
+its new version keeps its recorded digest, so a rerun never hides a chain
+file that drifted for another reason. Each file keeps its own indent, so a
+diff shows only the changed lines. A second run changes nothing. A file that
+is not readable JSON is reported and skipped, and the run exits 1.
+
+A build_record.v1 record has its keys renamed here and keeps v1, since
+VERSIONS has no v1 row: scripts/rename_build_record_steps.py moves it to
+v2 (it touches only step and gate names and the version), and a second run
+of this script moves it to v3 and refreshes its build_chain digest. Either
+order of the two scripts ends at the same record.
 """
 from __future__ import annotations
 
@@ -110,7 +118,9 @@ def main(argv: list[str]) -> int:
             print(f"skipped {path.name}: {exc}", file=sys.stderr)
             skipped += 1
             continue
-        after = refresh_chain_digests(rename(data), args.dump_dir)
+        after = rename(data)
+        if isinstance(data, dict) and data.get("schema_version") in VERSIONS:
+            after = refresh_chain_digests(after, args.dump_dir)
         if after != data:
             _write_like(path, after, text)
             print(path.name)

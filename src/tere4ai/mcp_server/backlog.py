@@ -32,8 +32,8 @@ by having a plan. Every safeguard is behavioral:
 - The answer names both model components' model ids, efforts,
   temperatures and usage for this call (spec F D-F26 (g)) and both model
   components' prompts with version and hash (spec F D-F35 (1)), degraded
-  answers after the first request included, so the cost of a generation is recorded wherever the
-  envelope is stored. A generator or judge request that raises after its
+  answers after the first request included, so the cost of a generation
+  is recorded wherever the envelope is stored. A generator or judge request that raises after its
   retries answers degraded with the spend (a judge that sent a request as
   judge_verdict judge_error), never an error that loses the cost (B97
   item 5).

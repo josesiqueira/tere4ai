@@ -77,7 +77,7 @@
       }
     },
     "execution_sampling": {
-      "description": "What the requests carried. Since B99 (spec F D-F29): generator and judge hold each model component's declared temperature (0 or N/A), repeated under generator_temperature and judge_temperature, with the declared efforts and the generator's JSON mode (sent or N/A). Records made before keep their words: the temperature outcome (0, API default (rejected by the model), mixed, no replies) under generator and judge only, and the applied effort outcome, null for a model component a legacy dump does not record.",
+      "description": "What the requests carried. Since B99 (spec F D-F29): generator and judge hold each model component's declared temperature (0 or N/A), repeated under generator_temperature and judge_temperature, with the declared efforts and the generator's JSON mode (sent or N/A). Records made before keep their words: the temperature outcome (0, 'provider default (rejected by the model)' as those records spell the API default, mixed, no replies) under generator and judge only, and the applied effort outcome, null for a model component a legacy dump does not record.",
       "type": ["object", "null"],
       "additionalProperties": true,
       "properties": {
