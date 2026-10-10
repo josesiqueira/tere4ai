@@ -17,8 +17,8 @@ from tere4ai.eval import harness
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
-    ProviderRefused,
-    ProviderUnavailable,
+    InferenceBackendRefused,
+    InferenceBackendUnavailable,
 )
 from tere4ai.judge.config import DeclaredParameterRefused
 
@@ -76,7 +76,7 @@ def runner(monkeypatch, tmp_path):
     # B99 (spec F D-F29, D-F30): the runner chooses the terminal policy, and a strategy can raise the stop or a refusal
     def fake_build(name, **kw):
         if calls.get("raise"):
-            raise RuntimeError("provider refused")  # at build time: a per-item raise is caught by the runner (R5)
+            raise RuntimeError("inference backend refused")  # at build time: a per-item raise is caught by the runner (R5)
 
         def strategy(item):
             if calls.get("interrupt_on") == item["id"]:
@@ -86,9 +86,9 @@ def runner(monkeypatch, tmp_path):
             if calls.get("error_on") == item["id"]:
                 return {"answer_text": "", "citations": [], "risk_category": None, "error": "bad item"}
             if calls.get("unavailable_on") == item["id"]:
-                raise ProviderUnavailable(6, "HTTP 529")
-            if calls.get("provider_refused_on") == item["id"]:
-                raise ProviderRefused("HTTP 429")
+                raise InferenceBackendUnavailable(6, "HTTP 529")
+            if calls.get("backend_refused_on") == item["id"]:
+                raise InferenceBackendRefused("HTTP 429")
             if calls.get("refused_on") == item["id"]:
                 raise DeclaredParameterRefused("openai", "g", "effort", "xhigh", "HTTP 400: effort unsupported")
             kw["generator"].complete()
@@ -149,10 +149,10 @@ def test_an_item_error_makes_the_run_partial(runner, tmp_path):
 
 def test_a_raising_sweep_records_a_failed_run_and_reraises(runner, tmp_path):
     runner._TEST_CALLS["raise"] = True
-    with pytest.raises(RuntimeError, match="provider refused"):
+    with pytest.raises(RuntimeError, match="inference backend refused"):
         runner.main(_argv(tmp_path))
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
-    assert rec["outcome"]["status"] == "failed" and "provider refused" in rec["outcome"]["error"]
+    assert rec["outcome"]["status"] == "failed" and "inference backend refused" in rec["outcome"]["error"]
     assert rec["ended_at"] and rec["outputs"] == []
 
 
@@ -191,7 +191,7 @@ def test_a_failure_finish_refused_by_validation_still_ends_the_record_failed(run
     assert rec["notes"] == ["no elicited-features cache was read"]
 
 
-def test_a_provider_stop_whose_finish_is_refused_stays_partial(runner, tmp_path, monkeypatch):
+def test_a_backend_stop_whose_finish_is_refused_stays_partial(runner, tmp_path, monkeypatch):
     # B102 final review: the retry keeps the status the runner chose, so a resumable stop is not read as failed
     monkeypatch.setattr(runner, "BATCH_SIZE", 1)
     runner._TEST_CALLS["unavailable_on"] = "gold:cls-02"
@@ -322,11 +322,11 @@ def test_a_resume_after_a_failed_run_names_the_failed_record(runner, monkeypatch
 
     def failing_second(name, **kw):
         if name == "vector_rag" and runner._TEST_CALLS.get("fail_second"):
-            raise RuntimeError("provider refused")
+            raise RuntimeError("inference backend refused")
         return real_build(name, **kw)
     monkeypatch.setattr(runner.strategies, "build_strategy", failing_second)
     runner._TEST_CALLS["fail_second"] = True
-    with pytest.raises(RuntimeError, match="provider refused"):
+    with pytest.raises(RuntimeError, match="inference backend refused"):
         runner.main(_argv(tmp_path))
     store = EvaluationRecordStore(tmp_path, create=False)
     (failed,) = store.list_records()
@@ -576,30 +576,30 @@ def test_a_run_that_fails_before_any_strategy_keeps_prompt_versions_none_without
 def test_the_summary_sums_the_two_counts_and_drops_them_when_a_unit_lacks_them(runner, tmp_path):
     assert runner.main(_argv(tmp_path)) == 0
     summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
-    by_role = summary["usage_provider_reported"]["by_role"]
-    assert by_role["generator"]["requests_sent"] == 2 and by_role["generator"]["replies_with_usage"] == 2
+    by_component = summary["usage_reported_by_backend"]["by_component"]
+    assert by_component["generator"]["requests_sent"] == 2 and by_component["generator"]["replies_with_usage"] == 2
     # a checkpoint unit written before B91 carries no counts: the aggregate cannot know them
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
     lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
     for entry in lines:
-        for role in entry["usage"].values():
-            role.pop("requests_sent", None)
-            role.pop("replies_with_usage", None)
+        for component in entry["usage"].values():
+            component.pop("requests_sent", None)
+            component.pop("replies_with_usage", None)
     old = tmp_path / "results" / "old_checkpoint.jsonl"
     old.write_text("".join(json.dumps(e) + "\n" for e in lines))
     assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(old), "--summary",
                         str(tmp_path / "results" / "old_summary.json"), "--resume-unrecorded"]) == 0
-    old_by_role = json.loads((tmp_path / "results" / "old_summary.json").read_text())[
-        "usage_provider_reported"]["by_role"]
-    assert "requests_sent" not in old_by_role["generator"] and old_by_role["generator"]["calls"] == 2
+    old_by_component = json.loads((tmp_path / "results" / "old_summary.json").read_text())[
+        "usage_reported_by_backend"]["by_component"]
+    assert "requests_sent" not in old_by_component["generator"] and old_by_component["generator"]["calls"] == 2
     # spec F D-F32: the subsets of requests_sent go with it
-    assert "requests_refused" not in old_by_role["generator"]
-    assert "requests_rejected_before_processing" not in old_by_role["generator"]
+    assert "requests_refused" not in old_by_component["generator"]
+    assert "requests_rejected_before_processing" not in old_by_component["generator"]
 
 
 def test_a_unit_without_any_usage_drops_the_counts_too(runner, monkeypatch, tmp_path):
     """Review fix C4: a unit checkpointed before usage tracking leaves the whole
-    aggregate incomplete, so no role may keep counts that read complete (R5)."""
+    aggregate incomplete, so no model component may keep counts that read complete (R5)."""
     monkeypatch.setattr(runner, "BATCH_SIZE", 1)
     assert runner.main(_argv(tmp_path)) == 0
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
@@ -609,9 +609,9 @@ def test_a_unit_without_any_usage_drops_the_counts_too(runner, monkeypatch, tmp_
     mixed.write_text("".join(json.dumps(e) + "\n" for e in lines))
     assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(mixed), "--summary",
                         str(tmp_path / "results" / "mixed_summary.json"), "--resume-unrecorded"]) == 0
-    usage = json.loads((tmp_path / "results" / "mixed_summary.json").read_text())["usage_provider_reported"]
-    assert usage["units_without_usage"] == 1 and "requests_sent" not in usage["by_role"]["generator"]
-    assert "requests_rejected_before_processing" not in usage["by_role"]["generator"]
+    usage = json.loads((tmp_path / "results" / "mixed_summary.json").read_text())["usage_reported_by_backend"]
+    assert usage["units_without_usage"] == 1 and "requests_sent" not in usage["by_component"]["generator"]
+    assert "requests_rejected_before_processing" not in usage["by_component"]["generator"]
 
 
 def test_a_resumed_record_counts_only_its_own_spend(runner, tmp_path):
@@ -638,33 +638,33 @@ def test_an_interrupted_sweep_keeps_the_completed_items_and_the_spend(runner, mo
 
 def test_the_summary_sums_requests_refused_and_drops_only_it_when_a_unit_lacks_it(runner, monkeypatch, tmp_path):
     """Final review A3: a unit checkpointed before requests_refused existed leaves
-    that count unknown for its role; the two B91 counts it does carry stay."""
+    that count unknown for its model component; the two B91 counts it does carry stay."""
     monkeypatch.setattr(runner, "BATCH_SIZE", 1)
     assert runner.main(_argv(tmp_path)) == 0
     summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
-    assert summary["usage_provider_reported"]["by_role"]["generator"]["requests_refused"] == 0
+    assert summary["usage_reported_by_backend"]["by_component"]["generator"]["requests_refused"] == 0
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
     lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
-    for role in lines[0]["usage"].values():
-        role.pop("requests_refused", None)
+    for component in lines[0]["usage"].values():
+        component.pop("requests_refused", None)
     older = tmp_path / "results" / "b91_checkpoint.jsonl"
     older.write_text("".join(json.dumps(e) + "\n" for e in lines))
     assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
                         str(tmp_path / "results" / "b91_summary.json"), "--resume-unrecorded"]) == 0
-    by_role = json.loads((tmp_path / "results" / "b91_summary.json").read_text())["usage_provider_reported"]["by_role"]
-    assert "requests_refused" not in by_role["generator"] and by_role["generator"]["requests_sent"] == 2
+    by_component = json.loads((tmp_path / "results" / "b91_summary.json").read_text())["usage_reported_by_backend"]["by_component"]
+    assert "requests_refused" not in by_component["generator"] and by_component["generator"]["requests_sent"] == 2
     # the seventh count is a subset of requests_refused, so it goes with it
-    assert "requests_rejected_before_processing" not in by_role["generator"]
+    assert "requests_rejected_before_processing" not in by_component["generator"]
 
 
 def test_the_summary_sums_the_rejected_count_and_drops_only_it_when_a_unit_lacks_it(runner, monkeypatch, tmp_path):
     """Spec F D-F32: a unit checkpointed before requests_rejected_before_processing
-    existed leaves that count unknown for its role; the six counts it does carry
+    existed leaves that count unknown for its model component; the six counts it does carry
     stay."""
     monkeypatch.setattr(runner, "BATCH_SIZE", 1)
     assert runner.main(_argv(tmp_path)) == 0
     summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
-    assert summary["usage_provider_reported"]["by_role"]["generator"]["requests_rejected_before_processing"] == 0
+    assert summary["usage_reported_by_backend"]["by_component"]["generator"]["requests_rejected_before_processing"] == 0
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
     lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
     # each unit's generator met one 429 and retried it: the summary sums the units
@@ -678,28 +678,28 @@ def test_the_summary_sums_the_rejected_count_and_drops_only_it_when_a_unit_lacks
     assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(rejected), "--summary",
                         str(tmp_path / "results" / "rejected_summary.json"), "--resume-unrecorded"]) == 0
     summed = json.loads((tmp_path / "results" / "rejected_summary.json").read_text())[
-        "usage_provider_reported"]["by_role"]["generator"]
+        "usage_reported_by_backend"]["by_component"]["generator"]
     assert len(lines) == 2
     assert (summed["requests_sent"], summed["requests_refused"], summed["requests_rejected_before_processing"]) == (4, 2, 2)
     lines = [json.loads(line) for line in ckpt.read_text().splitlines()]
-    for role in lines[0]["usage"].values():
-        role.pop("requests_rejected_before_processing", None)
+    for component in lines[0]["usage"].values():
+        component.pop("requests_rejected_before_processing", None)
     older = tmp_path / "results" / "a3_checkpoint.jsonl"
     older.write_text("".join(json.dumps(e) + "\n" for e in lines))
     assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
                         str(tmp_path / "results" / "a3_summary.json"), "--resume-unrecorded"]) == 0
-    by_role = json.loads((tmp_path / "results" / "a3_summary.json").read_text())["usage_provider_reported"]["by_role"]
-    assert "requests_rejected_before_processing" not in by_role["generator"]
-    assert by_role["generator"]["requests_refused"] == 0 and by_role["generator"]["requests_sent"] == 2
+    by_component = json.loads((tmp_path / "results" / "a3_summary.json").read_text())["usage_reported_by_backend"]["by_component"]
+    assert "requests_rejected_before_processing" not in by_component["generator"]
+    assert by_component["generator"]["requests_refused"] == 0 and by_component["generator"]["requests_sent"] == 2
 
 
 def test_the_summary_sums_the_reasoning_counts_and_drops_both_when_a_unit_lacks_them(runner, monkeypatch, tmp_path):
     """B133: complete units sum reasoning_tokens and replies_with_reasoning; a unit
-    checkpointed before them leaves both unknown for its role, the other counts stay."""
+    checkpointed before them leaves both unknown for its model component, the other counts stay."""
     monkeypatch.setattr(runner, "BATCH_SIZE", 1)
     assert runner.main(_argv(tmp_path)) == 0
     summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
-    generator = summary["usage_provider_reported"]["by_role"]["generator"]
+    generator = summary["usage_reported_by_backend"]["by_component"]["generator"]
     assert generator["replies_with_reasoning"] == generator["replies_with_usage"] > 0
     assert generator["reasoning_tokens"] == 2 * generator["replies_with_reasoning"]
     ckpt = tmp_path / "results" / "ablation_checkpoint.jsonl"
@@ -710,10 +710,10 @@ def test_the_summary_sums_the_reasoning_counts_and_drops_both_when_a_unit_lacks_
     older.write_text("".join(json.dumps(e) + "\n" for e in lines))
     assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
                         str(tmp_path / "results" / "b133_summary.json"), "--resume-unrecorded"]) == 0
-    by_role = json.loads((tmp_path / "results" / "b133_summary.json").read_text())["usage_provider_reported"]["by_role"]
-    assert "reasoning_tokens" not in by_role["generator"] and "replies_with_reasoning" not in by_role["generator"]
-    assert by_role["generator"]["requests_sent"] == 2
-    assert "reasoning_tokens" in by_role["judge"]  # its units are complete
+    by_component = json.loads((tmp_path / "results" / "b133_summary.json").read_text())["usage_reported_by_backend"]["by_component"]
+    assert "reasoning_tokens" not in by_component["generator"] and "replies_with_reasoning" not in by_component["generator"]
+    assert by_component["generator"]["requests_sent"] == 2
+    assert "reasoning_tokens" in by_component["judge"]  # its units are complete
 
 
 # Review I3 (Codex review of 73b8baa..782f26a, the sibling writer): the models
@@ -785,7 +785,7 @@ def test_a_fresh_run_over_an_empty_item_list_notes_nothing_resumed(runner, monke
 # error, and the next command is printed.
 
 
-def test_a_provider_stop_ends_the_record_partial_never_as_an_item_error(runner, tmp_path, capsys):
+def test_a_backend_stop_ends_the_record_partial_never_as_an_item_error(runner, tmp_path, capsys):
     runner._TEST_CALLS["unavailable_on"] = "gold:cls-02"
     argv = _argv(tmp_path)
     assert runner.main(argv) == 3
@@ -793,14 +793,14 @@ def test_a_provider_stop_ends_the_record_partial_never_as_an_item_error(runner, 
     store = EvaluationRecordStore(tmp_path, create=False)
     (rec,) = [r for r in store.list_records() if not r.get("unreadable")]
     assert rec["outcome"]["status"] == "partial"
-    assert rec["outcome"]["error"] == "provider unavailable after 6 attempts: HTTP 529"
+    assert rec["outcome"]["error"] == "inference backend unavailable after 6 attempts: HTTP 529"
     assert rec["outcome"]["completed_items"] == [] and rec["outputs"] == []
     assert rec["usage"]["generator"]["calls"] == 1, "the item that answered before the stop keeps its spend"
     assert rec["sampling"]["generator"] == "temperature=0"
     assert not (tmp_path / "results" / "ablation_summary.json").exists()
     assert (tmp_path / "results" / "ablation_checkpoint.jsonl").exists()
     err = capsys.readouterr().err
-    assert "stopped: provider unavailable after 6 attempts: HTTP 529" in err
+    assert "stopped: inference backend unavailable after 6 attempts: HTTP 529" in err
     # review T-M6: no unit was checkpointed, so the next run cannot name this record
     assert "no unit was checkpointed, so this starts a new record that names none; run again with:" in err
     assert "  TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py " + shlex.join(argv) in err
@@ -817,17 +817,17 @@ def test_a_quota_refusal_stops_the_sweep_never_as_an_item_error(runner, tmp_path
     """Review T-I1, ruling P21: a failure no retry fixes stops the run at once;
     B101 ruling S5: the reason names the item, which is fixed before the
     resume, never skipped."""
-    runner._TEST_CALLS["provider_refused_on"] = "gold:cls-01"
+    runner._TEST_CALLS["backend_refused_on"] = "gold:cls-01"
     argv = _argv(tmp_path)
     assert runner.main(argv) == 5
     store = EvaluationRecordStore(tmp_path, create=False)
     (rec,) = [r for r in store.list_records() if not r.get("unreadable")]
     assert rec["outcome"]["status"] == "failed"
-    assert rec["outcome"]["error"] == "provider refused the request: HTTP 429 (item gold:cls-01)"
+    assert rec["outcome"]["error"] == "inference backend refused the request: HTTP 429 (item gold:cls-01)"
     assert rec["outcome"]["completed_items"] == [] and rec["usage"]["generator"]["calls"] == 0
     assert not (tmp_path / "results" / "ablation_summary.json").exists()
     err = capsys.readouterr().err
-    assert "stopped: provider refused the request: HTTP 429 (item gold:cls-01)" in err
+    assert "stopped: inference backend refused the request: HTTP 429 (item gold:cls-01)" in err
     assert "  TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py " + shlex.join(argv) in err
 
 
@@ -851,7 +851,7 @@ def test_a_refused_declaration_ends_the_record_failed_and_exits_4(runner, tmp_pa
 
 def test_a_judge_that_cannot_be_built_leaves_the_judge_sampling_null(runner, monkeypatch, tmp_path):
     """B99 (spec F D-F29), Task 5 review: the generator was built, the judge
-    constructor raised; the failed record's judge-role sampling keys are null."""
+    constructor raised; the failed record's judge sampling keys are null."""
     def no_judge(cfg, **kw):
         raise RuntimeError("judge unavailable")
     monkeypatch.setattr(runner, "AnthropicJudge", no_judge)

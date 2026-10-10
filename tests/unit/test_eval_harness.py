@@ -1130,7 +1130,7 @@ def test_a_live_record_names_the_judge_effort_after_the_replies_completed_or_fai
 
 
 def test_a_refused_declared_parameter_ends_the_harness_record_failed_after_one_item(tmp_path):
-    """B99 (spec F D-F29): a declared parameter the provider refuses stops the
+    """B99 (spec F D-F29): a declared parameter the inference backend refuses stops the
     run; the per-item handler never records it as an item error and the
     request is never sent again for the next item."""
     from tere4ai.judge.config import DeclaredParameterRefused
@@ -1163,7 +1163,7 @@ class _DeclaredGenerator:
 
 def test_a_generator_only_live_record_leaves_the_judge_sampling_null(tmp_path, monkeypatch):
     """B99 (spec F D-F29), Task 5 review: a live run without graph_full builds
-    no judge, so the judge-role sampling keys are null, as before B99, in the
+    no judge, so the judge sampling keys are null, as before B99, in the
     completed and the failed finish alike."""
     import tere4ai.eval.harness as h
     from tere4ai.judge.config import DeclaredParameterRefused

@@ -20,7 +20,7 @@ subgraph PHASE1["PHASE 1 RUNTIME (docker compose up). SELF-HOSTED: everything in
 end
 
 LOCAL["Local model (Tier 3)<br/>experimental: fully on-machine, lower quality<br/>ON-MACHINE (sovereign)"]
-APIS["Model APIs (runtime internals)<br/>generator: OpenAI gpt-6-astra (extraction, alignment, answers)<br/>judges: Anthropic Claude claude-opus-5, an independent model<br/>family with uncorrelated failure modes (DEC-07); ids since 2026-09-16 (B74)<br/>temperature 0 requested, provider default where rejected, recorded per build<br/>config from .env, never hardcoded; degraded envelope if absent<br/>THESE CALLS LEAVE THE MACHINE"]
+APIS["Model APIs (runtime internals)<br/>generator: OpenAI gpt-6-astra (extraction, alignment, answers)<br/>judges: Anthropic Claude claude-opus-5, an independent model<br/>family with uncorrelated failure modes (DEC-07); ids since 2026-09-16 (B74)<br/>temperature 0 requested, API default where rejected, recorded per build<br/>config from .env, never hardcoded; degraded envelope if absent<br/>THESE CALLS LEAVE THE MACHINE"]
 
 subgraph BUILD["BUILD TIME (offline), producing the knowledge graph. Full structural mirror; deep extraction only on the high-risk core. The v1 poster query is kept as a regression fixture over the regenerated graph."]
   direction LR

@@ -249,7 +249,7 @@ def build() -> str:
         ["generator: OpenAI gpt-6-astra (extraction, alignment, answers)",
          "judges: Anthropic Claude claude-opus-5, an independent model",
          "family with uncorrelated failure modes (DEC-07); ids since 2026-09-16 (B74)",
-         "temperature 0 requested, provider default where rejected, recorded per build",
+         "temperature 0 requested, API default where rejected, recorded per build",
          "config from .env, never hardcoded; degraded envelope if absent"],
         "#e3b341", "#1d1403",
     )

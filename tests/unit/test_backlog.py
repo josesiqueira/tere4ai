@@ -390,7 +390,7 @@ def test_mechanical_priority_keeps_unconditional_obligations_must(tmp_path):
     assert envelope["answer"]["items"][0]["priority"] == "must"
 
 
-# Generator model id, effort, and both roles' usage (B91, spec F D-F26 (g)) ----
+# Generator model id, effort, and both model components' usage (B91, spec F D-F26 (g)) ----
 
 
 class CountingClient(FakeClient):
@@ -423,7 +423,7 @@ def _counted_run(tmp_path, gen_response, judge_response, generator=None):
     return envelope, generator, judge
 
 
-def test_backlog_answer_names_the_generator_and_both_roles_usage(tmp_path):
+def test_backlog_answer_names_the_generator_and_both_components_usage(tmp_path):
     envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
     answer = envelope["answer"]
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "xhigh"
@@ -483,7 +483,7 @@ def test_a_judge_failure_after_the_generator_answered_returns_a_degraded_answer_
     class FailingJudge(CountingClient):
         def complete(self, system, user):
             self.usage["requests_sent"] += 1
-            raise RuntimeError("judge provider unreachable")
+            raise RuntimeError("judge inference backend unreachable")
 
     generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     judge = FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge")
@@ -506,7 +506,7 @@ def test_a_judge_failure_is_labelled_judge_error_not_not_run(tmp_path):
     class FailingJudge(CountingClient):
         def complete(self, system, user):
             self.usage["requests_sent"] += 1
-            raise RuntimeError("judge provider unreachable")
+            raise RuntimeError("judge inference backend unreachable")
 
     generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     envelope = generate_control_backlog(
@@ -532,7 +532,7 @@ def test_a_judge_error_answer_names_the_judge_model_and_effort_so_its_tokens_can
                 self.usage["output_tokens"] += 20
                 return "not json"
             self.usage["requests_sent"] += 1
-            raise RuntimeError("judge provider unreachable")
+            raise RuntimeError("judge inference backend unreachable")
 
     generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     judge = HalfFailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge", effort="high")
@@ -604,7 +604,7 @@ def test_a_judge_step_that_raises_before_any_request_reads_not_run(tmp_path, mon
 
 
 # Spec F D-F35 (1): the answer names the prompt, the version and the SHA-256 of
-# the prompt file's text for both roles, generate_backlog for the generator and
+# the prompt file's text for both model components, generate_backlog for the generator and
 # runtime_grounding for the runtime judge, on every answer that carries the spend.
 
 
@@ -671,7 +671,7 @@ def test_a_failed_generator_request_or_judge_names_both_prompts(tmp_path):
     class FailingJudge(CountingClient):
         def complete(self, system, user):
             self.usage["requests_sent"] += 1
-            raise RuntimeError("judge provider unreachable")
+            raise RuntimeError("judge inference backend unreachable")
 
     generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
     envelope = generate_control_backlog(
@@ -699,8 +699,8 @@ def test_an_unreadable_judge_prompt_is_named_with_no_hash(tmp_path, monkeypatch)
     assert _fields_of(envelope["answer"]) == _prompt_fields(judge_sha256=None)
 
 
-def test_the_prompt_version_reaches_both_roles(tmp_path, monkeypatch):
-    """A version other than v1 is named on both roles (a v2 file is written for the test)."""
+def test_the_prompt_version_reaches_both_components(tmp_path, monkeypatch):
+    """A version other than v1 is named on both model components (a v2 file is written for the test)."""
     import tere4ai.extract_norms.pipeline as pipeline
 
     prompts = tmp_path / "prompts"

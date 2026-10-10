@@ -38,17 +38,17 @@ class ConfigurationError(ModelConfigError):
 
 
 class DeclaredParameterRefused(ConfigurationError):
-    """The provider (a 400 naming the parameter) or its SDK (a refusal before
+    """The inference backend (a 400 naming the parameter) or its SDK (a refusal before
     sending) refused a parameter the table declares: a configuration error that
     stops the run, never a fallback (spec F D-F29)."""
 
-    def __init__(self, provider: str, model: str, parameter: str, value: str, detail: str):
+    def __init__(self, inference_backend: str, model: str, parameter: str, value: str, detail: str):
         # one sentence shape in both repositories (review X-M1)
         super().__init__(
-            f"configuration error: {provider}:{model} refused the declared {parameter} {value} "
+            f"configuration error: {inference_backend}:{model} refused the declared {parameter} {value} "
             f"({detail}); correct its row in {MODEL_PARAMETERS_FILE}"
         )
-        self.provider, self.model, self.parameter, self.value = provider, model, parameter, value
+        self.inference_backend, self.model, self.parameter, self.value = inference_backend, model, parameter, value
 
 
 # OpenAI-family name markers. The judge must not be any of these (DEC-07:
@@ -59,27 +59,31 @@ class DeclaredParameterRefused(ConfigurationError):
 _OPENAI_FAMILY_PREFIXES = ("gpt", "o1", "o3", "o4", "chatgpt", "openai", "davinci")
 
 # Effort is part of the instrument (spec F D-F22, 2026-09-24): a model
-# name alone does not say what ran, since Opus 5.5's provider default is
+# name alone does not say what ran, since Opus 5.5's API default is
 # medium and a run at another level is another instrument. The vocabulary
 # is closed so every table names an instrument the same way; the same
 # five words are the dashboard's EFFORT_LEVELS.
 EFFORT_LEVELS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
 
 # Spec F D-F29 (2026-09-27): temperature, effort and JSON mode are declared per
-# model before the experiment, from the provider's documentation, and sent as
+# model before the experiment, from the model developer's documentation, and sent as
 # declared; nothing is probed or learned. The table is keyed by model id and
 # selects nothing: .env still names the models (architecture.md Section 7).
 NOT_APPLICABLE = "N/A"
 TEMPERATURE_VALUES: tuple[str, ...] = ("0", NOT_APPLICABLE)
 JSON_MODE_VALUES: tuple[str, ...] = ("sent", NOT_APPLICABLE)
-PROVIDERS: tuple[str, ...] = ("openai", "anthropic")
+INFERENCE_BACKENDS: tuple[str, ...] = ("openai", "anthropic")
+# B158 (R1): the company that made a model, derived from the inference backend
+# that serves it. Today each API serves only its own developer's models, so the
+# derivation is the identity; a third backend (a cloud reseller) is one row here.
+MODEL_DEVELOPER_OF: dict[str, str] = {"anthropic": "anthropic", "openai": "openai"}
 MODEL_PARAMETERS_FILE = "config/model_parameters.json"
 MODEL_PARAMETERS_PATH = Path(__file__).resolve().parents[3] / MODEL_PARAMETERS_FILE
 MODEL_PARAMETERS_SCHEMA_VERSION = 1
 # The two variables B84 introduced; since D-F29 the table holds the effort, so
 # a leftover line would read as a setting that no longer applies.
 RETIRED_EFFORT_VARIABLES: tuple[str, ...] = ("TERE4AI_GENERATOR_EFFORT", "TERE4AI_JUDGE_EFFORT")
-_ROW_KEYS = frozenset({"provider", "temperature", "effort", "json_mode", "documentation"})
+_ROW_KEYS = frozenset({"inference_backend", "temperature", "effort", "json_mode", "documentation"})
 _ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}", re.ASCII)
 
 
@@ -88,7 +92,7 @@ class ModelParameters:
     """One model's declared request parameters, a row of the table (spec F D-F29)."""
 
     model_id: str
-    provider: str
+    inference_backend: str
     temperature: str
     effort: str
     json_mode: str
@@ -96,7 +100,7 @@ class ModelParameters:
     documentation_read_on: str
 
     def as_row(self) -> dict[str, Any]:
-        return {"provider": self.provider, "temperature": self.temperature, "effort": self.effort,
+        return {"inference_backend": self.inference_backend, "temperature": self.temperature, "effort": self.effort,
                 "json_mode": self.json_mode,
                 "documentation": {"url": self.documentation_url, "read_on": self.documentation_read_on}}
 
@@ -106,6 +110,15 @@ def model_parameters_digest(generator: ModelParameters, judge: ModelParameters) 
     rows = {"generator": {"model_id": generator.model_id, **generator.as_row()},
             "judge": {"model_id": judge.model_id, **judge.as_row()}}
     return hashlib.sha256(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def model_developer_of(inference_backend: str) -> str:
+    """The company that made the models an inference backend serves (B158, R1);
+    refused for a backend the table does not name."""
+    try:
+        return MODEL_DEVELOPER_OF[inference_backend]
+    except KeyError:
+        raise ValueError(f"no model developer known for the inference backend {inference_backend!r}") from None
 
 
 def _where(path: Path) -> str:
@@ -123,15 +136,15 @@ def _row_problems(row: Any) -> list[str]:
         problems.append("missing " + ", ".join(missing))
     if unknown:
         problems.append("unknown " + ", ".join(unknown))
-    if row.get("provider") not in PROVIDERS:
-        problems.append(f"provider must be one of {', '.join(PROVIDERS)}")
+    if row.get("inference_backend") not in INFERENCE_BACKENDS:
+        problems.append(f"inference_backend must be one of {', '.join(INFERENCE_BACKENDS)}")
     if row.get("temperature") not in TEMPERATURE_VALUES:
         problems.append('temperature must be "0" or "N/A"')
     if row.get("effort") not in (*EFFORT_LEVELS, NOT_APPLICABLE):
         problems.append(f"effort must be one of {', '.join(EFFORT_LEVELS)} or \"N/A\"")
     if row.get("json_mode") not in JSON_MODE_VALUES:
         problems.append('json_mode must be "sent" or "N/A"')
-    elif row.get("provider") == "anthropic" and row.get("json_mode") != NOT_APPLICABLE:
+    elif row.get("inference_backend") == "anthropic" and row.get("json_mode") != NOT_APPLICABLE:
         problems.append('json_mode must be "N/A" on an anthropic row: the judge client has no JSON mode parameter')
     doc = row.get("documentation")
     if not isinstance(doc, dict) or set(doc) != {"url", "read_on"} or not all(
@@ -167,20 +180,20 @@ def load_model_parameters(path: Path | None = None) -> dict[str, dict[str, Any]]
     return data["models"]
 
 
-def declaration_for(models: dict[str, dict[str, Any]], model_id: str, provider: str,
+def declaration_for(models: dict[str, dict[str, Any]], model_id: str, inference_backend: str,
                     where: str = MODEL_PARAMETERS_FILE) -> ModelParameters:
     """The declared parameters of one configured model, refused when the table has
-    no row for it, the row names another provider, or the row does not yet name
+    no row for it, the row names another inference backend, or the row does not yet name
     the documentation page and the day it was read."""
     row = models.get(model_id)
     if row is None:
         raise ConfigurationError(
-            f"configuration error: {where} declares no row for model {model_id!r}; add one with its provider, "
+            f"configuration error: {where} declares no row for model {model_id!r}; add one with its inference backend, "
             "temperature, effort, json_mode and the documentation page with the day it was read (spec F D-F29)")
-    if row["provider"] != provider:
+    if row["inference_backend"] != inference_backend:
         raise ConfigurationError(
-            f"configuration error: {where} declares {model_id!r} with provider {row['provider']}, but the "
-            f"{provider} client is configured to use it")
+            f"configuration error: {where} declares {model_id!r} with inference backend "
+            f"{row['inference_backend']}, but the {inference_backend} client is configured to use it")
     url, read_on = row["documentation"]["url"], row["documentation"]["read_on"]
     # the day as YYYY-MM-DD only: date.fromisoformat also reads a week date
     # ("2026-W39-1") and a basic date, which are not the day as written
@@ -196,9 +209,9 @@ def declaration_for(models: dict[str, dict[str, Any]], model_id: str, provider: 
     if page is None or page.scheme != "https" or not page.hostname or read_day is None:
         raise ConfigurationError(
             f"configuration error: the row for {model_id!r} in {where} names no documentation page (https) or "
-            "no day it was read (YYYY-MM-DD); read the provider's documentation for this model, confirm the row "
+            "no day it was read (YYYY-MM-DD); read the model developer's documentation for this model, confirm the row "
             "and fill documentation.url and documentation.read_on (spec F D-F29)")
-    return ModelParameters(model_id=model_id, provider=provider, temperature=row["temperature"],
+    return ModelParameters(model_id=model_id, inference_backend=inference_backend, temperature=row["temperature"],
                            effort=row["effort"], json_mode=row["json_mode"],
                            documentation_url=url, documentation_read_on=read_on)
 
@@ -300,17 +313,18 @@ class ModelConfig:
     judge_parameters: ModelParameters
 
     def __post_init__(self) -> None:
-        """Each role's row is the row of its own model and provider, so a client
-        never sends one model's id with another model's declaration."""
+        """Each model component's row is the row of its own model and inference
+        backend, so a client never sends one model's id with another model's
+        declaration."""
         problems = []
-        for role, model_id, row, provider in (
+        for component, model_id, row, inference_backend in (
                 ("generator", self.generator_model, self.generator_parameters, "openai"),
                 ("judge", self.judge_model, self.judge_parameters, "anthropic")):
             if row.model_id != model_id:
-                problems.append(f"the {role} model {model_id!r} is given the declared row of {row.model_id!r}")
-            if row.provider != provider:
-                problems.append(f"the {role} row for {row.model_id!r} names provider {row.provider}, but the "
-                                f"{role} client is {provider}")
+                problems.append(f"the {component} model {model_id!r} is given the declared row of {row.model_id!r}")
+            if row.inference_backend != inference_backend:
+                problems.append(f"the {component} row for {row.model_id!r} names inference backend "
+                                f"{row.inference_backend}, but the {component} client is {inference_backend}")
         if problems:
             raise ConfigurationError("configuration error: " + "; ".join(problems))
 
@@ -381,10 +395,10 @@ def load_model_config(env: dict[str, str] | None = None, parameters_path: Path |
     models = load_model_parameters(path)
     declared: dict[str, ModelParameters] = {}
     problems: list[str] = []
-    for role, model_id, provider in (("generator", generator_model, "openai"),
-                                     ("judge", judge_model, "anthropic")):
+    for component, model_id, inference_backend in (("generator", generator_model, "openai"),
+                                                   ("judge", judge_model, "anthropic")):
         try:
-            declared[role] = declaration_for(models, model_id, provider, _where(path))
+            declared[component] = declaration_for(models, model_id, inference_backend, _where(path))
         except ConfigurationError as exc:
             problems.append(str(exc).removeprefix("configuration error: "))
     if problems:
@@ -403,8 +417,8 @@ def load_model_config(env: dict[str, str] | None = None, parameters_path: Path |
 # DEC-24 (spec G D-G74 (2), (3), (5); rulings S54, S55, S67, S68): the HTTP
 # facade's generator-only mode and its judge routes each load only what they
 # call. The generator-only mode reads the generator's model, key and
-# declared row; the judge routes read the demo judge (an OpenAI model in the
-# judge's role, refused when it is the generator's model) and the signing
+# declared row; the judge routes read the demo judge (an OpenAI model as the
+# judge, refused when it is the generator's model) and the signing
 # key. Neither reads the Anthropic judge's settings or key, which only the
 # inline mode and the MCP tools need. DEC-07's TERE4AI_JUDGE_MODEL and
 # assert_independent_judge are untouched.
@@ -423,8 +437,8 @@ def price_problem(row: Any) -> str | None:
     YYYY-MM-DD day)."""
     if not isinstance(row, dict):
         return "the row is not an object"
-    if row.get("provider") not in PROVIDERS:
-        return "provider must be openai or anthropic"
+    if row.get("inference_backend") not in INFERENCE_BACKENDS:
+        return "inference_backend must be openai or anthropic"
     for key in PRICE_KEYS:
         try:
             if float(row[key]) < 0:
@@ -512,7 +526,7 @@ def load_generator_config(env: dict[str, str] | None = None, parameters_path: Pa
 
 @dataclass(frozen=True)
 class DemoJudgeConfig:
-    """The demo judge of DEC-24: an OpenAI model in the judge's role, with its
+    """The demo judge of DEC-24: an OpenAI model as the judge, with its
     declared row and its price row."""
 
     model: str

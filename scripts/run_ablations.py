@@ -60,9 +60,9 @@ from tere4ai.eval.present_evaluation import JULY_CHECKPOINT_DIGESTS, JULY_DIGEST
 from tere4ai.extract_norms.model_clients import (  # noqa: E402
     TERMINAL_POLICY,
     AnthropicJudge,
+    InferenceBackendRefused,
+    InferenceBackendUnavailable,
     OpenAIGenerator,
-    ProviderRefused,
-    ProviderUnavailable,
     declared_sampling,
 )
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
@@ -516,11 +516,11 @@ def main(argv: list[str] | None = None) -> int:
                     for item in batch:
                         try:
                             per_item[item["id"]] = fn(item)
-                        except ProviderRefused as exc:
+                        except InferenceBackendRefused as exc:
                             # spec F D-F30, B101 ruling S5: the reason names the item, which is
                             # fixed before the resume, never skipped
-                            raise ProviderRefused(f"{exc.cause} (item {item['id']})") from exc
-                        except (ProviderUnavailable, ConfigurationError):
+                            raise InferenceBackendRefused(f"{exc.cause} (item {item['id']})") from exc
+                        except (InferenceBackendUnavailable, ConfigurationError):
                             raise  # spec F D-F29, D-F30: a stop of the run, never an item's error
                         except Exception as exc:  # record, never abort the sweep
                             per_item[item["id"]] = {
@@ -528,14 +528,14 @@ def main(argv: list[str] | None = None) -> int:
                                 "answer_text": "",
                                 "citations": [],
                             }
-                    # provider-reported token deltas for exactly this unit, so the
+                    # token deltas the inference backends reported for exactly this unit, so the
                     # checkpoint carries true spend across resumes (Section 13)
                     clients = {"generator": generator, "judge": judge}
                     usage = {
-                        role: {
-                            k: clients[role].usage[k] - before[k] for k in before
+                        component: {
+                            k: clients[component].usage[k] - before[k] for k in before
                         }
-                        for role, before in usage_before.items()
+                        for component, before in usage_before.items()
                     }
                     entry = {
                         "unit": unit,
@@ -559,60 +559,60 @@ def main(argv: list[str] | None = None) -> int:
         for entry in unit_results:
             merged.setdefault(entry["strategy"], {}).update(entry["results"])
 
-        # aggregate provider-reported usage over the checkpointed units; units
+        # aggregate the usage the inference backends reported over the checkpointed units; units
         # written before usage tracking existed carry no usage block, so their
         # count is surfaced instead of silently under-reporting spend
         usage_total: dict[str, dict[str, int]] = {}
         units_without_usage = 0
         # B91: a unit written before the two completeness counts existed leaves
-        # its role's aggregate without them (completeness not recorded), never
+        # its component's aggregate without them (completeness not recorded), never
         # a partial count that would read as complete
-        roles_missing_counts: set[str] = set()
+        components_missing_counts: set[str] = set()
         # final review A3: likewise a unit written before requests_refused
-        # existed leaves only that count unknown for its role
-        roles_missing_refused: set[str] = set()
+        # existed leaves only that count unknown for its component
+        components_missing_refused: set[str] = set()
         # spec F D-F32: likewise a unit written before
         # requests_rejected_before_processing existed leaves only that count
-        # unknown for its role
-        roles_missing_rejected: set[str] = set()
+        # unknown for its component
+        components_missing_rejected: set[str] = set()
         # B133: likewise a unit written before reasoning_tokens and
-        # replies_with_reasoning existed leaves both unknown for its role
-        roles_missing_reasoning: set[str] = set()
+        # replies_with_reasoning existed leaves both unknown for its component
+        components_missing_reasoning: set[str] = set()
         for entry in unit_results:
             if "usage" not in entry:
                 units_without_usage += 1
                 continue
-            for role, counts in entry["usage"].items():
-                bucket = usage_total.setdefault(role, {})
+            for component, counts in entry["usage"].items():
+                bucket = usage_total.setdefault(component, {})
                 for k, v in counts.items():
                     bucket[k] = bucket.get(k, 0) + v
                 if not {"requests_sent", "replies_with_usage"} <= set(counts):
-                    roles_missing_counts.add(role)
+                    components_missing_counts.add(component)
                 if "requests_refused" not in counts:
-                    roles_missing_refused.add(role)
+                    components_missing_refused.add(component)
                 if "requests_rejected_before_processing" not in counts:
-                    roles_missing_rejected.add(role)
+                    components_missing_rejected.add(component)
                 if not {"reasoning_tokens", "replies_with_reasoning"} <= set(counts):
-                    roles_missing_reasoning.add(role)
+                    components_missing_reasoning.add(component)
         # a unit with no usage block at all (units_without_usage) makes every
-        # role's total incomplete: the counts go for every role (review fix C4)
+        # component's total incomplete: the counts go for every component (review fix C4)
         if units_without_usage:
-            roles_missing_counts.update(usage_total)
-            roles_missing_refused.update(usage_total)
-            roles_missing_rejected.update(usage_total)
-            roles_missing_reasoning.update(usage_total)
-        for role in roles_missing_counts:
-            usage_total[role].pop("requests_sent", None)
-            usage_total[role].pop("replies_with_usage", None)
-        for role in roles_missing_refused | roles_missing_counts:
-            usage_total[role].pop("requests_refused", None)
-        for role in roles_missing_rejected | roles_missing_refused | roles_missing_counts:
-            usage_total[role].pop("requests_rejected_before_processing", None)
+            components_missing_counts.update(usage_total)
+            components_missing_refused.update(usage_total)
+            components_missing_rejected.update(usage_total)
+            components_missing_reasoning.update(usage_total)
+        for component in components_missing_counts:
+            usage_total[component].pop("requests_sent", None)
+            usage_total[component].pop("replies_with_usage", None)
+        for component in components_missing_refused | components_missing_counts:
+            usage_total[component].pop("requests_refused", None)
+        for component in components_missing_rejected | components_missing_refused | components_missing_counts:
+            usage_total[component].pop("requests_rejected_before_processing", None)
         # B133: likewise both reasoning counts go with the other missing sets
-        for role in (roles_missing_reasoning | roles_missing_rejected | roles_missing_refused
-                     | roles_missing_counts):
-            usage_total[role].pop("reasoning_tokens", None)
-            usage_total[role].pop("replies_with_reasoning", None)
+        for component in (components_missing_reasoning | components_missing_rejected | components_missing_refused
+                          | components_missing_counts):
+            usage_total[component].pop("reasoning_tokens", None)
+            usage_total[component].pop("replies_with_reasoning", None)
 
         # metrics per strategy against gold labels where present
         gold_items = [i for i in items if i.get("gold") or i.get("gold_citations")]
@@ -620,11 +620,11 @@ def main(argv: list[str] | None = None) -> int:
         summary: dict[str, dict] = {
             "config": config,
             "items_total": len(items),
-            "usage_provider_reported": {
-                "by_role": usage_total,
+            "usage_reported_by_backend": {
+                "by_component": usage_total,
                 "units_without_usage": units_without_usage,
                 "note": (
-                    "token counts as reported by the providers per API response, "
+                    "token counts as reported by the inference backends per API response, "
                     "summed over checkpoint units; units checkpointed by runner "
                     "versions without usage tracking contribute nothing here; "
                     "the evaluation record's usage is this invocation's own spend; "
@@ -720,19 +720,19 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"wrote {summary_path}")
     except BaseException as exc:
-        # spec F D-F30: a provider stop ends the record partial and the run
+        # spec F D-F30: an inference backend stop ends the record partial and the run
         # resumable from its checkpoint, and a refusal no retry fixes ends it
         # failed at once (ruling P21); spec F D-F29: a refused declaration ends
         # it failed; any other failure ends it failed and is raised
-        stopped = isinstance(exc, ProviderUnavailable)
-        provider_refused = isinstance(exc, ProviderRefused)
+        stopped = isinstance(exc, InferenceBackendUnavailable)
+        backend_refused = isinstance(exc, InferenceBackendRefused)
         refused = isinstance(exc, ConfigurationError)
         if store is not None and record_id is not None:
             completed, _ = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
             models_now = harness.strategy_models(built, list(built)) or None
             # a record that already ended inside the try is left as it is; a refused finish ends it failed
             end_failed(store, record_id,
-                       str(exc) if stopped or provider_refused or refused else exception_reason(exc),
+                       str(exc) if stopped or backend_refused or refused else exception_reason(exc),
                        status="partial" if stopped else "failed",
                        notes=notes + _resumed_only_notes(built, ran, resumes, bool(done)),
                        completed_items=completed, usage=_own_usage(generator, judge),
@@ -740,7 +740,7 @@ def main(argv: list[str] | None = None) -> int:
                        counts={"units_run": units_run},
                        prompt_versions={**(models_now or {}), **elicitor_versions} or None,
                        prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
-        if stopped or provider_refused:
+        if stopped or backend_refused:
             print(f"stopped: {exc}", file=sys.stderr)
             if len(done) + units_run:
                 print(f"the checkpoint {checkpoint_path} is kept ({len(done) + units_run} unit(s) done); "

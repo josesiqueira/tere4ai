@@ -247,14 +247,14 @@ def test_the_command_prints_the_two_checks(tmp_path, monkeypatch, capsys):
 
 def test_a_resumed_run_audits_the_inherited_groups_too(tmp_path, monkeypatch):
     """Review Focus 1: B74 stopped by an overload and continued with --resume."""
-    from tere4ai.extract_norms.model_clients import ProviderUnavailable
+    from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
 
     cli, argv, _out, _g, _j = _prepare(tmp_path, monkeypatch)
     inner = cli.extract_norms
 
     def stop_on_article_17(dump, node_ids, generator, judge, prompt_version="v4"):
         if node_ids[0] == U17:
-            raise ProviderUnavailable(6, "HTTP 529")
+            raise InferenceBackendUnavailable(6, "HTTP 529")
         return inner(dump, node_ids, generator, judge, prompt_version=prompt_version)
 
     monkeypatch.setattr(cli, "extract_norms", stop_on_article_17)

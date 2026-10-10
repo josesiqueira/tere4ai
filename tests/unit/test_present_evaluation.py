@@ -215,6 +215,16 @@ def test_legacy_synthesis_over_the_real_checkout_names_the_july_files():
     assert sheet["counts"] == {"items": 50, "labelled": 0}
 
 
+def test_the_kept_ablation_summaries_present_their_usage():
+    # B158 (R9): the two tracked summaries keep the key names they were written
+    # with (usage_provider_reported.by_role); the page still shows their usage.
+    records = pe.synthesise_legacy_evaluations(ROOT)
+    runs = {r["outputs"][0]["file"]: r for r in records if not r.get("unreadable") and r["kind"] == "run"}
+    for summary in ("ablation_full_summary.json", "ablation_variance_summary.json"):
+        usage = runs[summary]["usage"]
+        assert usage["generator"]["calls"] > 0 and usage["judge"]["calls"] > 0, summary
+
+
 def test_legacy_run_containers_holding_only_nulls_read_unavailable(tmp_path):
     root = _legacy_root(tmp_path)
     results = root / "eval" / "results"

@@ -48,7 +48,7 @@ protocol: human_label is "accept" when ALL extraction-judge (or mapping-judge)
 criteria hold and "reject" on any single failure; the judge verdicts stay
 "accepted" / "rejected" / "needs_human_review" and needs_human_review is an
 abstention, never an FA or FR. --compute refuses while any human_label is
-still null or was recorded without an actor and a time, and while the sheet's
+still null or was recorded without who labelled it and when, and while the sheet's
 bytes are not the bytes the newest completed label act on this store wrote (a
 hand edit after labelling); a rate with an empty denominator prints as null,
 never 0.0. This is a sample estimate: population weighting is not designed.
@@ -571,8 +571,8 @@ def compute_error_rates(sheet: dict[str, Any]) -> dict[str, Any]:
     """FA/FR from a filled sheet, pooled and per judge kind (D-G33).
 
     Raises ValueError when any human_label is still null, holds a value
-    outside the protocol's accept/reject set, or was typed without an actor
-    and a time (the label act of this script records both).
+    outside the protocol's accept/reject set, or was typed without who
+    labelled it or when (the label act of this script records both).
     """
     items = sheet.get("items", [])
     unlabelled = [it["decision_id"] for it in items if it.get("human_label") is None]
@@ -594,8 +594,8 @@ def compute_error_rates(sheet: dict[str, Any]) -> dict[str, Any]:
     ]
     if unattributed:
         raise ValueError(
-            f"refusing to compute: {len(unattributed)} items carry a label without an "
-            "actor or a time; record them through --label. Unattributed: "
+            f"refusing to compute: {len(unattributed)} items carry a label without who "
+            "labelled it or when; record them through --label. Unattributed: "
             + ", ".join(unattributed)
         )
     verdicts = {it["decision_id"]: it["judge_run"]["verdict"] for it in items}

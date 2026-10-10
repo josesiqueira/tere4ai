@@ -169,7 +169,7 @@ the more Act-faithful reading), 4 are honest abstentions, 3 are real
 over-classifications traced to elicited flags (see
 results/ELICITATION_ERRORS.md once generated). Full analysis:
 results/RUN2_ANALYSIS.md. Treat single-run deltas of a few items as within
-provider variance until the repeat-run study (task 60) bounds it.
+inference backend variance until the repeat-run study (task 60) bounds it.
 
 ## Full-benchmark run findings (2026-07-10/11, task 27)
 
@@ -189,7 +189,7 @@ results/ablation_full_checkpoint.jsonl and ablation_full_summary.json.
 ## Variance study findings (2026-07-11, task 60)
 
 A full repeat of the ladder (same items, same frozen features, cost
-approved) measured provider-side nondeterminism at temperature 0: the
+approved) measured inference-backend-side nondeterminism at temperature 0: the
 graph conditions flipped 0 of 345 risk labels (deterministic
 classification empirically confirmed, citation Jaccard 0.95 to 0.97),
 while plain_llm flipped 43 of 345 (12.5 percent, accuracy 0.617 to

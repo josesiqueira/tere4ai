@@ -1,7 +1,7 @@
 """Mock data for the declared model parameters (spec F D-F29).
 
 Rows and tables for the tests only. The documentation address uses the
-reserved .invalid domain (RFC 2606), so no test names a real provider page.
+reserved .invalid domain (RFC 2606), so no test names a real model developer's page.
 """
 
 from __future__ import annotations
@@ -15,11 +15,11 @@ DOC_URL = "https://docs.example.invalid/models"
 READ_ON = "2026-09-27"
 
 
-def declared(model_id: str, provider: str, *, temperature: str = "0", effort: str = "xhigh",
+def declared(model_id: str, inference_backend: str, *, temperature: str = "0", effort: str = "xhigh",
              json_mode: str | None = None) -> ModelParameters:
     if json_mode is None:
-        json_mode = "sent" if provider == "openai" else "N/A"
-    return ModelParameters(model_id=model_id, provider=provider, temperature=temperature, effort=effort,
+        json_mode = "sent" if inference_backend == "openai" else "N/A"
+    return ModelParameters(model_id=model_id, inference_backend=inference_backend, temperature=temperature, effort=effort,
                            json_mode=json_mode, documentation_url=DOC_URL, documentation_read_on=READ_ON)
 
 

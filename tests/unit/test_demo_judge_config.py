@@ -26,8 +26,8 @@ ENV = {"TERE4AI_GENERATOR_MODEL": "gpt-gen", "TERE4AI_DEMO_JUDGE_MODEL": "gpt-ju
        "TERE4AI_ANSWER_SIGNING_KEY": KEY}
 
 
-def _price_row(provider: str = "openai") -> dict:
-    return {"provider": provider, "currency": "USD", "input": "2.00", "output": "10.00", "batch_input": "1.00",
+def _price_row(inference_backend: str = "openai") -> dict:
+    return {"inference_backend": inference_backend, "currency": "USD", "input": "2.00", "output": "10.00", "batch_input": "1.00",
             "batch_output": "5.00", "pricing": {"url": "https://example.invalid/p", "read_on": "2026-10-06"}}
 
 
@@ -43,7 +43,7 @@ def paths(tmp_path):
 def test_the_generator_alone_loads_without_any_anthropic_setting(paths):
     cfg = load_generator_config(dict(ENV), paths[0])
     assert isinstance(cfg, GeneratorConfig)
-    assert (cfg.generator_model, cfg.generator_parameters.provider) == ("gpt-gen", "openai")
+    assert (cfg.generator_model, cfg.generator_parameters.inference_backend) == ("gpt-gen", "openai")
 
 
 def test_the_generator_alone_names_what_is_missing():
@@ -54,7 +54,7 @@ def test_the_generator_alone_names_what_is_missing():
 def test_the_demo_judge_loads_with_its_declared_row_and_its_price(paths):
     cfg = load_demo_judge_config(dict(ENV), *paths)
     assert isinstance(cfg, DemoJudgeConfig)
-    assert (cfg.model, cfg.parameters.provider, cfg.price["input"]) == ("gpt-judge", "openai", 2.0)
+    assert (cfg.model, cfg.parameters.inference_backend, cfg.price["input"]) == ("gpt-judge", "openai", 2.0)
 
 
 def test_the_demo_judge_is_never_the_generator(paths):
@@ -64,7 +64,7 @@ def test_the_demo_judge_is_never_the_generator(paths):
 
 def test_the_demo_judge_needs_an_openai_row_and_a_price_row(tmp_path, paths):
     anthropic_row = write_table(tmp_path / "other.json", declared("gpt-judge", "anthropic"))
-    with pytest.raises(ConfigurationError, match="provider anthropic"):
+    with pytest.raises(ConfigurationError, match="inference backend anthropic"):
         load_demo_judge_config(dict(ENV), anthropic_row, paths[1])
     no_price = tmp_path / "prices.json"
     no_price.write_text(json.dumps({"schema_version": 1, "models": {}}), encoding="utf-8")
@@ -101,13 +101,13 @@ def test_the_demo_judge_client_is_an_openai_client_built_from_its_own_configurat
     monkeypatch.setitem(sys.modules, "openai", fake)
     client = OpenAIDemoJudge(load_demo_judge_config(dict(ENV), *paths))
     assert isinstance(client, OpenAIGenerator)
-    assert (client.model, client.provider, client.effort) == ("gpt-judge", "openai", "xhigh")
+    assert (client.model, client.inference_backend, client.effort) == ("gpt-judge", "openai", "xhigh")
     assert built == {"api_key": "sk-fake", "max_retries": 0}
 
 
 def test_the_committed_tables_declare_gpt_6_sol_as_the_spec_quotes_it():
     row = load_model_parameters()["gpt-6-sol"]
-    assert (row["provider"], row["temperature"], row["effort"], row["json_mode"]) == ("openai", "N/A", "xhigh", "sent")
+    assert (row["inference_backend"], row["temperature"], row["effort"], row["json_mode"]) == ("openai", "N/A", "xhigh", "sent")
     # Ruling R80: the day the page was read, 2026-10-06 or later, never a fixed date.
     assert row["documentation"]["url"] == "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-sol"
     assert row["documentation"]["read_on"] >= "2026-10-06"

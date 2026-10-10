@@ -130,7 +130,7 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     assert ex["completed_keys"] == ["eu-ai-act:article-9", "eu-ai-act:article-10"] and ex["inherited_keys"] == []
     # B84: the record carries the efforts (models requested, sampling applied), so the assertions are exact dicts now
     assert ex["models"] == {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"}
-    # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
+    # B99 (spec F D-F29): the declared temperature under <component>_temperature and the declared JSON mode are recorded too
     assert ex["sampling"] == {"generator": "API default (rejected by the model)", "judge": "API default (rejected by the model)",
                               "generator_temperature": "API default (rejected by the model)",
                               "judge_temperature": "API default (rejected by the model)",
@@ -282,7 +282,7 @@ def test_ctrl_c_ends_the_execution_failed_with_the_spend_so_far(tmp_path, monkey
     assert ex["status"] == "failed" and ex["error"] == "KeyboardInterrupt: " and ex["ended_at"]
     assert ex["completed_keys"] == ["eu-ai-act:article-9"] and ex["usage"]["generator"]["calls"] == 2
     # review fix F2: the failed attempt records what the clients applied, not the start value
-    # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
+    # B99 (spec F D-F29): the declared temperature under <component>_temperature and the declared JSON mode are recorded too
     assert ex["sampling"] == {"generator": "API default (rejected by the model)",
                               "judge": "API default (rejected by the model)",
                               "generator_temperature": "API default (rejected by the model)",
@@ -475,7 +475,7 @@ def test_each_finished_group_writes_the_usage_so_far_into_the_running_execution(
     assert seen[0]["usage"]["judge"]["requests_sent"] == 3
 
 
-# B99 (spec F D-F30): a provider stop ends the execution failed with its reason,
+# B99 (spec F D-F30): an inference backend stop ends the execution failed with its reason,
 # keeps the checkpoint and names the resume; spec F D-F29: a refused
 # declaration stops the run the same way.
 
@@ -490,9 +490,9 @@ def test_the_command_builds_both_clients_with_the_terminal_policy(tmp_path, monk
     assert cli._TEST_POLICIES == [TERMINAL_POLICY, TERMINAL_POLICY]
 
 
-def test_a_provider_stop_is_recorded_keeps_the_checkpoint_prints_the_resume_and_resumes(tmp_path, monkeypatch, capsys):
+def test_a_backend_stop_is_recorded_keeps_the_checkpoint_prints_the_resume_and_resumes(tmp_path, monkeypatch, capsys):
     import tere4ai.extract_norms.__main__ as cli
-    from tere4ai.extract_norms.model_clients import ProviderUnavailable
+    from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
 
     dump_path = _dump(tmp_path)
     out = tmp_path / "norms_test.json"
@@ -502,7 +502,7 @@ def test_a_provider_stop_is_recorded_keeps_the_checkpoint_prints_the_resume_and_
 
     def stop_on_the_second_group(dump, node_ids, generator, judge, prompt_version="v1"):
         if node_ids[0] == "eu-ai-act:article-10":
-            raise ProviderUnavailable(6, "HTTP 529")
+            raise InferenceBackendUnavailable(6, "HTTP 529")
         return inner(dump, node_ids, generator, judge, prompt_version)
 
     monkeypatch.setattr(cli, "extract_norms", stop_on_the_second_group)
@@ -510,16 +510,16 @@ def test_a_provider_stop_is_recorded_keeps_the_checkpoint_prints_the_resume_and_
     assert cli.main(argv) == 3
     store = BuildRecordStore(tmp_path)
     (ex,) = store.read(store.resolve("test"))["executions"]
-    assert ex["status"] == "failed" and ex["error"] == "provider unavailable after 6 attempts: HTTP 529"
+    assert ex["status"] == "failed" and ex["error"] == "inference backend unavailable after 6 attempts: HTTP 529"
     assert ex["completed_keys"] == ["eu-ai-act:article-9"]
     assert ex["sampling"]["generator_json_mode"] == "sent"
-    # review X-C1: the dashboard reads the declared temperature under <role>_temperature
+    # review X-C1: the dashboard reads the declared temperature under <component>_temperature
     assert ex["sampling"]["generator_temperature"] == ex["sampling"]["generator"]
     assert ex["sampling"]["judge_temperature"] == ex["sampling"]["judge"]
     ckpt = out.with_suffix(".checkpoint.jsonl")
     assert [json.loads(line)["group"] for line in ckpt.read_text().splitlines()] == ["eu-ai-act:article-9"]
     err = capsys.readouterr().err
-    assert "stopped: provider unavailable after 6 attempts: HTTP 529" in err
+    assert "stopped: inference backend unavailable after 6 attempts: HTTP 529" in err
     assert f"the checkpoint {ckpt.name} is kept (1 of 2 groups done); continue with:" in err
     assert (f"  .venv/bin/python -m tere4ai.extract_norms --nodes eu-ai-act:article-9,eu-ai-act:article-10 "
             f"--dump {dump_path} --out {out} --resume") in err
@@ -665,7 +665,7 @@ def test_a_mock_model_run_of_the_v3_pipeline_sets_the_rule_value_counts_the_null
     tmp_path, monkeypatch, capsys
 ):
     import tere4ai.extract_norms.__main__ as cli
-    from tere4ai.extract_norms.model_clients import ProviderUnavailable
+    from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
 
     dump_path = _v3_dump(tmp_path)
     out = tmp_path / "norms_test.json"
@@ -674,7 +674,7 @@ def test_a_mock_model_run_of_the_v3_pipeline_sets_the_rule_value_counts_the_null
 
     def stop_on_article_50(dump, node_ids, generator, judge, prompt_version="v1"):
         if node_ids[0] == "eu-ai-act:article-50":
-            raise ProviderUnavailable(6, "HTTP 529")
+            raise InferenceBackendUnavailable(6, "HTTP 529")
         return inner(dump, node_ids, generator, judge, prompt_version=prompt_version)
 
     monkeypatch.setattr(cli, "extract_norms", stop_on_article_50)

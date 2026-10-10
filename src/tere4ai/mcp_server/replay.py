@@ -32,7 +32,7 @@ true on every degraded envelope of evidence.py and backlog.py), the
 envelope's judge_verdict is neither "not_run" (no judged answer exists)
 nor "judge_error" (the judge request raised), and, for the batch, no
 per-norm result is refused or has one of those two verdicts. An exception
-(a provider failure after the client's retries) is never kept; it reaches
+(an inference backend failure after the client's retries) is never kept; it reaches
 the caller unchanged. A judged answer is kept whatever the verdict
 (accepted, rejected or needs_human_review, which is also what the runtime
 judge records when its reply cannot be read): the models answered and

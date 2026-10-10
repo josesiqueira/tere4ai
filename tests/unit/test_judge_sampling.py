@@ -639,11 +639,11 @@ def test_draw_fails_the_record_and_writes_no_sheet_when_keep_output_raises(tmp_p
     assert rec["outcome"]["status"] == "failed" and "copy refused" in rec["outcome"]["error"]
 
 
-# The E1 label and compute acts (DEC-17): actor and time per item, an
+# The E1 label and compute acts (DEC-17): who labelled it and when per item, an
 # analysis record with rates per judge kind and pooled -----------------
 
 
-def test_label_act_records_actor_time_and_a_labelling_record(tmp_path, capsys):
+def test_label_act_records_who_labelled_and_when_and_a_labelling_record(tmp_path, capsys):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path)) == 0
     sheet = json.loads((tmp_path / "sheet.json").read_text())
@@ -709,15 +709,15 @@ def test_label_file_labels_many_in_one_record(tmp_path):
     assert rec["counts"]["labelled_now"] == len(ids) and rec["outcome"]["completed_items"] == ids
 
 
-def test_compute_refuses_a_label_without_actor_or_time(tmp_path, capsys):
+def test_compute_refuses_a_label_without_who_labelled_it_or_when(tmp_path, capsys):
     _write_payloads(tmp_path)
     assert sampling.main(_draw_argv(tmp_path)) == 0
     sheet = json.loads((tmp_path / "sheet.json").read_text())
     for it in sheet["items"]:
-        it["human_label"] = "accept"  # typed by hand, no actor, no time
+        it["human_label"] = "accept"  # typed by hand, no one who labelled it, no time
     (tmp_path / "sheet.json").write_text(json.dumps(sheet))
     assert sampling.main(_draw_argv(tmp_path, "--compute")) == 2
-    assert "without an actor or a time" in capsys.readouterr().out
+    assert "without who labelled it or when" in capsys.readouterr().out
     assert not [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "analysis"]
 
 

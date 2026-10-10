@@ -361,8 +361,8 @@ _CLIENT_BUILT_FIELDS = ("usage", "sampling", "models", "prompt_versions", "promp
 
 def end_failed(store: EvaluationRecordStore, record_id: str, error: str, *, status: str = "failed",
                **fields: Any) -> None:
-    """End a record after a failure (status failed, or partial for a provider
-    stop) with everything the writer knows. When validation refuses that
+    """End a record after a failure (status failed, or partial for an inference
+    backend stop) with everything the writer knows. When validation refuses that
     finish, it is tried again without the client-built fields, keeping the
     status, notes, completed items and outputs, with the refusal named; if
     that is refused too, the record ends failed with the error alone, so it

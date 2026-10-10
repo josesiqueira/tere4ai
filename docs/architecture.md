@@ -850,7 +850,7 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   relations to other records (a repeat, a resume, a comparison, the
   sample id of the E1 acts). E1 is three recorded acts: the draw under an
   immutable sample id, refusing to overwrite any existing sheet without
-  --force; the label act, recording actor and time per item; the
+  --force; the label act, recording who labelled each item and when; the
   analysis over the exact labelled bytes, with rates per judge kind and
   pooled, null on an empty denominator, worded "sample estimate". Two
   free read-only routes serve the records grouped by build identity; an
@@ -1472,9 +1472,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   evidence a behaviour of this route of its own; the inline evidence
   route answers 502). The caller keeps the generator's answer as
   returned and shows the judge's part beside it.
-  The demo judge: TERE4AI_DEMO_JUDGE_MODEL, built as an OpenAI client in
-  the judge role from its declared row in config/model_parameters.json
-  (provider openai) and its row in config/model_prices.json, which a
+  The demo judge: TERE4AI_DEMO_JUDGE_MODEL, built as an OpenAI client as
+  the judge from its declared row in config/model_parameters.json
+  (inference backend openai) and its row in config/model_prices.json, which a
   price loader of the judge's configuration reads, refused when either
   row is missing or when it equals TERE4AI_GENERATOR_MODEL or the
   record's generator model. The first model is gpt-6-sol (temperature

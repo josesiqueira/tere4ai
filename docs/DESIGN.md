@@ -102,7 +102,7 @@ this ramp.
 One family carries everything: Geist for UI, Geist Mono for code, ids, and
 data. Weights 400, 500, 600 only. Never 700.
 
-| Role | Size | Weight | Notes |
+| Text style | Size | Weight | Notes |
 | --- | --- | --- | --- |
 | Caption / labels | 12px (text-xs) | 500 | may letter-space up to 0.05em |
 | Body / controls | 14px (text-sm) | 400 | the default |

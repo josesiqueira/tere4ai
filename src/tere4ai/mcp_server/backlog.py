@@ -29,10 +29,10 @@ by having a plan. Every safeguard is behavioral:
   There is no max_norms parameter and no truncation path; a call the
   generator or judge cannot serve fails loudly (a degraded envelope or an
   error), never with a shorter input.
-- The answer names both roles' model ids, efforts, temperatures and usage
-  for this call (spec F D-F26 (g)) and both roles' prompts with version and
-  hash (spec F D-F35 (1)), degraded answers after the first request
-  included, so the cost of a generation is recorded wherever the
+- The answer names both model components' model ids, efforts,
+  temperatures and usage for this call (spec F D-F26 (g)) and both model
+  components' prompts with version and hash (spec F D-F35 (1)), degraded
+  answers after the first request included, so the cost of a generation is recorded wherever the
   envelope is stored. A generator or judge request that raises after its
   retries answers degraded with the spend (a judge that sent a request as
   judge_verdict judge_error), never an error that loses the cost (B97
@@ -150,7 +150,7 @@ def _degraded_envelope(
     judge_verdict: str = JUDGE_NOT_RUN,
 ) -> dict[str, Any]:
     """requires_human_review envelope for paths where no judged backlog exists.
-    spend: both roles' ids, efforts, temperatures, prompts (name, version,
+    spend: both model components' ids, efforts, temperatures, prompts (name, version,
     hash) and usage, once a request was sent.
     judge_verdict: JUDGE_NOT_RUN unless the judge sent a request and raised (JUDGE_ERROR)."""
     return make_envelope(
@@ -426,11 +426,11 @@ def generate_control_backlog(
             graph_version,
         )
 
-    # B91 (spec F D-F26 (g)): the cost of this generation, per role, as the
+    # B91 (spec F D-F26 (g)): the cost of this generation, per model component, as the
     # clients counted it over this call only (a client may be reused)
     generator_before, judge_before = usage_snapshot(generator), usage_snapshot(judge)
 
-    # Spec F D-F35 (1): both roles' prompts, named by prompt and version, with
+    # Spec F D-F35 (1): both model components' prompts, named by prompt and version, with
     # the SHA-256 of the prompt file's text, as the audit log records them.
     # The judge's prompt is read the way ground_check reads it; a file that
     # cannot be read is named with no hash (the judge then does not run), and
@@ -442,7 +442,7 @@ def generate_control_backlog(
     except Exception:  # noqa: BLE001  (any read failure; ground_check then raises before a request)
         judge_prompt_sha256 = None
 
-    # Both roles are named (B98 seat B P3-3): a judge_error answer can carry
+    # Both model components are named (B98 seat B P3-3): a judge_error answer can carry
     # judge tokens, and a token line is priced from the model that spent it.
     def spend() -> dict[str, Any]:
         return {

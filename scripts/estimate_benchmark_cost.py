@@ -16,12 +16,12 @@ sha256 of eval/gold/benchmark_sample.json) is priced as one reference line,
 outside the total.
 
 Token model, stated plainly so nobody mistakes this for a measurement:
-- Input tokens are prompt characters divided by a per-provider ratio
+- Input tokens are prompt characters divided by a per model developer ratio
   measured offline on the aborted B74 extraction (RATIOS, each with its
   source), with a declared band of plus or minus 10 percent.
-- Output is priced with reasoning included, since both providers bill
+- Output is priced with reasoning included, since both inference backends bill
   reasoning as output: billed = visible reply / (1 - r), where r is the
-  reasoning share, a declared band (low: measured at the provider default in
+  reasoning share, a declared band (low: measured at the API default in
   the aborted extraction; central: the only xhigh measurement; high:
   declared). Nothing is measured at xhigh for either declared model.
 - The visible reply sizes come from stored replies: July norms and
@@ -35,7 +35,7 @@ Pricing (B120, spec F D-F29 discipline):
   and TERE4AI_JUDGE_MODEL), checked against their rows in
   config/model_parameters.json; this script names no model.
 - Prices are data in config/model_prices.json: one row per model id with the
-  provider's pricing page (https) and the day it was read. A row without
+  inference backend's pricing page (https) and the day it was read. A row without
   both, or a model the environment names without a row, is refused by name.
   No API key is read and no network is touched.
 
@@ -75,6 +75,7 @@ from tere4ai.judge.config import (  # noqa: E402
     load_dotenv_once,
     load_model_parameters,
     load_model_prices,
+    model_developer_of,
 )
 from tere4ai.mcp_server.backlog import generate_control_backlog  # noqa: E402
 
@@ -92,8 +93,8 @@ PRICES_PATH = MODEL_PRICES_PATH
 PRICES_FILE = MODEL_PRICES_FILE
 GENERATOR_VARIABLE = "TERE4AI_GENERATOR_MODEL"
 JUDGE_VARIABLE = "TERE4AI_JUDGE_MODEL"
-# the provider each role's client talks to (architecture.md Section 7)
-ROLE_PROVIDERS = {"generator": "openai", "judge": "anthropic"}
+# the inference backend each model component's client talks to (architecture.md Section 7)
+COMPONENT_BACKEND = {"generator": "openai", "judge": "anthropic"}
 
 
 # DEC-24: the price loader moved to tere4ai.judge.config (load_model_prices,
@@ -102,15 +103,15 @@ ROLE_PROVIDERS = {"generator": "openai", "judge": "anthropic"}
 
 def declared_models(env: Any, parameters_path: Path | None = None) -> dict[str, ModelParameters]:
     """The generator and the judge the environment names, each with its row of
-    config/model_parameters.json (provider, effort, documentation). Refused
+    config/model_parameters.json (inference backend, effort, documentation). Refused
     when a variable is unset or a model has no declaration row."""
     models = load_model_parameters(parameters_path)
     declared: dict[str, ModelParameters] = {}
-    for role, variable in (("generator", GENERATOR_VARIABLE), ("judge", JUDGE_VARIABLE)):
+    for component, variable in (("generator", GENERATOR_VARIABLE), ("judge", JUDGE_VARIABLE)):
         model_id = env.get(variable)
         if not model_id:
             raise ConfigurationError(f"configuration error: {variable} is not set")
-        declared[role] = declaration_for(models, model_id, ROLE_PROVIDERS[role])
+        declared[component] = declaration_for(models, model_id, COMPONENT_BACKEND[component])
     return declared
 
 
@@ -118,18 +119,19 @@ def price_rows(prices: dict[str, dict[str, Any]],
                declared: dict[str, ModelParameters]) -> dict[str, dict[str, Any]]:
     """The price row of each declared model; refused by name when a model has none."""
     rows = {}
-    for role, model in declared.items():
+    for component, model in declared.items():
         if model.model_id not in prices:
             raise ConfigurationError(
                 f"configuration error: {PRICES_FILE} has no row for model {model.model_id!r} "
-                f"(the {role}); add one with its prices, the pricing page and the day it was read")
-        rows[role] = prices[model.model_id]
+                f"(the {component}); add one with its prices, the pricing page and the day it was read")
+        rows[component] = prices[model.model_id]
     return rows
 
 
-def tokens(chars: int | float, provider: str) -> int:
-    """Tokens of chars characters at the provider's own measured ratio."""
-    return int(round(chars / ratio(f"chars_per_token_{provider}")))
+def tokens(chars: int | float, model_developer: str) -> int:
+    """Tokens of chars characters at the model developer's own measured ratio
+    (a tokenizer is the model's, R14 (e))."""
+    return int(round(chars / ratio(f"chars_per_token_{model_developer}")))
 
 
 class CountingClient:
@@ -449,7 +451,7 @@ def recompute_chars_per_token(
 
 
 def default_reasoning_shares(payload: dict[str, Any]) -> dict[str, float]:
-    """The share of billed output that was reasoning at the provider default
+    """The share of billed output that was reasoning at the API default
     (the low end of the declared band): 1 minus the visible reply's tokens
     over the billed output tokens per call, from the aborted B74 extraction.
     The generator's visible reply is the candidate fields of the norms of
@@ -658,7 +660,7 @@ def ablation_dry_run(
 
 
 def ablation_lines(per_strategy: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    """The two role lines of one ablation run: the strategies summed."""
+    """The two model component lines of one ablation run: the strategies summed."""
     def total(key: str) -> float:
         return sum(s[key] for s in per_strategy.values())
     biggest = max((s["max_chars"] for s in per_strategy.values()), default=0)
@@ -683,18 +685,18 @@ def elicitation_line(items: list[dict[str, Any]], system_chars: int, out_chars_m
 
 def reasoning_bands(low: dict[str, float],
                     measured: dict[str, dict[str, Any]] | None = None) -> dict[str, dict[str, float]]:
-    """The reasoning share of billed output per role at each level (R7). A role
-    with a measured share (B133) has it at all three levels, in place of the
-    declared band."""
-    bands = {role: {"low": value, "central": ratio("reasoning_share_central"),
-                    "high": ratio("reasoning_share_high")} for role, value in low.items()}
-    for role, found in (measured or {}).items():
-        bands[role] = {level: found["share"] for level in LEVELS}
+    """The reasoning share of billed output per model component at each level
+    (R7). A model component with a measured share (B133) has it at all three
+    levels, in place of the declared band."""
+    bands = {component: {"low": value, "central": ratio("reasoning_share_central"),
+                         "high": ratio("reasoning_share_high")} for component, value in low.items()}
+    for component, found in (measured or {}).items():
+        bands[component] = {level: found["share"] for level in LEVELS}
     return bands
 
 
 def _complete_reasoning(usage: Any) -> bool:
-    """A role's usage counts every reply's reasoning figure: both counts are
+    """A model component's usage counts every reply's reasoning figure: both counts are
     present and replies_with_reasoning equals replies_with_usage, above zero."""
     if not isinstance(usage, dict):
         return False
@@ -704,10 +706,11 @@ def _complete_reasoning(usage: Any) -> bool:
 
 
 def measured_reasoning(paths: list[Path], declared: dict[str, ModelParameters]) -> dict[str, dict[str, Any]]:
-    """B133: per declared role, the measured reasoning share of output over the
-    build records at paths: executions run under the declared model id whose
-    usage for the role is complete. A role with no such execution is absent."""
-    sums = {role: {"reasoning": 0, "output": 0, "replies": 0, "files": []} for role in declared}
+    """B133: per declared model component, the measured reasoning share of
+    output over the build records at paths: executions run under the declared
+    model id whose usage for the model component is complete. A model
+    component with no such execution is absent."""
+    sums = {component: {"reasoning": 0, "output": 0, "replies": 0, "files": []} for component in declared}
     for path in paths:
         try:
             record = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -720,40 +723,40 @@ def measured_reasoning(paths: list[Path], declared: dict[str, ModelParameters]) 
         for execution in executions:
             models = execution.get("models") or {}
             usage = execution.get("usage") or {}
-            for role, model in declared.items():
-                counts = usage.get(role)
-                if models.get(f"{role}_model") != model.model_id or not _complete_reasoning(counts):
+            for component, model in declared.items():
+                counts = usage.get(component)
+                if models.get(f"{component}_model") != model.model_id or not _complete_reasoning(counts):
                     continue
-                bucket = sums[role]
+                bucket = sums[component]
                 bucket["reasoning"] += counts["reasoning_tokens"]
                 bucket["output"] += counts["output_tokens"]
                 bucket["replies"] += counts["replies_with_reasoning"]
                 if shown not in bucket["files"]:
                     bucket["files"].append(shown)
-    return {role: {"share": b["reasoning"] / b["output"], "reasoning": b["reasoning"],
+    return {component: {"share": b["reasoning"] / b["output"], "reasoning": b["reasoning"],
                    "output": b["output"], "replies": b["replies"], "files": b["files"]}
-            for role, b in sums.items() if b["replies"] and b["output"]}
+            for component, b in sums.items() if b["replies"] and b["output"]}
 
 
 def price_line(
     step: str,
-    role: str,
+    component: str,
     line: dict[str, Any],
     declared: dict[str, ModelParameters],
     rows: dict[str, dict[str, Any]],
     bands: dict[str, dict[str, float]],
 ) -> dict[str, Any]:
-    """Tokens and cost of one role line at the provider's ratio: input plus or
-    minus the declared band, billed output = visible / (1 - r) at r low,
-    central and high, priced at the row's standard and Batch prices."""
-    provider = declared[role].provider
-    cpt = ratio(f"chars_per_token_{provider}")
+    """Tokens and cost of one model component line at the model developer's
+    ratio: input plus or minus the declared band, billed output = visible /
+    (1 - r) at r low, central and high, priced at the row's standard and
+    Batch prices."""
+    cpt = ratio(f"chars_per_token_{model_developer_of(COMPONENT_BACKEND[component])}")
     band = ratio("input_band")
     in_tokens = line["in_chars"] / cpt
     visible = line["out_chars"] / cpt
-    billed = {level: visible / (1 - bands[role][level]) for level in LEVELS}
+    billed = {level: visible / (1 - bands[component][level]) for level in LEVELS}
     in_scale = {"low": 1 - band, "central": 1.0, "high": 1 + band}
-    row = rows[role]
+    row = rows[component]
 
     def usd(prefix: str) -> dict[str, float]:
         return {level: (in_tokens * in_scale[level] * row[prefix + "input"]
@@ -761,9 +764,9 @@ def price_line(
 
     max_tokens = line.get("max_chars", 0) / cpt
     if max_tokens >= CONTEXT_LIMIT_TOKENS:
-        raise SystemExit(f"{step} ({role}): a request of {max_tokens:,.0f} tokens passes the "
+        raise SystemExit(f"{step} ({component}): a request of {max_tokens:,.0f} tokens passes the "
                          f"{CONTEXT_LIMIT_TOKENS:,} token short-context limit the price row assumes")
-    return {"step": step, "role": role, "model": declared[role].model_id, "calls": line["calls"],
+    return {"step": step, "component": component, "model": declared[component].model_id, "calls": line["calls"],
             "in_tokens": in_tokens, "visible_tokens": visible, "billed": billed,
             "cost": usd(""), "batch_cost": usd("batch_"), "max_request_tokens": max_tokens}
 
@@ -813,8 +816,8 @@ def compute(
         inputs["ablation_items"], inputs["out_chars"], inputs["judge_reply_chars"], tmp_dir)
     ablation = ablation_lines(per_strategy)
 
-    def price(step: str, lines: dict[str, Any], roles: tuple[str, ...] = ("generator", "judge")):
-        return [price_line(step, role, lines[role], declared, rows, bands) for role in roles]
+    def price(step: str, lines: dict[str, Any], components: tuple[str, ...] = ("generator", "judge")):
+        return [price_line(step, component, lines[component], declared, rows, bands) for component in components]
 
     proxy_rows = price("Layer 3 alignment", alignment)
     bare_rows = price("Layer 3 alignment", without)
@@ -864,14 +867,14 @@ def _band(cost: dict[str, float]) -> str:
 
 def _step_row(row: dict[str, Any]) -> str:
     billed = row["billed"]
-    return (f"| {row['step']} | {row['role']} ({row['model']}) | {round(row['calls']):,} "
+    return (f"| {row['step']} | {row['component']} ({row['model']}) | {round(row['calls']):,} "
             f"| {round(row['in_tokens']):,} | {round(row['visible_tokens']):,} "
             f"| {round(billed['central']):,} ({round(billed['low']):,} to {round(billed['high']):,}) "
             f"| {_usd(row['cost']['low'])} | {_usd(row['cost']['central'])} | {_usd(row['cost']['high'])} |")
 
 
 STEP_HEADER = [
-    "| Step | Role (model) | Calls | Input tokens | Visible output tokens "
+    "| Step | Model component (model) | Calls | Input tokens | Visible output tokens "
     "| Billed output tokens, central (low to high) | Low USD | Central USD | High USD |",
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
 ]
@@ -879,15 +882,15 @@ STEP_HEADER = [
 
 def _reasoning_share_lines(res: dict[str, Any], low_sources: dict[str, str]) -> list[str]:
     lines = []
-    for role in ("generator", "judge"):
-        b = res["bands"][role]
-        found = res.get("measured", {}).get(role)
+    for component in ("generator", "judge"):
+        b = res["bands"][component]
+        found = res.get("measured", {}).get(component)
         if found:
-            lines.append(f"- {role}: measured {found['share']:.3f} at every level (B133, {', '.join(found['files'])}; "
+            lines.append(f"- {component}: measured {found['share']:.3f} at every level (B133, {', '.join(found['files'])}; "
                          f"{found['replies']} replies; {found['reasoning']:,} reasoning tokens of "
                          f"{found['output']:,} output tokens).")
         else:
-            lines.append(f"- {role}: low {b['low']:.3f} ({low_sources[role]}), central {b['central']:.2f} "
+            lines.append(f"- {component}: low {b['low']:.3f} ({low_sources[component]}), central {b['central']:.2f} "
                          f"(reasoning_share_central above), high {b['high']:.2f} (reasoning_share_high above).")
     return lines
 
@@ -900,16 +903,16 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "> Generated by scripts/estimate_benchmark_cost.py (B120). No model was called,",
         "> no API key was read and no network was touched. Every step ran the real",
         "> pipeline code with counting clients, so every prompt is the one a live run",
-        "> sends. Token counts are characters over a measured per-provider ratio, and",
+        "> sends. Token counts are characters over a measured per model developer ratio, and",
         "> output carries a declared reasoning band. This is an estimate, not a measurement.",
         "",
         "## Models and prices",
         "",
     ]
-    for role in ("generator", "judge"):
-        model, row = declared[role], rows[role]
+    for component in ("generator", "judge"):
+        model, row = declared[component], rows[component]
         lines.append(
-            f"- The {role} is {model.model_id} ({model.provider}, effort {model.effort}): "
+            f"- The {component} is {model.model_id} ({model.inference_backend}, effort {model.effort}): "
             f"{row['input']:.2f} USD in / {row['output']:.2f} USD out per MTok, Batch "
             f"{row['batch_input']:.2f} / {row['batch_output']:.2f}; "
             f"{row['pricing']['url']}, read {row['pricing']['read_on']}.")
@@ -957,7 +960,7 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "provisional, awaiting Jose), so the figure errs high. At the pilot's N, take the total "
         f"and add (N minus {n}) times the one-repetition cost.",
         "",
-        "Per-strategy dry-run counts of one repetition (visible output at the provider ratio):",
+        "Per-strategy dry-run counts of one repetition (visible output at the model developer ratio):",
         "",
         "| Strategy | Generator calls | Gen in-tokens | Gen out-tokens (visible) | Judge calls "
         "| Judge in-tokens | Judge out-tokens (visible) |",
@@ -1012,7 +1015,7 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "",
         "## Batch",
         "",
-        f"- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both providers) "
+        f"- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) "
         f"would cost {_band(res['batch_total'])}. It is a lever and not in the total: the clients call "
         "the synchronous APIs.",
         "",
@@ -1023,7 +1026,7 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "",
         "The band takes the low input and the low reasoning share at its low end, and the high input and "
         f"the high reasoning share at its high end. It includes the ablation at N = {n}.",
-        *(["A measured role's reasoning share is the same at both ends of the band."]
+        *(["A measured model component's reasoning share is the same at both ends of the band."]
           if res.get("measured") else []),
         "",
     ]
@@ -1070,7 +1073,7 @@ def load_inputs() -> dict[str, Any]:
     }
 
 
-LOW_SOURCE = ("measured at the provider default in the aborted B74 extraction: billed output per call "
+LOW_SOURCE = ("measured at the API default in the aborted B74 extraction: billed output per call "
               "against the visible reply the stored norms and verdicts give, default_reasoning_shares")
 
 

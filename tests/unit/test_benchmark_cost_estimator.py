@@ -50,7 +50,7 @@ def test_counting_client_records_and_replies():
     assert client.prompt_chars == len("system prompt") + len("user text")
 
 
-def test_tokens_use_the_providers_own_ratio_not_four():
+def test_tokens_use_the_tokenizers_own_ratio_not_four():
     assert est.tokens(412, "openai") == 100
     assert est.tokens(292, "anthropic") == 100
     assert est.tokens(400, "openai") != int(round(400 / 4.0))
@@ -126,7 +126,7 @@ PRICES_PATH = ROOT / "config" / "model_prices.json"
 
 def _price_row(**over):
     row = {
-        "provider": "openai", "currency": "USD",
+        "inference_backend": "openai", "currency": "USD",
         "input": "1.00", "output": "2.00", "batch_input": "0.50", "batch_output": "1.00",
         "pricing": {"url": "https://example.com/pricing", "read_on": "2026-10-04"},
         "quote": "mock line",
@@ -180,9 +180,9 @@ def test_declared_models_reads_the_two_ids_with_their_declared_rows():
     declared = est.declared_models(
         {"TERE4AI_GENERATOR_MODEL": "gpt-6-astra", "TERE4AI_JUDGE_MODEL": "claude-opus-5-5"})
     assert declared["generator"].model_id == "gpt-6-astra"
-    assert declared["generator"].provider == "openai" and declared["generator"].effort == "xhigh"
+    assert declared["generator"].inference_backend == "openai" and declared["generator"].effort == "xhigh"
     assert declared["judge"].model_id == "claude-opus-5-5"
-    assert declared["judge"].provider == "anthropic" and declared["judge"].effort == "xhigh"
+    assert declared["judge"].inference_backend == "anthropic" and declared["judge"].effort == "xhigh"
 
 
 @pytest.mark.parametrize("missing", ["TERE4AI_GENERATOR_MODEL", "TERE4AI_JUDGE_MODEL"])
@@ -343,7 +343,7 @@ def test_the_alignment_dry_run_calls_the_generator_once_per_accepted_norm(tmp_pa
     assert lines["judge"]["in_chars"] > 0 and lines["judge"]["out_chars"] > 0
 
 
-def test_the_backlog_dry_run_makes_one_call_per_role(tmp_path):
+def test_the_backlog_dry_run_makes_one_call_per_component(tmp_path):
     norms = [_mock_norm("eu-ai-act:article-25:paragraph-1")]
     norms[0]["norm_id"] = "norm:eu-ai-act:article-25:paragraph-1:n1"
     lines = est.backlog_lines(norms, "Mock system description.", tmp_path)
@@ -363,8 +363,8 @@ def test_the_extraction_dry_run_expands_core_nodes_to_424_units():
                     reason="the aborted extraction's dump is not on disk")
 def test_the_characters_per_token_ratios_recompute_from_the_aborted_run():
     measured = est.recompute_chars_per_token()
-    for provider in ("openai", "anthropic"):
-        assert measured[provider] == pytest.approx(est.RATIOS[f"chars_per_token_{provider}"]["value"],
+    for model_developer in ("openai", "anthropic"):
+        assert measured[model_developer] == pytest.approx(est.RATIOS[f"chars_per_token_{model_developer}"]["value"],
                                                    rel=0.01)
 
 
@@ -460,12 +460,12 @@ def test_the_report_names_both_models_with_effort_and_each_price_with_its_page_a
     assert "10.00 USD in" in mock_report and "20.00 USD out" in mock_report
 
 
-def test_the_report_has_one_row_per_step_and_role(mock_report):
+def test_the_report_has_one_row_per_step_and_component(mock_report):
     for step in ("Layer 2 extraction", "Layer 3 alignment", "Control backlog",
                  "E6 elicitation", "E6 ablation, one repetition"):
         assert step in mock_report
     row = next(line for line in mock_report.splitlines() if line.startswith("| Layer 2 extraction | generator"))
-    assert len(row.split("|")) == 11  # step, role, calls, in, visible, billed, low, central, high
+    assert len(row.split("|")) == 11  # step, model component, calls, in, visible, billed, low, central, high
 
 
 def test_the_report_prices_the_ablation_per_repetition_and_at_n(mock_report):
@@ -496,7 +496,7 @@ def test_the_report_ends_with_the_total_and_its_band(mock_report):
     assert low < total < high
 
 
-def test_the_report_counts_tokens_with_the_provider_ratio(mock_report):
+def test_the_report_counts_tokens_with_the_model_developer_ratio(mock_report):
     # the elicitation row: 1 call, 20000 + 400 characters in, at the generator's ratio
     row = next(line for line in mock_report.splitlines() if line.startswith("| E6 elicitation"))
     in_tokens = int(row.split("|")[4].strip().replace(",", ""))
@@ -542,7 +542,7 @@ def test_the_report_labels_the_rationale_substitution_as_a_proxy(mock_report):
     assert "errs high" not in section and "inside the stated band" not in section
 
 
-# B133: a measured reasoning share replaces the declared band for its role.
+# B133: a measured reasoning share replaces the declared band for its model component.
 
 
 def _declared_pair():
@@ -563,7 +563,7 @@ def _record(tmp_path, executions, name="rec.json"):
     return path
 
 
-def test_a_measured_share_replaces_the_declared_band_for_its_role_only(tmp_path):
+def test_a_measured_share_replaces_the_declared_band_for_its_component_only(tmp_path):
     path = _record(tmp_path, [
         {"models": {"generator_model": "gen-x", "judge_model": "judge-y"},
          "usage": {"generator": _usage(30, 100), "judge": None}},

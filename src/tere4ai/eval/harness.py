@@ -313,7 +313,7 @@ def _own_usage(generator: Any, judge: Any) -> dict[str, Any] | None:
 
 def _declared_sampling_or_none(generator: Any, judge: Any) -> dict[str, str | None] | None:
     """The declared sampling the record stores, as run_ablations stores it
-    (spec F D-F29), the judge-role keys null when no judge was built; None
+    (spec F D-F29), the judge keys null when no judge was built; None
     when no client was built here or an offline stub reports none of the
     values, as before B99."""
     if generator is None:

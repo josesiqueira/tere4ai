@@ -42,25 +42,25 @@ class ModelClient(Protocol):
         ...
 
 
-# B91 (spec F D-F26 (g)): beside the provider-reported token sums, every
+# B91 (spec F D-F26 (g)): beside the token sums the inference backend reports, every
 # client counts the requests it sent and the replies that reported usage,
 # so a total can say whether it is complete: sent > with usage means some
 # request may have been billed without a figure. Final review A3: a sixth
-# count, requests_refused, counts the failed attempts the provider answered
+# count, requests_refused, counts the failed attempts the inference backend answered
 # with an HTTP error status (a 429 or a 5xx included), so a paid run can tell
 # a refused request from one that failed without a reply (connection error,
 # timeout, interrupt) and may have been billed. requests_sent counts every
 # attempt the SDK sent, a 400 refusing a declared parameter included; a
 # refusal the SDK raises before sending is not a request sent (spec F D-F29).
 # Spec F D-F32: a seventh count, requests_rejected_before_processing, counts
-# the attempts the provider answered with one of the seven statuses below,
-# known by the status alone (the D-F26 (e) class, which the providers are
+# the attempts the inference backend answered with one of the seven statuses below,
+# known by the status alone (the D-F26 (e) class, which the inference backends are
 # taken not to bill: Anthropic's billing guidance; for OpenAI inferred, no
 # invoice checked). It is a subset of requests_refused, and each such attempt stays in
 # requests_sent. The name spells the class out so it is never read as
 # requests_refused; the dashboard pins its own copy of the seven (spend.ts).
 # B133: an eighth and ninth count, reasoning_tokens and replies_with_reasoning,
-# record the reasoning part the provider reports inside the output figure
+# record the reasoning part the inference backend reports inside the output figure
 # (never added to output_tokens); replies_with_reasoning counts the replies that
 # reported it with a complete usage block, so it is at most replies_with_usage.
 USAGE_KEYS = ("calls", "input_tokens", "output_tokens", "requests_sent", "replies_with_usage",
@@ -90,7 +90,7 @@ def usage_since(client: object, before: dict[str, int] | None) -> dict[str, int]
 # Spec F D-F29 (2026-09-27): each model's temperature, effort and JSON mode
 # are declared in config/model_parameters.json and sent as declared on every
 # request; a parameter declared N/A is never sent. Nothing is learned: a
-# declared parameter the provider or its SDK refuses is a configuration error
+# declared parameter the inference backend or its SDK refuses is a configuration error
 # (DeclaredParameterRefused) that stops the run. A client built without a
 # declaration (the offline tests build clients with __new__) sends none of
 # the three and reports "not declared".
@@ -98,12 +98,12 @@ NOT_DECLARED = "not declared"
 
 
 def declared_sampling(generator: object, judge: object | None) -> dict[str, str | None]:
-    """The execution record's sampling (spec F D-F29): each role's declared
-    temperature under the keys the records have always used and again under
-    <role>_temperature (review X-C1), the declared efforts and the generator's
-    JSON mode; "unknown" for a stub without them. A run that built no judge
-    (the harness without a condition that calls the runtime judge, a judge
-    constructor that raised) gets null judge-role keys, as its records
+    """The execution record's sampling (spec F D-F29): each model component's
+    declared temperature under the keys the records have always used and again
+    under <component>_temperature (review X-C1), the declared efforts and the
+    generator's JSON mode; "unknown" for a stub without them. A run that built no
+    judge (the harness without a condition that calls the runtime judge, a judge
+    constructor that raised) gets null judge keys, as its records
     stored before B99."""
     def field(client: object, name: str) -> str | None:
         return None if client is None else str(getattr(client, name, "unknown"))
@@ -124,12 +124,12 @@ class RetryPolicy:
     """How a client meets a failure that may pass (spec F D-F30), chosen by the
     caller at construction. pauses[n] is the wait before attempt n + 2, so a
     policy makes len(pauses) + 1 attempts. retry_after_lengthens_only: a
-    provider's Retry-After only lengthens a pause (terminal) instead of
+    inference backend's Retry-After only lengthens a pause (terminal) instead of
     replacing it (service); either way it is capped at retry_after_cap.
     retry_after_reads_dates_and_ms: the header is read in milliseconds, in
     seconds or as a date (terminal), or in seconds only, as before B99
     (service). stop_on_refusal: a failure no retry fixes is raised as
-    ProviderRefused (terminal) or as the SDK's own error (service)."""
+    InferenceBackendRefused (terminal) or as the SDK's own error (service)."""
 
     name: str
     pauses: tuple[float, ...]
@@ -166,7 +166,7 @@ SERVICE_POLICY = RetryPolicy(name="service", pauses=(1.0, 4.0), retry_after_cap=
 # The terminal runs with a checkpoint and a resume (extract_norms, align_hleg,
 # scripts/run_ablations.py, scripts/elicit_benchmark_features.py): five growing pauses, an alert line on standard
 # error before each, a quota refusal never waited out, a refusal no retry
-# fixes raised as ProviderRefused, and a stop the command records and
+# fixes raised as InferenceBackendRefused, and a stop the command records and
 # resumes (spec F D-F30).
 TERMINAL_POLICY = RetryPolicy(name="terminal", pauses=(10.0, 30.0, 90.0, 270.0, 600.0), retry_after_cap=600.0,
                               retry_after_lengthens_only=True, retry_after_reads_dates_and_ms=True,
@@ -174,25 +174,25 @@ TERMINAL_POLICY = RetryPolicy(name="terminal", pauses=(10.0, 30.0, 90.0, 270.0, 
                               stop_on_refusal=True)
 
 
-class ProviderUnavailable(Exception):
+class InferenceBackendUnavailable(Exception):
     """The terminal policy's stop (spec F D-F30): the last attempt failed for a
     reason that may pass. Not a RuntimeError or ValueError, so no per-item or
     parse handler absorbs it; the terminal commands record it and print the
     resume command."""
 
     def __init__(self, attempts: int, cause: str):
-        super().__init__(f"provider unavailable after {attempts} attempts: {cause}")
+        super().__init__(f"inference backend unavailable after {attempts} attempts: {cause}")
         self.attempts, self.cause = attempts, cause
 
 
-class ProviderRefused(Exception):
-    """The terminal policy's refusal (spec F D-F30, review T-I1): the provider
+class InferenceBackendRefused(Exception):
+    """The terminal policy's refusal (spec F D-F30, review T-I1): the inference backend
     answered with a status no retry fixes (a 4xx other than 408, 409 and a
     passable 429; a quota 429), or the SDK refused the request before
     sending. The run stops at once; never an item's error."""
 
     def __init__(self, cause: str):
-        super().__init__(f"provider refused the request: {cause}")
+        super().__init__(f"inference backend refused the request: {cause}")
         self.cause = cause
 
 
@@ -229,7 +229,7 @@ def _is_retryable(exc: BaseException, policy: RetryPolicy) -> bool:
 
 def _status_or_error(exc: BaseException) -> str:
     """The cause in a stop reason, an alert line and a configuration error:
-    "HTTP 529: <first line of the provider's message, cut to 200 characters>"
+    "HTTP 529: <first line of the inference backend's message, cut to 200 characters>"
     (or "HTTP 529" when the message is empty), or the error's class and first
     line for a failure without a status; the dashboard's failureText prints
     the same (coordinator ruling S1 of B101)."""
@@ -257,7 +257,7 @@ def _retry_after_header_seconds(exc: BaseException) -> float | None:
 
 
 def retry_after_seconds(exc: BaseException, now: datetime) -> float | None:
-    """The provider's requested wait: retry-after-ms when present, else
+    """The inference backend's requested wait: retry-after-ms when present, else
     Retry-After in seconds or as an HTTP date; None when absent or unreadable."""
     response = getattr(exc, "response", None)
     headers = getattr(response, "headers", None) if response is not None else None
@@ -334,7 +334,7 @@ class _SamplingRecord:
         self.usage["requests_sent"] = self.usage.get("requests_sent", 0) + 1
 
     def _count_refused(self, exc: BaseException) -> None:
-        """A failed attempt the provider answered with an HTTP error status
+        """A failed attempt the inference backend answered with an HTTP error status
         (any numeric status_code) is refused (final review A3); a connection
         error, a timeout or an interrupt carries no status and is not. One of
         the seven statuses is also rejected before processing (spec F D-F32)."""
@@ -347,7 +347,7 @@ class _SamplingRecord:
 
     def _count_reply(self, reported: object, input_field: str, output_field: str,
                      reasoning_path: tuple[str, str] | None = None) -> None:
-        """One reply received: add the provider's token figures; count the reply as
+        """One reply received: add the inference backend's token figures; count the reply as
         reporting usage only when both figures are integers (a partial block is
         not a complete report). reasoning_path names the details attribute and
         the field holding the reasoning part of the output figure (B133); a
@@ -376,7 +376,7 @@ class _SamplingRecord:
         one shape both repositories print (review X-M1); the pause in whole
         seconds rounded up, as the dashboard prints it (B101 ruling S1)."""
         when = self._now().astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-        print(f"ALERT {when} {self.provider}:{self.model}: {_status_or_error(exc)}; attempt {failed_attempt} "
+        print(f"ALERT {when} {self.inference_backend}:{self.model}: {_status_or_error(exc)}; attempt {failed_attempt} "
               f"of {attempts} failed; next attempt in {math.ceil(pause)} s", file=sys.stderr, flush=True)
 
     def _send(self, do_request, parameter_named):
@@ -386,8 +386,8 @@ class _SamplingRecord:
         sending that names one (not counted), is DeclaredParameterRefused at
         once. A failure that may pass is sent again after the policy's pause;
         when the attempts run out, the terminal policy raises
-        ProviderUnavailable and the service policy raises the last error. A
-        failure no retry fixes is ProviderRefused under the terminal policy
+        InferenceBackendUnavailable and the service policy raises the last error. A
+        failure no retry fixes is InferenceBackendRefused under the terminal policy
         and the SDK's own error under the service policy. An interrupt, in a
         request or in a pause, is raised at once."""
         policy = self._retry_policy
@@ -400,23 +400,23 @@ class _SamplingRecord:
                 parameter = parameter_named(exc)
                 if parameter is not None and (status == 400 or (status is None and not _is_connection_error(exc))):
                     if status is not None:
-                        self._count_sent()  # the provider answered: a request sent (spec F D-F29)
+                        self._count_sent()  # the inference backend answered: a request sent (spec F D-F29)
                         self._count_refused(exc)
                     raise DeclaredParameterRefused(
-                        self.provider, self.model, parameter, self._declared_value(parameter),
+                        self.inference_backend, self.model, parameter, self._declared_value(parameter),
                         _status_or_error(exc),
                     ) from exc
                 self._count_sent()  # it may have been billed; count every physical attempt
                 self._count_refused(exc)
                 if not _is_retryable(exc, policy):
                     # a lost connection is always retryable, so every failure here is a
-                    # provider answer or an SDK error raised before sending (ruling P21)
+                    # inference backend's answer or an SDK error raised before sending (ruling P21)
                     if policy.stop_on_refusal:
-                        raise ProviderRefused(_status_or_error(exc)) from exc
+                        raise InferenceBackendRefused(_status_or_error(exc)) from exc
                     raise
                 if retries_used == len(policy.pauses):
                     if policy.stop_when_exhausted:
-                        raise ProviderUnavailable(policy.attempts, _status_or_error(exc)) from exc
+                        raise InferenceBackendUnavailable(policy.attempts, _status_or_error(exc)) from exc
                     raise
                 retry_after = (retry_after_seconds(exc, self._now()) if policy.retry_after_reads_dates_and_ms
                                else _retry_after_header_seconds(exc))
@@ -439,7 +439,7 @@ class OpenAIGenerator(_SamplingRecord):
     Sends the model's declared temperature (0), JSON mode and reasoning
     effort, each only where the table declares it (spec F D-F29); a refusal
     of one is DeclaredParameterRefused, never learned. .usage accumulates
-    provider-reported token counts plus requests_sent, replies_with_usage,
+    the token counts the inference backend reports plus requests_sent, replies_with_usage,
     requests_refused (spec F D-F26 (g)) and requests_rejected_before_processing
     (spec F D-F32). B133: it also records the reasoning part of
     completion_tokens (completion_tokens_details.reasoning_tokens) as
@@ -447,7 +447,7 @@ class OpenAIGenerator(_SamplingRecord):
     (max_retries=0); the retry policy is the caller's (spec F D-F30).
     """
 
-    provider = "openai"
+    inference_backend = "openai"
 
     def __init__(self, cfg: ModelConfig | GeneratorConfig, retry_policy: RetryPolicy = SERVICE_POLICY):
         from openai import OpenAI  # imported lazily so offline tests need no SDK
@@ -492,7 +492,7 @@ class OpenAIGenerator(_SamplingRecord):
 
 
 class OpenAIDemoJudge(OpenAIGenerator):
-    """DEC-24's demo judge: an OpenAI model in the judge's role, built from its
+    """DEC-24's demo judge: an OpenAI model as the judge, built from its
     own configuration (TERE4AI_DEMO_JUDGE_MODEL, its declared row), never from
     DEC-07's judge settings. It sends what its row declares, as the generator
     does; only the facade's judge routes build it.
@@ -518,7 +518,7 @@ class AnthropicJudge(_SamplingRecord):
     the thinking counts against max_tokens: the former 2048 would have
     truncated the judge's JSON mid-rationale. Only text blocks are returned; thinking
     blocks (empty by default) are skipped. .usage accumulates
-    provider-reported token counts plus requests_sent, replies_with_usage,
+    the token counts the inference backend reports plus requests_sent, replies_with_usage,
     requests_refused (spec F D-F26 (g)) and requests_rejected_before_processing
     (spec F D-F32); a response without a complete
     usage block adds to calls and requests_sent only (thinking tokens are
@@ -528,7 +528,7 @@ class AnthropicJudge(_SamplingRecord):
     the retry policy is the caller's (spec F D-F30).
     """
 
-    provider = "anthropic"
+    inference_backend = "anthropic"
 
     def __init__(self, cfg: ModelConfig, max_tokens: int = 16000, retry_policy: RetryPolicy = SERVICE_POLICY):
         import anthropic  # imported lazily so offline tests need no SDK

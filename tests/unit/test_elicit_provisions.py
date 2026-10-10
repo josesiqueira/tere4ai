@@ -119,7 +119,7 @@ def test_template_without_placeholders_is_identity(dump: dict) -> None:
 
 def test_fact_provisions_reads_the_section() -> None:
     template = (
-        "# Role\n"
+        "# Instructions\n"
         "{{provision:eu-ai-act:definition:ai-system}}\n"
         "## Facts and their provisions\n"
         "- Facts: flags.social_scoring\n"
@@ -144,7 +144,7 @@ def test_fact_provisions_reads_the_section() -> None:
 
 
 def test_fact_provisions_without_the_section_is_empty() -> None:
-    assert fact_provisions("# Role\n{{provision:eu-ai-act:definition:ai-system}}\n") == {}
+    assert fact_provisions("# Instructions\n{{provision:eu-ai-act:definition:ai-system}}\n") == {}
 
 
 def test_fact_provisions_rejects_a_placeholder_before_any_facts_line() -> None:
@@ -361,7 +361,7 @@ def test_v7_renders_on_the_published_graph_with_no_deleted_provision(dump) -> No
                                                   "eu-ai-act:annex-i:section-b:point-21"}
 
 
-def test_v7_keeps_v6s_role_rules_and_output() -> None:
+def test_v7_keeps_v6s_opening_rules_and_output() -> None:
     v6, v7 = _v6_text(), _v7_text()
     assert v7.startswith(v6[: v6.index('- "flags": an object of booleans')])
     for part in ("Rules, all binding:", "## Output"):

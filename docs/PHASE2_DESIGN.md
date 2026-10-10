@@ -177,7 +177,7 @@ project text. Proposed design:
 Restating Section 9 so hosted-tenant expectations are honest:
 
 - Tier 1: hosted graph plus cloud LLM. This is Mode A. Tenant evidence text
-  sent to /api/evidence and /api/backlog reaches the cloud model providers
+  sent to /api/evidence and /api/backlog reaches the cloud inference backends
   (OpenAI generator, Anthropic judge, Section 7), which are not EU-controlled.
   EU hosting of the graph and facade does NOT make the paid endpoints
   EU-contained, and the platform must say so in its discovery metadata.

@@ -250,9 +250,9 @@ def test_an_unusable_window_is_refused_by_name(monkeypatch, bad):
         replay.window_seconds()
 
 
-def test_a_provider_failure_is_not_kept_and_the_retry_pays(world):
-    world.set_clients([RuntimeError("provider unavailable"), GENERATOR_REPLY], [JUDGE_REPLY])
-    with pytest.raises(RuntimeError, match="provider unavailable"):
+def test_a_backend_failure_is_not_kept_and_the_retry_pays(world):
+    world.set_clients([RuntimeError("inference backend unavailable"), GENERATOR_REPLY], [JUDGE_REPLY])
+    with pytest.raises(RuntimeError, match="inference backend unavailable"):
         world.evaluate()
     answer = world.evaluate()
     assert world.generator.calls == 2
@@ -311,7 +311,7 @@ def test_two_concurrent_identical_calls_make_one_model_call(world):
 def test_a_waiting_call_pays_itself_when_the_first_fails(world):
     release = threading.Event()
     world.set_clients(
-        [RuntimeError("provider unavailable"), GENERATOR_REPLY], [JUDGE_REPLY], hold=release
+        [RuntimeError("inference backend unavailable"), GENERATOR_REPLY], [JUDGE_REPLY], hold=release
     )
     results = {}
 
@@ -390,7 +390,7 @@ def _usage(calls, input_tokens, output_tokens):
 
 def _backlog_like_envelope():
     """The shape generate_control_backlog's answer carries (backlog.py spend()):
-    answer.usage holds one usage record per role, or None for a client
+    answer.usage holds one usage record per model component, or None for a client
     without one; a batch result carries its own answer.usage the same way."""
     return {
         "answer": {
@@ -423,7 +423,7 @@ def test_a_repeated_answer_reports_zero_usage_and_the_first_keeps_its_own():
     usage = second["answer"]["usage"]
     assert usage["generator"] == dict.fromkeys(USAGE_KEYS, 0)
     assert usage["judge"] == dict.fromkeys(USAGE_KEYS, 0)
-    assert usage["stub"] is None, "a role without a usage record stays None"
+    assert usage["stub"] is None, "a model component without a usage record stays None"
     batch_usage = second["answer"]["results"][0]["answer"]["usage"]
     assert batch_usage == {"generator": dict.fromkeys(USAGE_KEYS, 0), "judge": None}
     assert second["answer"]["generator_model"] == "fake-generator", "only counts change"

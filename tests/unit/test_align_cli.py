@@ -119,7 +119,7 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
     assert ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0} and ex["prompt_sha256"]["judge"]
     assert ex["counts"]["norms_total"] == 3 and ex["counts"]["candidates"] is None, "a count the stats lack is null"
     assert ex["counts"]["norms_skipped_not_accepted"] is None and ex["counts"]["zero_alignment_norms"] is None
-    # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
+    # B99 (spec F D-F29): the declared temperature under <component>_temperature and the declared JSON mode are recorded too
     assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_temperature": "0", "judge_temperature": "0",
                               "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
     out_payload = json.loads(out.read_text())
@@ -308,7 +308,7 @@ def test_ctrl_c_ends_the_align_execution_failed_with_the_spend_so_far(tmp_path, 
     assert ex["status"] == "failed" and ex["error"] == "KeyboardInterrupt: " and ex["ended_at"]
     assert ex["completed_keys"] == [f"batch:0:{norms[0]['norm_id']}"] and ex["usage"]["generator"]["calls"] == 1
     # review fix F2: the failed attempt records what the clients applied, not the start value
-    # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
+    # B99 (spec F D-F29): the declared temperature under <component>_temperature and the declared JSON mode are recorded too
     assert ex["sampling"] == {"generator": "0", "judge": "0", "generator_temperature": "0", "judge_temperature": "0",
                               "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
     assert out.with_suffix(".checkpoint.jsonl").is_file(), "the checkpoint stays for resume"
@@ -406,10 +406,10 @@ def test_a_sighup_ends_the_align_execution_failed_and_each_batch_writes_the_usag
     assert ex["status"] == "failed" and "SIGHUP" in ex["error"] and ex["usage"]["judge"]["calls"] == 1
 
 
-def test_a_provider_stop_ends_the_align_execution_failed_and_prints_the_resume(tmp_path, monkeypatch, capsys):
+def test_a_backend_stop_ends_the_align_execution_failed_and_prints_the_resume(tmp_path, monkeypatch, capsys):
     """B99 (spec F D-F30)."""
     import tere4ai.align_hleg.__main__ as cli
-    from tere4ai.extract_norms.model_clients import TERMINAL_POLICY, ProviderUnavailable
+    from tere4ai.extract_norms.model_clients import TERMINAL_POLICY, InferenceBackendUnavailable
 
     norms_path, layer1, norms = _norms_file(tmp_path, 3)
     out = tmp_path / "alignments_test.json"
@@ -419,7 +419,7 @@ def test_a_provider_stop_ends_the_align_execution_failed_and_prints_the_resume(t
 
     def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
         if chunk[0]["norm_id"].endswith(":n2"):
-            raise ProviderUnavailable(6, "APIConnectionError: Connection error.")
+            raise InferenceBackendUnavailable(6, "APIConnectionError: Connection error.")
         return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
 
     monkeypatch.setattr(cli, "align_norms", stop_on_the_second_batch)
@@ -429,7 +429,7 @@ def test_a_provider_stop_ends_the_align_execution_failed_and_prints_the_resume(t
     store = BuildRecordStore(tmp_path)
     (ex,) = store.read(store.resolve("test"))["executions"]
     assert ex["status"] == "failed"
-    assert ex["error"] == "provider unavailable after 6 attempts: APIConnectionError: Connection error."
+    assert ex["error"] == "inference backend unavailable after 6 attempts: APIConnectionError: Connection error."
     assert out.with_suffix(".checkpoint.jsonl").is_file()
     err = capsys.readouterr().err
     assert "(1 of 2 batches done); continue with:" in err
@@ -437,8 +437,8 @@ def test_a_provider_stop_ends_the_align_execution_failed_and_prints_the_resume(t
 
 
 def test_a_refused_declared_parameter_ends_the_align_execution_failed_and_exits_4(tmp_path, monkeypatch, capsys):
-    """B99 (spec F D-F29) final review: a declared parameter the provider
-    refused stops the run with the configuration error; the checkpoint of
+    """B99 (spec F D-F29) final review: a declared parameter the inference
+    backend refused stops the run with the configuration error; the checkpoint of
     the batches done stays and no resume command is printed (the row is
     corrected first)."""
     import tere4ai.align_hleg.__main__ as cli

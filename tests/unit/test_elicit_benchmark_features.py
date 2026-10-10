@@ -1,6 +1,6 @@
 """scripts/elicit_benchmark_features.py is a terminal run (spec F D-F30, B101
-ruling S4): it builds its generator with the terminal policy, and a provider
-stop or refusal keeps the checkpoint and prints the command that resumes it.
+ruling S4): it builds its generator with the terminal policy, and an inference
+backend stop or refusal keeps the checkpoint and prints the command that resumes it.
 Offline: the model config, the client and the elicitor are replaced.
 
 B10: the run elicits with elicit() over the build load_active serves, and
@@ -24,8 +24,8 @@ from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
 from tere4ai.elicit_features.provisions import ProvisionUnresolved
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
-    ProviderRefused,
-    ProviderUnavailable,
+    InferenceBackendRefused,
+    InferenceBackendUnavailable,
 )
 from tere4ai.graph_store.publication import LoadedBuild
 from tere4ai.judge.config import DeclaredParameterRefused, ModelConfig
@@ -81,18 +81,18 @@ def _script(monkeypatch, fail_on=None, failure=None, cfg=None, prompt=None, load
     return mod, policies
 
 
-def test_a_provider_stop_keeps_the_checkpoint_prints_the_resume_and_a_rerun_finishes(tmp_path, monkeypatch, capsys):
+def test_a_backend_stop_keeps_the_checkpoint_prints_the_resume_and_a_rerun_finishes(tmp_path, monkeypatch, capsys):
     out = tmp_path / "features.json"
     argv = ["--out", str(out)]
     mod, policies = _script(monkeypatch, fail_on=ITEMS[1]["system_text"],
-                            failure=ProviderUnavailable(6, "HTTP 529"))
+                            failure=InferenceBackendUnavailable(6, "HTTP 529"))
     assert mod.main(argv) == 3
     assert policies == [TERMINAL_POLICY]
     ckpt = out.with_suffix(".checkpoint.jsonl")
     assert [json.loads(line)["item_id"] for line in ckpt.read_text().splitlines()] == ["bench:1"]
     assert not out.exists()
     err = capsys.readouterr().err
-    assert "stopped: provider unavailable after 6 attempts: HTTP 529" in err
+    assert "stopped: inference backend unavailable after 6 attempts: HTTP 529" in err
     assert f"the checkpoint {ckpt.name} is kept (1 of 2 items done); continue with:" in err
     assert "  " + shlex.join([".venv/bin/python", "scripts/elicit_benchmark_features.py", *argv]) in err
     mod, _ = _script(monkeypatch)
@@ -100,17 +100,17 @@ def test_a_provider_stop_keeps_the_checkpoint_prints_the_resume_and_a_rerun_fini
     assert set(json.loads(out.read_text())["features_by_item"]) == {"bench:1", "bench:2"}
 
 
-def test_a_provider_refusal_names_the_item_and_exits_5(tmp_path, monkeypatch, capsys):
+def test_a_backend_refusal_names_the_item_and_exits_5(tmp_path, monkeypatch, capsys):
     """B101 ruling S5: the item refused is fixed before the rerun, never skipped."""
-    mod, _ = _script(monkeypatch, fail_on=ITEMS[0]["system_text"], failure=ProviderRefused("HTTP 413"))
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[0]["system_text"], failure=InferenceBackendRefused("HTTP 413"))
     assert mod.main(["--out", str(tmp_path / "features.json")]) == 5
-    assert "stopped: provider refused the request: HTTP 413 (item bench:1)" in capsys.readouterr().err
+    assert "stopped: inference backend refused the request: HTTP 413 (item bench:1)" in capsys.readouterr().err
 
 
 def test_the_entries_and_the_output_name_the_declaration_and_the_config_is_loaded_once(tmp_path, monkeypatch):
     """B99 (spec F D-F29) final review M1."""
     out = tmp_path / "features.json"
-    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=ProviderUnavailable(6, "HTTP 529"))
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
     assert mod.main(["--out", str(out)]) == 3
     (entry,) = [json.loads(line) for line in out.with_suffix(".checkpoint.jsonl").read_text().splitlines()]
     assert entry["models"] == _cfg().as_public_dict() and entry["elicitor_model"] == "g"
@@ -125,7 +125,7 @@ def test_a_rerun_under_another_declaration_is_refused_by_name(tmp_path, monkeypa
     """B99 (spec F D-F29) final review M1: the cache never mixes items
     elicited under two declarations."""
     out = tmp_path / "features.json"
-    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=ProviderUnavailable(6, "HTTP 529"))
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
     assert mod.main(["--out", str(out)]) == 3
     ckpt = out.with_suffix(".checkpoint.jsonl")
     before = ckpt.read_bytes()
@@ -174,7 +174,7 @@ def test_the_entries_and_the_output_carry_quotes_dropped_facts_and_the_prompt(tm
     record; the output names the prompt once (the run is on one build) beside
     quotes_by_item, dropped_by_item and the unchanged features_by_item."""
     out = tmp_path / "features.json"
-    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=ProviderUnavailable(6, "HTTP 529"))
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
     assert mod.main(["--out", str(out)]) == 3
     (entry,) = [json.loads(line) for line in out.with_suffix(".checkpoint.jsonl").read_text().splitlines()]
     assert entry["quotes"] == QUOTES and entry["dropped"] == DROPPED and entry["prompt"] == PROMPT
@@ -207,7 +207,7 @@ def test_a_rerun_under_another_prompt_is_refused_by_name(tmp_path, monkeypatch, 
     version or template), nor over two builds, which would make the output's
     one prompt record untrue; mirrors the models check."""
     out = tmp_path / "features.json"
-    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=ProviderUnavailable(6, "HTTP 529"))
+    mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
     assert mod.main(["--out", str(out)]) == 3
     ckpt = out.with_suffix(".checkpoint.jsonl")
     before = ckpt.read_bytes()

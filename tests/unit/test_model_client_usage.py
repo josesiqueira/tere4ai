@@ -1,4 +1,4 @@
-"""Provider-reported usage accounting on the model clients (Section 13).
+"""Usage accounting, as the inference backends report it, on the model clients (Section 13).
 
 Offline: instances are built without SDK construction and given stub
 transport clients, so no network and no keys are involved.
@@ -18,9 +18,9 @@ from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     USAGE_KEYS,
     AnthropicJudge,
+    InferenceBackendRefused,
+    InferenceBackendUnavailable,
     OpenAIGenerator,
-    ProviderRefused,
-    ProviderUnavailable,
     _first_line,
     _new_usage,
     _status_or_error,
@@ -57,7 +57,7 @@ def _generator_with(responses: list) -> OpenAIGenerator:
     return gen
 
 
-def test_generator_accumulates_provider_counts():
+def test_generator_accumulates_backend_counts():
     gen = _generator_with(
         [_openai_response("a", 100, 20), _openai_response("b", 50, 5)]
     )
@@ -106,7 +106,7 @@ def _judge_with(responses: list) -> AnthropicJudge:
     return judge
 
 
-def test_judge_accumulates_provider_counts():
+def test_judge_accumulates_backend_counts():
     judge = _judge_with(
         [_anthropic_response("v", 200, 40), _anthropic_response("w", 10, 1)]
     )
@@ -171,7 +171,7 @@ def _judge_over(transport, **values) -> AnthropicJudge:
 
 
 # B99 (spec F D-F29): each model's temperature, effort and JSON mode are
-# declared and sent as declared; a declared parameter the provider or its SDK
+# declared and sent as declared; a declared parameter the inference backend or its SDK
 # refuses is a configuration error that stops the run, never learned.
 
 
@@ -217,29 +217,29 @@ def test_the_judge_sends_its_declared_temperature_and_effort_and_has_no_json_mod
      "'code': 'invalid_value'}}", "effort", "xhigh"),
 ])
 def test_a_400_naming_a_declared_parameter_stops_as_a_configuration_error(message, parameter, value):
-    transport = _Flaky([_ProviderError(message, status_code=400)])
+    transport = _Flaky([_ApiError(message, status_code=400)])
     gen = _generator_over(transport)
     gen._wait = _never_wait
     with pytest.raises(DeclaredParameterRefused) as refused:
         gen.complete("s", "u")
     assert refused.value.parameter == parameter and refused.value.value == value
-    assert refused.value.provider == "openai"
+    assert refused.value.inference_backend == "openai"
     assert str(refused.value).startswith(
         f"configuration error: openai:stub-generator refused the declared {parameter} {value} (HTTP 400: ")
     assert str(refused.value).endswith("); correct its row in config/model_parameters.json")
     assert isinstance(refused.value, ConfigurationError) and len(transport.calls) == 1
-    # a provider's 400 is a request sent, and a refused one (spec F D-F29, final review A3),
+    # an inference backend's 400 is a request sent, and a refused one (spec F D-F29, final review A3),
     # and rejected before processing (spec F D-F32)
     assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 1
     assert gen.usage["requests_rejected_before_processing"] == 1
 
 
 def test_the_judge_names_a_refused_effort():
-    transport = _Flaky([_ProviderError("output_config.effort: this model does not support effort", status_code=400)])
+    transport = _Flaky([_ApiError("output_config.effort: this model does not support effort", status_code=400)])
     judge = _judge_over(transport)
     with pytest.raises(DeclaredParameterRefused) as refused:
         judge.complete("s", "u")
-    assert (refused.value.provider, refused.value.model, refused.value.parameter, refused.value.value) == (
+    assert (refused.value.inference_backend, refused.value.model, refused.value.parameter, refused.value.value) == (
         "anthropic", "stub-judge", "effort", "xhigh")
 
 
@@ -259,9 +259,9 @@ def test_an_sdk_refusal_before_sending_stops_and_is_not_a_request_sent():
 
 
 def test_a_400_naming_a_parameter_that_was_not_sent_is_an_ordinary_error():
-    transport = _Flaky([_ProviderError("temperature is required for this model", status_code=400)])
+    transport = _Flaky([_ApiError("temperature is required for this model", status_code=400)])
     gen = _generator_over(transport, temperature="N/A")
-    with pytest.raises(_ProviderError):
+    with pytest.raises(_ApiError):
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 1
 
@@ -284,7 +284,7 @@ def test_declared_sampling_names_every_declared_value_and_unknown_for_a_stub():
                                              "judge_effort": "xhigh", "generator_json_mode": "sent"}
     assert declared_sampling(object(), object())["generator_effort"] == "unknown"
     # B99 (spec F D-F29), Task 5 review: no judge client built leaves the
-    # judge-role keys null, as the records stored before B99
+    # judge keys null, as the records stored before B99
     no_judge = declared_sampling(gen, None)
     assert no_judge["generator_effort"] == "xhigh"
     assert (no_judge["judge"], no_judge["judge_temperature"], no_judge["judge_effort"]) == (None, None, None)
@@ -298,7 +298,7 @@ def test_generator_reraises_any_other_error():
     except RuntimeError as exc:
         assert "invalid api key" in str(exc)
     else:  # pragma: no cover
-        raise AssertionError("an unrelated provider error must propagate")
+        raise AssertionError("an unrelated inference backend error must propagate")
     assert len(transport.calls) == 1
 
 
@@ -411,7 +411,7 @@ def test_usage_since_is_the_difference_and_none_without_a_record():
 # after one attempt.
 
 
-class _ProviderError(Exception):
+class _ApiError(Exception):
     """Test double for the SDKs' APIStatusError: carries status_code and a
     response with headers, without importing either SDK."""
 
@@ -452,7 +452,7 @@ class _Flaky:
 
 def test_generator_retries_a_429_then_succeeds():
     waits = []
-    transport = _Flaky([_ProviderError("rate limited", status_code=429),
+    transport = _Flaky([_ApiError("rate limited", status_code=429),
                         _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = waits.append
@@ -463,10 +463,10 @@ def test_generator_retries_a_429_then_succeeds():
 
 def test_generator_raises_after_three_consecutive_503s():
     waits = []
-    transport = _Flaky([_ProviderError("upstream overloaded", status_code=503)] * 3)
+    transport = _Flaky([_ApiError("upstream overloaded", status_code=503)] * 3)
     gen = _generator_over(transport)
     gen._wait = waits.append
-    with pytest.raises(_ProviderError):
+    with pytest.raises(_ApiError):
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 3 and gen.usage["calls"] == 0
     assert waits == [1, 4]
@@ -475,10 +475,10 @@ def test_generator_raises_after_three_consecutive_503s():
 def test_generator_does_not_retry_a_401():
     def refuse_to_wait(seconds):
         raise AssertionError("a 401 must not be retried")
-    transport = _Flaky([_ProviderError("unauthorized", status_code=401)])
+    transport = _Flaky([_ApiError("unauthorized", status_code=401)])
     gen = _generator_over(transport)
     gen._wait = refuse_to_wait
-    with pytest.raises(_ProviderError):
+    with pytest.raises(_ApiError):
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 1
 
@@ -486,7 +486,7 @@ def test_generator_does_not_retry_a_401():
 def test_generator_waits_the_retry_after_header():
     waits = []
     transport = _Flaky([
-        _ProviderError("rate limited", status_code=429, headers={"retry-after": "2"}),
+        _ApiError("rate limited", status_code=429, headers={"retry-after": "2"}),
         _openai_response("a", 1, 1),
     ])
     gen = _generator_over(transport)
@@ -498,7 +498,7 @@ def test_generator_waits_the_retry_after_header():
 def test_generator_caps_the_retry_after_wait_at_sixty_seconds():
     waits = []
     transport = _Flaky([
-        _ProviderError("rate limited", status_code=429, headers={"retry-after": "600"}),
+        _ApiError("rate limited", status_code=429, headers={"retry-after": "600"}),
         _openai_response("a", 1, 1),
     ])
     gen = _generator_over(transport)
@@ -557,7 +557,7 @@ def test_both_constructors_pass_max_retries_zero(monkeypatch):
 
 def test_judge_retries_a_429_then_succeeds():
     waits = []
-    transport = _Flaky([_ProviderError("rate limited", status_code=429),
+    transport = _Flaky([_ApiError("rate limited", status_code=429),
                         _anthropic_response("v", 2, 1)])
     judge = _judge_over(transport)
     judge._wait = waits.append
@@ -568,10 +568,10 @@ def test_judge_retries_a_429_then_succeeds():
 
 def test_judge_raises_after_three_consecutive_529s():
     waits = []
-    transport = _Flaky([_ProviderError("overloaded", status_code=529)] * 3)
+    transport = _Flaky([_ApiError("overloaded", status_code=529)] * 3)
     judge = _judge_over(transport)
     judge._wait = waits.append
-    with pytest.raises(_ProviderError):
+    with pytest.raises(_ApiError):
         judge.complete("s", "u")
     assert judge.usage["requests_sent"] == 3 and judge.usage["calls"] == 0
     assert waits == [1, 4]
@@ -580,10 +580,10 @@ def test_judge_raises_after_three_consecutive_529s():
 def test_judge_does_not_retry_a_401():
     def refuse_to_wait(seconds):
         raise AssertionError("a 401 must not be retried")
-    transport = _Flaky([_ProviderError("unauthorized", status_code=401)])
+    transport = _Flaky([_ApiError("unauthorized", status_code=401)])
     judge = _judge_over(transport)
     judge._wait = refuse_to_wait
-    with pytest.raises(_ProviderError):
+    with pytest.raises(_ApiError):
         judge.complete("s", "u")
     assert judge.usage["requests_sent"] == 1
 
@@ -591,7 +591,7 @@ def test_judge_does_not_retry_a_401():
 def test_judge_waits_the_retry_after_header():
     waits = []
     transport = _Flaky([
-        _ProviderError("rate limited", status_code=429, headers={"retry-after": "2"}),
+        _ApiError("rate limited", status_code=429, headers={"retry-after": "2"}),
         _anthropic_response("v", 2, 1),
     ])
     judge = _judge_over(transport)
@@ -617,7 +617,7 @@ def test_judge_retries_a_connection_error_then_succeeds():
 
 def test_generator_retries_a_429_naming_temperature_and_keeps_the_parameter():
     waits = []
-    transport = _Flaky([_ProviderError("rate limit on requests with temperature", status_code=429),
+    transport = _Flaky([_ApiError("rate limit on requests with temperature", status_code=429),
                         _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = waits.append
@@ -628,7 +628,7 @@ def test_generator_retries_a_429_naming_temperature_and_keeps_the_parameter():
 
 def test_judge_retries_a_529_naming_effort_and_keeps_the_parameter():
     waits = []
-    transport = _Flaky([_ProviderError("overloaded: effort queue full", status_code=529),
+    transport = _Flaky([_ApiError("overloaded: effort queue full", status_code=529),
                         _anthropic_response("v", 1, 1)])
     # B99 (spec F D-F29): declared, never learned
     judge = _judge_over(transport)
@@ -638,14 +638,14 @@ def test_judge_retries_a_529_naming_effort_and_keeps_the_parameter():
     assert judge.effort == "xhigh"
 
 
-# Final review A3: a sixth count separates a request the provider answered
+# Final review A3: a sixth count separates a request the inference backend answered
 # with an HTTP error status (refused, not billed as a generation) from one
 # that failed without a reply (connection error, timeout, interrupt: it may
 # have been billed). requests_sent keeps counting every attempt.
 
 
 def test_a_retried_429_counts_one_refused_request():
-    transport = _Flaky([_ProviderError("rate limited", status_code=429), _openai_response("a", 1, 1)])
+    transport = _Flaky([_ApiError("rate limited", status_code=429), _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = lambda seconds: None
     gen.complete("s", "u")
@@ -654,9 +654,9 @@ def test_a_retried_429_counts_one_refused_request():
 
 
 def test_a_non_retryable_status_is_refused_too():
-    transport = _Flaky([_ProviderError("unauthorized", status_code=401)])
+    transport = _Flaky([_ApiError("unauthorized", status_code=401)])
     judge = _judge_over(transport)
-    with pytest.raises(_ProviderError):
+    with pytest.raises(_ApiError):
         judge.complete("s", "u")
     assert judge.usage["requests_sent"] == 1 and judge.usage["requests_refused"] == 1
 
@@ -679,7 +679,7 @@ def test_a_connection_error_or_an_interrupt_is_not_refused():
 
 
 # Spec F D-F32: a seventh count, requests_rejected_before_processing, the
-# attempts the provider answered with one of the seven statuses of D-F26 (e),
+# attempts the inference backend answered with one of the seven statuses of D-F26 (e),
 # known by the status alone. It is a subset of requests_refused, and each such
 # attempt stays in requests_sent.
 
@@ -698,13 +698,13 @@ def test_one_attempt_answered_with_a_status_counts_rejected_only_for_the_seven(s
     """Under the service policy a 408, 409, 429 or 5xx is sent again and the
     second attempt answers; any other status is raised after one attempt."""
     retried = status in (408, 409, 429) or status >= 500
-    transport = _Flaky([_ProviderError("no", status_code=status), _openai_response("a", 1, 1)])
+    transport = _Flaky([_ApiError("no", status_code=status), _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = lambda seconds: None
     if retried:
         assert gen.complete("s", "u") == "a"
     else:
-        with pytest.raises(_ProviderError):
+        with pytest.raises(_ApiError):
             gen.complete("s", "u")
     assert gen.usage["requests_sent"] == (2 if retried else 1)
     assert gen.usage["requests_refused"] == 1
@@ -712,7 +712,7 @@ def test_one_attempt_answered_with_a_status_counts_rejected_only_for_the_seven(s
 
 
 def test_the_judge_counts_a_retried_429_as_rejected_before_processing():
-    transport = _Flaky([_ProviderError("rate limited", status_code=429), _anthropic_response("v", 1, 1)])
+    transport = _Flaky([_ApiError("rate limited", status_code=429), _anthropic_response("v", 1, 1)])
     judge = _judge_over(transport)
     judge._wait = lambda seconds: None
     assert judge.complete("s", "u") == "v"
@@ -721,27 +721,27 @@ def test_the_judge_counts_a_retried_429_as_rejected_before_processing():
 
 
 def test_the_terminal_policy_counts_the_class_on_a_refusal_and_on_a_stop():
-    gen = _terminal(_generator_over(_Flaky([_ProviderError("unauthorized", status_code=401)])))
-    with pytest.raises(ProviderRefused):
+    gen = _terminal(_generator_over(_Flaky([_ApiError("unauthorized", status_code=401)])))
+    with pytest.raises(InferenceBackendRefused):
         gen.complete("s", "u")
     assert (gen.usage["requests_sent"], gen.usage["requests_refused"],
             gen.usage["requests_rejected_before_processing"]) == (1, 1, 1)
 
-    judge = _terminal(_judge_over(_Flaky([_ProviderError("rate limited", status_code=429)] * 6)), [])
-    with pytest.raises(ProviderUnavailable):
+    judge = _terminal(_judge_over(_Flaky([_ApiError("rate limited", status_code=429)] * 6)), [])
+    with pytest.raises(InferenceBackendUnavailable):
         judge.complete("s", "u")
     assert (judge.usage["requests_sent"], judge.usage["requests_refused"],
             judge.usage["requests_rejected_before_processing"]) == (6, 6, 6)
 
-    judge = _terminal(_judge_over(_Flaky([_ProviderError("overloaded", status_code=529)] * 6)), [])
-    with pytest.raises(ProviderUnavailable):
+    judge = _terminal(_judge_over(_Flaky([_ApiError("overloaded", status_code=529)] * 6)), [])
+    with pytest.raises(InferenceBackendUnavailable):
         judge.complete("s", "u")
     assert (judge.usage["requests_sent"], judge.usage["requests_refused"],
             judge.usage["requests_rejected_before_processing"]) == (6, 6, 0)
 
 
 def test_a_retried_429_is_rejected_before_processing_and_the_reply_counts_as_usual():
-    transport = _Flaky([_ProviderError("rate limited", status_code=429), _openai_response("a", 1, 1)])
+    transport = _Flaky([_ApiError("rate limited", status_code=429), _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = lambda seconds: None
     gen.complete("s", "u")
@@ -782,11 +782,11 @@ def _terminal(client, waits=None):
 
 def test_the_terminal_policy_waits_five_growing_pauses_with_an_alert_then_stops(capsys):
     waits = []
-    transport = _Flaky([_ProviderError("overloaded", status_code=529)] * 6)
+    transport = _Flaky([_ApiError("overloaded", status_code=529)] * 6)
     judge = _terminal(_judge_over(transport), waits)
-    with pytest.raises(ProviderUnavailable) as stop:
+    with pytest.raises(InferenceBackendUnavailable) as stop:
         judge.complete("s", "u")
-    assert str(stop.value) == "provider unavailable after 6 attempts: HTTP 529: overloaded"
+    assert str(stop.value) == "inference backend unavailable after 6 attempts: HTTP 529: overloaded"
     assert waits == [10, 30, 90, 270, 600] and len(transport.calls) == 6
     assert judge.usage["requests_sent"] == 6 and judge.usage["requests_refused"] == 6 and judge.usage["calls"] == 0
     assert capsys.readouterr().err.splitlines() == [
@@ -800,7 +800,7 @@ def test_the_terminal_policy_waits_five_growing_pauses_with_an_alert_then_stops(
 def test_the_terminal_policy_carries_a_timeout_a_lost_connection_and_a_500(capsys):
     waits = []
     transport = _Flaky([APIConnectionError("Connection error."), APITimeoutError("Request timed out."),
-                        _ProviderError("boom", status_code=500), _openai_response("a", 1, 1)])
+                        _ApiError("boom", status_code=500), _openai_response("a", 1, 1)])
     gen = _terminal(_generator_over(transport), waits)
     assert gen.complete("s", "u") == "a"
     assert waits == [10, 30, 90]
@@ -813,7 +813,7 @@ def test_the_terminal_policy_carries_a_timeout_a_lost_connection_and_a_500(capsy
 def test_a_stop_after_a_lost_connection_names_the_error():
     transport = _Flaky([APIConnectionError("Connection error.")] * 6)
     gen = _terminal(_generator_over(transport), [])
-    with pytest.raises(ProviderUnavailable, match=r"^provider unavailable after 6 attempts: "
+    with pytest.raises(InferenceBackendUnavailable, match=r"^inference backend unavailable after 6 attempts: "
                                                   r"APIConnectionError: Connection error\.$"):
         gen.complete("s", "u")
     assert gen.usage["requests_refused"] == 0
@@ -822,10 +822,10 @@ def test_a_stop_after_a_lost_connection_names_the_error():
 def test_a_retry_after_only_lengthens_a_terminal_pause_and_never_past_600_s(capsys):
     waits = []
     transport = _Flaky([
-        _ProviderError("x", status_code=429, headers={"retry-after": "45"}),
-        _ProviderError("x", status_code=429, headers={"retry-after": "5"}),
-        _ProviderError("x", status_code=503, headers={"retry-after-ms": "120500"}),
-        _ProviderError("x", status_code=503, headers={"retry-after": "9999"}),
+        _ApiError("x", status_code=429, headers={"retry-after": "45"}),
+        _ApiError("x", status_code=429, headers={"retry-after": "5"}),
+        _ApiError("x", status_code=503, headers={"retry-after-ms": "120500"}),
+        _ApiError("x", status_code=503, headers={"retry-after": "9999"}),
         _openai_response("a", 1, 1),
     ])
     gen = _terminal(_generator_over(transport), waits)
@@ -837,7 +837,7 @@ def test_a_retry_after_only_lengthens_a_terminal_pause_and_never_past_600_s(caps
 
 def test_retry_after_reads_seconds_a_date_and_milliseconds():
     def headers(**h):
-        return _ProviderError("x", status_code=503, headers={k.replace("_", "-"): v for k, v in h.items()})
+        return _ApiError("x", status_code=503, headers={k.replace("_", "-"): v for k, v in h.items()})
     assert retry_after_seconds(headers(retry_after="Sun, 27 Sep 2026 12:02:00 GMT"), NOON) == 120.0
     assert retry_after_seconds(headers(retry_after="Sun, 27 Sep 2026 11:00:00 GMT"), NOON) == 0.0
     assert retry_after_seconds(headers(retry_after="7"), NOON) == 7.0
@@ -845,19 +845,19 @@ def test_retry_after_reads_seconds_a_date_and_milliseconds():
     assert retry_after_seconds(headers(retry_after_ms="nan", retry_after="3"), NOON) == 3.0
     assert retry_after_seconds(headers(retry_after="soon"), NOON) is None
     assert retry_after_seconds(headers(retry_after="-4"), NOON) is None
-    assert retry_after_seconds(_ProviderError("x", status_code=503), NOON) is None
+    assert retry_after_seconds(_ApiError("x", status_code=503), NOON) is None
     # a date in the past reads 0, so the planned pause stands
     assert TERMINAL_POLICY.pause(0, 0.0) == 10
 
 
 @pytest.mark.parametrize("refusal", [
-    _ProviderError("You exceeded your current quota", status_code=429, code="insufficient_quota"),
-    _ProviderError("quota", status_code=429, body={"error": {"code": "insufficient_quota"}}),
-    _ProviderError("quota", status_code=429, body={"code": "insufficient_quota"}),
+    _ApiError("You exceeded your current quota", status_code=429, code="insufficient_quota"),
+    _ApiError("quota", status_code=429, body={"error": {"code": "insufficient_quota"}}),
+    _ApiError("quota", status_code=429, body={"code": "insufficient_quota"}),
 ])
 def test_a_quota_refusal_stops_the_terminal_policy_at_once(refusal):
     gen = _terminal(_generator_over(_Flaky([refusal])))
-    with pytest.raises(ProviderRefused, match=r"^provider refused the request: HTTP 429: \S") as refused:
+    with pytest.raises(InferenceBackendRefused, match=r"^inference backend refused the request: HTTP 429: \S") as refused:
         gen.complete("s", "u")
     assert refused.value.__cause__ is refusal
     assert gen.usage["requests_sent"] == 1 and gen.usage["requests_refused"] == 1
@@ -865,7 +865,7 @@ def test_a_quota_refusal_stops_the_terminal_policy_at_once(refusal):
 
 def test_the_service_policy_still_retries_a_quota_429():
     waits = []
-    transport = _Flaky([_ProviderError("quota", status_code=429, code="insufficient_quota"),
+    transport = _Flaky([_ApiError("quota", status_code=429, code="insufficient_quota"),
                         _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = waits.append
@@ -874,9 +874,9 @@ def test_the_service_policy_still_retries_a_quota_429():
 
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 413, 422])
 def test_every_other_4xx_stops_the_terminal_policy_at_once(status):
-    gen = _terminal(_generator_over(_Flaky([_ProviderError("no", status_code=status)])))
-    # the cause is the status and the provider's first line (B101 ruling S1)
-    with pytest.raises(ProviderRefused, match=rf"^provider refused the request: HTTP {status}: no$"):
+    gen = _terminal(_generator_over(_Flaky([_ApiError("no", status_code=status)])))
+    # the cause is the status and the inference backend's first line (B101 ruling S1)
+    with pytest.raises(InferenceBackendRefused, match=rf"^inference backend refused the request: HTTP {status}: no$"):
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 1
 
@@ -887,7 +887,7 @@ def test_an_sdk_error_before_sending_stops_the_terminal_policy_uncounted_by_stat
     pre-B74 R1 rule exempts only a refused declared parameter) and carries no
     status, so it is not in requests_refused."""
     gen = _terminal(_generator_over(_Flaky([TypeError("unexpected keyword argument 'foo'")])))
-    with pytest.raises(ProviderRefused, match=r"^provider refused the request: TypeError: unexpected keyword argument 'foo'$"):
+    with pytest.raises(InferenceBackendRefused, match=r"^inference backend refused the request: TypeError: unexpected keyword argument 'foo'$"):
         gen.complete("s", "u")
     assert gen.usage["requests_sent"] == 1
     assert gen.usage["requests_refused"] == 0
@@ -919,8 +919,8 @@ def test_the_status_or_error_detail_keeps_the_first_line_cut_to_200_characters()
 
 
 def test_the_service_policy_raises_a_refusal_as_the_sdks_own_error():
-    gen = _generator_over(_Flaky([_ProviderError("unauthorized", status_code=401)]))
-    with pytest.raises(_ProviderError):
+    gen = _generator_over(_Flaky([_ApiError("unauthorized", status_code=401)]))
+    with pytest.raises(_ApiError):
         gen.complete("s", "u")
 
 
@@ -929,7 +929,7 @@ def test_the_service_policy_ignores_a_date_and_a_millisecond_header():
     in seconds only, as before B99; a past date or a millisecond header leaves
     the 1 s pause."""
     waits = []
-    transport = _Flaky([_ProviderError("x", status_code=503, headers={
+    transport = _Flaky([_ApiError("x", status_code=503, headers={
         "retry-after": "Sun, 27 Sep 2026 11:00:00 GMT", "retry-after-ms": "5"}), _openai_response("a", 1, 1)])
     gen = _generator_over(transport)
     gen._wait = waits.append
@@ -940,7 +940,7 @@ def test_the_service_policy_ignores_a_date_and_a_millisecond_header():
 @pytest.mark.parametrize("status", [408, 409, 501, 520, 529])
 def test_408_409_and_any_5xx_are_retried_by_the_terminal_policy(status):
     waits = []
-    gen = _terminal(_generator_over(_Flaky([_ProviderError("x", status_code=status), _openai_response("a", 1, 1)])),
+    gen = _terminal(_generator_over(_Flaky([_ApiError("x", status_code=status), _openai_response("a", 1, 1)])),
                     waits)
     gen.complete("s", "u")
     assert waits == [10]
@@ -948,7 +948,7 @@ def test_408_409_and_any_5xx_are_retried_by_the_terminal_policy(status):
 
 def test_a_429_naming_temperature_is_waited_out_never_a_configuration_error():
     waits = []
-    transport = _Flaky([_ProviderError("rate limit on requests with temperature", status_code=429),
+    transport = _Flaky([_ApiError("rate limit on requests with temperature", status_code=429),
                         _openai_response("a", 1, 1)])
     gen = _terminal(_generator_over(transport), waits)
     assert gen.complete("s", "u") == "a" and waits == [10]
@@ -958,7 +958,7 @@ def test_a_429_naming_temperature_is_waited_out_never_a_configuration_error():
 def test_an_interrupt_during_a_pause_ends_at_once():
     def interrupt(seconds):
         raise KeyboardInterrupt
-    transport = _Flaky([_ProviderError("overloaded", status_code=529), _anthropic_response("v", 1, 1)])
+    transport = _Flaky([_ApiError("overloaded", status_code=529), _anthropic_response("v", 1, 1)])
     judge = _terminal(_judge_over(transport))
     judge._wait = interrupt
     with pytest.raises(KeyboardInterrupt):
@@ -978,8 +978,8 @@ def test_only_the_four_terminal_commands_choose_the_terminal_policy():
     """B99 (spec F D-F30): the facade, the MCP server and the harness keep the
     service policy by not naming one; only the runs with a checkpoint and a
     resume name the terminal policy (scripts/elicit_benchmark_features.py
-    since B101 ruling S4), and only the two scripts name the provider
-    refusal, to name the item it stopped on (ruling P21, B101 ruling S5)."""
+    since B101 ruling S4), and only the two scripts name the inference
+    backend refusal, to name the item it stopped on (ruling P21, B101 ruling S5)."""
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
@@ -992,7 +992,7 @@ def test_only_the_four_terminal_commands_choose_the_terminal_policy():
                                         "src/tere4ai/align_hleg/__main__.py",
                                         "src/tere4ai/extract_norms/__main__.py",
                                         "src/tere4ai/extract_norms/model_clients.py"]
-    assert users("ProviderRefused") == ["scripts/elicit_benchmark_features.py", "scripts/run_ablations.py",
+    assert users("InferenceBackendRefused") == ["scripts/elicit_benchmark_features.py", "scripts/run_ablations.py",
                                         "src/tere4ai/extract_norms/model_clients.py"]
 
 
@@ -1062,3 +1062,12 @@ def test_usage_since_covers_the_reasoning_keys():
     gen.complete("s", "u")
     delta = usage_since(gen, before)
     assert delta["reasoning_tokens"] == 3 and delta["replies_with_reasoning"] == 1
+
+
+def test_the_stop_messages_name_the_inference_backend():
+    from tere4ai.extract_norms.model_clients import (
+        InferenceBackendRefused,
+        InferenceBackendUnavailable,
+    )
+    assert str(InferenceBackendUnavailable(6, "status 529")).startswith("inference backend unavailable after 6 attempts: ")
+    assert str(InferenceBackendRefused("status 400")).startswith("inference backend refused the request: ")

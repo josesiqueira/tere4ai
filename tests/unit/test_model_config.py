@@ -2,6 +2,7 @@
 (spec F D-F29); no real keys, no network."""
 
 import json
+from pathlib import Path
 
 import pytest
 from tests.fixtures.model_parameters import declared, table, write_table
@@ -18,6 +19,8 @@ from tere4ai.judge.config import (
     require_independent_clients,
     runtime_judge_declaration,
 )
+
+ROOT = Path(__file__).resolve().parents[2]
 
 # B99 (spec F D-F29): the efforts left the environment for the declared table.
 FULL_ENV = {
@@ -130,7 +133,7 @@ def test_the_public_dict_carries_the_declared_values_and_their_digest_never_a_ke
     assert len(public["model_parameters_sha256"]) == 64
 
 
-def test_a_configured_model_without_a_row_is_refused_naming_both_roles(tmp_path):
+def test_a_configured_model_without_a_row_is_refused_naming_both_components(tmp_path):
     message = _refusal(dict(FULL_ENV), write_table(tmp_path / "empty.json"))
     assert "declares no row for model 'gpt-test-pinned'" in message
     assert "declares no row for model 'claude-test-pinned'" in message
@@ -166,9 +169,9 @@ def test_a_week_date_or_a_page_without_a_host_is_refused(tmp_path, url, read_on)
     assert "'gpt-test-pinned'" not in message
 
 
-def test_a_model_config_whose_rows_name_other_models_or_providers_is_refused():
+def test_a_model_config_whose_rows_name_other_models_or_backends_is_refused():
     """B99 final review: a client never sends one model's id with another
-    model's declaration, nor a row of the other provider."""
+    model's declaration, nor a row of the other inference backend."""
     def build(generator_row, judge_row):
         return ModelConfig(generator_model="gpt-a", judge_model="claude-a", generator_api_key="k1",
                            judge_api_key="k2", generator_parameters=generator_row, judge_parameters=judge_row)
@@ -180,30 +183,30 @@ def test_a_model_config_whose_rows_name_other_models_or_providers_is_refused():
     with pytest.raises(ConfigurationError, match=r"the judge model 'claude-a' is given the declared row of "
                        r"'claude-b'"):
         build(declared("gpt-a", "openai"), declared("claude-b", "anthropic"))
-    with pytest.raises(ConfigurationError, match=r"the judge row for 'claude-a' names provider openai, but the "
+    with pytest.raises(ConfigurationError, match=r"the judge row for 'claude-a' names inference backend openai, but the "
                        r"judge client is anthropic"):
         build(declared("gpt-a", "openai"), declared("claude-a", "openai"))
 
 
 def test_every_malformed_row_is_named_at_once(tmp_path):
     rows = table(declared("gpt-test-pinned", "openai"), declared("claude-test-pinned", "anthropic"))
-    rows["models"]["x"] = {"provider": "mistral", "temperature": 0, "effort": "extra-high", "json_mode": "sent",
+    rows["models"]["x"] = {"inference_backend": "mistral", "temperature": 0, "effort": "extra-high", "json_mode": "sent",
                            "documentation": {}, "colour": 1}
     rows["models"]["y"] = {**declared("y", "anthropic").as_row(), "json_mode": "sent"}
     path = tmp_path / "bad.json"
     path.write_text(json.dumps(rows), encoding="utf-8")
     message = _refusal(dict(FULL_ENV), path)
-    for piece in ("x: unknown colour", "x: provider must be one of openai, anthropic",
+    for piece in ("x: unknown colour", "x: inference_backend must be one of openai, anthropic",
                   'x: temperature must be "0" or "N/A"', "x: effort must be one of low, medium, high, xhigh, max",
                   "x: documentation must be", 'y: json_mode must be "N/A" on an anthropic row'):
         assert piece in message
 
 
-def test_a_row_of_the_other_provider_is_refused(tmp_path):
+def test_a_row_of_the_other_backend_is_refused(tmp_path):
     path = write_table(tmp_path / "swap.json", declared("gpt-test-pinned", "anthropic"),
                        declared("claude-test-pinned", "anthropic"))
-    assert ("swap.json declares 'gpt-test-pinned' with provider anthropic, but the openai client is configured to use it"
-            in _refusal(dict(FULL_ENV), path))
+    assert ("swap.json declares 'gpt-test-pinned' with inference backend anthropic, but the openai client is "
+            "configured to use it" in _refusal(dict(FULL_ENV), path))
 
 
 def test_a_missing_or_unreadable_table_is_refused(tmp_path):
@@ -242,15 +245,24 @@ def test_the_digest_follows_the_rows_in_use_and_no_other(tmp_path, table_path):
 
 def test_the_committed_table_is_well_formed_and_declares_the_models_of_env_example():
     """The repository's own table loads, and holds a row, with the right
-    provider, for each model .env.example names. Both rows name the provider
-    page they were read from and the day (plan ruling P3): declaration_for,
+    inference backend, for each model .env.example names. Both rows name the
+    model developer's page they were read from and the day (plan ruling P3): declaration_for,
     the check every paid path makes, accepts them (review B101 3A-M5)."""
     models = load_model_parameters()
     root = config_module.MODEL_PARAMETERS_PATH.parents[1]
     named = dict(line.split("=", 1) for line in (root / ".env.example").read_text(encoding="utf-8").splitlines()
                  if line.startswith("TERE4AI_") and "=" in line)
-    assert models[named["TERE4AI_GENERATOR_MODEL"]]["provider"] == "openai"
-    assert models[named["TERE4AI_JUDGE_MODEL"]]["provider"] == "anthropic"
-    for variable, provider in (("TERE4AI_GENERATOR_MODEL", "openai"), ("TERE4AI_JUDGE_MODEL", "anthropic")):
-        row = declaration_for(models, named[variable], provider)
+    assert models[named["TERE4AI_GENERATOR_MODEL"]]["inference_backend"] == "openai"
+    assert models[named["TERE4AI_JUDGE_MODEL"]]["inference_backend"] == "anthropic"
+    for variable, inference_backend in (("TERE4AI_GENERATOR_MODEL", "openai"), ("TERE4AI_JUDGE_MODEL", "anthropic")):
+        row = declaration_for(models, named[variable], inference_backend)
         assert row.documentation_url.startswith("https://") and len(row.documentation_read_on) == 10
+
+
+def test_a_row_names_its_inference_backend_and_its_model_developer_follows():
+    from tere4ai.judge.config import model_developer_of
+    rows = json.loads((ROOT / "config" / "model_parameters.json").read_text(encoding="utf-8"))["models"]
+    assert all("inference_backend" in r and "provider" not in r for r in rows.values())
+    assert {model_developer_of(r["inference_backend"]) for r in rows.values()} <= {"anthropic", "openai"}
+    with pytest.raises(ValueError, match="no model developer known for the inference backend 'bedrock'"):
+        model_developer_of("bedrock")

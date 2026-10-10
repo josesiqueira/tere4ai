@@ -81,7 +81,7 @@ Spec G Section 10.4 (B104, decision 2) and Section 6, steps 4 and 5.
 - Who the two annotators and the adjudicator are is decided in B77.O1
   (spec G D-G-open-1); spec G Section 10.5 lists the designs for each
   number of helpers and the claim and limitation of each. Until then the
-  roles are undecided.
+  study roles are undecided.
 
 ## Judge false-accept / false-reject gold labels
 

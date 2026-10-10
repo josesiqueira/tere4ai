@@ -173,7 +173,7 @@ and clients, and every tool's full description:
 
 ## Documents
 
-| File | Role |
+| File | Purpose |
 |---|---|
 | docs/architecture.md | Authoritative spec (layers, judges, milestones, traceability matrix) |
 | docs/references.md | Reference register; all `@grounded_by` tags resolve here |
@@ -310,13 +310,13 @@ resumes, after the inputs and configuration are checked; add
 `--accept-legacy-checkpoint` (extract_norms only) for a checkpoint written
 before build records existed; align_hleg always refuses checkpoint lines
 without a run id. Starting the same output without `--resume` while a checkpoint
-exists is refused. A provider overload is waited out: before each of five
-pauses (10, 30, 90, 270 and 600 s, longer when the provider asks for it,
-never above 600 s) the command prints one alert line on standard error;
-when the sixth attempt fails it records the execution failed with "provider
-unavailable after 6 attempts: <status or error>", keeps the checkpoint,
-prints the command that resumes it and exits with code 3. A
-declared parameter that the provider refuses stops the run the same way
+exists is refused. An inference backend overload is waited out: before each
+of five pauses (10, 30, 90, 270 and 600 s, longer when the inference backend
+asks for it, never above 600 s) the command prints one alert line on standard
+error; when the sixth attempt fails it records the execution failed with
+"inference backend unavailable after 6 attempts: <status or error>", keeps
+the checkpoint, prints the command that resumes it and exits with code 3. A
+declared parameter that the inference backend refuses stops the run the same way
 with a configuration error and exit code 4: correct the row of
 `config/model_parameters.json` and start again. A resume
 under a changed row is refused, so when the checkpoint holds finished
@@ -346,12 +346,12 @@ refuses to overwrite any existing sheet without `--force` and binds the
 sample to the activated publication or to the base build id; `--label
 <decision id> <accept|reject> --by <name>` or `--label-file <csv> --by
 <name>` (both in one act for distinct ids; an id named twice, by both or
-by two rows, is refused with exit code 2), which record actor and time
-per item and refuse (exit code 2) a
+by two rows, is refused with exit code 2), which record who labelled each
+item and when and refuse (exit code 2) a
 sheet whose bytes are not the bytes the last recorded draw or label act of
 its sample wrote, so a `--no-record` label act breaks the chain for the
 next one; `--compute`, which refuses a
-label without an actor or a time and writes an analysis record with the
+label without who labelled it and when and writes an analysis record with the
 false accept and false reject rates per judge kind and pooled, a rate with
 an empty denominator being null, never 0.0, and every rate a sample
 estimate). `--dump-dir` is where `layer1.json`, `norms_core.json` and
@@ -363,14 +363,14 @@ are a pinned July 2026 summary or checkpoint, `--no-record` or not.
 Without `--checkpoint` and `--summary` the runner writes both under
 `eval/results/runs/<record id>/`, a fresh directory per run; a resume passes
 `--checkpoint` explicitly, and a `--no-record` run must pass both.
-A provider overload is waited out with five pauses and an alert line each;
-when the sixth attempt fails the runner ends its record
-partial with "provider unavailable after 6 attempts: <status or error>",
+An inference backend overload is waited out with five pauses and an alert
+line each; when the sixth attempt fails the runner ends its record partial
+with "inference backend unavailable after 6 attempts: <status or error>",
 keeps the checkpoint, prints the command that resumes it and exits 3; the
 unit in flight is run again on the resume, and a stop before any unit was
 checkpointed starts a new record that names none. A failure no retry fixes
 (a 401, a quota 429, any other 4xx, an SDK error before sending) ends the
-record failed with "provider refused the request: <status or error> (item
+record failed with "inference backend refused the request: <status or error> (item
 <item id>)" and exits 5; the item is fixed before the next run, never
 skipped. A refused declared parameter ends the record failed with the
 configuration error and exits 4; an evaluation harness run

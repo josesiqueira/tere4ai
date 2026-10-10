@@ -34,8 +34,8 @@ from tere4ai.extract_norms.actor_audit import (
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     AnthropicJudge,
+    InferenceBackendUnavailable,
     OpenAIGenerator,
-    ProviderUnavailable,
     declared_sampling,
 )
 from tere4ai.extract_norms.pipeline import (
@@ -96,7 +96,7 @@ def _effort_of(client: object) -> str:
 
 
 def _usage_of(client: object) -> dict:
-    """Provider-reported token counts over this run; empty for a stub."""
+    """Token counts the inference backends reported over this run; empty for a stub."""
     return dict(getattr(client, "usage", None) or {})
 
 
@@ -344,7 +344,7 @@ def _main(argv: list[str] | None = None) -> int:
             completed_keys=completed,
             work_failures={"nodes_failed": len(stats["nodes_failed"]), "norms_failed": 0},
         )
-    except ProviderUnavailable as exc:
+    except InferenceBackendUnavailable as exc:
         # spec F D-F30: the terminal policy waited out five pauses; the
         # execution ends failed with the reason, the checkpoint stays, and the
         # command that continues it is printed
@@ -355,7 +355,7 @@ def _main(argv: list[str] | None = None) -> int:
         print(f"  {resume_command('.venv/bin/python -m tere4ai.extract_norms', run_argv)}", file=sys.stderr)
         return 3
     except ConfigurationError as exc:
-        # spec F D-F29: a declared parameter the provider refused stops the run
+        # spec F D-F29: a declared parameter the inference backend refused stops the run
         end_failed(str(exc))
         print(f"stopped: {exc}", file=sys.stderr)
         return 4

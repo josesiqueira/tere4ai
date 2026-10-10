@@ -319,11 +319,11 @@ def test_v6_prompt_names_every_schema_flag():
 
 
 def test_v6_prompt_keeps_the_v5_binding_rules():
-    """v6 keeps v5's role and binding rules 1 to 5 word for word."""
+    """v6 keeps v5's opening instructions and binding rules 1 to 5 word for word."""
     v5 = _collapse((ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8"))
     v6 = _collapse((ROOT / "prompts" / "elicit_features" / "v6.md").read_text(encoding="utf-8"))
-    role = v5[: v5.index("Output exactly one JSON object")]
-    assert v6.startswith(role)
+    opening_instructions = v5[: v5.index("Output exactly one JSON object")]
+    assert v6.startswith(opening_instructions)
     rules = v5[v5.index("Rules, all binding:") : v5.index("5. Output the JSON object only")]
     assert rules in v6
 

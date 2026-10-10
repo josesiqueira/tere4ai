@@ -63,6 +63,9 @@ JULY_SHEET_DIGEST = "a2c5e190bf97b7fe631e61ec7a6315d500734eeba6c5dbf596a56fae84f
 NOT_JULY_BYTES = "not recorded: the file's bytes are not the July bytes this phrase dates"
 NO_DATE = "not recorded: no analysis file states a date for this summary"
 LEGACY_STUDY = "variance_study.md"
+# the key names the kept summaries were written with before B158 (R9); new runs write evaluation records
+_LEGACY_USAGE_KEY = "usage_provider_reported"
+_LEGACY_USAGE_BY = "by_role"
 LEGACY_SHEET = "judge_label_sheet.json"
 _STUDY_HEADER_RE = re.compile(r"from (\S+\.jsonl) \(run A\) and (\S+\.jsonl) \(run B\)")
 _NOT_A_VALUE = ("not recorded", "not applicable")
@@ -241,7 +244,7 @@ def _legacy_run(results: Path, summary: str, checkpoint: str, analysis: str, phr
         rec["_reasons"]["config"] = "not recorded: the summary names no strategy"
     if isinstance(data.get("items_total"), int):
         rec["counts"]["items_total"] = data["items_total"]
-    usage = (data.get("usage_provider_reported") or {}).get("by_role")
+    usage = (data.get(_LEGACY_USAGE_KEY) or {}).get(_LEGACY_USAGE_BY)
     if usage:
         rec["usage"] = usage
     return rec

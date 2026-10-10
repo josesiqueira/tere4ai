@@ -5,7 +5,7 @@
 @grounded_by: REF-15, REF-16
 
 Compares two runs of the same ladder over the same items and the same
-elicited-features cache, so the difference between them is provider-side
+elicited-features cache, so the difference between them is inference-backend-side
 nondeterminism (temperature 0 is not a determinism guarantee), not input
 drift. Per strategy it computes, from the per-item results only:
 
@@ -147,7 +147,7 @@ def render_markdown(
         f"{run_a_path.name} (run A) and {run_b_path.name} (run B);",
         "> every number is computed from the per-item results. Both runs used",
         "> the same items and the same frozen elicited-features cache, so the",
-        "> deltas below measure provider-side nondeterminism of the ladder",
+        "> deltas below measure inference-backend-side nondeterminism of the ladder",
         "> only, not input drift and not elicitation variance (held fixed by",
         "> design; elicitation variance is a separate, unmeasured axis).",
         "",
