@@ -51,7 +51,8 @@ abstention, never an FA or FR. --compute refuses while any human_label is
 still null or was recorded without who labelled it and when, and while the sheet's
 bytes are not the bytes the newest completed label act on this store wrote (a
 hand edit after labelling); a rate with an empty denominator prints as null,
-never 0.0. This is a sample estimate: population weighting is not designed.
+never 0.0. The rates are unweighted by decision, each stratum's population and
+sample counts printed beside them (spec G D-G82 (10)).
 --compute writes one analysis evaluation record.
 """
 
@@ -102,6 +103,10 @@ SHEET_MD = ROOT / "eval" / "gold" / "judge_label_sheet.md"
 TOTAL_SAMPLE = 50
 MIN_PER_STRATUM = 3
 EXCERPT_CHARS = 600
+# spec G D-G82 (10), Jose 2026-10-10: "Unweighted, counts shown (Recommended)"
+E1_NOTE = ("sample estimate: unweighted by decision, each stratum's population and sample counts "
+           "printed beside the rates; the small strata weigh more than their share of the build, "
+           "a stated limitation (spec G D-G82 (10))")
 
 JUDGE_KINDS = ("extraction", "mapping")
 VERDICTS = ("accepted", "rejected", "needs_human_review")
@@ -573,6 +578,8 @@ def compute_error_rates(sheet: dict[str, Any]) -> dict[str, Any]:
     Raises ValueError when any human_label is still null, holds a value
     outside the protocol's accept/reject set, or was typed without who
     labelled it or when (the label act of this script records both).
+    The strata's population and sample counts come back beside the rates
+    (D-G82 (10)).
     """
     items = sheet.get("items", [])
     unlabelled = [it["decision_id"] for it in items if it.get("human_label") is None]
@@ -609,7 +616,8 @@ def compute_error_rates(sheet: dict[str, Any]) -> dict[str, Any]:
     return {
         **rates,
         "metrics_version": METRICS_VERSION,
-        "note": "sample estimate: population weighting is not designed",
+        "note": E1_NOTE,
+        "strata": [dict(s) for s in (sheet.get("sampling") or {}).get("strata", [])],
     }
 
 
@@ -901,6 +909,8 @@ def _compute_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     _print_rates("pooled", pooled)
     for kind, r in rates["by_kind"].items():
         _print_rates(kind, r)
+    for s in rates["strata"]:
+        print(f"[stratum] {s['judge_kind']} / {s['verdict']}: population {s['population']}, sampled {s['sampled']}")
     print(rates["note"])
     if record_id is not None:
         print(f"evaluation record {record_id} written under {store.dir}")

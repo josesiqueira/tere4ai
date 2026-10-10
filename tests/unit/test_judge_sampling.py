@@ -741,11 +741,39 @@ def test_compute_reports_null_on_an_empty_denominator_and_never_zero(tmp_path, c
     assert rec["relations"]["sample_id"] == sheet["sample"]["sample_id"]
     labelling = [r for r in store.list_records() if r["kind"] == "labelling"]
     assert rec["relations"]["labelling_record_ids"] == [r["record_id"] for r in labelling]
-    assert rec["notes"] == ["sample estimate: population weighting is not designed"]
+    assert rec["notes"] == [sampling.E1_NOTE]
+    assert "[stratum] extraction / accepted: population 30, sampled 19" in out.splitlines()
+    assert len([line for line in out.splitlines() if line.startswith("[stratum] ")]) == len(sheet["sampling"]["strata"])
+    assert rates["note"] == sampling.E1_NOTE and rates["strata"] == sheet["sampling"]["strata"]
     assert rec["counts"]["scored"] == len(ids) and rec["counts"]["abstained"] >= 3, (
         "the minimum per stratum draws abstentions"
     )
     assert rec["outcome"]["intended_items"] == ids and rec["outcome"]["completed_items"] == ids
+
+
+def test_the_rates_carry_each_stratum_population_and_sample_beside_them():
+    """D-G82 (10): unweighted, each stratum's counts printed beside the rates."""
+    sheet = {
+        "sampling": {"strata": [
+            {"judge_kind": "extraction", "verdict": "accepted", "population": 40, "sampled": 5},
+            {"judge_kind": "mapping", "verdict": "rejected", "population": 4, "sampled": 3},
+        ]},
+        "items": [
+            {"decision_id": "d1", "judge_run": {"verdict": "accepted"}, "human_label": "accept",
+             "labelled_by": "Ana", "labelled_at": "2026-10-10T00:00:00Z",
+             "stratum": {"judge_kind": "extraction", "verdict": "accepted"}},
+            {"decision_id": "d2", "judge_run": {"verdict": "rejected"}, "human_label": "reject",
+             "labelled_by": "Ana", "labelled_at": "2026-10-10T00:00:00Z",
+             "stratum": {"judge_kind": "mapping", "verdict": "rejected"}},
+        ],
+    }
+    rates = sampling.compute_error_rates(sheet)
+    assert rates["note"] == sampling.E1_NOTE
+    assert rates["note"].startswith("sample estimate: unweighted by decision")
+    assert rates["strata"] == [
+        {"judge_kind": "extraction", "verdict": "accepted", "population": 40, "sampled": 5},
+        {"judge_kind": "mapping", "verdict": "rejected", "population": 4, "sampled": 3},
+    ]
 
 
 # Fix round 1: failure-guarded writers for the label and compute acts, and a

@@ -242,7 +242,10 @@ def main(out_dir: Path | None = None) -> list[Path]:
         store.finish(analysis, status="completed", completed_items=["jr-1", "jr-2"],
                      outputs=[store.keep_output(analysis, "error_rates", tmp / "error_rates.json")],
                      counts={"scored": 2, "abstained": 0, "gold_accept": 1, "gold_reject": 1},
-                     notes=["sample estimate: population weighting is not designed"])
+                     # the script's E1_NOTE word for word (test_evaluation_record_contract.py pins it)
+                     notes=["sample estimate: unweighted by decision, each stratum's population and sample "
+                            "counts printed beside the rates; the small strata weigh more than their share "
+                            "of the build, a stated limitation (spec G D-G82 (10))"])
         names = {run1: "e6_run", run2: "e6_run_repeat", run3: "e6_run_other_build", cmp_id: "e6_comparison",
                  offline: "e6_offline", partial: "e6_partial", failed: "e6_failed", resumed: "e6_resumed",
                  copymiss: "e6_copy_missing", sample: "e1_sample", label: "e1_labelling", analysis: "e1_analysis"}

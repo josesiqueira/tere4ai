@@ -852,8 +852,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   immutable sample id, refusing to overwrite any existing sheet without
   --force; the label act, recording who labelled each item and when; the
   analysis over the exact labelled bytes, with rates per judge kind and
-  pooled, null on an empty denominator, worded "sample estimate". Two
-  free read-only routes serve the records grouped by build identity; an
+  pooled, null on an empty denominator, worded "sample estimate",
+  unweighted by decision with each stratum's population and sample
+  counts beside them (spec G D-G82 (10)). Two free read-only routes
+  serve the records grouped by build identity; an
   unreadable file is its own row and an outage is an outage, never an
   empty list. The builds list carries the lineage relationships the
   dashboard joins on, and the units and trace routes carry the judge

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,15 @@ EXPECTED = {
     "e1_legacy_sheet.json", "e6_offline.json", "e6_partial.json", "e6_failed.json", "e6_resumed.json",
     "e6_copy_missing.json", "e6_legacy_variance_summary.json", "e6_legacy_comparison.json",
 }
+
+
+
+def _script(name: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _schema():
@@ -83,7 +94,7 @@ def test_fixtures_state_the_honesty_rules():
     analysis = _fixture("e1_analysis.json")
     assert analysis["relations"]["sample_id"] == "sample-a1b2c3d4e5f6"
     assert analysis["relations"]["labelling_record_ids"] == ["e1b000000001"]
-    assert "sample estimate" in " ".join(analysis["notes"])
+    assert analysis["notes"] == [_script("sample_judge_decisions").E1_NOTE], "D-G82 (10): the decided weighting"
     repeat = _fixture("e6_run_repeat.json")
     assert repeat["relations"]["repeat_of"] == "e6a000000001"
     comparison = _fixture("e6_comparison.json")
