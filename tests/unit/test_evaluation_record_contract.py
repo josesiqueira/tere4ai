@@ -21,7 +21,6 @@ EXPECTED = {
 }
 
 
-
 def _script(name: str):
     spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
     module = importlib.util.module_from_spec(spec)

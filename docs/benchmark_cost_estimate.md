@@ -14,8 +14,9 @@
 Both ids come from the environment (TERE4AI_GENERATOR_MODEL and TERE4AI_JUDGE_MODEL),
 checked against config/model_parameters.json; the prices are in config/model_prices.json.
 Regenerate with TERE4AI_GENERATOR_MODEL=gpt-6-astra and TERE4AI_JUDGE_MODEL=claude-opus-5-5
-exported: `.venv/bin/python scripts/estimate_benchmark_cost.py`; no other file outside the
-tracked tree is read.
+exported: `.venv/bin/python scripts/estimate_benchmark_cost.py`; nothing else outside the
+tracked tree changes a figure: the repository's .env, when present, is loaded, but an exported
+variable wins over the file, and no other variable it may set reaches a figure.
 Input is priced uncached: the clients send no cache_control (Anthropic caches nothing)
 and record no cached tokens; automatic caching on the OpenAI side can only lower the figure.
 Every request stays under 272,000 input tokens (asserted; the largest is 17,467), so the short-context prices apply. Standard tier.
@@ -56,6 +57,7 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 | Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |
 
 The control backlog prices one click on CredScore Article 25 sending every AI Act role's norms and the norms whose addressee is not settled: 18 of the article's accepted norms in the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability by classification and target system category, which this offline selection does not.
+The backlog judge's input is counted over the dry run's one-control reply, not the controls the generator writes, so it leaves out about 3,451 input tokens (the generator's visible output), about 0.01 USD at the judge's input price, which the rows above do not add.
 
 Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.
 

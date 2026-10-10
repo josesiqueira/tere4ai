@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -511,6 +512,18 @@ def test_the_report_states_the_campaigns_cost_nothing_and_excludes_the_calibrati
     assert "D-F17" in mock_report and "B68" in mock_report
 
 
+def test_the_report_says_how_it_regenerates_and_what_one_backlog_click_sends(mock_report):
+    # B147 final fix wave (task 2 review, Minor 1; final review seat two, P3 1 and 7)
+    flat = " ".join(mock_report.split())
+    assert ("Regenerate with TERE4AI_GENERATOR_MODEL=gpt-6-astra and TERE4AI_JUDGE_MODEL=claude-opus-5-5 "
+            "exported") in flat
+    assert "the repository's .env, when present, is loaded" in flat
+    assert "an exported variable wins over the file, and no other variable it may set reaches a figure" in flat
+    assert "1 of the article's accepted norms in the aborted B74 extraction" in flat
+    assert re.search(r"leaves out about [\d,]+ input tokens \(the generator's visible output\), "
+                     r"about [\d.]+ USD at the judge's input price", flat)
+
+
 def test_the_report_has_a_batch_line_and_names_each_ratio_with_its_source(mock_report):
     assert "Batch" in mock_report and "not in the total" in mock_report
     for name, ratio in est.RATIOS.items():
@@ -519,7 +532,6 @@ def test_the_report_has_a_batch_line_and_names_each_ratio_with_its_source(mock_r
 
 
 def test_the_report_ends_with_the_total_and_its_band(mock_report):
-    import re
 
     match = re.search(r"Total for the B74 sequence: ([\d.,]+) USD \(band ([\d.,]+) to ([\d.,]+)\)", mock_report)
     assert match

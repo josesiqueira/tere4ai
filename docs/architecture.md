@@ -1488,7 +1488,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   the pricing page on 2026-10-06, the quotes re-read when the rows are
   written). Every runtime log line the demo judge writes carries
   judge_setting "demo", and scripts/estimate_benchmark_cost.py leaves
-  those lines out of its judge figures. The report takes a judge part
+  those lines out of its judge figures (as of 2026-10-10, B147, spec G
+  D-G82 (12): the script no longer reads the runtime log; its judge
+  reply size is the frozen RATIOS value runtime_judge_reply_chars,
+  computed with the demo lines left out). The report takes a judge part
   as a session line of its own (tool "judge_on_demand", a Section 8
   envelope whose answer is the judge's part with the judged tool and the
   generation id): report/ingest.py attaches it to the exchange whose

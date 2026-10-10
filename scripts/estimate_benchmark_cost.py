@@ -27,7 +27,11 @@ Token model, stated plainly so nobody mistakes this for a measurement:
 - The visible reply sizes come from stored replies: July norms and
   alignments (tracked dumps), the run-2 ablation checkpoint, the runtime
   judge's mean reply size (frozen in RATIOS, runtime_judge_reply_chars) and
-  eval/gold/benchmark_features.json. Nothing outside the tracked tree is read.
+  eval/gold/benchmark_features.json. Nothing else outside the tracked tree
+  changes a figure: the repository's .env, when present, is loaded, but an
+  exported variable wins over the file, and no other variable it may set
+  reaches a figure (the API keys go unread; TERE4AI_REPO_ROOT is read at
+  import, before the file is loaded).
 - Input is priced uncached: the clients send no cache_control and record no
   cached tokens; automatic caching can only lower the figure.
 
@@ -884,6 +888,18 @@ def _step_row(row: dict[str, Any]) -> str:
             f"| {_usd(row['cost']['low'])} | {_usd(row['cost']['central'])} | {_usd(row['cost']['high'])} |")
 
 
+def _backlog_judge_input_line(res: dict[str, Any]) -> str:
+    """The backlog judge's input is counted over the dry run's one-control
+    reply, so it leaves out the controls the generator writes, about the
+    generator's visible output; the line says how much, the rows do not add it."""
+    gen = next(r for r in res["build_rows"] if r["step"] == "Control backlog" and r["component"] == "generator")
+    left_out = gen["visible_tokens"] * ratio("chars_per_token_openai") / ratio("chars_per_token_anthropic")
+    usd = left_out * res["rows"]["judge"]["input"] / 1e6
+    return (f"The backlog judge's input is counted over the dry run's one-control reply, not the controls the "
+            f"generator writes, so it leaves out about {round(left_out):,} input tokens (the generator's visible "
+            f"output), about {_usd(usd)} USD at the judge's input price, which the rows above do not add.")
+
+
 STEP_HEADER = [
     "| Step | Model component (model) | Calls | Input tokens | Visible output tokens "
     "| Billed output tokens, central (low to high) | Low USD | Central USD | High USD |",
@@ -934,8 +950,9 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         # the values the run read, so this script still names no model (B120)
         f"Regenerate with {GENERATOR_VARIABLE}={declared['generator'].model_id} and "
         f"{JUDGE_VARIABLE}={declared['judge'].model_id}",
-        "exported: `.venv/bin/python scripts/estimate_benchmark_cost.py`; no other file outside the",
-        "tracked tree is read.",
+        "exported: `.venv/bin/python scripts/estimate_benchmark_cost.py`; nothing else outside the",
+        "tracked tree changes a figure: the repository's .env, when present, is loaded, but an exported",
+        "variable wins over the file, and no other variable it may set reaches a figure.",
         "Input is priced uncached: the clients send no cache_control (Anthropic caches nothing)",
         "and record no cached tokens; automatic caching on the OpenAI side can only lower the figure.",
         f"Every request stays under {CONTEXT_LIMIT_TOKENS:,} input tokens (asserted; the largest is "
@@ -966,6 +983,7 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         f"the norms whose addressee is not settled: {res['backlog_norms']} of the article's accepted norms in "
         "the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability "
         "by classification and target system category, which this offline selection does not.",
+        _backlog_judge_input_line(res),
         "",
         "Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.",
         "",
