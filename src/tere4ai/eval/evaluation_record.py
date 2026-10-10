@@ -36,7 +36,7 @@ from tere4ai.graph_store.present import shorten_paths
 from tere4ai.graph_store.publication import active_manifest, manifest_path
 
 RECORDS_DIRNAME = "evaluation_records"
-SCHEMA_VERSION = "evaluation_record.v1"
+SCHEMA_VERSION = "evaluation_record.v2"
 KINDS = ("run", "comparison", "sample", "labelling", "analysis")
 STEPS = ("E1", "E6")
 STATUSES = ("running", "completed", "partial", "failed")
@@ -80,9 +80,9 @@ def reduce_paths(text: str) -> str:
     return shorten_paths(text)
 
 
-def file_ref(role: str, path: Path | str) -> dict[str, Any]:
-    """{"role", "file", "sha256"} of an input or output file; the name only, never the path."""
-    return {"role": role, "file": Path(path).name, "sha256": sha256_of_file(path)}
+def input_ref(input_kind: str, path: Path | str) -> dict[str, Any]:
+    """{"input_kind", "file", "sha256"} of an input file; the name only, never the path."""
+    return {"input_kind": input_kind, "file": Path(path).name, "sha256": sha256_of_file(path)}
 
 
 def digest_of_ids(ids: list[str]) -> str:
@@ -152,14 +152,14 @@ def observe_publication(dump_dir: Path | str) -> tuple[dict[str, Any] | None, st
 
 
 def served_input_paths(dump_dir: Path | str) -> dict[str, Path]:
-    """The files the facade serves, by role: the active manifest's files, else the legacy names."""
+    """The files the facade serves, by input kind: the active manifest's files, else the legacy names."""
     dump_dir = Path(dump_dir)
     manifest = active_manifest(dump_dir) if (dump_dir / "ACTIVE_MANIFEST.json").is_file() else None
     if manifest is None:
         return {"layer1_dump": dump_dir / "layer1.json", "norms": dump_dir / "norms_core.json",
                 "alignments": dump_dir / "alignments_core.json"}
     files = manifest.get("files") or {}
-    return {role: dump_dir / files[role] for role in ("layer1_dump", "norms", "alignments") if files.get(role)}
+    return {kind: dump_dir / files[kind] for kind in ("layer1_dump", "norms", "alignments") if files.get(kind)}
 
 
 def _empty_relations() -> dict[str, Any]:
@@ -195,6 +195,15 @@ class EvaluationRecordStore:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:  # ValueError: bad JSON and bytes that are not UTF-8 (G5)
             raise EvaluationRecordError(reduce_paths(f"{path.name}: not readable JSON: {exc}")) from exc
+        # Checked before the schema, so an old record is named by its version
+        # (B158: the inputs and outputs are typed by input_kind and output_kind
+        # in evaluation_record.v2); a file with no version falls through to the
+        # schema and its own message.
+        version = data.get("schema_version") if isinstance(data, dict) else None
+        if version is not None and version != SCHEMA_VERSION:
+            raise EvaluationRecordError(
+                f"evaluation record {path.name} has schema_version {version!r}; this store reads {SCHEMA_VERSION} "
+                "(pre-B74 records are disposable; rewrite it with scripts/rename_record_kinds.py)")
         refusal = _refusal_of(data, path.name)
         if refusal:
             raise EvaluationRecordError(refusal)
@@ -271,25 +280,25 @@ class EvaluationRecordStore:
             atomic_write_json(self._path(record_id), record)
         return record_id
 
-    def keep_output(self, record_id: str, role: str, path: Path | str, *,
+    def keep_output(self, record_id: str, output_kind: str, path: Path | str, *,
                     name: str | None = None) -> dict[str, Any]:
         """Copy the output's bytes under the record's directory; the copy is never overwritten.
 
         The recorded file is `name` when given (a writer that copies from a
         run-private temp file names the compatibility file it lands as, G3),
-        else the source's own name; the copy is always `<role><suffix>`.
+        else the source's own name; the copy is always `<output_kind><suffix>`.
 
         The existence check and the copy happen under the record's lock, and the
         copy itself lands via a unique temp file plus os.replace, so a reader
         never observes a partial copy and two concurrent callers for the same
-        record and role never race past the "already exists" refusal.
+        record and output kind never race past the "already exists" refusal.
         """
         if not self.create:
             raise EvaluationRecordError("read-only store: no writes")
         src = Path(path)
         target_dir = self.dir / record_id
         target_dir.mkdir(exist_ok=True)
-        target = target_dir / f"{role}{src.suffix}"
+        target = target_dir / f"{output_kind}{src.suffix}"
         with self._locked(record_id):
             if target.exists():
                 raise EvaluationRecordError(f"output copy exists: {target.relative_to(self.dir)}")
@@ -302,7 +311,8 @@ class EvaluationRecordStore:
                 if os.path.exists(tmp):
                     os.unlink(tmp)
         # the copy's own bytes: a source rewritten after the copy cannot make it read as drifted
-        ref = {"role": role, "file": name if name is not None else src.name, "sha256": sha256_of_file(target)}
+        ref = {"output_kind": output_kind, "file": name if name is not None else src.name,
+               "sha256": sha256_of_file(target)}
         ref["copy"] = str(target.relative_to(self.dir))
         return ref
 

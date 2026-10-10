@@ -23,7 +23,7 @@
    "copy_reason": "legacy: the file on disk is the record",
    "copy_state": "not_kept",
    "file": "variance_study.md",
-   "role": "study",
+   "output_kind": "study",
    "sha256": "db5d8af1be1e5491fd8d272ccdc9ff0cb3691e9691541ab7005e2a7354629778"
   }
  ],
@@ -84,7 +84,7 @@
   "sample_id": null
  },
  "sampling": null,
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": null,
  "step": "E6",
  "synthesised": true,

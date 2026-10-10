@@ -51,7 +51,7 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordError,
     EvaluationRecordStore,
     code_version,
-    file_ref,
+    input_ref,
 )
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
 
@@ -222,20 +222,20 @@ def main(argv: list[str] | None = None) -> int:
     record_id = None
     notes: list[str] = []
     if store is not None:
-        refs = {"run_a": file_ref("run_a", args.run_a), "run_b": file_ref("run_b", args.run_b)}
+        refs = {"run_a": input_ref("run_a", args.run_a), "run_b": input_ref("run_b", args.run_b)}
         compares = []
-        for role in ("run_a", "run_b"):
-            found = store.find_by_output_digest(refs[role]["sha256"])  # by digest only (F5)
+        for kind in ("run_a", "run_b"):
+            found = store.find_by_output_digest(refs[kind]["sha256"])  # by digest only (F5)
             if found is None:
-                notes.append(f"{role} is named by no record")
+                notes.append(f"{kind} is named by no record")
             compares.append(found)  # None stays in the list: the schema allows it (R8)
         benchmark_path = args.benchmark or harness.BENCHMARK_SAMPLE_PATH
         record_id = store.begin(
             kind="comparison", step="E6", command="variance_report",
             argv=list(argv) if argv is not None else sys.argv[1:],
             # gold_risk_by_item also reads the gold seed (G8)
-            inputs=[refs["run_a"], refs["run_b"], file_ref("benchmark", benchmark_path),
-                    file_ref("gold_seed", harness.GOLD_SEED_PATH)],
+            inputs=[refs["run_a"], refs["run_b"], input_ref("benchmark", benchmark_path),
+                    input_ref("gold_seed", harness.GOLD_SEED_PATH)],
             build={"base_build_id": None, "publication": None,
                    "publication_reason": "a comparison reads run files, not the served build"},
             config={"code_version": code_version(ROOT)}, relations={"compares": compares},

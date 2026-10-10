@@ -25,8 +25,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-# Roles are fixed vocabulary so chain records are comparable across builds.
-INPUT_ROLES = ("layer1_dump", "norms", "alignments", "decisions", "freeze_manifest")
+# Input kinds are fixed vocabulary so chain records are comparable across builds.
+INPUT_KINDS = ("layer1_dump", "norms", "alignments", "decisions", "freeze_manifest")
 
 
 def sha256_of_file(path: Path | str) -> str:
@@ -39,9 +39,9 @@ def sha256_of_file(path: Path | str) -> str:
 
 
 def compose_chain_id(input_checksums: dict[str, str]) -> str:
-    """Deterministic 12-hex chain id over the role-to-sha256 map.
+    """Deterministic 12-hex chain id over the kind-to-sha256 map.
 
-    Sorted by role so dict ordering never changes the id. Absent optional
+    Sorted by input kind so dict ordering never changes the id. Absent optional
     inputs (no alignments file, no decisions file) are simply not part of
     the digest, so "same files present, same bytes" implies "same id".
     """
@@ -62,10 +62,10 @@ def build_chain(
 ) -> dict[str, Any]:
     """Checksum the publication inputs and compose the chain record.
 
-    Returns {"chain_id", "inputs": [{"role", "file", "sha256"}, ...]}.
+    Returns {"chain_id", "inputs": [{"input_kind", "file", "sha256"}, ...]}.
     Optional inputs that do not exist on disk are omitted (not hashed as
     empty), so the record states exactly what was used. Several freeze
-    manifests enter under one role: the checksum map carries their
+    manifests enter under one input kind: the checksum map carries their
     digests sorted and joined, so any manifest change changes the id and
     their order does not (D-G21); a build without manifests keeps the
     legacy id exactly.
@@ -81,13 +81,13 @@ def build_chain(
     inputs = []
     checksums: dict[str, str] = {}
     manifest_digests: list[str] = []
-    for role, path in paths:
+    for kind, path in paths:
         digest = sha256_of_file(path)
-        inputs.append({"role": role, "file": path.name, "sha256": digest})
-        if role == "freeze_manifest":
+        inputs.append({"input_kind": kind, "file": path.name, "sha256": digest})
+        if kind == "freeze_manifest":
             manifest_digests.append(digest)
         else:
-            checksums[role] = digest
+            checksums[kind] = digest
     if manifest_digests:
         checksums["freeze_manifest"] = ",".join(sorted(manifest_digests))
     return {"chain_id": compose_chain_id(checksums), "inputs": inputs}
@@ -147,20 +147,20 @@ def verify_dumps_against_chain(
         for entry in inputs_raw:
             if not isinstance(entry, dict):
                 return False, f"publication manifest {shown} is malformed: an inputs entry is not an object"
-            missing = [k for k in ("role", "file", "sha256") if entry.get(k) is None]
+            missing = [k for k in ("input_kind", "file", "sha256") if entry.get(k) is None]
             if missing:
                 return (
                     False,
                     f"publication manifest {shown} is malformed: "
                     f"an inputs entry is missing {', '.join(missing)}",
                 )
-            recorded[(entry["role"], entry["file"])] = entry["sha256"]
-        for (role, name), digest in recorded.items():
+            recorded[(entry["input_kind"], entry["file"])] = entry["sha256"]
+        for (kind, name), digest in recorded.items():
             path = directory / name
             if not path.is_file():
-                return False, f"{role} file {name} named by publication {chain_id} is missing"
+                return False, f"{kind} file {name} named by publication {chain_id} is missing"
             if sha256_of_file(path) != digest:
-                return False, f"{role} file {name} differs from the digest publication {chain_id} recorded"
+                return False, f"{kind} file {name} differs from the digest publication {chain_id} recorded"
         files = manifest.get("files")
         if not isinstance(files, dict):
             return False, f"publication manifest {shown} is malformed: missing or invalid files"
@@ -170,7 +170,7 @@ def verify_dumps_against_chain(
                 False,
                 f"publication manifest {shown} is malformed: files is missing {', '.join(missing_files)}",
             )
-        manifests = [directory / name for (role, name) in recorded if role == "freeze_manifest"]
+        manifests = [directory / name for (kind, name) in recorded if kind == "freeze_manifest"]
         chain = build_chain(
             directory / files["layer1_dump"], directory / files["norms"],
             alignments_path=directory / files["alignments"] if files.get("alignments") else None,
@@ -200,21 +200,21 @@ def verify_dumps_against_chain(
         )
     # Cross-check the recorded per-input checksums against the live files, so
     # the gate proves more than an internally consistent filename (audit
-    # 2026-07-21 defense-in-depth): every role in the record must match.
+    # 2026-07-21 defense-in-depth): every input kind in the record must match.
     try:
         recorded = json.loads(recorded_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:  # ValueError covers bytes that are not UTF-8 (B81 item 38)
         return False, f"build chain record {recorded_path.name} is unreadable: {exc}"
     if not isinstance(recorded, dict):
         return False, f"build chain record {recorded_path.name} is malformed: its root is not an object"
-    live = {i["role"]: i["sha256"] for i in chain["inputs"]}
+    live = {i["input_kind"]: i["sha256"] for i in chain["inputs"]}
     for item in recorded.get("inputs", []):
-        role, digest = item.get("role"), item.get("sha256")
-        if live.get(role) != digest:
+        kind, digest = item.get("input_kind"), item.get("sha256")
+        if live.get(kind) != digest:
             return (
                 False,
                 f"build chain record {chain['chain_id']} disagrees with the "
-                f"live dump for role '{role}'; integrity is not established",
+                f"live dump for input kind '{kind}'; integrity is not established",
             )
     return True, f"dumps verified against build chain {chain['chain_id']}"
 

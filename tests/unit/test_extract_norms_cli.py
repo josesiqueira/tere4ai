@@ -40,8 +40,8 @@ def _fakes(monkeypatch, cli, calls, results=None):
             return {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"}
 
     class FakeClient:
-        sampling = "provider default (rejected by the model)"
-        temperature = "provider default (rejected by the model)"
+        sampling = "API default (rejected by the model)"
+        temperature = "API default (rejected by the model)"
         effort = "xhigh"
         json_mode = "sent"
         usage = {"calls": 2, "input_tokens": 10, "output_tokens": 5, "requests_sent": 3,
@@ -75,8 +75,8 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
-                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
-                                         {"role": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
+                                 inputs=[{"input_kind": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
+                                         {"input_kind": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
                                           "sha256": cli.sha256_of_file(ACT_PARTIES_PATH)}],
                                  config={"prompt_version": "v5", "nodes": ["eu-ai-act:article-9", "eu-ai-act:article-10"]},
                                  expected_total=2, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
@@ -131,9 +131,9 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     # B84: the record carries the efforts (models requested, sampling applied), so the assertions are exact dicts now
     assert ex["models"] == {"generator_model": "g", "judge_model": "j", "generator_effort": "xhigh", "judge_effort": "xhigh"}
     # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
-    assert ex["sampling"] == {"generator": "provider default (rejected by the model)", "judge": "provider default (rejected by the model)",
-                              "generator_temperature": "provider default (rejected by the model)",
-                              "judge_temperature": "provider default (rejected by the model)",
+    assert ex["sampling"] == {"generator": "API default (rejected by the model)", "judge": "API default (rejected by the model)",
+                              "generator_temperature": "API default (rejected by the model)",
+                              "judge_temperature": "API default (rejected by the model)",
                               "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
     assert ex["usage"]["judge"]["calls"] == 2
     # B91: the two counts reach the record and the manifest through the same clients
@@ -143,8 +143,8 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     assert payload["build"]["extraction_effort"] == {"generator": "xhigh", "judge": "xhigh"}
     # Spec F D-F22, D-F29: the declared temperatures beside the efforts, so a
     # reader of a norm can name the extraction generator's settings
-    assert payload["build"]["extraction_temperature"] == {"generator": "provider default (rejected by the model)",
-                                                          "judge": "provider default (rejected by the model)"}
+    assert payload["build"]["extraction_temperature"] == {"generator": "API default (rejected by the model)",
+                                                          "judge": "API default (rejected by the model)"}
     assert payload["build"]["extraction_models"]["judge_effort"] == "xhigh"
     assert ex["counts"]["candidates"] == 2 and ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0}
     assert ex["outputs"][0]["file"] == "norms_test.json" and seen[0]["run_id"] == ex["run_id"]
@@ -283,10 +283,10 @@ def test_ctrl_c_ends_the_execution_failed_with_the_spend_so_far(tmp_path, monkey
     assert ex["completed_keys"] == ["eu-ai-act:article-9"] and ex["usage"]["generator"]["calls"] == 2
     # review fix F2: the failed attempt records what the clients applied, not the start value
     # B99 (spec F D-F29): the declared temperature under <role>_temperature and the declared JSON mode are recorded too
-    assert ex["sampling"] == {"generator": "provider default (rejected by the model)",
-                              "judge": "provider default (rejected by the model)",
-                              "generator_temperature": "provider default (rejected by the model)",
-                              "judge_temperature": "provider default (rejected by the model)",
+    assert ex["sampling"] == {"generator": "API default (rejected by the model)",
+                              "judge": "API default (rejected by the model)",
+                              "generator_temperature": "API default (rejected by the model)",
+                              "judge_temperature": "API default (rejected by the model)",
                               "generator_effort": "xhigh", "judge_effort": "xhigh", "generator_json_mode": "sent"}
     assert out.with_suffix(".checkpoint.jsonl").is_file(), "the checkpoint stays for resume"
 
@@ -313,7 +313,7 @@ def test_extract_never_overwrites_an_artefact_a_published_build_names(tmp_path, 
     rid = store.create_record(slug, "build-b", None)
     run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[],
                                 config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
-    store.finish_execution(rid, run, status="done", outputs=[{"role": "norms", "file": out.name, "sha256": cli.sha256_of_file(out)}])
+    store.finish_execution(rid, run, status="done", outputs=[{"output_kind": "norms", "file": out.name, "sha256": cli.sha256_of_file(out)}])
     store.set_publication(rid, PUBLISHED)
     assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path)]) == 1
     err = capsys.readouterr().err
@@ -642,7 +642,7 @@ def _scripted_models(monkeypatch, cli, tmp_path):
     from tere4ai.extract_norms.model_clients import FakeClient
 
     class ScriptedModel(FakeClient):
-        sampling = temperature = "provider default (rejected by the model)"
+        sampling = temperature = "API default (rejected by the model)"
         effort = "xhigh"
         json_mode = "sent"
         usage: dict = {}
@@ -761,8 +761,8 @@ def test_a_v4_checkpoint_is_refused_by_a_v5_resume(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
-                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
-                                         {"role": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
+                                 inputs=[{"input_kind": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
+                                         {"input_kind": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
                                           "sha256": cli.sha256_of_file(ACT_PARTIES_PATH)}],
                                  config={"prompt_version": "v4", "nodes": ["eu-ai-act:article-9"]},
                                  expected_total=1, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",
@@ -806,8 +806,8 @@ def test_a_v5_checkpoint_is_refused_by_a_v4_resume(tmp_path, monkeypatch):
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "build-b", None)
     prev = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
-                                 inputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
-                                         {"role": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
+                                 inputs=[{"input_kind": "layer1_dump", "file": "layer1.json", "sha256": cli.sha256_of_file(dump_path)},
+                                         {"input_kind": "act_parties", "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), tmp_path.resolve()),
                                           "sha256": cli.sha256_of_file(ACT_PARTIES_PATH)}],
                                  config={"prompt_version": "v5", "nodes": ["eu-ai-act:article-9"]},
                                  expected_total=1, work_unit="groups", checkpoint_file="norms_test.checkpoint.jsonl",

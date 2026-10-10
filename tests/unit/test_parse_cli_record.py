@@ -50,11 +50,11 @@ def test_parse_records_manifest_counts_gates_and_digest(tmp_path, monkeypatch):
     assert ex["counts"]["manifest_files"] == [{"file": "a0.html", "sha256": "0" * 64}] and ex["counts"]["manifest_files_count"] == 1
     assert [g["name"] for g in ex["gates"]] == ["PUBLICATION_GATE1", "PUBLICATION_GATE2", "PUBLICATION_GATE3", "PUBLICATION_GATE4", "PUBLICATION_GATE5", "PUBLICATION_GATE6"] and all(g["ok"] for g in ex["gates"])
     digest = ex["outputs"][0]["sha256"]
-    assert ex["outputs"][0]["role"] == "layer1_dump" and len(digest) == 64
+    assert ex["outputs"][0]["output_kind"] == "layer1_dump" and len(digest) == 64
     assert record["layer1_digest"] == digest and record["base_build_id"] == "build-abc"
     assert record["aliases"][0].startswith("parse-") and record["aliases"][1] == f"layer1-{digest[:12]}"
     assert store.find_parse_record(digest) == record["record_id"]
-    assert ex["inputs"][0]["role"] == "manifest"
+    assert ex["inputs"][0]["input_kind"] == "manifest"
 
 
 def test_parse_gate_failure_records_failed_execution_with_per_gate_detail(tmp_path, monkeypatch):
@@ -112,7 +112,7 @@ def test_parse_never_overwrites_a_published_layer1(tmp_path, monkeypatch, capsys
     before = layer1.read_bytes()
     (tmp_path / "publications").mkdir()
     (tmp_path / "publications" / "c1.json").write_text(json.dumps(
-        {"chain_id": "c1", "inputs": [{"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]}))
+        {"chain_id": "c1", "inputs": [{"input_kind": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}]}))
     assert cli.main(["--dump-dir", str(tmp_path), "--manifest", str(manifest)]) == 1
     err = capsys.readouterr().err
     assert "publication c1" in err and "--dump-dir" in err and layer1.read_bytes() == before

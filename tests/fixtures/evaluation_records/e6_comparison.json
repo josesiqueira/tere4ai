@@ -26,17 +26,17 @@
  "inputs": [
   {
    "file": "ablation_checkpoint.jsonl",
-   "role": "run_a",
+   "input_kind": "run_a",
    "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
   },
   {
    "file": "ablation_checkpoint.jsonl",
-   "role": "run_b",
+   "input_kind": "run_b",
    "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
   },
   {
    "file": "benchmark_sample.json",
-   "role": "benchmark",
+   "input_kind": "benchmark",
    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   }
  ],
@@ -66,7 +66,7 @@
    "copy_reason": null,
    "copy_state": "present",
    "file": "variance_study.md",
-   "role": "study",
+   "output_kind": "study",
    "sha256": "529a6da2be47962b02255518c70951a423aee684b31824a3bdc7d453b63553b5"
   }
  ],
@@ -117,7 +117,7 @@
   "sample_id": null
  },
  "sampling": null,
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": "2026-09-21T12:00:00+00:00",
  "step": "E6",
  "synthesised": false,

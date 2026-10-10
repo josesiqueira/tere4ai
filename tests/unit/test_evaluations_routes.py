@@ -91,7 +91,7 @@ def test_list_survives_an_unreadable_record_and_a_missing_copy(tmp_path):
     ref = store.keep_output(rid, "summary", out)
     store.finish(rid, status="completed", outputs=[ref])
     (store.dir / ref["copy"]).unlink()
-    (store.dir / "0000000c0000.json").write_text(json.dumps({"schema_version": "evaluation_record.v1"}))
+    (store.dir / "0000000c0000.json").write_text(json.dumps({"schema_version": "evaluation_record.v2"}))
     with TestClient(facade.create_app(tmp_path, eval_root=tmp_path / "empty")) as client:
         listed = client.get("/api/evaluations").json()
         rows = {r["record_id"]: r for g in listed["groups"] for r in g["records"]}

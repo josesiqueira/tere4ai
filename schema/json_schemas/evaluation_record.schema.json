@@ -1,42 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tere4ai/schema/evaluation_record.v1",
+  "$id": "https://tere4ai/schema/evaluation_record.v2",
   "title": "TERE4AI v2 evaluation record",
   "description": "Machine-readable contract for evaluation records (docs/architecture.md DEC-17): one immutable record per measurement run of the Evaluate steps E1 (judge error rates) and E6 (benchmark, ablations, variance), plus the presented shape served over the API. Every presented field carries a provenance of recorded, derived or unavailable; nothing is guessed.",
   "$defs": {
-    "file_ref": {
+    "input_ref": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "role": {"type": "string"},
+        "input_kind": {"type": "string"},
         "file": {"type": "string"},
         "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       },
-      "required": ["role", "file", "sha256"]
+      "required": ["input_kind", "file", "sha256"]
     },
     "output_ref": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "role": {"type": "string"},
+        "output_kind": {"type": "string"},
         "file": {"type": "string"},
         "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "copy": {"type": ["string", "null"]}
       },
-      "required": ["role", "file", "sha256", "copy"]
+      "required": ["output_kind", "file", "sha256", "copy"]
     },
     "presented_output": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "role": {"type": "string"},
+        "output_kind": {"type": "string"},
         "file": {"type": "string"},
         "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "copy": {"type": ["string", "null"]},
         "copy_state": {"enum": ["present", "missing", "drifted", "not_kept"]},
         "copy_reason": {"type": ["string", "null"]}
       },
-      "required": ["role", "file", "sha256", "copy", "copy_state", "copy_reason"]
+      "required": ["output_kind", "file", "sha256", "copy", "copy_state", "copy_reason"]
     },
     "outcome": {
       "type": "object",
@@ -88,7 +88,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "schema_version": {"const": "evaluation_record.v1"},
+        "schema_version": {"const": "evaluation_record.v2"},
         "record_id": {"type": "string", "pattern": "^(?:[0-9a-f]{12}|legacy-[0-9a-f]{12})$"},
         "kind": {"enum": ["run", "comparison", "sample", "labelling", "analysis"]},
         "step": {"enum": ["E1", "E6"]},
@@ -99,7 +99,7 @@
         "ended_at": {"type": ["string", "null"]},
         "outcome": {"anyOf": [{"$ref": "#/$defs/outcome"}, {"type": "null"}]},
         "build": {"$ref": "#/$defs/build_identity"},
-        "inputs": {"type": "array", "items": {"$ref": "#/$defs/file_ref"}},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/input_ref"}},
         "item_selection_sha256": {"type": ["string", "null"]},
         "models": {
           "anyOf": [
@@ -137,7 +137,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "schema_version": {"const": "evaluation_record.v1"},
+        "schema_version": {"const": "evaluation_record.v2"},
         "record_id": {"type": "string", "pattern": "^(?:[0-9a-f]{12}|legacy-[0-9a-f]{12})$"},
         "kind": {"enum": ["run", "comparison", "sample", "labelling", "analysis"]},
         "step": {"enum": ["E1", "E6"]},
@@ -148,7 +148,7 @@
         "ended_at": {"type": ["string", "null"]},
         "outcome": {"anyOf": [{"$ref": "#/$defs/outcome"}, {"type": "null"}]},
         "build": {"$ref": "#/$defs/build_identity"},
-        "inputs": {"type": "array", "items": {"$ref": "#/$defs/file_ref"}},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/input_ref"}},
         "item_selection_sha256": {"type": ["string", "null"]},
         "models": {
           "anyOf": [

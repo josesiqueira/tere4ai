@@ -36,7 +36,7 @@
    "copy_reason": "legacy: the file on disk is the record",
    "copy_state": "not_kept",
    "file": "ablation_run1_summary.json",
-   "role": "summary",
+   "output_kind": "summary",
    "sha256": "dc810e7c686ebbc6d5e33f58182f0854d849f98999e196f6e5c674e86645b5df"
   }
  ],
@@ -91,7 +91,7 @@
   "sample_id": null
  },
  "sampling": null,
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": null,
  "step": "E6",
  "synthesised": true,

@@ -60,7 +60,7 @@ def _files(tmp_path, *, reference=None, align_input=True, judge_runs=None, layer
     rid = store.create_record("core.reference" if reference else "core", "build-b", sha256_of_file(layer1))
     run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                 expected_total=None, work_unit=None, checkpoint_file=None)
-    store.finish_execution(rid, run, status="done", outputs=[{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}])
+    store.finish_execution(rid, run, status="done", outputs=[{"output_kind": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}])
     return layer1, norms, alignments, store, rid
 
 
@@ -125,7 +125,7 @@ def test_chain_record_and_pointer_only_after_postload_gates_pass(tmp_path, monke
     assert len(chain["gates"]) == 6 and len(chain["postload_gates"]) == 5 and chain["record_id"] == rid
     assert (tmp_path / "BUILD_CHAIN_CURRENT.txt").read_text().strip() == chain["chain_id"]
     manifest = json.loads((tmp_path / "publications" / f"{chain['chain_id']}.json").read_text())
-    assert manifest["schema_version"] == "publication.v1" and manifest["files"]["norms"] == "norms_core.json"
+    assert manifest["schema_version"] == "publication.v2" and manifest["files"]["norms"] == "norms_core.json"
     assert read_target_state(tmp_path)["state"] == "available"
     assert store.read(rid)["publication"]["chain_id"] == chain["chain_id"] and store.is_frozen(rid)
 
@@ -242,7 +242,7 @@ def test_human_layer_needs_its_bound_manifest_and_label_needs_production_scope(t
     assert rc == 0
     chain = json.loads(next(tmp_path.glob("build_chain_*.json")).read_text())
     assert chain["gating"] == {"layer2": "human", "layer3": "llm"} and chain["label"] is None
-    assert [i["role"] for i in chain["inputs"]] == ["layer1_dump", "norms", "alignments", "freeze_manifest"]
+    assert [i["input_kind"] for i in chain["inputs"]] == ["layer1_dump", "norms", "alignments", "freeze_manifest"]
     assert chain["manifests"][0]["freeze_id"] == "f1" and chain["manifests"][0]["layer"] == 2
     other = {**manifest, "freeze_id": "f9", "decisions_sha256": "e" * 64}
     (tmp_path / "freeze-f9.json").write_text(json.dumps(other))
@@ -701,7 +701,7 @@ def test_a_republish_does_not_land_in_a_descendant_holding_a_different_norms_ext
     run = store.start_execution(descendant, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[],
                                 inputs=[], config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(descendant, run, status="done",
-                           outputs=[{"role": "norms", "file": other_norms.name, "sha256": sha256_of_file(other_norms)}])
+                           outputs=[{"output_kind": "norms", "file": other_norms.name, "sha256": sha256_of_file(other_norms)}])
     assert store.resolve("core") == descendant, "extract_norms moved the alias to the descendant"
     capsys.readouterr()
     with_alignments = [*base, "--alignments", str(alignments)]

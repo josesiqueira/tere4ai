@@ -33,7 +33,7 @@
  "inputs": [
   {
    "file": "judge_label_sheet.json",
-   "role": "sheet_before",
+   "input_kind": "sheet_before",
    "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
   }
  ],
@@ -61,7 +61,7 @@
    "copy_reason": null,
    "copy_state": "present",
    "file": "judge_label_sheet.json",
-   "role": "sheet_after",
+   "output_kind": "sheet_after",
    "sha256": "2202fa8412cc9ff04b26f09d1c01426126eabdc48965762e8244fdd21a15dbeb"
   }
  ],
@@ -109,7 +109,7 @@
   "sample_id": "sample-a1b2c3d4e5f6"
  },
  "sampling": null,
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": "2026-09-25T10:00:00+00:00",
  "step": "E1",
  "synthesised": false,

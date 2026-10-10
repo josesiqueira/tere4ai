@@ -29,7 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from tere4ai.graph_store.build_record import SCHEMA_VERSION, atomic_write_json  # noqa: E402
+from tere4ai.graph_store.build_record import atomic_write_json  # noqa: E402
 
 MAP = {"L0.1": "LAYER0_STEP1", "L1.1": "LAYER1_STEP1", "L2.1": "LAYER2_STEP1", "L2.2": "LAYER2_STEP2", "L2.3": "LAYER2_STEP3",
        "L2.4": "LAYER2_STEP4", "L3.1": "LAYER3_STEP1", "L3.2": "LAYER3_STEP2", "L3.3": "LAYER3_STEP3", "L3.4": "LAYER3_STEP4",
@@ -86,7 +86,9 @@ def main(argv: list[str]) -> int:
             continue
         after = rename(data)
         if isinstance(after, dict) and after.get("schema_version") == "build_record.v1":
-            after["schema_version"] = SCHEMA_VERSION
+            # Its own target, not the store's current version: since B158 the
+            # store reads build_record.v3, which scripts/rename_record_kinds.py writes.
+            after["schema_version"] = "build_record.v2"
         if after != data:
             atomic_write_json(path, after)
             print(path.name)

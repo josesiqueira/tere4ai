@@ -47,7 +47,7 @@ from tere4ai.eval.evaluation_record import (
     EvaluationRecordStore,
     code_version,
     end_failed,
-    file_ref,
+    input_ref,
     observe_publication,
     served_input_paths,
 )
@@ -384,9 +384,9 @@ def run_eval(
         if generator_factory is None:
             raise ValueError("strategy names were given but no generator_factory")
         served = served_input_paths(dump_dir or LAYER1_DUMP_PATH.parent)
-        for role, preloaded in (("layer1_dump", dump), ("norms", norms_payload)):
-            if preloaded is None and role not in served:
-                raise EvalAssetMissingError(f"the active publication names no {role} file")
+        for kind, preloaded in (("layer1_dump", dump), ("norms", norms_payload)):
+            if preloaded is None and kind not in served:
+                raise EvalAssetMissingError(f"the active publication names no {kind} file")
         if dump is None:
             dump = json.loads(served["layer1_dump"].read_text(encoding="utf-8"))
             read_paths["layer1_dump"] = served["layer1_dump"]
@@ -419,16 +419,16 @@ def run_eval(
     record_id = None
     notes: list[str] = []
     if record_store is not None:
-        inputs = [file_ref(role, path) for role, path in read_paths.items()]
+        inputs = [input_ref(kind, path) for kind, path in read_paths.items()]
         if not read_paths:
             notes.append("the strategies were passed prebuilt; the harness did not read their inputs")
-        inputs.append(file_ref("gold_seed", (input_paths or {}).get("gold_seed", GOLD_SEED_PATH)))
+        inputs.append(input_ref("gold_seed", (input_paths or {}).get("gold_seed", GOLD_SEED_PATH)))
         if input_paths and "benchmark" in input_paths:
-            inputs.append(file_ref("benchmark", input_paths["benchmark"]))
+            inputs.append(input_ref("benchmark", input_paths["benchmark"]))
         models = None
         if live:
             models = strategy_models(strategies, strategy_names)
-        # bind to a publication only when both served roles were read here (F4)
+        # bind to a publication only when both served input kinds were read here (F4)
         if {"layer1_dump", "norms"} <= set(read_paths):
             publication, publication_reason = observe_publication(dump_dir or LAYER1_DUMP_PATH.parent)
         else:

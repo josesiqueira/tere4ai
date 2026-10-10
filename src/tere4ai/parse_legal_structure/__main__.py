@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.manifest.is_file():
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
         manifest_files = [{"file": m.get("file"), "sha256": m.get("sha256")} for m in manifest.get("snapshots", [])]
-        inputs.append({"role": "manifest", "file": args.manifest.name, "sha256": sha256_of_file(args.manifest)})
+        inputs.append({"input_kind": "manifest", "file": args.manifest.name, "sha256": sha256_of_file(args.manifest)})
 
     store = BuildRecordStore(args.dump_dir)
     # Nothing in a published build is edited in place (spec G Section 2).
@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
         digest = sha256_of_file(out_path)
         store.finish_execution(
             record_id, run_id, status="done", counts=counts, gates=gates,
-            outputs=[{"role": "layer1_dump", "file": out_path.name, "sha256": digest}],
+            outputs=[{"output_kind": "layer1_dump", "file": out_path.name, "sha256": digest}],
         )
         store.set_layer1_digest(record_id, digest)
         base = dump.get("build", {}).get("build_id")

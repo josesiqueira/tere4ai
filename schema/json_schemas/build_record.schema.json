@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tere4ai/schema/build_record.v2",
+  "$id": "https://tere4ai/schema/build_record.v3",
   "title": "TERE4AI v2 build record",
   "description": "Machine-readable contract for build records (docs/architecture.md DEC-16): one execution record per command attempt, publication written only after the post-load gates, and the presented shape served over the API. Every presented field carries a provenance of recorded, derived or unavailable; nothing is guessed.",
   "$defs": {
@@ -14,15 +14,25 @@
       },
       "required": ["name", "ok", "detail"]
     },
-    "artifact_ref": {
+    "input_ref": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "role": {"type": "string"},
+        "input_kind": {"type": "string"},
         "file": {"type": "string"},
         "sha256": {"type": "string"}
       },
-      "required": ["role", "file", "sha256"]
+      "required": ["input_kind", "file", "sha256"]
+    },
+    "output_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "output_kind": {"type": "string"},
+        "file": {"type": "string"},
+        "sha256": {"type": "string"}
+      },
+      "required": ["output_kind", "file", "sha256"]
     },
     "work_failures": {
       "type": "object",
@@ -33,8 +43,8 @@
       },
       "required": ["nodes_failed", "norms_failed"]
     },
-    "role_usage": {
-      "description": "One model role's usage over one execution (spec F D-F26 (g)): provider-reported token sums, replies received (calls), requests sent and replies that reported usage. requests_sent greater than replies_with_usage means some request may have been billed without a figure. requests_refused counts the failed attempts the provider answered with an HTTP error status (a refused request, as opposed to a connection error, a timeout or an interrupt); every one of them is also in requests_sent. requests_rejected_before_processing (spec F D-F32) counts the attempts the provider answered with HTTP 400, 401, 403, 404, 413, 422 or 429, which the providers are taken not to bill (spec F D-F26 (e): Anthropic's billing guidance; for OpenAI inferred, no invoice checked); it is a subset of requests_refused, so on every record requests_rejected_before_processing is at most requests_refused and requests_refused at most requests_sent. Records made before 2026-09-26 carry only the first three, records made on 2026-09-26 before the pre-B74 final fixes carry no requests_refused; requests_rejected_before_processing was added on 2026-10-01, and a record without the key was made before it (it is read by the key being present, never by a date). reasoning_tokens (B133, added 2026-10-04) is the provider-reported reasoning part of output_tokens (Anthropic output_tokens_details.thinking_tokens, OpenAI completion_tokens_details.reasoning_tokens), never added to it; replies_with_reasoning counts the replies that reported it, at most replies_with_usage; a record without the keys was made before them (read by the keys being present, never by a date).",
+    "component_usage": {
+      "description": "One model component's usage over one execution (spec F D-F26 (g)): backend-reported token sums, replies received (calls), requests sent and replies that reported usage. requests_sent greater than replies_with_usage means some request may have been billed without a figure. requests_refused counts the failed attempts the inference backend answered with an HTTP error status (a refused request, as opposed to a connection error, a timeout or an interrupt); every one of them is also in requests_sent. requests_rejected_before_processing (spec F D-F32) counts the attempts the inference backend answered with HTTP 400, 401, 403, 404, 413, 422 or 429, which the inference backends are taken not to bill (spec F D-F26 (e): Anthropic's billing guidance; for OpenAI inferred, no invoice checked); it is a subset of requests_refused, so on every record requests_rejected_before_processing is at most requests_refused and requests_refused at most requests_sent. Records made before 2026-09-26 carry only the first three, records made on 2026-09-26 before the pre-B74 final fixes carry no requests_refused; requests_rejected_before_processing was added on 2026-10-01, and a record without the key was made before it (it is read by the key being present, never by a date). reasoning_tokens (B133, added 2026-10-04) is the backend-reported reasoning part of output_tokens (Anthropic output_tokens_details.thinking_tokens, OpenAI completion_tokens_details.reasoning_tokens), never added to it; replies_with_reasoning counts the replies that reported it, at most replies_with_usage; a record without the keys was made before them (read by the keys being present, never by a date).",
       "type": "object",
       "additionalProperties": true,
       "properties": {
@@ -49,14 +59,14 @@
         "replies_with_reasoning": {"type": "integer", "minimum": 0}
       }
     },
-    "usage_by_role": {
+    "usage_by_component": {
       "anyOf": [
         {"type": "null"},
-        {"type": "object", "additionalProperties": {"$ref": "#/$defs/role_usage"}}
+        {"type": "object", "additionalProperties": {"$ref": "#/$defs/component_usage"}}
       ]
     },
     "execution_models": {
-      "description": "The models an execution ran under. Since B99 (spec F D-F29) each role's effort, temperature and JSON mode are the values declared in config/model_parameters.json, and model_parameters_sha256 is the digest of the two rows in use; a resume under another declaration is refused. Records made before carry only the model ids, or the ids and the configured efforts (B84).",
+      "description": "The models an execution ran under. Since B99 (spec F D-F29) each model component's effort, temperature and JSON mode are the values declared in config/model_parameters.json, and model_parameters_sha256 is the digest of the two rows in use; a resume under another declaration is refused. Records made before carry only the model ids, or the ids and the configured efforts (B84).",
       "type": ["object", "null"],
       "additionalProperties": true,
       "properties": {
@@ -67,7 +77,7 @@
       }
     },
     "execution_sampling": {
-      "description": "What the requests carried. Since B99 (spec F D-F29): generator and judge hold each role's declared temperature (0 or N/A), repeated under generator_temperature and judge_temperature, with the declared efforts and the generator's JSON mode (sent or N/A). Records made before keep their words: the temperature outcome (0, provider default (rejected by the model), mixed, no replies) under generator and judge only, and the applied effort outcome, null for a role a legacy dump does not record.",
+      "description": "What the requests carried. Since B99 (spec F D-F29): generator and judge hold each model component's declared temperature (0 or N/A), repeated under generator_temperature and judge_temperature, with the declared efforts and the generator's JSON mode (sent or N/A). Records made before keep their words: the temperature outcome (0, API default (rejected by the model), mixed, no replies) under generator and judge only, and the applied effort outcome, null for a model component a legacy dump does not record.",
       "type": ["object", "null"],
       "additionalProperties": true,
       "properties": {
@@ -140,13 +150,13 @@
         "heartbeat_at": {"type": ["string", "null"]},
         "argv": {"type": ["array", "null"], "items": {"type": "string"}},
         "resumes_run_id": {"type": ["string", "null"]},
-        "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
-        "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/input_ref"}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/output_ref"}},
         "config": {"type": "object", "additionalProperties": true},
         "models": {"$ref": "#/$defs/execution_models"},
         "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
         "sampling": {"$ref": "#/$defs/execution_sampling"},
-        "usage": {"$ref": "#/$defs/usage_by_role"},
+        "usage": {"$ref": "#/$defs/usage_by_component"},
         "checkpoint_file": {"type": ["string", "null"]},
         "work_unit": {"enum": ["groups", "batches", null]},
         "expected_total": {"type": ["integer", "null"]},
@@ -190,13 +200,13 @@
         "heartbeat_at": {"type": ["string", "null"]},
         "argv": {"type": ["array", "null"], "items": {"type": "string"}},
         "resumes_run_id": {"type": ["string", "null"]},
-        "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
-        "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/input_ref"}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/output_ref"}},
         "config": {"type": "object", "additionalProperties": true},
         "models": {"$ref": "#/$defs/execution_models"},
         "prompt_sha256": {"type": ["object", "null"], "additionalProperties": true},
         "sampling": {"$ref": "#/$defs/execution_sampling"},
-        "usage": {"$ref": "#/$defs/usage_by_role"},
+        "usage": {"$ref": "#/$defs/usage_by_component"},
         "checkpoint_file": {"type": ["string", "null"]},
         "work_unit": {"enum": ["groups", "batches", null]},
         "expected_total": {"type": ["integer", "null"]},
@@ -276,7 +286,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "schema_version": {"const": "build_record.v2"},
+        "schema_version": {"const": "build_record.v3"},
         "record_id": {"type": "string"},
         "aliases": {"type": "array", "items": {"type": "string"}},
         "parent_record_id": {"type": ["string", "null"]},
@@ -295,7 +305,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "schema_version": {"const": "build_record.v2"},
+        "schema_version": {"const": "build_record.v3"},
         "record_id": {"type": "string"},
         "aliases": {"type": "array", "items": {"type": "string"}},
         "parent_record_id": {"type": ["string", "null"]},
@@ -445,7 +455,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "schema_version": {"const": "publication.v1"},
+        "schema_version": {"const": "publication.v2"},
         "record_id": {"type": "string"},
         "chain_id": {"type": "string"},
         "build_id": {"type": "string"},
@@ -456,7 +466,7 @@
         "postload_gates": {"type": ["array", "null"], "items": {"$ref": "#/$defs/gate"}},
         "manifests": {"type": "array", "items": {"$ref": "#/$defs/manifest_ref"}},
         "build_number": {"type": ["integer", "null"], "minimum": 1},
-        "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/input_ref"}},
         "files": {
           "type": "object",
           "additionalProperties": false,

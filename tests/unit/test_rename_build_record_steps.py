@@ -9,6 +9,7 @@ from tere4ai.graph_store.build_record import STEP_IDS, BuildRecordStore, RecordE
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "rename_build_record_steps.py"
+KINDS_SCRIPT = ROOT / "scripts" / "rename_record_kinds.py"
 OLD = {"LAYER0_STEP1": "L0.1", "LAYER1_STEP1": "L1.1", "LAYER2_STEP1": "L2.1", "LAYER2_STEP2": "L2.2", "LAYER2_STEP3": "L2.3",
        "LAYER2_STEP4": "L2.4", "LAYER3_STEP1": "L3.1", "LAYER3_STEP2": "L3.2", "LAYER3_STEP3": "L3.3", "LAYER3_STEP4": "L3.4",
        "LAYER3_STEP5": "L3.5", "PUBLICATION_STEP1": "P.1", "PUBLICATION_STEP2": "P.2"}
@@ -35,6 +36,14 @@ def _run(*args):
     return subprocess.run([sys.executable, str(SCRIPT), *map(str, args)], capture_output=True, text=True)
 
 
+def _reads_after_the_kinds_rename(store, rid, path):
+    """Since B158 the store reads build_record.v3: the steps rename gives v2, and
+    scripts/rename_record_kinds.py takes it the rest of the way."""
+    out = subprocess.run([sys.executable, str(KINDS_SCRIPT), str(path)], capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    return store.read(rid)["record_id"] == rid
+
+
 def test_the_old_shape_is_refused_before_the_rewrite(tmp_path):
     store, rid, _ = _old_shape(tmp_path)
     with pytest.raises(RecordError):
@@ -50,9 +59,9 @@ def test_rewrites_keys_and_version_once_and_the_record_reads_again(tmp_path):
     covered = data["executions"][0]["covers_steps"]
     assert data["schema_version"] == "build_record.v2" and covered == list(STEP_IDS) and "L0.1" not in covered
     assert data["executions"][0]["outputs"][0]["file"] == "norms-L2.1.json"
-    assert store.read(rid)["record_id"] == rid
     again = _run(tmp_path / "build_records")
     assert again.returncode == 0 and f"{rid}.json" not in again.stdout
+    assert _reads_after_the_kinds_rename(store, rid, path)
 
 
 def test_a_file_that_is_not_json_is_reported_and_skipped_and_the_run_exits_1(tmp_path):
@@ -63,7 +72,7 @@ def test_a_file_that_is_not_json_is_reported_and_skipped_and_the_run_exits_1(tmp
     assert out.returncode == 1 and f"{rid}.json" in out.stdout
     assert "skipped tmp123.json:" in out.stderr and "Traceback" not in out.stderr
     assert json.loads(path.read_text(encoding="utf-8"))["schema_version"] == "build_record.v2"
-    assert store.read(rid)["record_id"] == rid and bad.read_text(encoding="utf-8") == "{"
+    assert _reads_after_the_kinds_rename(store, rid, path) and bad.read_text(encoding="utf-8") == "{"
 
 
 def test_a_file_of_bytes_that_are_not_utf8_is_reported_and_skipped(tmp_path):
@@ -73,7 +82,7 @@ def test_a_file_of_bytes_that_are_not_utf8_is_reported_and_skipped(tmp_path):
     out = _run(tmp_path / "build_records")
     assert out.returncode == 1 and f"{rid}.json" in out.stdout
     assert "skipped broken.json:" in out.stderr and "Traceback" not in out.stderr
-    assert store.read(rid)["record_id"] == rid and bad.read_bytes() == b"\xff\xfe\x00not utf-8"
+    assert _reads_after_the_kinds_rename(store, rid, path) and bad.read_bytes() == b"\xff\xfe\x00not utf-8"
 
 
 def test_only_step_keys_and_covers_steps_are_renamed(tmp_path):

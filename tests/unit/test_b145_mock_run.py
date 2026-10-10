@@ -75,7 +75,7 @@ def _run(tmp_path, monkeypatch):
     from tere4ai.extract_norms.model_clients import FakeClient
 
     class ScriptedModel(FakeClient):
-        sampling = temperature = "provider default (rejected by the model)"
+        sampling = temperature = "API default (rejected by the model)"
         effort = "xhigh"
         json_mode = "sent"
 
@@ -125,7 +125,7 @@ def test_the_v5_run_writes_version_2_with_both_v5_hashes_and_the_list_as_an_inpu
            for kind in ("extract_norms", "judge_norms")}
     assert execution["config"]["prompt_version"] == "v5"
     assert execution["prompt_sha256"] == {"generator": sha["extract_norms"], "judge": sha["judge_norms"]}
-    (listed,) = [i for i in execution["inputs"] if i["role"] == "act_parties"]
+    (listed,) = [i for i in execution["inputs"] if i["input_kind"] == "act_parties"]
     assert listed["sha256"] == hashlib.sha256(ap.ACT_PARTIES_PATH.read_bytes()).hexdigest()
     assert len(payload["norms"]) == 13
 

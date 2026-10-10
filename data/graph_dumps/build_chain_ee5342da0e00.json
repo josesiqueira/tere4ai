@@ -3,17 +3,17 @@
   "chain_id": "ee5342da0e00",
   "inputs": [
     {
-      "role": "layer1_dump",
+      "input_kind": "layer1_dump",
       "file": "layer1.json",
       "sha256": "b7e68f3927e9112eaf5e341c43f958f9208eb4e217fd3265ce00bc88e2317f44"
     },
     {
-      "role": "norms",
+      "input_kind": "norms",
       "file": "norms_core.json",
       "sha256": "44006b4b5803f9169bc79885467afa76e2bed9fb53138bd62cbf9bf92c2b527f"
     },
     {
-      "role": "alignments",
+      "input_kind": "alignments",
       "file": "alignments_core.json",
       "sha256": "6cff8f0672344b5f2622f8697000be77e8808dd7378652edcfa4f3e5f73f27e9"
     }

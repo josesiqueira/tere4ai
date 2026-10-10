@@ -77,7 +77,7 @@ def test_fixtures_state_the_honesty_rules():
     resumed = _fixture("e6_resumed.json")
     assert resumed["relations"]["resumes_record_id"] == "e6a000000001"
     missing = _fixture("e6_copy_missing.json")
-    states = {o["role"]: o["copy_state"] for o in missing["outputs"]}
+    states = {o["output_kind"]: o["copy_state"] for o in missing["outputs"]}
     assert states == {"summary": "missing", "checkpoint": "drifted"}
     assert missing["outcome"]["status"] == "completed", "a lost copy never rewrites the outcome"
     analysis = _fixture("e1_analysis.json")

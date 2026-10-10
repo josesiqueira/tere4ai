@@ -117,7 +117,7 @@ def unique_results(entries: list[dict[str, Any]], key_field: str) -> dict[str, d
 
 
 def _digests(inputs: list[dict[str, Any]]) -> dict[str, str]:
-    return {i["role"]: i["sha256"] for i in inputs}
+    return {i["input_kind"]: i["sha256"] for i in inputs}
 
 
 def prepare_resume(path: Path, key_field: str, result_keys: tuple[str, ...], *, resume: bool, accept_legacy: bool,

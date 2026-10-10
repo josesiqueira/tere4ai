@@ -185,10 +185,10 @@ def _main(argv: list[str] | None = None) -> int:
     checkpoint_path = out_path.with_suffix(".checkpoint.jsonl")
 
     layer1_digest = sha256_of_file(args.dump)
-    inputs = [{"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir),
+    inputs = [{"input_kind": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir),
                "sha256": layer1_digest}]
     # B145 (D-G80 (11), R76): the Act's parties the run read, by digest
-    inputs.append({"role": "act_parties",
+    inputs.append({"input_kind": "act_parties",
                    "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), Path(dump_dir).resolve()),
                    "sha256": sha256_of_file(ACT_PARTIES_PATH)})
     config = {"prompt_version": args.prompt_version, "nodes": node_ids}
@@ -331,7 +331,7 @@ def _main(argv: list[str] | None = None) -> int:
         stats = merged["stats"]
         store.finish_execution(
             record_id, run_id, status="done",
-            outputs=[{"role": "norms", "file": relative_to_dump_dir(out_path, dump_dir),
+            outputs=[{"output_kind": "norms", "file": relative_to_dump_dir(out_path, dump_dir),
                      "sha256": sha256_of_file(out_path)}],
             counts={"source_units": stats["source_units"], "candidates": stats["candidates"],
                     "verdicts": stats["verdicts"], "invalid_norms_count": len(stats["invalid_norms"]),

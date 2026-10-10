@@ -40,7 +40,7 @@ from tere4ai.graph_store.publication import (  # noqa: E402
 )
 
 CHAIN_ID = re.compile(r"^[0-9a-f]{12}$")
-FILE_ROLES = ("layer1_dump", "norms", "alignments")
+FILE_KINDS_OF_PUBLICATION = ("layer1_dump", "norms", "alignments")
 
 
 def _read(path: Path) -> dict | None:
@@ -51,11 +51,11 @@ def _read(path: Path) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def _files_by_role(inputs: list) -> dict[str, str | None] | None:
+def _files_by_input_kind(inputs: list) -> dict[str, str | None] | None:
     """The manifest's files block from the chain record's inputs, as publish
     builds it; None when the layer1 dump or the norms file is not named once."""
-    named = {role: [i.get("file") for i in inputs if isinstance(i, dict) and i.get("role") == role]
-             for role in FILE_ROLES}
+    named = {kind: [i.get("file") for i in inputs if isinstance(i, dict) and i.get("input_kind") == kind]
+             for kind in FILE_KINDS_OF_PUBLICATION}
     if len(named["layer1_dump"]) != 1 or len(named["norms"]) != 1 or len(named["alignments"]) > 1:
         return None
     return {"layer1_dump": named["layer1_dump"][0], "norms": named["norms"][0],
@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
             return _refuse(f"{chain_name} names record {chain.get('record_id')} and carries Build "
                            f"{chain.get('build_number')}, the frozen record {record['record_id']} carries Build "
                            f"{number}; a number is never changed, so compare the two by hand")
-        files = _files_by_role(chain.get("inputs") or [])
+        files = _files_by_input_kind(chain.get("inputs") or [])
         if files is None:
             return _refuse(f"{chain_name} does not name exactly one layer1 dump and one norms file")
         named = f"Build {number}" if number is not None else "a build published before build numbers"

@@ -88,30 +88,30 @@ def test_fixtures_are_byte_stable_against_the_presenter():
         assert (FIXTURES / name).read_text(encoding="utf-8") == text, f"{name} drifted: run python -m tests.fixtures.build_records.regenerate and commit"
 
 
-def test_the_usage_of_a_role_documents_the_two_completeness_counts():
+def test_the_usage_of_a_model_component_documents_the_two_completeness_counts():
     """B91 (spec F D-F26 (g)): requests sent and replies with usage, optional so older records validate."""
     schema = _schema()
-    role = schema["$defs"]["role_usage"]
+    component = schema["$defs"]["component_usage"]
     # final review A3 adds a sixth optional count, requests_refused, and spec F
     # D-F32 a seventh, requests_rejected_before_processing
-    assert set(role["properties"]) == {"calls", "input_tokens", "output_tokens", "requests_sent",
-                                       "replies_with_usage", "requests_refused",
-                                       "requests_rejected_before_processing",
-                                       "reasoning_tokens", "replies_with_reasoning"}  # B133
-    assert list(validator_for("usage_by_role").iter_errors({"generator": {"requests_refused": -1}}))
-    assert list(validator_for("usage_by_role").iter_errors(
+    assert set(component["properties"]) == {"calls", "input_tokens", "output_tokens", "requests_sent",
+                                            "replies_with_usage", "requests_refused",
+                                            "requests_rejected_before_processing",
+                                            "reasoning_tokens", "replies_with_reasoning"}  # B133
+    assert list(validator_for("usage_by_component").iter_errors({"generator": {"requests_refused": -1}}))
+    assert list(validator_for("usage_by_component").iter_errors(
         {"generator": {"requests_rejected_before_processing": -1}}))
     # the description names the seven statuses and the subset relation for a reader
-    assert "HTTP 400, 401, 403, 404, 413, 422 or 429" in role["description"]
-    assert "subset of requests_refused" in role["description"]
-    assert role.get("required", []) == []
+    assert "HTTP 400, 401, 403, 404, 413, 422 or 429" in component["description"]
+    assert "subset of requests_refused" in component["description"]
+    assert component.get("required", []) == []
     for definition in ("execution", "presented_execution"):
-        assert schema["$defs"][definition]["properties"]["usage"] == {"$ref": "#/$defs/usage_by_role"}
-    by_role = validator_for("usage_by_role")
-    assert not list(by_role.iter_errors(None))
-    assert not list(by_role.iter_errors({"generator": {"calls": 1}, "judge": {}}))
-    assert list(by_role.iter_errors({"generator": {"requests_sent": -1}}))
-    assert list(by_role.iter_errors({"generator": 3}))
+        assert schema["$defs"][definition]["properties"]["usage"] == {"$ref": "#/$defs/usage_by_component"}
+    by_component = validator_for("usage_by_component")
+    assert not list(by_component.iter_errors(None))
+    assert not list(by_component.iter_errors({"generator": {"calls": 1}, "judge": {}}))
+    assert list(by_component.iter_errors({"generator": {"requests_sent": -1}}))
+    assert list(by_component.iter_errors({"generator": 3}))
 
 
 def test_the_resumed_align_mock_data_carries_an_incomplete_failed_attempt():
@@ -132,8 +132,9 @@ def test_the_resumed_align_mock_data_carries_a_request_rejected_before_processin
     assert (generator["requests_sent"], generator["replies_with_usage"], generator["requests_refused"],
             generator["requests_rejected_before_processing"]) == (3, 2, 1, 1)
     for execution in (failed, done):
-        for role in execution["usage"].values():
-            assert role["requests_rejected_before_processing"] <= role["requests_refused"] <= role["requests_sent"]
+        for component in execution["usage"].values():
+            assert (component["requests_rejected_before_processing"] <= component["requests_refused"]
+                    <= component["requests_sent"])
     assert failed["usage"]["generator"]["requests_rejected_before_processing"] == 0
 
 
@@ -151,7 +152,7 @@ def test_the_contract_carries_a_record_with_declared_parameters_and_older_ones_s
     assert set(defs["execution_models"]["properties"]) == models_keys
     record = json.loads((FIXTURES / "intermediate_build.json").read_text(encoding="utf-8"))
     last = [e for e in record["executions"] if e["run_id"] == "run4align000"][0]
-    # review X-C1: the dashboard reads the declared temperature under <role>_temperature
+    # review X-C1: the dashboard reads the declared temperature under <model component>_temperature
     assert last["sampling"] == {"generator": "N/A", "judge": "N/A", "generator_temperature": "N/A",
                                 "judge_temperature": "N/A", "generator_effort": "xhigh",
                                 "judge_effort": "xhigh", "generator_json_mode": "sent"}
@@ -159,10 +160,10 @@ def test_the_contract_carries_a_record_with_declared_parameters_and_older_ones_s
     bad = {**last, "sampling": {**last["sampling"], "generator_effort": 5}}
     validator = Draft202012Validator({**schema, "$ref": "#/$defs/presented_execution"})
     assert list(validator.iter_errors(last)) == [] and list(validator.iter_errors(bad)) != []
-    # review T-M3: present.py _sampling_with_effort gives null for a role a dump's effort dict lacks
-    missing_role = {**last, "sampling": {"generator": "0", "judge": "0", "generator_effort": "xhigh",
-                                         "judge_effort": None}}
-    assert list(validator.iter_errors(missing_role)) == []
+    # review T-M3: present.py _sampling_with_effort gives null for a model component a dump's effort dict lacks
+    missing_component = {**last, "sampling": {"generator": "0", "judge": "0", "generator_effort": "xhigh",
+                                              "judge_effort": None}}
+    assert list(validator.iter_errors(missing_component)) == []
 
 
 # ---- B102 task 3 (B79 item 16, ruling R3)
@@ -249,9 +250,9 @@ def test_records_the_commands_write_match_the_contract(tmp_path, monkeypatch):
     assert set(extract["counts"]) == set(regenerated["counts"])
 
 
-def test_step_ids_are_full_words_and_the_schema_version_is_v2():
+def test_step_ids_are_full_words_and_the_schema_version_is_v3():
     from tere4ai.graph_store.build_record import SCHEMA_VERSION, STEP_IDS
-    assert SCHEMA_VERSION == "build_record.v2"
+    assert SCHEMA_VERSION == "build_record.v3"
     assert STEP_IDS == ("LAYER0_STEP1", "LAYER1_STEP1", "LAYER2_STEP1", "LAYER2_STEP2", "LAYER2_STEP3", "LAYER2_STEP4",
                         "LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3", "LAYER3_STEP4", "LAYER3_STEP5",
                         "PUBLICATION_STEP1", "PUBLICATION_STEP2")
@@ -276,7 +277,7 @@ def test_a_stored_record_with_the_old_step_keys_is_refused(tmp_path):
     with pytest.raises(RecordError) as err:
         store.read(rid)
     # only the explicit version check says this; the schema's const alone would not
-    assert "has schema_version 'build_record.v1'; this store reads build_record.v2" in str(err.value)
+    assert "has schema_version 'build_record.v1'; this store reads build_record.v3" in str(err.value)
 
 
 def test_an_old_step_name_in_covers_steps_fails_the_stored_record_schema(tmp_path):

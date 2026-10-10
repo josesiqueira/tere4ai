@@ -69,6 +69,11 @@ def _write(path: Path, obj: Any) -> Path:
     return path
 
 
+def _output(output_kind: str, ref: dict[str, Any]) -> dict[str, Any]:
+    """The outputs entry for the file an inputs entry names: the same file under its output kind."""
+    return {"output_kind": output_kind, "file": ref["file"], "sha256": ref["sha256"]}
+
+
 def _layer1(n_articles: int) -> dict[str, Any]:
     nodes = [{"id": f"eu-ai-act:article-{i}", "type": "Article"} for i in range(1, n_articles + 1)]
     nodes.append({"id": "eu-ai-act:recital-1", "type": "Recital"})
@@ -85,7 +90,7 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     run = store.start_execution(
         parse, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"],
         argv=["--manifest", "manifest.json"],
-        inputs=[{"role": "manifest", "file": manifest.name, "sha256": sha256_of_file(manifest)}],
+        inputs=[{"input_kind": "manifest", "file": manifest.name, "sha256": sha256_of_file(manifest)}],
         config={"manifest_files_count": 1}, expected_total=None, work_unit=None, checkpoint_file=None,
     )
     layer1_digest = sha256_of_file(layer1)
@@ -93,15 +98,15 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         parse, run, status="done", gates=PARSE_GATES,
         counts={"nodes": 2, "edges": 0, "nodes_by_type": {"Article": 1, "Recital": 1}, "review_queue": 1,
                 "manifest_files": [{"file": "a.html", "sha256": "0" * 64}], "manifest_files_count": 1},
-        outputs=[{"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}],
+        outputs=[{"output_kind": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}],
     )
     store.set_layer1_digest(parse, layer1_digest)
     store.set_base_build_id(parse, BASE)
     store.add_alias(parse, f"layer1-{layer1_digest[:12]}")
 
     norms = _write(root / "norms_align-test.json", {"build": {"build_id": BASE}, "norms": []})
-    inputs = [{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)},
-              {"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}]
+    inputs = [{"input_kind": "norms", "file": norms.name, "sha256": sha256_of_file(norms)},
+              {"input_kind": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}]
     rid = store.create_record("align-test", BASE, layer1_digest)
     common = {"command": "align_hleg", "covers_steps": ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"],
               "inputs": inputs,
@@ -129,7 +134,7 @@ def _stored_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     alignments = _write(root / "alignments_align-test.json", {"build": {"build_id": BASE}, "assertions": []})
     store.finish_execution(
         rid, resumed, status="done", completed_keys=["batch:3:norm-d", "batch:4:norm-e"],
-        outputs=[{"role": "alignments", "file": alignments.name, "sha256": sha256_of_file(alignments)}],
+        outputs=[{"output_kind": "alignments", "file": alignments.name, "sha256": sha256_of_file(alignments)}],
         counts={"norms_total": 5, "norms_skipped_not_accepted": 0, "zero_alignment_norms": 0, "candidates": 7,
                 "verdicts": {"accepted": 5, "rejected": 2}, "mechanical_rejects_count": 0},
         # spec F D-F32: one generator request answered 429 and retried, so it
@@ -169,7 +174,7 @@ def _legacy_scenarios(root: Path) -> tuple[dict[str, Any], dict[str, Any], str]:
     })
     _write(root / "norms_core.b74.json", {
         "build": {"build_id": BASE, "extraction_models": {"generator_model": "g2", "judge_model": "j2"},
-                  "extraction_sampling": {"generator": "provider default", "judge": "provider default"},
+                  "extraction_sampling": {"generator": "API default", "judge": "API default"},
                   "extraction_usage": {"generator": {"calls": 405, "input_tokens": 475017, "output_tokens": 108202},
                                        "judge": {"calls": 505, "input_tokens": 905340, "output_tokens": 409218}},
                   "prompt_version": "v1"},
@@ -204,19 +209,19 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     manifest = _write(root / "manifest.json", {"snapshots": [{"file": "a.html", "sha256": "0" * 64}]})
     layer1 = _write(root / "layer1.json", _layer1(1))
     layer1_digest = sha256_of_file(layer1)
-    layer1_input = {"role": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}
+    layer1_input = {"input_kind": "layer1_dump", "file": layer1.name, "sha256": layer1_digest}
     parent = store.create_record("core", BASE, None)
     run = store.start_execution(
         parent, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"],
         argv=["--manifest", "manifest.json"],
-        inputs=[{"role": "manifest", "file": manifest.name, "sha256": sha256_of_file(manifest)}],
+        inputs=[{"input_kind": "manifest", "file": manifest.name, "sha256": sha256_of_file(manifest)}],
         config={"manifest_files_count": 1}, expected_total=None, work_unit=None, checkpoint_file=None,
     )
     store.finish_execution(
         parent, run, status="done", gates=PARSE_GATES,
         counts={"nodes": 2, "edges": 0, "nodes_by_type": {"Article": 1, "Recital": 1}, "review_queue": 1,
                 "manifest_files": [{"file": "a.html", "sha256": "0" * 64}], "manifest_files_count": 1},
-        outputs=[layer1_input],
+        outputs=[_output("layer1_dump", layer1_input)],
     )
     store.set_layer1_digest(parent, layer1_digest)
     prompts = {"generator": GENERATOR_PROMPT, "judge": JUDGE_PROMPT}
@@ -225,7 +230,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
              "judge": {"calls": 1, "input_tokens": 300, "output_tokens": 60}}
 
     norms = _write(root / "norms_core.json", {"build": {"build_id": BASE}, "norms": [], "judge_runs": []})
-    norms_input = {"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}
+    norms_input = {"input_kind": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}
     run = store.start_execution(
         parent, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"],
         argv=["--nodes", "eu-ai-act:article-1", "--out", "norms_core.json"], inputs=[layer1_input],
@@ -233,7 +238,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
         checkpoint_file="norms_core.checkpoint.jsonl", models=MODELS, prompt_sha256=prompts, sampling=sampling,
     )
     store.finish_execution(
-        parent, run, status="done", outputs=[norms_input], completed_keys=["eu-ai-act:article-1"], usage=usage,
+        parent, run, status="done", outputs=[_output("norms", norms_input)], completed_keys=["eu-ai-act:article-1"], usage=usage,
         counts={"source_units": 1, "candidates": 1, "verdicts": {"accepted": 1}, "invalid_norms_count": 0,
                "without_target_system_category": 0,
                "section_2_not_served_to_provider": {"count": 0, "norm_ids": []},
@@ -256,10 +261,11 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     alignments = _write(root / "alignments_core.json", {
         "build": {"build_id": BASE, "alignment_input_sha256": norms_input["sha256"], "norms_reference": None},
         "assertions": [], "mapping_runs": [], "judge_runs": []})
-    alignments_input = {"role": "alignments", "file": alignments.name, "sha256": sha256_of_file(alignments)}
+    alignments_input = {"input_kind": "alignments", "file": alignments.name, "sha256": sha256_of_file(alignments)}
     run = store.start_execution(parent, argv=["--norms", "norms_core.json"], inputs=[norms_input, layer1_input],
                                 checkpoint_file="alignments_core.checkpoint.jsonl", **align_common)
-    store.finish_execution(parent, run, status="done", outputs=[alignments_input], completed_keys=["batch:0:n"],
+    store.finish_execution(parent, run, status="done", outputs=[_output("alignments", alignments_input)],
+                           completed_keys=["batch:0:n"],
                            usage=usage, counts=align_counts, work_failures={"nodes_failed": 0, "norms_failed": 0})
 
     chain = build_chain(layer1, norms, alignments_path=alignments)
@@ -284,7 +290,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     store.set_publication(parent, publication, run_id=run)
     store.finish_execution(
         parent, run, status="done", gates=gates + POSTLOAD_GATES, counts={"nodes": 2, "edges": 1},
-        outputs=[{"role": "build_chain", "file": chain_file.name, "sha256": sha256_of_file(chain_file)}],
+        outputs=[{"output_kind": "build_chain", "file": chain_file.name, "sha256": sha256_of_file(chain_file)}],
     )
 
     decisions = _write(root / "decisions.json", {"norm:x": {"decision": "reject", "rationale": "r", "reviewer": "adj",
@@ -294,16 +300,16 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
     run = store.start_execution(
         child, command="materialize_reference", covers_steps=["LAYER2_STEP4"],
         argv=["--pristine", "norms_core.json", "--decisions", "decisions.json", "--manifest", "freeze-f1.json"],
-        inputs=[norms_input, {"role": "decisions", "file": decisions.name, "sha256": sha256_of_file(decisions)},
-                {"role": "freeze_manifest", "file": freeze.name, "sha256": sha256_of_file(freeze)}],
+        inputs=[norms_input, {"input_kind": "decisions", "file": decisions.name, "sha256": sha256_of_file(decisions)},
+                {"input_kind": "freeze_manifest", "file": freeze.name, "sha256": sha256_of_file(freeze)}],
         config={"source_build_id": build_id}, expected_total=None, work_unit=None, checkpoint_file=None,
     )
     reference = _write(root / "norms_core.reference.json", {
         "build": {"build_id": BASE, "reference": {"kind": "norms", "layer": 2, "freeze_id": "f1"}},
         "norms": [], "judge_runs": []})
-    reference_input = {"role": "norms", "file": reference.name, "sha256": sha256_of_file(reference)}
+    reference_input = {"input_kind": "norms", "file": reference.name, "sha256": sha256_of_file(reference)}
     store.finish_execution(child, run, status="done", counts={"decisions_applied": 1},
-                           outputs=[{**reference_input, "role": "norms_reference"}])
+                           outputs=[_output("norms_reference", reference_input)])
     run = store.start_execution(child, argv=["--norms", "norms_core.reference.json"],
                                 inputs=[reference_input, layer1_input],
                                 checkpoint_file="alignments_core.reference.checkpoint.jsonl",
@@ -313,7 +319,7 @@ def _intermediate_scenario(root: Path, list_served: str) -> tuple[dict[str, Any]
                   "norms_reference": {"kind": "norms", "layer": 2, "freeze_id": "f1"}},
         "assertions": [], "mapping_runs": [], "judge_runs": []})
     store.finish_execution(child, run, status="done", completed_keys=["batch:0:n"], usage=usage, counts=align_counts,
-                           outputs=[{"role": "alignments", "file": aligned.name, "sha256": sha256_of_file(aligned)}],
+                           outputs=[{"output_kind": "alignments", "file": aligned.name, "sha256": sha256_of_file(aligned)}],
                            work_failures={"nodes_failed": 0, "norms_failed": 0})
     return (present_record(store.read(child), root, NOW, chain["chain_id"], store),
             present_record(store.read(parent), root, NOW, list_served, store),

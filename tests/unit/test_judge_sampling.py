@@ -511,9 +511,9 @@ def test_draw_binds_the_sample_to_the_observed_publication_or_the_base_id(tmp_pa
     assert rec["build"]["base_build_id"] == sheet["builds"]["norms_core"]
     assert sheet["sample"]["build"] == rec["build"]
     assert rec["outcome"]["completed_items"] == [it["decision_id"] for it in sheet["items"]]
-    assert {i["role"] for i in rec["inputs"]} == {"norms", "alignments", "layer1_dump"}
-    assert {o["role"] for o in rec["outputs"]} == {"sheet_json", "sheet_md"}
-    assert (store.dir / [o for o in rec["outputs"] if o["role"] == "sheet_json"][0]["copy"]).read_bytes() == (tmp_path / "sheet.json").read_bytes()
+    assert {i["input_kind"] for i in rec["inputs"]} == {"norms", "alignments", "layer1_dump"}
+    assert {o["output_kind"] for o in rec["outputs"]} == {"sheet_json", "sheet_md"}
+    assert (store.dir / [o for o in rec["outputs"] if o["output_kind"] == "sheet_json"][0]["copy"]).read_bytes() == (tmp_path / "sheet.json").read_bytes()
     assert rec["counts"]["sampled"] == len(sheet["items"]) and rec["counts"]["unjoinable"] == 0
     assert rec["config"]["strata"] == sheet["sampling"]["strata"] and rec["config"]["population"] == sheet["sampling"]["population"]
     # a publication, once activated, is what the sample binds to
@@ -620,14 +620,14 @@ def test_draw_completes_the_record_and_names_the_copy_when_the_sheet_replace_rai
     # completed record with its copy, and stderr names the cp that puts it
     # in place.
     assert records[0]["outcome"]["status"] == "completed"
-    copy = store.dir / [o for o in records[0]["outputs"] if o["role"] == "sheet_json"][0]["copy"]
+    copy = store.dir / [o for o in records[0]["outputs"] if o["output_kind"] == "sheet_json"][0]["copy"]
     assert f"put the record's copy in place: cp {copy} {tmp_path / 'sheet.json'}" in capsys.readouterr().err
 
 
 def test_draw_fails_the_record_and_writes_no_sheet_when_keep_output_raises(tmp_path, monkeypatch):
     _write_payloads(tmp_path)
 
-    def boom(self, record_id, role, path, **kwargs):  # B81 item 34: the draw now passes name=
+    def boom(self, record_id, output_kind, path, **kwargs):  # B81 item 34: the draw now passes name=
         raise OSError("copy refused")
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
     with pytest.raises(OSError, match="copy refused"):
@@ -661,8 +661,8 @@ def test_label_act_records_actor_time_and_a_labelling_record(tmp_path, capsys):
     assert rec["config"] == {"by": "Jose", "labels": {first: "accept"}, "forced": []}
     assert rec["relations"]["sample_id"] == sheet["sample"]["sample_id"]
     assert rec["counts"] == {"labelled_now": 1, "labelled_total": 1, "items": len(sheet["items"])}
-    assert [i["role"] for i in rec["inputs"]] == ["sheet_before"]
-    assert [o["role"] for o in rec["outputs"]] == ["sheet_after"]
+    assert [i["input_kind"] for i in rec["inputs"]] == ["sheet_before"]
+    assert [o["output_kind"] for o in rec["outputs"]] == ["sheet_after"]
     assert sampling.main(_draw_argv(tmp_path, "--label", first, "reject", "--by", "Ana")) == 1
     assert "refusing to relabel" in capsys.readouterr().out
     assert json.loads((tmp_path / "sheet.json").read_text())["items"][0]["human_label"] == "accept"
@@ -825,10 +825,10 @@ def test_compute_fails_the_record_when_its_copy_fails_and_writes_no_rates_file(t
     assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose")) == 0
     real_keep = EvaluationRecordStore.keep_output
 
-    def failing_keep(self, record_id, role, path, **kwargs):
-        if role == "error_rates":
+    def failing_keep(self, record_id, output_kind, path, **kwargs):
+        if output_kind == "error_rates":
             raise OSError("disk full")
-        return real_keep(self, record_id, role, path, **kwargs)
+        return real_keep(self, record_id, output_kind, path, **kwargs)
 
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", failing_keep)
     with pytest.raises(OSError, match="disk full"):
@@ -852,10 +852,10 @@ def test_compute_keeps_its_own_rates_when_another_run_rewrites_the_shared_rates_
     rates_path = tmp_path / "error_rates.json"
     real_keep = EvaluationRecordStore.keep_output
 
-    def other_run_writes_first(self, record_id, role, path, **kwargs):
-        if role == "error_rates":
+    def other_run_writes_first(self, record_id, output_kind, path, **kwargs):
+        if output_kind == "error_rates":
             rates_path.write_text('{"other": "sheet"}\n')
-        return real_keep(self, record_id, role, path, **kwargs)
+        return real_keep(self, record_id, output_kind, path, **kwargs)
 
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", other_run_writes_first)
     assert sampling.main(_draw_argv(tmp_path, "--compute")) == 0
@@ -922,7 +922,7 @@ def test_compute_lists_only_completed_label_acts_and_notes_a_sheet_no_act_names(
 
     # Changed by B81 item 34 (record, then replace): a failed sheet replace now
     # comes after a completed record, so the failed act is made by a refused copy
-    def _boom(self, record_id, role, path, **kwargs):
+    def _boom(self, record_id, output_kind, path, **kwargs):
         raise OSError("disk full")
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", _boom)
     with pytest.raises(OSError):
@@ -1134,10 +1134,10 @@ def test_a_label_act_whose_output_copy_fails_leaves_the_sheet_as_it_found_it(tmp
     before = _sheet_bytes(tmp_path)
     real_keep = EvaluationRecordStore.keep_output
 
-    def refuse_copy(self, record_id, role, path, **kwargs):
-        if role == "sheet_after":
+    def refuse_copy(self, record_id, output_kind, path, **kwargs):
+        if output_kind == "sheet_after":
             raise OSError("copy refused")
-        return real_keep(self, record_id, role, path, **kwargs)
+        return real_keep(self, record_id, output_kind, path, **kwargs)
 
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", refuse_copy)
     with pytest.raises(OSError, match="copy refused"):
@@ -1209,7 +1209,7 @@ def test_a_failed_label_act_leaves_no_reading_copy_where_there_was_none(tmp_path
     (tmp_path / "sheet.md").unlink()
     before = (tmp_path / "sheet.json").read_bytes()
 
-    def refuse_copy(self, record_id, role, path, **kwargs):
+    def refuse_copy(self, record_id, output_kind, path, **kwargs):
         raise OSError("copy refused")
 
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", refuse_copy)
@@ -1226,7 +1226,7 @@ def test_a_forced_draw_that_fails_leaves_the_labelled_sheet_in_place(tmp_path, m
     assert sampling.main(_draw_argv(tmp_path, "--label", ids[0], "accept", "--by", "Jose")) == 0
     before = _sheet_bytes(tmp_path)
 
-    def refuse_copy(self, record_id, role, path, **kwargs):
+    def refuse_copy(self, record_id, output_kind, path, **kwargs):
         raise OSError("copy refused")
 
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", refuse_copy)
@@ -1271,8 +1271,8 @@ def test_a_draw_whose_reading_copy_replace_fails_names_the_markdown_copy(tmp_pat
     store = EvaluationRecordStore(tmp_path, create=False)
     (rec,) = store.list_records()
     assert rec["outcome"]["status"] == "completed"
-    md_copy = store.dir / [o for o in rec["outputs"] if o["role"] == "sheet_md"][0]["copy"]
-    json_copy = store.dir / [o for o in rec["outputs"] if o["role"] == "sheet_json"][0]["copy"]
+    md_copy = store.dir / [o for o in rec["outputs"] if o["output_kind"] == "sheet_md"][0]["copy"]
+    json_copy = store.dir / [o for o in rec["outputs"] if o["output_kind"] == "sheet_json"][0]["copy"]
     assert (tmp_path / "sheet.json").read_bytes() == json_copy.read_bytes(), "the sheet took its bytes"
     assert not (tmp_path / "sheet.md").exists() and list(tmp_path.glob("tmp*")) == []
     err = capsys.readouterr().err

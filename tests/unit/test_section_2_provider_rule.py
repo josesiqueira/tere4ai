@@ -106,7 +106,7 @@ def _prepare(tmp_path, monkeypatch):
     from tere4ai.extract_norms.model_clients import FakeClient
 
     class ScriptedModel(FakeClient):
-        sampling = temperature = "provider default (rejected by the model)"
+        sampling = temperature = "API default (rejected by the model)"
         effort = "xhigh"
         json_mode = "sent"
         usage: dict = {}

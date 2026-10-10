@@ -403,7 +403,7 @@ def test_materialised_reference_reaches_the_gates(tmp_path, monkeypatch):
     run = store.start_execution(rid, command="materialize_reference", covers_steps=["LAYER2_STEP4"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done",
-                           outputs=[{"role": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
+                           outputs=[{"output_kind": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
 
     seen = {}
 

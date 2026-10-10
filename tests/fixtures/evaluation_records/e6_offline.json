@@ -30,17 +30,17 @@
  "inputs": [
   {
    "file": "(in memory)",
-   "role": "layer1_dump",
+   "input_kind": "layer1_dump",
    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   {
    "file": "(in memory)",
-   "role": "norms",
+   "input_kind": "norms",
    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   {
    "file": "gold_seed.json",
-   "role": "gold_seed",
+   "input_kind": "gold_seed",
    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   }
  ],
@@ -66,7 +66,7 @@
    "copy_reason": null,
    "copy_state": "present",
    "file": "eval_build-b_deadbeef.json",
-   "role": "artifact",
+   "output_kind": "artifact",
    "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
   }
  ],
@@ -113,7 +113,7 @@
   "sample_id": null
  },
  "sampling": null,
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": "2026-09-22T10:00:00+00:00",
  "step": "E6",
  "synthesised": false,

@@ -407,7 +407,7 @@ names the `cp` command that puts the last act's recorded copy in place;
 labels typed into the sheet by hand are not kept by it (put them in a
 `--label-file` CSV), and the reading copy is rewritten by the next label
 act.
-A draw over an active publication whose manifest lacks a role
+A draw over an active publication whose manifest lacks an input kind
 refuses with a sentence and exit code 2 unless `--norms`, `--alignments`
 or `--layer1` is given. The routes `GET /api/evaluations` (grouped by
 build identity, newest first, records without a date last, the group with

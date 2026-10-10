@@ -6,7 +6,7 @@ config guard must raise); no test here may ever call a model.
 
 Also covers DEC-17: run_eval and main record one E6 evaluation record per
 run and write the results artifact atomically, refuse a served manifest
-lacking a role, and finish the record failed on any exception.
+lacking an input kind, and finish the record failed on any exception.
 """
 
 import json
@@ -683,8 +683,8 @@ def test_run_eval_records_an_offline_run_with_the_artifact_copied(tmp_path):
     assert rec["models"] is None and rec["usage"] is None and rec["outcome"]["status"] == "completed"
     assert rec["outcome"]["intended_items"] == [i["id"] for i in items]
     (artifact,) = rec["outputs"]
-    assert artifact["role"] == "artifact" and (store.dir / artifact["copy"]).read_bytes() == Path(out["artifact_path"]).read_bytes()
-    assert [i["role"] for i in rec["inputs"]] == ["gold_seed"], "prebuilt strategies: the harness read no dump"
+    assert artifact["output_kind"] == "artifact" and (store.dir / artifact["copy"]).read_bytes() == Path(out["artifact_path"]).read_bytes()
+    assert [i["input_kind"] for i in rec["inputs"]] == ["gold_seed"], "prebuilt strategies: the harness read no dump"
     assert rec["notes"] == ["the strategies were passed prebuilt; the harness did not read their inputs"]
 
 
@@ -729,7 +729,7 @@ def test_main_records_by_default_and_not_with_no_record(tmp_path):
     assert h.main(args) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     assert rec["command"] == "eval_harness" and rec["argv"][:2] == ["--strategies", "plain_llm"]
-    assert [i["role"] for i in rec["inputs"]] == ["layer1_dump", "norms", "gold_seed"], "the names branch read the dumps"
+    assert [i["input_kind"] for i in rec["inputs"]] == ["layer1_dump", "norms", "gold_seed"], "the names branch read the dumps"
     assert rec["inputs"][0]["file"] == "layer1.json" and rec["sampling"] is None, "the offline stub reports no sampling"
     assert rec["build"]["base_build_id"] == "build-b", "the dumps were read from tmp_path, not the checkout"
     assert h.main(args + ["--no-record"]) == 0
@@ -771,7 +771,7 @@ def test_a_per_item_error_names_the_file_never_the_path(tmp_path):
     assert "/home" not in error and error.endswith("'features.json'")
 
 
-def test_a_manifest_lacking_a_role_raises_the_asset_error_before_begin(tmp_path):
+def test_a_manifest_lacking_an_input_kind_raises_the_asset_error_before_begin(tmp_path):
     from tere4ai.eval import harness as h
     _write_legacy_dumps(tmp_path)
     (tmp_path / "publications").mkdir()
@@ -786,7 +786,7 @@ def test_a_manifest_lacking_a_role_raises_the_asset_error_before_begin(tmp_path)
 
 
 def _keep_output_fails(monkeypatch):
-    def boom(self, record_id, role, path, **kw):
+    def boom(self, record_id, output_kind, path, **kw):
         raise OSError("copy refused")
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
 
@@ -853,7 +853,7 @@ def test_a_writer_stores_its_failure_with_the_file_name_only(tmp_path, monkeypat
     store = EvaluationRecordStore(tmp_path)
     deep = tmp_path / "very" / "deep" / "artifact.json"
 
-    def boom(self, record_id, role, path, **kw):
+    def boom(self, record_id, output_kind, path, **kw):
         raise FileNotFoundError(2, "No such file or directory", str(deep))
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
     with pytest.raises(FileNotFoundError):
@@ -981,7 +981,7 @@ def test_the_record_keeps_this_runs_artifact_bytes_under_the_compatibility_name(
                    results_dir=tmp_path / "r", record_store=store)
     out_path = Path(out["artifact_path"])
     (ref,) = store.read(out["record_id"])["outputs"]
-    assert ref["role"] == "artifact" and ref["file"] == out_path.name
+    assert ref["output_kind"] == "artifact" and ref["file"] == out_path.name
     assert ref["sha256"] == sha256_of_file(store.dir / ref["copy"]) == sha256_of_file(out_path)
     assert [p.name for p in (tmp_path / "r").iterdir()] == [out_path.name], "no temp file left"
 
@@ -1017,12 +1017,12 @@ def test_a_concurrent_writer_replacing_the_shared_path_never_lands_in_this_recor
     real_keep = EvaluationRecordStore.keep_output
     other = b'{"another run": true}\n'
 
-    def interleaved(self, record_id, role, path, **kw):
+    def interleaved(self, record_id, output_kind, path, **kw):
         # run B replaces the shared deterministic path between A's write and A's copy
         for p in (tmp_path / "r").glob("eval_*.json"):
             p.write_bytes(other)
         (tmp_path / "r" / kw.get("name", "x")).write_bytes(other)
-        return real_keep(self, record_id, role, path, **kw)
+        return real_keep(self, record_id, output_kind, path, **kw)
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", interleaved)
     out = run_eval(list(GOLD_3)[:1], {"plain_llm": lambda item: {"answer_text": "a", "citations": []}},
                    results_dir=tmp_path / "r", record_store=store)

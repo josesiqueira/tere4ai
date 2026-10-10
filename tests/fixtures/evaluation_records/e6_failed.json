@@ -28,27 +28,27 @@
  "inputs": [
   {
    "file": "layer1.json",
-   "role": "layer1_dump",
+   "input_kind": "layer1_dump",
    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   {
    "file": "norms_core.json",
-   "role": "norms",
+   "input_kind": "norms",
    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   {
    "file": "benchmark_sample.json",
-   "role": "benchmark",
+   "input_kind": "benchmark",
    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   },
   {
    "file": "gold_seed.json",
-   "role": "gold_seed",
+   "input_kind": "gold_seed",
    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   {
    "file": "benchmark_features.json",
-   "role": "features",
+   "input_kind": "features",
    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   }
  ],
@@ -63,7 +63,7 @@
  "origin": "recorded",
  "outcome": {
   "completed_items": [],
-  "error": "RuntimeError: provider refused",
+  "error": "RuntimeError: inference backend refused the request",
   "intended_items": [
    "gold:cls-01",
    "gold:cls-02"
@@ -115,9 +115,9 @@
  },
  "sampling": {
   "generator": "temperature=0",
-  "judge": "provider default"
+  "judge": "API default"
  },
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": "2026-09-23T10:00:00+00:00",
  "step": "E6",
  "synthesised": false,

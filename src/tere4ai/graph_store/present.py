@@ -102,7 +102,7 @@ PRODUCED_BEFORE_RECORDS = "produced before DEC-16"
 # Steps a record can share with the records it builds on. Publication is
 # never inherited: a build is published only by its own publish execution.
 SHAREABLE_STEPS = tuple(s for s in STEP_IDS if not s.startswith("PUBLICATION_STEP"))
-STEPS_OF_INPUT_ROLE = {"norms": ("LAYER2_STEP1", "LAYER2_STEP2"),
+STEPS_OF_INPUT_KIND = {"norms": ("LAYER2_STEP1", "LAYER2_STEP2"),
                        "alignments": ("LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3")}
 
 
@@ -160,7 +160,7 @@ class _Lineage:
         for record in self.records:
             for ex in record["executions"]:
                 if ex.get("command") == "parse_legal_structure" and any(
-                    o.get("role") == "layer1_dump" and o.get("sha256") == layer1_digest for o in ex.get("outputs", [])
+                    o.get("output_kind") == "layer1_dump" and o.get("sha256") == layer1_digest for o in ex.get("outputs", [])
                 ):
                     return record["record_id"]
         return None
@@ -179,14 +179,14 @@ class _Lineage:
             elif found != rid:
                 out.append((found, PARSE_STEPS))
         consuming = next((ex for ex in record.get("executions", [])
-                          if any(i.get("role") in STEPS_OF_INPUT_ROLE and i.get("sha256") for i in ex.get("inputs", []))),
+                          if any(i.get("input_kind") in STEPS_OF_INPUT_KIND and i.get("sha256") for i in ex.get("inputs", []))),
                          None)
         for inp in (consuming or {}).get("inputs", []):
-            if inp.get("role") not in STEPS_OF_INPUT_ROLE or not inp.get("sha256"):
+            if inp.get("input_kind") not in STEPS_OF_INPUT_KIND or not inp.get("sha256"):
                 continue
             found = self.producer(inp["sha256"])
             if found is None:
-                for step in STEPS_OF_INPUT_ROLE[inp["role"]]:
+                for step in STEPS_OF_INPUT_KIND[inp["input_kind"]]:
                     markers.setdefault(step, PRODUCED_BEFORE_RECORDS)
             elif found != rid:
                 out.append((found, None))
@@ -476,7 +476,7 @@ def lineage_of(presented: dict[str, Any]) -> dict[str, Any]:
         for ex in presented.get("executions") or []:
             if ex.get("command") != "materialize_reference" or ex.get("status") != "done":
                 continue
-            manifest = next((i for i in ex.get("inputs", []) if i.get("role") == "freeze_manifest"), None)
+            manifest = next((i for i in ex.get("inputs", []) if i.get("input_kind") == "freeze_manifest"), None)
             step = next((s for s in ex.get("covers_steps", []) if s in ("LAYER2_STEP4", "LAYER3_STEP5")), None)
             consumed.append({"campaign_id": None, "freeze_id": None, "campaign_type": None, "stage": None,
                              "layer": None, "step": step, "manifest_sha256": (manifest or {}).get("sha256")})
@@ -562,7 +562,7 @@ def _parse_execution(payload: dict[str, Any], name: str, digest: str) -> dict[st
     counts = {"nodes": len(payload["nodes"]), "edges": len(edges) if isinstance(edges, list) else None,
               "nodes_by_type": by_type, "review_queue": len(queue) if isinstance(queue, list) else None}
     return _derived_execution("parse_legal_structure", list(PARSE_STEPS), counts=counts,
-                              outputs=[{"role": "layer1_dump", "file": name, "sha256": digest}])
+                              outputs=[{"output_kind": "layer1_dump", "file": name, "sha256": digest}])
 
 
 def _sampling_with_effort(build: dict[str, Any], prefix: str) -> dict[str, Any] | None:
@@ -591,7 +591,7 @@ def _extract_execution(payload: dict[str, Any], name: str, digest: str) -> dict[
         prompt_sha256={"generator": None, "judge": _first_judge_prompt(payload)},
         config={"prompt_version": build["prompt_version"]} if build.get("prompt_version") else {},
         counts={k: stats.get(k) for k in ("source_units", "candidates", "verdicts")},
-        outputs=[{"role": "norms", "file": name, "sha256": digest}],
+        outputs=[{"output_kind": "norms", "file": name, "sha256": digest}],
     )
 
 
@@ -611,7 +611,7 @@ def _align_execution(payload: dict[str, Any], name: str, digest: str) -> dict[st
         config={"prompt_version": version} if version else {},
         counts={"norms_total": stats.get("norms_total"), "candidates": stats.get("candidates"),
                 "verdicts": stats.get("verdicts"), "mechanical_rejects_count": rejects},
-        outputs=[{"role": "alignments", "file": name, "sha256": digest}],
+        outputs=[{"output_kind": "alignments", "file": name, "sha256": digest}],
     )
 
 
@@ -622,25 +622,25 @@ def _chain_records(dump_dir: Path) -> list[dict[str, Any]]:
         if not isinstance(chain, dict) or not isinstance(chain.get("chain_id"), str):
             continue
         inputs = chain.get("inputs")
-        if not isinstance(inputs, list) or not all(isinstance(i, dict) and "role" in i and "sha256" in i for i in inputs):
+        if not isinstance(inputs, list) or not all(isinstance(i, dict) and "input_kind" in i and "sha256" in i for i in inputs):
             continue
         out.append(chain)
     return out
 
 
-_ARTEFACT_ROLES = ("layer1_dump", "norms", "alignments")
+_ARTEFACT_KINDS = ("layer1_dump", "norms", "alignments")
 
 
 def _matching_chain(chains: list[dict[str, Any]], present: dict[str, str], dump_dir: Path) -> dict[str, Any] | None:
     """The chain record whose inputs are exactly the present artefacts: equal
-    digest on every present role, and no artefact role the dump directory
+    digest on every present input kind, and no artefact kind the dump directory
     lacks. Any other input it names (decisions, freeze manifests) must exist
     in the dump directory with its recorded digest."""
     for chain in chains:
-        roles = {i["role"]: i["sha256"] for i in chain["inputs"] if i["role"] in _ARTEFACT_ROLES}
-        if roles != present:
+        kinds = {i["input_kind"]: i["sha256"] for i in chain["inputs"] if i["input_kind"] in _ARTEFACT_KINDS}
+        if kinds != present:
             continue
-        others = [i for i in chain["inputs"] if i["role"] not in _ARTEFACT_ROLES]
+        others = [i for i in chain["inputs"] if i["input_kind"] not in _ARTEFACT_KINDS]
         if all((dump_dir / str(i.get("file", ""))).is_file() and _digest(dump_dir / str(i["file"])) == i["sha256"]
                for i in others):
             return chain
@@ -653,8 +653,8 @@ def _legacy_publication(chain: dict[str, Any], base_build_id: str | None, has_al
         if base_build_id is None:
             return None
         build_id = chained_build_id(base_build_id, chain)
-    roles = {i["role"] for i in chain["inputs"]}
-    gating = chain.get("gating") or {"layer2": "human" if "decisions" in roles else "llm",
+    kinds = {i["input_kind"] for i in chain["inputs"]}
+    gating = chain.get("gating") or {"layer2": "human" if "decisions" in kinds else "llm",
                                      "layer3": "llm" if has_alignments else "absent"}
     number = chain.get("build_number")
     return {"chain_id": chain["chain_id"], "build_id": build_id, "published_at": chain.get("published_at"),

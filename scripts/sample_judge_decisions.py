@@ -82,7 +82,7 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordError,
     EvaluationRecordStore,
     code_version,
-    file_ref,
+    input_ref,
     observe_publication,
     served_input_paths,
 )
@@ -628,8 +628,8 @@ def _sample_build(sheet: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# the output role through which each recorded act of the chain wrote the sheet
-_SHEET_ROLE_BY_KIND = {"sample": "sheet_json", "labelling": "sheet_after"}
+# the output kind under which each recorded act of the chain (by the record's kind) wrote the sheet
+_SHEET_OUTPUT_KIND_BY_ACT_KIND = {"sample": "sheet_json", "labelling": "sheet_after"}
 
 
 def _last_act_refusal(sheet_path: Path, sheet: dict[str, Any], dump_dir: Path) -> str | None:
@@ -647,7 +647,7 @@ def _last_act_refusal(sheet_path: Path, sheet: dict[str, Any], dump_dir: Path) -
     acts = sorted(
         (
             r for r in records
-            if not r.get("unreadable") and r["kind"] in _SHEET_ROLE_BY_KIND
+            if not r.get("unreadable") and r["kind"] in _SHEET_OUTPUT_KIND_BY_ACT_KIND
             and r["outcome"]["status"] == "completed" and sample_id
             and r["relations"]["sample_id"] == sample_id
         ),
@@ -657,19 +657,19 @@ def _last_act_refusal(sheet_path: Path, sheet: dict[str, Any], dump_dir: Path) -
         return (f"refusing to label {sheet_path}: no recorded draw or label act names sample {sample_id} "
                 "on this store")
     last = acts[-1]
-    role = _SHEET_ROLE_BY_KIND[last["kind"]]
-    written = [o["sha256"] for o in last["outputs"] if o["role"] == role]
+    output_kind = _SHEET_OUTPUT_KIND_BY_ACT_KIND[last["kind"]]
+    written = [o["sha256"] for o in last["outputs"] if o["output_kind"] == output_kind]
     if sha256_of_file(sheet_path) not in written:
         return (f"refusing to label {sheet_path}: its bytes are not the bytes the last recorded act wrote "
-                f"({last['record_id']})" + _restore_hint(dump_dir, last, role, sheet_path))
+                f"({last['record_id']})" + _restore_hint(dump_dir, last, output_kind, sheet_path))
     return None
 
 
-def _restore_hint(dump_dir: Path, act: dict[str, Any], role: str, sheet_path: Path) -> str:
+def _restore_hint(dump_dir: Path, act: dict[str, Any], output_kind: str, sheet_path: Path) -> str:
     """The way out of a refusal over sheet bytes no recorded act wrote (B81
     item 34): the command that puts the act's recorded copy in place, and
     what it does not keep. Empty when the act kept no copy."""
-    copies = [o["copy"] for o in act["outputs"] if o["role"] == role and o.get("copy")]
+    copies = [o["copy"] for o in act["outputs"] if o["output_kind"] == output_kind and o.get("copy")]
     if not copies:
         return ""
     copy = EvaluationRecordStore(dump_dir, create=False).dir / copies[0]
@@ -740,7 +740,7 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         record_id = store.begin(
             kind="labelling", step="E1", command="sample_judge_decisions",
             argv=list(argv) if argv is not None else sys.argv[1:],
-            inputs=[file_ref("sheet_before", args.sheet)],
+            inputs=[input_ref("sheet_before", args.sheet)],
             build=_sample_build(sheet),
             config={"by": args.by, "labels": {i: label for i, (label, _) in wanted.items()}, "forced": already},
             relations={"sample_id": sample_id}, intended_items=list(wanted),
@@ -841,7 +841,7 @@ def _compute_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     compute_notes: list[str] = []
     if labelling:
         newest = labelling[-1]
-        written = [o["sha256"] for o in newest["outputs"] if o["role"] == "sheet_after"]
+        written = [o["sha256"] for o in newest["outputs"] if o["output_kind"] == "sheet_after"]
         if sha256_of_file(args.sheet) not in written:
             print("refusing to compute: the sheet's bytes are not the bytes the last label act wrote "
                   f"({newest['record_id']}); label through --label or --label-file"
@@ -857,7 +857,7 @@ def _compute_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         record_id = store.begin(
             kind="analysis", step="E1", command="sample_judge_decisions",
             argv=list(argv) if argv is not None else sys.argv[1:],
-            inputs=[file_ref("sheet_labelled", args.sheet)],
+            inputs=[input_ref("sheet_labelled", args.sheet)],
             build=_sample_build(sheet),
             config={"metrics_version": METRICS_VERSION},
             relations={"sample_id": sample_id, "labelling_record_ids": labelling_ids},
@@ -911,17 +911,17 @@ def _draw_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     """The E1 draw act: a fresh sample under a new sample id, one sample record."""
     served = served_input_paths(args.dump_dir)
     resolved: dict[str, Path] = {}
-    for role, explicit, flag in (
+    for kind, explicit, flag in (
         ("norms", args.norms, "norms"),
         ("alignments", args.alignments, "alignments"),
         ("layer1_dump", args.layer1, "layer1"),
     ):
         if explicit is not None:
-            resolved[role] = explicit
-        elif role in served:
-            resolved[role] = served[role]
+            resolved[kind] = explicit
+        elif kind in served:
+            resolved[kind] = served[kind]
         else:
-            print(f"refusing to draw: the active publication names no {role} file; pass --{flag} explicitly")
+            print(f"refusing to draw: the active publication names no {kind} file; pass --{flag} explicitly")
             return 2
     norms_path, alignments_path, layer1_path = resolved["norms"], resolved["alignments"], resolved["layer1_dump"]
 
@@ -944,7 +944,7 @@ def _draw_act(args: argparse.Namespace, argv: list[str] | None) -> int:
              "publication": publication, "publication_reason": publication_reason}
     sample = {"sample_id": "sample-" + uuid.uuid4().hex[:12], "record_id": None,
               "drawn_at": datetime.now(UTC).isoformat(), "build": build}
-    inputs = [file_ref("norms", norms_path), file_ref("alignments", alignments_path), file_ref("layer1_dump", layer1_path)]
+    inputs = [input_ref("norms", norms_path), input_ref("alignments", alignments_path), input_ref("layer1_dump", layer1_path)]
     sheet = build_sheet(norms_payload, alignments_payload, layer1_payload, sample=sample)
     record_id = None
     if store is not None:

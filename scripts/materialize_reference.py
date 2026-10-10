@@ -41,7 +41,7 @@ def _source_build_id(args, store: BuildRecordStore, rid: str | None, pristine_di
     """The build the pristine file was served under, from evidence only: the
     flag, the published record that produced it (rid, looked up once by the
     caller), the activated publication when that publication's input of this
-    role IS the pristine file, or (no activation pointer) the legacy chain
+    input kind IS the pristine file, or (no activation pointer) the legacy chain
     over the fixed core dumps."""
     if args.source_build_id:
         return args.source_build_id
@@ -53,7 +53,7 @@ def _source_build_id(args, store: BuildRecordStore, rid: str | None, pristine_di
     if (dump_dir / ACTIVE_POINTER).exists():
         manifest = active_manifest(dump_dir)
         if manifest and manifest.get("build_id") and any(
-            isinstance(i, dict) and i.get("role") == kind and i.get("sha256") == pristine_digest
+            isinstance(i, dict) and i.get("input_kind") == kind and i.get("sha256") == pristine_digest
             for i in manifest.get("inputs") or []
         ):
             return str(manifest["build_id"])
@@ -120,9 +120,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"note: no record published {args.pristine.name}; materialising under a new record {record_id}")
     run_id = store.start_execution(
         record_id, command="materialize_reference", covers_steps=STEP[kind], argv=raw_argv,
-        inputs=[{"role": kind, "file": relative_to_dump_dir(args.pristine, dump_dir), "sha256": digests["pristine"]},
-                {"role": "decisions", "file": relative_to_dump_dir(args.decisions, dump_dir), "sha256": digests["decisions"]},
-                {"role": "freeze_manifest", "file": relative_to_dump_dir(args.manifest, dump_dir), "sha256": digests["manifest"]}],
+        inputs=[{"input_kind": kind, "file": relative_to_dump_dir(args.pristine, dump_dir), "sha256": digests["pristine"]},
+                {"input_kind": "decisions", "file": relative_to_dump_dir(args.decisions, dump_dir), "sha256": digests["decisions"]},
+                {"input_kind": "freeze_manifest", "file": relative_to_dump_dir(args.manifest, dump_dir), "sha256": digests["manifest"]}],
         config={"source_build_id": source_build_id}, expected_total=None, work_unit=None, checkpoint_file=None,
     )
     try:
@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     applied = result["build"]["reference"]["decisions_applied"]
     store.finish_execution(
         record_id, run_id, status="done",
-        outputs=[{"role": f"{kind}_reference", "file": relative_to_dump_dir(out, dump_dir), "sha256": sha256_of_file(out)}],
+        outputs=[{"output_kind": f"{kind}_reference", "file": relative_to_dump_dir(out, dump_dir), "sha256": sha256_of_file(out)}],
         counts={"decisions_applied": applied},
     )
     print(f"wrote {out} ({applied} decisions applied); record {record_id}")

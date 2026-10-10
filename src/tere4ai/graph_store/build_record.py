@@ -43,7 +43,7 @@ NUMBERED_GLOBS = (("build_chain_*.json", re.compile(r"^build_chain_[0-9a-f]{12}$
                   ("publications/*.json", re.compile(r"^[0-9a-f]{12}$")))
 NUMBERING_UNBLOCK = ("repair or move each file aside, or write build_records/numbering.json as "
                      '{"last_number": N} with N at least the highest number those files held')
-SCHEMA_VERSION = "build_record.v2"
+SCHEMA_VERSION = "build_record.v3"
 HEARTBEAT_EXPIRY_SECONDS = 300
 # The step ids in full words (B155): a capital letter and a number meant two
 # things, so each id names its layer or the publication and its step.
@@ -249,13 +249,17 @@ class BuildRecordStore:
         except (OSError, json.JSONDecodeError) as exc:
             raise RecordError(f"{path.name}: not readable JSON: {exc}") from exc
         # Checked before the schema, so an old record is named by its version
-        # (B155: the step ids became full words in build_record.v2); a file
-        # with no version falls through to the schema and its own message.
+        # (B155: the step ids became full words in build_record.v2; B158: the
+        # inputs and outputs are typed by input_kind and output_kind in
+        # build_record.v3); a file with no version falls through to the
+        # schema and its own message.
         version = data.get("schema_version") if isinstance(data, dict) else None
         if version is not None and version != SCHEMA_VERSION:
             raise RecordError(
                 f"build record {path.name} has schema_version {version!r}; this store reads {SCHEMA_VERSION} "
-                "(pre-B74 records are disposable; rewrite them with scripts/rename_build_record_steps.py)")
+                "(pre-B74 records are disposable; rewrite a build_record.v1 record with "
+                "scripts/rename_build_record_steps.py, then a build_record.v2 record with "
+                "scripts/rename_record_kinds.py)")
         errors = sorted(_stored_record_validator().iter_errors(data), key=lambda e: list(e.path))
         if errors:
             first = errors[0]
@@ -318,7 +322,7 @@ class BuildRecordStore:
         for record in self._valid_records_newest_first():
             for ex in record["executions"]:
                 if ex.get("command") == "parse_legal_structure" and any(
-                    o.get("role") == "layer1_dump" and o.get("sha256") == layer1_digest for o in ex.get("outputs", [])
+                    o.get("output_kind") == "layer1_dump" and o.get("sha256") == layer1_digest for o in ex.get("outputs", [])
                 ):
                     return record["record_id"]
         return None
@@ -465,7 +469,7 @@ class BuildRecordStore:
 
     def heartbeat(self, record_id: str, run_id: str, *, usage: dict[str, Any] | None = None) -> None:
         """Beat the execution's heartbeat. With usage, also write the usage per
-        role so far onto the running execution (final review A2 (b)): a hard
+        model component so far onto the running execution (final review A2 (b)): a hard
         kill (SIGKILL) then loses at most the unit in flight's spend. A beat
         without usage keeps the last one written."""
         def mutate(record):

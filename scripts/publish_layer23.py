@@ -113,7 +113,7 @@ def _continues_the_same_norms(candidate: dict, published_record_id: str, norms_d
     if candidate["parent_record_id"] != published_record_id:
         return False
     return all(out.get("sha256") == norms_digest for ex in candidate["executions"]
-              for out in ex.get("outputs", []) if out.get("role") == "norms")
+              for out in ex.get("outputs", []) if out.get("output_kind") == "norms")
 
 
 def _by(publisher: dict) -> str:
@@ -313,12 +313,12 @@ def _main(argv: list[str] | None = None) -> int:
               "last heartbeat)",
               file=sys.stderr)
         return 1
-    inputs = [{"role": "layer1_dump", "file": args.dump.name, "sha256": sha256_of_file(args.dump)},
-              {"role": "norms", "file": args.norms.name, "sha256": norms_digest}]
+    inputs = [{"input_kind": "layer1_dump", "file": args.dump.name, "sha256": sha256_of_file(args.dump)},
+              {"input_kind": "norms", "file": args.norms.name, "sha256": norms_digest}]
     if args.alignments:
-        inputs.append({"role": "alignments", "file": args.alignments.name, "sha256": sha256_of_file(args.alignments)})
+        inputs.append({"input_kind": "alignments", "file": args.alignments.name, "sha256": sha256_of_file(args.alignments)})
     for m in args.manifest:
-        inputs.append({"role": "freeze_manifest", "file": m.name, "sha256": sha256_of_file(m)})
+        inputs.append({"input_kind": "freeze_manifest", "file": m.name, "sha256": sha256_of_file(m)})
     steps = (["PUBLICATION_STEP1"] if args.gates_only
              else ["PUBLICATION_STEP1", "PUBLICATION_STEP2"])
     run_id = None if unrecorded else store.start_execution(
@@ -547,7 +547,7 @@ def _main(argv: list[str] | None = None) -> int:
             write_current_pointer(dump_dir, chain["chain_id"])
             written.append(CURRENT_POINTER_FILENAME)
             finish("done", gates=gates + postload_gates,
-                   outputs=[{"role": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
+                   outputs=[{"output_kind": "build_chain", "file": chain_path.name, "sha256": sha256_of_file(chain_path)}],
                    counts={"nodes": nodes, "edges": edges})
         except BaseException as exc:  # an interrupt too: the target never stays loading, the execution never running
             error = f"{type(exc).__name__}: {exc}"

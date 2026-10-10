@@ -29,7 +29,7 @@ def test_steps_prefer_the_newest_execution_and_share_the_parse(tmp_path):
     parse = store.create_record("parse-x", None, None)
     run = store.start_execution(parse, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
-    store.finish_execution(parse, run, status="done", outputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": layer1_digest}])
+    store.finish_execution(parse, run, status="done", outputs=[{"output_kind": "layer1_dump", "file": "layer1.json", "sha256": layer1_digest}])
     rid = store.create_record("core", "b", layer1_digest)
     first = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                   expected_total=2, work_unit="groups", checkpoint_file="norms_core.checkpoint.jsonl")
@@ -54,7 +54,7 @@ def test_done_needs_the_artefact_with_the_recorded_digest(tmp_path):
     out.write_text("{}")
     run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                 expected_total=1, work_unit="groups", checkpoint_file=None)
-    store.finish_execution(rid, run, status="done", outputs=[{"role": "norms", "file": "norms_core.json", "sha256": sha256_of_file(out)}])
+    store.finish_execution(rid, run, status="done", outputs=[{"output_kind": "norms", "file": "norms_core.json", "sha256": sha256_of_file(out)}])
     reasons: dict = {}
     assert step_states(store.read(rid), store, tmp_path, reasons)[0]["LAYER2_STEP2"] == "done" and not reasons
     out.write_text('{"edited": true}')
@@ -201,9 +201,14 @@ def _done(store, rid, command, steps, outputs, inputs=()):
     store.finish_execution(rid, run, status="done", outputs=outputs)
 
 
-def _out(tmp_path, name, role, text):
+def _out(tmp_path, name, output_kind, text):
     (tmp_path / name).write_text(text)
-    return {"role": role, "file": name, "sha256": sha256_of_file(tmp_path / name)}
+    return {"output_kind": output_kind, "file": name, "sha256": sha256_of_file(tmp_path / name)}
+
+
+def _as_input(output, input_kind):
+    """The inputs entry for a file an earlier execution wrote: the same file under its input kind."""
+    return {"input_kind": input_kind, "file": output["file"], "sha256": output["sha256"]}
 
 
 def test_lineage_steps_are_inherited_only_while_the_ancestor_artefact_stands(tmp_path):
@@ -218,9 +223,9 @@ def test_lineage_steps_are_inherited_only_while_the_ancestor_artefact_stands(tmp
     store.set_publication(parent, PUB)
     child = store.create_record("core.reference", "b", layer1["sha256"], parent_record_id=parent)
     ref = _out(tmp_path, "norms_core.reference.json", "norms_reference", '{"norms": [1]}')
-    _done(store, child, "materialize_reference", ["LAYER2_STEP4"], [ref], inputs=[{**norms, "role": "norms"}])
+    _done(store, child, "materialize_reference", ["LAYER2_STEP4"], [ref], inputs=[_as_input(norms, "norms")])
     align = _out(tmp_path, "alignments_core.reference.json", "alignments", '{"assertions": []}')
-    _done(store, child, "align_hleg", ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], [align], inputs=[{**ref, "role": "norms"}])
+    _done(store, child, "align_hleg", ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], [align], inputs=[_as_input(ref, "norms")])
 
     reasons: dict = {}
     steps, depends, parse_id = step_states(store.read(child), store, tmp_path, reasons)
@@ -249,7 +254,8 @@ def test_an_input_without_a_producing_record_is_not_recorded(tmp_path):
     norms = _out(tmp_path, "norms_core.b74.json", "norms", '{"norms": []}')
     rid = store.create_record("core.b74", "b", sha256_of_file(tmp_path / "layer1.json"))
     run = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
-                                inputs=[norms], config={}, expected_total=26, work_unit="batches", checkpoint_file=None)
+                                inputs=[_as_input(norms, "norms")], config={}, expected_total=26, work_unit="batches",
+                                checkpoint_file=None)
     assert run
     reasons: dict = {}
     steps, _, parse_id = step_states(store.read(rid), store, tmp_path, reasons)
@@ -278,7 +284,7 @@ def test_lineage_of_names_inherited_records_and_consumed_freezes():
         "reasons": {"LAYER0_STEP1": "done in record r1", "LAYER1_STEP1": "done in record r1", "LAYER2_STEP1": "done in record r1",
                     "LAYER2_STEP2": "unexpected wording"},
         "executions": [{"command": "materialize_reference", "status": "done", "covers_steps": ["LAYER2_STEP4"],
-                        "inputs": [{"role": "freeze_manifest", "file": "m.json", "sha256": "7" * 64}]}],
+                        "inputs": [{"input_kind": "freeze_manifest", "file": "m.json", "sha256": "7" * 64}]}],
         "publication": {"chain_id": "c", "label": None, "published_at": "t",
                         "manifests": [{"campaign_id": "camp", "freeze_id": "fz", "campaign_type": "layer2_annotation",
                                        "stage": "production", "decisions_sha256": "8" * 64, "layer": 2}]},

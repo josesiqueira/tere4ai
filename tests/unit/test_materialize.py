@@ -116,7 +116,7 @@ def test_cli_writes_reference_as_descendant_of_the_published_record(tmp_path):
     src = store.create_record("core", "build-b", None)
     run = store.start_execution(src, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
                                 expected_total=1, work_unit="groups", checkpoint_file=None)
-    store.finish_execution(src, run, status="done", outputs=[{"role": "norms", "file": "norms_core.json", "sha256": sha256_of_file(pristine)}])
+    store.finish_execution(src, run, status="done", outputs=[{"output_kind": "norms", "file": "norms_core.json", "sha256": sha256_of_file(pristine)}])
     store.set_publication(src, {"chain_id": "0" * 12, "build_id": "build-b+chain-000000000000", "published_at": "t",
                                "gating": {"layer2": "llm", "layer3": "llm"}, "label": "llm-gated", "gates": [],
                                "postload_gates": [], "manifests": []})
@@ -131,8 +131,8 @@ def test_cli_writes_reference_as_descendant_of_the_published_record(tmp_path):
     assert store.read(child)["parent_record_id"] == src
     ex = store.read(child)["executions"][0]
     assert ex["command"] == "materialize_reference" and ex["covers_steps"] == ["LAYER2_STEP4"] and ex["status"] == "done"
-    assert {i["role"] for i in ex["inputs"]} == {"norms", "decisions", "freeze_manifest"}
-    assert ex["outputs"][0] == {"role": "norms_reference", "file": out.name, "sha256": sha256_of_file(out)}
+    assert {i["input_kind"] for i in ex["inputs"]} == {"norms", "decisions", "freeze_manifest"}
+    assert ex["outputs"][0] == {"output_kind": "norms_reference", "file": out.name, "sha256": sha256_of_file(out)}
     assert store.find_by_output_digest(sha256_of_file(out)) == child
 
 
@@ -207,7 +207,7 @@ def test_cli_binds_the_served_build_only_when_its_manifest_contains_the_pristine
     (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "c10000000000", "activated_at": "t"}))
     (tmp_path / "publications").mkdir()
     publication = {"chain_id": "c10000000000", "build_id": "b74+chain-c10000000000",
-                   "inputs": [{"role": "norms", "file": "norms_core.b74.json", "sha256": "b" * 64}],
+                   "inputs": [{"input_kind": "norms", "file": "norms_core.b74.json", "sha256": "b" * 64}],
                    "files": {"layer1_dump": "layer1.json", "norms": "norms_core.b74.json", "alignments": None}}
     (tmp_path / "publications" / "c10000000000.json").write_text(json.dumps(publication))
     args = ["--pristine", str(pristine), "--decisions", str(d), "--manifest", str(m)]
@@ -269,7 +269,7 @@ def test_cli_refuses_a_missing_pristine_file_without_a_traceback(tmp_path, capsy
 
 def test_cli_materialises_an_alignments_file_under_step_l3_5(tmp_path):
     """B79 item 20: the alignments kind through the command, its suffix,
-    step and output role."""
+    step and output kind."""
     cli = _cli()
     d = _decisions(tmp_path, {"align:x:1": {"decision": "reject", "rationale": "forced", "reviewer": "adj",
                                             "decided_at": "2026-09-19T00:00:00+00:00"}})
@@ -292,7 +292,7 @@ def test_cli_materialises_an_alignments_file_under_step_l3_5(tmp_path):
     store = BuildRecordStore(tmp_path)
     ex = store.read(store.resolve("core.adjudicated"))["executions"][0]
     assert ex["covers_steps"] == ["LAYER3_STEP5"] and ex["status"] == "done"
-    assert ex["outputs"] == [{"role": "alignments_reference", "file": out.name, "sha256": sha256_of_file(out)}]
+    assert ex["outputs"] == [{"output_kind": "alignments_reference", "file": out.name, "sha256": sha256_of_file(out)}]
 
 
 def test_cli_falls_back_to_the_served_build_of_the_core_dumps(tmp_path, monkeypatch):

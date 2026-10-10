@@ -38,7 +38,7 @@
    "outputs": [
     {
      "file": "layer1.json",
-     "role": "layer1_dump",
+     "output_kind": "layer1_dump",
      "sha256": "f0b7419653b58e9606ff48c892e7226a8e460b071fa4bfb7720873e0a9bdbe8c"
     }
    ],
@@ -144,7 +144,7 @@
    "outputs": [
     {
      "file": "norms_core.json",
-     "role": "norms",
+     "output_kind": "norms",
      "sha256": "003aaff7fe07238a06053ba49123e7e2a47c2b42ae81aeb4baef51f03477ccee"
     }
    ],
@@ -252,7 +252,7 @@
    "outputs": [
     {
      "file": "alignments_core.json",
-     "role": "alignments",
+     "output_kind": "alignments",
      "sha256": "ff36ef48e629ab54942db53e0597e6f39f9e6d0434879d7ef54c413833c01383"
     }
    ],
@@ -373,7 +373,7 @@
   "publication.published_at": "not recorded before DEC-16"
  },
  "record_id": "legacy-core",
- "schema_version": "build_record.v2",
+ "schema_version": "build_record.v3",
  "served": true,
  "steps": {
   "LAYER0_STEP1": "done",

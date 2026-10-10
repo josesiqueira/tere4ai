@@ -183,7 +183,7 @@ def _publish_once(tmp_path, monkeypatch, variant: str):
     run = store.start_execution(rid, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[],
                                 config={}, expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done",
-                           outputs=[{"role": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}])
+                           outputs=[{"output_kind": "norms", "file": norms.name, "sha256": sha256_of_file(norms)}])
     align = json.loads(alignments.read_text())
     align["build"]["alignment_input_sha256"] = sha256_of_file(norms)
     alignments.write_text(json.dumps(align))

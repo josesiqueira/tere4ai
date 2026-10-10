@@ -28,7 +28,7 @@
    "copy_reason": "legacy: the file on disk is the record",
    "copy_state": "not_kept",
    "file": "judge_label_sheet.json",
-   "role": "sheet_json",
+   "output_kind": "sheet_json",
    "sha256": "636f445d6cf8f585e5825a2c3fd1d70664ecef5319383a048826c930e12ff4f1"
   }
  ],
@@ -85,7 +85,7 @@
   "sample_id": null
  },
  "sampling": null,
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": null,
  "step": "E1",
  "synthesised": true,

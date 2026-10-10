@@ -200,10 +200,10 @@ def _main(argv: list[str] | None = None) -> int:
         print(f"refusing to start: {unlisted}; publication refuses alignments made on a text the Layer 1 dump "
               "does not list (spec G D-G75 (8))", file=sys.stderr)
         return 2
-    inputs = [{"role": "norms", "file": relative_to_dump_dir(args.norms, dump_dir), "sha256": norms_digest},
-              {"role": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest},
-              {"role": "hleg_text", "file": TEXT_FILE, "sha256": hleg_pair.text_sha256},
-              {"role": "hleg_derivation_record", "file": RECORD_FILE, "sha256": hleg_pair.record_sha256}]
+    inputs = [{"input_kind": "norms", "file": relative_to_dump_dir(args.norms, dump_dir), "sha256": norms_digest},
+              {"input_kind": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest},
+              {"input_kind": "hleg_text", "file": TEXT_FILE, "sha256": hleg_pair.text_sha256},
+              {"input_kind": "hleg_derivation_record", "file": RECORD_FILE, "sha256": hleg_pair.record_sha256}]
     config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size}
     ref = args.record or store.find_by_output_digest(norms_digest) or slug
     # B79 item 10: the record is chosen here and created only after every
@@ -341,7 +341,7 @@ def _main(argv: list[str] | None = None) -> int:
         stats = result["stats"]
         store.finish_execution(
             record_id, run_id, status="done",
-            outputs=[{"role": "alignments", "file": relative_to_dump_dir(out_path, dump_dir),
+            outputs=[{"output_kind": "alignments", "file": relative_to_dump_dir(out_path, dump_dir),
                      "sha256": sha256_of_file(out_path)}],
             # A count the stats do not hold is null, never zero (D-G25).
             counts={"norms_total": stats.get("norms_total"),

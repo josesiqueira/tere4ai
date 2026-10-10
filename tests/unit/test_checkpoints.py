@@ -71,7 +71,7 @@ def _record_with_run(tmp_path, config, inputs, run_id_holder):
 def test_prepare_resume_refuses_stale_without_resume_and_validates_compatibility(tmp_path):
     holder: list[str] = []
     cfg = {"prompt_version": "v1", "batch_size": 2}
-    inputs = [{"role": "norms", "file": "n.json", "sha256": "n" * 64}]
+    inputs = [{"input_kind": "norms", "file": "n.json", "sha256": "n" * 64}]
     store, rid = _record_with_run(tmp_path, cfg, inputs, holder)
     run = holder[0]
     ck = tmp_path / "x.checkpoint.jsonl"
@@ -87,7 +87,7 @@ def test_prepare_resume_refuses_stale_without_resume_and_validates_compatibility
                        expected_config={"prompt_version": "v1", "batch_size": 5}, expected_inputs=inputs)
     with pytest.raises(IncompatibleCheckpointError, match="norms"):
         prepare_resume(ck, "batch", KEYS, resume=True, accept_legacy=False, store=store, record_id=rid,
-                       expected_config=cfg, expected_inputs=[{"role": "norms", "file": "n.json", "sha256": "m" * 64}])
+                       expected_config=cfg, expected_inputs=[{"input_kind": "norms", "file": "n.json", "sha256": "m" * 64}])
     ck.write_text(_line("b0", "unknown00000") + "\n", encoding="utf-8")
     with pytest.raises(IncompatibleCheckpointError, match="does not know"):
         prepare_resume(ck, "batch", KEYS, resume=True, accept_legacy=False, store=store, record_id=rid,

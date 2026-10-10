@@ -35,17 +35,17 @@
  "inputs": [
   {
    "file": "norms_core.json",
-   "role": "norms",
+   "input_kind": "norms",
    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   {
    "file": "alignments_core.json",
-   "role": "alignments",
+   "input_kind": "alignments",
    "sha256": "9999999999999999999999999999999999999999999999999999999999999999"
   },
   {
    "file": "layer1.json",
-   "role": "layer1_dump",
+   "input_kind": "layer1_dump",
    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   }
  ],
@@ -73,7 +73,7 @@
    "copy_reason": null,
    "copy_state": "present",
    "file": "judge_label_sheet.json",
-   "role": "sheet_json",
+   "output_kind": "sheet_json",
    "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
   },
   {
@@ -81,7 +81,7 @@
    "copy_reason": null,
    "copy_state": "present",
    "file": "judge_label_sheet.md",
-   "role": "sheet_md",
+   "output_kind": "sheet_md",
    "sha256": "894e2bb67e87c0d0cbb0b00ff6d7e374849bcf2378001b73823d341744196f68"
   }
  ],
@@ -129,7 +129,7 @@
   "sample_id": "sample-a1b2c3d4e5f6"
  },
  "sampling": null,
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": "2026-09-24T12:00:00+00:00",
  "step": "E1",
  "synthesised": false,

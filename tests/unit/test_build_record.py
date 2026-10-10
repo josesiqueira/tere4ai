@@ -86,7 +86,7 @@ def test_execution_lifecycle_and_lookups(tmp_path):
     assert ex["checkpoint_file"] == "norms_t.checkpoint.jsonl" and ex["inherited_keys"] == [] and ex["inherited_from"] is None
     store.heartbeat(rid, run)
     store.finish_execution(rid, run, status="done", counts={"candidates": 5}, completed_keys=["a", "b", "c"],
-                           outputs=[{"role": "norms", "file": "norms_t.json", "sha256": "d" * 64}],
+                           outputs=[{"output_kind": "norms", "file": "norms_t.json", "sha256": "d" * 64}],
                            work_failures={"nodes_failed": 1, "norms_failed": 0})
     ex = store.read(rid)["executions"][0]
     assert ex["status"] == "done" and ex["ended_at"] and ex["work_failures"] == {"nodes_failed": 1, "norms_failed": 0}
@@ -98,7 +98,7 @@ def test_find_parse_record_matches_only_parse_outputs(tmp_path):
     rid = store.create_record("parse-1", None, None)
     run = _start(store, rid, command="parse_legal_structure", covers_steps=["LAYER0_STEP1", "LAYER1_STEP1"], expected_total=None,
                  work_unit=None, checkpoint_file=None)
-    store.finish_execution(rid, run, status="done", outputs=[{"role": "layer1_dump", "file": "layer1.json", "sha256": "L" * 64}])
+    store.finish_execution(rid, run, status="done", outputs=[{"output_kind": "layer1_dump", "file": "layer1.json", "sha256": "L" * 64}])
     other = store.create_record("x", None, "L" * 64)
     assert store.find_parse_record("L" * 64) == rid and store.find_parse_record("M" * 64) is None
     assert other != rid
@@ -472,3 +472,11 @@ def test_a_signal_ignored_by_nohup_stays_ignored():
     finally:
         for sig, handler in before.items():
             signal.signal(sig, handler)
+
+
+def test_a_record_with_the_old_key_is_refused_by_name(tmp_path):
+    store = BuildRecordStore(tmp_path)
+    rec = {"schema_version": "build_record.v2", "record_id": "abc123abc123"}
+    (store.dir / "abc123abc123.json").write_text(json.dumps(rec), encoding="utf-8")
+    with pytest.raises(RecordError, match=r"build_record\.v2.*rename_record_kinds\.py"):
+        store.read("abc123abc123")

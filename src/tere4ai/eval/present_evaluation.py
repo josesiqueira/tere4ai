@@ -212,9 +212,9 @@ def _legacy_run(results: Path, summary: str, checkpoint: str, analysis: str, phr
     path = results / summary
     data = _read_json(path)
     rec = _empty_legacy(_legacy_id(path), "run", "E6", "run_ablations")
-    rec["outputs"].append({"role": "summary", "file": summary, "sha256": sha256_of_file(path), "copy": None})
+    rec["outputs"].append({"output_kind": "summary", "file": summary, "sha256": sha256_of_file(path), "copy": None})
     if (results / checkpoint).is_file():
-        rec["outputs"].append({"role": "checkpoint", "file": checkpoint, "sha256": sha256_of_file(results / checkpoint),
+        rec["outputs"].append({"output_kind": "checkpoint", "file": checkpoint, "sha256": sha256_of_file(results / checkpoint),
                                "copy": None})
     if not _states(results, analysis, phrase):
         rec["_reasons"]["started_at"] = NO_DATE
@@ -250,7 +250,7 @@ def _legacy_run(results: Path, summary: str, checkpoint: str, analysis: str, phr
 def _legacy_comparison(root: Path, runs_by_checkpoint: dict[str, str]) -> dict[str, Any]:
     path = root / "docs" / LEGACY_STUDY
     rec = _empty_legacy(_legacy_id(path), "comparison", "E6", "variance_report")
-    rec["outputs"].append({"role": "study", "file": LEGACY_STUDY, "sha256": sha256_of_file(path), "copy": None})
+    rec["outputs"].append({"output_kind": "study", "file": LEGACY_STUDY, "sha256": sha256_of_file(path), "copy": None})
     header = _STUDY_HEADER_RE.search(path.read_text(encoding="utf-8"))
     run_a = runs_by_checkpoint.get(header.group(1)) if header else None
     run_b = runs_by_checkpoint.get(header.group(2)) if header else None
@@ -270,7 +270,7 @@ def _legacy_comparison(root: Path, runs_by_checkpoint: dict[str, str]) -> dict[s
 def _legacy_sheet(path: Path) -> dict[str, Any]:
     data = _read_json(path)
     rec = _empty_legacy(_legacy_id(path), "sample", "E1", "sample_judge_decisions")
-    rec["outputs"].append({"role": "sheet_json", "file": LEGACY_SHEET, "sha256": sha256_of_file(path), "copy": None})
+    rec["outputs"].append({"output_kind": "sheet_json", "file": LEGACY_SHEET, "sha256": sha256_of_file(path), "copy": None})
     base = (data.get("builds") or {}).get("norms_core")
     rec["build"]["base_build_id"] = str(base) if base else None
     rec["_reasons"]["build"] = ("derived: the sheet names its base build" if base

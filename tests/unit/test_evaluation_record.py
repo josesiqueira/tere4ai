@@ -28,7 +28,7 @@ def _validator(definition):
 def _inputs(tmp_path):
     a = tmp_path / "layer1.json"
     a.write_text('{"build": {"build_id": "build-b"}}')
-    return [er.file_ref("layer1_dump", a)]
+    return [er.input_ref("layer1_dump", a)]
 
 
 def test_begin_writes_a_running_record_that_validates(tmp_path):
@@ -106,7 +106,7 @@ def test_list_marks_unreadable_and_invalid_records_without_dropping_the_list(tmp
     rid = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[],
                       build={"base_build_id": None, "publication": None, "publication_reason": None})
     (store.dir / "0000000b0000.json").write_text("{", encoding="utf-8")
-    (store.dir / "0000000c0000.json").write_text(json.dumps({"schema_version": "evaluation_record.v1"}))
+    (store.dir / "0000000c0000.json").write_text(json.dumps({"schema_version": "evaluation_record.v2"}))
     (store.dir / "notarecord.json").write_text("{}")
     rows = {r["record_id"]: r for r in store.list_records()}
     assert set(rows) == {rid, "0000000b0000", "0000000c0000"}
@@ -118,7 +118,7 @@ def test_a_schema_error_keeps_its_full_json_pointer_location(tmp_path):
     # B81 item 21: the pointer "inputs/0/sha256" is never shortened like a path to "sha256"
     store = EvaluationRecordStore(tmp_path)
     rid = store.begin(kind="run", step="E6", command="x", argv=[],
-                      inputs=[{"role": "norms", "file": "norms_core.json", "sha256": "b" * 64}],
+                      inputs=[{"input_kind": "norms", "file": "norms_core.json", "sha256": "b" * 64}],
                       build={"base_build_id": None, "publication": None, "publication_reason": None})
     data = json.loads((store.dir / f"{rid}.json").read_text())
     data["inputs"][0]["sha256"] = 5
@@ -131,7 +131,7 @@ def test_lookups_by_output_digest_and_input_digest(tmp_path):
     store = EvaluationRecordStore(tmp_path)
     src = tmp_path / "layer1.json"
     src.write_text("x")
-    inp = er.file_ref("layer1_dump", src)
+    inp = er.input_ref("layer1_dump", src)
     rid1 = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[inp],
                        build={"base_build_id": None, "publication": None, "publication_reason": None})
     out = tmp_path / "ablation_checkpoint.jsonl"
@@ -149,9 +149,9 @@ def test_lookups_by_output_digest_and_input_digest(tmp_path):
 def _publish(dump_dir, files, base="build-b"):
     """A real publication over the files as they are now: the manifest names
     their digests, the pointer names the recomputed chain (G1)."""
-    for role, name in files.items():
+    for kind, name in files.items():
         if not (dump_dir / name).exists():
-            (dump_dir / name).write_text(json.dumps({"build": {"build_id": base}, "role": role}))
+            (dump_dir / name).write_text(json.dumps({"build": {"build_id": base}, "input_kind": kind}))
     chain = build_chain(dump_dir / files["layer1_dump"], dump_dir / files["norms"],
                         alignments_path=dump_dir / files["alignments"] if files.get("alignments") else None)
     chain_id = chain["chain_id"]
@@ -291,7 +291,7 @@ def test_two_processes_cannot_interleave_a_finish(tmp_path):
     assert results[0] != "ok" and results[1] == "ok", "exactly one finish wins under the lock"
 
 
-def test_keep_output_records_the_given_name_and_keeps_the_copy_under_its_role(tmp_path):
+def test_keep_output_records_the_given_name_and_keeps_the_copy_under_its_output_kind(tmp_path):
     store = EvaluationRecordStore(tmp_path)
     rid = store.begin(kind="run", step="E6", command="x", argv=[], inputs=[],
                       build={"base_build_id": None, "publication": None, "publication_reason": None})
@@ -356,3 +356,11 @@ def test_an_edited_model_parameters_table_reads_dirty(tmp_path):
     clean = er.code_version(tmp_path)
     (tmp_path / "config" / "model_parameters.json").write_text('{"schema_version": 1}\n')
     assert er.code_version(tmp_path) == f"{clean}-dirty"
+
+
+def test_a_record_of_the_old_version_is_refused_naming_the_rewrite_script(tmp_path):
+    # B158 (R10): evaluation_record.v1 typed its files by "role"; the store reads v2 only
+    store = EvaluationRecordStore(tmp_path)
+    (store.dir / "0000000d0000.json").write_text(json.dumps({"schema_version": "evaluation_record.v1"}))
+    with pytest.raises(EvaluationRecordError, match=r"evaluation_record\.v1.*rename_record_kinds\.py"):
+        store.read("0000000d0000")

@@ -91,7 +91,7 @@
    "inputs": [
     {
      "file": "manifest.json",
-     "role": "manifest",
+     "input_kind": "manifest",
      "sha256": "a4e67e9914bfc030ba266c378c8efb049b255ef5ddea46ca052fe2152cbb2a32"
     }
    ],
@@ -100,7 +100,7 @@
    "outputs": [
     {
      "file": "layer1.json",
-     "role": "layer1_dump",
+     "output_kind": "layer1_dump",
      "sha256": "4a3d43751c4000edd79e07d9011ae847602ffffc76649e2f62a40b362ae9a178"
     }
    ],
@@ -190,7 +190,7 @@
   "publication": "the record is not published"
  },
  "record_id": "a00000000001",
- "schema_version": "build_record.v2",
+ "schema_version": "build_record.v3",
  "served": false,
  "steps": {
   "LAYER0_STEP1": "done",

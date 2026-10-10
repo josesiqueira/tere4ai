@@ -43,17 +43,17 @@
    "inputs": [
     {
      "file": "norms_core.json",
-     "role": "norms",
+     "input_kind": "norms",
      "sha256": "e5d285b60a4e4b1fd7eb09fea10cde07d9a042db366cb504cd806f876f5a7ba3"
     },
     {
      "file": "decisions.json",
-     "role": "decisions",
+     "input_kind": "decisions",
      "sha256": "01c97a46a4e989b92649fab07c9f22f74b9c42846ccc4947293442db91c4fe74"
     },
     {
      "file": "freeze-f1.json",
-     "role": "freeze_manifest",
+     "input_kind": "freeze_manifest",
      "sha256": "8041a9b7fef49e79bfc149adc60198aa88a8dc427b3de51dea0cb13d1b30f349"
     }
    ],
@@ -62,7 +62,7 @@
    "outputs": [
     {
      "file": "norms_core.reference.json",
-     "role": "norms_reference",
+     "output_kind": "norms_reference",
      "sha256": "c7b5ff518f9ac9c22c414841249e1581c8b5c6b098aa23f6e6697b1df4a45eec"
     }
    ],
@@ -160,12 +160,12 @@
    "inputs": [
     {
      "file": "norms_core.reference.json",
-     "role": "norms",
+     "input_kind": "norms",
      "sha256": "c7b5ff518f9ac9c22c414841249e1581c8b5c6b098aa23f6e6697b1df4a45eec"
     },
     {
      "file": "layer1.json",
-     "role": "layer1_dump",
+     "input_kind": "layer1_dump",
      "sha256": "4a3d43751c4000edd79e07d9011ae847602ffffc76649e2f62a40b362ae9a178"
     }
    ],
@@ -183,7 +183,7 @@
    "outputs": [
     {
      "file": "alignments_core.reference.json",
-     "role": "alignments",
+     "output_kind": "alignments",
      "sha256": "feaac05ee3efe8a23ba505d7c5208fa3df82d391a85cef2912fdb1059715e9cd"
     }
    ],
@@ -297,7 +297,7 @@
   "publication": "the record is not published"
  },
  "record_id": "a00000000004",
- "schema_version": "build_record.v2",
+ "schema_version": "build_record.v3",
  "served": false,
  "steps": {
   "LAYER0_STEP1": "inherited",

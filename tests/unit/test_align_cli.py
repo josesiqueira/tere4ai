@@ -20,8 +20,8 @@ def _hleg_source_files():
 
 
 def _hleg_inputs():
-    return [{"role": "hleg_text", "file": TEXT_FILE, "sha256": PAIR.text_sha256},
-            {"role": "hleg_derivation_record", "file": RECORD_FILE, "sha256": PAIR.record_sha256}]
+    return [{"input_kind": "hleg_text", "file": TEXT_FILE, "sha256": PAIR.text_sha256},
+            {"input_kind": "hleg_derivation_record", "file": RECORD_FILE, "sha256": PAIR.record_sha256}]
 
 
 def _norms_file(tmp_path, n=3, name="norms_test.json"):
@@ -78,8 +78,8 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
     _fakes(monkeypatch, cli, batches)
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "b", None)
-    inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
-              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
+    inputs = [{"input_kind": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
+              {"input_kind": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
               *_hleg_inputs()]
     prev = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
@@ -115,7 +115,7 @@ def test_align_records_execution_with_batch_total_and_inputs(tmp_path, monkeypat
     store = BuildRecordStore(tmp_path)
     ex = store.read(store.resolve("test"))["executions"][0]
     assert ex["covers_steps"] == ["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"] and ex["expected_total"] == 2 and ex["config"]["batch_size"] == 2
-    assert {i["role"] for i in ex["inputs"]} == {"norms", "layer1_dump", "hleg_text", "hleg_derivation_record"} and ex["counts"]["mechanical_rejects_count"] == 0
+    assert {i["input_kind"] for i in ex["inputs"]} == {"norms", "layer1_dump", "hleg_text", "hleg_derivation_record"} and ex["counts"]["mechanical_rejects_count"] == 0
     assert ex["work_failures"] == {"nodes_failed": 0, "norms_failed": 0} and ex["prompt_sha256"]["judge"]
     assert ex["counts"]["norms_total"] == 3 and ex["counts"]["candidates"] is None, "a count the stats lack is null"
     assert ex["counts"]["norms_skipped_not_accepted"] is None and ex["counts"]["zero_alignment_norms"] is None
@@ -137,7 +137,7 @@ def test_align_over_a_materialised_file_joins_that_files_record(tmp_path, monkey
     run = store.start_execution(rid, command="materialize_reference", covers_steps=["LAYER2_STEP4"], argv=[], inputs=[], config={},
                                 expected_total=None, work_unit=None, checkpoint_file=None)
     store.finish_execution(rid, run, status="done",
-                           outputs=[{"role": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
+                           outputs=[{"output_kind": "norms_reference", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)])
     assert rc == 0
     assert [e["command"] for e in store.read(rid)["executions"]] == ["materialize_reference", "align_hleg"]
@@ -213,7 +213,7 @@ def test_align_never_overwrites_an_input_of_a_publication(tmp_path, monkeypatch,
     out.write_text('{"assertions": ["published"]}')
     before = out.read_bytes()
     (dumps / "publications" / "c1.json").write_text(json.dumps(
-        {"chain_id": "c1", "inputs": [{"role": "alignments", "file": out.name, "sha256": sha256_of_file(out)}]}))
+        {"chain_id": "c1", "inputs": [{"input_kind": "alignments", "file": out.name, "sha256": sha256_of_file(out)}]}))
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1)]) == 1
     err = capsys.readouterr().err
     assert "publication c1" in err and "--out" in err and batches == [] and out.read_bytes() == before
@@ -233,7 +233,7 @@ def test_resume_over_a_published_producer_continues_in_the_same_descendant(tmp_p
     run = store.start_execution(producer, command="extract_norms", covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[],
                                 config={}, expected_total=1, work_unit="groups", checkpoint_file=None)
     store.finish_execution(producer, run, status="done",
-                           outputs=[{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
+                           outputs=[{"output_kind": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)}])
     store.set_publication(producer, {"chain_id": "c" * 12, "build_id": "b+chain-" + "c" * 12, "published_at": "t",
                                      "gating": {"layer2": "llm", "layer3": "absent"}, "label": None, "gates": [],
                                      "postload_gates": [], "manifests": []})
@@ -265,8 +265,8 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
     _fakes(monkeypatch, cli, batches)
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "b", None)
-    inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
-              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
+    inputs = [{"input_kind": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
+              {"input_kind": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)},
               *_hleg_inputs()]
     prev = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[],
                                  inputs=inputs, config={"prompt_version": "v1", "batch_size": 2}, expected_total=2,
@@ -476,7 +476,7 @@ def test_the_run_records_the_hleg_text_and_record_it_aligned_on(tmp_path, monkey
     _fakes(monkeypatch, cli, [])
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
     ex = _first_execution(tmp_path)
-    assert [i for i in ex["inputs"] if i["role"].startswith("hleg_")] == _hleg_inputs()
+    assert [i for i in ex["inputs"] if i["input_kind"].startswith("hleg_")] == _hleg_inputs()
     build = json.loads(out.read_text())["build"]
     assert (build["hleg_text_sha256"], build["hleg_derivation_record_sha256"]) == (PAIR.text_sha256, PAIR.record_sha256)
 
@@ -507,8 +507,8 @@ def test_a_resume_across_two_hleg_texts_is_refused(tmp_path, monkeypatch, capsys
     store = BuildRecordStore(tmp_path)
     rid = store.create_record("test", "b", None)
     other_text = [{**i, "sha256": "0" * 64} if k == changed else i for k, i in enumerate(_hleg_inputs())]
-    inputs = [{"role": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
-              {"role": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}, *other_text]
+    inputs = [{"input_kind": "norms", "file": norms_path.name, "sha256": sha256_of_file(norms_path)},
+              {"input_kind": "layer1_dump", "file": "layer1.json", "sha256": sha256_of_file(layer1)}, *other_text]
     prev = store.start_execution(rid, command="align_hleg", covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"], argv=[], inputs=inputs,
                                  config={"prompt_version": "v1", "batch_size": 20}, expected_total=1, work_unit="batches",
                                  checkpoint_file="alignments_test.checkpoint.jsonl",
@@ -520,8 +520,8 @@ def test_a_resume_across_two_hleg_texts_is_refused(tmp_path, monkeypatch, capsys
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}",
         "result": {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume"])
-    role = ("hleg_text", "hleg_derivation_record")[changed]
-    assert rc == 2 and f"used different inputs: {role}" in capsys.readouterr().err
+    kind = ("hleg_text", "hleg_derivation_record")[changed]
+    assert rc == 2 and f"used different inputs: {kind}" in capsys.readouterr().err
 
 
 def test_a_layer1_dump_that_does_not_list_the_pair_is_refused_before_any_client(tmp_path, monkeypatch, capsys):

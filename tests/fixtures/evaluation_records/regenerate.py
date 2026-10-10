@@ -106,10 +106,10 @@ def _build(base: str, publication: dict | None) -> dict[str, Any]:
 
 def _inputs(tmp: Path) -> list[dict[str, Any]]:
     refs = []
-    for role, name, digest in (("layer1_dump", "layer1.json", "a"), ("norms", "norms_core.json", "b"),
+    for kind, name, digest in (("layer1_dump", "layer1.json", "a"), ("norms", "norms_core.json", "b"),
                                ("benchmark", "benchmark_sample.json", "c"), ("gold_seed", "gold_seed.json", "d"),
                                ("features", "benchmark_features.json", "e")):
-        refs.append({"role": role, "file": name, "sha256": digest * 64})
+        refs.append({"input_kind": kind, "file": name, "sha256": digest * 64})
     return refs
 
 
@@ -121,7 +121,7 @@ def _e6_run(store: EvaluationRecordStore, tmp: Path, base: str, publication: dic
                       inputs=inputs or _inputs(tmp), build=_build(base, publication),
                       models={"generator_model": "g", "judge_model": "j"},
                       prompt_versions={"generator": "v1", "judge": "v1"},
-                      sampling={"generator": "temperature=0", "judge": "provider default"},
+                      sampling={"generator": "temperature=0", "judge": "API default"},
                       config={"strategies": ["plain_llm"], "metrics_version": "metrics.v2",
                               "code_version": "0000000000ab", "mode": "live"},
                       item_selection=["gold:cls-01", "gold:cls-02"], intended_items=["gold:cls-01", "gold:cls-02"],
@@ -172,9 +172,9 @@ def main(out_dir: Path | None = None) -> list[Path]:
         run2 = _e6_run(store, tmp / "r2", "build-b", PUBLICATION, relations={"repeat_of": run1})
         run3 = _e6_run(store, tmp / "r3", "build-c", None)
         cmp_id = store.begin(kind="comparison", step="E6", command="variance_report", argv=["--run-a", "a", "--run-b", "b"],
-                             inputs=[{"role": "run_a", "file": "ablation_checkpoint.jsonl", "sha256": "1" * 64},
-                                     {"role": "run_b", "file": "ablation_checkpoint.jsonl", "sha256": "2" * 64},
-                                     {"role": "benchmark", "file": "benchmark_sample.json", "sha256": "c" * 64}],
+                             inputs=[{"input_kind": "run_a", "file": "ablation_checkpoint.jsonl", "sha256": "1" * 64},
+                                     {"input_kind": "run_b", "file": "ablation_checkpoint.jsonl", "sha256": "2" * 64},
+                                     {"input_kind": "benchmark", "file": "benchmark_sample.json", "sha256": "c" * 64}],
                              build=_build("build-b", PUBLICATION), config={"code_version": "0000000000ab"},
                              relations={"compares": [run1, None]})
         (tmp / "variance_study.md").write_text("# study\n")
@@ -183,9 +183,9 @@ def main(out_dir: Path | None = None) -> list[Path]:
                      outputs=[store.keep_output(cmp_id, "study", tmp / "variance_study.md")],
                      counts={"common_items": 2, "label_flips": 0}, notes=["run_b is named by no record"])
         offline = store.begin(kind="run", step="E6", command="eval_harness", argv=["--strategies", "plain_llm"],
-                              inputs=[{"role": "layer1_dump", "file": "(in memory)", "sha256": "a" * 64},
-                                      {"role": "norms", "file": "(in memory)", "sha256": "b" * 64},
-                                      {"role": "gold_seed", "file": "gold_seed.json", "sha256": "d" * 64}],
+                              inputs=[{"input_kind": "layer1_dump", "file": "(in memory)", "sha256": "a" * 64},
+                                      {"input_kind": "norms", "file": "(in memory)", "sha256": "b" * 64},
+                                      {"input_kind": "gold_seed", "file": "gold_seed.json", "sha256": "d" * 64}],
                               build=_build("build-b", PUBLICATION),
                               config={"mode": "offline", "note": "no live model was called", "strategies": ["plain_llm"],
                                       "metrics_version": "metrics.v2", "code_version": "0000000000ab"},
@@ -197,10 +197,10 @@ def main(out_dir: Path | None = None) -> list[Path]:
         partial = _e6_run(store, tmp / "r4", "build-b", PUBLICATION, status="partial", completed=("gold:cls-01",),
                           counts={"items_total": 2, "units_without_usage": 0, "items_with_errors": 1})
         failed = _e6_run(store, tmp / "r5", "build-b", PUBLICATION, status="failed", completed=(), keep=False,
-                         error="RuntimeError: provider refused", counts={"items_total": 2})
+                         error="RuntimeError: inference backend refused the request", counts={"items_total": 2})
         resumed = _e6_run(store, tmp / "r6", "build-b", PUBLICATION,
                           relations={"resumes_record_id": run1},
-                          inputs=_inputs(tmp) + [{"role": "checkpoint_resumed", "file": "ablation_checkpoint.jsonl",
+                          inputs=_inputs(tmp) + [{"input_kind": "checkpoint_resumed", "file": "ablation_checkpoint.jsonl",
                                                   "sha256": "f" * 64}],
                           counts={"items_total": 2, "units_resumed": 1, "units_without_usage": 0, "items_with_errors": 0})
         copymiss = _e6_run(store, tmp / "r7", "build-b", PUBLICATION)
@@ -209,9 +209,9 @@ def main(out_dir: Path | None = None) -> list[Path]:
         (store.dir / rec["outputs"][1]["copy"]).write_text("drifted\n")
         sample = store.begin(kind="sample", step="E1", command="sample_judge_decisions",
                              argv=["--sheet", "judge_label_sheet.json"],
-                             inputs=[{"role": "norms", "file": "norms_core.json", "sha256": "b" * 64},
-                                     {"role": "alignments", "file": "alignments_core.json", "sha256": "9" * 64},
-                                     {"role": "layer1_dump", "file": "layer1.json", "sha256": "a" * 64}],
+                             inputs=[{"input_kind": "norms", "file": "norms_core.json", "sha256": "b" * 64},
+                                     {"input_kind": "alignments", "file": "alignments_core.json", "sha256": "9" * 64},
+                                     {"input_kind": "layer1_dump", "file": "layer1.json", "sha256": "a" * 64}],
                              build=_build("build-b", PUBLICATION),
                              config={"total": 50, "minimum": 3, "code_version": "0000000000ab",
                                      "strata": [{"judge_kind": "extraction", "verdict": "accepted", "population": 4, "sampled": 2}]},
@@ -224,7 +224,7 @@ def main(out_dir: Path | None = None) -> list[Path]:
                      counts={"population": 4, "sampled": 2, "unjoinable": 0})
         label = store.begin(kind="labelling", step="E1", command="sample_judge_decisions",
                             argv=["--label", "jr-1", "accept", "--by", "Jose"],
-                            inputs=[{"role": "sheet_before", "file": "judge_label_sheet.json", "sha256": "3" * 64}],
+                            inputs=[{"input_kind": "sheet_before", "file": "judge_label_sheet.json", "sha256": "3" * 64}],
                             build=_build("build-b", PUBLICATION),
                             config={"by": "Jose", "labels": {"jr-1": "accept", "jr-2": "reject"}, "forced": []},
                             relations={"sample_id": SAMPLE_ID}, intended_items=["jr-1", "jr-2"])
@@ -234,7 +234,7 @@ def main(out_dir: Path | None = None) -> list[Path]:
                      outputs=[store.keep_output(label, "sheet_after", tmp / "l" / "judge_label_sheet.json")],
                      counts={"labelled_now": 2, "labelled_total": 2, "items": 2})
         analysis = store.begin(kind="analysis", step="E1", command="sample_judge_decisions", argv=["--compute"],
-                               inputs=[{"role": "sheet_labelled", "file": "judge_label_sheet.json", "sha256": "4" * 64}],
+                               inputs=[{"input_kind": "sheet_labelled", "file": "judge_label_sheet.json", "sha256": "4" * 64}],
                                build=_build("build-b", PUBLICATION), config={"metrics_version": "metrics.v2"},
                                relations={"sample_id": SAMPLE_ID, "labelling_record_ids": [label]},
                                intended_items=["jr-1", "jr-2"])

@@ -30,27 +30,27 @@
  "inputs": [
   {
    "file": "layer1.json",
-   "role": "layer1_dump",
+   "input_kind": "layer1_dump",
    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   {
    "file": "norms_core.json",
-   "role": "norms",
+   "input_kind": "norms",
    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   {
    "file": "benchmark_sample.json",
-   "role": "benchmark",
+   "input_kind": "benchmark",
    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   },
   {
    "file": "gold_seed.json",
-   "role": "gold_seed",
+   "input_kind": "gold_seed",
    "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   {
    "file": "benchmark_features.json",
-   "role": "features",
+   "input_kind": "features",
    "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   }
  ],
@@ -81,7 +81,7 @@
    "copy_reason": null,
    "copy_state": "present",
    "file": "ablation_summary.json",
-   "role": "summary",
+   "output_kind": "summary",
    "sha256": "c26e6fd6553aead5afb6c9a55975591647d50f54d4f30bfe28e0b1c300c6e9ac"
   },
   {
@@ -89,7 +89,7 @@
    "copy_reason": null,
    "copy_state": "present",
    "file": "ablation_checkpoint.jsonl",
-   "role": "checkpoint",
+   "output_kind": "checkpoint",
    "sha256": "33c319c41136fdcc3459a65374e36c127f4950ecaef2812c329f88d702db982f"
   }
  ],
@@ -136,9 +136,9 @@
  },
  "sampling": {
   "generator": "temperature=0",
-  "judge": "provider default"
+  "judge": "API default"
  },
- "schema_version": "evaluation_record.v1",
+ "schema_version": "evaluation_record.v2",
  "started_at": "2026-09-20T12:00:00+00:00",
  "step": "E6",
  "synthesised": false,

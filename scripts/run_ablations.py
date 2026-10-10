@@ -51,7 +51,7 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordStore,
     code_version,
     end_failed,
-    file_ref,
+    input_ref,
     observe_publication,
     served_input_paths,
 )
@@ -382,9 +382,9 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     paths = served_input_paths(args.dump_dir)
-    for role in ("layer1_dump", "norms"):
-        if role not in paths:
-            print(f"refusing to run: the active publication names no {role} file")
+    for kind in ("layer1_dump", "norms"):
+        if kind not in paths:
+            print(f"refusing to run: the active publication names no {kind} file")
             return 2
     dump = json.loads(paths["layer1_dump"].read_text())
     norms_payload = json.loads(paths["norms"].read_text())
@@ -443,20 +443,20 @@ def main(argv: list[str] | None = None) -> int:
     if store is not None:
         features_path = args.features or (ROOT / "eval" / "gold" / "benchmark_features.json")
         inputs = [
-            file_ref("layer1_dump", paths["layer1_dump"]),
-            file_ref("norms", paths["norms"]),
-            file_ref("benchmark", args.benchmark or harness.BENCHMARK_SAMPLE_PATH),
-            file_ref("gold_seed", harness.GOLD_SEED_PATH),
+            input_ref("layer1_dump", paths["layer1_dump"]),
+            input_ref("norms", paths["norms"]),
+            input_ref("benchmark", args.benchmark or harness.BENCHMARK_SAMPLE_PATH),
+            input_ref("gold_seed", harness.GOLD_SEED_PATH),
         ]
         # the cache is optional to load_items: recorded only when it was read (G7)
         if features_path.is_file():
-            inputs.append(file_ref("features", features_path))
+            inputs.append(input_ref("features", features_path))
             # B10: the record names the elicitor's prompt beside the strategies' models
             elicitor_versions = {"elicit_features": elicitor_prompt(features_path)}
         else:
             notes.append("no elicited-features cache was read")
         if done:
-            inputs.append(file_ref("checkpoint_resumed", checkpoint_path))
+            inputs.append(input_ref("checkpoint_resumed", checkpoint_path))
         publication, publication_reason = observe_publication(args.dump_dir)
         base_build_id = (dump.get("build") or {}).get("build_id")
         record_id = store.begin(

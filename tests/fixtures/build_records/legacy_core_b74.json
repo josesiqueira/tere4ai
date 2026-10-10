@@ -38,7 +38,7 @@
    "outputs": [
     {
      "file": "layer1.json",
-     "role": "layer1_dump",
+     "output_kind": "layer1_dump",
      "sha256": "f0b7419653b58e9606ff48c892e7226a8e460b071fa4bfb7720873e0a9bdbe8c"
     }
    ],
@@ -142,8 +142,8 @@
    "outputs": [
     {
      "file": "norms_core.b74.json",
-     "role": "norms",
-     "sha256": "c061c576243e689a1c981e39183343f625c94480e72c0b6ac45c7a635287392a"
+     "output_kind": "norms",
+     "sha256": "bb273ed91978656ed6973031e7d899fa5dde05030078e02ae08ae416352eecf4"
     }
    ],
    "progress": null,
@@ -203,8 +203,8 @@
    "resumes_run_id": null,
    "run_id": null,
    "sampling": {
-    "generator": "provider default",
-    "judge": "provider default"
+    "generator": "API default",
+    "judge": "API default"
    },
    "started_at": null,
    "status": "done",
@@ -363,7 +363,7 @@
   "publication": "no chain record matches the current artefacts"
  },
  "record_id": "legacy-core.b74",
- "schema_version": "build_record.v2",
+ "schema_version": "build_record.v3",
  "served": false,
  "steps": {
   "LAYER0_STEP1": "done",

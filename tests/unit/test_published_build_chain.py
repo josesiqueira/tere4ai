@@ -9,7 +9,7 @@ half-updated dump directory would keep serving under a stale identity.
 This file makes the manual check a standing gate: recompute the sha256 of
 every published dump with the production hashing code and assert that
 exactly one chain record matches, that its chain id recomputes from the
-role map, and that its chained build id derives from the layer1 dump's own
+kind map, and that its chained build id derives from the layer1 dump's own
 build id. Stale chain records beside the current one are expected history
 and must NOT match the current bytes.
 """
@@ -66,10 +66,10 @@ def test_exactly_one_chain_record_matches_the_dumps_on_disk():
     )
 
 
-def test_matching_chain_id_recomputes_from_the_role_map():
+def test_matching_chain_id_recomputes_from_the_kind_map():
     (record,) = _matching_records()
-    role_map = {i["role"]: i["sha256"] for i in record["inputs"]}
-    assert record["chain_id"] == compose_chain_id(role_map)
+    kind_map = {i["input_kind"]: i["sha256"] for i in record["inputs"]}
+    assert record["chain_id"] == compose_chain_id(kind_map)
 
 
 def test_matching_build_id_derives_from_the_layer1_build():
@@ -161,3 +161,14 @@ def test_runtime_verify_refuses_a_build_chain_record_it_cannot_read(tmp_path, co
     (tmp_path / f"build_chain_{chain_id}.json").write_bytes(content)
     ok, message = verify_dumps_against_chain(tmp_path)
     assert not ok and f"build chain record build_chain_{chain_id}.json {detail}" in message
+
+
+def test_the_served_chain_record_verifies_after_the_rename():
+    # Review Focus 1: the tracked chain records carry input_kind, so the facade's integrity check passes
+    from tere4ai.graph_store.build_chain import verify_dumps_against_chain
+
+    ok, message = verify_dumps_against_chain(_DUMP_DIR)
+    assert ok, message
+    for path in sorted(_DUMP_DIR.glob("build_chain_*.json")):
+        inputs = json.loads(path.read_text(encoding="utf-8"))["inputs"]
+        assert all("input_kind" in i and "role" not in i for i in inputs), path.name

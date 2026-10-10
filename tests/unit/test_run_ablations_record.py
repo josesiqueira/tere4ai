@@ -101,7 +101,7 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: policies.append(kw.get("retry_policy"))
                         or _Client("x", "temperature=0"), raising=False)
     monkeypatch.setattr(mod, "AnthropicJudge", lambda cfg, **kw: policies.append(kw.get("retry_policy"))
-                        or _Client("y", "provider default"), raising=False)
+                        or _Client("y", "API default"), raising=False)
     calls["policies"] = policies
     monkeypatch.setattr(mod, "load_model_config", lambda: object(), raising=False)
     monkeypatch.setattr(mod, "RESULTS_DIR", tmp_path / "results")
@@ -120,11 +120,11 @@ def test_a_completed_run_writes_a_record_with_inputs_outputs_usage_and_copies(ru
     (rec,) = [r for r in store.list_records() if not r.get("unreadable")]
     assert rec["kind"] == "run" and rec["step"] == "E6" and rec["command"] == "run_ablations"
     assert rec["outcome"]["status"] == "completed" and rec["outcome"]["completed_items"] == ["gold:cls-01", "gold:cls-02"]
-    assert {i["role"] for i in rec["inputs"]} == {"layer1_dump", "norms", "benchmark", "gold_seed", "features"}
+    assert {i["input_kind"] for i in rec["inputs"]} == {"layer1_dump", "norms", "benchmark", "gold_seed", "features"}
     assert rec["build"]["base_build_id"] == "build-b" and rec["build"]["publication"] is None
     assert rec["models"] == {"generator_model": "g", "judge_model": "j"}
     # B99 (spec F D-F29): the evaluation record carries the declared sampling (review T-M7); the double has only sampling
-    assert rec["sampling"] == {"generator": "temperature=0", "judge": "provider default",
+    assert rec["sampling"] == {"generator": "temperature=0", "judge": "API default",
                                "generator_temperature": "unknown", "judge_temperature": "unknown",
                                "generator_effort": "unknown", "judge_effort": "unknown",
                                "generator_json_mode": "unknown"}
@@ -133,9 +133,9 @@ def test_a_completed_run_writes_a_record_with_inputs_outputs_usage_and_copies(ru
     # names the elicitor's prompt (its own test below); the strategy's entry is unchanged
     assert rec["prompt_versions"]["plain_llm"] == {"generator": "g", "judge": "j", "judge_prompt_version": "v1"}
     assert rec["config"]["mode"] == "live" and rec["config"]["strategies"] == ["plain_llm"]
-    roles = {o["role"]: o for o in rec["outputs"]}
-    assert set(roles) == {"summary", "checkpoint"}
-    assert (store.dir / roles["summary"]["copy"]).read_bytes() == (tmp_path / "results" / "ablation_summary.json").read_bytes()
+    kinds = {o["output_kind"]: o for o in rec["outputs"]}
+    assert set(kinds) == {"summary", "checkpoint"}
+    assert (store.dir / kinds["summary"]["copy"]).read_bytes() == (tmp_path / "results" / "ablation_summary.json").read_bytes()
     assert rec["counts"]["items_total"] == 2 and rec["counts"]["items_with_errors"] == 0
 
 
@@ -163,7 +163,7 @@ def test_a_resumed_run_names_its_predecessor_or_says_none_does(runner, tmp_path)
     assert runner.main(_argv(tmp_path)) == 0
     second = [r for r in store.list_records() if r["record_id"] != first["record_id"]][0]
     assert second["relations"]["resumes_record_id"] == first["record_id"]
-    assert any(i["role"] == "checkpoint_resumed" for i in second["inputs"])
+    assert any(i["input_kind"] == "checkpoint_resumed" for i in second["inputs"])
     assert second["counts"]["units_resumed"] == 1
     # a checkpoint no record names: resumed only with the explicit flag
     (tmp_path / "results" / "orphan.jsonl").write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {}}) + "\n")
@@ -350,7 +350,7 @@ def _publish_only_layer1(tmp_path):
     (tmp_path / "ACTIVE_MANIFEST.json").write_text(json.dumps({"chain_id": "chain-xyz"}))
 
 
-def test_a_manifest_lacking_a_role_refuses_with_a_sentence(runner, tmp_path, capsys):
+def test_a_manifest_lacking_an_input_kind_refuses_with_a_sentence(runner, tmp_path, capsys):
     _publish_only_layer1(tmp_path)
     assert runner.main(_argv(tmp_path)) == 2
     assert "refusing to run: the active publication names no norms file" in capsys.readouterr().out
@@ -496,7 +496,7 @@ def test_two_checkpoints_with_one_basename_in_two_directories_never_resolve_to_e
 def test_the_features_cache_is_recorded_only_when_the_run_read_one(runner, tmp_path):
     assert runner.main(_argv(tmp_path, "--features", str(tmp_path / "no_such_features.json"))) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
-    assert "features" not in {i["role"] for i in rec["inputs"]}
+    assert "features" not in {i["input_kind"] for i in rec["inputs"]}
     assert rec["notes"] == ["no elicited-features cache was read"]
     assert rec["outcome"]["status"] == "completed"
     default = tmp_path / "second"
@@ -505,7 +505,7 @@ def test_the_features_cache_is_recorded_only_when_the_run_read_one(runner, tmp_p
     assert runner.main(["--dump-dir", str(default), "--checkpoint", str(default / "c.jsonl"),
                         "--summary", str(default / "s.json")]) == 0
     (rec2,) = EvaluationRecordStore(default, create=False).list_records()
-    features = [i for i in rec2["inputs"] if i["role"] == "features"]
+    features = [i for i in rec2["inputs"] if i["input_kind"] == "features"]
     assert len(features) == 1 and features[0]["file"] == "benchmark_features.json"
     assert "no elicited-features cache was read" not in rec2["notes"]
 

@@ -106,14 +106,14 @@ def test_main_records_a_comparison_naming_the_runs_it_can_resolve(tmp_path):
                     "--dump-dir", str(tmp_path)]) == 0
     rec = [x for x in store.list_records() if x["kind"] == "comparison"][0]
     assert rec["relations"]["compares"] == [rid, None] and "run_b is named by no record" in rec["notes"]
-    assert {i["role"] for i in rec["inputs"]} == {"run_a", "run_b", "benchmark", "gold_seed"}
-    (gold_seed,) = [i for i in rec["inputs"] if i["role"] == "gold_seed"]
+    assert {i["input_kind"] for i in rec["inputs"]} == {"run_a", "run_b", "benchmark", "gold_seed"}
+    (gold_seed,) = [i for i in rec["inputs"] if i["input_kind"] == "gold_seed"]
     assert gold_seed["file"] == harness.GOLD_SEED_PATH.name
     assert gold_seed["sha256"] == sha256_of_file(harness.GOLD_SEED_PATH), "the gold seed the comparison reads (G8)"
     assert rec["outcome"]["status"] == "completed" and rec["outcome"]["completed_items"] == ["i1", "i2"]
     assert rec["counts"]["common_items"] == 2 and rec["counts"]["label_flips"] == 0, "flips count gold items only (R7)"
     (study,) = rec["outputs"]
-    assert study["role"] == "study" and (store.dir / study["copy"]).read_bytes() == out.read_bytes()
+    assert study["output_kind"] == "study" and (store.dir / study["copy"]).read_bytes() == out.read_bytes()
     assert rec["models"] is None
     assert rec["build"]["publication"] is None
     assert rec["build"]["publication_reason"] == "a comparison reads run files, not the served build"
@@ -157,7 +157,7 @@ def test_a_failing_keep_output_after_the_study_write_fails_the_record(tmp_path, 
     store = EvaluationRecordStore(tmp_path)
     out = tmp_path / "study.md"
 
-    def boom(self, record_id, role, path):
+    def boom(self, record_id, output_kind, path):
         raise OSError("copy refused")
     monkeypatch.setattr(EvaluationRecordStore, "keep_output", boom)
     with pytest.raises(OSError, match="copy refused"):

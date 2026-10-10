@@ -48,7 +48,7 @@ class TestChainDeterminism:
         without = build_chain(layer1, norms)
         with_al = build_chain(layer1, norms, alignments_path=alignments)
         assert without["chain_id"] != with_al["chain_id"]
-        assert [i["role"] for i in with_al["inputs"]] == [
+        assert [i["input_kind"] for i in with_al["inputs"]] == [
             "layer1_dump",
             "norms",
             "alignments",
@@ -60,7 +60,7 @@ class TestChainDeterminism:
         chain = build_chain(
             layer1, norms, decisions_path=tmp_path / "absent.json"
         )
-        assert all(i["role"] != "decisions" for i in chain["inputs"])
+        assert all(i["input_kind"] != "decisions" for i in chain["inputs"])
 
     def test_compose_ignores_dict_order(self):
         cks = {"norms": "aa", "layer1_dump": "bb"}
@@ -95,7 +95,7 @@ class TestManifestsInTheChain:
         both = build_chain(layer1, norms, manifest_paths=[m1, m2])
         swapped = build_chain(layer1, norms, manifest_paths=[m2, m1])
         assert both["chain_id"] == swapped["chain_id"]
-        assert [i["role"] for i in both["inputs"]] == ["layer1_dump", "norms", "freeze_manifest", "freeze_manifest"]
+        assert [i["input_kind"] for i in both["inputs"]] == ["layer1_dump", "norms", "freeze_manifest", "freeze_manifest"]
         m1.write_text(json.dumps({"freeze_id": "f1b"}), encoding="utf-8")
         assert build_chain(layer1, norms, manifest_paths=[m1, m2])["chain_id"] != both["chain_id"]
         m1.write_text(json.dumps({"freeze_id": "f1"}), encoding="utf-8")
@@ -117,7 +117,7 @@ class TestVerifyAgainstPublication:
         pub_dir = tmp_path / "publications"
         pub_dir.mkdir()
         (pub_dir / f"{chain['chain_id']}.json").write_text(json.dumps({
-            "schema_version": "publication.v1", "chain_id": chain["chain_id"], "build_id": "b+chain-" + chain["chain_id"],
+            "schema_version": "publication.v2", "chain_id": chain["chain_id"], "build_id": "b+chain-" + chain["chain_id"],
             "inputs": chain["inputs"], "files": {"layer1_dump": "layer1.json", "norms": "norms_core.reference.json", "alignments": None},
         }), encoding="utf-8")
         return chain["chain_id"]
@@ -147,7 +147,7 @@ class TestVerifyAgainstPublication:
 
         missing_files_key = "aaaaaaaaaaaa"
         (pub_dir / f"{missing_files_key}.json").write_text(json.dumps({
-            "schema_version": "publication.v1", "chain_id": missing_files_key,
+            "schema_version": "publication.v2", "chain_id": missing_files_key,
             "inputs": chain["inputs"], "files": {"norms": "norms_core.reference.json"},
         }), encoding="utf-8")
         ok, detail = verify_dumps_against_chain(tmp_path, chain_id=missing_files_key)
@@ -157,9 +157,23 @@ class TestVerifyAgainstPublication:
         bad_inputs = [dict(i) for i in chain["inputs"]]
         del bad_inputs[0]["sha256"]
         (pub_dir / f"{missing_sha_key}.json").write_text(json.dumps({
-            "schema_version": "publication.v1", "chain_id": missing_sha_key,
+            "schema_version": "publication.v2", "chain_id": missing_sha_key,
             "inputs": bad_inputs,
             "files": {"layer1_dump": "layer1.json", "norms": "norms_core.reference.json"},
         }), encoding="utf-8")
         ok, detail = verify_dumps_against_chain(tmp_path, chain_id=missing_sha_key)
         assert not ok and "malformed" in detail
+
+
+def test_build_chain_types_each_input_by_its_input_kind(tmp_path):
+    layer1, norms = tmp_path / "layer1.json", tmp_path / "norms.json"
+    layer1.write_text("{}", encoding="utf-8")
+    norms.write_text("[]", encoding="utf-8")
+    chain = build_chain(layer1, norms)
+    assert [set(i) for i in chain["inputs"]] == [{"input_kind", "file", "sha256"}] * 2
+    assert [i["input_kind"] for i in chain["inputs"]] == ["layer1_dump", "norms"]
+
+
+def test_the_chain_id_does_not_depend_on_the_key_name():
+    # R14 (a): the id hashes the kind names and the digests; this value was computed before B158
+    assert compose_chain_id({"layer1_dump": "a" * 64, "norms": "b" * 64}) == "ebf086c28880"
