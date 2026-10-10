@@ -33,10 +33,10 @@ by having a plan. Every safeguard is behavioral:
   temperatures and usage for this call (spec F D-F26 (g)) and both model
   components' prompts with version and hash (spec F D-F35 (1)), degraded
   answers after the first request included, so the cost of a generation
-  is recorded wherever the envelope is stored. A generator or judge request that raises after its
-  retries answers degraded with the spend (a judge that sent a request as
-  judge_verdict judge_error), never an error that loses the cost (B97
-  item 5).
+  is recorded wherever the envelope is stored. A generator or judge
+  request that raises after its retries answers degraded with the spend
+  (a judge that sent a request as judge_verdict judge_error), never an
+  error that loses the cost (B97 item 5).
 - DEC-19, from prompt v2 on: every control carries its own requirement_type
   (null with a note when the generator gave none or an invalid one, never a
   dropped item); the generator never sees the norms' types; the runtime
