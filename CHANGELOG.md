@@ -13,6 +13,7 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 - B161: a runtime judge share's interval leaves out and counts the resamples with nothing to count, labelled conditional at 1 to 25 of 1000 and not given above; the pilot run leaves a figure with no value in some repetition out of N and names it (B150 Q11).
 - B161: the E6 analysis reports each of the four measures over the main run's repetitions as the mean with the standard deviation beside it, for each answer key and condition (B150 Q9); a run that emitted no citation is left out of the hallucinated citation rate's mean and standard deviation and counted beside it (B161 Q2).
 - B161: scripts/estimate_benchmark_cost.py prices the pilot run on its sample (32 scenarios, 15 question pairs, 5 repetitions) and the elicitation of its 32 scenarios; the B74 total moves from 866.38 USD central (band 385.45 to 1,389.97) to 401.22 USD central (band 187.43 to 635.10).
+- B161: references.md registers ADD-112 (El-Yaniv and Wiener 2010), ADD-113 (Gao et al. 2023) and ADD-114 (Bouthillier et al. 2021), approved by Jose (B150 Q7); ablation_analysis.py cites them.
 
 ### B150: E6's declared analysis built (spec G D-G84)
 - B150: the development set of spec G D-G84 (5), the REF-15 items outside the frozen sample (307 scenarios, 122 question pairs): scripts/build_full_benchmark_payload.py --development-set writes it, stamped with the sample's digest; scripts/run_ablations.py --development-set runs it for the pilot run, with no hand-made item, refused without every scenario's elicited facts.

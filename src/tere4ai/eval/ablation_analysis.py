@@ -1,21 +1,29 @@
 """E6's declared analysis: pure functions over kept ablation runs (spec G D-G84, B150).
 
 @implements: DEC-11, DEC-17
-@grounded_by: ADD-73, ADD-74, ADD-72
+@grounded_by: ADD-73, ADD-74, ADD-72, ADD-112, ADD-113, ADD-114
 
 What spec G D-G84 declares, computed and nothing else: one right-or-wrong
 outcome per case, condition and repetition (D-G84 (1)); the majority over
 an odd number of repetitions, a run-once outcome its single value (D-G84
 (3)); for each declared contrast the paired difference over the same cases,
 its percentile interval from a paired bootstrap over cases (ADD-73, p. 1388;
-the percentile interval itself is Efron and Tibshirani 1993, staged, not
-registered), McNemar's exact test (ADD-74, VoR p. 1904) and Bonferroni's
-threshold (ADD-73, pp. 1389 to 1390); each condition's per-call accuracy and
-run-to-run variation, descriptive; the four measures over the main run's
-repetitions as the mean with the standard deviation beside it (B150 Q9);
-the runtime judge's four shares on the answers it gates (D-G84 (4)); the
-pilot run's count (D-G84 (5)). A figure that cannot be computed says why
-in its own sentence. No I/O and no model;
+the percentile interval itself is Efron and Tibshirani 1993, not held,
+named by author and year), McNemar's exact test (ADD-74, VoR p. 1904) and
+Bonferroni's threshold (ADD-73, pp. 1389 to 1390); each condition's
+per-call accuracy and run-to-run variation, descriptive; the four measures
+over the main run's repetitions as the mean with the standard deviation
+beside it (B150 Q9); the runtime judge's four shares on the answers it
+gates (D-G84 (4)); the pilot run's count (D-G84 (5)). A figure that cannot
+be computed says why in its own sentence.
+
+How far the sources support it: the runtime judge's shares read the share
+delivered as coverage and the accuracy among delivered answers as one minus
+the selective risk (ADD-112, which defines them for a classifier with a
+reject option); judging an answer by its citations is supported in part by
+ADD-113 (ALCE judges citations by entailment; matching cited node ids to
+the key is the thesis's step); the pilot run's rule rests on the standard
+error over runs (ADD-114, in part; the rule that picks N is the thesis's). No I/O and no model;
 randomness only from a random.Random seeded with the recorded seed and a
 label.
 """

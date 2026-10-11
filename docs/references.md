@@ -1412,6 +1412,71 @@ OCR text layer misreads many words ("beet" for "best", "freed-length" for
 printed; the quotes above are as printed. Staged and approved by Jose on
 2026-10-08 ("f6 yes").
 
+**[ADD-112]** PEER. "On the Foundations of Noise-free Selective
+Classification", El-Yaniv, Wiener, Journal of Machine Learning Research 11
+(2010) 1605-1641, https://jmlr.org/papers/v11/el-yaniv10a.html (no DOI
+printed; the ACM Digital Library record is 10.5555/1756006.1859904; 162
+citations on OpenAlex, 2026-10-11, the count split over two records; passes
+the bar by peer review). The published PDF from the journal's site,
+refs/ADD-112_SelectiveClassification.pdf. VERIFIED 2026-10-11 (title,
+authors, journal, volume, year and pages from the first page). CORE.
+Grounds: the runtime judge's shares of spec G D-G84 (4): a selective
+classifier either outputs "reject" or its classifier's label (Section 2,
+equation (1), p. 1606); "The coverage of a selective classifier ( f , g) is
+the mean value of the selection function g(X) taken over the underlying
+distribution P" (Definition 1, p. 1606); and the risk of a selective
+classifier is "the average loss on the accepted samples" (Definition 2, p.
+1607). An answer the judge withholds is read as the paper's "reject", the
+share delivered as coverage and the accuracy among delivered answers as one
+minus the selective risk under the 0-1 loss; that reading is the thesis's.
+The paper defines population quantities for a noise-free classifier with a
+reject option and says nothing about language model answers or a judge.
+Staged in thesis refs/triage-b150-statistics/ and approved by Jose on
+2026-10-11 ("Register the three held (Recommended)", B150 Q7).
+
+**[ADD-113]** PEER. "Enabling Large Language Models to Generate Text with
+Citations", Gao, Yen, Yu, Chen, Proceedings of the 2023 Conference on
+Empirical Methods in Natural Language Processing (EMNLP 2023), pp.
+6465-6488, DOI 10.18653/v1/2023.emnlp-main.398 (164 citations on Crossref,
+190 on OpenAlex, 2026-10-11; passes the bar by peer review). The published
+PDF from the ACL Anthology, refs/ADD-113_ALCE.pdf. VERIFIED 2026-10-11
+(title, authors, proceedings and pages from the first page; the PDF
+does not print the DOI, which is the ACL Anthology's, as staged). SUPPORTING. Grounds, in part: judging a question or
+retrieval case by its citations (spec G D-G84 (1)): "We evaluate citation
+qualities using two metrics: (1) citation recall, which determines if the
+output is entirely supported by cited passages, and (2) citation
+precision, which identifies any irrelevant citations." (Section 3.3, p.
+6468). ALCE checks with a natural language inference model that the cited
+passages entail the answer, and reports correctness separately; it does not
+match citations to reference passages a person wrote, so the thesis's match
+of cited node ids to the answer key is its own step. Staged in thesis
+refs/triage-b150-statistics/ and approved by Jose on 2026-10-11 ("Register
+the three held (Recommended)", B150 Q7).
+
+**[ADD-114]** PEER. "Accounting for Variance in Machine Learning
+Benchmarks", Bouthillier, Delaunay, Bronzi, Trofimov, Nichyporuk, Szeto,
+Sepah, Raff, Madan, Voleti, Ebrahimi Kahou, Michalski, Serdyuk, Arbel, Pal,
+Varoquaux, Vincent, Proceedings of Machine Learning and Systems 3 (MLSys
+2021),
+https://proceedings.mlsys.org/paper_files/paper/2021/hash/0184b0cd3cfb185989f858a1d9f5c1eb-Abstract.html
+(no DOI exists for the proceedings record; arXiv 2103.03098 is the
+preprint, never cited; 40 citations on OpenAlex for the arXiv record,
+2026-10-11, the published record's count not found; passes the bar by peer
+review). The published PDF from the MLSys proceedings,
+refs/ADD-114_VarianceBenchmarks.pdf, which prints no page numbers (pages
+cited by PDF page). VERIFIED 2026-10-11 (title, authors and "Proceedings of
+the 4th MLSys Conference, San Jose, CA, USA, 2021" from the first page).
+SUPPORTING. Grounds, in part: the pilot run's rule of spec G D-G84 (5): the
+uncertainty of an average over k runs "is represented by the standard
+error" σ over the square root of k (Section 3.1, PDF p. 5), and
+randomizing sources of variation "helps decreasing the standard error of
+the average performance estimation, enhancing precision of benchmarks"
+(Section 1, PDF p. 2). The rule that picks the number of repetitions from
+the pilot run's standard deviation for a half-width of 2 percentage points,
+at most 11, is the thesis's. Staged in thesis refs/triage-b150-statistics/
+and approved by Jose on 2026-10-11 ("Register the three held
+(Recommended)", B150 Q7).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
