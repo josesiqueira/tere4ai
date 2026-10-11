@@ -226,8 +226,32 @@ def resolve_resume(checkpoint_path: Path, dump_dir: Path) -> tuple[str | None, s
     return rid, None
 
 
+def _relation_refusal(checkpoint_path: Path, resumes: str, record: dict, repeat_of: str | None) -> str | None:
+    """The refusal sentence when a resume would change its record's place in
+    a repetition group (spec G D-G84 (5), (7)), else None: --repeat-of never
+    names the record resumed or the record that one resumes, and it names
+    the run the resumed record repeats, or nothing when that record is a
+    first run, so a stopped repetition never resumes as a first run (paying
+    the classification cases of conditions 3 to 6) and a stopped first run
+    never resumes as a repetition (skipping cases it never ran)."""
+    head = f"refusing to resume {checkpoint_path}"
+    fresh = "or pass --checkpoint with a fresh path to start again"
+    relations = record.get("relations") or {}
+    if repeat_of is not None and repeat_of in (resumes, relations.get("resumes_record_id")):
+        which = "the record this run resumes" if repeat_of == resumes else f"the record {resumes} resumes"
+        return (f"{head}: --repeat-of {repeat_of} names {which}; a run never repeats itself; "
+                f"resume it with the --repeat-of evaluation record {resumes} names, {fresh}")
+    theirs = relations.get("repeat_of")
+    if theirs != repeat_of:
+        recorded = f"repeats the group's first run {theirs}" if theirs is not None else "is a first run (no --repeat-of)"
+        given = f"--repeat-of {repeat_of}" if repeat_of is not None else "no --repeat-of"
+        return (f"{head}: evaluation record {resumes} {recorded}, and this run names {given}; "
+                f"resume it with the --repeat-of it was started with, {fresh}")
+    return None
+
+
 def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list[dict],
-                         resumes: str | None, dump_dir: Path, declaration_digest: str) -> str | None:
+                         resumes: str | None, record: dict | None, declaration_digest: str) -> str | None:
     """The refusal sentence when a resume would continue under another
     declaration (spec F D-F29, ruling P6), else None: the resumed record's
     models against the loaded ones, then every checkpointed unit's digest
@@ -236,12 +260,13 @@ def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list
     that names one is compared. Then E6's declaration (B150, spec G D-G84
     (7)): the resumed record's e6_declaration input and every unit's
     e6_declaration_sha256 against the loaded file's digest; a unit without
-    the digest, written before B150, differs too."""
+    the digest, written before B150, differs too. record is the resumed
+    record, read once by the caller (None when the checkpoint names none)."""
     way_out = ("restore the row in config/model_parameters.json to resume it, or pass --checkpoint with a "
                "fresh path to start again")
     head = f"refusing to resume {checkpoint_path}"
-    if resumes is not None:
-        recorded = EvaluationRecordStore(dump_dir, create=False).read(resumes).get("models") or {}
+    if resumes is not None and record is not None:
+        recorded = record.get("models") or {}
         differing = sorted(k for k in set(recorded) | set(config) if recorded.get(k) != config.get(k))
         if differing:
             return f"{head}: evaluation record {resumes} used different models: {', '.join(differing)}; {way_out}"
@@ -255,8 +280,7 @@ def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list
     # declaration under the digest this run records (spec G D-G84 (7))
     e6_way_out = ("restore eval/e6_declaration.json as it was to resume it, or pass --checkpoint with a fresh "
                   "path to start again")
-    if resumes is not None:
-        record = EvaluationRecordStore(dump_dir, create=False).read(resumes)
+    if resumes is not None and record is not None:
         theirs = next((i["sha256"] for i in record.get("inputs") or [] if i["input_kind"] == "e6_declaration"), None)
         if theirs != declaration_digest:
             return f"{head}: evaluation record {resumes} ran under another E6 declaration; {e6_way_out}"
@@ -519,10 +543,18 @@ def main(argv: list[str] | None = None) -> int:
                       "with a fresh path")
                 return 2
             notes.append("resumed from a checkpoint no record names")
+        resumed_record = None
+        if resumes is not None:
+            # read once: the relation and both declarations are checked against it
+            resumed_record = EvaluationRecordStore(args.dump_dir, create=False).read(resumes)
+            refusal = _relation_refusal(checkpoint_path, resumes, resumed_record, args.repeat_of)
+            if refusal is not None:
+                print(refusal)
+                return 2
         # spec F D-F29 (final review I1): a resume never continues under
         # another declaration, in the sentence shape of prepare_resume
         # (ruling P6); a record made before the digest existed differs too
-        refusal = _declaration_refusal(checkpoint_path, config, unit_results, resumes, args.dump_dir,
+        refusal = _declaration_refusal(checkpoint_path, config, unit_results, resumes, resumed_record,
                                        declaration_digest)
         if refusal is not None:
             print(refusal)

@@ -112,7 +112,8 @@ def test_a_repetition_under_another_declaration_or_other_items_is_refused_before
     assert code == 2 and rec is None and "in e6_declaration" in capsys.readouterr().out
     other_calls = _install(runner, monkeypatch, items=ITEMS[:1])
     code, rec = _run(runner, tmp_path, "third", "--repeat-of", first["record_id"])
-    assert code == 2 and rec is None and "items" in capsys.readouterr().out
+    assert code == 2 and rec is None
+    assert f"differs from the group's first run {first['record_id']} in items; " in capsys.readouterr().out
     assert sum(calls.values()) == before and sum(other_calls.values()) == 0, "a refused repetition makes no model call"
 
 
@@ -140,3 +141,88 @@ def test_a_declaration_outside_its_shape_refuses_the_run(runner, tmp_path, monke
     bad.write_text("{}", encoding="utf-8")
     code, rec = _run(runner, tmp_path, "first", "--declaration", str(bad))
     assert code == 2 and rec is None and "e6 declaration" in capsys.readouterr().out
+
+
+def _refused_repetition(runner, tmp_path, monkeypatch, capsys, calls, first):  # noqa: F811
+    capsys.readouterr()
+    before = sum(calls.values())
+    code, rec = _run(runner, tmp_path, "second", "--repeat-of", first["record_id"])
+    assert code == 2 and rec is None and sum(calls.values()) == before, "a refused repetition makes no model call"
+    return capsys.readouterr().out
+
+
+def test_a_repetition_under_other_models_is_refused(runner, tmp_path, monkeypatch, capsys):  # noqa: F811
+    calls = _install(runner, monkeypatch)
+    _, first = _run(runner, tmp_path, "first")
+    monkeypatch.setattr(runner.harness, "guard_live_config", lambda: type("C", (), {"as_public_dict": staticmethod(
+        lambda: {"generator_model": "g2", "judge_model": "j"})})())
+    out = _refused_repetition(runner, tmp_path, monkeypatch, capsys, calls, first)
+    assert f"differs from the group's first run {first['record_id']} in models; " in out
+
+
+def test_a_repetition_on_another_build_is_refused(runner, tmp_path, monkeypatch, capsys):  # noqa: F811
+    calls = _install(runner, monkeypatch)
+    _, first = _run(runner, tmp_path, "first")
+    assert first["build"]["publication"] is None
+    monkeypatch.setattr(runner, "observe_publication", lambda d: (
+        {"manifest_file": "publications/x.json", "sha256": "0" * 64, "build_id": "build-b"}, None))
+    out = _refused_repetition(runner, tmp_path, monkeypatch, capsys, calls, first)
+    assert f"differs from the group's first run {first['record_id']} in build; " in out
+
+
+def test_a_repetition_of_a_record_that_is_not_an_e6_run_is_refused(runner, tmp_path, monkeypatch, capsys):  # noqa: F811
+    calls = _install(runner, monkeypatch)
+    other = EvaluationRecordStore(tmp_path).begin(
+        kind="sample", step="E1", command="sample_judge_decisions", argv=[], inputs=[],
+        build={"base_build_id": "build-b", "publication": None, "publication_reason": "mock data"})
+    out = _refused_repetition(runner, tmp_path, monkeypatch, capsys, calls, {"record_id": other})
+    assert f"--repeat-of: evaluation record {other} is not an E6 run" in out
+
+
+def test_a_stopped_repetition_resumes_only_as_a_repetition_of_its_first_run(
+        runner, tmp_path, monkeypatch, capsys):  # noqa: F811
+    _install(runner, monkeypatch)
+    _, first = _run(runner, tmp_path, "first")
+    calls = _install(runner, monkeypatch, stop_once=("vector_rag", "gold:qa-1"))
+    code, stopped = _run(runner, tmp_path, "second", "--repeat-of", first["record_id"])
+    assert code == 3 and stopped["relations"]["repeat_of"] == first["record_id"]
+    before = sum(calls.values())
+    capsys.readouterr()
+    # resumed without --repeat-of it would run as a first run: paid classification cases of conditions 3 to 6
+    code, rec = _run(runner, tmp_path, "second")
+    assert code == 2 and rec["record_id"] == stopped["record_id"] and sum(calls.values()) == before
+    assert (f"evaluation record {stopped['record_id']} repeats the group's first run {first['record_id']}, "
+            "and this run names no --repeat-of; resume it with the --repeat-of it was started with") \
+        in capsys.readouterr().out
+    code, resumed = _run(runner, tmp_path, "second", "--repeat-of", first["record_id"])
+    assert code == 0 and resumed["relations"]["repeat_of"] == first["record_id"]
+    assert resumed["relations"]["resumes_record_id"] == stopped["record_id"]
+    assert all(calls[(name, "gold:cls-1")] == 0 for name in GRAPH), "the run-once cases never ran in the repetition"
+
+
+def test_a_stopped_first_run_never_resumes_as_a_repetition(runner, tmp_path, monkeypatch, capsys):  # noqa: F811
+    _install(runner, monkeypatch)
+    _, done = _run(runner, tmp_path, "done")
+    calls = _install(runner, monkeypatch, stop_once=("vector_rag", "gold:cls-1"))
+    code, stopped = _run(runner, tmp_path, "first")
+    assert code == 3 and stopped["relations"]["repeat_of"] is None
+    before = sum(calls.values())
+    capsys.readouterr()
+    # as a repetition of another first run it would skip the classification cases it never ran
+    code, _ = _run(runner, tmp_path, "first", "--repeat-of", done["record_id"])
+    assert code == 2 and (f"evaluation record {stopped['record_id']} is a first run (no --repeat-of), and this run "
+                          f"names --repeat-of {done['record_id']}") in capsys.readouterr().out
+    code, _ = _run(runner, tmp_path, "first", "--repeat-of", stopped["record_id"])
+    assert code == 2 and (f"--repeat-of {stopped['record_id']} names the record this run resumes"
+                          in capsys.readouterr().out)
+    assert sum(calls.values()) == before, "a refused resume makes no model call"
+    # a second stop: the record resumed now resumes the stopped one, which --repeat-of cannot name either
+    calls = _install(runner, monkeypatch, stop_once=("graph_full", "gold:cls-1"))
+    code, again = _run(runner, tmp_path, "first")
+    assert code == 3 and again["relations"]["resumes_record_id"] == stopped["record_id"]
+    before = sum(calls.values())
+    capsys.readouterr()
+    code, _ = _run(runner, tmp_path, "first", "--repeat-of", stopped["record_id"])
+    assert code == 2 and (f"--repeat-of {stopped['record_id']} names the record {again['record_id']} resumes"
+                          in capsys.readouterr().out)
+    assert sum(calls.values()) == before, "a refused resume makes no model call"
