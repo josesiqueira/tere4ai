@@ -214,6 +214,9 @@ def _check(data: Any) -> None:
           "secondary.contrasts must be the primary family's three, in order (B150 Q8)")
     _need(secondary["test"] == "none", "secondary.test must be none (B150 Q8: no test)")
     _need(isinstance(secondary["status"], str) and secondary["status"] != "", "secondary.status must say what is declared")
+    # B150 Q8 is answered (Jose, 2026-10-11): a status still awaiting a decision is a v1 leftover
+    _need("awaiting" not in secondary["status"].lower(),
+          "secondary.status must not await a decision (B150 Q8 is answered)")
 
 
 def pilot_draw(declaration: dict[str, Any]) -> dict[str, int]:

@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.eval.ablation_declaration import load_declaration
 from tere4ai.eval.gold_agreement import (
     BOOTSTRAP,
     FEWER_THAN_TWO,
@@ -220,6 +221,14 @@ def test_retrieval_and_qa_kappa_over_node_ids_by_hand():
     assert report["bootstrap"] == {"method": "percentile_bootstrap_over_cases", "level": 0.95, "draws": 1000,
                                    "seed": 20261011, "conditional_up_to": 25}
     assert report["bootstrap"] == BOOTSTRAP
+
+
+def test_the_kappa_rule_holds_the_e6_declarations_limit_and_draws():
+    # Task 3 review, Minor 2: B161 Q1 applies E6's rule ("Same rule as E6 (Recommended)"), so the hand-made
+    # test set's limit and draws are the declaration's; a change to one without the other fails here
+    rule = load_declaration()["empty_resamples"]
+    assert BOOTSTRAP["conditional_up_to"] == rule["conditional_up_to"] == 25
+    assert BOOTSTRAP["draws"] == rule["of_draws"] == 1000
 
 
 def test_one_shared_node_id_prints_n_a_and_no_interval():

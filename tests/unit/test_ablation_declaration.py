@@ -98,6 +98,11 @@ def _mutated(tmp_path, change):
     (lambda d: d["repetitions"]["pilot_sample"].update(seed=7), "repetitions.pilot_sample must be"),
     (lambda d: d["repetitions"]["pilot_sample"].update(qa_pairs=122), "repetitions.pilot_sample must be"),
     (lambda d: d["empty_resamples"].update(conditional_up_to=30), "empty_resamples must be"),
+    # Task 3 review, Minor 1: B150 Q8 is answered, so a secondary status still awaiting it is refused
+    (lambda d: d["secondary"].update(status="not computed: awaiting Jose's decision on the benchmark's contrasts "
+                                            "(B150 Q8)"),
+     "secondary.status must not await a decision"),
+    (lambda d: d["secondary"].update(status="Awaiting B150 Q8"), "secondary.status must not await a decision"),
 ])
 def test_a_declaration_outside_d_g84s_shape_is_refused(tmp_path, change, words):
     with pytest.raises(DeclarationError, match=words):
