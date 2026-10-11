@@ -329,7 +329,13 @@ def test_per_call_accuracy_failed_calls_and_what_is_not_computed(made, tmp_path)
     text = (tmp_path / "evaluation_records" / text_copy).read_text(encoding="utf-8")
     assert not any("B150 Q8" in line and "not computed" in line for line in text.splitlines())
     assert "provisional" not in text
-    assert "B150 Q9" in report["four_measures"]["over_repetitions"]
+    # B150 Q9: each of the four measures over the repetitions as the mean with the standard deviation beside it
+    over = report["four_measures"]["over_repetitions"]
+    assert over["hand_made"]["plain_llm"]["classification_accuracy"]["runs_with_a_value"] == 3
+    assert "citation_completeness_article_level" in over["benchmark"]["plain_llm"]
+    assert ("## The four measures over the main run's repetitions (mean, with the standard deviation beside it)"
+            in text.splitlines())
+    assert "B150 Q9" not in text
     assert sorted(report["four_measures"]["by_run"]) == sorted(made["main_runs"])
 
 
@@ -349,8 +355,10 @@ def test_the_record_names_the_runs_it_read_and_the_text_report(made, tmp_path):
     assert len(stopped) == 2 and all(any(rid in note for note in rec["notes"]) for rid in stopped)
     text_copy = next(o for o in rec["outputs"] if o["output_kind"] == "analysis_text")["copy"]
     text = (tmp_path / "evaluation_records" / text_copy).read_text(encoding="utf-8")
-    for words in ("graph_full_minus_plain_llm", "0.250000", "not computed: awaiting Jose's decision", "gold:qa-3"):
+    for words in ("graph_full_minus_plain_llm", "0.250000", "gold:qa-3"):
         assert words in text
+    # B161 task 6: B150 Q9 was the main report's last computation awaiting Jose; none waits now
+    assert "not computed: awaiting Jose's decision" not in text
 
 
 def test_a_main_analysis_without_the_pilot_is_refused(made, capsys):

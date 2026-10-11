@@ -23,7 +23,8 @@ carry is read and every figure labelled post hoc.
                           Q10): each figure's standard deviation
                           and the main run's count N (spec G D-G84 (5)).
   --pilot-analysis ID     a main run's group: the declared contrasts, the
-                          runtime judge's shares and the per-call accuracy;
+                          runtime judge's shares, the per-call accuracy and
+                          the four measures over the repetitions (B150 Q9);
                           the group's size must be the count the pilot
                           analysis ID fixed, on the same build,
                           declaration, models and prompt versions (the
@@ -50,6 +51,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.eval import harness  # noqa: E402
 from tere4ai.eval.ablation_analysis import (  # noqa: E402
+    MEASURES,
     SHARES,
     AnalysisError,
     accuracy_by_repetition,
@@ -58,7 +60,7 @@ from tere4ai.eval.ablation_analysis import (  # noqa: E402
     gate_shares,
     gate_shares_by_repetition,
     majority,
-    not_computed,
+    measures_over_repetitions,
     outcome_table,
     paired_contrast,
     per_call_summary,
@@ -355,7 +357,10 @@ def analyse_main(items: list[dict], runs: list[dict], run_ids: list[str], summar
         "four_measures": {
             "by_run": {rid: {name: block["by_answer_key"] for name, block in summary["strategies"].items()}
                        for rid, summary in zip(run_ids, summaries)},
-            "over_repetitions": not_computed("one figure of the four measures over the repetitions", "B150 Q9")},
+            # B150 Q9 (Jose, 2026-10-11): the mean with the standard deviation beside it (ruling R14)
+            "over_repetitions": {key: {name: measures_over_repetitions(
+                [summary["strategies"][name]["by_answer_key"][key] for summary in summaries])
+                for name in conditions_in(runs)} for key in keys}},
         "failed_calls": failed_calls(runs, run_ids),
     }
 
@@ -433,6 +438,37 @@ def _interval(value: Any) -> str:
     return f"[{value[0]:.3f}, {value[1]:.3f}]"
 
 
+def _measure_cell(name: str, measure: dict[str, Any]) -> str:
+    """A measure's mean: abstention with the total it is counted out of, the
+    hallucinated citation rate with the runs where it is vacuous."""
+    cell = _rate(measure["mean"])
+    if name == "abstention" and measure["mean"] is not None:
+        cell += f" of {measure['of']}"
+    if name == "hallucinated_citation_rate" and measure["vacuous_runs"]:
+        cell += f", vacuous in {measure['vacuous_runs']} run(s)"
+    return cell
+
+
+def four_measures_lines(over: dict[str, dict[str, dict[str, Any]]]) -> list[str]:
+    """The four measures over the main run's repetitions, per answer key and
+    condition, as the mean with the standard deviation beside it (B150 Q9,
+    ruling R14)."""
+    lines = ["## The four measures over the main run's repetitions (mean, with the standard deviation beside it)",
+             ""]
+    for key, conditions in over.items():
+        lines += [f"### {key}", "", "| condition | measure | mean | standard deviation | runs with a value |",
+                  "| --- | --- | --- | --- | --- |"]
+        for condition, measures in conditions.items():
+            lines += [f"| {condition} | {name} | {_measure_cell(name, measures[name])} | "
+                      f"{_rate(measures[name]['standard_deviation'])} | {measures[name]['runs_with_a_value']} |"
+                      for name in MEASURES if name in measures]
+        lines.append("")
+    lines += ["A measure with a value in one run only is a classification case of conditions 3 to 6, run once "
+              "(spec G D-G84 (5)): its single value, with no standard deviation. Each run's figures are in the "
+              "JSON file, under four_measures.by_run.", ""]
+    return lines
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     """The report as Markdown: shares as n of m, rates and intervals to three
     decimals, p values to six (ruling R24)."""
@@ -490,8 +526,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines += [f"| {share} | {_share(block['shares'][share])} | {_interval(block['intervals'][share])} |"
                       for share in SHARES]
             lines.append("")
-        lines += [f"The four measures over the repetitions: {report['four_measures']['over_repetitions']}; "
-                  "each run's figures are in the JSON file, under four_measures.by_run.", ""]
+        lines += four_measures_lines(report["four_measures"]["over_repetitions"])
     lines += ["## Per-call accuracy and run-to-run variation (descriptive)", ""]
     for key, block in report["per_call_accuracy"].items():
         lines += [f"### {key}", "", "| condition | right of calls | share | by repetition | standard deviation |",

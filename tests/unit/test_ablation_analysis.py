@@ -20,6 +20,7 @@ from tere4ai.eval.ablation_analysis import (
     labelled_interval,
     majority,
     mcnemar_exact_p,
+    measures_over_repetitions,
     outcome_table,
     paired_contrast,
     per_call_summary,
@@ -355,3 +356,37 @@ def test_a_figure_with_fewer_than_two_values_says_why_without_naming_a_question(
     assert both["not_computed"] == ("not computed: a standard deviation needs a value in at least two "
                                     "repetitions, and a holds fewer than two (one repetition only, or no case of "
                                     "it run in every repetition)")
+
+
+def _block(acc, abst, total, comp, rate, emitted, article=None):
+    block = {"classification": {"correct": 0, "total": total, "accuracy": acc, "abstained": abst},
+             "citation_completeness": {"micro": {"completeness": comp}},
+             "hallucinated_citation_rate": {"rate": rate}, "citations_emitted": emitted}
+    if article is not None:
+        block["citation_completeness_article_level"] = {"completeness": article}
+    return block
+
+
+def test_the_four_measures_over_repetitions_are_the_mean_with_the_standard_deviation():
+    out = measures_over_repetitions([_block(0.5, 1, 4, 0.5, 0.0, 0, 0.5), _block(1.0, 0, 4, 0.5, 0.1, 10, 1.0),
+                                     _block(0.75, 1, 4, 1.0, 0.2, 10, 1.0)])
+    acc = out["classification_accuracy"]
+    assert acc["mean"] == pytest.approx(0.75) and acc["standard_deviation"] == pytest.approx(0.25)
+    assert acc["runs_with_a_value"] == 3 and acc["by_run"] == [0.5, 1.0, 0.75]
+    # abstention as the summary counts it: 1, 0, 1 of 4; mean 2/3, standard deviation (n - 1) 0.57735
+    assert out["abstention"]["mean"] == pytest.approx(2 / 3) and out["abstention"]["of"] == 4
+    assert out["abstention"]["standard_deviation"] == pytest.approx(math.sqrt(1 / 3))
+    assert out["citation_completeness"]["mean"] == pytest.approx(2 / 3)
+    assert out["citation_completeness_article_level"]["mean"] == pytest.approx(5 / 6)
+    hall = out["hallucinated_citation_rate"]
+    assert hall["mean"] == pytest.approx(0.1) and hall["vacuous_runs"] == 1
+
+
+def test_a_measure_that_runs_once_is_its_single_value():
+    # conditions 3 to 6 run their classification cases in the first run only (D-G84 (5)): total 0 afterwards
+    out = measures_over_repetitions([_block(0.5, 1, 4, None, 0.0, 0), _block(None, 0, 0, None, 0.0, 0),
+                                     _block(None, 0, 0, None, 0.0, 0)])
+    assert out["classification_accuracy"] == {"by_run": [0.5, None, None], "runs_with_a_value": 1, "mean": 0.5,
+                                              "standard_deviation": None}
+    assert out["abstention"]["by_run"] == [1, None, None]
+    assert out["citation_completeness"]["mean"] is None and "citation_completeness_article_level" not in out

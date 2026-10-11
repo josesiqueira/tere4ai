@@ -11,8 +11,10 @@ its percentile interval from a paired bootstrap over cases (ADD-73, p. 1388;
 the percentile interval itself is Efron and Tibshirani 1993, staged, not
 registered), McNemar's exact test (ADD-74, VoR p. 1904) and Bonferroni's
 threshold (ADD-73, pp. 1389 to 1390); each condition's per-call accuracy and
-run-to-run variation, descriptive; the runtime judge's four shares on the
-answers it gates (D-G84 (4)); the pilot run's count (D-G84 (5)). What D-G84
+run-to-run variation, descriptive; the four measures over the main run's
+repetitions as the mean with the standard deviation beside it (B150 Q9);
+the runtime judge's four shares on the answers it gates (D-G84 (4)); the
+pilot run's count (D-G84 (5)). What D-G84
 leaves unstated is returned as "not computed: awaiting Jose's decision" with
 its question (thesis/CLAUDE.md, the methods rule). No I/O and no model;
 randomness only from a random.Random seeded with the recorded seed and a
@@ -212,6 +214,54 @@ def per_call_summary(table: dict[str, list[bool]], repetitions: int) -> dict[str
             "share": right / calls if calls else None, "by_repetition": by_repetition,
             "cases_in_every_repetition": sum(1 for row in table.values() if len(row) == repetitions),
             "standard_deviation": statistics.stdev(by_repetition) if len(by_repetition) >= 2 else None}
+
+
+MEASURES = ("classification_accuracy", "abstention", "citation_completeness", "citation_completeness_article_level",
+            "hallucinated_citation_rate")
+
+
+def measure_values(block: dict[str, Any]) -> dict[str, float | int | None]:
+    """One run's four measures of Section 10.4 for one condition and one answer
+    key, read from its summary's by_answer_key block (ruling R14):
+    classification accuracy; abstention as the summary counts it (a count out
+    of the classification total); citation completeness as the share of the
+    key's citations cited (micro), on the benchmark also at article level; the
+    hallucinated citation rate. None where the run has nothing to count (a
+    classification case not run in a repetition, D-G84 (5); a key with
+    nothing to cite)."""
+    cls = block["classification"]
+    out: dict[str, float | int | None] = {
+        "classification_accuracy": cls["accuracy"],
+        "abstention": cls["abstained"] if cls["total"] else None,
+        "citation_completeness": block["citation_completeness"]["micro"]["completeness"],
+    }
+    if "citation_completeness_article_level" in block:
+        out["citation_completeness_article_level"] = block["citation_completeness_article_level"]["completeness"]
+    out["hallucinated_citation_rate"] = block["hallucinated_citation_rate"]["rate"]
+    return out
+
+
+def measures_over_repetitions(blocks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """B150 Q9 (Jose, 2026-10-11, the recommended option, the mean with the
+    standard deviation beside it): each measure over the main run's
+    repetitions as the mean over the runs where it has a value, with the
+    standard deviation (n - 1, ruling R8) beside; a measure with a value in
+    one run only (run once, D-G84 (5)) is that value, with none (ruling R14).
+    Abstention carries the classification total it is counted out of, and
+    the hallucinated citation rate the number of runs that emitted no
+    citation (vacuous, Section 10.4). blocks: one by_answer_key block per
+    run, in group order."""
+    rows = [measure_values(b) for b in blocks]
+    out: dict[str, dict[str, Any]] = {}
+    for name in rows[0]:
+        values = [row.get(name) for row in rows]
+        present = [v for v in values if v is not None]
+        out[name] = {"by_run": values, "runs_with_a_value": len(present),
+                     "mean": statistics.fmean(present) if present else None,
+                     "standard_deviation": statistics.stdev(present) if len(present) >= 2 else None}
+    out["abstention"]["of"] = next((b["classification"]["total"] for b in blocks if b["classification"]["total"]), 0)
+    out["hallucinated_citation_rate"]["vacuous_runs"] = sum(1 for b in blocks if b["citations_emitted"] == 0)
+    return out
 
 
 def gate_answers(cases: list[dict[str, Any]], runs: list[dict[str, dict[str, dict[str, Any]]]], condition: str,
