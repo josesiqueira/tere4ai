@@ -147,9 +147,17 @@ def _files(tmp_path):
         "scenarios": [],
         "qa_pairs": [{"question": "q", "answer": "a", "relevant_article": 10, "benchmark_index": i}
                      for i in range(100, 140)]}), encoding="utf-8")
+    # the elicitor's prompt record of each facts file (scripts/elicit_benchmark_features.py): one version and
+    # template, its rendered hash and graph_version differing between the item sets
     feats = tmp_path / "development_features_mock.json"
-    feats.write_text(json.dumps({"features_by_item": {}}), encoding="utf-8")
-    return gold, bench, dev, feats
+    feats.write_text(json.dumps({"features_by_item": {}, "prompt": {
+        "version": "v7", "template_sha256": "t" * 64, "rendered_sha256": "d" * 64, "graph_version": "dev"}}),
+        encoding="utf-8")
+    main_feats = tmp_path / "benchmark_features_mock.json"
+    main_feats.write_text(json.dumps({"features_by_item": {}, "prompt": {
+        "version": "v7", "template_sha256": "t" * 64, "rendered_sha256": "m" * 64, "graph_version": "main"}}),
+        encoding="utf-8")
+    return gold, bench, dev, feats, main_feats
 
 
 def _group(runner, tmp_path, tag, count, extra):  # noqa: F811
@@ -185,7 +193,7 @@ def _report(tmp_path, record):
 
 @pytest.fixture
 def made(runner, tmp_path, monkeypatch):  # noqa: F811
-    gold, bench, dev, feats = _files(tmp_path)
+    gold, bench, dev, feats, main_feats = _files(tmp_path)
     monkeypatch.setattr(harness, "GOLD_SEED_PATH", gold)
     _install(runner, monkeypatch, pilot_answer)
     pilot_runs = _group(runner, tmp_path, "pilot", 5, ["--development-set", "--benchmark", str(dev),
@@ -200,7 +208,7 @@ def made(runner, tmp_path, monkeypatch):  # noqa: F811
     stops.add(("plain_llm", "gold:cls-1", 1))
     stops.add(("vector_rag", "gold:cls-1", 2))
     runner.load_items = lambda b, f: harness.load_gold_items(gold) + harness.load_benchmark_items(bench)
-    main_runs = _group(runner, tmp_path, "main", 3, ["--benchmark", str(bench)])
+    main_runs = _group(runner, tmp_path, "main", 3, ["--benchmark", str(bench), "--features", str(main_feats)])
     base = ["--dump-dir", str(tmp_path), "--gold", str(gold), "--benchmark", str(bench)]
     return {"an": an, "pilot": pilot, "pilot_runs": pilot_runs, "main_runs": main_runs, "base": base,
             "dev": str(dev), "group": base + ["--group", main_runs[0], "--pilot-analysis", pilot["record_id"]]}
@@ -374,7 +382,7 @@ def test_a_declaration_other_than_the_runs_is_shown_as_such(made, tmp_path):
 def test_a_failed_pilot_call_is_listed_and_left_out_of_the_runtime_judge_shares(runner, tmp_path, monkeypatch):  # noqa: F811
     # carried from the Task 6 review: gate_shares_by_repetition leaves out the failed calls gate_answers
     # returns, so the pilot report lists them; graph_runtime_judge's call on case 139 fails in repetition 4
-    gold, _, dev, feats = _files(tmp_path)
+    gold, _, dev, feats, _ = _files(tmp_path)
     monkeypatch.setattr(harness, "GOLD_SEED_PATH", gold)
 
     def answer(name, item_id, rep):
@@ -465,10 +473,20 @@ def test_a_pilot_run_on_other_instruments_is_refused(made, tmp_path, capsys, cha
     assert words in capsys.readouterr().out
 
 
-def test_the_elicitors_entry_is_not_compared_between_pilot_and_main(made, tmp_path):
-    # each item set has its own facts file, read only by the classification cases of conditions 3 to 6,
-    # which no repetition reruns: the made pilot and main runs name different elicitor entries and pass
+def test_the_elicitors_version_and_template_are_compared_not_its_rendered_hash(made, tmp_path, capsys):
+    # coordinator's re-review: conditions 1 and 2 read the elicited facts on every classification case in
+    # every repetition, so the pilot's N depends on the elicitor's prompt; the made runs share its version
+    # and template and differ in rendered_sha256 and graph_version (each item set elicited apart): accepted
     store = EvaluationRecordStore(tmp_path, create=False)
-    pilot_run, main_run = store.read(made["pilot_runs"][0]), store.read(made["main_runs"][0])
-    assert pilot_run["prompt_versions"]["elicit_features"] != main_run["prompt_versions"]["elicit_features"]
+    pilot_entry = store.read(made["pilot_runs"][0])["prompt_versions"]["elicit_features"]
+    main_entry = store.read(made["main_runs"][0])["prompt_versions"]["elicit_features"]
+    assert (pilot_entry["version"], pilot_entry["template_sha256"]) == (main_entry["version"], main_entry["template_sha256"])
+    assert pilot_entry["rendered_sha256"] != main_entry["rendered_sha256"]
+    assert pilot_entry["graph_version"] != main_entry["graph_version"]
     assert made["an"].main(made["group"]) == 0
+    for key, value in (("version", "v6"), ("template_sha256", "0" * 64)):
+        _edit(tmp_path, made["pilot_runs"][1], lambda r, k=key, v=value: r["prompt_versions"]["elicit_features"].update({k: v}))
+        capsys.readouterr()
+        assert made["an"].main(made["group"]) == 2
+        assert "another elicitor prompt" in capsys.readouterr().out
+        _edit(tmp_path, made["pilot_runs"][1], lambda r, k=key, e=pilot_entry: r["prompt_versions"]["elicit_features"].update({k: e[k]}))

@@ -25,8 +25,8 @@ carry is read and every figure labelled post hoc.
                           runtime judge's shares and the per-call accuracy;
                           the group's size must be the count the pilot
                           analysis ID fixed, on the same build,
-                          declaration, models and prompt versions, the
-                          pilot run ended first.
+                          declaration, models and prompt versions (the
+                          elicitor's included), the pilot run ended first.
 
 Usage:
   .venv/bin/python scripts/analyse_ablations.py --group <first run id> --pilot
@@ -102,6 +102,11 @@ def _input(record: dict[str, Any], kind: str) -> str | None:
 
 def _condition_prompts(record: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in (record.get("prompt_versions") or {}).items() if k != "elicit_features"}
+
+
+def _elicitor_prompt(record: dict[str, Any]) -> tuple[Any, Any]:
+    entry = (record.get("prompt_versions") or {}).get("elicit_features") or {}
+    return entry.get("version"), entry.get("template_sha256")
 
 
 def _build_key(record: dict[str, Any]) -> tuple[Any, Any]:
@@ -237,11 +242,13 @@ def pilot_record(store: EvaluationRecordStore, pilot_id: str, first: dict, first
 def pilot_instrument_refusal(store: EvaluationRecordStore, pilot_id: str, first: dict) -> str | None:
     """The refusal sentence when the pilot run ran other instruments than the
     main run, read once the group itself is accepted (a failure mechanic, the
-    coordinator's ruling on Task 7): the count holds for the models and the
-    conditions' prompt versions it was fixed on. The elicitor's entry is left
-    out: it names each item set's own facts file, and those facts reach only
-    the classification cases of conditions 3 to 6, which no repetition reruns
-    (spec G D-G84 (5))."""
+    coordinator's ruling on Task 7): the count holds for the models, the
+    conditions' prompt versions and the elicitor's prompt it was fixed on.
+    Conditions 1 and 2 read the elicited facts on every classification case
+    in every repetition (strategies._item_question), so the elicitor's
+    version and template hash are compared; its rendered hash and
+    graph_version are not, as each item set's facts file is elicited apart
+    and may differ there (coordinator's re-review of ruling (b))."""
     runs = [store.read(rid) for rid in (store.read(pilot_id).get("relations") or {}).get("compares") or [] if rid]
     if any((r.get("models") or {}) != (first.get("models") or {}) for r in runs):
         return ("the pilot run ran other models than the main run; fix the count again with a pilot run on the "
@@ -249,6 +256,9 @@ def pilot_instrument_refusal(store: EvaluationRecordStore, pilot_id: str, first:
     if any(_condition_prompts(r) != _condition_prompts(first) for r in runs):
         return ("the pilot run ran other prompt versions than the main run; fix the count again with a pilot run "
                 "on the main run's prompt versions")
+    if any(_elicitor_prompt(r) != _elicitor_prompt(first) for r in runs):
+        return ("the pilot run's facts were elicited with another elicitor prompt (version or template) than the "
+                "main run's; elicit both with one prompt and fix the count again")
     return None
 
 
