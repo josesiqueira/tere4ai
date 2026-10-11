@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 from pathlib import Path
 
 import pytest
 
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
+from tere4ai.eval.ablation_declaration import load_declaration
 
 ROOT = Path(__file__).resolve().parents[2]
 _spec = importlib.util.spec_from_file_location(
@@ -435,8 +437,9 @@ def _fake_run_eval(subset, names, generator_factory, judge_factory, **_kwargs):
         gen.complete("system", "user")
     judge = judge_factory()
     if "graph_runtime_judge" in names:
-        for _item in subset:
-            judge.complete("system", "user")
+        for item in subset:
+            if item["kind"] != "classification":  # spec G D-G84 (4)
+                judge.complete("system", "user")
 
 
 def _mock_inputs():
@@ -457,6 +460,8 @@ def _mock_inputs():
                         "source_span": {"span_id": "span:hleg:req4"}}],
         "reasoning_low": {"generator": 0.3, "judge": 0.4},
         "ablation_items": N_MOCK_ITEMS,
+        "development_items": N_MOCK_ITEMS * 2,
+        "repetitions": load_declaration()["repetitions"],
         "full_items": N_MOCK_ITEMS * 3,
         "full_note": None,
         "out_chars": {"graph_no_judge": {"qa": 4000.0, "classification": 800.0},
@@ -494,16 +499,63 @@ def test_the_report_names_both_models_with_effort_and_each_price_with_its_page_a
 
 def test_the_report_has_one_row_per_step_and_component(mock_report):
     for step in ("Layer 2 extraction", "Layer 3 alignment", "Control backlog",
-                 "E6 elicitation", "E6 ablation, one repetition"):
+                 "E6 elicitation", "E6 ablation, first run",
+                 "E6 ablation, each repetition after the first", "E6 main run, N = 11",
+                 "E6 pilot run, 5 repetitions", "E6 development set elicitation"):
         assert step in mock_report
     row = next(line for line in mock_report.splitlines() if line.startswith("| Layer 2 extraction | generator"))
     assert len(row.split("|")) == 11  # step, model component, calls, in, visible, billed, low, central, high
 
 
-def test_the_report_prices_the_ablation_per_repetition_and_at_n(mock_report):
-    assert "E6 ablation, one repetition" in mock_report
-    assert "E6 ablation, 10 repetitions" in mock_report
-    assert "one repetition costs" in mock_report
+def test_the_report_prices_the_first_run_the_later_repetitions_the_main_run_and_the_pilot(mock_report):
+    for words in ("E6 ablation, first run", "E6 ablation, each repetition after the first",
+                  "E6 main run, N = 11", "E6 pilot run, 5 repetitions", "E6 development set elicitation",
+                  "the most the pilot run's rule allows", "spec G D-G84 (5)"):
+        assert words in mock_report
+    assert "provisional ten" not in mock_report
+
+
+def _per_kind(gen, judge):
+    zero = {"gen_calls": 0, "gen_in": 0, "gen_out": 0.0, "judge_calls": 0, "judge_in": 0, "judge_out": 0.0,
+            "max_chars": 0}
+    return {"classification": dict(zero, gen_calls=gen[0], judge_calls=judge[0]),
+            "qa": dict(zero, gen_calls=gen[1], judge_calls=judge[1])}
+
+
+def test_a_later_repetition_leaves_out_the_run_once_conditions_classification_cases():
+    per = {"plain_llm": _per_kind((4, 2), (0, 0)), "graph_full": _per_kind((4, 2), (0, 2))}
+    first = est.ablation_lines(per)
+    later = est.ablation_lines(per, frozenset({"graph_full"}))
+    assert (first["generator"]["calls"], first["judge"]["calls"]) == (12, 2)
+    assert (later["generator"]["calls"], later["judge"]["calls"]) == (8, 2)
+
+
+def test_the_main_run_is_the_first_run_plus_n_minus_one_later_repetitions(tmp_path, monkeypatch):
+    monkeypatch.setenv("TERE4AI_GENERATOR_MODEL", "gpt-6-astra")
+    monkeypatch.setenv("TERE4AI_JUDGE_MODEL", "claude-opus-5-5")
+    monkeypatch.setattr(est, "STRATEGY_NAMES", ("plain_llm", "graph_no_judge", "graph_runtime_judge"))
+    monkeypatch.setattr(est, "run_eval", _fake_run_eval)
+    declared = est.declared_models(os.environ)
+    res = est.compute(_mock_inputs(), declared, est.price_rows(est.load_model_prices(), declared), tmp_path)
+    for f, later, main in zip(res["first_rep"], res["later_rep"], res["main_rows"]):
+        assert main["calls"] == f["calls"] + 10 * later["calls"]
+        assert main["cost"]["central"] == pytest.approx(f["cost"]["central"] + 10 * later["cost"]["central"])
+    for row in res["pilot_rows"] + res["dev_elicit_rows"]:
+        assert row["cost"]["central"] > 0
+    expected = sum(r["cost"]["central"] for r in res["build_rows"] + res["main_rows"] + res["pilot_rows"]
+                   + res["dev_elicit_rows"])
+    assert res["total"]["central"] == pytest.approx(expected)
+
+
+def test_a_scenario_without_facts_is_given_a_stand_in_so_its_explanation_call_is_counted(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(est, "run_eval", lambda subset, names, **kw: seen.extend(subset))
+    monkeypatch.setattr(est, "STRATEGY_NAMES", ("graph_no_judge",))
+    items = [dict(N_MOCK_ITEMS[0]), dict(N_MOCK_ITEMS[1])]
+    est.ablation_dry_run(items, {}, 700.0, tmp_path)
+    scenario = next(i for i in seen if i["kind"] == "classification")
+    assert scenario["system_features"] == {"description": "x" * 400, "flags": {}}
+    assert items[0]["system_features"] is None  # the caller's items are not changed
 
 
 def test_the_report_states_the_campaigns_cost_nothing_and_excludes_the_calibration_runs(mock_report):

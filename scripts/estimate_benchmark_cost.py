@@ -5,8 +5,8 @@
 @grounded_by: REF-15
 
 The sequence is Layer 2 extraction, Layer 3 alignment, the control backlog,
-the benchmark elicitation and the E6 ablation (spec G Section 10.4, repeated
-N times); campaigns cost nothing and the calibration judge runs are not in
+the benchmark elicitation and the E6 ablation (spec G Section 10.4 and D-G84);
+campaigns cost nothing and the calibration judge runs are not in
 it. Every step runs the REAL pipeline code (extract_norms, align_norms,
 generate_control_backlog, the ablation strategies) with counting stand-in
 clients, so every prompt is the exact prompt a live run would send; no model
@@ -14,6 +14,11 @@ is called and no network is touched. The full REF-15 benchmark (339
 scenarios + 137 QA pairs, frozen under data/snapshots/benchmark/ with the
 sha256 of eval/gold/benchmark_sample.json) is priced as one reference line,
 outside the total.
+
+E6 is priced as spec G D-G84 states it: the first run, each repetition after
+it, the main run at the cap N = 11 and the pilot run of 5 repetitions on the
+development set with its elicitation, the counts read from
+eval/e6_declaration.json.
 
 Token model, stated plainly so nobody mistakes this for a measurement:
 - Input tokens are prompt characters divided by a ratio per model developer,
@@ -51,6 +56,7 @@ Writes: docs/benchmark_cost_estimate.md
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import statistics
@@ -69,7 +75,13 @@ from tere4ai.align_hleg.__main__ import _attach_source_text  # noqa: E402
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes  # noqa: E402
 from tere4ai.elicit_features import render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
-from tere4ai.eval.harness import load_benchmark_items, load_gold_items, run_eval  # noqa: E402
+from tere4ai.eval.ablation_declaration import load_declaration  # noqa: E402
+from tere4ai.eval.harness import (  # noqa: E402
+    development_payload,
+    load_benchmark_items,
+    load_gold_items,
+    run_eval,
+)
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
 from tere4ai.extract_norms import pipeline as extract_pipeline  # noqa: E402
 from tere4ai.judge.config import (  # noqa: E402
@@ -552,8 +564,6 @@ def elicitation_output_chars(facts: dict[str, Any]) -> tuple[float, str | None]:
 
 def verify_full_benchmark() -> Path:
     """Cross-check the frozen full files against the pinned provenance."""
-    import hashlib
-
     provenance = json.loads(SAMPLE_PATH.read_text(encoding="utf-8"))["provenance"]
     for name, meta in provenance["files"].items():
         path = BENCH_DIR / name
@@ -619,9 +629,16 @@ def observed_output_chars() -> dict[str, dict[str, float]]:
 
 
 # ------------------------------------------------------------------ B120 token model
-ABLATION_REPETITIONS = 10  # R5, provisional (awaiting Jose): B104 R5's provisional ten
 CONTEXT_LIMIT_TOKENS = 272_000  # the short-context limit of the declared generator's price row
 LEVELS = ("low", "central", "high")
+
+
+def _with_stand_in_facts(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """A scenario without facts takes a stand-in, its own text with no flags, so
+    the dry run counts conditions 3 to 6's explanation call as a real run with
+    elicited facts makes it (ruling R32); the caller's items are not changed."""
+    return [dict(i, system_features={"description": i.get("system_text") or "", "flags": {}})
+            if i["kind"] == "classification" and not i.get("system_features") else i for i in items]
 
 
 def ablation_dry_run(
@@ -629,62 +646,67 @@ def ablation_dry_run(
     out_chars: dict[str, dict[str, float]],
     judge_reply_chars: float,
     tmp_dir: Path,
-) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+) -> tuple[dict[str, dict[str, dict[str, Any]]], dict[str, str]]:
     """Dry-run every ladder strategy over the items with counting clients, split
     by item kind so output is charged only for kinds whose answers the
     generator produced (graph strategies classify deterministically and only
     call the generator on QA items). LLM-free strategy internals (deterministic
     classify, TF-IDF retrieval) run for real; only the model boundary is
-    stubbed. Returns per strategy {gen_calls, gen_in, gen_out, judge_calls,
-    judge_in, judge_out, max_chars} in characters, and the proxied conditions."""
+    stubbed. Returns per strategy and per kind ("classification", "qa")
+    {gen_calls, gen_in, gen_out, judge_calls, judge_in, judge_out, max_chars}
+    in characters, and the proxied conditions."""
+    items = _with_stand_in_facts(items)
     cls_items = [i for i in items if i["kind"] == "classification"]
     qa_items = [i for i in items if i["kind"] != "classification"]
     gen_reply = {"answer_text": "dry-run stub", "citations": [], "risk_category": None}
     judge_reply = {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"}
-    per_strategy: dict[str, dict[str, Any]] = {}
+    per_strategy: dict[str, dict[str, dict[str, Any]]] = {}
     proxied: dict[str, str] = {}
     for name in STRATEGY_NAMES:
         sizes, proxy = output_chars_for(out_chars, name)
         if proxy is not None:
             proxied[name] = proxy
-        totals = {"gen_calls": 0, "gen_in": 0, "gen_out": 0.0,
-                  "judge_calls": 0, "judge_in": 0, "judge_out": 0.0, "max_chars": 0}
+        per_kind: dict[str, dict[str, Any]] = {}
         for kind, subset in (("classification", cls_items), ("qa", qa_items)):
-            if not subset:
-                continue
-            gen = CountingClient("generator", gen_reply)
-            judge = CountingClient("judge", judge_reply)
-            run_eval(
-                subset,
-                [name],
-                generator_factory=lambda g=gen: g,
-                judge_factory=lambda j=judge: j,
-                live=False,
-                results_dir=tmp_dir,
-                judge_log_path=tmp_dir / "judge_log.jsonl",
-            )
-            totals["gen_calls"] += gen.calls
-            totals["gen_in"] += gen.prompt_chars
-            totals["gen_out"] += gen.calls * sizes.get(kind, 0)
-            totals["judge_calls"] += judge.calls
-            totals["judge_in"] += judge.prompt_chars
-            totals["judge_out"] += judge.calls * judge_reply_chars
-            totals["max_chars"] = max(totals["max_chars"], gen.max_prompt_chars, judge.max_prompt_chars)
-        per_strategy[name] = totals
+            totals: dict[str, Any] = {"gen_calls": 0, "gen_in": 0, "gen_out": 0.0,
+                                      "judge_calls": 0, "judge_in": 0, "judge_out": 0.0, "max_chars": 0}
+            if subset:
+                gen = CountingClient("generator", gen_reply)
+                judge = CountingClient("judge", judge_reply)
+                run_eval(subset, [name], generator_factory=lambda g=gen: g, judge_factory=lambda j=judge: j,
+                         live=False, results_dir=tmp_dir, judge_log_path=tmp_dir / "judge_log.jsonl")
+                totals.update(gen_calls=gen.calls, gen_in=gen.prompt_chars, gen_out=gen.calls * sizes.get(kind, 0),
+                              judge_calls=judge.calls, judge_in=judge.prompt_chars,
+                              judge_out=judge.calls * judge_reply_chars,
+                              max_chars=max(gen.max_prompt_chars, judge.max_prompt_chars))
+            per_kind[kind] = totals
+        per_strategy[name] = per_kind
     return per_strategy, proxied
 
 
-def ablation_lines(per_strategy: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    """The two model component lines of one ablation run: the strategies summed."""
+def ablation_lines(per_strategy: dict[str, dict[str, dict[str, Any]]],
+                   skipped: frozenset[str] = frozenset()) -> dict[str, dict[str, Any]]:
+    """The two model component lines of one run of the ladder; a strategy in
+    skipped leaves out its classification cases, as a repetition after the
+    first does (spec G D-G84 (5))."""
+    def kinds(name: str) -> tuple[str, ...]:
+        return ("qa",) if name in skipped else ("classification", "qa")
+
     def total(key: str) -> float:
-        return sum(s[key] for s in per_strategy.values())
-    biggest = max((s["max_chars"] for s in per_strategy.values()), default=0)
+        return sum(per_strategy[n][k][key] for n in per_strategy for k in kinds(n))
+    biggest = max((per_strategy[n][k]["max_chars"] for n in per_strategy for k in kinds(n)), default=0)
     return {
         "generator": {"calls": total("gen_calls"), "in_chars": total("gen_in"),
                       "out_chars": total("gen_out"), "max_chars": biggest},
         "judge": {"calls": total("judge_calls"), "in_chars": total("judge_in"),
                   "out_chars": total("judge_out"), "max_chars": biggest},
     }
+
+
+def strategy_totals(per_kind: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """One strategy's counts over both kinds, for the per-strategy table."""
+    keys = ("gen_calls", "gen_in", "gen_out", "judge_calls", "judge_in", "judge_out")
+    return {key: sum(block[key] for block in per_kind.values()) for key in keys}
 
 
 def elicitation_line(items: list[dict[str, Any]], system_chars: int, out_chars_mean: float) -> dict[str, Any]:
@@ -796,6 +818,18 @@ def scaled(row: dict[str, Any], factor: int, step: str) -> dict[str, Any]:
     return out
 
 
+def combined(first: dict[str, Any], later: dict[str, Any], times: int, step: str) -> dict[str, Any]:
+    """A first run's priced row plus times later repetitions' row, as one row."""
+    more = scaled(later, times, step)
+    out = dict(first, step=step, calls=first["calls"] + more["calls"],
+               in_tokens=first["in_tokens"] + more["in_tokens"],
+               visible_tokens=first["visible_tokens"] + more["visible_tokens"],
+               max_request_tokens=max(first["max_request_tokens"], later["max_request_tokens"]))
+    for key in ("billed", "cost", "batch_cost"):
+        out[key] = {level: first[key][level] + more[key][level] for level in first[key]}
+    return out
+
+
 def sum_cost(rows: list[dict[str, Any]], key: str = "cost") -> dict[str, float]:
     return {level: sum(r[key][level] for r in rows) for level in LEVELS}
 
@@ -805,7 +839,6 @@ def compute(
     declared: dict[str, ModelParameters],
     rows: dict[str, dict[str, Any]],
     tmp_dir: Path,
-    n_repetitions: int = ABLATION_REPETITIONS,
 ) -> dict[str, Any]:
     """Every dry run and every price: the data the report prints."""
     bands = reasoning_bands(inputs["reasoning_low"], inputs.get("measured"))
@@ -829,28 +862,53 @@ def compute(
                                    inputs["elicit_out_chars"])
     per_strategy, proxied = ablation_dry_run(
         inputs["ablation_items"], inputs["out_chars"], inputs["judge_reply_chars"], tmp_dir)
-    ablation = ablation_lines(per_strategy)
 
     def price(step: str, lines: dict[str, Any], components: tuple[str, ...] = ("generator", "judge")):
         return [price_line(step, component, lines[component], declared, rows, bands) for component in components]
 
     proxy_rows = price("Layer 3 alignment", alignment)
     bare_rows = price("Layer 3 alignment", without)
-    one_rep = price("E6 ablation, one repetition", ablation)
     build_rows = (
         price("Layer 2 extraction", extraction)
         + price("Layer 3 alignment", alignment)
         + price("Control backlog", backlog)
         + price("E6 elicitation", {"generator": elicitation}, ("generator",))
     )
-    n_rows = [scaled(r, n_repetitions, f"E6 ablation, {n_repetitions} repetitions") for r in one_rep]
-    total_rows = build_rows + n_rows
+    reps = inputs["repetitions"]
+    cap, pilot_n = reps["cap"], reps["pilot_repetitions"]
+    later_skip = frozenset(reps["run_once"]["conditions"])
+    first = price("E6 ablation, first run", ablation_lines(per_strategy))
+    later = price("E6 ablation, each repetition after the first", ablation_lines(per_strategy, later_skip))
+    main_rows = [combined(f, lt, cap - 1, f"E6 main run, N = {cap}") for f, lt in zip(first, later)]
+    pilot_rows: list[dict[str, Any]] = []
+    dev_elicit_rows: list[dict[str, Any]] = []
+    development, pilot_note = None, None
+    dev_items = inputs.get("development_items")
+    if dev_items:
+        dev_strategy, _ = ablation_dry_run(dev_items, inputs["out_chars"], inputs["judge_reply_chars"], tmp_dir)
+        dev_first = price("E6 pilot run, first repetition", ablation_lines(dev_strategy))
+        dev_later = price("E6 pilot run, each repetition after the first", ablation_lines(dev_strategy, later_skip))
+        pilot_rows = [combined(f, lt, pilot_n - 1, f"E6 pilot run, {pilot_n} repetitions")
+                      for f, lt in zip(dev_first, dev_later)]
+        dev_elicit_rows = price("E6 development set elicitation", {"generator": elicitation_line(
+            dev_items, inputs["elicit_system_chars"], inputs["elicit_out_chars"])}, ("generator",))
+        development = {"items": len(dev_items),
+                       "scenarios": sum(1 for i in dev_items if i["kind"] == "classification"),
+                       "qa": sum(1 for i in dev_items if i["kind"] != "classification")}
+    else:
+        pilot_note = (f"not computed ({inputs.get('full_note') or 'no development set items'}), so the total "
+                      "leaves the pilot run out")
+    total_rows = build_rows + dev_elicit_rows + pilot_rows + main_rows
     result: dict[str, Any] = {
-        "declared": declared, "rows": rows, "bands": bands, "measured": inputs.get("measured") or {}, "n": n_repetitions,
+        "declared": declared, "rows": rows, "bands": bands, "measured": inputs.get("measured") or {}, "n": cap,
+        "pilot_n": pilot_n,
         "candidates": candidates, "accepted": accepted, "backlog_norms": len(inputs["backlog_norms"]),
-        "build_rows": build_rows, "one_rep": one_rep, "n_rows": n_rows,
+        "build_rows": build_rows, "first_rep": first, "later_rep": later, "main_rows": main_rows,
+        "pilot_rows": pilot_rows, "dev_elicit_rows": dev_elicit_rows, "development": development,
+        "pilot_note": pilot_note,
         "total": sum_cost(total_rows), "batch_total": sum_cost(total_rows, "batch_cost"),
-        "one_rep_cost": sum_cost(one_rep), "per_strategy": per_strategy, "proxied": proxied,
+        "first_cost": sum_cost(first), "later_cost": sum_cost(later),
+        "per_strategy": {name: strategy_totals(k) for name, k in per_strategy.items()}, "proxied": proxied,
         "rationale_bound": {"total_without": {
             level: sum_cost(total_rows)[level] - sum_cost(proxy_rows)[level] + sum_cost(bare_rows)[level]
             for level in LEVELS}},
@@ -970,15 +1028,16 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "norms that call sent, see backlog_generator_billed_tokens and backlog_generator_measured_norms "
         "(a planning assumption, no source).",
         "",
-        "## Steps, with the ablation at N = " + str(n),
+        "## Steps, with the main run at N = " + str(n) + " and the pilot run",
         "",
         *STEP_HEADER,
     ]
-    for row in res["build_rows"] + res["n_rows"]:
+    for row in res["build_rows"] + res["dev_elicit_rows"] + res["pilot_rows"] + res["main_rows"]:
         lines.append(_step_row(row))
     lines += [
         "| Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |",
         "",
+        *([f"The pilot run: {res['pilot_note']}.", ""] if res["pilot_note"] else []),
         "The control backlog prices one click on CredScore Article 25 sending every AI Act role's norms and "
         f"the norms whose addressee is not settled: {res['backlog_norms']} of the article's accepted norms in "
         "the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability "
@@ -987,21 +1046,35 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "",
         "Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.",
         "",
-        "## E6 ablation, one repetition",
+        "## E6 ablation, the first run and each repetition after it",
         "",
         *STEP_HEADER,
     ]
-    for row in res["one_rep"]:
+    for row in res["first_rep"] + res["later_rep"]:
         lines.append(_step_row(row))
-    cost1 = res["one_rep_cost"]
+    d = res["development"]
     lines += [
         "",
-        f"Per repetition (one repetition costs {_band(cost1)}). The total prices N = {n} "
-        "repetitions, the research answer's provisional ten (B104 R5; ruling R5 of B120, "
-        "provisional, awaiting Jose), so the figure errs high. At the pilot's N, take the total "
-        f"and add (N minus {n}) times the one-repetition cost.",
+        f"The first run costs {_band(res['first_cost'])} and each repetition after it "
+        f"{_band(res['later_cost'])}. The first run runs every condition on every case; each repetition "
+        "after it runs conditions 1 and 2 on every case and conditions 3 to 6 on question and retrieval "
+        "cases only, since no model call decides a classification case's scored outcome there (spec G D-G84 "
+        "(5)), and the runtime judge is called on question and retrieval cases only (D-G84 (4)). The main "
+        f"run is priced at N = {n}, the most the pilot run's rule allows (D-G84 (5): the smallest odd N "
+        f"reaching a half-width of 2 percentage points, at most {n}), so the figure errs high; at the "
+        "pilot's N, take the first run plus (N minus 1) times one repetition after the first.",
         "",
-        "Per-strategy dry-run counts of one repetition (visible output at the model developer ratio):",
+        "A scenario without facts is counted with its explanation call: in the dry run it takes a stand-in "
+        "of its own text with no flags, so conditions 3 to 6 call the generator to explain the classifier's "
+        "level as a real run with elicited facts does; the estimate before B150 left those calls out (B150 "
+        "ruling R32).",
+        "",
+        *([f"The pilot run (D-G84 (5)) repeats the ladder {res['pilot_n']} times on the development set, the "
+           f"REF-15 items outside the frozen sample ({d['items']} items: {d['scenarios']} scenarios and "
+           f"{d['qa']} question pairs), whose scenarios need the elicitor's facts first (the elicitation "
+           "row). Its size is D-G84's, every item outside the frozen sample (B150, question Q10).", ""]
+          if d else []),
+        "Per-strategy dry-run counts of the first run (visible output at the model developer ratio):",
         "",
         "| Strategy | Generator calls | Gen in-tokens | Gen out-tokens (visible) | Judge calls "
         "| Judge in-tokens | Judge out-tokens (visible) |",
@@ -1068,7 +1141,9 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         f"(band {_usd(res['total']['low'])} to {_usd(res['total']['high'])})",
         "",
         "The band takes the low input and the low reasoning share at its low end, and the high input and "
-        f"the high reasoning share at its high end. It includes the ablation at N = {n}.",
+        "the high reasoning share at its high end. "
+        + (f"It includes the main run at N = {n}, the pilot run and the development set's elicitation."
+           if res["development"] else f"It includes the main run at N = {n}; the pilot run is not in it."),
         *(["A measured model component's reasoning share is the same at both ends of the band."]
           if res.get("measured") else []),
         "",
@@ -1083,11 +1158,20 @@ def load_inputs() -> dict[str, Any]:
     july_alignments = json.loads(JULY_ALIGNMENTS.read_text(encoding="utf-8"))
     b74 = json.loads(B74_NORMS.read_text(encoding="utf-8"))
     elicit_out, elicit_note = elicitation_output_chars(json.loads(FEATURES.read_text(encoding="utf-8")))
-    full_items, full_note = None, None
+    full_items, full_note, development_items = None, None, None
     if (BENCH_DIR / "scenarios.json").exists() and (BENCH_DIR / "qa_pairs.json").exists():
         payload_path = verify_full_benchmark()
         try:
             full_items = load_benchmark_items(payload_path)
+            sample_bytes = SAMPLE_PATH.read_bytes()
+            development = development_payload(json.loads(payload_path.read_text(encoding="utf-8")),
+                                              json.loads(sample_bytes), hashlib.sha256(sample_bytes).hexdigest())
+            dev_path = Path(tempfile.mkstemp(suffix=".json")[1])
+            try:
+                dev_path.write_text(json.dumps(development), encoding="utf-8")
+                development_items = load_benchmark_items(dev_path)
+            finally:
+                dev_path.unlink(missing_ok=True)
         finally:
             payload_path.unlink(missing_ok=True)
     else:
@@ -1103,6 +1187,8 @@ def load_inputs() -> dict[str, Any]:
         "reasoning_low": default_reasoning_shares(b74),
         "ablation_items": load_gold_items() + load_benchmark_items(SAMPLE_PATH),
         "full_items": full_items,
+        "development_items": development_items,
+        "repetitions": load_declaration()["repetitions"],
         "full_note": full_note,
         "out_chars": observed_output_chars(),
         "judge_reply_chars": ratio("runtime_judge_reply_chars"),
