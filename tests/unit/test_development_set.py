@@ -56,6 +56,48 @@ def test_the_pilot_sample_is_drawn_from_outside_the_frozen_sample_with_its_compo
     assert other["development_set"]["benchmark_indexes"] != block["benchmark_indexes"]
 
 
+# The declared pilot sample (B161 final review Minor 2): the 47 indexes the
+# declaration's draw gives on the tracked benchmark files, written out here so
+# that a change to the sampling code (the level loop, a pool's order, the use of
+# rng.sample) fails this test instead of moving the declared sample silently.
+DECLARED_SCENARIOS = [19, 21, 25, 40, 44, 46, 64, 69, 86, 88, 91, 112, 131, 142, 143, 149,
+                      177, 178, 182, 196, 209, 220, 226, 239, 248, 251, 275, 276, 281, 313, 318, 335]
+DECLARED_QA_PAIRS = [23, 31, 35, 36, 46, 49, 56, 60, 98, 106, 108, 111, 123, 124, 131]
+
+
+def test_the_pilot_sample_drawn_from_the_tracked_files_is_the_declared_one():
+    full = _script("build_full_benchmark_payload").build_payload()
+    sample = json.loads(harness.BENCHMARK_SAMPLE_PATH.read_text(encoding="utf-8"))
+    dev = harness.development_payload(full, sample, _sample_sha(), DRAW)
+    assert DRAW == {"seed": 20261011, "scenarios_per_risk_level": 8, "qa_pairs": 15}
+    drawn = dev["development_set"]["benchmark_indexes"]
+    assert drawn == {"scenarios": DECLARED_SCENARIOS, "qa_pairs": DECLARED_QA_PAIRS}
+    assert harness.PILOT_SAMPLE_INDEXES == drawn
+    assert [s["benchmark_index"] for s in dev["scenarios"]] == DECLARED_SCENARIOS
+    assert [q["benchmark_index"] for q in dev["qa_pairs"]] == DECLARED_QA_PAIRS
+
+
+def test_a_payload_recording_other_indexes_than_the_declared_sample_is_refused(tmp_path):
+    # the payload is self-consistent (its items are the indexes its block records)
+    # and carries the declaration's draw, but one drawn index differs from the
+    # declared pilot sample's
+    full = _script("build_full_benchmark_payload").build_payload()
+    sample = json.loads(harness.BENCHMARK_SAMPLE_PATH.read_text(encoding="utf-8"))
+    dev = harness.development_payload(full, sample, _sample_sha(), DRAW)
+    taken = {s["benchmark_index"] for s in sample["scenarios"]} | set(DECLARED_SCENARIOS)
+    swap = next(s for s in full["scenarios"]
+                if s["benchmark_index"] not in taken and s["risk_level"] == dev["scenarios"][0]["risk_level"])
+    dev["scenarios"][0] = swap
+    dev["scenarios"].sort(key=lambda s: s["benchmark_index"])
+    dev["development_set"]["benchmark_indexes"]["scenarios"] = [s["benchmark_index"] for s in dev["scenarios"]]
+    path = tmp_path / "development_payload.json"
+    path.write_text(json.dumps(dev), encoding="utf-8")
+    with pytest.raises(ValueError, match="other indexes than the declared pilot sample's"):
+        harness.load_development_items(path, draw=DRAW)
+    path.write_text(json.dumps(harness.development_payload(full, sample, _sample_sha(), DRAW)), encoding="utf-8")
+    assert len(harness.load_development_items(path, draw=DRAW)) == 47
+
+
 def test_the_payload_script_writes_the_pilot_sample(tmp_path):
     out = tmp_path / "development_payload.json"
     assert _script("build_full_benchmark_payload").main(["--development-set", "--out", str(out)]) == 0
@@ -79,6 +121,12 @@ def test_a_payload_drawn_otherwise_is_refused(tmp_path):
         harness.load_development_items(old, draw=DRAW)
 
 
+@pytest.fixture
+def mock_pilot_indexes(monkeypatch):
+    """The mock payload's drawn indexes stand for the declared pilot sample's."""
+    monkeypatch.setattr(harness, "PILOT_SAMPLE_INDEXES", {"scenarios": [200], "qa_pairs": [300]})
+
+
 def _dev_file(tmp_path, sha=None, draw=DRAW):
     payload = {"development_set": {"rule": "mock", "sample_file": "benchmark_sample.json",
                                    "sample_sha256": sha or _sample_sha(), "scenarios": 1, "qa_pairs": 1},
@@ -94,7 +142,7 @@ def _dev_file(tmp_path, sha=None, draw=DRAW):
     return path
 
 
-def test_a_payload_whose_items_are_not_the_drawn_ones_is_refused(tmp_path):
+def test_a_payload_whose_items_are_not_the_drawn_ones_is_refused(tmp_path, mock_pilot_indexes):
     # the draw block is right, the items are not the indexes it records
     path = _dev_file(tmp_path)
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -124,7 +172,7 @@ def _argv(tmp_path, tag, *extra):
             "--summary", str(tmp_path / "results" / f"{tag}.json"), *extra]
 
 
-def test_a_development_run_without_every_scenarios_facts_is_refused(runner, tmp_path, capsys):  # noqa: F811
+def test_a_development_run_without_every_scenarios_facts_is_refused(runner, tmp_path, capsys, mock_pilot_indexes):  # noqa: F811
     dev = _dev_file(tmp_path)
     code = runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),
                              "--features", str(tmp_path / "missing.json")))
@@ -145,7 +193,7 @@ def test_a_development_run_on_a_payload_drawn_otherwise_is_refused(runner, tmp_p
     assert not (tmp_path / "evaluation_records").exists()
 
 
-def test_a_development_run_reads_only_the_development_set(runner, tmp_path):  # noqa: F811
+def test_a_development_run_reads_only_the_development_set(runner, tmp_path, mock_pilot_indexes):  # noqa: F811
     dev = _dev_file(tmp_path)
     feats = _feats(tmp_path, {"bench:scenario:200": {"description": "d", "flags": {}}})
     assert runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),
@@ -156,7 +204,7 @@ def test_a_development_run_reads_only_the_development_set(runner, tmp_path):  # 
     assert {i["input_kind"] for i in rec["inputs"]} == {"layer1_dump", "norms", "benchmark", "features", "e6_declaration"}
 
 
-def test_a_main_run_cannot_repeat_a_development_run(runner, tmp_path, capsys):  # noqa: F811
+def test_a_main_run_cannot_repeat_a_development_run(runner, tmp_path, capsys, mock_pilot_indexes):  # noqa: F811
     dev = _dev_file(tmp_path)
     feats = _feats(tmp_path, {"bench:scenario:200": {"description": "d", "flags": {}}})
     assert runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),

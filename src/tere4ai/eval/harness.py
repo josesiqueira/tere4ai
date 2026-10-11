@@ -81,6 +81,16 @@ DEVELOPMENT_PAYLOAD_PATH = REPO_ROOT / "data" / "snapshots" / "benchmark" / "dev
 DEVELOPMENT_RULE = "REF-15 items outside the frozen sample (spec G D-G84 (5))"
 PILOT_SAMPLE_RULE = ("a random sample of the development set with the frozen sample's composition, the same number "
                      "of scenarios per risk level and of question pairs (spec G D-G84, dated paragraph (10); B150 Q10)")
+# The pilot run's sample as declared: the benchmark indexes development_payload
+# draws from the tracked benchmark files with the E6 declaration's draw (seed
+# 20261011, 8 scenarios per risk level, 15 question pairs). Pinned so a change
+# to the sampling code cannot move the declared sample with every test green
+# (B161 final review Minor 2; tests/unit/test_development_set.py rebuilds it).
+PILOT_SAMPLE_INDEXES = {
+    "scenarios": [19, 21, 25, 40, 44, 46, 64, 69, 86, 88, 91, 112, 131, 142, 143, 149,
+                  177, 178, 182, 196, 209, 220, 226, 239, 248, 251, 275, 276, 281, 313, 318, 335],
+    "qa_pairs": [23, 31, 35, 36, 46, 49, 56, 60, 98, 106, 108, 111, 123, 124, 131],
+}
 LAYER1_DUMP_PATH = REPO_ROOT / "data" / "graph_dumps" / "layer1.json"
 NORMS_PATH = REPO_ROOT / "data" / "graph_dumps" / "norms_core.json"
 
@@ -313,8 +323,9 @@ def load_development_items(path: Path = DEVELOPMENT_PAYLOAD_PATH,
                            draw: dict[str, int] | None = None) -> list[dict[str, Any]]:
     """The pilot run's items; refused when the file is not a development set
     payload, was drawn against another frozen sample or, given the
-    declaration's draw (B150 Q10), was drawn otherwise or holds other items
-    than the drawn indexes its block records."""
+    declaration's draw (B150 Q10), was drawn otherwise, records other indexes
+    than the declared pilot sample's (PILOT_SAMPLE_INDEXES) or holds other
+    items than the drawn indexes its block records."""
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     block = payload.get("development_set") if isinstance(payload, dict) else None
     if not isinstance(block, dict):
@@ -326,6 +337,10 @@ def load_development_items(path: Path = DEVELOPMENT_PAYLOAD_PATH,
     if draw is not None and block.get("draw") != draw:
         raise ValueError(f"{Path(path).name} was drawn with {block.get('draw')}, not the declaration's pilot sample "
                          f"{draw}; build it again with scripts/build_full_benchmark_payload.py --development-set")
+    if draw is not None and block.get("benchmark_indexes") != PILOT_SAMPLE_INDEXES:
+        raise ValueError(f"{Path(path).name} records other indexes than the declared pilot sample's "
+                         "(harness.PILOT_SAMPLE_INDEXES); build it again with "
+                         "scripts/build_full_benchmark_payload.py --development-set")
     if draw is not None:
         held = {"scenarios": [s.get("benchmark_index") for s in payload.get("scenarios", [])],
                 "qa_pairs": [q.get("benchmark_index") for q in payload.get("qa_pairs", [])]}

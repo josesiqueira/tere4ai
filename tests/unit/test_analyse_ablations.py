@@ -123,6 +123,13 @@ def _install(runner, monkeypatch, answer):  # noqa: F811
     return stops
 
 
+@pytest.fixture(autouse=True)
+def _mock_pilot_indexes(monkeypatch):
+    """The mock development payload's indexes (_files) stand for the declared
+    pilot sample's, which the loader checks (harness.PILOT_SAMPLE_INDEXES)."""
+    monkeypatch.setattr(harness, "PILOT_SAMPLE_INDEXES", {"scenarios": [], "qa_pairs": list(range(100, 140))})
+
+
 def _files(tmp_path):
     features = {"description": "mock", "flags": {}}
     items = [{"id": i, "kind": "classification", "system_features": features,
