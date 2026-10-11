@@ -6,6 +6,7 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 ## [Unreleased]
 
 ### B150: E6's declared analysis built (spec G D-G84)
+- B150: the development set of spec G D-G84 (5), the REF-15 items outside the frozen sample (307 scenarios, 122 question pairs): scripts/build_full_benchmark_payload.py --development-set writes it, stamped with the sample's digest; scripts/run_ablations.py --development-set runs it for the pilot run, with no hand-made item, refused without every scenario's elicited facts.
 - B150: conditions 5 and 6 (graph_full, graph_runtime_judge) no longer call the runtime grounding judge on a classification case, where it received an empty list of cited norms; there they give what conditions 4 and 3 give (spec G D-G84 (4)).
 - B150, contract change: every run record of scripts/run_ablations.py carries the digest of eval/e6_declaration.json (input kind e6_declaration, and each checkpoint unit e6_declaration_sha256; a resume under another declaration is refused) and config item_set and repetition; --repeat-of must name the group's first run, and a repetition that differs from it in an input, the items, the models, the build or the item set is refused before any model call; in a repetition conditions 3 to 6 run question and retrieval cases only (spec G D-G84 (5)), their summary blocks leave the classification cases out and the summary says so (run_once, notes).
 

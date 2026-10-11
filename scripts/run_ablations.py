@@ -32,7 +32,10 @@ names the group's first run and is refused, before any model call, when it
 differs from it in an input, the items, the models, the build or the item
 set; in a repetition, conditions 3 to 6 run question and retrieval cases
 only, their classification cases having run once in the first run (D-G84
-(5)), and the summary says so (run_once, notes).
+(5)), and the summary says so (run_once, notes). --development-set runs the
+pilot run's items, the development set of spec G D-G84 (5), with no hand-made
+item; a development run without its facts file, or with a scenario the file
+lacks, is refused.
 
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
@@ -90,6 +93,7 @@ from tere4ai.graph_store.present import exception_reason  # noqa: E402
 from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
+DEVELOPMENT_FEATURES_PATH = ROOT / "eval" / "gold" / "development_features.json"
 # B81 item 20: an omitted path lands in a fresh directory named after the
 # run's record, so a default run never resumes, never appends to and never
 # rewrites another run's files (the July measurement included); a resume
@@ -289,6 +293,20 @@ def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list
     return None
 
 
+def _attach_features(bench: list[dict], features_path: Path) -> int:
+    """Attach the cached elicited facts to the free-text scenarios that have none."""
+    cache = json.loads(features_path.read_text(encoding="utf-8"))
+    by_item = cache.get("features_by_item", {})
+    enriched = 0
+    for item in bench:
+        feats = by_item.get(item["id"])
+        if feats and not item.get("system_features"):
+            item["system_features"] = feats
+            item["features_provenance"] = "llm_elicited"
+            enriched += 1
+    return enriched
+
+
 def load_items(benchmark_path=None, features_path=None) -> list[dict]:
     gold = harness.load_gold_items()
     bench = harness.load_benchmark_items(benchmark_path or harness.BENCHMARK_SAMPLE_PATH)
@@ -296,19 +314,28 @@ def load_items(benchmark_path=None, features_path=None) -> list[dict]:
     # (scripts/elicit_benchmark_features.py); provenance kept per item
     features_path = features_path or ROOT / "eval" / "gold" / "benchmark_features.json"
     if features_path.exists():
-        cache = json.loads(features_path.read_text(encoding="utf-8"))
-        by_item = cache.get("features_by_item", {})
-        enriched = 0
-        for item in bench:
-            feats = by_item.get(item["id"])
-            if feats and not item.get("system_features"):
-                item["system_features"] = feats
-                item["features_provenance"] = "llm_elicited"
-                enriched += 1
-        print(f"elicited features attached to {enriched} benchmark item(s)")
+        print(f"elicited features attached to {_attach_features(bench, features_path)} benchmark item(s)")
     items = list(gold) + list(bench)
     for item in items:
         assert item.get("id"), "every item needs an id"
+    return items
+
+
+def load_development_run_items(benchmark_path: Path, features_path: Path) -> list[dict]:
+    """The development set's items with their elicited facts (spec G D-G84 (5));
+    refused when the facts file is missing or lacks a scenario, since
+    conditions 3 to 6 would then abstain on it and the pilot run would
+    measure missing facts."""
+    items = harness.load_development_items(benchmark_path)
+    if not features_path.is_file():
+        raise ValueError(f"the development set's facts file {features_path.name} is missing; elicit it with "
+                         f"scripts/elicit_benchmark_features.py --benchmark {benchmark_path.name} "
+                         f"--out {features_path.name}")
+    _attach_features(items, features_path)
+    missing = [i["id"] for i in items if i["kind"] == "classification" and not i.get("system_features")]
+    if missing:
+        raise ValueError(f"the facts file {features_path.name} lacks {len(missing)} development scenario(s), "
+                         f"first {missing[0]}")
     return items
 
 
@@ -465,6 +492,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="benchmark payload (default: the frozen sample)")
     parser.add_argument("--features", type=Path, default=None,
                         help="elicited-features cache (default: run-2 file)")
+    parser.add_argument("--development-set", action="store_true",
+                        help="the pilot run's items, the REF-15 items outside the frozen sample (spec G D-G84 (5)); "
+                             "--benchmark defaults to data/snapshots/benchmark/development_payload.json and "
+                             "--features to eval/gold/development_features.json")
     parser.add_argument("--checkpoint", type=Path, default=None,
                         help="checkpoint to write or resume (default: a fresh "
                              "eval/results/runs/<record id>/ablation_checkpoint.jsonl)")
@@ -506,7 +537,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     declaration_digest = declaration_sha256(args.declaration)
     run_once = declaration["repetitions"]["run_once"]
-    item_set = "main"
+    item_set = "development" if args.development_set else "main"
 
     paths = served_input_paths(args.dump_dir)
     for kind in ("layer1_dump", "norms"):
@@ -515,7 +546,18 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     dump = json.loads(paths["layer1_dump"].read_text())
     norms_payload = json.loads(paths["norms"].read_text())
-    items = load_items(args.benchmark, args.features)
+    if args.development_set:
+        benchmark_path = args.benchmark or harness.DEVELOPMENT_PAYLOAD_PATH
+        features_path = args.features or DEVELOPMENT_FEATURES_PATH
+        try:
+            items = load_development_run_items(benchmark_path, features_path)
+        except (OSError, ValueError) as exc:
+            print(f"refusing to run: {exception_reason(exc)}")
+            return 2
+    else:
+        benchmark_path = args.benchmark or harness.BENCHMARK_SAMPLE_PATH
+        features_path = args.features or (ROOT / "eval" / "gold" / "benchmark_features.json")
+        items = load_items(args.benchmark, args.features)
     print(f"items: {len(items)} | strategies: {strategies.STRATEGY_NAMES}")
 
     # live gates up front, zero cost on refusal
@@ -579,12 +621,11 @@ def main(argv: list[str] | None = None) -> int:
     inputs: list[dict] = []
     build: dict[str, Any] | None = None
     if not args.no_record:
-        features_path = args.features or (ROOT / "eval" / "gold" / "benchmark_features.json")
         inputs = [
             input_ref("layer1_dump", paths["layer1_dump"]),
             input_ref("norms", paths["norms"]),
-            input_ref("benchmark", args.benchmark or harness.BENCHMARK_SAMPLE_PATH),
-            input_ref("gold_seed", harness.GOLD_SEED_PATH),
+            input_ref("benchmark", benchmark_path),
+            *([] if args.development_set else [input_ref("gold_seed", harness.GOLD_SEED_PATH)]),
             # spec G D-G84 (7): every run record carries the declaration's digest
             input_ref("e6_declaration", args.declaration),
         ]

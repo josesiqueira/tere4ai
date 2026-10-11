@@ -52,6 +52,7 @@ graphify-out/
 data/graph_dumps/*.nt
 data/keys/
 data/snapshots/benchmark/full_payload.json
+data/snapshots/benchmark/development_payload.json
 web/tsconfig.tsbuildinfo
 
 # build run state (DEC-16): per-checkout, regenerable; the chain records,

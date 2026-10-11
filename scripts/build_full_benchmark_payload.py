@@ -17,7 +17,10 @@ inputs, same bytes. The file is generated (gitignored), never edited.
 
 Usage:
   .venv/bin/python scripts/build_full_benchmark_payload.py \
-      [--out data/snapshots/benchmark/full_payload.json]
+      [--out data/snapshots/benchmark/full_payload.json] [--development-set]
+
+--development-set writes the development set (spec G D-G84 (5)): every item
+outside the frozen sample, stamped with the sample's digest.
 """
 
 from __future__ import annotations
@@ -31,11 +34,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from tere4ai.eval.harness import load_benchmark_items  # noqa: E402
+from tere4ai.eval.harness import (  # noqa: E402
+    development_payload,
+    load_benchmark_items,
+    load_development_items,
+)
 
 BENCH_DIR = ROOT / "data" / "snapshots" / "benchmark"
 SAMPLE_PATH = ROOT / "eval" / "gold" / "benchmark_sample.json"
 DEFAULT_OUT = BENCH_DIR / "full_payload.json"
+DEFAULT_DEVELOPMENT_OUT = BENCH_DIR / "development_payload.json"
 
 
 def build_payload() -> dict:
@@ -62,18 +70,24 @@ def build_payload() -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--development-set", action="store_true",
+                        help="write the development set of spec G D-G84 (5): the items outside the frozen sample")
     args = parser.parse_args(argv)
 
     payload = build_payload()
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    out = args.out or (DEFAULT_DEVELOPMENT_OUT if args.development_set else DEFAULT_OUT)
+    if args.development_set:
+        sample_bytes = SAMPLE_PATH.read_bytes()
+        payload = development_payload(payload, json.loads(sample_bytes), hashlib.sha256(sample_bytes).hexdigest())
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    items = load_benchmark_items(args.out)
+    items = load_development_items(out) if args.development_set else load_benchmark_items(out)
     kinds: dict[str, int] = {}
     for item in items:
         kinds[item["kind"]] = kinds.get(item["kind"], 0) + 1
-    shown = args.out.relative_to(ROOT) if args.out.is_relative_to(ROOT) else args.out
+    shown = out.relative_to(ROOT) if out.is_relative_to(ROOT) else out
     print(
         f"wrote {shown}: {len(payload['scenarios'])} scenarios + "
         f"{len(payload['qa_pairs'])} qa_pairs -> {len(items)} harness items {kinds}"

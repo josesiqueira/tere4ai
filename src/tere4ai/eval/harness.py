@@ -75,6 +75,8 @@ EVAL_CONFIG_PATH = REPO_ROOT / "eval" / "config_evaluated.yaml"
 RESULTS_DIR = REPO_ROOT / "eval" / "results"
 GOLD_SEED_PATH = REPO_ROOT / "eval" / "gold" / "gold_seed.json"
 BENCHMARK_SAMPLE_PATH = REPO_ROOT / "eval" / "gold" / "benchmark_sample.json"
+DEVELOPMENT_PAYLOAD_PATH = REPO_ROOT / "data" / "snapshots" / "benchmark" / "development_payload.json"
+DEVELOPMENT_RULE = "REF-15 items outside the frozen sample (spec G D-G84 (5))"
 LAYER1_DUMP_PATH = REPO_ROOT / "data" / "graph_dumps" / "layer1.json"
 NORMS_PATH = REPO_ROOT / "data" / "graph_dumps" / "norms_core.json"
 
@@ -261,6 +263,36 @@ def load_benchmark_items(path: Path = BENCHMARK_SAMPLE_PATH) -> list[dict[str, A
             }
         )
     return items
+
+
+def development_payload(full: dict[str, Any], sample: dict[str, Any], sample_sha256: str) -> dict[str, Any]:
+    """The development set of spec G D-G84 (5): every scenario and question pair
+    of the full REF-15 payload whose benchmark_index the frozen sample does
+    not hold, stamped with the sample's digest."""
+    taken_scenarios = {s["benchmark_index"] for s in sample.get("scenarios", [])}
+    taken_pairs = {q["benchmark_index"] for q in sample.get("qa_pairs", [])}
+    scenarios = [s for s in full["scenarios"] if s["benchmark_index"] not in taken_scenarios]
+    qa_pairs = [q for q in full["qa_pairs"] if q["benchmark_index"] not in taken_pairs]
+    return {"provenance": full.get("provenance"),
+            "development_set": {"rule": DEVELOPMENT_RULE, "sample_file": BENCHMARK_SAMPLE_PATH.name,
+                                "sample_sha256": sample_sha256, "scenarios": len(scenarios),
+                                "qa_pairs": len(qa_pairs)},
+            "scenarios": scenarios, "qa_pairs": qa_pairs}
+
+
+def load_development_items(path: Path = DEVELOPMENT_PAYLOAD_PATH,
+                           sample_path: Path = BENCHMARK_SAMPLE_PATH) -> list[dict[str, Any]]:
+    """The development set's items; refused when the file is not a development
+    set payload or was drawn against another frozen sample."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    block = payload.get("development_set") if isinstance(payload, dict) else None
+    if not isinstance(block, dict):
+        raise ValueError(f"{Path(path).name} is not a development set payload (no development_set block); "
+                         "build it with scripts/build_full_benchmark_payload.py --development-set")
+    if block.get("sample_sha256") != hashlib.sha256(Path(sample_path).read_bytes()).hexdigest():
+        raise ValueError(f"{Path(path).name} was drawn against another frozen sample than "
+                         f"{Path(sample_path).name}; build it again")
+    return load_benchmark_items(path)
 
 
 def results_artifact_name(build_id: str, strategy_names: list[str]) -> str:
