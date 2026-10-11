@@ -33,9 +33,10 @@ differs from it in an input, the items, the models, the build or the item
 set; in a repetition, conditions 3 to 6 run question and retrieval cases
 only, their classification cases having run once in the first run (D-G84
 (5)), and the summary says so (run_once, notes). --development-set runs the
-pilot run's items, the development set of spec G D-G84 (5), with no hand-made
-item; a development run without its facts file, or with a scenario the file
-lacks, is refused.
+pilot run's items, the pilot run's sample of the development set of spec G
+D-G84 (5) (B150 Q10), with no hand-made item; a development run on a payload
+not drawn by the declaration's draw, without its facts file, or with a
+scenario the file lacks, is refused.
 
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
@@ -65,6 +66,7 @@ from tere4ai.eval.ablation_declaration import (  # noqa: E402
     DeclarationError,
     declaration_sha256,
     load_declaration,
+    pilot_draw,
 )
 from tere4ai.eval.ablation_group import identity_differences  # noqa: E402
 from tere4ai.eval.evaluation_record import (  # noqa: E402
@@ -329,12 +331,13 @@ def load_items(benchmark_path=None, features_path=None) -> list[dict]:
     return items
 
 
-def load_development_run_items(benchmark_path: Path, features_path: Path) -> list[dict]:
-    """The development set's items with their elicited facts (spec G D-G84 (5));
-    refused when the facts file is missing or lacks a scenario, since
-    conditions 3 to 6 would then abstain on it and the pilot run would
-    measure missing facts."""
-    items = harness.load_development_items(benchmark_path)
+def load_development_run_items(benchmark_path: Path, features_path: Path, draw: dict[str, int]) -> list[dict]:
+    """The pilot run's sample of the development set (spec G D-G84 (5); B150
+    Q10) with its elicited facts; refused when the payload was not drawn by
+    the declaration's draw, or when the facts file is missing or lacks a
+    scenario, since conditions 3 to 6 would then abstain on it and the pilot
+    run would measure missing facts."""
+    items = harness.load_development_items(benchmark_path, draw=draw)
     if not features_path.is_file():
         raise ValueError(f"the development set's facts file {features_path.name} is missing; elicit it with "
                          f"scripts/elicit_benchmark_features.py --benchmark {benchmark_path.name} "
@@ -501,7 +504,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--features", type=Path, default=None,
                         help="elicited-features cache (default: run-2 file)")
     parser.add_argument("--development-set", action="store_true",
-                        help="the pilot run's items, the REF-15 items outside the frozen sample (spec G D-G84 (5)); "
+                        help="the pilot run's items, its sample of the REF-15 items outside the frozen sample "
+                             "(spec G D-G84 (5); B150 Q10); "
                              "--benchmark defaults to data/snapshots/benchmark/development_payload.json and "
                              "--features to eval/gold/development_features.json")
     parser.add_argument("--checkpoint", type=Path, default=None,
@@ -558,7 +562,7 @@ def main(argv: list[str] | None = None) -> int:
         benchmark_path = args.benchmark or harness.DEVELOPMENT_PAYLOAD_PATH
         features_path = args.features or DEVELOPMENT_FEATURES_PATH
         try:
-            items = load_development_run_items(benchmark_path, features_path)
+            items = load_development_run_items(benchmark_path, features_path, pilot_draw(declaration))
         except (OSError, ValueError) as exc:
             print(f"refusing to run: {exception_reason(exc)}")
             return 2

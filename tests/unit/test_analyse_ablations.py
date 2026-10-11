@@ -19,7 +19,7 @@ import pytest
 from tests.unit.test_run_ablations_record import runner  # noqa: F401
 
 from tere4ai.eval import harness
-from tere4ai.eval.ablation_declaration import DECLARATION_PATH
+from tere4ai.eval.ablation_declaration import DECLARATION_PATH, load_declaration, pilot_draw
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
 from tere4ai.eval.strategies import STRATEGY_NAMES as SIX
 from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
@@ -143,7 +143,7 @@ def _files(tmp_path):
     dev = tmp_path / "development_mock.json"
     dev.write_text(json.dumps({
         "development_set": {"rule": "mock", "sample_file": "benchmark_sample.json", "sample_sha256": sha,
-                            "scenarios": 0, "qa_pairs": 40},
+                            "draw": pilot_draw(load_declaration()), "scenarios": 0, "qa_pairs": 40},
         "scenarios": [],
         "qa_pairs": [{"question": "q", "answer": "a", "relevant_article": 10, "benchmark_index": i}
                      for i in range(100, 140)]}), encoding="utf-8")
@@ -372,6 +372,28 @@ def test_a_drifted_checkpoint_copy_is_refused(made, tmp_path, capsys):
     copy.write_text(copy.read_text(encoding="utf-8") + "\n", encoding="utf-8")
     assert made["an"].main(made["group"]) == 2
     assert "differs from the digest" in capsys.readouterr().out
+
+
+def test_a_pilot_group_on_a_payload_drawn_otherwise_is_refused(made, tmp_path, capsys):
+    # B161 (B150 Q10): the pilot run's payload is the declaration's draw; one drawn with another seed is
+    # refused by the analysis as by the runner. The runs' records are made to name the rewritten file's
+    # digest, so that the draw, not the digest, is what the analysis meets.
+    dev = Path(made["dev"])
+    payload = json.loads(dev.read_text(encoding="utf-8"))
+    payload["development_set"]["draw"]["seed"] = 1
+    dev.write_text(json.dumps(payload), encoding="utf-8")
+    sha = hashlib.sha256(dev.read_bytes()).hexdigest()
+
+    def same_digest(record):
+        for ref in record["inputs"]:
+            if ref["input_kind"] == "benchmark":
+                ref["sha256"] = sha
+    for record_id in made["pilot_runs"]:
+        _edit(tmp_path, record_id, same_digest)
+    capsys.readouterr()
+    assert made["an"].main(["--dump-dir", str(tmp_path), "--group", made["pilot_runs"][0], "--pilot",
+                            "--benchmark", str(dev)]) == 2
+    assert "not the declaration's pilot sample" in capsys.readouterr().out
 
 
 def test_a_declaration_other_than_the_runs_is_shown_as_such(made, tmp_path):

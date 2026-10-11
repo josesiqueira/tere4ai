@@ -35,9 +35,11 @@ import argparse
 import hashlib
 import json
 import os
+import random
 import sys
 import tempfile
 import time
+from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -77,6 +79,8 @@ GOLD_SEED_PATH = REPO_ROOT / "eval" / "gold" / "gold_seed.json"
 BENCHMARK_SAMPLE_PATH = REPO_ROOT / "eval" / "gold" / "benchmark_sample.json"
 DEVELOPMENT_PAYLOAD_PATH = REPO_ROOT / "data" / "snapshots" / "benchmark" / "development_payload.json"
 DEVELOPMENT_RULE = "REF-15 items outside the frozen sample (spec G D-G84 (5))"
+PILOT_SAMPLE_RULE = ("a random sample of the development set with the frozen sample's composition, the same number "
+                     "of scenarios per risk level and of question pairs (spec G D-G84, dated paragraph (10); B150 Q10)")
 LAYER1_DUMP_PATH = REPO_ROOT / "data" / "graph_dumps" / "layer1.json"
 NORMS_PATH = REPO_ROOT / "data" / "graph_dumps" / "norms_core.json"
 
@@ -265,25 +269,51 @@ def load_benchmark_items(path: Path = BENCHMARK_SAMPLE_PATH) -> list[dict[str, A
     return items
 
 
-def development_payload(full: dict[str, Any], sample: dict[str, Any], sample_sha256: str) -> dict[str, Any]:
-    """The development set of spec G D-G84 (5): every scenario and question pair
-    of the full REF-15 payload whose benchmark_index the frozen sample does
-    not hold, stamped with the sample's digest."""
+def development_payload(full: dict[str, Any], sample: dict[str, Any], sample_sha256: str,
+                        draw: dict[str, int]) -> dict[str, Any]:
+    """The pilot run's items (B150 Q10, Claude's choice on Jose's delegation of
+    2026-10-11): from the development set of spec G D-G84 (5), every scenario
+    and question pair the frozen sample does not hold, a random sample with the
+    frozen sample's composition, draw["scenarios_per_risk_level"] scenarios of
+    each risk level and draw["qa_pairs"] question pairs, from one generator
+    seeded with "<seed>:pilot_sample", each pool in file order, the drawn items
+    sorted by benchmark_index; refused when the frozen sample's composition is
+    not the draw's. The block records the draw, the pools and the drawn indexes."""
+    per_level, pairs = draw["scenarios_per_risk_level"], draw["qa_pairs"]
+    composition = Counter(s["risk_level"] for s in sample.get("scenarios", []))
+    if composition != {level: per_level for level in BENCHMARK_RISK_MAP} or len(sample.get("qa_pairs", [])) != pairs:
+        raise ValueError(f"the frozen sample's composition ({dict(composition)}, {len(sample.get('qa_pairs', []))} "
+                         f"question pairs) is not the declaration's ({per_level} per risk level, {pairs} pairs)")
     taken_scenarios = {s["benchmark_index"] for s in sample.get("scenarios", [])}
     taken_pairs = {q["benchmark_index"] for q in sample.get("qa_pairs", [])}
-    scenarios = [s for s in full["scenarios"] if s["benchmark_index"] not in taken_scenarios]
-    qa_pairs = [q for q in full["qa_pairs"] if q["benchmark_index"] not in taken_pairs]
+    pool_s = [s for s in full["scenarios"] if s["benchmark_index"] not in taken_scenarios]
+    pool_q = [q for q in full["qa_pairs"] if q["benchmark_index"] not in taken_pairs]
+    rng = random.Random(f"{draw['seed']}:pilot_sample")
+    scenarios: list[dict[str, Any]] = []
+    for level in BENCHMARK_RISK_MAP:  # prohibited, high-risk, limited, minimal
+        level_pool = [s for s in pool_s if s["risk_level"] == level]
+        if len(level_pool) < per_level:
+            raise ValueError(f"the development set holds {len(level_pool)} {level} scenario(s), fewer than {per_level}")
+        scenarios += rng.sample(level_pool, per_level)
+    qa_pairs = rng.sample(pool_q, pairs)
+    scenarios.sort(key=lambda s: s["benchmark_index"])
+    qa_pairs.sort(key=lambda q: q["benchmark_index"])
     return {"provenance": full.get("provenance"),
-            "development_set": {"rule": DEVELOPMENT_RULE, "sample_file": BENCHMARK_SAMPLE_PATH.name,
-                                "sample_sha256": sample_sha256, "scenarios": len(scenarios),
-                                "qa_pairs": len(qa_pairs)},
+            "development_set": {"rule": DEVELOPMENT_RULE, "pilot_sample": PILOT_SAMPLE_RULE,
+                                "sample_file": BENCHMARK_SAMPLE_PATH.name, "sample_sha256": sample_sha256,
+                                "draw": dict(draw), "drawn_from": {"scenarios": len(pool_s), "qa_pairs": len(pool_q)},
+                                "scenarios": len(scenarios), "qa_pairs": len(qa_pairs),
+                                "benchmark_indexes": {"scenarios": [s["benchmark_index"] for s in scenarios],
+                                                      "qa_pairs": [q["benchmark_index"] for q in qa_pairs]}},
             "scenarios": scenarios, "qa_pairs": qa_pairs}
 
 
 def load_development_items(path: Path = DEVELOPMENT_PAYLOAD_PATH,
-                           sample_path: Path = BENCHMARK_SAMPLE_PATH) -> list[dict[str, Any]]:
-    """The development set's items; refused when the file is not a development
-    set payload or was drawn against another frozen sample."""
+                           sample_path: Path = BENCHMARK_SAMPLE_PATH,
+                           draw: dict[str, int] | None = None) -> list[dict[str, Any]]:
+    """The pilot run's items; refused when the file is not a development set
+    payload, was drawn against another frozen sample or, given the
+    declaration's draw (B150 Q10), was drawn otherwise."""
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     block = payload.get("development_set") if isinstance(payload, dict) else None
     if not isinstance(block, dict):
@@ -292,6 +322,9 @@ def load_development_items(path: Path = DEVELOPMENT_PAYLOAD_PATH,
     if block.get("sample_sha256") != hashlib.sha256(Path(sample_path).read_bytes()).hexdigest():
         raise ValueError(f"{Path(path).name} was drawn against another frozen sample than "
                          f"{Path(sample_path).name}; build it again")
+    if draw is not None and block.get("draw") != draw:
+        raise ValueError(f"{Path(path).name} was drawn with {block.get('draw')}, not the declaration's pilot sample "
+                         f"{draw}; build it again with scripts/build_full_benchmark_payload.py --development-set")
     return load_benchmark_items(path)
 
 

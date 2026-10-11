@@ -19,8 +19,10 @@ Usage:
   .venv/bin/python scripts/build_full_benchmark_payload.py \
       [--out data/snapshots/benchmark/full_payload.json] [--development-set]
 
---development-set writes the development set (spec G D-G84 (5)): every item
-outside the frozen sample, stamped with the sample's digest.
+--development-set writes the pilot run's sample of the development set (B150
+Q10): from the items outside the frozen sample (spec G D-G84 (5)), a random
+sample with the frozen sample's composition, drawn by the E6 declaration's
+seed, stamped with the sample's digest, the draw and the drawn indexes.
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.eval.ablation_declaration import load_declaration, pilot_draw  # noqa: E402
 from tere4ai.eval.harness import (  # noqa: E402
     development_payload,
     load_benchmark_items,
@@ -72,18 +75,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--development-set", action="store_true",
-                        help="write the development set of spec G D-G84 (5): the items outside the frozen sample")
+                        help="write the pilot run's sample of the development set (B150 Q10)")
     args = parser.parse_args(argv)
 
     payload = build_payload()
     out = args.out or (DEFAULT_DEVELOPMENT_OUT if args.development_set else DEFAULT_OUT)
+    draw = pilot_draw(load_declaration()) if args.development_set else None
     if args.development_set:
         sample_bytes = SAMPLE_PATH.read_bytes()
-        payload = development_payload(payload, json.loads(sample_bytes), hashlib.sha256(sample_bytes).hexdigest())
+        payload = development_payload(payload, json.loads(sample_bytes), hashlib.sha256(sample_bytes).hexdigest(),
+                                      draw)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    items = load_development_items(out) if args.development_set else load_benchmark_items(out)
+    items = load_development_items(out, draw=draw) if args.development_set else load_benchmark_items(out)
     kinds: dict[str, int] = {}
     for item in items:
         kinds[item["kind"]] = kinds.get(item["kind"], 0) + 1

@@ -1,6 +1,7 @@
-"""The development set of spec G D-G84 (5): REF-15 items outside the frozen sample (B150).
+"""The development set of spec G D-G84 (5): REF-15 items outside the frozen sample (B150),
+and the pilot run's sample drawn from it (B150 Q10, B161).
 
-The first two tests read the frozen benchmark files of data/snapshots/benchmark
+The first three tests read the frozen benchmark files of data/snapshots/benchmark
 and the frozen sample; the rest use mock payloads.
 """
 
@@ -9,12 +10,14 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
 from tests.unit.test_run_ablations_record import runner  # noqa: F401,F811
 
 from tere4ai.eval import harness
+from tere4ai.eval.ablation_declaration import load_declaration, pilot_draw
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,32 +34,60 @@ def _sample_sha():
     return hashlib.sha256(harness.BENCHMARK_SAMPLE_PATH.read_bytes()).hexdigest()
 
 
-def test_the_development_set_is_every_ref15_item_outside_the_frozen_sample():
+DRAW = pilot_draw(load_declaration())
+
+
+def test_the_pilot_sample_is_drawn_from_outside_the_frozen_sample_with_its_composition():
     full = _script("build_full_benchmark_payload").build_payload()
     sample = json.loads(harness.BENCHMARK_SAMPLE_PATH.read_text(encoding="utf-8"))
-    dev = harness.development_payload(full, sample, _sample_sha())
-    assert (len(dev["scenarios"]), len(dev["qa_pairs"])) == (339 - 32, 137 - 15)
-    taken = {s["benchmark_index"] for s in sample["scenarios"]}
-    assert not taken & {s["benchmark_index"] for s in dev["scenarios"]}
+    dev = harness.development_payload(full, sample, _sample_sha(), DRAW)
+    assert (len(dev["scenarios"]), len(dev["qa_pairs"])) == (32, 15)
+    assert Counter(s["risk_level"] for s in dev["scenarios"]) == {
+        "prohibited": 8, "high-risk": 8, "limited": 8, "minimal": 8}
+    assert not {s["benchmark_index"] for s in sample["scenarios"]} & {s["benchmark_index"] for s in dev["scenarios"]}
     assert not {q["benchmark_index"] for q in sample["qa_pairs"]} & {q["benchmark_index"] for q in dev["qa_pairs"]}
-    assert dev["development_set"] == {"rule": harness.DEVELOPMENT_RULE, "sample_file": "benchmark_sample.json",
-                                      "sample_sha256": _sample_sha(), "scenarios": 307, "qa_pairs": 122}
+    block = dev["development_set"]
+    assert block["draw"] == DRAW and block["drawn_from"] == {"scenarios": 307, "qa_pairs": 122}
+    assert (block["scenarios"], block["qa_pairs"]) == (32, 15)
+    assert block["benchmark_indexes"]["scenarios"] == sorted(s["benchmark_index"] for s in dev["scenarios"])
+    assert block["rule"] == harness.DEVELOPMENT_RULE and block["pilot_sample"] == harness.PILOT_SAMPLE_RULE
+    assert harness.development_payload(full, sample, _sample_sha(), DRAW) == dev  # the seed fixes the draw
+    other = harness.development_payload(full, sample, _sample_sha(), {**DRAW, "seed": 1})
+    assert other["development_set"]["benchmark_indexes"] != block["benchmark_indexes"]
 
 
-def test_the_payload_script_writes_the_development_set(tmp_path):
+def test_the_payload_script_writes_the_pilot_sample(tmp_path):
     out = tmp_path / "development_payload.json"
     assert _script("build_full_benchmark_payload").main(["--development-set", "--out", str(out)]) == 0
-    items = harness.load_development_items(out)
-    assert len(items) == 307 + 122 and all(i["id"].startswith("bench:") for i in items)
+    items = harness.load_development_items(out, draw=DRAW)
+    assert len(items) == 32 + 15 and all(i["id"].startswith("bench:") for i in items)
 
 
-def _dev_file(tmp_path, sha=None):
+def test_a_frozen_sample_of_another_composition_is_refused():
+    full = _script("build_full_benchmark_payload").build_payload()
+    sample = json.loads(harness.BENCHMARK_SAMPLE_PATH.read_text(encoding="utf-8"))
+    sample["scenarios"] = sample["scenarios"][1:]  # 7 scenarios in one risk level
+    with pytest.raises(ValueError, match="composition"):
+        harness.development_payload(full, sample, _sample_sha(), DRAW)
+
+
+def test_a_payload_drawn_otherwise_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="not the declaration's pilot sample"):
+        harness.load_development_items(_dev_file(tmp_path, draw={**DRAW, "seed": 1}), draw=DRAW)
+    old = _dev_file(tmp_path, draw=None)  # the rule before B161 recorded no draw
+    with pytest.raises(ValueError, match="not the declaration's pilot sample"):
+        harness.load_development_items(old, draw=DRAW)
+
+
+def _dev_file(tmp_path, sha=None, draw=DRAW):
     payload = {"development_set": {"rule": "mock", "sample_file": "benchmark_sample.json",
                                    "sample_sha256": sha or _sample_sha(), "scenarios": 1, "qa_pairs": 1},
                "scenarios": [{"role": "Provider", "intended_use": "u", "system_type": "t", "input_data": "d",
                               "domain": "x", "risk_level": "high-risk", "related_articles": [6],
                               "obligations": [], "benchmark_index": 200}],
                "qa_pairs": [{"question": "q", "answer": "a", "relevant_article": 10, "benchmark_index": 300}]}
+    if draw is not None:
+        payload["development_set"]["draw"] = draw
     path = tmp_path / "development_payload.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path

@@ -19,7 +19,8 @@ when a case lacks a result. A declaration that differs from the one the runs
 carry is read and every figure labelled post hoc.
 
   --pilot                 the pilot run's group, five repetitions on the
-                          development set: each figure's standard deviation
+                          pilot run's sample of the development set (B150
+                          Q10): each figure's standard deviation
                           and the main run's count N (spec G D-G84 (5)).
   --pilot-analysis ID     a main run's group: the declared contrasts, the
                           runtime judge's shares and the per-call accuracy;
@@ -68,6 +69,7 @@ from tere4ai.eval.ablation_declaration import (  # noqa: E402
     DeclarationError,
     declaration_sha256,
     load_declaration,
+    pilot_draw,
 )
 from tere4ai.eval.ablation_group import identity_differences  # noqa: E402
 from tere4ai.eval.evaluation_record import (  # noqa: E402
@@ -282,14 +284,15 @@ def key_files(args: argparse.Namespace, mode: str) -> dict[str, Path]:
     return {"gold_seed": args.gold, "benchmark": args.benchmark or harness.BENCHMARK_SAMPLE_PATH}
 
 
-def group_items(first: dict, files: dict[str, Path], mode: str) -> list[dict]:
+def group_items(first: dict, files: dict[str, Path], mode: str, declaration: dict[str, Any]) -> list[dict]:
     """The items the runs read, from the same files (by digest) and in the same
-    order (by the item selection's digest; ruling R39)."""
+    order (by the item selection's digest; ruling R39); in pilot mode the
+    payload must be the declaration's pilot sample (B150 Q10)."""
     for kind, path in files.items():
         if sha256_of_file(path) != _input(first, kind):
             raise Refused(f"{Path(path).name} is not the {kind} file the runs read (its digest differs)")
     if mode == "pilot":
-        items = harness.load_development_items(files["benchmark"])
+        items = harness.load_development_items(files["benchmark"], draw=pilot_draw(declaration))
     else:
         items = harness.load_gold_items(files["gold_seed"]) + harness.load_benchmark_items(files["benchmark"])
     if digest_of_ids([i["id"] for i in items]) != first.get("item_selection_sha256"):
@@ -509,7 +512,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--gold", type=Path, default=harness.GOLD_SEED_PATH)
     parser.add_argument("--benchmark", type=Path, default=None,
                         help="the benchmark payload the runs read (default: the frozen sample; with --pilot "
-                             "the development set payload)")
+                             "the pilot run's sample of the development set)")
     parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps")
     parser.add_argument("--out-dir", type=Path, default=None,
                         help="where the two files go (default: eval/results/analyses/<record id>)")
@@ -538,7 +541,7 @@ def main(argv: list[str] | None = None) -> int:
         if refusal is not None:
             raise Refused(refusal)
         files = key_files(args, mode)
-        items = group_items(group[0], files, mode)
+        items = group_items(group[0], files, mode, declaration)
         checkpoints = [kept_copy(reader, record, "checkpoint") for record in group]
         runs = [run_results(path) for path in checkpoints]
         run_ids = [record["record_id"] for record in group]
