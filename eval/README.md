@@ -109,8 +109,9 @@ holds classification (correct, total, accuracy, abstained), citation
 completeness by exact node id, the hallucinated citation rate over that
 key's answers with the citations emitted, and for the benchmark the
 article-level citation completeness. A case the protocol marks contested
-(`contested: true`) is in no figure: it is listed under `contested` with each
-answer, unscored, and `items_contested` counts it (B149). The pooled keys
+(`contested: true`) is in no measure of this summary (errors still counts
+its failed call): it is listed under `contested` with each answer, unscored,
+and `items_contested` counts it (B149). The pooled keys
 (`risk_accuracy_overall`, `citation_completeness`,
 `hallucinated_citation_rate`, `citations_emitted_total` and the per-set
 blocks) are kept for the readers of the July summaries.

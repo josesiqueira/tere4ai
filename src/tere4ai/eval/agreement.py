@@ -8,10 +8,11 @@ Implements the agreement reporting of the annotation protocol
 kappa over the closed classification categories and raw (observed)
 agreement, plus a per-category confusion table for the disagreement
 discussion. Kappa is None where it cannot be computed (both annotators used
-one category), never 1.0. Every function is pure and deterministic: no I/O, no model, no
-randomness. Inputs are two equal-length sequences of labels where position
-i is the same item labelled by annotator A and annotator B; labels are any
-hashable category values (two or more categories are supported).
+one category), never 1.0. Every function is pure and deterministic: no
+I/O, no model, no randomness. Inputs are two equal-length sequences of
+labels where position i is the same item labelled by annotator A and
+annotator B; labels are any hashable category values (two or more
+categories are supported).
 """
 
 from __future__ import annotations

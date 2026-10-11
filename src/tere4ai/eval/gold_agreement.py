@@ -1,7 +1,7 @@
 """Agreement of the hand-made test set's two independent labels, by kind.
 
 @implements: DEC-11
-@grounded_by: ADD-88, ADD-59
+@grounded_by: ADD-88, ADD-59, ADD-99
 
 What eval/gold/ANNOTATION_PROTOCOL.md names (lines 65 to 73), computed on
 the two independent labels of each case before any adjudication, for each
@@ -15,9 +15,11 @@ kind apart:
 - qa: the citation agreement by exact node id; free-text answers are not
   scored, their differences go to adjudication.
 
-Every case one labeller lacks is listed, never dropped. What the protocol
-leaves unstated is not computed: the report says so and names the open
-question (B149 Q1 to Q5). Pure functions: no I/O, no model, no randomness.
+Every case one labeller lacks is listed, never dropped; every label is
+checked as it is read, paired or not. What the protocol leaves unstated is
+not computed: the report says so and names the open question (B149 Q1 to
+Q4); contested cases are kept, provisionally (B149 Q5). Pure functions: no
+I/O, no model, no randomness.
 """
 
 from __future__ import annotations
@@ -59,7 +61,9 @@ def article_of(node_id: str) -> str | None:
     return match.group(0) if match else None
 
 
-def _annotator(label: dict[str, Any], item: dict[str, Any]) -> str:
+def _annotator(label: Any, item: dict[str, Any]) -> str:
+    if not isinstance(label, dict):
+        raise LabelError(f"{item['id']}: a label is not an object ({label!r})")
     name = label.get("annotator")
     if not isinstance(name, str) or not name:
         raise LabelError(f"{item['id']}: a label names no annotator")
@@ -94,6 +98,7 @@ def pair_labels(
             name = _annotator(label, item)
             if name in by_name:
                 raise LabelError(f"{item['id']}: {name} labelled it twice")
+            _check(item["kind"], label, item)
             by_name[name] = label
         lacking = [name for name in (first, second) if name not in by_name]
         if lacking:
@@ -111,14 +116,7 @@ def _level(label: dict[str, Any], item: dict[str, Any]) -> str:
     return level
 
 
-def _ids(kind: str, label: dict[str, Any], item: dict[str, Any]) -> frozenset[str]:
-    """The node ids a label gives: retrieval reads gold.node_id (protocol
-    lines 49 to 50), qa reads gold_citations (lines 55 to 56). A string, a
-    list of strings or null (no id) is accepted; anything else is refused."""
-    if kind == "retrieval":
-        value = (label.get("gold") or {}).get("node_id")
-    else:
-        value = label.get("gold_citations")
+def _id_set(value: Any, kind: str, label: dict[str, Any], item: dict[str, Any]) -> frozenset[str]:
     if value is None:
         value = []
     if isinstance(value, str):
@@ -127,6 +125,32 @@ def _ids(kind: str, label: dict[str, Any], item: dict[str, Any]) -> frozenset[st
         raise LabelError(f"{item['id']}: {label['annotator']}'s {kind} label gives "
                          f"{value!r}, not node ids")
     return frozenset(value)
+
+
+def _ids(kind: str, label: dict[str, Any], item: dict[str, Any]) -> frozenset[str]:
+    """The node ids a label gives: retrieval reads gold.node_id (protocol
+    lines 49 to 50), qa reads gold_citations (lines 55 to 56). A string, a
+    list of strings or null (no id) is accepted; anything else is refused.
+    A retrieval label's non-empty gold_citations must name the same ids as
+    its node_id (the protocol gives every label both fields, lines 27 to
+    28), or the label is refused."""
+    if kind == "qa":
+        return _id_set(label.get("gold_citations"), kind, label, item)
+    ids = _id_set((label.get("gold") or {}).get("node_id"), kind, label, item)
+    cites = _id_set(label.get("gold_citations"), kind, label, item)
+    if cites and cites != ids:
+        raise LabelError(f"{item['id']}: {label['annotator']}'s retrieval label gives "
+                         f"node_id {sorted(ids)} but gold_citations {sorted(cites)}")
+    return ids
+
+
+def _check(kind: str, label: dict[str, Any], item: dict[str, Any]) -> None:
+    """A label is checked as it is read, whether or not the other labeller
+    labelled the case."""
+    if kind == "classification":
+        _level(label, item)
+    else:
+        _ids(kind, label, item)
 
 
 def _share(pairs: list[tuple[Any, Any, Any]]) -> dict[str, Any]:
@@ -155,7 +179,7 @@ def _one_id_each(kind: str, pairs: list[Pair]) -> tuple[list[tuple[str, str, str
 def classification_block(pairs: list[Pair]) -> dict[str, Any]:
     levels = [(item["id"], _level(a, item), _level(b, item)) for item, a, b in pairs]
     block: dict[str, Any] = {
-        "compared": len(pairs),
+        "paired": len(pairs),
         "raw_agreement": _share(levels),
         "cohen_kappa": None,
         "kappa_note": None,
@@ -179,7 +203,7 @@ def retrieval_block(pairs: list[Pair]) -> dict[str, Any]:
                    if article_of(x) and article_of(y)]
     outside = [i for i, x, y in one if not (article_of(x) and article_of(y))]
     return {
-        "compared": len(pairs),
+        "paired": len(pairs),
         "exact_node_id_agreement": _share(one),
         "not_one_id": {"items": other, "note": NOT_ONE_ID},
         "article_level_agreement": _share(in_articles),
@@ -193,7 +217,7 @@ def retrieval_block(pairs: list[Pair]) -> dict[str, Any]:
 def qa_block(pairs: list[Pair]) -> dict[str, Any]:
     one, other = _one_id_each("qa", pairs)
     return {
-        "compared": len(pairs),
+        "paired": len(pairs),
         "citation_agreement": _share(one),
         "not_one_id": {"items": other, "note": NOT_ONE_ID},
         "answers": QA_ANSWERS,
@@ -248,13 +272,13 @@ def render_text(report: dict[str, Any]) -> str:
         kappa_text = f"{kappa:.3f}"
     else:
         kappa_text = cls["kappa_note"] or "n/a (no case to compare)"
-    lines += [f"classification: {cls['compared']} compared",
+    lines += [f"classification: {cls['paired']} paired",
               f"  raw agreement: {_share_text(cls['raw_agreement'])}",
               f"  cohen kappa: {kappa_text}",
               f"  interval: {cls['interval']}"]
     lines += _listed("contested", cls["contested"])
     ret = report["by_kind"]["retrieval"]
-    lines += [f"retrieval: {ret['compared']} compared",
+    lines += [f"retrieval: {ret['paired']} paired",
               f"  exact node-id agreement: {_share_text(ret['exact_node_id_agreement'])}"]
     lines += _listed("not compared", ret["not_one_id"])
     lines += [f"  article-level agreement: {_share_text(ret['article_level_agreement'])}"]
@@ -263,7 +287,7 @@ def render_text(report: dict[str, Any]) -> str:
               f"  interval: {ret['interval']}"]
     lines += _listed("contested", ret["contested"])
     qa = report["by_kind"]["qa"]
-    lines += [f"qa: {qa['compared']} compared",
+    lines += [f"qa: {qa['paired']} paired",
               f"  citation agreement: {_share_text(qa['citation_agreement'])}"]
     lines += _listed("not compared", qa["not_one_id"])
     lines += [f"  answers: {qa['answers']}",

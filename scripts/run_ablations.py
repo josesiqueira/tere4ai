@@ -20,8 +20,9 @@ total, accuracy and abstained; citation completeness by exact node id;
 the hallucinated citation rate over that key's answers, with the citations
 emitted; and for the benchmark the article-level citation completeness. A
 case without an answer counts as wrong. A case the protocol marks contested
-(contested: true) is in no figure: it is listed under contested with each
-answer, unscored, and items_contested counts it (B149). The pooled keys (risk_accuracy_overall,
+(contested: true) is in no measure of this summary (errors still counts its
+failed call): it is listed under contested with each answer, unscored, and
+items_contested counts it (B149). The pooled keys (risk_accuracy_overall,
 citation_completeness, hallucinated_citation_rate, citations_emitted_total
 and the per-set blocks) are kept for the readers of the July summaries.
 
@@ -364,8 +365,9 @@ def contested_block(results: dict, contested: list[dict]) -> dict:
     return {
         "items": [item["id"] for item in contested],
         "answers": answers,
-        "note": ("contested after adjudication: in no figure of this summary, "
-                 "listed with its answer, unscored"),
+        "note": ("contested after adjudication: in no measure of this summary "
+                 "(errors still counts its failed call), listed with its answer, "
+                 "unscored"),
     }
 
 
@@ -636,7 +638,8 @@ def main(argv: list[str] | None = None) -> int:
             usage_total[component].pop("replies_with_reasoning", None)
 
         # metrics per strategy against gold labels where present; a contested
-        # case is in no figure and is listed apart, unscored (B149)
+        # case is in no measure (errors still counts its failed call) and is
+        # listed apart, unscored (B149)
         contested = [i for i in items if i.get("contested") is True]
         contested_ids = {i["id"] for i in contested}
         scored_items = [i for i in items if i["id"] not in contested_ids]

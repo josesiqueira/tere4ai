@@ -304,15 +304,17 @@ def cmd_agreement(args: argparse.Namespace) -> int:
     lacks listed, the unsettled computations named. Refuses a file outside
     the protocol's shape."""
     try:
-        report = agreement_report(load_gold_items(Path(args.items)))
+        try:
+            items = load_gold_items(Path(args.items))
+        except (KeyError, TypeError, AttributeError):
+            print('refusing: the file is not an item file (expected {"items": [...]} '
+                  "as in eval/gold/gold_seed.json)", file=sys.stderr)
+            return 1
+        report = agreement_report(items)
         text = render_text(report)
         if args.json:
             Path(args.json).write_text(
                 json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    except (KeyError, TypeError, AttributeError):
-        print('refusing: the file is not an item file (expected {"items": [...]} '
-              "as in eval/gold/gold_seed.json)", file=sys.stderr)
-        return 1
     except (LabelError, ValueError, OSError) as exc:
         print(f"refusing: {exc}", file=sys.stderr)
         return 1

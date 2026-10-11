@@ -84,7 +84,7 @@ ITEMS = [
 
 def test_classification_kappa_and_raw_agreement_by_hand():
     cls = agreement_report(ITEMS)["by_kind"]["classification"]
-    assert cls["compared"] == 4
+    assert cls["paired"] == 4
     assert cls["raw_agreement"] == {"agreed": 3, "compared": 4, "rate": 0.75}
     assert cls["cohen_kappa"] == pytest.approx(2 / 3)
     assert cls["kappa_note"] is None
@@ -101,13 +101,13 @@ def test_every_case_one_labeller_lacks_is_listed_never_dropped():
         {"id": "gold:cls-05", "kind": "classification", "lacking": [B]},
         {"id": "gold:cls-06", "kind": "classification", "lacking": [A, B]},
     ]
-    compared = sum(block["compared"] for block in report["by_kind"].values())
-    assert compared + len(report["missing"]) == report["items_total"]
+    paired = sum(block["paired"] for block in report["by_kind"].values())
+    assert paired + len(report["missing"]) == report["items_total"]
 
 
 def test_retrieval_exact_and_article_level_with_the_unsettled_cases_listed():
     ret = agreement_report(ITEMS)["by_kind"]["retrieval"]
-    assert ret["compared"] == 4
+    assert ret["paired"] == 4
     assert ret["exact_node_id_agreement"] == {"agreed": 2, "compared": 3, "rate": 2 / 3}
     assert ret["not_one_id"] == {"items": ["gold:ret-04"], "note": NOT_ONE_ID}
     assert ret["article_level_agreement"] == {"agreed": 2, "compared": 2, "rate": 1.0}
@@ -118,7 +118,7 @@ def test_retrieval_exact_and_article_level_with_the_unsettled_cases_listed():
 
 def test_qa_citation_agreement_by_exact_node_id():
     qa = agreement_report(ITEMS)["by_kind"]["qa"]
-    assert qa["compared"] == 3
+    assert qa["paired"] == 3
     assert qa["citation_agreement"] == {"agreed": 1, "compared": 2, "rate": 0.5}
     assert qa["not_one_id"]["items"] == ["gold:qa-03"]
     assert "not scored" in qa["answers"]
@@ -149,6 +149,8 @@ def test_article_of_reads_the_article_and_nothing_outside():
 def test_the_text_report_prints_shares_as_n_of_m_and_names_every_open_question():
     text = render_text(agreement_report(ITEMS))
     assert "cases one labeller lacks: 2" in text
+    assert "classification: 4 paired" in text and "retrieval: 4 paired" in text
+    assert "qa: 3 paired" in text
     assert "gold:cls-05 (classification): lacks ann_b" in text
     assert "raw agreement: 3 of 4 (0.750)" in text
     assert "cohen kappa: 0.667" in text
@@ -169,6 +171,20 @@ def test_the_text_report_prints_shares_as_n_of_m_and_names_every_open_question()
                                               _label(A, {"risk_category": "high_risk"})]),
       _cls("gold:cls-02", "high_risk", "high_risk")], "labelled it twice"),
     ([_ret("gold:ret-01", 7, "eu-ai-act:annex-iii:point-4")], "not node ids"),
+    # a label is checked as it is read, on a case the other labeller lacks too
+    ([_cls("gold:cls-01", "high_risk", "high_risk"),
+      _item("gold:cls-02", "classification", [_label(A, {"risk_category": "prohibited"})])],
+     "gold:cls-02: ann_a's level 'prohibited' is not one of the five risk categories"),
+    ([_cls("gold:cls-01", "high_risk", "high_risk"),
+      _item("gold:ret-01", "retrieval", [_label(B, {"node_id": 7})])],
+     "gold:ret-01: ann_b's retrieval label gives 7, not node ids"),
+    # a retrieval label whose gold_citations name other ids than its node_id
+    ([_item("gold:ret-01", "retrieval", [_label(A, {"node_id": ART + "5"}, [ART + "6"]),
+                                         _label(B, {"node_id": ART + "5"}, [ART + "5"])])],
+     "gold:ret-01: ann_a's retrieval label gives node_id"),
+    ([_cls("gold:cls-01", "high_risk", "high_risk"),
+      _item("gold:cls-02", "classification", ["x"])],
+     "gold:cls-02: a label is not an object"),
 ])
 def test_a_label_outside_the_protocol_is_refused(items, message):
     with pytest.raises(LabelError, match=message):
@@ -204,6 +220,15 @@ def test_the_agreement_command_refuses_a_file_outside_the_protocol(tmp_path, cap
                     encoding="utf-8")
     assert _script().main(["agreement", str(path)]) == 1
     assert "refusing: gold:cls-01" in capsys.readouterr().err
+
+
+def test_the_agreement_command_names_the_case_of_a_label_that_is_not_an_object(tmp_path, capsys):
+    path = tmp_path / "items.json"
+    path.write_text(json.dumps({"items": [_cls("gold:cls-01", "high_risk", "high_risk"),
+                                          _item("gold:cls-02", "classification", ["x"])]}),
+                    encoding="utf-8")
+    assert _script().main(["agreement", str(path)]) == 1
+    assert "refusing: gold:cls-02: a label is not an object" in capsys.readouterr().err
 
 
 def test_the_agreement_command_refuses_the_old_flat_label_map(tmp_path, capsys):

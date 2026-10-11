@@ -166,6 +166,8 @@ def test_a_contested_case_is_in_no_figure_and_is_listed_apart_with_its_answer(
     hand = s["by_answer_key"]["hand_made"]
     assert hand["classification"] == {"correct": 2, "total": 2, "accuracy": 1.0, "abstained": 0}
     assert hand["hallucinated_citation_rate"]["rate"] == 0.0 and hand["citations_emitted"] == 2
+    assert hand["citation_completeness"]["micro"] == {"found": 2, "required": 2, "completeness": 1.0}
+    assert s["gold_structured_classification"]["total"] == 2
     assert s["risk_accuracy_overall"]["total"] == 5
     assert s["citations_emitted_total"] == 5
     assert s["hallucinated_citation_rate"]["rate"] == 1 / 5

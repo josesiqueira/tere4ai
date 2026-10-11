@@ -71,7 +71,10 @@ Spec G Section 10.4 (B104, decision 2) and Section 6, steps 4 and 5.
     level as a secondary number).
   - qa: citation agreement (exact node id); free-text answers are not
     scored by string match, and their differences go to adjudication.
-  - The command: `.venv/bin/python scripts/draft_gold_candidates.py agreement [item file] [--json OUT]`; what this list leaves unstated is printed as not computed, never assumed.
+  - The command:
+    `.venv/bin/python scripts/draft_gold_candidates.py agreement [item file] [--json OUT]`;
+    what this list leaves unstated is printed as not computed, never
+    assumed.
 - Disagreements are adjudicated by a person who did not produce the
   disagreeing labels, blind to who chose what, against the frozen source
   text, with the rationale recorded in the item's `adjudication`. There is
