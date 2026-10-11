@@ -133,3 +133,43 @@ def test_a_key_with_nothing_to_cite_has_no_completeness():
     completeness = blocks["hand_made"]["citation_completeness"]
     assert completeness["macro_completeness"] is None
     assert completeness["micro"]["completeness"] is None
+
+
+def test_a_contested_case_is_in_no_figure_and_is_listed_apart_with_its_answer(
+    runner, tmp_path  # noqa: F811
+):
+    # the protocol: a case the adjudicator cannot settle is excluded from the
+    # headline figures and reported apart; here it is answered wrongly with a
+    # fabricated citation, and every figure reads as in the test above
+    (tmp_path / "layer1.json").write_text(json.dumps(
+        {"build": {"build_id": "build-b"}, "nodes": [{"id": n} for n in NODES], "edges": []}))
+    contested = {**_cls("gold:cls-3", "high_risk", ["eu-ai-act:article-6"]), "contested": True}
+    runner.load_items = lambda b, f: [*ITEMS, contested]
+    answers = {**ANSWERS, "gold:cls-3": ("minimal_risk", ["fabricated:node"])}
+
+    def fake_build(name, **kw):
+        def strategy(item):
+            kw["generator"].complete()
+            if item["id"] not in answers:
+                raise RuntimeError("no answer")
+            risk, cites = answers[item["id"]]
+            return {"answer_text": "x", "citations": cites, "risk_category": risk}
+
+        strategy.models = {"generator": "g"}
+        return strategy
+
+    runner.strategies.build_strategy = fake_build
+    assert runner.main(_argv(tmp_path)) == 0
+    summary = json.loads((tmp_path / "results" / "ablation_summary.json").read_text())
+    assert summary["items_total"] == 8 and summary["items_contested"] == 1
+    s = summary["strategies"]["plain_llm"]
+    hand = s["by_answer_key"]["hand_made"]
+    assert hand["classification"] == {"correct": 2, "total": 2, "accuracy": 1.0, "abstained": 0}
+    assert hand["hallucinated_citation_rate"]["rate"] == 0.0 and hand["citations_emitted"] == 2
+    assert s["risk_accuracy_overall"]["total"] == 5
+    assert s["citations_emitted_total"] == 5
+    assert s["hallucinated_citation_rate"]["rate"] == 1 / 5
+    assert s["errors"] == 1
+    assert s["contested"]["items"] == ["gold:cls-3"]
+    assert s["contested"]["answers"]["gold:cls-3"] == {
+        "risk_category": "minimal_risk", "citations": ["fabricated:node"], "error": False}

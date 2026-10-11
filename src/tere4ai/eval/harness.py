@@ -205,6 +205,10 @@ def _validated_item(item: dict[str, Any], origin: Path) -> dict[str, Any]:
         raise ValueError(f"classification item {item['id']!r} needs system_features")
     if item["kind"] in ("retrieval", "qa") and not item.get("question"):
         raise ValueError(f"{item['kind']} item {item['id']!r} needs a question")
+    if "contested" in item and not isinstance(item["contested"], bool):
+        raise ValueError(
+            f"gold item {item['id']!r}: contested must be true or false, got {item['contested']!r}"
+        )
     return item
 
 

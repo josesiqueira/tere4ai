@@ -467,6 +467,15 @@ def test_loader_rejects_malformed_items(tmp_path):
         load_gold_items(bad)
 
 
+def test_loader_refuses_a_contested_flag_that_is_not_true_or_false(tmp_path):
+    bad = tmp_path / "bad_gold.json"
+    bad.write_text(json.dumps({"items": [{"id": "gold:qa-1", "kind": "qa", "question": "q",
+                                          "gold": None, "gold_citations": [],
+                                          "contested": "yes"}]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="contested must be true or false"):
+        load_gold_items(bad)
+
+
 # Gold citations resolve in the published dump ----------------------------------
 
 

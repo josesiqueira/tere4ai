@@ -19,7 +19,9 @@ test set, items "gold:") and "benchmark" (the published benchmark, items
 total, accuracy and abstained; citation completeness by exact node id;
 the hallucinated citation rate over that key's answers, with the citations
 emitted; and for the benchmark the article-level citation completeness. A
-case without an answer counts as wrong. The pooled keys (risk_accuracy_overall,
+case without an answer counts as wrong. A case the protocol marks contested
+(contested: true) is in no figure: it is listed under contested with each
+answer, unscored, and items_contested counts it (B149). The pooled keys (risk_accuracy_overall,
 citation_completeness, hallucinated_citation_rate, citations_emitted_total
 and the per-set blocks) are kept for the readers of the July summaries.
 
@@ -348,6 +350,25 @@ def answer_key_blocks(results: dict, items: list[dict], valid_node_ids: set[str]
     return blocks
 
 
+def contested_block(results: dict, contested: list[dict]) -> dict:
+    """The contested cases apart (eval/gold/ANNOTATION_PROTOCOL.md: a case
+    the adjudicator cannot settle is excluded from the headline figures and
+    reported separately). No reference exists for such a case, so it is
+    listed with each answer, never scored (B149)."""
+    answers = {}
+    for item in contested:
+        result = results.get(item["id"]) or {}
+        answers[item["id"]] = {"risk_category": result.get("risk_category"),
+                               "citations": result.get("citations") or [],
+                               "error": "error" in result}
+    return {
+        "items": [item["id"] for item in contested],
+        "answers": answers,
+        "note": ("contested after adjudication: in no figure of this summary, "
+                 "listed with its answer, unscored"),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--benchmark", type=Path, default=None,
@@ -614,12 +635,17 @@ def main(argv: list[str] | None = None) -> int:
             usage_total[component].pop("reasoning_tokens", None)
             usage_total[component].pop("replies_with_reasoning", None)
 
-        # metrics per strategy against gold labels where present
-        gold_items = [i for i in items if i.get("gold") or i.get("gold_citations")]
+        # metrics per strategy against gold labels where present; a contested
+        # case is in no figure and is listed apart, unscored (B149)
+        contested = [i for i in items if i.get("contested") is True]
+        contested_ids = {i["id"] for i in contested}
+        scored_items = [i for i in items if i["id"] not in contested_ids]
+        gold_items = [i for i in scored_items if i.get("gold") or i.get("gold_citations")]
         valid_node_ids = {n["id"] for n in dump["nodes"]}
         summary: dict[str, dict] = {
             "config": config,
             "items_total": len(items),
+            "items_contested": len(contested),
             "usage_reported_by_backend": {
                 "by_component": usage_total,
                 "units_without_usage": units_without_usage,
@@ -638,9 +664,10 @@ def main(argv: list[str] | None = None) -> int:
             i for i in gold_items
             if i["id"].startswith("gold:") and i.get("kind") == "classification"
         ]
-        bench_items = [i for i in items if i["id"].startswith("bench:")]
+        bench_items = [i for i in scored_items if i["id"].startswith("bench:")]
         bench_cls = [i for i in bench_items if i.get("kind") == "classification"]
-        for strategy_name, results in merged.items():
+        for strategy_name, all_results in merged.items():
+            results = {k: r for k, r in all_results.items() if k not in contested_ids}
             gold_ok = sum(
                 1
                 for gi in seed_cls
@@ -688,9 +715,10 @@ def main(argv: list[str] | None = None) -> int:
                 "hallucinated_citation_rate": metrics.hallucinated_citation_rate(
                     results, valid_node_ids
                 ),
-                "errors": sum(1 for r in results.values() if "error" in r),
+                "errors": sum(1 for r in all_results.values() if "error" in r),
                 # what the thesis reports (B126, ruling R3); the keys above are pooled
-                "by_answer_key": answer_key_blocks(results, items, valid_node_ids),
+                "by_answer_key": answer_key_blocks(results, scored_items, valid_node_ids),
+                "contested": contested_block(all_results, contested),
             }
             if s["citations_emitted_total"] == 0:
                 s["hallucination_note"] = VACUOUS_NOTE
