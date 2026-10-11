@@ -1,27 +1,30 @@
 """The hand-made test set's agreement, by kind, as its protocol names it (B149).
 
 Covers DEC-11. Every expected value is hand-computed from the mock items
-below; no model, no randomness.
+below; no model; the bootstrap's only randomness is its recorded seed.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
 
 from tere4ai.eval.gold_agreement import (
-    CHANCE_CORRECTED,
-    INTERVAL,
+    BOOTSTRAP,
+    FEWER_THAN_TWO,
     KAPPA_NA,
+    KAPPA_NA_IDS,
     NO_ARTICLE_LEVEL,
     NOT_ONE_ID,
     LabelError,
     agreement_report,
     article_level_of,
     article_of,
+    interval_of,
     render_text,
 )
 
@@ -91,7 +94,7 @@ def test_classification_kappa_and_raw_agreement_by_hand():
     assert cls["kappa_note"] is None
     assert cls["confusion"]["high_risk"] == {
         "high_risk": 1, "limited_risk": 1, "minimal_risk": 0, "unacceptable_risk": 0}
-    assert cls["interval"] == INTERVAL
+    assert set(cls["intervals"]) == {"raw_agreement", "cohen_kappa"}
 
 
 def test_every_case_one_labeller_lacks_is_listed_never_dropped():
@@ -114,7 +117,6 @@ def test_retrieval_exact_and_article_level_with_the_unsettled_cases_listed():
     # ret-01 (Annex III point 4 both), ret-02 (Article 5 both), ret-03 (Article 6 both): 3 of 3
     assert ret["article_level_agreement"] == {"agreed": 3, "compared": 3, "rate": 1.0}
     assert ret["no_article_level"] == {"items": [], "note": NO_ARTICLE_LEVEL}
-    assert ret["chance_corrected"] == CHANCE_CORRECTED
     assert ret["contested"]["items"] == ["gold:ret-02"]
 
 
@@ -145,9 +147,8 @@ def test_the_answered_questions_print_no_awaiting_and_no_provisional_line():
     text = render_text(agreement_report(ITEMS))
     assert "Back to the labeller" in text  # ret-04 and qa-03 listed as not compared (B149 Q1)
     assert "B149 Q5" in text and "provisional" not in text  # ret-02 contested
-    for line in text.splitlines():
-        if any(f"B149 {q}" in line for q in ("Q1", "Q2", "Q5")):
-            assert "awaiting Jose's decision" not in line
+    # every question of B149 and B161 Q1 is answered: nothing waits on Jose
+    assert "awaiting Jose's decision" not in text and "not computed" not in text
 
 
 def test_qa_citation_agreement_by_exact_node_id():
@@ -180,19 +181,103 @@ def test_article_of_reads_the_article_and_nothing_outside():
     assert article_of("eu-ai-act:annex-iii:point-4") is None
 
 
-def test_the_text_report_prints_shares_as_n_of_m_and_names_every_open_question():
+def test_the_text_report_prints_each_figure_with_its_interval():
     text = render_text(agreement_report(ITEMS))
     assert "cases one labeller lacks: 2" in text
     assert "classification: 4 paired" in text and "retrieval: 4 paired" in text
     assert "qa: 3 paired" in text
     assert "gold:cls-05 (classification): lacks ann_b" in text
     assert "raw agreement: 3 of 4 (0.750)" in text
-    assert "cohen kappa: 0.667" in text
     assert "exact node-id agreement: 2 of 3 (0.667)" in text
     assert "article-level agreement: 3 of 3 (1.000)" in text
     assert "citation agreement: 1 of 2 (0.500)" in text
-    for question in ("Q3", "Q4"):
-        assert f"B149 {question}" in text
+    # classification 0.667, retrieval 4/7, qa 0
+    assert "cohen kappa: 0.667" in text and "cohen kappa: 0.571" in text and "cohen kappa: 0.000" in text
+    # classification 2, retrieval 3, qa 2: one interval line under every figure
+    assert text.count("95% interval:") == 7
+    assert "bootstrap: 1000 draws over the compared cases, seed 20261011, 95% percentile interval" in text
+    # ITEMS' agreeing cases make some kappa resamples hold one shared label on both sides (about 3 in 256 for
+    # classification, 2 in 27 for retrieval, 1 in 4 for qa): conditional for the first, none given for the others
+    kappa_lines = [line for line in text.splitlines()
+                   if "resamples held no kappa" in line and line.startswith("  95% interval:")]
+    assert len(kappa_lines) == 3
+    assert re.fullmatch(r"  95% interval: \[-?\d\.\d{3}, \d\.\d{3}\]; conditional: \d+ of 1000 resamples held no "
+                        r"kappa and were left out \(B161 Q1\)", kappa_lines[0])
+    for line in kappa_lines[1:]:
+        assert re.fullmatch(r"  95% interval: none given: \d+ of 1000 resamples held no kappa, more than 25 "
+                            r"\(B161 Q1\)", line)
+    assert "B149 Q3" not in text and "B149 Q4" not in text
+
+
+def test_retrieval_and_qa_kappa_over_node_ids_by_hand():
+    report = agreement_report(ITEMS)
+    # retrieval one-id pairs: (P4, P4), (5:1:a, 5:1:b), (6:2, 6:2); p_o = 2/3; marginal products
+    # P4 1*1 + 6:2 1*1 = 2 of 9, p_e = 2/9; kappa = (2/3 - 2/9) / (7/9) = 4/7
+    assert report["by_kind"]["retrieval"]["cohen_kappa"] == pytest.approx(4 / 7)
+    assert report["by_kind"]["retrieval"]["kappa_note"] is None
+    # qa one-id pairs: (9, 9), (9, 10); p_o = 1/2; A 9 twice, B 9 once: 2 of 4, p_e = 1/2; kappa = 0
+    assert report["by_kind"]["qa"]["cohen_kappa"] == pytest.approx(0.0)
+    assert report["bootstrap"] == {"method": "percentile_bootstrap_over_cases", "level": 0.95, "draws": 1000,
+                                   "seed": 20261011, "conditional_up_to": 25}
+    assert report["bootstrap"] == BOOTSTRAP
+
+
+def test_one_shared_node_id_prints_n_a_and_no_interval():
+    report = agreement_report([_ret(f"gold:ret-{n}", ART + "9", ART + "9") for n in range(3)])
+    ret = report["by_kind"]["retrieval"]
+    assert ret["cohen_kappa"] is None and ret["kappa_note"] == KAPPA_NA_IDS
+    assert ret["intervals"]["cohen_kappa"] is None
+    assert ret["intervals"]["exact_node_id_agreement"] == [1.0, 1.0]
+    assert "cohen kappa: n/a: both labellers gave one and the same node id" in render_text(report)
+
+
+def test_an_interval_needs_two_cases():
+    report = agreement_report([_cls("gold:cls-01", "high_risk", "limited_risk")])
+    assert report["by_kind"]["classification"]["intervals"]["raw_agreement"] == FEWER_THAN_TWO
+    assert report["by_kind"]["classification"]["intervals"]["cohen_kappa"] == FEWER_THAN_TWO
+    assert FEWER_THAN_TWO == "n/a: no interval over fewer than two cases (spec G D-G17)"
+    # a kind with no compared case: no interval on the share, none on the kappa it lacks
+    assert report["by_kind"]["qa"]["intervals"] == {"citation_agreement": FEWER_THAN_TWO, "cohen_kappa": None}
+
+
+def test_a_kappa_interval_is_read_when_every_resample_has_a_kappa():
+    # no pair agrees, so no resample has both labellers on one and the same category: kappa is always defined
+    items = [_cls("gold:cls-01", "high_risk", "limited_risk"), _cls("gold:cls-02", "limited_risk", "high_risk"),
+             _cls("gold:cls-03", "minimal_risk", "unacceptable_risk")]
+    first = agreement_report(items)["by_kind"]["classification"]["intervals"]
+    low, high = first["cohen_kappa"]
+    assert -1.0 <= low <= high <= 1.0
+    assert first["raw_agreement"] == [0.0, 0.0]
+    assert first == agreement_report(items)["by_kind"]["classification"]["intervals"]  # the seed fixes it
+
+
+def test_a_kappa_interval_with_a_few_resamples_without_a_kappa_is_labelled_conditional():
+    # B161 Q1 (Jose, 2026-10-11, "Same rule as E6 (Recommended)"): ITEMS' four classification pairs give no
+    # kappa only when a resample draws one agreeing case four times, 3 in 256, about 12 of 1000
+    interval = agreement_report(ITEMS)["by_kind"]["classification"]["intervals"]["cohen_kappa"]
+    assert 1 <= interval["left_out"] <= 25 and interval["draws"] == 1000
+    low, high = interval["interval"]
+    assert -1.0 <= low <= high <= 1.0
+    assert interval["label"] == (f"conditional: {interval['left_out']} of 1000 resamples held no kappa and were "
+                                 "left out (B161 Q1)")
+
+
+def test_a_kappa_interval_with_more_than_25_resamples_without_a_kappa_is_not_given():
+    # two agreeing cases on two categories: a resample drawing one case twice, about 500 of 1000, has no kappa
+    items = [_cls("gold:cls-01", "high_risk", "high_risk"), _cls("gold:cls-02", "limited_risk", "limited_risk")]
+    intervals = agreement_report(items)["by_kind"]["classification"]["intervals"]
+    assert intervals["raw_agreement"] == [1.0, 1.0]
+    kappa = intervals["cohen_kappa"]
+    assert kappa["interval"] is None and kappa["left_out"] > 25
+    assert kappa["label"] == f"none given: {kappa['left_out']} of 1000 resamples held no kappa, more than 25 (B161 Q1)"
+
+
+def test_interval_of_reads_the_percentile_positions_over_its_own_draws():
+    pairs = [("a", "a"), ("a", "b"), ("b", "b"), ("b", "a")]
+    share = lambda xs, ys: sum(1 for x, y in zip(xs, ys) if x == y) / len(xs)  # noqa: E731
+    low, high = interval_of(pairs, share, "mock")
+    assert 0.0 <= low <= 0.5 <= high <= 1.0
+    assert interval_of(pairs, share, "mock") == [low, high]  # the seed and the label fix it
 
 
 @pytest.mark.parametrize("items, message", [

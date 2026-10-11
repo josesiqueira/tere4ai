@@ -67,13 +67,25 @@ Spec G Section 10.4 (B104, decision 2) and Section 6, steps 4 and 5.
   the raw agreement, because raw agreement on its own cannot be compared
   across studies (ADD-59):
   - classification: Cohen's kappa over the five risk categories.
-  - retrieval: exact node-id agreement rate (plus agreement at article
-    level as a secondary number; the article level of an Annex item is
-    the Annex's top-level point, Annex III point 5 for points 5(a) and
-    5(b): Claude's choice for this study on Jose's delegation of
-    2026-10-11, B149 Q2, no source).
-  - qa: citation agreement (exact node id); free-text answers are not
-    scored by string match, and their differences go to adjudication.
+  - retrieval: exact node-id agreement rate, with Cohen's kappa over the
+    node ids of the one-id pairs (Jose, 2026-10-11, B149 Q3: "Cohen's
+    kappa (Recommended)") (plus agreement at article level as a secondary
+    number; the article level of an Annex item is the Annex's top-level
+    point, Annex III point 5 for points 5(a) and 5(b): Claude's choice for
+    this study on Jose's delegation of 2026-10-11, B149 Q2, no source).
+  - qa: citation agreement (exact node id), with Cohen's kappa over the
+    node ids of the one-id pairs (Jose, 2026-10-11, B149 Q3: "Cohen's
+    kappa (Recommended)"); free-text answers are not scored by string
+    match, and their differences go to adjudication.
+  - Every agreement figure carries a 95% percentile bootstrap interval
+    over the cases it compares, 1000 draws from a recorded seed, none
+    over fewer than two cases (Jose, 2026-10-11, B149 Q4: "Bootstrap over
+    cases (Recommended)"; spec G D-G17's bootstrap; ADD-93). A kappa
+    resample that gives no kappa (both labellers on one and the same
+    category throughout it) is left out and counted; the interval is
+    labelled conditional when 1 to 25 of the 1000 are left out, and none
+    is given above 25 (Jose, 2026-10-11, B161 Q1: "Same rule as E6
+    (Recommended)", spec F D-F20's rule, as for E6 in B150 Q11).
   - A label giving more or fewer than one node id goes back to its
     labeller before the agreement is reported; until then the report
     lists the case as not compared (Jose, 2026-10-11, B149 Q1: "Back to

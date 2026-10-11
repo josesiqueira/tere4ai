@@ -107,6 +107,24 @@ def percentile_interval(values: Sequence[float], level: float) -> tuple[float, f
     return ordered[math.floor((k - 1) * tail)], ordered[math.ceil((k - 1) * (1 - tail))]
 
 
+def labelled_interval(values: Sequence[float], left_out: int, *, draws: int, level: float, conditional_up_to: int,
+                      what: str, question: str = "B150 Q11") -> dict[str, Any]:
+    """Spec F D-F20's rule for resamples with nothing to count, chosen by Jose
+    for E6's shares (B150 Q11, "Leave out and label (Recommended)") and for the
+    hand-made test set's kappa (B161 Q1, "Same rule as E6 (Recommended)"), both
+    2026-10-11: such resamples are left out and counted; none left out gives
+    the interval, 1 to conditional_up_to left out gives it labelled
+    conditional, more gives none. question names the answer that applies it."""
+    if left_out > conditional_up_to or not values:
+        return {"interval": None, "left_out": left_out, "draws": draws,
+                "label": f"none given: {left_out} of {draws} resamples held no {what}, more than "
+                         f"{conditional_up_to} ({question})"}
+    low, high = percentile_interval(values, level)
+    label = None if left_out == 0 else (f"conditional: {left_out} of {draws} resamples held no {what} and were "
+                                         f"left out ({question})")
+    return {"interval": [low, high], "left_out": left_out, "draws": draws, "label": label}
+
+
 def seeded_rng(seed: int, label: str) -> random.Random:
     """One generator per contrast or condition, from the recorded seed and a label (ruling R3)."""
     return random.Random(f"{seed}:{label}")

@@ -17,6 +17,7 @@ from tere4ai.eval.ablation_analysis import (
     gate_answers,
     gate_share_intervals,
     gate_shares,
+    labelled_interval,
     majority,
     mcnemar_exact_p,
     outcome_table,
@@ -123,6 +124,28 @@ def test_the_percentile_interval_reads_the_projects_positions():
 def _pairs(both, cond_only, against_only, neither):
     return ([(True, True)] * both + [(True, False)] * cond_only
             + [(False, True)] * against_only + [(False, False)] * neither)
+
+
+def test_an_interval_is_labelled_by_the_resamples_left_out():
+    values = [i / 100 for i in range(100)]
+    kw = dict(draws=1000, level=0.95, conditional_up_to=25, what="wrong answer")
+    clean = labelled_interval(values, 0, **kw)
+    assert clean["label"] is None and clean["interval"] == list(percentile_interval(values, 0.95))
+    edge = labelled_interval(values, 25, **kw)
+    assert edge["interval"] == clean["interval"] and edge["left_out"] == 25
+    assert edge["label"] == ("conditional: 25 of 1000 resamples held no wrong answer and were left out "
+                             "(B150 Q11)")
+    over = labelled_interval(values, 26, **kw)
+    assert over["interval"] is None
+    assert over["label"] == "none given: 26 of 1000 resamples held no wrong answer, more than 25 (B150 Q11)"
+    assert labelled_interval([], 1000, **kw)["interval"] is None
+
+
+def test_the_left_out_rule_names_the_question_that_applies_it():
+    # B161 Q1 applies the same rule to the hand-made test set's kappa
+    out = labelled_interval([0.1, 0.2], 3, draws=1000, level=0.95, conditional_up_to=25, what="kappa",
+                            question="B161 Q1")
+    assert out["label"] == "conditional: 3 of 1000 resamples held no kappa and were left out (B161 Q1)"
 
 
 def test_a_paired_contrast_reads_one_outcome_per_case():

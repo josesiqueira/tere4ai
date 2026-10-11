@@ -1,51 +1,64 @@
 """Agreement of the hand-made test set's two independent labels, by kind.
 
 @implements: DEC-11
-@grounded_by: ADD-88, ADD-59, ADD-99
+@grounded_by: ADD-88, ADD-59, ADD-99, ADD-93
 
-What eval/gold/ANNOTATION_PROTOCOL.md names (lines 65 to 73), computed on
-the two independent labels of each case before any adjudication, for each
-kind apart:
+What eval/gold/ANNOTATION_PROTOCOL.md names, computed on the two
+independent labels of each case before any adjudication, for each kind
+apart:
 
 - classification: raw agreement and Cohen's kappa over the five risk
   categories, with the confusion table; kappa is None, printed n/a with its
   reason, where both labellers used one category for every case;
-- retrieval: the exact node-id agreement rate, and the agreement at article
+- retrieval: the exact node-id agreement rate and Cohen's kappa over the
+  node ids of the one-id pairs (B149 Q3), and the agreement at article
   level as a secondary number (the article level of an Annex item is the
   Annex's top-level point, B149 Q2);
-- qa: the citation agreement by exact node id; free-text answers are not
-  scored, their differences go to adjudication.
+- qa: the citation agreement by exact node id and Cohen's kappa over the
+  node ids of the one-id pairs (B149 Q3); free-text answers are not scored,
+  their differences go to adjudication.
 
+Every agreement figure carries a 95% percentile bootstrap interval over the
+cases it compares, 1000 draws from a recorded seed, none over fewer than
+two cases (B149 Q4, spec G D-G17). A kappa resample with no kappa is left
+out and counted, the interval labelled conditional at 1 to 25 of 1000 and
+not given above 25 (B161 Q1, spec F D-F20's rule, as for E6 in B150 Q11).
 Every case one labeller lacks is listed, never dropped; every label is
-checked as it is read, paired or not. What the protocol leaves unstated is
-not computed: the report says so and names the open question (B149 Q3 and
-Q4 until the next task builds them). Decided: a label giving more or fewer
-than one node id goes back to its labeller (B149 Q1); contested cases stay in
-the agreement (B149 Q5). Pure functions: no I/O, no model, no randomness.
+checked as it is read, paired or not. A label giving more or fewer than one
+node id goes back to its labeller (B149 Q1); contested cases stay in the
+agreement (B149 Q5). Pure functions: no I/O, no model; randomness only from
+a random.Random seeded with the recorded seed and the figure's label.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 
+from tere4ai.eval.ablation_analysis import labelled_interval, seeded_rng
 from tere4ai.eval.agreement import cohen_kappa, confusion
 
 RISK_CATEGORIES = ("unacceptable_risk", "high_risk", "limited_risk", "minimal_risk", "undetermined")
 KINDS = ("classification", "retrieval", "qa")
 
-_AWAITING = "not computed: awaiting Jose's decision on {} (B149 {})"
+# B149 Q4 (Jose, 2026-10-11, "Bootstrap over cases (Recommended)"): a 95% percentile bootstrap over the cases a
+# figure compares, 1000 draws, the positions of ablation_analysis.percentile_interval (B150 Q12), from a recorded
+# seed, one generator per figure label (B150 ruling R3); B161 Q1 (Jose, 2026-10-11, "Same rule as E6
+# (Recommended)"): a kappa resample with no kappa is left out and counted, conditional up to 25 of 1000 left out,
+# no interval above (spec F D-F20's rule)
+BOOTSTRAP = {"method": "percentile_bootstrap_over_cases", "level": 0.95, "draws": 1000, "seed": 20261011,
+             "conditional_up_to": 25}
+FEWER_THAN_TWO = "n/a: no interval over fewer than two cases (spec G D-G17)"
 NOT_ONE_ID = ("not compared: the protocol asks for one node id per label, so a label giving more or fewer goes "
               "back to its labeller before the agreement is reported (B149 Q1, Jose 2026-10-11: "
               "\"Back to the labeller (Recommended)\")")
 NO_ARTICLE_LEVEL = ("no article level: the id lies in no Article and in no point of an Annex (B149 Q2: the article "
                     "level of an Annex item is the Annex's top-level point)")
-CHANCE_CORRECTED = _AWAITING.format("a chance-corrected statistic for this kind", "Q3")
-INTERVAL = _AWAITING.format("an interval on the agreement", "Q4")
 CONTESTED_KEPT = ("contested after adjudication and kept here: the agreement is computed before any adjudication "
                   "(B149 Q5, Claude's ruling on Jose's delegation, 2026-10-11)")
 KAPPA_NA = "n/a: both labellers used one category for every case"
+KAPPA_NA_IDS = "n/a: both labellers gave one and the same node id on every case"
 QA_ANSWERS = ("free-text answers are not scored by string match; their differences "
               "go to adjudication")
 
@@ -179,6 +192,42 @@ def _share(pairs: list[tuple[Any, Any, Any]]) -> dict[str, Any]:
             "rate": agreed / len(pairs) if pairs else None}
 
 
+def _rate(first: list, second: list) -> float:
+    return sum(1 for x, y in zip(first, second) if x == y) / len(first)
+
+
+def interval_of(pairs: list[tuple[Any, Any]], statistic: Callable[[list, list], float | None],
+                label: str) -> list[float] | dict[str, Any] | str:
+    """The 95% percentile interval of a statistic over the cases a figure
+    compares, each resample drawing its cases with replacement (B149 Q4):
+    [low, high] when every resample gives a value; FEWER_THAN_TWO over fewer
+    than two cases (spec G D-G17); when some resample gives no value (only
+    kappa can), the resamples are left out and counted and the result is
+    labelled_interval's dict, conditional or none given (B161 Q1)."""
+    n = len(pairs)
+    if n < 2:
+        return FEWER_THAN_TWO
+    rng = seeded_rng(BOOTSTRAP["seed"], label)
+    values: list[float] = []
+    undefined = 0
+    for _ in range(BOOTSTRAP["draws"]):
+        drawn = [pairs[rng.randrange(n)] for _ in range(n)]
+        value = statistic([a for a, _ in drawn], [b for _, b in drawn])
+        if value is None:
+            undefined += 1
+        else:
+            values.append(value)
+    out = labelled_interval(values, undefined, draws=BOOTSTRAP["draws"], level=BOOTSTRAP["level"],
+                            conditional_up_to=BOOTSTRAP["conditional_up_to"], what="kappa", question="B161 Q1")
+    return out["interval"] if out["label"] is None else out
+
+
+def _kappa_interval(pairs: list[tuple[Any, Any]], kappa: float | None,
+                    label: str) -> list[float] | dict[str, Any] | str | None:
+    # no interval where the point kappa itself is n/a
+    return None if kappa is None else interval_of(pairs, cohen_kappa, label)
+
+
 def _contested(pairs: list[Pair]) -> dict[str, Any]:
     return {"items": [item["id"] for item, _, _ in pairs if item.get("contested") is True],
             "note": CONTESTED_KEPT}
@@ -205,7 +254,6 @@ def classification_block(pairs: list[Pair]) -> dict[str, Any]:
         "kappa_note": None,
         "confusion": {},
         "contested": _contested(pairs),
-        "interval": INTERVAL,
     }
     if levels:
         first = [x for _, x, _ in levels]
@@ -214,7 +262,22 @@ def classification_block(pairs: list[Pair]) -> dict[str, Any]:
         block["confusion"] = confusion(first, second)
         if block["cohen_kappa"] is None:
             block["kappa_note"] = KAPPA_NA
+    compared = [(x, y) for _, x, y in levels]
+    block["intervals"] = {
+        "raw_agreement": interval_of(compared, _rate, "classification:raw_agreement"),
+        "cohen_kappa": _kappa_interval(compared, block["cohen_kappa"], "classification:cohen_kappa"),
+    }
     return block
+
+
+def _id_kappa(ids: list[tuple[str, str]]) -> tuple[float | None, str | None]:
+    """Cohen's kappa over the node ids of the one-id pairs (B149 Q3), each
+    distinct id a category; n/a with its reason when both labellers gave one
+    and the same id on every case."""
+    if not ids:
+        return None, None
+    kappa = cohen_kappa([x for x, _ in ids], [y for _, y in ids])
+    return kappa, (KAPPA_NA_IDS if kappa is None else None)
 
 
 def retrieval_block(pairs: list[Pair]) -> dict[str, Any]:
@@ -222,28 +285,42 @@ def retrieval_block(pairs: list[Pair]) -> dict[str, Any]:
     in_articles = [(i, article_level_of(x), article_level_of(y)) for i, x, y in one
                    if article_level_of(x) and article_level_of(y)]
     outside = [i for i, x, y in one if not (article_level_of(x) and article_level_of(y))]
+    ids = [(x, y) for _, x, y in one]
+    kappa, note = _id_kappa(ids)
     return {
         "paired": len(pairs),
         "exact_node_id_agreement": _share(one),
+        "cohen_kappa": kappa,
+        "kappa_note": note,
         "not_one_id": {"items": other, "note": NOT_ONE_ID},
         "article_level_agreement": _share(in_articles),
         "no_article_level": {"items": outside, "note": NO_ARTICLE_LEVEL},
         "contested": _contested(pairs),
-        "chance_corrected": CHANCE_CORRECTED,
-        "interval": INTERVAL,
+        "intervals": {
+            "exact_node_id_agreement": interval_of(ids, _rate, "retrieval:exact_node_id_agreement"),
+            "cohen_kappa": _kappa_interval(ids, kappa, "retrieval:cohen_kappa"),
+            "article_level_agreement": interval_of([(x, y) for _, x, y in in_articles], _rate,
+                                                   "retrieval:article_level_agreement"),
+        },
     }
 
 
 def qa_block(pairs: list[Pair]) -> dict[str, Any]:
     one, other = _one_id_each("qa", pairs)
+    ids = [(x, y) for _, x, y in one]
+    kappa, note = _id_kappa(ids)
     return {
         "paired": len(pairs),
         "citation_agreement": _share(one),
+        "cohen_kappa": kappa,
+        "kappa_note": note,
         "not_one_id": {"items": other, "note": NOT_ONE_ID},
         "answers": QA_ANSWERS,
         "contested": _contested(pairs),
-        "chance_corrected": CHANCE_CORRECTED,
-        "interval": INTERVAL,
+        "intervals": {
+            "citation_agreement": interval_of(ids, _rate, "qa:citation_agreement"),
+            "cohen_kappa": _kappa_interval(ids, kappa, "qa:cohen_kappa"),
+        },
     }
 
 
@@ -257,6 +334,7 @@ def agreement_report(items: list[dict[str, Any]]) -> dict[str, Any]:
         "annotators": list(annotators),
         "items_total": len(items),
         "missing": missing,
+        "bootstrap": dict(BOOTSTRAP),
         "by_kind": {
             "classification": classification_block(paired["classification"]),
             "retrieval": retrieval_block(paired["retrieval"]),
@@ -277,41 +355,65 @@ def _listed(name: str, block: dict[str, Any]) -> list[str]:
     return [f"  {name}: {', '.join(block['items'])}; {block['note']}"]
 
 
+def _interval_text(value: list[float] | dict[str, Any] | str | None) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        if value["interval"] is None:
+            return value["label"]
+        low, high = value["interval"]
+        return f"[{low:.3f}, {high:.3f}]; {value['label']}"
+    low, high = value
+    return f"[{low:.3f}, {high:.3f}]"
+
+
+def _figure(name: str, text: str, interval: Any) -> list[str]:
+    return [f"  {name}: {text}", f"  95% interval: {_interval_text(interval)}"]
+
+
+def _kappa_text(block: dict[str, Any]) -> str:
+    kappa = block["cohen_kappa"]
+    if kappa is not None:
+        return f"{kappa:.3f}"
+    return block["kappa_note"] or "n/a (no case to compare)"
+
+
 def render_text(report: dict[str, Any]) -> str:
     """The report as text: shares as "n of m" with the rate to three
     decimals, kappa to three decimals or n/a with its reason (spec F
-    conventions)."""
+    conventions), each figure followed by its 95% interval."""
     first, second = report["annotators"]
+    boot = report["bootstrap"]
     lines = [f"labellers: {first}, {second}; cases: {report['items_total']}; "
              f"cases one labeller lacks: {len(report['missing'])}"]
     lines += [f"  {m['id']} ({m['kind']}): lacks {', '.join(m['lacking'])}"
               for m in report["missing"]]
+    lines += [f"bootstrap: {boot['draws']} draws over the compared cases, seed {boot['seed']}, "
+              f"{boot['level']:.0%} percentile interval; a kappa resample with no kappa is left out and counted, "
+              f"the interval labelled conditional at 1 to {boot['conditional_up_to']} of {boot['draws']} and none "
+              f"given above (B161 Q1)"]
     cls = report["by_kind"]["classification"]
-    kappa = cls["cohen_kappa"]
-    if kappa is not None:
-        kappa_text = f"{kappa:.3f}"
-    else:
-        kappa_text = cls["kappa_note"] or "n/a (no case to compare)"
-    lines += [f"classification: {cls['paired']} paired",
-              f"  raw agreement: {_share_text(cls['raw_agreement'])}",
-              f"  cohen kappa: {kappa_text}",
-              f"  interval: {cls['interval']}"]
+    lines += [f"classification: {cls['paired']} paired"]
+    lines += _figure("raw agreement", _share_text(cls["raw_agreement"]), cls["intervals"]["raw_agreement"])
+    lines += _figure("cohen kappa", _kappa_text(cls), cls["intervals"]["cohen_kappa"])
     lines += _listed("contested", cls["contested"])
     ret = report["by_kind"]["retrieval"]
-    lines += [f"retrieval: {ret['paired']} paired",
-              f"  exact node-id agreement: {_share_text(ret['exact_node_id_agreement'])}"]
+    lines += [f"retrieval: {ret['paired']} paired"]
+    lines += _figure("exact node-id agreement", _share_text(ret["exact_node_id_agreement"]),
+                     ret["intervals"]["exact_node_id_agreement"])
+    lines += _figure("cohen kappa", _kappa_text(ret), ret["intervals"]["cohen_kappa"])
     lines += _listed("not compared", ret["not_one_id"])
-    lines += [f"  article-level agreement: {_share_text(ret['article_level_agreement'])}"]
+    lines += _figure("article-level agreement", _share_text(ret["article_level_agreement"]),
+                     ret["intervals"]["article_level_agreement"])
     lines += _listed("no article level", ret["no_article_level"])
-    lines += [f"  chance-corrected statistic: {ret['chance_corrected']}",
-              f"  interval: {ret['interval']}"]
     lines += _listed("contested", ret["contested"])
     qa = report["by_kind"]["qa"]
-    lines += [f"qa: {qa['paired']} paired",
-              f"  citation agreement: {_share_text(qa['citation_agreement'])}"]
+    lines += [f"qa: {qa['paired']} paired"]
+    lines += _figure("citation agreement", _share_text(qa["citation_agreement"]), qa["intervals"]["citation_agreement"])
+    lines += _figure("cohen kappa", _kappa_text(qa), qa["intervals"]["cohen_kappa"])
     lines += _listed("not compared", qa["not_one_id"])
-    lines += [f"  answers: {qa['answers']}",
-              f"  chance-corrected statistic: {qa['chance_corrected']}",
-              f"  interval: {qa['interval']}"]
+    lines += [f"  answers: {qa['answers']}"]
     lines += _listed("contested", qa["contested"])
     return "\n".join(lines)
