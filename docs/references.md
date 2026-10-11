@@ -1480,6 +1480,294 @@ at most 11, is the thesis's. Staged in thesis refs/triage-b150-statistics/
 and approved by Jose on 2026-10-11 ("Register the three held
 (Recommended)", B150 Q7).
 
+**[ADD-115]** PEER. "Equivalence Testing for Psychological Research: A
+Tutorial", Lakens, Scheel, Isager, Advances in Methods and Practices in
+Psychological Science 1(2):259-269, 2018, DOI 10.1177/2515245918770963 (1302
+citations on Crossref, 1577 on OpenAlex, 2026-10-12; passes the bar by peer
+review and by citations). The SAGE version of record,
+refs/ADD-115_LakensEquivalenceTutorial.pdf. VERIFIED 2026-10-12 (title,
+authors, journal, volume, pages and DOI from the first page). SUPPORTING.
+Grounds, in part: the three outcomes card B153 Q1 weighs for reading a
+hypothesis from an interval: a result neither different from zero nor
+statistically equivalent means "there is insufficient data to draw
+conclusions" (p. 260), read as undecided; and "Relying on a benchmark is the
+weakest possible justification of a SESOI and should be avoided." (p. 262),
+which bears on Q1's alternative of a margin per measure. The paper's tests
+are two one-sided tests on effect sizes in psychology; reading one bootstrap
+interval of a difference between instruments' figures this way is the
+thesis's step, and which reading is used is Jose's decision, not decided.
+Staged in thesis refs/triage-b153-hypotheses/ and approved by Jose on
+2026-10-12 ("Register all sixteen (Recommended)", card B153).
+
+**[ADD-116]** PEER. "Using Bayes to get the most out of non-significant
+results", Dienes, Frontiers in Psychology 5:781, 2014, DOI
+10.3389/fpsyg.2014.00781 (1555 citations on Crossref, 2042 on OpenAlex,
+2026-10-12; passes the bar by peer review and by citations). The Frontiers
+version of record, refs/ADD-116_DienesBayesNonsignificant.pdf. VERIFIED
+2026-10-12 (title, author, journal, article number and DOI from the first
+page). SUPPORTING. Grounds, in part: the "against" side of the interval
+reading card B153 Q1 weighs: if the upper limit of the interval is below the
+minimal interesting value, "decide against a theory postulating a positive
+difference (reject a directional theory);" (Figure 2 caption, item (iii), p.
+3). Taking zero as the minimal interesting value for a contrast between
+instruments is the thesis's step. Staged in thesis
+refs/triage-b153-hypotheses/ and approved by Jose on 2026-10-12 ("Register
+all sixteen (Recommended)", card B153).
+
+**[ADD-117]** PEER. "When to adjust alpha during multiple testing: a
+consideration of disjunction, conjunction, and individual testing", Rubin,
+Synthese 199:10969-11000, 2021, DOI 10.1007/s11229-021-03276-4 (328
+citations on Crossref, 375 on OpenAlex, 2026-10-12; passes the bar by peer
+review). The file is the AUTHOR MANUSCRIPT on arXiv (2107.02947),
+refs/ADD-117_RubinAlphaAdjustment_authorcopy.pdf, whose first page prints
+the Synthese citation and DOI; the version of record is not open and not
+held, so quotes carry the manuscript's pages, and the abstract's quotes were
+also checked on the publisher's page, where the abstract sits on the
+article's first page, Synthese p. 10969. VERIFIED 2026-10-12 as to the
+citation (from the manuscript's first page); confirm a full-text passage
+against the Synthese pages before the thesis cites it by page. SUPPORTING.
+Grounds: the distinction card B153 Q1, Q3, Q5 and Q7 rest on: "Alpha
+adjustment is also inappropriate in the case of individual testing", "Alpha
+adjustment is inappropriate in the case of conjunction testing" and "alpha
+adjustment is only appropriate in the case of disjunction testing"
+(abstract, manuscript p. 1, Synthese p. 10969), with the reasoning at
+manuscript pp. 6 to 8, 16 and 17 ("To summarize, researchers only need to
+adjust their alpha level when they undertake disjunction testing of a joint
+null hypothesis.", manuscript p. 17). Reading HYPOTHESIS1 to HYPOTHESIS3 as
+individual tests and a joined reading as a conjunction is the thesis's step,
+and whether to correct is Jose's decision, not decided. The paper's examples
+include clinical science; it is cited for the logic of the tests only.
+Staged in thesis refs/triage-b153-hypotheses/ and approved by Jose on
+2026-10-12 ("Register all sixteen (Recommended)", card B153).
+
+**[ADD-118]** PEER. "Statistical Comparisons of Classifiers over Multiple
+Data Sets", Demšar, Journal of Machine Learning Research 7 (2006) 1-30,
+https://www.jmlr.org/papers/v7/demsar06a.html (no DOI; 11099 citations on
+OpenAlex for the main record, 2026-10-12, a second record holding 1071;
+passes the bar by peer review and by citations). The published PDF from the
+journal's site, refs/ADD-118_DemsarStatisticalComparisons.pdf. VERIFIED
+2026-10-12 (title, author, journal, volume, year and pages from the first
+page). SUPPORTING. Grounds, in part: card B153 Q5, comparing one instrument
+named before the data with each other instrument as with a control: "the
+power of the post-hoc test is much greater when all classifiers are compared
+only to a control" (Section 3.2.2, p. 12); and Q7, not averaging results
+across variables or campaigns: "it is debatable whether error rates in
+different domains are commensurable" (Section 3.1.1, p. 5, quoting Webb
+2000). The paper's rank tests over data sets are not proposed; the control
+design is borrowed for contrasts of agreement figures. Staged in thesis
+refs/triage-b153-hypotheses/ and approved by Jose on 2026-10-12 ("Register
+all sixteen (Recommended)", card B153).
+
+**[ADD-119]** PEER. "Replicability Analysis for Natural Language Processing:
+Testing Significance with Multiple Datasets", Dror, Baumer, Bogomolov,
+Reichart, Transactions of the Association for Computational Linguistics
+5:471-486, 2017, https://aclanthology.org/Q17-1033, DOI 10.1162/tacl_a_00074
+(23 citations on Crossref, 64 on OpenAlex, 2026-10-12; passes the bar by
+peer review). Not the same paper as ADD-73 (Dror, Baumer, Shlomov, Reichart
+2018). The version of record from the ACL Anthology,
+refs/ADD-119_DrorReplicabilityNLP.pdf. VERIFIED 2026-10-12 (title, authors,
+journal, volume, pages and year from the first page). SUPPORTING. Grounds,
+in part: card B153 Q7, how readings on several variables or campaigns
+combine: "This demonstrates that the naive method of counting the datasets
+for which significance was reached at the nominal level is error-prone."
+(Section 3, p. 475), and the paper reports the set where the effect holds
+("the rejection list returned by the Holm procedure", p. 478). Printing E3
+and E5 side by side rather than pooled is the thesis's step; the Holm
+procedure is not proposed. Staged in thesis refs/triage-b153-hypotheses/ and
+approved by Jose on 2026-10-12 ("Register all sixteen (Recommended)", card
+B153).
+
+**[ADD-120]** PEER. "Using the bootstrap to quantify the authority of an
+empirical ranking", Hall, Miller, The Annals of Statistics 37(6B):3929-3959,
+2009, DOI 10.1214/09-AOS699 (30 citations on Crossref, 32 on OpenAlex,
+2026-10-12; passes the bar by peer review). The file is the IMS ELECTRONIC
+REPRINT (arXiv 0911.3749),
+refs/ADD-120_HallMillerBootstrapRanking_reprint.pdf, which states that it
+"differs from the original in pagination and typographic detail"; quotes
+carry the reprint's pages, and only the abstract's page is a journal page
+(p. 3929). VERIFIED 2026-10-12 (title, authors, journal, volume, pages and
+DOI from the reprint's first page). SUPPORTING. Grounds, in part: card B153
+Q5 drops the option of reading the share of resamples in which one
+instrument ranks first, since the standard n-out-of-n bootstrap "estimator
+of the distribution of an empirical rank may not converge in the usual
+sense" (abstract, journal p. 3929, reprint p. 1). The m-out-of-n bootstrap
+the paper shows consistent under its conditions (Section 3.3, reprint p. 10)
+is not proposed. Staged in thesis refs/triage-b153-hypotheses/ and approved
+by Jose on 2026-10-12 ("Register all sixteen (Recommended)", card B153).
+
+**[ADD-121]** PEER. "Inference for Ranks with Applications to Mobility
+across Neighbourhoods and Academic Achievement across Countries", Mogstad,
+Romano, Shaikh, Wilhelm, Review of Economic Studies 91(1):476-518, 2024, DOI
+10.1093/restud/rdad006 (36 citations on Crossref, 58 on OpenAlex,
+2026-10-12; passes the bar by peer review). The file is the ACCEPTED
+MANUSCRIPT from UCL Discovery (eprint 10142590),
+refs/ADD-121_MogstadInferenceRanks_authorcopy.pdf; the Oxford University
+Press version of record is not open and not held, so quotes carry the
+manuscript's pages. VERIFIED 2026-10-12 as to the citation (from the UCL
+Discovery record, as staged; the manuscript prints title and authors only);
+confirm a passage against the journal's pages before the thesis cites it by
+page. SUPPORTING. Grounds: an alternative card B153 Q5 lists, not decided: a
+"confidence set for the τ -best populations" (manuscript p. 2), built by
+methods "that do not break down when some (or even all) measures θj are
+(close to) equal" (p. 9), with "no requirement that the estimators" are
+independent (p. 11). Applying it to instruments' agreement figures would be
+the thesis's step; the report does not have the procedure. Staged in thesis
+refs/triage-b153-hypotheses/ and approved by Jose on 2026-10-12 ("Register
+all sixteen (Recommended)", card B153).
+
+**[ADD-122]** PEER. "JuStRank: Benchmarking LLM Judges for System Ranking",
+Gera, Boni, Perlitz, Bar-Haim, Eden, Yehudai, Proceedings of the 63rd Annual
+Meeting of the ACL (Volume 1: Long Papers), 2025, pp. 682-712, DOI
+10.18653/v1/2025.acl-long.34 (2 citations on Crossref and on OpenAlex,
+2026-10-12; passes the bar by peer review). The version of record from the
+ACL Anthology, refs/ADD-122_JuStRank.pdf. VERIFIED 2026-10-12 (title,
+authors, proceedings and pages from the first page). SUPPORTING. Grounds, in
+part: card B153 Q3, how "improves with capability tier" is read: "JuStRank
+demonstrates that judge ranking abilities are not directly tied to LLM size
+or overall quality" (Conclusion, p. 690), and the unit compared is the model
+with its setting: "For every judge model, only the best-performing
+realization and aggregation method is shown." (Table 1 caption, p. 685). The
+size statement is read from a leaderboard, not from a test of a trend.
+Staged in thesis refs/triage-b153-hypotheses/ and approved by Jose on
+2026-10-12 ("Register all sixteen (Recommended)", card B153).
+
+**[ADD-123]** PEER. "Judging the Judges: Evaluating Alignment and
+Vulnerabilities in LLMs-as-Judges", Thakur, Choudhary, Ramayapally,
+Vaidyanathan, Hupkes, Proceedings of the Fourth Workshop on Generation,
+Evaluation and Metrics (GEM 2025), pp. 404-430,
+https://aclanthology.org/2025.gem-1.33 (a peer reviewed workshop paper; no
+DOI found for the published version; 7 citations on OpenAlex for the arXiv
+record 2406.12624, 2026-10-12; passes the bar by peer review). The version
+of record from the ACL Anthology, refs/ADD-123_JudgingTheJudges.pdf.
+VERIFIED 2026-10-12 (title, authors, proceedings and pages from the first
+page). SUPPORTING. Grounds, in part: card B153 Q3: judge studies read the
+size order from a ranking of point values, "We find that only the best (and
+largest) models show reasonable alignment with humans, though they still
+differ" (abstract, p. 404), not from a test; and "We find that smaller
+models are more likely to judge positively when in doubt" (Conclusion, p.
+411). The rule for testing a trend across tiers is Jose's decision, not
+decided. Staged in thesis refs/triage-b153-hypotheses/ and approved by Jose
+on 2026-10-12 ("Register all sixteen (Recommended)", card B153).
+
+**[ADD-124]** PEER. "On the Effectiveness of LLM-as-a-judge for Code
+Generation and Summarization", Crupi, Tufano, Velasco, Mastropaolo,
+Poshyvanyk, Bavota, IEEE Transactions on Software Engineering
+51(8):2329-2345, 2025, DOI 10.1109/TSE.2025.3586082 (34 citations on
+Crossref, 25 on OpenAlex, 2026-10-12; passes the bar by peer review). The
+file is the AUTHOR MANUSCRIPT from NSF PAR (par.nsf.gov/biblio/10647934),
+refs/ADD-124_CrupiLLMJudgeCode_authorcopy.pdf, in the IEEE template with the
+arXiv stamp 2507.16587v1; the IEEE version of record is not open and not
+held, so quotes carry the manuscript's pages. VERIFIED 2026-10-12 as to the
+citation (DOI from Crossref and the NSF PAR record; the manuscript does not
+print it); confirm a passage against the TSE pages before the thesis cites
+it by page. SUPPORTING. Grounds, in part: card B153 Q4, a family leniency
+across generators: "In general, all LLMs tend to overestimate the
+correctness of the code generated by all other LLMs" (Section 3.1.1,
+manuscript p. 10) and "Models from the GPT family tend to overestimate the
+content adequacy of summaries" (manuscript p. 13). The paper uses several
+generators; comparing two families' excesses on one generator's output is
+the thesis's step. Staged in thesis refs/triage-b153-hypotheses/ and
+approved by Jose on 2026-10-12 ("Register all sixteen (Recommended)", card
+B153).
+
+**[ADD-125]** PEER. "Are Large Language Model-based Evaluators the Solution
+to Scaling Up Multilingual Evaluation?", Hada, Gumma, de Wynter, Diddee,
+Ahmed, Choudhury, Bali, Sitaram, Findings of the ACL: EACL 2024, pp.
+1051-1070, DOI 10.18653/v1/2024.findings-eacl.71 (10 citations on Crossref,
+6 on OpenAlex, 2026-10-12; passes the bar by peer review). The version of
+record from the ACL Anthology, refs/ADD-125_HadaMultilingualEvaluators.pdf.
+VERIFIED 2026-10-12 (title, authors, volume and pages from the first page).
+SUPPORTING. Grounds, in part: card B153 Q4, the design closest to B153's,
+GPT-4 judging the output of a GPT-4-powered application against human
+annotators: "Our analysis reveals a bias in GPT4-based evaluators towards
+higher scores" (abstract, p. 1051; the note anchors the stretch "evaluators
+towards higher scores", the text layer joining "GPT4-based" over a line
+break). The paper has one judge family and does not test self-preference.
+Staged in thesis refs/triage-b153-hypotheses/ and approved by Jose on
+2026-10-12 ("Register all sixteen (Recommended)", card B153).
+
+**[ADD-126]** PEER. "Great Models Think Alike and this Undermines AI
+Oversight", Goel, Strüber, Auzina, Chandra, Kumaraguru, Kiela, Prabhu,
+Bethge, Geiping, Proceedings of the 42nd International Conference on Machine
+Learning (ICML 2025), PMLR 267, pp. 19621-19678,
+https://proceedings.mlr.press/v267/goel25b.html (no DOI; 2 citations on
+OpenAlex for the arXiv record 2502.04313, 2026-10-12; passes the bar by peer
+review). The PMLR version of record,
+refs/ADD-126_GoelGreatModelsThinkAlike.pdf, whose pages are numbered from 1
+(volume page = printed page + 19620). VERIFIED 2026-10-12 (title, authors
+and "PMLR 267, 2025" from the first page). SUPPORTING. Grounds, in part:
+card B153 Q4, why a judge from the other family is a comparison and not a
+neutral control: "This would indicate that it is not sufficient to just use
+a held-out LM as the judge; one must account for the confounder of
+similarity." (Section 3, p. 4, volume p. 19624). The paper studies many
+generators; B74 has one. Staged in thesis refs/triage-b153-hypotheses/ and
+approved by Jose on 2026-10-12 ("Register all sixteen (Recommended)", card
+B153).
+
+**[ADD-127]** PEER. "Testing the Difference of Correlated Agreement
+Coefficients for Statistical Significance", Gwet, Educational and
+Psychological Measurement 76(4):609-637, 2016, DOI 10.1177/0013164415596420
+(125 citations on Crossref, 138 on OpenAlex, 2026-10-12; passes the bar by
+peer review). The SAGE version of record from PubMed Central (PMC5965565),
+refs/ADD-127_GwetCorrelatedAgreement.pdf. VERIFIED 2026-10-12 (title,
+author, journal, volume, pages and DOI from the first page). SUPPORTING.
+Grounds, in part: card B153 Q1 and Q2, why two agreement coefficients from
+the same items are compared on paired resamples: "the variance of the
+difference is always smaller that the sum of the variances" (p. 620, "that"
+as printed). Its scope is nominal coefficients ("We will confine ourselves
+to chance-corrected coefficients of agreement for nominal scales", p. 610),
+and its method is linearization; the bootstrap and any ordinal or weighted
+figure are outside it. Staged in thesis refs/triage-b153-hypotheses/ and
+approved by Jose on 2026-10-12 ("Register all sixteen (Recommended)", card
+B153).
+
+**[ADD-128]** PEER. "The LLM Effect: Are Humans Truly Using LLMs, or Are
+They Being Influenced By Them Instead?", Choi, Akter, Singh, Anastasopoulos,
+Proceedings of the 2024 Conference on Empirical Methods in Natural Language
+Processing (EMNLP 2024), pp. 22032-22054, DOI
+10.18653/v1/2024.emnlp-main.1230 (6 citations on Crossref, 7 on OpenAlex,
+2026-10-12; passes the bar by peer review). The version of record from the
+ACL Anthology, refs/ADD-128_ChoiLLMEffect.pdf. VERIFIED 2026-10-12 (title,
+authors, proceedings and pages from the first page). SUPPORTING. Grounds, in
+part: card B153 Q6, why a human-model figure on pre-annotated units is read
+beside one without suggestions: Cohen's kappa between each expert and the
+model is 43.9% without the model's suggestions and "rises to 71.5%,
+indicating the annotators and LLM aligned heavily." with them (p. 22038).
+The paper's task is topic annotation of policy documents. Staged in thesis
+refs/triage-b153-hypotheses/ and approved by Jose on 2026-10-12 ("Register
+all sixteen (Recommended)", card B153).
+
+**[ADD-129]** PEER. "Just Put a Human in the Loop? Investigating
+LLM-Assisted Annotation for Subjective Tasks", Schroeder, Roy, Kabbara,
+Findings of the ACL: ACL 2025, pp. 25771-25795, DOI
+10.18653/v1/2025.findings-acl.1323 (17 citations on Crossref, 13 on
+OpenAlex, 2026-10-12; passes the bar by peer review). The version of record
+from the ACL Anthology, refs/ADD-129_SchroederHumanInTheLoop.pdf. VERIFIED
+2026-10-12 (title, authors, volume and pages from the first page).
+SUPPORTING. Grounds, in part: card B153 Q6: "using LLM assistance to
+construct ground truth labels inflates perceptions of model performance on
+that task" (Discussion, p. 25779), even when people review the labels. The
+paper's task is subjective labelling by crowd workers. Staged in thesis
+refs/triage-b153-hypotheses/ and approved by Jose on 2026-10-12 ("Register
+all sixteen (Recommended)", card B153).
+
+**[ADD-130]** PEER. "Can GPT Alleviate the Burden of Annotation?", Gray,
+Savelka, Oliver, Ashley, Legal Knowledge and Information Systems (JURIX
+2023), Frontiers in Artificial Intelligence and Applications 379, pp.
+157-166, IOS Press, DOI 10.3233/FAIA230961 (12 citations on Crossref, 13 on
+OpenAlex, 2026-10-12; passes the bar by peer review). The IOS Press open
+access version of record (CC BY-NC 4.0), refs/ADD-130_GrayGPTAnnotation.pdf.
+VERIFIED 2026-10-12 (title, authors, volume, DOI and first page from the
+first page). SUPPORTING. Grounds, in part: card B153 Q6, annotator-model
+agreement reported with percent agreement, Cohen's kappa and Gwet's AC1
+beside model-reference agreement (Table 7, p. 164: "the agreement between
+GPT pre-annotations and human annotators is not much higher" than the
+agreement between pre-annotations and the gold standard), the reference
+built "without the assistance of GPT pre-annotation" (p. 162). The paper
+computes annotator-model agreement on pre-annotated cases only. Staged in
+thesis refs/triage-b153-hypotheses/ and approved by Jose on 2026-10-12
+("Register all sixteen (Recommended)", card B153).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not

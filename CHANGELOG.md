@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B153: sources for the hypothesis readings and the Layer 2 human-model figure registered (2026-10-12)
+- B153: references.md registers ADD-115 to ADD-130 (Lakens et al. 2018, Dienes 2014, Rubin 2021, Demšar 2006, Dror et al. 2017, Hall and Miller 2009, Mogstad et al. 2024, Gera et al. 2025, Thakur et al. 2025, Crupi et al. 2025, Hada et al. 2024, Goel et al. 2025, Gwet 2016, Choi et al. 2024, Schroeder et al. 2025, Gray et al. 2023), approved by Jose on 2026-10-12; no code cites them yet.
+
 ### Docs: how a coding agent obtains the description elicit_features reads (2026-10-11)
 - README, SKILL.md, docs/server and the server instructions say how `elicit_features` is used today: inside a coding agent's harness the agent reads the project it works in (code, README, configuration, documentation) and, when the user asks, sends a description it writes from what it read; the input is still text of at least 30 characters, TERE4AI never reads the repository (docs/architecture.md Section 8): the quote check proves each fact's words are in that text, not in the code, and a fact carries no file or line. Until the MAISA release the input was a plain description of the system.
 
