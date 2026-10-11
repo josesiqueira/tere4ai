@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from tere4ai.eval import harness
+from tere4ai.eval.ablation_declaration import declaration_sha256
 from tere4ai.eval.evaluation_record import EvaluationRecordStore
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
@@ -120,7 +121,8 @@ def test_a_completed_run_writes_a_record_with_inputs_outputs_usage_and_copies(ru
     (rec,) = [r for r in store.list_records() if not r.get("unreadable")]
     assert rec["kind"] == "run" and rec["step"] == "E6" and rec["command"] == "run_ablations"
     assert rec["outcome"]["status"] == "completed" and rec["outcome"]["completed_items"] == ["gold:cls-01", "gold:cls-02"]
-    assert {i["input_kind"] for i in rec["inputs"]} == {"layer1_dump", "norms", "benchmark", "gold_seed", "features"}
+    assert {i["input_kind"] for i in rec["inputs"]} == {"layer1_dump", "norms", "benchmark", "gold_seed", "features",
+                                                   "e6_declaration"}
     assert rec["build"]["base_build_id"] == "build-b" and rec["build"]["publication"] is None
     assert rec["models"] == {"generator_model": "g", "judge_model": "j"}
     # B99 (spec F D-F29): the evaluation record carries the declared sampling (review T-M7); the double has only sampling
@@ -166,7 +168,8 @@ def test_a_resumed_run_names_its_predecessor_or_says_none_does(runner, tmp_path)
     assert any(i["input_kind"] == "checkpoint_resumed" for i in second["inputs"])
     assert second["counts"]["units_resumed"] == 1
     # a checkpoint no record names: resumed only with the explicit flag
-    (tmp_path / "results" / "orphan.jsonl").write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {}}) + "\n")
+    (tmp_path / "results" / "orphan.jsonl").write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {},
+                                                                   "e6_declaration_sha256": declaration_sha256()}) + "\n")
     assert runner.main(_argv(tmp_path, "--checkpoint", str(tmp_path / "results" / "orphan.jsonl"),
                              "--resume-unrecorded")) == 0
     third = max(store.list_records(), key=lambda r: r["started_at"])
@@ -298,7 +301,8 @@ def test_an_unrecorded_checkpoint_is_resumed_only_with_the_flag(runner, tmp_path
     results = tmp_path / "results"
     results.mkdir()
     orphan = results / "orphan.jsonl"
-    orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {}}) + "\n")
+    orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {},
+                                  "e6_declaration_sha256": declaration_sha256()}) + "\n")
     argv = _argv(tmp_path, "--checkpoint", str(orphan))
     for extra in ((), ("--no-record",)):
         assert runner.main([*argv, *extra]) == 2
@@ -939,5 +943,6 @@ def test_an_unrecorded_resume_refuses_entries_of_another_digest(runner, monkeypa
     assert refusal in capsys.readouterr().out
     assert EvaluationRecordStore(tmp_path, create=False).list_records() == []
     orphan.write_text(json.dumps({"unit": "plain_llm:batch0", "strategy": "plain_llm", "results": {},
-                                  "model_parameters_sha256": digest}) + "\n")
+                                  "model_parameters_sha256": digest,
+                                  "e6_declaration_sha256": declaration_sha256()}) + "\n")
     assert runner.main(argv) == 0

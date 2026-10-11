@@ -7,6 +7,7 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ### B150: E6's declared analysis built (spec G D-G84)
 - B150: conditions 5 and 6 (graph_full, graph_runtime_judge) no longer call the runtime grounding judge on a classification case, where it received an empty list of cited norms; there they give what conditions 4 and 3 give (spec G D-G84 (4)).
+- B150, contract change: every run record of scripts/run_ablations.py carries the digest of eval/e6_declaration.json (input kind e6_declaration, and each checkpoint unit e6_declaration_sha256; a resume under another declaration is refused) and config item_set and repetition; --repeat-of must name the group's first run, and a repetition that differs from it in an input, the items, the models, the build or the item set is refused before any model call; in a repetition conditions 3 to 6 run question and retrieval cases only (spec G D-G84 (5)), their summary blocks leave the classification cases out and the summary says so (run_once, notes).
 
 ### B149: the hand-made test set's agreement computed as its protocol names it (2026-10-11)
 - B149: `cohen_kappa` returns None (printed n/a), never 1.0, when both labellers used one category (spec F conventions).

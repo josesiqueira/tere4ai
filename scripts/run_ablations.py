@@ -26,10 +26,19 @@ items_contested counts it (B149). The pooled keys (risk_accuracy_overall,
 citation_completeness, hallucinated_citation_rate, citations_emitted_total
 and the per-set blocks) are kept for the readers of the July summaries.
 
+Every run record carries the digest of E6's declaration
+(eval/e6_declaration.json, spec G D-G84 (7)). A repetition (--repeat-of)
+names the group's first run and is refused, before any model call, when it
+differs from it in an input, the items, the models, the build or the item
+set; in a repetition, conditions 3 to 6 run question and retrieval cases
+only, their classification cases having run once in the first run (D-G84
+(5)), and the summary says so (run_once, notes).
+
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
-(items x strategies) generator calls plus items judge calls for each of the
-two conditions that call the runtime judge (graph_full, graph_runtime_judge).
+(items x strategies) generator calls in the first run, plus question and
+retrieval items judge calls for each of the two conditions that call the
+runtime judge (graph_full, graph_runtime_judge).
 """
 
 from __future__ import annotations
@@ -48,11 +57,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.eval import harness, metrics, strategies  # noqa: E402
+from tere4ai.eval.ablation_declaration import (  # noqa: E402
+    DECLARATION_PATH,
+    DeclarationError,
+    declaration_sha256,
+    load_declaration,
+)
+from tere4ai.eval.ablation_group import identity_differences  # noqa: E402
 from tere4ai.eval.evaluation_record import (  # noqa: E402
     RECORD_FILE_STEM,
     EvaluationRecordError,
     EvaluationRecordStore,
     code_version,
+    digest_of_ids,
     end_failed,
     input_ref,
     observe_publication,
@@ -80,6 +97,13 @@ RESULTS_DIR = ROOT / "eval" / "results"
 RUNS_DIRNAME = "runs"
 CHECKPOINT_NAME = "ablation_checkpoint.jsonl"
 SUMMARY_NAME = "ablation_summary.json"
+# spec G D-G84 (4), (5): the run's summary says what the conditions do on a
+# classification case
+RUNTIME_JUDGE_NOTE = ("on a classification case the runtime judge is not called, so graph_full gives what "
+                      "graph_build_judge gives and graph_runtime_judge what graph_no_judge gives (spec G D-G84 (4))")
+RUN_ONCE_NOTE = ("a repetition: these conditions ran on question and retrieval cases only; their classification "
+                 "cases ran once, in the group's first run, since no model call decides that outcome (spec G "
+                 "D-G84 (5)), and their blocks here leave those cases out")
 BATCH_SIZE = 10
 # the pinned July summaries and checkpoints: never appended to, never rewritten
 JULY_PROTECTED = frozenset(JULY_DIGESTS.values()) | frozenset(JULY_CHECKPOINT_DIGESTS.values())
@@ -94,16 +118,18 @@ def _july_refusal(path: Path) -> str | None:
 
 
 def _completed_items(unit_results: list[dict], items: list[dict],
-                     strategy_names: list[str]) -> tuple[list[str], list[str]]:
+                     expected: dict[str, list[str]]) -> tuple[list[str], list[str]]:
     """(completed, errored) item ids over the checkpointed units: an item is
-    completed when every strategy holds a result for it without an error."""
+    completed when every strategy that runs it in this run (expected, the
+    run-once rule applied) holds a result for it without an error."""
     merged: dict[str, dict] = {}
     for entry in unit_results:
         merged.setdefault(entry["strategy"], {}).update(entry["results"])
     errored = sorted({item_id for results in merged.values() for item_id, r in results.items()
                       if isinstance(r, dict) and r.get("error")})
+    wanted = {name: set(ids) for name, ids in expected.items()}
     completed = [i["id"] for i in items if i["id"] not in set(errored)
-                 and all(i["id"] in merged.get(name, {}) for name in strategy_names)]
+                 and all(i["id"] in merged.get(name, {}) for name, ids in wanted.items() if i["id"] in ids)]
     return completed, errored
 
 
@@ -201,13 +227,16 @@ def resolve_resume(checkpoint_path: Path, dump_dir: Path) -> tuple[str | None, s
 
 
 def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list[dict],
-                         resumes: str | None, dump_dir: Path) -> str | None:
+                         resumes: str | None, dump_dir: Path, declaration_digest: str) -> str | None:
     """The refusal sentence when a resume would continue under another
     declaration (spec F D-F29, ruling P6), else None: the resumed record's
     models against the loaded ones, then every checkpointed unit's digest
     (the only witness of a checkpoint no record names): under a declared
     configuration a unit without one differs too, otherwise only a unit
-    that names one is compared."""
+    that names one is compared. Then E6's declaration (B150, spec G D-G84
+    (7)): the resumed record's e6_declaration input and every unit's
+    e6_declaration_sha256 against the loaded file's digest; a unit without
+    the digest, written before B150, differs too."""
     way_out = ("restore the row in config/model_parameters.json to resume it, or pass --checkpoint with a "
                "fresh path to start again")
     head = f"refusing to resume {checkpoint_path}"
@@ -222,6 +251,17 @@ def _declaration_refusal(checkpoint_path: Path, config: dict, unit_results: list
     if any(("model_parameters_sha256" in e or ours is not None) and e.get("model_parameters_sha256") != ours
            for e in unit_results):
         return f"{head}: a checkpointed unit was run under different models: model_parameters_sha256; {way_out}"
+    # B150 (Codex finding 4): a resume never carries results of another E6
+    # declaration under the digest this run records (spec G D-G84 (7))
+    e6_way_out = ("restore eval/e6_declaration.json as it was to resume it, or pass --checkpoint with a fresh "
+                  "path to start again")
+    if resumes is not None:
+        record = EvaluationRecordStore(dump_dir, create=False).read(resumes)
+        theirs = next((i["sha256"] for i in record.get("inputs") or [] if i["input_kind"] == "e6_declaration"), None)
+        if theirs != declaration_digest:
+            return f"{head}: evaluation record {resumes} ran under another E6 declaration; {e6_way_out}"
+    if any(e.get("e6_declaration_sha256") != declaration_digest for e in unit_results):
+        return f"{head}: a checkpointed unit was run under another E6 declaration; {e6_way_out}"
     return None
 
 
@@ -246,6 +286,30 @@ def load_items(benchmark_path=None, features_path=None) -> list[dict]:
     for item in items:
         assert item.get("id"), "every item needs an id"
     return items
+
+
+def run_items(items: list[dict], name: str, skipped: set[str], case_kind: str) -> list[dict]:
+    """The cases a condition runs in this run: in a repetition, a run-once
+    condition leaves out the run-once case kind (spec G D-G84 (5))."""
+    if name in skipped:
+        return [i for i in items if i.get("kind") != case_kind]
+    return list(items)
+
+
+def repeat_refusal(first: dict, candidate: dict) -> str | None:
+    """The refusal sentence when a run that would begin as candidate cannot
+    repeat the run first names (spec G D-G84 (7)), else None."""
+    fid = first["record_id"]
+    if first.get("kind") != "run" or first.get("step") != "E6":
+        return f"--repeat-of: evaluation record {fid} is not an E6 run"
+    head = (first.get("relations") or {}).get("repeat_of")
+    if head is not None:
+        return f"--repeat-of: evaluation record {fid} is itself a repetition; name the group's first run {head}"
+    differing = identity_differences(first, candidate, prompt_versions=False)
+    if differing:
+        return (f"--repeat-of: this run differs from the group's first run {fid} in {', '.join(differing)}; "
+                "a repetition repeats the first run exactly (spec G D-G84 (7))")
+    return None
 
 
 def elicitor_prompt(features_path: Path) -> dict[str, Any]:
@@ -388,6 +452,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeat-of", default=None, help="record id of the run this run repeats")
     parser.add_argument("--resume-unrecorded", action="store_true",
                         help="resume a checkpoint no evaluation record names (the note is recorded)")
+    parser.add_argument("--declaration", type=Path, default=DECLARATION_PATH,
+                        help="E6's declaration (spec G D-G84); its digest goes into the record")
     args = parser.parse_args(argv)
     if args.repeat_of is not None and args.no_record:
         print("--repeat-of: a --no-record run records no relation; drop one of the two flags")
@@ -403,6 +469,14 @@ def main(argv: list[str] | None = None) -> int:
         if refusal is not None:
             print(refusal)
             return 2
+    try:
+        declaration = load_declaration(args.declaration)
+    except DeclarationError as exc:
+        print(f"refusing to run: {exc}")
+        return 2
+    declaration_digest = declaration_sha256(args.declaration)
+    run_once = declaration["repetitions"]["run_once"]
+    item_set = "main"
 
     paths = served_input_paths(args.dump_dir)
     for kind in ("layer1_dump", "norms"):
@@ -448,30 +522,35 @@ def main(argv: list[str] | None = None) -> int:
         # spec F D-F29 (final review I1): a resume never continues under
         # another declaration, in the sentence shape of prepare_resume
         # (ruling P6); a record made before the digest existed differs too
-        refusal = _declaration_refusal(checkpoint_path, config, unit_results, resumes, args.dump_dir)
+        refusal = _declaration_refusal(checkpoint_path, config, unit_results, resumes, args.dump_dir,
+                                       declaration_digest)
         if refusal is not None:
             print(refusal)
             return 2
 
+    first_run = None
     if args.repeat_of is not None:
         # resolved through a read-only store first: a refusal leaves no evaluation_records/ behind (B81 item 10)
         try:
-            EvaluationRecordStore(args.dump_dir, create=False).read(args.repeat_of)
+            first_run = EvaluationRecordStore(args.dump_dir, create=False).read(args.repeat_of)
         except Exception as exc:  # noqa: BLE001 - the reason is printed, the run refused
             print(f"--repeat-of: {exc}")
             return 2
-    store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
     record_id = None
     elicitor_versions: dict[str, Any] = {}
-    if store is not None:
+    inputs: list[dict] = []
+    build: dict[str, Any] | None = None
+    if not args.no_record:
         features_path = args.features or (ROOT / "eval" / "gold" / "benchmark_features.json")
         inputs = [
             input_ref("layer1_dump", paths["layer1_dump"]),
             input_ref("norms", paths["norms"]),
             input_ref("benchmark", args.benchmark or harness.BENCHMARK_SAMPLE_PATH),
             input_ref("gold_seed", harness.GOLD_SEED_PATH),
+            # spec G D-G84 (7): every run record carries the declaration's digest
+            input_ref("e6_declaration", args.declaration),
         ]
-        # the cache is optional to load_items: recorded only when it was read (G7)
+        # the facts file is read only when present: recorded only when it was read (G7)
         if features_path.is_file():
             inputs.append(input_ref("features", features_path))
             # B10: the record names the elicitor's prompt beside the strategies' models
@@ -482,14 +561,24 @@ def main(argv: list[str] | None = None) -> int:
             inputs.append(input_ref("checkpoint_resumed", checkpoint_path))
         publication, publication_reason = observe_publication(args.dump_dir)
         base_build_id = (dump.get("build") or {}).get("build_id")
+        build = {"base_build_id": str(base_build_id) if base_build_id is not None else None,
+                 "publication": publication, "publication_reason": publication_reason}
+        if first_run is not None:
+            refusal = repeat_refusal(first_run, {
+                "inputs": inputs, "item_selection_sha256": digest_of_ids([i["id"] for i in items]),
+                "models": config, "build": build, "config": {"item_set": item_set}})
+            if refusal is not None:
+                print(refusal)
+                return 2
+    store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
+    if store is not None:
         record_id = store.begin(
             kind="run", step="E6", command="run_ablations", argv=list(argv) if argv is not None else sys.argv[1:],
-            inputs=inputs,
-            build={"base_build_id": str(base_build_id) if base_build_id is not None else None,
-                   "publication": publication, "publication_reason": publication_reason},
+            inputs=inputs, build=build,
             models=config, prompt_versions=elicitor_versions or None, config={
                 "strategies": list(strategies.STRATEGY_NAMES), "batch_size": BATCH_SIZE,
-                "metrics_version": METRICS_VERSION, "code_version": code_version(ROOT), "mode": "live"},
+                "metrics_version": METRICS_VERSION, "code_version": code_version(ROOT), "mode": "live",
+                "item_set": item_set, "repetition": "repeat" if args.repeat_of is not None else "first"},
             item_selection=[i["id"] for i in items], intended_items=[i["id"] for i in items],
             relations={"repeat_of": args.repeat_of, "resumes_record_id": resumes},
             counts={"units_resumed": len(done)},
@@ -499,6 +588,10 @@ def main(argv: list[str] | None = None) -> int:
         checkpoint_path = checkpoint_path or run_dir / CHECKPOINT_NAME
         summary_path = summary_path or run_dir / SUMMARY_NAME
 
+    # spec G D-G84 (5): in a repetition the run-once conditions leave out the run-once cases
+    skipped = set(run_once["conditions"]) if args.repeat_of is not None else set()
+    expected = {name: [i["id"] for i in run_items(items, name, skipped, run_once["case_kind"])]
+                for name in strategies.STRATEGY_NAMES}
     generator = judge = None
     units_run = 0
     # the strategies as built, so both finishes read their models after the
@@ -515,7 +608,6 @@ def main(argv: list[str] | None = None) -> int:
         generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
         judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
 
-        batches = [items[i : i + BATCH_SIZE] for i in range(0, len(items), BATCH_SIZE)]
         with checkpoint_path.open("a", encoding="utf-8") as ckpt:
             for strategy_name in strategies.STRATEGY_NAMES:
                 fn = strategies.build_strategy(
@@ -526,6 +618,8 @@ def main(argv: list[str] | None = None) -> int:
                     norms_payload=norms_payload,
                 )
                 built[strategy_name] = fn
+                own = run_items(items, strategy_name, skipped, run_once["case_kind"])
+                batches = [own[i : i + BATCH_SIZE] for i in range(0, len(own), BATCH_SIZE)]
                 for bi, batch in enumerate(batches):
                     unit = f"{strategy_name}:batch{bi}"
                     if unit in done:
@@ -570,6 +664,8 @@ def main(argv: list[str] | None = None) -> int:
                     # so a resume no record names can still refuse another one
                     if "model_parameters_sha256" in config:
                         entry["model_parameters_sha256"] = config["model_parameters_sha256"]
+                    # B150: and E6's declaration, so a resume under another one is refused
+                    entry["e6_declaration_sha256"] = declaration_digest
                     ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                     ckpt.flush()
                     units_run += 1
@@ -645,7 +741,7 @@ def main(argv: list[str] | None = None) -> int:
         scored_items = [i for i in items if i["id"] not in contested_ids]
         gold_items = [i for i in scored_items if i.get("gold") or i.get("gold_citations")]
         valid_node_ids = {n["id"] for n in dump["nodes"]}
-        summary: dict[str, dict] = {
+        summary: dict[str, Any] = {
             "config": config,
             "items_total": len(items),
             "items_contested": len(contested),
@@ -661,7 +757,11 @@ def main(argv: list[str] | None = None) -> int:
                 ),
             },
             "strategies": {},
+            "notes": [RUNTIME_JUDGE_NOTE],
         }
+        if skipped:
+            summary["run_once"] = {"conditions": sorted(skipped), "case_kind": run_once["case_kind"],
+                                   "first_run": args.repeat_of, "note": RUN_ONCE_NOTE}
         # seed items are id-prefixed gold:, benchmark items bench: (loader convention)
         seed_cls = [
             i for i in gold_items
@@ -670,34 +770,41 @@ def main(argv: list[str] | None = None) -> int:
         bench_items = [i for i in scored_items if i["id"].startswith("bench:")]
         bench_cls = [i for i in bench_items if i.get("kind") == "classification"]
         for strategy_name, all_results in merged.items():
+            # spec G D-G84 (5): each block over the condition's own cases in this run
+            own_ids = set(expected.get(strategy_name, [i["id"] for i in items]))
+            own_scored = [i for i in scored_items if i["id"] in own_ids]
+            own_gold = [i for i in gold_items if i["id"] in own_ids]
+            own_seed_cls = [i for i in seed_cls if i["id"] in own_ids]
+            own_bench = [i for i in bench_items if i["id"] in own_ids]
+            own_bench_cls = [i for i in bench_cls if i["id"] in own_ids]
             results = {k: r for k, r in all_results.items() if k not in contested_ids}
             gold_ok = sum(
                 1
-                for gi in seed_cls
+                for gi in own_seed_cls
                 if results.get(gi["id"], {}).get("risk_category")
                 == gi["gold"].get("risk_category")
             )
             bench_ok = sum(
                 1
-                for bi in bench_cls
+                for bi in own_bench_cls
                 if results.get(bi["id"], {}).get("risk_category")
                 == bi["gold"].get("risk_category")
             )
             s = {
                 "risk_accuracy_overall": metrics.risk_classification_accuracy(
-                    results, gold_items
+                    results, own_gold
                 ),
                 "gold_structured_classification": {
                     "correct": gold_ok,
-                    "total": len(seed_cls),
+                    "total": len(own_seed_cls),
                     "note": "seed items with structured system_features; the deterministic path",
                 },
                 "benchmark_freetext_classification": {
                     "correct": bench_ok,
-                    "total": len(bench_cls),
+                    "total": len(own_bench_cls),
                     "abstained": sum(
                         1
-                        for bi in bench_cls
+                        for bi in own_bench_cls
                         if is_abstained(results.get(bi["id"], {}).get("risk_category"))
                     ),
                     "note": (
@@ -709,18 +816,18 @@ def main(argv: list[str] | None = None) -> int:
                     ),
                 },
                 "benchmark_citation_completeness_article_level": article_level_completeness(
-                    results, bench_items
+                    results, own_bench
                 ),
                 "citations_emitted_total": sum(
                     len(r.get("citations") or []) for r in results.values()
                 ),
-                "citation_completeness": metrics.citation_completeness(results, gold_items),
+                "citation_completeness": metrics.citation_completeness(results, own_gold),
                 "hallucinated_citation_rate": metrics.hallucinated_citation_rate(
                     results, valid_node_ids
                 ),
                 "errors": sum(1 for r in all_results.values() if "error" in r),
                 # what the thesis reports (B126, ruling R3); the keys above are pooled
-                "by_answer_key": answer_key_blocks(results, scored_items, valid_node_ids),
+                "by_answer_key": answer_key_blocks(results, own_scored, valid_node_ids),
                 "contested": contested_block(all_results, contested),
             }
             if s["citations_emitted_total"] == 0:
@@ -733,7 +840,7 @@ def main(argv: list[str] | None = None) -> int:
         tmp.replace(summary_path)
 
         if store is not None and record_id is not None:
-            completed, errored = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
+            completed, errored = _completed_items(unit_results, items, expected)
             outputs = [store.keep_output(record_id, "summary", summary_path),
                        store.keep_output(record_id, "checkpoint", checkpoint_path)]
             models_now = harness.strategy_models(built, list(built))
@@ -759,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
         backend_refused = isinstance(exc, InferenceBackendRefused)
         refused = isinstance(exc, ConfigurationError)
         if store is not None and record_id is not None:
-            completed, _ = _completed_items(unit_results, items, list(strategies.STRATEGY_NAMES))
+            completed, _ = _completed_items(unit_results, items, expected)
             models_now = harness.strategy_models(built, list(built)) or None
             # a record that already ended inside the try is left as it is; a refused finish ends it failed
             end_failed(store, record_id,
