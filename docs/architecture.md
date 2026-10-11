@@ -539,6 +539,7 @@ OVR-10. grounded_by: REF-15, REF-16, REF-17, REF-18, REF-24
   accuracy, condition and exception recall, mapping precision, judge false-accept
   and false-reject rates, runtime citation completeness, hallucinated citation
   rate, human-review disagreement, developer usefulness.
+- Analysis of E6 (spec G D-G84 in the private research repository, B150): three primary contrasts, declared in eval/e6_declaration.json before the main run, each read on the hand-made gold set as the paired difference of majority outcomes with a 95% percentile bootstrap interval, McNemar's exact test and Bonferroni's correction (ADD-73, ADD-74); the runtime judge read by four shares on the answers it gates; the number of repetitions fixed by a pilot run on the REF-15 items outside the frozen sample (scripts/analyse_ablations.py).
 - Caution: existing compliance benchmarks are thin for systemic risk (REF-18);
   v2 excludes GPAI systemic risk, so exposure is limited.
 

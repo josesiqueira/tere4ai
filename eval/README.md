@@ -116,6 +116,18 @@ and `items_contested` counts it (B149). The pooled keys
 `hallucinated_citation_rate`, `citations_emitted_total` and the per-set
 blocks) are kept for the readers of the July summaries.
 
+## The declared analysis (spec G D-G84, B150)
+
+E6's analysis is declared before the main run in `eval/e6_declaration.json`, and every run record carries its digest. The pilot run comes first, on the development set (the REF-15 items outside the frozen sample):
+
+    .venv/bin/python scripts/build_full_benchmark_payload.py --development-set
+    .venv/bin/python scripts/elicit_benchmark_features.py --benchmark data/snapshots/benchmark/development_payload.json --out eval/gold/development_features.json
+    TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py --development-set            # the first run
+    TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py --development-set --repeat-of <first run>   # four times
+    .venv/bin/python scripts/analyse_ablations.py --group <first run> --pilot
+
+It reports the count N. The main run is a first run and N minus 1 repetitions with `--repeat-of <first run>`, then `scripts/analyse_ablations.py --group <first run> --pilot-analysis <pilot analysis record>`. A repetition runs the classification cases of conditions 3 to 6 once (in the first run); the analysis refuses a group whose runs differ in build, items, models, prompt versions or declaration, and prints "not computed: awaiting Jose's decision" where D-G84 leaves a computation unstated.
+
 ## Running offline (default, no model calls)
 
 Offline is the default everywhere; no code path calls a model unless both
