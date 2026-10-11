@@ -19,12 +19,15 @@ run any subset over the same items. The ladder (architecture.md Section 12):
                     needs_human_review norms are all offered).
 4. graph_build_judge  classify plus judge-ACCEPTED norms only.
 5. graph_full       graph_build_judge plus the runtime grounding judge
-                    gating the generated answer (unverifiable citations are
-                    withheld and the verdict is attached).
+                    gating the generated answer to a question or retrieval
+                    case (unverifiable citations are withheld and the
+                    verdict is attached); on a classification case the
+                    runtime judge is not called (spec G D-G84 (4)).
 6. graph_runtime_judge  graph_no_judge plus the runtime grounding judge of
                     graph_full: the runtime judge without the build judge
                     (B104 decision 4, B126). Appended last so the five keep
-                    their recorded order.
+                    their recorded order. On a classification case it gives
+                    what graph_no_judge gives (D-G84 (4)).
 
 Model access is injected: every strategy takes constructed clients
 (tere4ai.extract_norms.model_clients.ModelClient), so unit tests use
@@ -256,7 +259,8 @@ class GraphStrategy:
     accepted, rejected, and needs_human_review alike): condition 3.
     judged_only=True offers judge-accepted norms only: condition 4.
     runtime_judge set: the runtime grounding judge gates the generated
-    answer and unverifiable citations are withheld; with judged_only=True
+    answer, on question and retrieval cases only (D-G84 (4)), and
+    unverifiable citations are withheld; with judged_only=True
     that is condition 5, with judged_only=False condition 6.
     """
 
@@ -484,10 +488,11 @@ class GraphStrategy:
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:
         if item.get("kind") == "classification":
-            result = self._classify(item)
-            digests: list[dict[str, Any]] = []
-        else:
-            result, digests = self._answer_from_norms(item)
+            # spec G D-G84 (4): the runtime judge is not called on a
+            # classification case, where it received an empty list of cited
+            # norms; conditions 5 and 6 give what conditions 4 and 3 give
+            return self._classify(item)
+        result, digests = self._answer_from_norms(item)
 
         if self._runtime_judge is None:
             return result

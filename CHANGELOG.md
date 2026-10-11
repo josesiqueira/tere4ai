@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B150: E6's declared analysis built (spec G D-G84)
+- B150: conditions 5 and 6 (graph_full, graph_runtime_judge) no longer call the runtime grounding judge on a classification case, where it received an empty list of cited norms; there they give what conditions 4 and 3 give (spec G D-G84 (4)).
+
 ### B149: the hand-made test set's agreement computed as its protocol names it (2026-10-11)
 - B149: `cohen_kappa` returns None (printed n/a), never 1.0, when both labellers used one category (spec F conventions).
 - B149: `src/tere4ai/eval/gold_agreement.py` reports the agreement of the two independent labels by kind (eval/gold/ANNOTATION_PROTOCOL.md): classification raw agreement and Cohen's kappa over the five risk categories with the confusion table; retrieval exact node-id agreement and article-level agreement over the pairs within the Articles; QA citation agreement by exact node id. Every case one labeller lacks is listed; a label giving several node ids is accepted and listed as not compared; what the protocol leaves unstated (several ids, the article level of an Annex id, a chance-corrected figure for retrieval and QA, an interval) prints "not computed: awaiting Jose's decision" with its question; contested cases stay in the agreement, listed (provisional). Each kind's block counts its cases labelled by both under `paired`; each share keeps `agreed`, `compared` and `rate`.

@@ -264,6 +264,32 @@ def test_graph_runtime_judge_takes_a_prompt_version_suffix(tmp_path):
                           judge=make_judge()).models["judge_prompt_version"] == "v1"
 
 
+def test_the_runtime_judge_is_not_called_on_a_classification_case(tmp_path):
+    # spec G D-G84 (4): on a classification case conditions 5 and 6 give what
+    # conditions 4 and 3 give, and no judge request is made there
+    judge = make_judge()
+    generator = make_generator()
+    built = {name: build_strategy(name, generator, MINI_DUMP, MINI_NORMS, judge=judge,
+                                  judge_log_path=tmp_path / "judge_log.jsonl")
+             for name in STRATEGY_NAMES}
+    full = built["graph_full"](GOLD_3[0])
+    runtime_only = built["graph_runtime_judge"](GOLD_3[0])
+    assert judge.calls == []
+    assert "judge_verdict" not in full and "judge_verdict" not in runtime_only
+    assert full == built["graph_build_judge"](GOLD_3[0])
+    assert runtime_only == built["graph_no_judge"](GOLD_3[0])
+    assert not (tmp_path / "judge_log.jsonl").exists()
+
+
+def test_the_runtime_judge_still_gates_question_and_retrieval_cases(tmp_path):
+    judge = make_judge()
+    strategy = build_strategy("graph_full", make_generator(), MINI_DUMP, MINI_NORMS, judge=judge,
+                              judge_log_path=tmp_path / "judge_log.jsonl")
+    for item in GOLD_3[1:]:
+        assert strategy(item)["judge_verdict"] == "accepted"
+    assert len(judge.calls) == 2
+
+
 def test_uses_runtime_judge_names_the_two_judged_conditions():
     from tere4ai.eval.strategies import uses_runtime_judge
     assert STRATEGY_NAMES[-1] == "graph_runtime_judge"
