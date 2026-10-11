@@ -66,6 +66,22 @@ def _mutated(tmp_path, change):
     (lambda d: d.update(extra=1), "top-level keys"),
     (lambda d: d["runtime_judge"].update(case_kinds=["classification"]), "runtime_judge.case_kinds"),
     (lambda d: d["primary_family"]["interval"].update(draws=0), "draws"),
+    (lambda d: d["primary_family"]["interval"].update(draws=500), "1000"),
+    (lambda d: d["primary_family"]["interval"].update(level=0.8), "0.95"),
+    (lambda d: d["primary_family"]["contrasts"].append(
+        dict(d["primary_family"]["contrasts"][0], id="fourth")), "exactly the three contrasts"),
+    (lambda d: d["primary_family"]["contrasts"][2].update(case_kinds=["classification", "retrieval", "qa"]),
+     "exactly the three contrasts"),
+    (lambda d: d["primary_family"]["contrasts"].reverse(), "exactly the three contrasts"),
+    (lambda d: d["primary_family"]["correction"].update(alpha=0.10), "0.05"),
+    (lambda d: d["repetitions"].update(pilot_repetitions=7), "pilot_repetitions must be 5"),
+    (lambda d: d["repetitions"].update(z=1.64), "1.96"),
+    (lambda d: d["repetitions"].update(half_width=0.05), "0.02"),
+    (lambda d: d["repetitions"].update(cap=13), "11"),
+    (lambda d: d["repetitions"]["run_once"].update(conditions=["graph_full"]), "run_once"),
+    (lambda d: d["runtime_judge"].update(conditions=["graph_runtime_judge"]), "runtime_judge.conditions"),
+    (lambda d: d["runtime_judge"]["interval"].update(draws=10), "1000"),
+    (lambda d: d["primary_family"]["contrasts"][0].update(case_kinds=[["qa"]]), "case_kinds"),
 ])
 def test_a_declaration_outside_d_g84s_shape_is_refused(tmp_path, change, words):
     with pytest.raises(DeclarationError, match=words):

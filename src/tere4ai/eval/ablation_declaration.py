@@ -44,6 +44,22 @@ SHARE_NAMES = ("wrong_answers_caught", "right_answers_blocked", "accuracy_among_
 _TOP = {"declaration", "decided", "primary_family", "outcome", "runtime_judge", "repetitions", "secondary"}
 _CONTRAST = {"id", "condition", "against", "case_kinds", "reading"}
 _READINGS = ("two_packages", "conditional_effect")
+# spec G D-G84 (1): the family is exactly these three contrasts, in this order
+PRIMARY_CONTRASTS = [
+    {"id": "graph_full_minus_plain_llm", "condition": "graph_full", "against": "plain_llm",
+     "case_kinds": ["classification", "retrieval", "qa"], "reading": "two_packages"},
+    {"id": "graph_full_minus_vector_rag", "condition": "graph_full", "against": "vector_rag",
+     "case_kinds": ["classification", "retrieval", "qa"], "reading": "two_packages"},
+    {"id": "graph_build_judge_minus_graph_no_judge", "condition": "graph_build_judge",
+     "against": "graph_no_judge", "case_kinds": ["retrieval", "qa"], "reading": "conditional_effect"},
+]
+PRIMARY_ALPHA = 0.05
+RUNTIME_JUDGE_CONDITIONS = ["graph_runtime_judge", "graph_full"]
+RUN_ONCE_CONDITIONS = ["graph_no_judge", "graph_build_judge", "graph_full", "graph_runtime_judge"]
+# D-G84 (5): the pilot run's rule for the number of repetitions
+PILOT_REPETITIONS, Z, HALF_WIDTH, CAP = 5, 1.96, 0.02, 11
+# PROVISIONAL, awaiting Jose (B150 Q12): the number of bootstrap draws
+BOOTSTRAP_DRAWS = 1000
 
 
 class DeclarationError(ValueError):
@@ -71,9 +87,11 @@ def _check_interval(block: Any, where: str, method: str) -> None:
     _need(isinstance(block, dict) and set(block) == {"method", "level", "draws", "seed"},
           f"{where} needs exactly method, level, draws and seed")
     _need(block["method"] == method, f"{where}.method must be {method}")
-    # spec G D-G84 (3), (4): a 95% interval; another level would print under a false heading (Codex finding 6)
+    # spec G D-G84 (3), (4): a 95% interval; another level would print under a false heading
     _need(block["level"] == 0.95, f"{where}.level must be 0.95 (spec G D-G84: a 95% interval)")
     _need(_integer(block["draws"]) and block["draws"] >= 1, f"{where}.draws must be a whole number of at least 1")
+    # PROVISIONAL, awaiting Jose (B150 Q12): built as proposed
+    _need(block["draws"] == BOOTSTRAP_DRAWS, f"{where}.draws must be {BOOTSTRAP_DRAWS} (provisional, B150 Q12)")
     _need(_integer(block["seed"]), f"{where}.seed must be a whole number")
 
 
@@ -90,7 +108,8 @@ def _check_contrasts(contrasts: Any, where: str) -> None:
             _need(c[side] in STRATEGY_NAMES, f"{c['id']}: {side} {c[side]!r} is not a condition of STRATEGY_NAMES")
         _need(c["condition"] != c["against"], f"{c['id']}: a condition is never compared with itself")
         kinds = c["case_kinds"]
-        _need(isinstance(kinds, list) and kinds and len(set(kinds)) == len(kinds) and set(kinds) <= set(CASE_KINDS),
+        _need(isinstance(kinds, list) and kinds and all(isinstance(k, str) for k in kinds)
+              and len(set(kinds)) == len(kinds) and set(kinds) <= set(CASE_KINDS),
               f"{c['id']}: case_kinds must name some of {', '.join(CASE_KINDS)}, each once")
         _need(c["reading"] in _READINGS, f"{c['id']}: reading must be one of {', '.join(_READINGS)}")
 
@@ -107,12 +126,14 @@ def _check(data: Any) -> None:
     _need(family["answer_key"] == "hand_made", "primary_family.answer_key must be hand_made")
     _need(family["contested"] == "left_out", "primary_family.contested must be left_out (B149)")
     _check_contrasts(family["contrasts"], "primary_family.contrasts")
-    _need(len(family["contrasts"]) >= 1, "primary_family.contrasts must list at least one contrast")
+    _need(family["contrasts"] == PRIMARY_CONTRASTS,
+          "primary_family.contrasts must be exactly the three contrasts of spec G D-G84 (1), in order")
     correction = family["correction"]
     _need(isinstance(correction, dict) and set(correction) == {"method", "alpha"}
           and correction["method"] == "bonferroni", "primary_family.correction.method must be bonferroni")
     _need(_number(correction["alpha"]) and 0 < correction["alpha"] < 1,
           "primary_family.correction.alpha must lie between 0 and 1")
+    _need(correction["alpha"] == PRIMARY_ALPHA, f"primary_family.correction.alpha must be {PRIMARY_ALPHA} (D-G84 (3))")
     _need(family["test"] == "mcnemar_exact_two_sided", "primary_family.test must be mcnemar_exact_two_sided")
     _check_interval(family["interval"], "primary_family.interval", "paired_bootstrap_percentile_over_cases")
     _need(data["outcome"] == OUTCOME_RULES, "outcome must name exactly the rules of spec G D-G84 (1) and (3)")
@@ -120,12 +141,14 @@ def _check(data: Any) -> None:
     _need(isinstance(judge, dict) and set(judge) == {"conditions", "answer_key", "case_kinds", "delivered",
                                                      "shares", "pooling", "interval"},
           "runtime_judge needs exactly conditions, answer_key, case_kinds, delivered, shares, pooling and interval")
+    _need(judge["conditions"] == RUNTIME_JUDGE_CONDITIONS,
+          "runtime_judge.conditions must be graph_runtime_judge and graph_full (D-G84 (4))")
     _need(isinstance(judge["conditions"], list) and judge["conditions"]
           and all(c in STRATEGY_NAMES and uses_runtime_judge(c) for c in judge["conditions"]),
           "runtime_judge.conditions must name conditions that call the runtime judge")
     _need(judge["answer_key"] == "hand_made", "runtime_judge.answer_key must be hand_made")
     _need(isinstance(judge["case_kinds"], list) and judge["case_kinds"]
-          and set(judge["case_kinds"]) <= {"retrieval", "qa"},
+          and all(isinstance(k, str) for k in judge["case_kinds"]) and set(judge["case_kinds"]) <= {"retrieval", "qa"},
           "runtime_judge.case_kinds must name retrieval or qa cases (D-G84 (4))")
     _need(judge["delivered"] == "verdict_accepted", "runtime_judge.delivered must be verdict_accepted")
     _need(judge["shares"] == list(SHARE_NAMES), f"runtime_judge.shares must be {', '.join(SHARE_NAMES)}")
@@ -146,12 +169,17 @@ def _check(data: Any) -> None:
     _need(_number(reps["half_width"]) and reps["half_width"] > 0, "repetitions.half_width must be a positive number")
     _need(_integer(reps["cap"]) and reps["cap"] >= 1 and reps["cap"] % 2 == 1,
           "repetitions.cap must be an odd whole number")
+    _need(reps["pilot_repetitions"] == PILOT_REPETITIONS,
+          f"repetitions.pilot_repetitions must be {PILOT_REPETITIONS} (D-G84 (5))")
+    _need(reps["z"] == Z and reps["half_width"] == HALF_WIDTH and reps["cap"] == CAP,
+          f"repetitions z, half_width and cap must be {Z}, {HALF_WIDTH} and {CAP} (D-G84 (5))")
     _need(reps["count"] == "smallest_odd", "repetitions.count must be smallest_odd")
     once = reps["run_once"]
     _need(isinstance(once, dict) and set(once) == {"conditions", "case_kind"}
           and once["case_kind"] == "classification"
-          and isinstance(once["conditions"], list) and set(once["conditions"]) <= set(STRATEGY_NAMES),
-          "repetitions.run_once must name conditions of STRATEGY_NAMES and the classification case kind")
+          and once["conditions"] == RUN_ONCE_CONDITIONS,
+          "repetitions.run_once must name conditions 3 to 6 and the classification case kind "
+          "(provisional, awaiting Jose, B150 Q13)")
     secondary = data["secondary"]
     _need(isinstance(secondary, dict) and set(secondary) == {"answer_key", "contrasts", "status"}
           and secondary["answer_key"] == "benchmark",
