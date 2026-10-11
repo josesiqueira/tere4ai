@@ -6,6 +6,10 @@ below; no model, no randomness.
 
 from __future__ import annotations
 
+import importlib.util
+import json
+from pathlib import Path
+
 import pytest
 
 from tere4ai.eval.gold_agreement import (
@@ -169,3 +173,34 @@ def test_the_text_report_prints_shares_as_n_of_m_and_names_every_open_question()
 def test_a_label_outside_the_protocol_is_refused(items, message):
     with pytest.raises(LabelError, match=message):
         agreement_report(items)
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _script():
+    spec = importlib.util.spec_from_file_location(
+        "draft_gold_candidates", ROOT / "scripts" / "draft_gold_candidates.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_agreement_command_reads_the_item_file_and_writes_the_report(tmp_path, capsys):
+    path = tmp_path / "items.json"
+    path.write_text(json.dumps({"items": ITEMS}), encoding="utf-8")
+    out = tmp_path / "agreement.json"
+    assert _script().main(["agreement", str(path), "--json", str(out)]) == 0
+    text = capsys.readouterr().out
+    assert "cohen kappa: 0.667" in text
+    assert "gold:cls-06 (classification): lacks ann_a, ann_b" in text
+    written = json.loads(out.read_text(encoding="utf-8"))
+    assert written["by_kind"]["retrieval"]["exact_node_id_agreement"]["agreed"] == 2
+
+
+def test_the_agreement_command_refuses_a_file_outside_the_protocol(tmp_path, capsys):
+    path = tmp_path / "items.json"
+    path.write_text(json.dumps({"items": [_cls("gold:cls-01", "high_risk", "prohibited")]}),
+                    encoding="utf-8")
+    assert _script().main(["agreement", str(path)]) == 1
+    assert "refusing: gold:cls-01" in capsys.readouterr().err

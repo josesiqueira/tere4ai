@@ -15,8 +15,9 @@ node a draft was drafted from is verified to exist in the published dump.
 Usage:
   .venv/bin/python scripts/draft_gold_candidates.py draft
       [--out eval/gold/draft_candidates.json]
-  .venv/bin/python scripts/draft_gold_candidates.py agreement A.json B.json
-      (each file maps item_id -> label; kappa and raw agreement per file pair)
+  .venv/bin/python scripts/draft_gold_candidates.py agreement
+      [eval/gold/gold_seed.json] [--json OUT]
+      (the two labellers' agreement by kind, as the protocol names it)
 """
 
 from __future__ import annotations
@@ -31,7 +32,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.act_parties import actor_slots_for_digests  # noqa: E402
-from tere4ai.eval.agreement import cohen_kappa, raw_agreement  # noqa: E402
+from tere4ai.eval.gold_agreement import LabelError, agreement_report, render_text  # noqa: E402
+from tere4ai.eval.harness import GOLD_SEED_PATH, load_gold_items  # noqa: E402
 
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 NORMS_PATH = ROOT / "data" / "graph_dumps" / "norms_core.json"
@@ -297,17 +299,19 @@ def cmd_draft(args: argparse.Namespace) -> int:
 
 
 def cmd_agreement(args: argparse.Namespace) -> int:
-    labels_a = json.loads(Path(args.file_a).read_text(encoding="utf-8"))
-    labels_b = json.loads(Path(args.file_b).read_text(encoding="utf-8"))
-    shared = sorted(set(labels_a) & set(labels_b))
-    if not shared:
-        print("no shared item ids between the two label files", file=sys.stderr)
+    """The protocol's agreement on the item file's two independent labels
+    (eval/gold/ANNOTATION_PROTOCOL.md): by kind, every case one labeller
+    lacks listed, the unsettled computations named. Refuses a file outside
+    the protocol's shape."""
+    try:
+        report = agreement_report(load_gold_items(Path(args.items)))
+    except (LabelError, ValueError, OSError) as exc:
+        print(f"refusing: {exc}", file=sys.stderr)
         return 1
-    a = [labels_a[i] for i in shared]
-    b = [labels_b[i] for i in shared]
-    print(f"items compared: {len(shared)}")
-    print(f"raw agreement: {raw_agreement(a, b):.3f}")
-    print(f"cohen kappa:   {cohen_kappa(a, b):.3f}")
+    print(render_text(report))
+    if args.json:
+        Path(args.json).write_text(
+            json.dumps(report, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     return 0
 
 
@@ -316,9 +320,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     draft = sub.add_parser("draft", help="draft candidate items from the graph")
     draft.add_argument("--out", default=str(DEFAULT_OUT))
-    agree = sub.add_parser("agreement", help="kappa between two label files")
-    agree.add_argument("file_a")
-    agree.add_argument("file_b")
+    agree = sub.add_parser("agreement", help="the two labellers' agreement by kind")
+    agree.add_argument("items", nargs="?", default=str(GOLD_SEED_PATH))
+    agree.add_argument("--json", default=None, help="also write the report as JSON here")
     args = parser.parse_args(argv)
     return cmd_draft(args) if args.command == "draft" else cmd_agreement(args)
 

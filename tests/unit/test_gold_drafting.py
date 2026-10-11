@@ -88,15 +88,3 @@ def test_retrieval_drafts_come_from_leaf_items(payload):
         assert not any(
             other != node_id and other.startswith(node_id + ":") for other in ids
         ), f"{node_id} has a more precise child among the drafts"
-
-
-def test_agreement_subcommand_computes_kappa(tmp_path, capsys):
-    a = tmp_path / "a.json"
-    b = tmp_path / "b.json"
-    a.write_text(json.dumps({"i1": "high_risk", "i2": "prohibited", "i3": "minimal"}))
-    b.write_text(json.dumps({"i1": "high_risk", "i2": "prohibited", "i3": "high_risk"}))
-    rc = draft_mod.main(["agreement", str(a), str(b)])
-    assert rc == 0
-    out = capsys.readouterr().out
-    assert "items compared: 3" in out
-    assert "cohen kappa" in out
