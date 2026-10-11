@@ -301,7 +301,7 @@ def cmd_draft(args: argparse.Namespace) -> int:
 def cmd_agreement(args: argparse.Namespace) -> int:
     """The protocol's agreement on the item file's two independent labels
     (eval/gold/ANNOTATION_PROTOCOL.md): by kind, every case one labeller
-    lacks listed, the unsettled computations named. Refuses a file outside
+    lacks listed, each figure with its 95% interval. Refuses a file outside
     the protocol's shape."""
     try:
         try:

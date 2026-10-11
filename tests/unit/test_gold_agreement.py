@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.eval.ablation_analysis import percentile_interval, seeded_rng
 from tere4ai.eval.ablation_declaration import load_declaration
 from tere4ai.eval.gold_agreement import (
     BOOTSTRAP,
@@ -282,11 +283,35 @@ def test_a_kappa_interval_with_more_than_25_resamples_without_a_kappa_is_not_giv
 
 
 def test_interval_of_reads_the_percentile_positions_over_its_own_draws():
+    # Task 2 review, Minor 2: the pair is the percentile interval over the very draws the seed and the label
+    # give, each drawing the four cases with replacement
     pairs = [("a", "a"), ("a", "b"), ("b", "b"), ("b", "a")]
     share = lambda xs, ys: sum(1 for x, y in zip(xs, ys) if x == y) / len(xs)  # noqa: E731
-    low, high = interval_of(pairs, share, "mock")
-    assert 0.0 <= low <= 0.5 <= high <= 1.0
-    assert interval_of(pairs, share, "mock") == [low, high]  # the seed and the label fix it
+    rng = seeded_rng(BOOTSTRAP["seed"], "mock")
+    values = []
+    for _ in range(BOOTSTRAP["draws"]):
+        drawn = [pairs[rng.randrange(len(pairs))] for _ in pairs]
+        values.append(share([a for a, _ in drawn], [b for _, b in drawn]))
+    expected = list(percentile_interval(values, BOOTSTRAP["level"]))
+    assert interval_of(pairs, share, "mock") == expected
+    assert 0.0 <= expected[0] <= 0.5 <= expected[1] <= 1.0
+    assert interval_of(pairs, share, "mock") == expected  # the seed and the label fix it
+
+
+def test_the_seeded_intervals_on_the_mock_items_are_pinned():
+    # Task 2 review, Minor 1: the values the reviewer recomputed by hand from the seed on ITEMS
+    by_kind = agreement_report(ITEMS)["by_kind"]
+    cls = by_kind["classification"]["intervals"]
+    assert cls["raw_agreement"] == [0.25, 1.0]
+    assert cls["cohen_kappa"] == {"interval": [0.0, 1.0], "left_out": 11, "draws": 1000,
+                                  "label": "conditional: 11 of 1000 resamples held no kappa and were left out "
+                                           "(B161 Q1)"}
+    assert by_kind["retrieval"]["intervals"]["cohen_kappa"] == {
+        "interval": None, "left_out": 69, "draws": 1000,
+        "label": "none given: 69 of 1000 resamples held no kappa, more than 25 (B161 Q1)"}
+    assert by_kind["qa"]["intervals"]["cohen_kappa"] == {
+        "interval": None, "left_out": 252, "draws": 1000,
+        "label": "none given: 252 of 1000 resamples held no kappa, more than 25 (B161 Q1)"}
 
 
 @pytest.mark.parametrize("items, message", [
