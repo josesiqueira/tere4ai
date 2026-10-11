@@ -292,8 +292,8 @@ def test_a_share_with_a_few_empty_resamples_gets_its_interval_labelled_condition
     # draws; at conditional_up_to = 400 of 1000 the interval is given and labelled conditional
     answers = {f"c{n:02d}": [(n != 0, True)] for n in range(20)}
     out = gate_share_intervals(answers, level=0.95, draws=1000, seed=3, label="g", conditional_up_to=400)
-    caught = out["right_answers_blocked"]
-    assert caught["interval"] == [0.0, 0.0] and caught["left_out"] == 0
+    blocked = out["right_answers_blocked"]
+    assert blocked["interval"] == [0.0, 0.0] and blocked["left_out"] == 0
     wrong = out["wrong_answers_caught"]
     assert 1 <= wrong["left_out"] <= 400 and wrong["interval"] == [0.0, 0.0]
     assert wrong["label"] == (f"conditional: {wrong['left_out']} of 1000 resamples held no wrong answer and "

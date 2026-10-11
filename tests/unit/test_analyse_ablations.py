@@ -255,6 +255,21 @@ def test_the_three_declared_contrasts_on_hand_counted_outcomes(made, tmp_path):
     assert report["declaration"]["declared_before_runs"] is True
 
 
+def test_a_labelled_interval_is_shown_with_its_label(tmp_path):
+    # Task 5 review, Important: the Markdown keeps the conditional label beside the interval and shows the
+    # none-given label alone (B150 Q11)
+    show = _analyser(tmp_path)._interval
+    conditional = {"interval": [0.1, 0.2], "left_out": 3, "draws": 1000,
+                   "label": "conditional: 3 of 1000 resamples held no wrong answer and were left out (B150 Q11)"}
+    assert show(conditional) == ("[0.100, 0.200]; conditional: 3 of 1000 resamples held no wrong answer and were "
+                                 "left out (B150 Q11)")
+    none_given = {"interval": None, "left_out": 26, "draws": 1000,
+                  "label": "none given: 26 of 1000 resamples held no wrong answer, more than 25 (B150 Q11)"}
+    assert show(none_given) == "none given: 26 of 1000 resamples held no wrong answer, more than 25 (B150 Q11)"
+    assert show({"interval": [0.1, 0.2], "left_out": 0, "draws": 1000, "label": None}) == "[0.100, 0.200]"
+    assert show(None) == "n/a"
+
+
 def test_the_runtime_judge_is_read_on_the_answers_it_gates(made, tmp_path):
     assert made["an"].main(made["group"]) == 0
     judge = _report(tmp_path, _newest_analysis(tmp_path))["runtime_judge"]
