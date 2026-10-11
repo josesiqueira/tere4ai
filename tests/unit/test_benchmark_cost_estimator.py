@@ -510,9 +510,12 @@ def test_the_report_has_one_row_per_step_and_component(mock_report):
 def test_the_report_prices_the_first_run_the_later_repetitions_the_main_run_and_the_pilot(mock_report):
     for words in ("E6 ablation, first run", "E6 ablation, each repetition after the first",
                   "E6 main run, N = 11", "E6 pilot run, 5 repetitions", "E6 development set elicitation",
-                  "the most the pilot run's rule allows", "spec G D-G84 (5)"):
-        assert words in mock_report
+                  "the most the pilot run's rule allows", "spec G D-G84 (5)",
+                  "a random sample of the development set (the REF-15 items outside the frozen sample) "
+                  "with the frozen sample's composition", "B150 Q10"):
+        assert words in " ".join(mock_report.split())
     assert "provisional ten" not in mock_report
+    assert "every item outside the frozen sample" not in " ".join(mock_report.split())
 
 
 def _per_kind(gen, judge):
@@ -542,6 +545,7 @@ def test_the_main_run_is_the_first_run_plus_n_minus_one_later_repetitions(tmp_pa
         assert main["cost"]["central"] == pytest.approx(f["cost"]["central"] + 10 * later["cost"]["central"])
     for row in res["pilot_rows"] + res["dev_elicit_rows"]:
         assert row["cost"]["central"] > 0
+    assert res["development"]["per_risk_level"] == 8 and res["development"]["seed"] == 20261011  # B150 Q10
     expected = sum(r["cost"]["central"] for r in res["build_rows"] + res["main_rows"] + res["pilot_rows"]
                    + res["dev_elicit_rows"])
     assert res["total"]["central"] == pytest.approx(expected)

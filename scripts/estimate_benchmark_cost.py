@@ -17,8 +17,8 @@ outside the total.
 
 E6 is priced as spec G D-G84 states it: the first run, each repetition after
 it, the main run at the cap N = 11 and the pilot run of 5 repetitions on the
-development set with its elicitation, the counts read from
-eval/e6_declaration.json.
+pilot run's sample of the development set with its elicitation, the counts
+and the draw read from eval/e6_declaration.json.
 
 Token model, stated plainly so nobody mistakes this for a measurement:
 - Input tokens are prompt characters divided by a ratio per model developer,
@@ -75,7 +75,7 @@ from tere4ai.align_hleg.__main__ import _attach_source_text  # noqa: E402
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes  # noqa: E402
 from tere4ai.elicit_features import render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION  # noqa: E402
-from tere4ai.eval.ablation_declaration import load_declaration  # noqa: E402
+from tere4ai.eval.ablation_declaration import load_declaration, pilot_draw  # noqa: E402
 from tere4ai.eval.harness import (  # noqa: E402
     development_payload,
     load_benchmark_items,
@@ -897,7 +897,9 @@ def compute(
             dev_items, inputs["elicit_system_chars"], inputs["elicit_out_chars"])}, ("generator",))
         development = {"items": len(dev_items),
                        "scenarios": sum(1 for i in dev_items if i["kind"] == "classification"),
-                       "qa": sum(1 for i in dev_items if i["kind"] != "classification")}
+                       "qa": sum(1 for i in dev_items if i["kind"] != "classification"),
+                       "per_risk_level": reps["pilot_sample"]["scenarios_per_risk_level"],
+                       "seed": reps["pilot_sample"]["seed"]}
     else:
         pilot_note = (f"not computed ({inputs.get('full_note') or 'no development set items'}), so the total "
                       "leaves the pilot run out")
@@ -1072,10 +1074,13 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "level as a real run with elicited facts does; the estimate before B150 left those calls out (B150 "
         "ruling R32).",
         "",
-        *([f"The pilot run (D-G84 (5)) repeats the ladder {res['pilot_n']} times on the development set, the "
-           f"REF-15 items outside the frozen sample ({d['items']} items: {d['scenarios']} scenarios and "
-           f"{d['qa']} question pairs), whose scenarios need the elicitor's facts first (the elicitation "
-           "row). Its size is D-G84's, every item outside the frozen sample (B150, question Q10).", ""]
+        *([f"The pilot run (spec G D-G84 (5) and its dated paragraph (10)) repeats the ladder {res['pilot_n']} "
+           f"times on a random sample of the development set (the REF-15 items outside the frozen sample) with the "
+           f"frozen sample's composition: {d['items']} items, {d['scenarios']} scenarios ({d['per_risk_level']} per "
+           f"risk level) and {d['qa']} question pairs, drawn from seed {d['seed']}; its scenarios need the "
+           "elicitor's facts first (the elicitation row). Its size is the main run's benchmark size, so that it "
+           "measures the run-to-run spread at the main run's size (B150 Q10, Claude's choice on Jose's \"If this "
+           "is only about a pilot run not the full run then you can choose\").", ""]
           if d else []),
         "Per-strategy dry-run counts of the first run (visible output at the model developer ratio):",
         "",
@@ -1168,7 +1173,8 @@ def load_inputs() -> dict[str, Any]:
             full_items = load_benchmark_items(payload_path)
             sample_bytes = SAMPLE_PATH.read_bytes()
             development = development_payload(json.loads(payload_path.read_text(encoding="utf-8")),
-                                              json.loads(sample_bytes), hashlib.sha256(sample_bytes).hexdigest())
+                                              json.loads(sample_bytes), hashlib.sha256(sample_bytes).hexdigest(),
+                                              pilot_draw(load_declaration()))
             dev_path = Path(tempfile.mkstemp(suffix=".json")[1])
             try:
                 dev_path.write_text(json.dumps(development), encoding="utf-8")

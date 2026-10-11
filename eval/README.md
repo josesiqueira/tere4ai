@@ -118,7 +118,7 @@ blocks) are kept for the readers of the July summaries.
 
 ## The declared analysis (spec G D-G84, B150)
 
-E6's analysis is declared before the main run in `eval/e6_declaration.json`, and every run record carries its digest. The pilot run comes first, on the development set (the REF-15 items outside the frozen sample):
+E6's analysis is declared before the main run in `eval/e6_declaration.json`, and every run record carries its digest. The pilot run comes first, on a random sample of the development set (the REF-15 items outside the frozen sample) with the frozen sample's composition, 8 scenarios per risk level and 15 question pairs, drawn by the declaration's seed (B150 Q10):
 
     .venv/bin/python scripts/build_full_benchmark_payload.py --development-set
     .venv/bin/python scripts/elicit_benchmark_features.py --benchmark data/snapshots/benchmark/development_payload.json --out eval/gold/development_features.json
@@ -126,7 +126,9 @@ E6's analysis is declared before the main run in `eval/e6_declaration.json`, and
     TERE4AI_LIVE_TESTS=1 .venv/bin/python scripts/run_ablations.py --development-set --repeat-of <first run>   # four times
     .venv/bin/python scripts/analyse_ablations.py --group <first run> --pilot
 
-It reports the count N. The main run is a first run and N minus 1 repetitions with `--repeat-of <first run>`, then `scripts/analyse_ablations.py --group <first run> --pilot-analysis <pilot analysis record>`. A repetition runs the classification cases of conditions 3 to 6 once (in the first run); the analysis refuses a group whose runs differ in build, items, models, prompt versions or declaration, and prints "not computed: awaiting Jose's decision" where D-G84 leaves a computation unstated.
+It reports the count N. The main run is a first run and N minus 1 repetitions with `--repeat-of <first run>`, then `scripts/analyse_ablations.py --group <first run> --pilot-analysis <pilot analysis record>`. A repetition runs the classification cases of conditions 3 to 6 once (in the first run); the analysis refuses a group whose runs differ in build, items, models, prompt versions or declaration, and reports the benchmark's three contrasts with no test, the four measures over the repetitions as the mean with the standard deviation beside it (a run that emitted no citation left out of the hallucinated citation rate and counted, B161 Q2), and each runtime judge interval with the resamples it left out (B150 Q8, Q9, Q11).
+
+The hand-made test set's agreement (`scripts/draft_gold_candidates.py agreement`) gives Cohen's kappa for each kind and a 95% bootstrap interval beside every figure (B149 Q3, Q4); a kappa resample that gives no kappa is left out and counted, the interval labelled conditional at 1 to 25 of 1000 left out and not given above 25 (B161 Q1, Jose: "Same rule as E6").
 
 ## Running offline (default, no model calls)
 
