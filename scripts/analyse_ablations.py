@@ -114,14 +114,6 @@ def _build_key(record: dict[str, Any]) -> tuple[Any, Any]:
     return build.get("base_build_id"), build.get("publication")
 
 
-def provisional_note(declaration: dict) -> str:
-    """The two settings built as proposed, awaiting Jose (plan Section 2, items 5 and 6),
-    the draw count read from the declaration (second-seat M4)."""
-    draws = declaration["primary_family"]["interval"]["draws"]
-    return (f"provisional, awaiting Jose: the bootstrap's {draws} draws and the percentile positions (B150 Q12); "
-            "each repetition's accuracy read over the cases run in every repetition (B150 Q13)")
-
-
 def group_records(store: EvaluationRecordStore, first_id: str) -> tuple[list[dict], list[str], str]:
     """The group as logical runs (ruling R40, Codex finding 3). A run stopped and
     resumed is a chain of records linked by resumes_record_id, read through its
@@ -362,12 +354,17 @@ def analyse_main(items: list[dict], runs: list[dict], run_ids: list[str], summar
     }
 
 
+SECONDARY_TEST = ("no test: the benchmark's contrasts are reported with their paired difference and 95% interval "
+                  "only (B150 Q8, Jose 2026-10-11: \"The same three, no test (Recommended)\")")
+
+
 def secondary_block(items: list[dict], runs: list[dict], declaration: dict) -> dict[str, Any]:
     """The benchmark's contrasts, "secondary and outside the family ... reported as
-    differences in agreement with its labels" (spec G D-G84 (1)): each listed one
-    gets its paired difference with the 95% interval, as passage (d) reports
-    every comparison of two conditions; whether a test goes with it is Jose's
-    (B150 Q8), as is which ones are listed (none until he names them; ruling R44)."""
+    differences in agreement with its labels" (spec G D-G84 (1)): the declaration
+    lists the primary family's three on the benchmark's cases, each with its
+    paired difference and the 95% interval, as passage (d) reports every
+    comparison of two conditions, and no test (B150 Q8, Jose 2026-10-11: "The
+    same three, no test (Recommended)")."""
     run_once = declaration["repetitions"]["run_once"]
     interval = declaration["primary_family"]["interval"]
     bench = [i for i in items if i["id"].startswith(KEY_PREFIXES["benchmark"])]
@@ -381,10 +378,8 @@ def secondary_block(items: list[dict], runs: list[dict], declaration: dict) -> d
                                  label=f"secondary:{c['id']}", threshold=0.0)
         for key in ("mcnemar_exact_p", "threshold", "no_difference_rejected"):
             result.pop(key, None)
-        contrasts.append({**c, **result,
-                          "test": not_computed("whether the benchmark's contrasts carry a test", "B150 Q8")})
-    status = ("listed in the declaration" if contrasts else
-              "none listed; " + not_computed("which of the benchmark's contrasts are reported", "B150 Q8"))
+        contrasts.append({**c, **result, "test": SECONDARY_TEST})
+    status = declaration["secondary"]["status"]
     return {"answer_key": "benchmark", "contrasts": contrasts, "status": status}
 
 
@@ -535,7 +530,6 @@ def main(argv: list[str] | None = None) -> int:
         declaration = load_declaration(args.declaration)
         reader = EvaluationRecordStore(args.dump_dir, create=False)
         group, notes, first_started = group_records(reader, args.group)
-        notes.append(provisional_note(declaration))
         pilot = pilot_record(reader, args.pilot_analysis, group[0], first_started) if mode == "main" else None
         refusal = group_refusal(group, mode=mode, declaration=declaration,
                                 pilot_count_=pilot["count"] if pilot else None)

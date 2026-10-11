@@ -279,15 +279,20 @@ def test_per_call_accuracy_failed_calls_and_what_is_not_computed(made, tmp_path)
     no_judge = report["per_call_accuracy"]["hand_made"]["graph_no_judge"]
     # Codex finding 1: its three classification cases ran once, one call each; the question and
     # retrieval cases three times: 3 + 9 = 12 calls, 3 + 3 = 6 right; each repetition's accuracy over
-    # the three cases run in every repetition is 1 of 3 (provisional, B150 Q13)
+    # the three cases run in every repetition is 1 of 3 (B150 Q13, "Cases run every time (Recommended)")
     assert (no_judge["calls"], no_judge["right"], no_judge["standard_deviation"]) == (12, 6, 0.0)
     assert no_judge["by_repetition"] == pytest.approx([1 / 3] * 3)
     assert report["per_call_accuracy"]["benchmark"]["plain_llm"]["share"] == 1.0
     assert report["failed_calls"] == [{"run": made["main_runs"][0], "condition": "plain_llm",
                                        "case": "gold:qa-2", "error": "RuntimeError: generator reply lost"}]
-    assert report["secondary"]["contrasts"] == []
-    assert report["secondary"]["status"].startswith("none listed; not computed: awaiting Jose's decision")
-    assert "B150 Q8" in report["secondary"]["status"]
+    # B161: Q12 and Q13 are decided, so no note is provisional, and Q8 is answered, so no line waits on it
+    assert not any("provisional" in note for note in report["notes"])
+    record = _newest_analysis(tmp_path)
+    assert not any("provisional" in note for note in record["notes"])
+    text_copy = next(o for o in record["outputs"] if o["output_kind"] == "analysis_text")["copy"]
+    text = (tmp_path / "evaluation_records" / text_copy).read_text(encoding="utf-8")
+    assert not any("B150 Q8" in line and "not computed" in line for line in text.splitlines())
+    assert "provisional" not in text
     assert "B150 Q9" in report["four_measures"]["over_repetitions"]
     assert sorted(report["four_measures"]["by_run"]) == sorted(made["main_runs"])
 
@@ -329,18 +334,19 @@ def test_a_pilot_analysis_made_after_the_main_run_started_is_refused(made, tmp_p
 
 
 def test_a_listed_benchmark_contrast_gets_its_difference_and_interval_and_no_test(made, tmp_path):
-    # B150 Q8: a contrast Jose would list; graph_full and plain_llm are right on the benchmark's
-    # scenario and question pair in every repetition, so no case is discordant
-    other = tmp_path / "e6_declaration.json"
-    data = json.loads(DECLARATION_PATH.read_text(encoding="utf-8"))
-    data["secondary"]["contrasts"] = [{"id": "bench_graph_full_minus_plain_llm", "condition": "graph_full",
-                                       "against": "plain_llm", "case_kinds": ["classification", "qa"],
-                                       "reading": "two_packages"}]
-    other.write_text(json.dumps(data), encoding="utf-8")
-    assert made["an"].main(made["group"] + ["--declaration", str(other)]) == 0
-    (c,) = _report(tmp_path, _newest_analysis(tmp_path))["secondary"]["contrasts"]
-    assert (c["cases"], c["difference"], c["interval"]) == (2, 0.0, [0.0, 0.0])
-    assert "B150 Q8" in c["test"] and "mcnemar_exact_p" not in c
+    # B150 Q8, "The same three, no test (Recommended)": the repository's declaration lists the primary
+    # family's three on the benchmark. graph_full, plain_llm and vector_rag are right on the benchmark's
+    # scenario and question pair in every repetition (2 cases each), graph_build_judge and graph_no_judge
+    # on its question pair (1 case, retrieval and question kinds only): no case is discordant
+    assert made["an"].main(made["group"]) == 0
+    secondary = _report(tmp_path, _newest_analysis(tmp_path))["secondary"]
+    assert [c["id"] for c in secondary["contrasts"]] == [
+        "graph_full_minus_plain_llm", "graph_full_minus_vector_rag", "graph_build_judge_minus_graph_no_judge"]
+    assert [(c["cases"], c["difference"], c["interval"]) for c in secondary["contrasts"]] == [
+        (2, 0.0, [0.0, 0.0]), (2, 0.0, [0.0, 0.0]), (1, 0.0, [0.0, 0.0])]
+    for c in secondary["contrasts"]:
+        assert c["test"] == made["an"].SECONDARY_TEST and "mcnemar_exact_p" not in c
+    assert "B150 Q8" in secondary["status"] and "awaiting" not in secondary["status"]
 
 
 def test_a_group_whose_size_the_pilot_did_not_fix_is_refused(made, runner, tmp_path, capsys):  # noqa: F811

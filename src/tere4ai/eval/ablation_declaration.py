@@ -17,9 +17,18 @@ McNemar's exact test, Bonferroni at 0.05, a 95% level, the runtime judge's
 conditions, case kinds and shares, the pilot run's 5 repetitions, z 1.96,
 half-width 0.02 and cap 11, the run-once rule of D-G84 (5)) and refuses any
 other, never reading one as a default, so a change of method needs a spec
-amendment and a code change; the benchmark's secondary contrasts take the
-primary list's shape and stay empty until Jose names them (B150 Q8). The
-1000 draws are provisional, awaiting Jose (B150 Q12).
+amendment and a code change.
+
+Version 2 (B161) adds what Jose answered on 2026-10-11 and is declared
+before the pilot run: the benchmark's secondary contrasts are the primary
+family's three with no test (B150 Q8); the pilot run's sample (B150 Q10) is
+drawn from the development set with the frozen sample's composition, 8
+scenarios per risk level and 15 question pairs, from seed 20261011; a
+resample or repetition with nothing to count is left out and counted, the
+interval labelled conditional at 1 to 25 of 1000 and none given above, and
+in the pilot run the figure is left out of N and named (B150 Q11). The 1000
+draws (B150 Q12) and each repetition's accuracy over the cases run in every
+repetition (B150 Q13) are decided.
 """
 
 from __future__ import annotations
@@ -32,7 +41,7 @@ from tere4ai.eval.strategies import STRATEGY_NAMES, uses_runtime_judge
 from tere4ai.graph_store.build_chain import sha256_of_file
 
 DECLARATION_PATH = Path(__file__).resolve().parents[3] / "eval" / "e6_declaration.json"
-DECLARATION_VERSION = "e6_declaration.v1"
+DECLARATION_VERSION = "e6_declaration.v2"
 CASE_KINDS = ("classification", "retrieval", "qa")
 # spec G D-G84 (1) and (3), by name; the analysis implements exactly these
 OUTCOME_RULES = {
@@ -45,7 +54,8 @@ OUTCOME_RULES = {
     "per_case": "majority_over_odd_repetitions",
 }
 SHARE_NAMES = ("wrong_answers_caught", "right_answers_blocked", "accuracy_among_delivered", "share_delivered")
-_TOP = {"declaration", "decided", "primary_family", "outcome", "runtime_judge", "repetitions", "secondary"}
+_TOP = {"declaration", "decided", "primary_family", "outcome", "runtime_judge", "empty_resamples", "repetitions",
+        "secondary"}
 _CONTRAST = {"id", "condition", "against", "case_kinds", "reading"}
 _READINGS = ("two_packages", "conditional_effect")
 # spec G D-G84 (1): the family is exactly these three contrasts, in this order
@@ -63,8 +73,15 @@ RUNTIME_JUDGE_CASE_KINDS = ["retrieval", "qa"]
 RUN_ONCE_CONDITIONS = ["graph_no_judge", "graph_build_judge", "graph_full", "graph_runtime_judge"]
 # D-G84 (5): the pilot run's rule for the number of repetitions
 PILOT_REPETITIONS, Z, HALF_WIDTH, CAP = 5, 1.96, 0.02, 11
-# PROVISIONAL, awaiting Jose (B150 Q12): the number of bootstrap draws
+# Jose, 2026-10-11, B150 Q12: "1000 draws (Recommended)"
 BOOTSTRAP_DRAWS = 1000
+# B150 Q10: Jose delegated the pilot run's sample ("If this is only about a pilot run not the full run then
+# you can choose"); Claude's ruling: a random sample from outside the frozen sample with its composition
+PILOT_SAMPLE = {"drawn_from": "development_set", "composition": "frozen_sample", "scenarios_per_risk_level": 8,
+                "qa_pairs": 15, "seed": 20261011}
+# Jose, 2026-10-11, B150 Q11: "Leave out and label (Recommended)" (spec F D-F20's rule)
+EMPTY_RESAMPLES = {"rule": "left_out_and_counted", "conditional_up_to": 25, "of_draws": 1000,
+                   "pilot": "figure_left_out_of_n_and_named"}
 
 
 class DeclarationError(ValueError):
@@ -95,8 +112,7 @@ def _check_interval(block: Any, where: str, method: str) -> None:
     # spec G D-G84 (3), (4): a 95% interval; another level would print under a false heading
     _need(block["level"] == 0.95, f"{where}.level must be 0.95 (spec G D-G84: a 95% interval)")
     _need(_integer(block["draws"]) and block["draws"] >= 1, f"{where}.draws must be a whole number of at least 1")
-    # PROVISIONAL, awaiting Jose (B150 Q12): built as proposed
-    _need(block["draws"] == BOOTSTRAP_DRAWS, f"{where}.draws must be {BOOTSTRAP_DRAWS} (provisional, B150 Q12)")
+    _need(block["draws"] == BOOTSTRAP_DRAWS, f"{where}.draws must be {BOOTSTRAP_DRAWS} (B150 Q12)")
     _need(_integer(block["seed"]), f"{where}.seed must be a whole number")
 
 
@@ -160,9 +176,10 @@ def _check(data: Any) -> None:
           "runtime_judge.pooling must be every_answer_of_every_repetition")
     _check_interval(judge["interval"], "runtime_judge.interval", "case_bootstrap_percentile_all_repetitions")
     reps = data["repetitions"]
-    _need(isinstance(reps, dict) and set(reps) == {"pilot_repetitions", "development_set", "figures", "z",
-                                                   "half_width", "cap", "count", "run_once"},
-          "repetitions needs exactly pilot_repetitions, development_set, figures, z, half_width, cap, count and run_once")
+    _need(isinstance(reps, dict) and set(reps) == {"pilot_repetitions", "development_set", "pilot_sample", "figures",
+                                                   "z", "half_width", "cap", "count", "run_once"},
+          "repetitions needs exactly pilot_repetitions, development_set, pilot_sample, figures, z, half_width, cap, "
+          "count and run_once")
     _need(_integer(reps["pilot_repetitions"]) and reps["pilot_repetitions"] >= 2,
           "repetitions.pilot_repetitions must be a whole number of at least 2")
     _need(reps["development_set"] == "ref15_items_outside_the_frozen_sample",
@@ -184,13 +201,26 @@ def _check(data: Any) -> None:
           and once["conditions"] == RUN_ONCE_CONDITIONS,
           "repetitions.run_once must name conditions 3 to 6 and the classification case kind "
           "(the run-once rule of spec G D-G84 (5))")
+    _need(reps["pilot_sample"] == PILOT_SAMPLE,
+          f"repetitions.pilot_sample must be {PILOT_SAMPLE} (spec G D-G84, the pilot run's sample, B150 Q10)")
+    _need(data["empty_resamples"] == EMPTY_RESAMPLES,
+          f"empty_resamples must be {EMPTY_RESAMPLES} (B150 Q11)")
     secondary = data["secondary"]
-    _need(isinstance(secondary, dict) and set(secondary) == {"answer_key", "contrasts", "status"}
+    _need(isinstance(secondary, dict) and set(secondary) == {"answer_key", "contrasts", "test", "status"}
           and secondary["answer_key"] == "benchmark",
-          "secondary needs exactly answer_key benchmark, contrasts and status")
-    # empty until Jose names the benchmark's contrasts (B150 Q8); a listed one takes the primary list's shape
+          "secondary needs exactly answer_key benchmark, contrasts, test and status")
     _check_contrasts(secondary["contrasts"], "secondary.contrasts")
+    _need(secondary["contrasts"] == PRIMARY_CONTRASTS,
+          "secondary.contrasts must be the primary family's three, in order (B150 Q8)")
+    _need(secondary["test"] == "none", "secondary.test must be none (B150 Q8: no test)")
     _need(isinstance(secondary["status"], str) and secondary["status"] != "", "secondary.status must say what is declared")
+
+
+def pilot_draw(declaration: dict[str, Any]) -> dict[str, int]:
+    """What the pilot run's sample is drawn by (B150 Q10): the seed and the composition, as the payload records it."""
+    sample = declaration["repetitions"]["pilot_sample"]
+    return {"seed": sample["seed"], "scenarios_per_risk_level": sample["scenarios_per_risk_level"],
+            "qa_pairs": sample["qa_pairs"]}
 
 
 def load_declaration(path: Path = DECLARATION_PATH) -> dict[str, Any]:

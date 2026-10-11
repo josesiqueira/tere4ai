@@ -6,7 +6,6 @@ mutated copy of it in a temporary directory.
 
 from __future__ import annotations
 
-import copy
 import json
 
 import pytest
@@ -16,6 +15,7 @@ from tere4ai.eval.ablation_declaration import (
     DeclarationError,
     declaration_sha256,
     load_declaration,
+    pilot_draw,
 )
 from tere4ai.graph_store.build_chain import sha256_of_file
 
@@ -37,7 +37,14 @@ def test_the_repository_declaration_holds_d_g84():
     assert (reps["pilot_repetitions"], reps["z"], reps["half_width"], reps["cap"]) == (5, 1.96, 0.02, 11)
     assert reps["run_once"] == {"conditions": ["graph_no_judge", "graph_build_judge", "graph_full",
                                                "graph_runtime_judge"], "case_kind": "classification"}
-    assert d["secondary"]["contrasts"] == [] and "B150 Q8" in d["secondary"]["status"]
+    assert reps["pilot_sample"] == {"drawn_from": "development_set", "composition": "frozen_sample",
+                                    "scenarios_per_risk_level": 8, "qa_pairs": 15, "seed": 20261011}
+    assert d["empty_resamples"] == {"rule": "left_out_and_counted", "conditional_up_to": 25, "of_draws": 1000,
+                                    "pilot": "figure_left_out_of_n_and_named"}
+    assert d["declaration"] == "e6_declaration.v2"
+    assert d["secondary"]["contrasts"] == family["contrasts"] and d["secondary"]["test"] == "none"
+    assert "provisional" not in json.dumps(d)
+    assert pilot_draw(d) == {"seed": 20261011, "scenarios_per_risk_level": 8, "qa_pairs": 15}
 
 
 def test_the_digest_is_the_files_own():
@@ -85,17 +92,25 @@ def _mutated(tmp_path, change):
     # final review M4: D-G84 (4) states both question and retrieval cases, so one alone is refused
     (lambda d: d["runtime_judge"].update(case_kinds=["qa"]), "runtime_judge.case_kinds must be retrieval and qa"),
     (lambda d: d["runtime_judge"].update(case_kinds=["retrieval"]), "runtime_judge.case_kinds must be retrieval and qa"),
+    # B161: the v2 values (B150 Q8, Q10, Q11), each pinned
+    (lambda d: d["secondary"].update(contrasts=[]), "secondary.contrasts must be the primary family's three"),
+    (lambda d: d["secondary"].update(test="mcnemar_exact_two_sided"), "secondary.test must be none"),
+    (lambda d: d["repetitions"]["pilot_sample"].update(seed=7), "repetitions.pilot_sample must be"),
+    (lambda d: d["repetitions"]["pilot_sample"].update(qa_pairs=122), "repetitions.pilot_sample must be"),
+    (lambda d: d["empty_resamples"].update(conditional_up_to=30), "empty_resamples must be"),
 ])
 def test_a_declaration_outside_d_g84s_shape_is_refused(tmp_path, change, words):
     with pytest.raises(DeclarationError, match=words):
         load_declaration(_mutated(tmp_path, change))
 
 
-def test_a_listed_benchmark_contrast_loads(tmp_path):
-    # B150 Q8: the list is empty until Jose names the contrasts; a listed one takes the primary shape
+def test_an_unlisted_secondary_contrast_is_refused(tmp_path):
+    # B150 Q8: the benchmark's contrasts are exactly the primary family's three; a fourth is refused
     path = _mutated(tmp_path, lambda d: d["secondary"]["contrasts"].append(
-        dict(copy.deepcopy(d["primary_family"]["contrasts"][0]), id="bench_graph_full_minus_plain_llm")))
-    assert load_declaration(path)["secondary"]["contrasts"][0]["against"] == "plain_llm"
+        {"id": "graph_full_minus_graph_no_judge", "condition": "graph_full", "against": "graph_no_judge",
+         "case_kinds": ["retrieval", "qa"], "reading": "two_packages"}))
+    with pytest.raises(DeclarationError, match="secondary.contrasts must be the primary family's three"):
+        load_declaration(path)
 
 
 def test_an_unreadable_file_is_refused_by_name(tmp_path):

@@ -97,8 +97,8 @@ def mcnemar_exact_p(condition_only: int, against_only: int) -> float:
 def percentile_interval(values: Sequence[float], level: float) -> tuple[float, float]:
     """The percentile interval at positions floor((k - 1) * tail) and
     ceil((k - 1) * (1 - tail)) of the sorted values, tail = (1 - level) / 2,
-    the positions of spec F's calibration intervals (t2.interval): provisional,
-    awaiting Jose (B150 Q12)."""
+    the positions of spec F's calibration intervals (t2.interval) (Jose,
+    2026-10-11, B150 Q12: "1000 draws (Recommended)")."""
     ordered = sorted(values)
     if not ordered:
         raise AnalysisError("no resampled value to read an interval from")
@@ -189,8 +189,9 @@ _COUNTS = {"wrong_answers_caught": "wrong answer", "right_answers_blocked": "rig
 
 def accuracy_by_repetition(table: dict[str, list[bool]], repetitions: int) -> list[float]:
     """Each repetition's share right over the cases run in every repetition, a
-    run-once case (a row of one call) left out: provisional, awaiting Jose
-    (B150 Q13, ruling R45). Empty when no case ran in every repetition."""
+    run-once case (a row of one call) left out (Jose, 2026-10-11, B150 Q13:
+    "Cases run every time (Recommended)"; ruling R45). Empty when no case ran
+    in every repetition."""
     full = [row for row in table.values() if len(row) == repetitions]
     if not full:
         return []
@@ -202,8 +203,8 @@ def per_call_summary(table: dict[str, list[bool]], repetitions: int) -> dict[str
     group made, a run-once case's one call counted once (D-G84 (3); Codex
     finding 1, ruling R10), and its run-to-run variation, the standard
     deviation (n - 1) across repetitions of each repetition's accuracy
-    (rulings R8, R9; the basis provisional, B150 Q13). Descriptive, never
-    tested."""
+    (rulings R8, R9; the basis Jose's, 2026-10-11, B150 Q13: "Cases run every
+    time (Recommended)"). Descriptive, never tested."""
     by_repetition = accuracy_by_repetition(table, repetitions)
     calls = sum(len(row) for row in table.values())
     right = sum(1 for row in table.values() for outcome in row if outcome)
