@@ -28,14 +28,19 @@ Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence
 <!-- end generated: cost -->
 
 1. `elicit_features(description)`: proposes the facts
-   `classify_ai_system` reads from a plain-text description (at least 30
-   characters), never a risk category. The prompt quotes the Act's provisions
+   `classify_ai_system` reads from a text description (at least 30
+   characters), never a risk category. In a coding agent's harness you read
+   the project you are working in (its code, README, configuration and
+   documentation) and, when the user asks, write the description from what
+   you read. TERE4AI never reads the repository: the quote check proves each
+   fact's words are in the text you send, not in the code, and a fact carries
+   no file or line. The prompt quotes the Act's provisions
    from the served build. Each kept fact carries the words of your description
    it rests on (`answer.quotes`, with code point offsets); a fact whose quote is
    missing, shorter than three words or not in the description is dropped and
    named in `answer.dropped` and `missing_facts`. Code checks that the words are
-   there; you and the human judge whether they support the fact. Confirm or edit
-   the facts before classifying.
+   there; you and the human judge whether they support the fact. The user
+   confirms or edits the facts before you classify.
 2. `classify_ai_system(features)`: deterministic rule ladder over the Act's
    real Article 5 and Annex III nodes. Input schema:
    `schema/json_schemas/system_features.schema.json`. Provide every fact you

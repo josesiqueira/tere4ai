@@ -7,9 +7,10 @@
 TERE4AI is an open-source MCP server for teams building AI systems under
 Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744 (the
 Digital Omnibus), the AI Act in force. A coding agent describes the system it is
-building and gets back a deterministic risk classification, engineering
-requirements traced to byte-exact legal text, judged alignments to the AI
-HLEG Trustworthy AI principles, and requirement-to-code traceability.
+building, from the project it works in, and gets back a deterministic risk
+classification, engineering requirements traced to byte-exact legal text,
+judged alignments to the AI HLEG Trustworthy AI principles, and
+requirement-to-code traceability.
 The rule ladder alone decides the level. A model's proposal is served only
 after a check: an independent judge for norms, alignments, evidence and
 backlog items, and for the elicitor's proposed facts a code check of their
@@ -60,7 +61,17 @@ client is tested here.
 
 ## What a call looks like
 
-The agent describes the system as structured facts. Unknown is never
+Inside a coding agent's harness, the agent reads the project it is working
+in: its code, README, configuration and documentation. When you ask, it calls
+`elicit_features` with a description it writes from what it read, at least 30
+characters of text. The answer proposes facts like the ones below, each kept
+only with a quote of at least three words found in that description, and you
+confirm or edit them before `classify_ai_system` runs; the elicitor never
+proposes a risk level. TERE4AI never reads your repository: it elicits from
+the text your agent sends through MCP, so the quote check proves each fact's
+words are in that text, not in your code, and a fact carries no file or line.
+
+The agent then describes the system as structured facts. Unknown is never
 treated as false: a fact it does not state stays unknown, and the server
 says so.
 
@@ -136,7 +147,7 @@ so in its description (PAID) and in its annotations (openWorldHint).
 |---|---|---|
 | `classify_ai_system` | Deterministic EU AI Act risk classification of a described AI system. | free |
 | `coverage_report` | Structural coverage of the Act's graph and its judged layers, against the frozen source. | free |
-| `elicit_features` | Propose the system_features facts of a plain-text system description, for the person to confirm before classify_ai_system runs. | paid |
+| `elicit_features` | Propose the system_features facts of a system from a text description the coding agent writes from the project it works in, for the person to confirm before classify_ai_system runs. | paid |
 | `evaluate_project_evidence` | Evaluate ONE untrusted project evidence artifact against ONE judge-accepted norm from the graph. | paid |
 | `evaluate_project_evidence_batch` | Evaluate ONE untrusted evidence artifact against EVERY judge-accepted norm of one article, in a single envelope with per-norm results. | paid |
 | `explain_requirement` | Explain one judged requirement (a normative statement) in depth. | free |

@@ -61,14 +61,20 @@ No input.
 Paid. Annotations: destructiveHint false, openWorldHint true, readOnlyHint true.
 
 ```text
-Propose the system_features facts of a plain-text system description,
-for the person to confirm before classify_ai_system runs.
+Propose the system_features facts of a system from a text description
+the coding agent writes from the project it works in, for the person to
+confirm before classify_ai_system runs.
 
 PAID: this tool performs one paid model call (one OpenAI generator call,
 no judge) on every invocation.
 
-description is the system's description in plain text, at least 30
-characters. The prompt quotes the Act's provisions from the served
+description is the system's description as text, at least 30
+characters. In a coding agent's harness the agent reads the project it is
+working in (its code, README, configuration and documentation) and, when
+the user asks, writes the description from what it read. TERE4AI never
+reads the repository: it elicits from the text the agent sends, so each
+quote points into that text, not into a file, and a fact carries no file
+or line. The prompt quotes the Act's provisions from the served
 build. The answer carries features (schema-valid system_features, never
 a risk category), quotes (for each kept fact, the words of the
 description it rests on, with start and end offsets in code points),
