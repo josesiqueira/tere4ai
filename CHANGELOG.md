@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B161: the answers of the B149 to B151 run, built (2026-10-11)
+- B161: the hand-made test set's agreement reads the article level of an Annex item at the Annex's top-level point (B149 Q2); a label with several ids goes back to its labeller and contested cases stay in the agreement, as built, their notes no longer awaiting or provisional (B149 Q1, Q5).
+
 ### B150: E6's declared analysis built (spec G D-G84)
 - B150: the development set of spec G D-G84 (5), the REF-15 items outside the frozen sample (307 scenarios, 122 question pairs): scripts/build_full_benchmark_payload.py --development-set writes it, stamped with the sample's digest; scripts/run_ablations.py --development-set runs it for the pilot run, with no hand-made item, refused without every scenario's elicited facts.
 - B150: conditions 5 and 6 (graph_full, graph_runtime_judge) no longer call the runtime grounding judge on a classification case, where it received an empty list of cited norms; there they give what conditions 4 and 3 give (spec G D-G84 (4)).

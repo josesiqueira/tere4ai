@@ -16,10 +16,11 @@ from tere4ai.eval.gold_agreement import (
     CHANCE_CORRECTED,
     INTERVAL,
     KAPPA_NA,
+    NO_ARTICLE_LEVEL,
     NOT_ONE_ID,
-    OUTSIDE_ARTICLES,
     LabelError,
     agreement_report,
+    article_level_of,
     article_of,
     render_text,
 )
@@ -110,10 +111,43 @@ def test_retrieval_exact_and_article_level_with_the_unsettled_cases_listed():
     assert ret["paired"] == 4
     assert ret["exact_node_id_agreement"] == {"agreed": 2, "compared": 3, "rate": 2 / 3}
     assert ret["not_one_id"] == {"items": ["gold:ret-04"], "note": NOT_ONE_ID}
-    assert ret["article_level_agreement"] == {"agreed": 2, "compared": 2, "rate": 1.0}
-    assert ret["outside_the_articles"] == {"items": ["gold:ret-01"], "note": OUTSIDE_ARTICLES}
+    # ret-01 (Annex III point 4 both), ret-02 (Article 5 both), ret-03 (Article 6 both): 3 of 3
+    assert ret["article_level_agreement"] == {"agreed": 3, "compared": 3, "rate": 1.0}
+    assert ret["no_article_level"] == {"items": [], "note": NO_ARTICLE_LEVEL}
     assert ret["chance_corrected"] == CHANCE_CORRECTED
     assert ret["contested"]["items"] == ["gold:ret-02"]
+
+
+def test_an_annex_item_reads_its_top_level_point_at_article_level():
+    # B149 Q2: Annex III point 5(a) against point 5(b) disagree by node id and agree at article level
+    report = agreement_report([_ret("gold:ret-01", "eu-ai-act:annex-iii:point-5:a", "eu-ai-act:annex-iii:point-5:b"),
+                               _ret("gold:ret-02", "eu-ai-act:annex-iii", "eu-ai-act:annex-iii:point-5")])
+    ret = report["by_kind"]["retrieval"]
+    assert ret["exact_node_id_agreement"] == {"agreed": 0, "compared": 2, "rate": 0.0}
+    assert ret["article_level_agreement"] == {"agreed": 1, "compared": 1, "rate": 1.0}
+    assert ret["no_article_level"] == {"items": ["gold:ret-02"], "note": NO_ARTICLE_LEVEL}
+
+
+def test_article_level_of_reads_articles_and_annex_points_only():
+    assert article_level_of(ART + "5:paragraph-1:point-a") == ART + "5"
+    assert article_level_of("eu-ai-act:annex-iii:point-5:a") == "eu-ai-act:annex-iii:point-5"
+    assert article_level_of("eu-ai-act:annex-iii:point-10:a") == "eu-ai-act:annex-iii:point-10"
+    assert article_level_of("eu-ai-act:annex-iii:point-1") == "eu-ai-act:annex-iii:point-1"
+    assert article_level_of("eu-ai-act:annex-i:section-a:point-1") == "eu-ai-act:annex-i:section-a:point-1"
+    assert article_level_of("eu-ai-act:annex-iv:point-2:2.1") == "eu-ai-act:annex-iv:point-2"
+    assert article_level_of("eu-ai-act:annex-viii:item-3") == "eu-ai-act:annex-viii:item-3"
+    assert article_level_of("eu-ai-act:annex-iii") is None
+    assert article_level_of("eu-ai-act:annex-i:section-a") is None
+    assert article_level_of("eu-ai-act:recital-12") is None
+
+
+def test_the_answered_questions_print_no_awaiting_and_no_provisional_line():
+    text = render_text(agreement_report(ITEMS))
+    assert "Back to the labeller" in text  # ret-04 and qa-03 listed as not compared (B149 Q1)
+    assert "B149 Q5" in text and "provisional" not in text  # ret-02 contested
+    for line in text.splitlines():
+        if any(f"B149 {q}" in line for q in ("Q1", "Q2", "Q5")):
+            assert "awaiting Jose's decision" not in line
 
 
 def test_qa_citation_agreement_by_exact_node_id():
@@ -155,9 +189,9 @@ def test_the_text_report_prints_shares_as_n_of_m_and_names_every_open_question()
     assert "raw agreement: 3 of 4 (0.750)" in text
     assert "cohen kappa: 0.667" in text
     assert "exact node-id agreement: 2 of 3 (0.667)" in text
-    assert "article-level agreement: 2 of 2 (1.000)" in text
+    assert "article-level agreement: 3 of 3 (1.000)" in text
     assert "citation agreement: 1 of 2 (0.500)" in text
-    for question in ("Q1", "Q2", "Q3", "Q4", "Q5"):
+    for question in ("Q3", "Q4"):
         assert f"B149 {question}" in text
 
 

@@ -11,15 +11,17 @@ kind apart:
   categories, with the confusion table; kappa is None, printed n/a with its
   reason, where both labellers used one category for every case;
 - retrieval: the exact node-id agreement rate, and the agreement at article
-  level as a secondary number;
+  level as a secondary number (the article level of an Annex item is the
+  Annex's top-level point, B149 Q2);
 - qa: the citation agreement by exact node id; free-text answers are not
   scored, their differences go to adjudication.
 
 Every case one labeller lacks is listed, never dropped; every label is
 checked as it is read, paired or not. What the protocol leaves unstated is
-not computed: the report says so and names the open question (B149 Q1 to
-Q4); contested cases are kept, provisionally (B149 Q5). Pure functions: no
-I/O, no model, no randomness.
+not computed: the report says so and names the open question (B149 Q3 and
+Q4 until the next task builds them). Decided: a label giving more or fewer
+than one node id goes back to its labeller (B149 Q1); contested cases stay in
+the agreement (B149 Q5). Pure functions: no I/O, no model, no randomness.
 """
 
 from __future__ import annotations
@@ -34,17 +36,21 @@ RISK_CATEGORIES = ("unacceptable_risk", "high_risk", "limited_risk", "minimal_ri
 KINDS = ("classification", "retrieval", "qa")
 
 _AWAITING = "not computed: awaiting Jose's decision on {} (B149 {})"
-NOT_ONE_ID = _AWAITING.format("how a label giving more or fewer than one node id is compared", "Q1")
-OUTSIDE_ARTICLES = _AWAITING.format("the article level of a node id outside the Articles", "Q2")
+NOT_ONE_ID = ("not compared: the protocol asks for one node id per label, so a label giving more or fewer goes "
+              "back to its labeller before the agreement is reported (B149 Q1, Jose 2026-10-11: "
+              "\"Back to the labeller (Recommended)\")")
+NO_ARTICLE_LEVEL = ("no article level: the id lies in no Article and in no point of an Annex (B149 Q2: the article "
+                    "level of an Annex item is the Annex's top-level point)")
 CHANCE_CORRECTED = _AWAITING.format("a chance-corrected statistic for this kind", "Q3")
 INTERVAL = _AWAITING.format("an interval on the agreement", "Q4")
-CONTESTED_KEPT = ("contested after adjudication and kept here: the agreement is computed "
-                  "before any adjudication (provisional, B149 Q5)")
+CONTESTED_KEPT = ("contested after adjudication and kept here: the agreement is computed before any adjudication "
+                  "(B149 Q5, Claude's ruling on Jose's delegation, 2026-10-11)")
 KAPPA_NA = "n/a: both labellers used one category for every case"
 QA_ANSWERS = ("free-text answers are not scored by string match; their differences "
               "go to adjudication")
 
 _ARTICLE = re.compile(r"eu-ai-act:article-\d+[a-z]?(?=:|$)")
+_ANNEX_POINT = re.compile(r"eu-ai-act:annex-[ivxlc]+(?::section-[a-z0-9]+)?:(?:point|item)-\d+[a-z]?(?=:|$)")
 
 Pair = tuple[dict[str, Any], dict[str, Any], dict[str, Any]]
 
@@ -58,6 +64,20 @@ def article_of(node_id: str) -> str | None:
     as run_ablations' article-level completeness reads it. None outside the
     Articles (an Annex item, a recital)."""
     match = _ARTICLE.match(node_id)
+    return match.group(0) if match else None
+
+
+def article_level_of(node_id: str) -> str | None:
+    """The article level of a node id (B149 Q2, Claude's choice for this study on
+    Jose's delegation, 2026-10-11, no source): an Article's node reads its
+    Article (article_of); an Annex item reads the Annex's top-level point, the
+    id cut after its first point or item segment, a section kept as the id
+    holds it (Annex III points 5(a) and 5(b) read Annex III point 5). None for
+    the Annex itself, an Annex section or anything outside both."""
+    article = article_of(node_id)
+    if article:
+        return article
+    match = _ANNEX_POINT.match(node_id)
     return match.group(0) if match else None
 
 
@@ -199,15 +219,15 @@ def classification_block(pairs: list[Pair]) -> dict[str, Any]:
 
 def retrieval_block(pairs: list[Pair]) -> dict[str, Any]:
     one, other = _one_id_each("retrieval", pairs)
-    in_articles = [(i, article_of(x), article_of(y)) for i, x, y in one
-                   if article_of(x) and article_of(y)]
-    outside = [i for i, x, y in one if not (article_of(x) and article_of(y))]
+    in_articles = [(i, article_level_of(x), article_level_of(y)) for i, x, y in one
+                   if article_level_of(x) and article_level_of(y)]
+    outside = [i for i, x, y in one if not (article_level_of(x) and article_level_of(y))]
     return {
         "paired": len(pairs),
         "exact_node_id_agreement": _share(one),
         "not_one_id": {"items": other, "note": NOT_ONE_ID},
         "article_level_agreement": _share(in_articles),
-        "outside_the_articles": {"items": outside, "note": OUTSIDE_ARTICLES},
+        "no_article_level": {"items": outside, "note": NO_ARTICLE_LEVEL},
         "contested": _contested(pairs),
         "chance_corrected": CHANCE_CORRECTED,
         "interval": INTERVAL,
@@ -282,7 +302,7 @@ def render_text(report: dict[str, Any]) -> str:
               f"  exact node-id agreement: {_share_text(ret['exact_node_id_agreement'])}"]
     lines += _listed("not compared", ret["not_one_id"])
     lines += [f"  article-level agreement: {_share_text(ret['article_level_agreement'])}"]
-    lines += _listed("outside the Articles", ret["outside_the_articles"])
+    lines += _listed("no article level", ret["no_article_level"])
     lines += [f"  chance-corrected statistic: {ret['chance_corrected']}",
               f"  interval: {ret['interval']}"]
     lines += _listed("contested", ret["contested"])

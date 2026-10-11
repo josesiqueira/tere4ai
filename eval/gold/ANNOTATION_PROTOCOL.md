@@ -68,9 +68,18 @@ Spec G Section 10.4 (B104, decision 2) and Section 6, steps 4 and 5.
   across studies (ADD-59):
   - classification: Cohen's kappa over the five risk categories.
   - retrieval: exact node-id agreement rate (plus agreement at article
-    level as a secondary number).
+    level as a secondary number; the article level of an Annex item is
+    the Annex's top-level point, Annex III point 5 for points 5(a) and
+    5(b): Claude's choice for this study on Jose's delegation of
+    2026-10-11, B149 Q2, no source).
   - qa: citation agreement (exact node id); free-text answers are not
     scored by string match, and their differences go to adjudication.
+  - A label giving more or fewer than one node id goes back to its
+    labeller before the agreement is reported; until then the report
+    lists the case as not compared (Jose, 2026-10-11, B149 Q1: "Back to
+    the labeller (Recommended)").
+  - Contested cases stay in the agreement, which is computed before any
+    adjudication; they are listed per kind (B149 Q5, 2026-10-11).
   - The command:
     `.venv/bin/python scripts/draft_gold_candidates.py agreement [item file] [--json OUT]`;
     what this list leaves unstated is printed as not computed, never
