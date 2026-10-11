@@ -204,3 +204,10 @@ def test_the_agreement_command_refuses_a_file_outside_the_protocol(tmp_path, cap
                     encoding="utf-8")
     assert _script().main(["agreement", str(path)]) == 1
     assert "refusing: gold:cls-01" in capsys.readouterr().err
+
+
+def test_the_agreement_command_refuses_the_old_flat_label_map(tmp_path, capsys):
+    path = tmp_path / "labels.json"
+    path.write_text(json.dumps({"i1": "high_risk"}), encoding="utf-8")
+    assert _script().main(["agreement", str(path)]) == 1
+    assert "refusing:" in capsys.readouterr().err
