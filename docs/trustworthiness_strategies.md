@@ -360,7 +360,7 @@ merit, this document says so explicitly instead of inventing a citation.
   ADD-17 (PEER, human alignment of LLM evaluation), REF-16.
 - Implementation: eval/metrics.py:153-206 (abstention never counted as FA or
   FR); scripts/sample_judge_decisions.py (deterministic stratified blind
-  sheet); eval/agreement.py:47-66 (Cohen's kappa).
+  sheet); eval/agreement.py:48-70 (Cohen's kappa).
 - Tests: tests/unit/test_eval_metrics.py:133; tests/unit/test_judge_sampling.py;
   tests/unit/test_agreement.py.
 - HONEST STATUS: instrumented, unmeasured. The 50-decision sheet has zero

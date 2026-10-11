@@ -71,10 +71,18 @@ def test_disagreement_below_chance_is_negative_kappa():
     assert cohen_kappa(["y", "y", "n", "n"], ["n", "n", "y", "y"]) == pytest.approx(-1.0)
 
 
-def test_single_identical_category_degenerate_case():
-    # p_e = 1.0 forces p_o = 1.0; kappa is defined as 1.0, not a division
-    # by zero.
-    assert cohen_kappa(["a", "a", "a"], ["a", "a", "a"]) == 1.0
+def test_one_shared_category_is_n_a_never_one():
+    # Both annotators used "a" for every item: p_e = 1 and kappa is 0 / 0.
+    # The project rule (spec F conventions): n/a, never a one.
+    assert cohen_kappa(["a", "a", "a"], ["a", "a", "a"]) is None
+    # tested in integers, so exact for every n
+    for n in (1, 6, 7, 49, 300):
+        assert cohen_kappa(["high_risk"] * n, ["high_risk"] * n) is None
+
+
+def test_two_different_constant_categories_is_zero_not_n_a():
+    # A always "a", B always "b": p_o = 0, p_e = 0, kappa = 0 / 1 = 0.
+    assert cohen_kappa(["a"] * 5, ["b"] * 5) == 0.0
 
 
 def test_length_mismatch_raises():
