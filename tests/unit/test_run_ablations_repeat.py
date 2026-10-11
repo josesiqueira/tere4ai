@@ -226,3 +226,24 @@ def test_a_stopped_first_run_never_resumes_as_a_repetition(runner, tmp_path, mon
     assert code == 2 and (f"--repeat-of {stopped['record_id']} names the record {again['record_id']} resumes"
                           in capsys.readouterr().out)
     assert sum(calls.values()) == before, "a refused resume makes no model call"
+
+
+def test_a_repetition_never_resumes_from_a_checkpoint_no_record_names(
+        runner, tmp_path, monkeypatch, capsys):  # noqa: F811
+    _install(runner, monkeypatch)
+    _, first = _run(runner, tmp_path, "first")
+    calls = _install(runner, monkeypatch, stop_once=("vector_rag", "gold:cls-1"))
+    code, stopped = _run(runner, tmp_path, "orphan")
+    assert code == 3 and stopped["relations"]["repeat_of"] is None
+    # the sidecar gone, no record names the first run's checkpoint
+    (tmp_path / "results" / "orphan.jsonl.record").unlink()
+    records_before = len(EvaluationRecordStore(tmp_path, create=False).list_records())
+    before = sum(calls.values())
+    capsys.readouterr()
+    code = runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / "orphan.jsonl"),
+                        "--summary", str(tmp_path / "results" / "orphan.json"), "--resume-unrecorded",
+                        "--repeat-of", first["record_id"]])
+    assert code == 2 and sum(calls.values()) == before
+    assert len(EvaluationRecordStore(tmp_path, create=False).list_records()) == records_before
+    assert ("--repeat-of: a checkpoint no record names (--resume-unrecorded) records no relation to a group, so it "
+            "never resumes as a repetition") in capsys.readouterr().out

@@ -482,6 +482,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.repeat_of is not None and args.no_record:
         print("--repeat-of: a --no-record run records no relation; drop one of the two flags")
         return 2
+    if args.repeat_of is not None and args.resume_unrecorded:
+        # spec G D-G84 (5), (7): no record says whether such a checkpoint ran as a first run or a repetition
+        print("--repeat-of: a checkpoint no record names (--resume-unrecorded) records no relation to a group, so "
+              "it never resumes as a repetition: a first run's checkpoint would skip classification cases it never "
+              "ran; drop one of the two flags")
+        return 2
     if args.no_record and (args.checkpoint is None or args.summary is None):
         print("refusing to run: a --no-record run has no record id to name its directory; "
               "pass --checkpoint and --summary")
