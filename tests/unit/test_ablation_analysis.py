@@ -6,16 +6,25 @@ beside it; the bootstrap is checked by its properties and its seed.
 
 from __future__ import annotations
 
+import math
+import statistics
+
 import pytest
 
 from tere4ai.eval.ablation_analysis import (
     AnalysisError,
     case_outcome,
+    gate_answers,
+    gate_share_intervals,
+    gate_shares,
     majority,
     mcnemar_exact_p,
     outcome_table,
     paired_contrast,
+    per_call_summary,
     percentile_interval,
+    pilot_count,
+    required_repetitions,
     seeded_rng,
 )
 
@@ -125,8 +134,8 @@ def test_a_paired_contrast_reads_one_outcome_per_case():
     assert result["difference"] == pytest.approx(6 / 20)
     assert result["mcnemar_exact_p"] == 0.109375
     assert result["no_difference_rejected"] is False  # 0.109375 is not below 0.05 / 3
-    low, high = result["interval"]
-    assert -1 <= low <= 0.3 <= high <= 1
+    # pinned to the seeded draw (checked by hand by the Task 5 review): 0.3 sits inside
+    assert result["interval"] == [0.0, 0.55]
     assert (result["draws"], result["seed"], result["level"]) == (1000, 20261011, 0.95)
 
 
@@ -172,3 +181,109 @@ def test_outcome_table_refuses_a_missing_result():
     runs = [{"plain_llm": {"gold:cls-1": _ans(level="high_risk")}}, {"plain_llm": {}}]
     with pytest.raises(AnalysisError, match="run 2 .*plain_llm.*gold:cls-1"):
         outcome_table([_cls("gold:cls-1", "high_risk")], runs, "plain_llm", once)
+
+
+def test_per_call_accuracy_pools_every_call_and_reports_the_variation():
+    table = {"a": [True, True, False], "b": [False, False, False], "c": [True, False, False]}
+    s = per_call_summary(table, 3)
+    # repetition 1: a and c right (2 of 3); 2: a (1 of 3); 3: none; 3 right of 9 calls
+    assert (s["cases"], s["repetitions"], s["calls"], s["right"]) == (3, 3, 9, 3)
+    assert s["share"] == pytest.approx(3 / 9)
+    assert s["by_repetition"] == pytest.approx([2 / 3, 1 / 3, 0.0])
+    # sample standard deviation (n - 1) of 2/3, 1/3, 0: sqrt(((1/3)^2 + 0 + (1/3)^2) / 2) = 1/3
+    assert s["standard_deviation"] == pytest.approx(1 / 3)
+
+
+def test_one_repetition_has_no_variation_and_no_case_has_no_share():
+    assert per_call_summary({"a": [True]}, 1)["standard_deviation"] is None
+    assert per_call_summary({}, 3)["share"] is None
+
+
+def test_a_run_once_case_counts_its_one_call_only():
+    # Codex finding 1: one right classification run once and a question wrong three
+    # times is 1 right of 4 calls, never 3 of 6; each repetition's accuracy reads the
+    # case run in every repetition only (provisional, B150 Q13)
+    s = per_call_summary({"cls": [True], "qa": [False, False, False]}, 3)
+    assert (s["calls"], s["right"], s["share"]) == (4, 1, 0.25)
+    assert (s["by_repetition"], s["standard_deviation"], s["cases_in_every_repetition"]) == ([0.0, 0.0, 0.0], 0.0, 1)
+
+
+def test_the_four_gate_shares_on_hand_counted_answers():
+    # (right, delivered): a right answer delivered twice and blocked once,
+    # a wrong answer caught twice and let through once
+    rows = [[(True, True), (True, True), (True, False)], [(False, False), (False, False), (False, True)]]
+    s = gate_shares(rows)
+    assert s["wrong_answers_caught"] == {"numerator": 2, "denominator": 3, "rate": 2 / 3}
+    assert s["right_answers_blocked"] == {"numerator": 1, "denominator": 3, "rate": 1 / 3}
+    assert s["accuracy_among_delivered"] == {"numerator": 2, "denominator": 3, "rate": 2 / 3}
+    assert s["share_delivered"] == {"numerator": 3, "denominator": 6, "rate": 0.5}
+
+
+def test_a_share_with_nothing_to_count_is_none_never_zero():
+    assert gate_shares([[(True, True)]])["wrong_answers_caught"] == {"numerator": 0, "denominator": 0, "rate": None}
+    assert gate_shares([])["share_delivered"]["rate"] is None
+
+
+def test_gate_answers_leave_a_failed_call_out_and_list_it():
+    item = _qa("gold:qa-1", [ART + "9"])
+    runs = [
+        {"graph_full": {"gold:qa-1": {"error": "RuntimeError: x", "answer_text": "", "citations": []}}},
+        {"graph_full": {"gold:qa-1": dict(_ans([ART + "9"]), judge_verdict="accepted")}},
+        {"graph_full": {"gold:qa-1": dict(_ans([]), judge_verdict="needs_human_review")}},
+    ]
+    answers, failed = gate_answers([item], runs, "graph_full")
+    assert answers == {"gold:qa-1": [(True, True), (False, False)]}
+    assert failed == [{"repetition": 1, "case": "gold:qa-1", "error": "RuntimeError: x"}]
+
+
+def test_a_gated_answer_without_a_verdict_refuses():
+    runs = [{"graph_full": {"gold:qa-1": _ans([ART + "9"])}}]
+    with pytest.raises(AnalysisError, match="no runtime judge verdict"):
+        gate_answers([_qa("gold:qa-1", [ART + "9"])], runs, "graph_full")
+
+
+def test_gate_share_intervals_draw_each_case_with_all_its_repetitions():
+    answers = {"a": [(True, True)] * 3, "b": [(False, False)] * 3,
+               "c": [(True, False), (True, True), (True, True)]}
+    out = gate_share_intervals(answers, level=0.95, draws=500, seed=3, label="g")
+    low, high = out["share_delivered"]
+    assert 0 <= low <= high <= 1
+    # b is the only case with a wrong answer: a resample without it has none to catch
+    assert out["wrong_answers_caught"].startswith("not computed: awaiting Jose's decision")
+    assert "B150 Q11" in out["wrong_answers_caught"]
+    assert out == gate_share_intervals(answers, level=0.95, draws=500, seed=3, label="g")
+    every = {"a": [(False, True), (True, True)], "b": [(False, False), (True, True)]}
+    low, high = gate_share_intervals(every, level=0.95, draws=500, seed=3, label="g")["wrong_answers_caught"]
+    assert 0 <= low <= high <= 1
+    assert gate_share_intervals({"a": [(True, True)]}, level=0.95, draws=10, seed=3,
+                                label="g")["wrong_answers_caught"] is None  # nothing to count at all: n/a
+
+
+def test_required_repetitions_is_the_smallest_odd_count_reaching_two_points():
+    z, h = 1.96, 0.02
+    assert required_repetitions(0.0, z=z, half_width=h) == 1
+    assert required_repetitions(0.01, z=z, half_width=h) == 1  # 0.0196 <= 0.02
+    assert required_repetitions(0.02, z=z, half_width=h) == 5  # 3 gives 0.0226, 5 gives 0.0175
+    assert required_repetitions(0.03, z=z, half_width=h) == 9  # 7 gives 0.0222, 9 gives 0.0196
+    assert required_repetitions(0.06 / 1.96, z=z, half_width=h) == 9  # exactly 0.02 at 9
+    assert required_repetitions(0.05, z=z, half_width=h) == 25  # (1.96 * 0.05 / 0.02)^2 = 24.01
+
+
+def test_the_pilot_count_takes_the_most_demanding_figure_and_the_cap():
+    out = pilot_count({"accuracy:plain_llm": [1.0, 1.0, 1.0, 1.0, 0.975], "accuracy:vector_rag": [1.0] * 5},
+                      z=1.96, half_width=0.02, cap=11)
+    # standard deviation of 1, 1, 1, 1, 0.975 (n - 1) = 0.01118; (1.96 * 0.01118 / 0.02)^2 = 1.2, so 3
+    assert (out["count"], out["cap_binds"], out["precision_reached"]) == (3, False, None)
+    assert out["figures"]["accuracy:vector_rag"]["required"] == 1
+    values = [0.9, 1.0, 0.9, 1.0, 0.9]
+    capped = pilot_count({"accuracy:plain_llm": values}, z=1.96, half_width=0.02, cap=11)
+    # standard deviation 0.05477; (1.96 * 0.05477 / 0.02)^2 = 28.8, so 29, above the cap
+    assert (capped["count"], capped["cap_binds"]) == (11, True)
+    assert capped["precision_reached"] == pytest.approx(1.96 * statistics.stdev(values) / math.sqrt(11))
+
+
+def test_a_figure_without_a_value_in_a_repetition_leaves_the_count_not_computed():
+    out = pilot_count({"wrong_answers_caught:graph_full": [0.5, None, 0.5, 0.5, 0.5]},
+                      z=1.96, half_width=0.02, cap=11)
+    assert out["count"] is None and "B150 Q11" in out["not_computed"]
+    assert "wrong_answers_caught:graph_full" in out["not_computed"]

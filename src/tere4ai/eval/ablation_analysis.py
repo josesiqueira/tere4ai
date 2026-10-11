@@ -24,6 +24,7 @@ from __future__ import annotations
 import math
 import random
 import re
+import statistics
 from collections.abc import Sequence
 from fractions import Fraction
 from typing import Any
@@ -161,3 +162,165 @@ def outcome_table(cases: list[dict[str, Any]], runs: list[dict[str, dict[str, di
             row.append(case_outcome(item, results[item["id"]]))
         table[item["id"]] = row
     return table
+
+
+# what each share counts, for the sentence that names an empty one
+_COUNTS = {"wrong_answers_caught": "wrong answer", "right_answers_blocked": "right answer",
+           "accuracy_among_delivered": "delivered answer", "share_delivered": "answer"}
+
+
+def accuracy_by_repetition(table: dict[str, list[bool]], repetitions: int) -> list[float]:
+    """Each repetition's share right over the cases run in every repetition, a
+    run-once case (a row of one call) left out: provisional, awaiting Jose
+    (B150 Q13, ruling R45). Empty when no case ran in every repetition."""
+    full = [row for row in table.values() if len(row) == repetitions]
+    if not full:
+        return []
+    return [sum(1 for row in full if row[r]) / len(full) for r in range(repetitions)]
+
+
+def per_call_summary(table: dict[str, list[bool]], repetitions: int) -> dict[str, Any]:
+    """A condition's per-call accuracy, the share right over every call the
+    group made, a run-once case's one call counted once (D-G84 (3); Codex
+    finding 1, ruling R10), and its run-to-run variation, the standard
+    deviation (n - 1) across repetitions of each repetition's accuracy
+    (rulings R8, R9; the basis provisional, B150 Q13). Descriptive, never
+    tested."""
+    by_repetition = accuracy_by_repetition(table, repetitions)
+    calls = sum(len(row) for row in table.values())
+    right = sum(1 for row in table.values() for outcome in row if outcome)
+    return {"cases": len(table), "repetitions": repetitions, "calls": calls, "right": right,
+            "share": right / calls if calls else None, "by_repetition": by_repetition,
+            "cases_in_every_repetition": sum(1 for row in table.values() if len(row) == repetitions),
+            "standard_deviation": statistics.stdev(by_repetition) if len(by_repetition) >= 2 else None}
+
+
+def gate_answers(cases: list[dict[str, Any]], runs: list[dict[str, dict[str, dict[str, Any]]]], condition: str,
+                 first_repetition: int = 1) -> tuple[dict[str, list[tuple[bool, bool]]], list[dict[str, Any]]]:
+    """The answers the runtime judge gated in one condition, per case over the
+    repetitions, each (right, delivered), delivered when the verdict is
+    accepted (spec G D-G84 (4)). A failed call has no answer to gate: it is
+    left out and listed (ruling R15); a gated answer without a verdict
+    refuses (ruling R16)."""
+    answers: dict[str, list[tuple[bool, bool]]] = {}
+    failed: list[dict[str, Any]] = []
+    for item in cases:
+        row = []
+        for offset, run in enumerate(runs):
+            repetition = first_repetition + offset
+            results = run.get(condition)
+            if results is None or item["id"] not in results:
+                raise AnalysisError(f"repetition {repetition} holds no result for {condition} on {item['id']}")
+            result = results[item["id"]]
+            if "error" in result:
+                failed.append({"repetition": repetition, "case": item["id"], "error": str(result["error"])})
+                continue
+            verdict = result.get("judge_verdict")
+            if verdict is None:
+                raise AnalysisError(f"{condition} on {item['id']} in repetition {repetition} carries no "
+                                    "runtime judge verdict")
+            row.append((case_outcome(item, result), verdict == "accepted"))
+        answers[item["id"]] = row
+    return answers, failed
+
+
+def _share(numerator: int, denominator: int) -> dict[str, Any]:
+    # an empty denominator is None, never 0 or 1 (spec G D-G33)
+    return {"numerator": numerator, "denominator": denominator,
+            "rate": numerator / denominator if denominator else None}
+
+
+def gate_shares(rows: Sequence[Sequence[tuple[bool, bool]]]) -> dict[str, dict[str, Any]]:
+    """The four shares of spec G D-G84 (4), pooled over every answer given."""
+    pooled = [answer for row in rows for answer in row]
+    wrong = [delivered for right, delivered in pooled if not right]
+    right = [delivered for is_right, delivered in pooled if is_right]
+    delivered = [is_right for is_right, was_delivered in pooled if was_delivered]
+    return {
+        "wrong_answers_caught": _share(sum(1 for d in wrong if not d), len(wrong)),
+        "right_answers_blocked": _share(sum(1 for d in right if not d), len(right)),
+        "accuracy_among_delivered": _share(sum(1 for r in delivered if r), len(delivered)),
+        "share_delivered": _share(len(delivered), len(pooled)),
+    }
+
+
+def gate_share_intervals(answers: dict[str, list[tuple[bool, bool]]], *, level: float, draws: int, seed: int,
+                         label: str) -> dict[str, list[float] | str | None]:
+    """Each share's percentile interval from a bootstrap over cases that draws
+    each case with all its repetitions (spec G D-G84 (4)). None where the
+    share itself has nothing to count; the not-computed line where some
+    resample has nothing to count (B150 Q11)."""
+    point = gate_shares(list(answers.values()))
+    ids = sorted(answers)
+    rng = seeded_rng(seed, label)
+    drawn: dict[str, list[float]] = {share: [] for share in SHARES}
+    empty = dict.fromkeys(SHARES, 0)
+    for _ in range(draws if ids else 0):
+        rows = [answers[ids[rng.randrange(len(ids))]] for _ in ids]
+        for share, value in gate_shares(rows).items():
+            if value["rate"] is None:
+                empty[share] += 1
+            else:
+                drawn[share].append(value["rate"])
+    out: dict[str, list[float] | str | None] = {}
+    for share in SHARES:
+        if point[share]["rate"] is None:
+            out[share] = None
+        elif empty[share]:
+            out[share] = not_computed(f"an interval when {empty[share]} of {draws} resamples hold no "
+                                      f"{_COUNTS[share]}", "B150 Q11")
+        else:
+            out[share] = list(percentile_interval(drawn[share], level))
+    return out
+
+
+def gate_shares_by_repetition(cases: list[dict[str, Any]], runs: list[dict[str, dict[str, dict[str, Any]]]],
+                              condition: str) -> dict[str, list[float | None]]:
+    """Each repetition's four shares, for the pilot run's figures (spec G D-G84 (5))."""
+    out: dict[str, list[float | None]] = {share: [] for share in SHARES}
+    for index, run in enumerate(runs):
+        answers, _ = gate_answers(cases, [run], condition, first_repetition=index + 1)
+        for share, value in gate_shares(list(answers.values())).items():
+            out[share].append(value["rate"])
+    return out
+
+
+def required_repetitions(sd: float, *, z: float, half_width: float) -> int:
+    """The smallest odd N with z * sd / sqrt(N) at most half_width (spec G D-G84 (5))."""
+    n = 1
+    while z * sd > half_width * math.sqrt(n) + TOLERANCE:
+        n += 2
+    return n
+
+
+def pilot_count(figures: dict[str, list[float | None]], *, z: float, half_width: float,
+                cap: int) -> dict[str, Any]:
+    """The main run's count from the pilot run's figures (spec G D-G84 (5)): for
+    each figure the standard deviation (n - 1) across the repetitions and the
+    smallest odd N reaching the half-width; N is the largest of them, at most
+    cap, with the precision reached when the cap binds. A figure without a
+    value in some repetition leaves N not computed (B150 Q11)."""
+    if not figures:
+        raise AnalysisError("the pilot run gave no figure")
+    rows: dict[str, dict[str, Any]] = {}
+    missing: list[str] = []
+    for name, values in figures.items():
+        if len(values) < 2 or any(v is None for v in values):
+            missing.append(name)
+            rows[name] = {"by_repetition": values, "standard_deviation": None, "required": None}
+            continue
+        sd = statistics.stdev(values)
+        rows[name] = {"by_repetition": values, "standard_deviation": sd,
+                      "required": required_repetitions(sd, z=z, half_width=half_width)}
+    if missing:
+        return {"figures": rows, "count": None, "cap": cap, "cap_binds": None, "precision_reached": None,
+                "not_computed": not_computed("the count when a figure has no value in a repetition ("
+                                             + ", ".join(missing) + ")", "B150 Q11")}
+    needed = max(r["required"] for r in rows.values())
+    count = min(needed, cap)
+    for r in rows.values():
+        r["half_width_at_count"] = z * r["standard_deviation"] / math.sqrt(count)
+    binds = needed > cap
+    return {"figures": rows, "count": count, "cap": cap, "cap_binds": binds,
+            "precision_reached": max(r["half_width_at_count"] for r in rows.values()) if binds else None,
+            "not_computed": None}
