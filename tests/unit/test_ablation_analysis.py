@@ -287,3 +287,18 @@ def test_a_figure_without_a_value_in_a_repetition_leaves_the_count_not_computed(
                       z=1.96, half_width=0.02, cap=11)
     assert out["count"] is None and "B150 Q11" in out["not_computed"]
     assert "wrong_answers_caught:graph_full" in out["not_computed"]
+
+
+def test_a_figure_with_fewer_than_two_values_says_why_without_naming_a_question():
+    # final review, Task 6 minor: no case run in every repetition gives an empty figure, which has no
+    # standard deviation; that is a failure mechanic, not B150 Q11 (a repetition without a value)
+    out = pilot_count({"accuracy:graph_full": [], "accuracy:plain_llm": [1.0, 1.0, 1.0, 1.0, 1.0]},
+                      z=1.96, half_width=0.02, cap=11)
+    assert out["count"] is None and out["figures"]["accuracy:graph_full"]["standard_deviation"] is None
+    assert out["not_computed"] == ("not computed: a standard deviation needs a value in at least two repetitions, "
+                                   "and accuracy:graph_full holds fewer than two (one repetition only, or no case "
+                                   "of it run in every repetition)")
+    both = pilot_count({"a": [0.5], "b": [0.5, None]}, z=1.96, half_width=0.02, cap=11)
+    first, second = both["not_computed"].split("; ")
+    assert "a holds fewer than two" in first and "B150 Q11" not in first
+    assert "B150 Q11" in second and "(b)" in second

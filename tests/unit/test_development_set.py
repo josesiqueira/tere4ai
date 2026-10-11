@@ -113,3 +113,17 @@ def test_a_main_run_cannot_repeat_a_development_run(runner, tmp_path, capsys):  
     capsys.readouterr()
     assert runner.main(_argv(tmp_path, "main", "--repeat-of", first["record_id"])) == 2
     assert "item_set" in capsys.readouterr().out
+
+
+def test_a_main_run_on_the_development_payload_is_refused(runner, tmp_path, capsys):  # noqa: F811
+    # final review, Task 4 minor: a main run given the development set would be labelled item_set "main";
+    # the real load_items refuses the payload before any record or model call
+    runner.load_items = _script("run_ablations").load_items
+    dev = _dev_file(tmp_path)
+    assert runner.main(_argv(tmp_path, "main", "--benchmark", str(dev))) == 2
+    out = capsys.readouterr().out
+    assert "development_payload.json is a development set payload" in out and "--development-set" in out
+    assert not (tmp_path / "evaluation_records").exists()
+    # the frozen sample still loads
+    items = runner.load_items(None, tmp_path / "no_features.json")
+    assert any(i["id"].startswith("bench:") for i in items) and any(i["id"].startswith("gold:") for i in items)

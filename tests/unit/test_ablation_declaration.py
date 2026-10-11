@@ -82,6 +82,9 @@ def _mutated(tmp_path, change):
     (lambda d: d["runtime_judge"].update(conditions=["graph_runtime_judge"]), "runtime_judge.conditions"),
     (lambda d: d["runtime_judge"]["interval"].update(draws=10), "1000"),
     (lambda d: d["primary_family"]["contrasts"][0].update(case_kinds=[["qa"]]), "case_kinds"),
+    # final review M4: D-G84 (4) states both question and retrieval cases, so one alone is refused
+    (lambda d: d["runtime_judge"].update(case_kinds=["qa"]), "runtime_judge.case_kinds must be retrieval and qa"),
+    (lambda d: d["runtime_judge"].update(case_kinds=["retrieval"]), "runtime_judge.case_kinds must be retrieval and qa"),
 ])
 def test_a_declaration_outside_d_g84s_shape_is_refused(tmp_path, change, words):
     with pytest.raises(DeclarationError, match=words):
@@ -100,3 +103,11 @@ def test_an_unreadable_file_is_refused_by_name(tmp_path):
     path.write_text("{", encoding="utf-8")
     with pytest.raises(DeclarationError, match="e6_declaration.json"):
         load_declaration(path)
+
+
+def test_the_run_once_refusal_cites_the_decided_rule_not_a_question(tmp_path):
+    # final review M3: the run-once rule is decided (D-G84 (5)); B150 Q13 is each repetition's accuracy only
+    with pytest.raises(DeclarationError) as raised:
+        load_declaration(_mutated(tmp_path, lambda d: d["repetitions"]["run_once"].update(conditions=["graph_full"])))
+    message = str(raised.value)
+    assert "spec G D-G84 (5)" in message and "Q13" not in message and "provisional" not in message

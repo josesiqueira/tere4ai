@@ -24,8 +24,9 @@ carry is read and every figure labelled post hoc.
   --pilot-analysis ID     a main run's group: the declared contrasts, the
                           runtime judge's shares and the per-call accuracy;
                           the group's size must be the count the pilot
-                          analysis ID fixed, on the same build and
-                          declaration, the pilot run ended first.
+                          analysis ID fixed, on the same build,
+                          declaration, models and prompt versions, the
+                          pilot run ended first.
 
 Usage:
   .venv/bin/python scripts/analyse_ablations.py --group <first run id> --pilot
@@ -37,6 +38,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import sys
 import tempfile
 from pathlib import Path
@@ -73,6 +75,7 @@ from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordStore,
     code_version,
     digest_of_ids,
+    end_failed,
     input_ref,
 )
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
@@ -95,6 +98,10 @@ class Refused(Exception):
 
 def _input(record: dict[str, Any], kind: str) -> str | None:
     return next((i["sha256"] for i in record.get("inputs") or [] if i["input_kind"] == kind), None)
+
+
+def _condition_prompts(record: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in (record.get("prompt_versions") or {}).items() if k != "elicit_features"}
 
 
 def _build_key(record: dict[str, Any]) -> tuple[Any, Any]:
@@ -225,6 +232,24 @@ def pilot_record(store: EvaluationRecordStore, pilot_id: str, first: dict, first
         raise Refused(f"the pilot analysis {pilot_id} did not fix the count before the main run started "
                       "(spec G D-G84 (5): the pilot first)")
     return {"record_id": pilot_id, "count": count}
+
+
+def pilot_instrument_refusal(store: EvaluationRecordStore, pilot_id: str, first: dict) -> str | None:
+    """The refusal sentence when the pilot run ran other instruments than the
+    main run, read once the group itself is accepted (a failure mechanic, the
+    coordinator's ruling on Task 7): the count holds for the models and the
+    conditions' prompt versions it was fixed on. The elicitor's entry is left
+    out: it names each item set's own facts file, and those facts reach only
+    the classification cases of conditions 3 to 6, which no repetition reruns
+    (spec G D-G84 (5))."""
+    runs = [store.read(rid) for rid in (store.read(pilot_id).get("relations") or {}).get("compares") or [] if rid]
+    if any((r.get("models") or {}) != (first.get("models") or {}) for r in runs):
+        return ("the pilot run ran other models than the main run; fix the count again with a pilot run on the "
+                "main run's models")
+    if any(_condition_prompts(r) != _condition_prompts(first) for r in runs):
+        return ("the pilot run ran other prompt versions than the main run; fix the count again with a pilot run "
+                "on the main run's prompt versions")
+    return None
 
 
 def kept_copy(store: EvaluationRecordStore, record: dict, output_kind: str) -> Path:
@@ -504,6 +529,8 @@ def main(argv: list[str] | None = None) -> int:
         pilot = pilot_record(reader, args.pilot_analysis, group[0], first_started) if mode == "main" else None
         refusal = group_refusal(group, mode=mode, declaration=declaration,
                                 pilot_count_=pilot["count"] if pilot else None)
+        if refusal is None and pilot is not None:
+            refusal = pilot_instrument_refusal(reader, pilot["record_id"], group[0])
         if refusal is not None:
             raise Refused(refusal)
         files = key_files(args, mode)
@@ -533,30 +560,43 @@ def main(argv: list[str] | None = None) -> int:
         inputs = [input_ref("e6_declaration", args.declaration)]
         inputs += [input_ref(kind, path) for kind, path in files.items()]
         inputs += [input_ref("run_checkpoint", path) for path in checkpoints]
-        pilot_result = body["pilot"] if mode == "pilot" else {}
+        # pilot_count: the count the analysis fixed (pilot) or read (main: the pilot analysis's, the group's size)
         record_id = store.begin(
             kind="analysis", step="E6", command="analyse_ablations",
             argv=list(argv) if argv is not None else sys.argv[1:], inputs=inputs, build=dict(group[0]["build"]),
             config={"code_version": code_version(ROOT), "mode": mode, "declared_before_runs": ours == theirs,
-                    "pilot_record_id": args.pilot_analysis, "pilot_count": pilot_result.get("count"),
-                    "pilot_count_reason": pilot_result.get("not_computed")},
+                    # the bootstrap draws come from Python's random module (ruling R3): the interpreter is named
+                    "python_version": platform.python_version(),
+                    "pilot_record_id": args.pilot_analysis, "pilot_count": body["pilot"]["count"],
+                    "pilot_count_reason": body["pilot"].get("not_computed")},
             item_selection=ids, intended_items=ids, relations={"compares": run_ids})
-    report = {"analysis": ANALYSIS_VERSION, "mode": mode, "record_id": record_id,
-              "group": {"first_run": run_ids[0], "runs": run_ids, "repetitions": len(run_ids),
-                        "item_set": (group[0].get("config") or {}).get("item_set")},
-              "declaration": {"file": args.declaration.name, "sha256": ours, "runs_sha256": theirs,
-                              "declared_before_runs": ours == theirs},
-              **body, "notes": notes}
-    out_dir = args.out_dir or RESULTS_DIR / ANALYSES_DIRNAME / str(record_id)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    json_path, text_path = out_dir / JSON_NAME, out_dir / TEXT_NAME
-    _write(json_path, json.dumps(report, ensure_ascii=False, indent=1))
-    _write(text_path, render_markdown(report))
+    try:
+        report = {"analysis": ANALYSIS_VERSION, "mode": mode, "record_id": record_id,
+                  "group": {"first_run": run_ids[0], "runs": run_ids, "repetitions": len(run_ids),
+                            "item_set": (group[0].get("config") or {}).get("item_set")},
+                  "declaration": {"file": args.declaration.name, "sha256": ours, "runs_sha256": theirs,
+                                  "declared_before_runs": ours == theirs},
+                  **body, "notes": notes}
+        out_dir = args.out_dir or RESULTS_DIR / ANALYSES_DIRNAME / str(record_id)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        json_path, text_path = out_dir / JSON_NAME, out_dir / TEXT_NAME
+        _write(json_path, json.dumps(report, ensure_ascii=False, indent=1))
+        _write(text_path, render_markdown(report))
+        if store is not None and record_id is not None:
+            store.finish(record_id, status="completed", completed_items=ids, intended_items=ids,
+                         outputs=[store.keep_output(record_id, "analysis", json_path),
+                                  store.keep_output(record_id, "analysis_text", text_path)],
+                         counts={"runs": len(run_ids), "failed_calls": len(report["failed_calls"])}, notes=notes)
+    except BaseException as exc:
+        # a record never stays running (B97 item 9): a failure after it was opened ends it failed with the reason
+        reason = exception_reason(exc)
+        if store is not None and record_id is not None:
+            end_failed(store, record_id, reason, notes=notes)
+        if not isinstance(exc, Exception):
+            raise
+        print(f"failed: {reason}" + (f"; evaluation record {record_id} ended failed" if record_id else ""))
+        return 2
     if store is not None and record_id is not None:
-        store.finish(record_id, status="completed", completed_items=ids, intended_items=ids,
-                     outputs=[store.keep_output(record_id, "analysis", json_path),
-                              store.keep_output(record_id, "analysis_text", text_path)],
-                     counts={"runs": len(run_ids), "failed_calls": len(report["failed_calls"])}, notes=notes)
         print(f"evaluation record {record_id} written under {store.dir}")
     print(f"wrote {json_path.name} and {text_path.name} in {out_dir}")
     return 0

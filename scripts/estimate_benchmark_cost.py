@@ -649,12 +649,15 @@ def ablation_dry_run(
 ) -> tuple[dict[str, dict[str, dict[str, Any]]], dict[str, str]]:
     """Dry-run every ladder strategy over the items with counting clients, split
     by item kind so output is charged only for kinds whose answers the
-    generator produced (graph strategies classify deterministically and only
-    call the generator on QA items). LLM-free strategy internals (deterministic
-    classify, TF-IDF retrieval) run for real; only the model boundary is
-    stubbed. Returns per strategy and per kind ("classification", "qa")
-    {gen_calls, gen_in, gen_out, judge_calls, judge_in, judge_out, max_chars}
-    in characters, and the proxied conditions."""
+    generator produced (graph strategies classify deterministically and call
+    the generator on a classification case only to explain the level, a
+    scenario without facts counted through its stand-in facts, ruling R32;
+    on question and retrieval cases they call it to answer). LLM-free
+    strategy internals (deterministic classify, TF-IDF retrieval) run for
+    real; only the model boundary is stubbed. Returns per strategy and per
+    kind ("classification", "qa") {gen_calls, gen_in, gen_out, judge_calls,
+    judge_in, judge_out, max_chars} in characters, and the proxied
+    conditions."""
     items = _with_stand_in_facts(items)
     cls_items = [i for i in items if i["kind"] == "classification"]
     qa_items = [i for i in items if i["kind"] != "classification"]

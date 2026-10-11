@@ -11,11 +11,15 @@ of a paired bootstrap over cases, Bonferroni's correction, the runtime
 judge's four shares, and the pilot run's rule for the number of
 repetitions. Every run record of scripts/run_ablations.py carries the
 file's digest (D-G84 (7)), so the analysis says whether the family was
-declared before the run started. The loader accepts only the method names
-this code implements and refuses any other, never reading one as a default,
-and only a 95% level; the benchmark's secondary contrasts take the primary
-list's shape and stay empty until Jose names them (B150 Q8). The 1000 draws
-are provisional, awaiting Jose (B150 Q12).
+declared before the run started. The loader holds every value D-G84 states
+(the three contrasts, their case kinds and readings, the outcome rules,
+McNemar's exact test, Bonferroni at 0.05, a 95% level, the runtime judge's
+conditions, case kinds and shares, the pilot run's 5 repetitions, z 1.96,
+half-width 0.02 and cap 11, the run-once rule of D-G84 (5)) and refuses any
+other, never reading one as a default, so a change of method needs a spec
+amendment and a code change; the benchmark's secondary contrasts take the
+primary list's shape and stay empty until Jose names them (B150 Q8). The
+1000 draws are provisional, awaiting Jose (B150 Q12).
 """
 
 from __future__ import annotations
@@ -55,6 +59,7 @@ PRIMARY_CONTRASTS = [
 ]
 PRIMARY_ALPHA = 0.05
 RUNTIME_JUDGE_CONDITIONS = ["graph_runtime_judge", "graph_full"]
+RUNTIME_JUDGE_CASE_KINDS = ["retrieval", "qa"]
 RUN_ONCE_CONDITIONS = ["graph_no_judge", "graph_build_judge", "graph_full", "graph_runtime_judge"]
 # D-G84 (5): the pilot run's rule for the number of repetitions
 PILOT_REPETITIONS, Z, HALF_WIDTH, CAP = 5, 1.96, 0.02, 11
@@ -147,9 +152,8 @@ def _check(data: Any) -> None:
           and all(c in STRATEGY_NAMES and uses_runtime_judge(c) for c in judge["conditions"]),
           "runtime_judge.conditions must name conditions that call the runtime judge")
     _need(judge["answer_key"] == "hand_made", "runtime_judge.answer_key must be hand_made")
-    _need(isinstance(judge["case_kinds"], list) and judge["case_kinds"]
-          and all(isinstance(k, str) for k in judge["case_kinds"]) and set(judge["case_kinds"]) <= {"retrieval", "qa"},
-          "runtime_judge.case_kinds must name retrieval or qa cases (D-G84 (4))")
+    _need(judge["case_kinds"] == RUNTIME_JUDGE_CASE_KINDS,
+          "runtime_judge.case_kinds must be retrieval and qa, the question and retrieval cases of D-G84 (4)")
     _need(judge["delivered"] == "verdict_accepted", "runtime_judge.delivered must be verdict_accepted")
     _need(judge["shares"] == list(SHARE_NAMES), f"runtime_judge.shares must be {', '.join(SHARE_NAMES)}")
     _need(judge["pooling"] == "every_answer_of_every_repetition",
@@ -179,7 +183,7 @@ def _check(data: Any) -> None:
           and once["case_kind"] == "classification"
           and once["conditions"] == RUN_ONCE_CONDITIONS,
           "repetitions.run_once must name conditions 3 to 6 and the classification case kind "
-          "(provisional, awaiting Jose, B150 Q13)")
+          "(the run-once rule of spec G D-G84 (5))")
     secondary = data["secondary"]
     _need(isinstance(secondary, dict) and set(secondary) == {"answer_key", "contrasts", "status"}
           and secondary["answer_key"] == "benchmark",

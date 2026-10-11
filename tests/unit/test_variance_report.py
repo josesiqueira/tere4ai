@@ -221,3 +221,53 @@ def test_old_level_values_are_read_with_the_legacy_flag():
     )
     assert c["flip_details"] == [{"item": "c1", "run_a": "unacceptable_risk", "run_b": "limited_risk"}]
     assert c["accuracy_a"] == 1.0
+
+
+def _run_record(store, path, repetition):
+    rid = store.begin(kind="run", step="E6", command="run_ablations", argv=[], inputs=[],
+                      build={"base_build_id": None, "publication": None, "publication_reason": None},
+                      config={"repetition": repetition} if repetition else None)
+    store.finish(rid, status="completed", outputs=[store.keep_output(rid, "checkpoint", path)])
+    return rid
+
+
+def test_a_first_run_against_a_repetition_is_refused(tmp_path, capsys):
+    # second seat P3: a repetition holds no classification case of conditions 3 to 6 (spec G D-G84 (5)),
+    # so the determinism check would pass on no item
+    a, b = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    _checkpoint(a, {"i1": {"risk_category": "high", "citations": [], "answer_text": "x"}})
+    _checkpoint(b, {"i2": {"risk_category": "high", "citations": [], "answer_text": "y"}})
+    store = EvaluationRecordStore(tmp_path)
+    first, repeat = _run_record(store, a, "first"), _run_record(store, b, "repeat")
+    bench = tmp_path / "bench.json"
+    bench.write_text(json.dumps({"scenarios": [], "qa": []}))
+    out = tmp_path / "study.md"
+    assert vr.main(["--run-a", str(a), "--run-b", str(b), "--benchmark", str(bench), "--out", str(out),
+                    "--dump-dir", str(tmp_path)]) == 2
+    printed = capsys.readouterr().out
+    assert f"run {repeat} is a repetition and run {first} is not" in printed and "spec G D-G84 (5)" in printed
+    assert not out.exists() and not [r for r in store.list_records() if r["kind"] == "comparison"]
+
+
+def test_two_runs_of_one_role_are_compared_as_before(tmp_path):
+    a, b = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    _checkpoint(a, {"i1": {"risk_category": "high", "citations": [], "answer_text": "x"}})
+    _checkpoint(b, {"i1": {"risk_category": "high", "citations": [], "answer_text": "y"}})
+    store = EvaluationRecordStore(tmp_path)
+    _run_record(store, a, "first")
+    _run_record(store, b, None)  # a run recorded before B150 names no repetition
+    bench = tmp_path / "bench.json"
+    bench.write_text(json.dumps({"scenarios": [], "qa": []}))
+    assert vr.main(["--run-a", str(a), "--run-b", str(b), "--benchmark", str(bench), "--out",
+                    str(tmp_path / "study.md"), "--dump-dir", str(tmp_path)]) == 0
+
+
+def test_a_graph_condition_with_no_labelled_item_in_common_is_not_checked():
+    # two repetitions, or runs read without records: no label to flip is never a pass
+    only_questions = {"q1": RUN_A["q1"]}
+    comparisons = {"graph_full": vr.compare_strategy(only_questions, only_questions, GOLD)}
+    text = vr.render_markdown(Path("a.jsonl"), Path("b.jsonl"), comparisons)
+    assert "Determinism check not made for graph_full" in text and "flipped 0 labels" not in text
+    comparisons["graph_no_judge"] = vr.compare_strategy(RUN_A, RUN_A, GOLD)
+    text = vr.render_markdown(Path("a.jsonl"), Path("b.jsonl"), comparisons)
+    assert "flipped 0 labels" in text and "Determinism check not made for graph_full" in text

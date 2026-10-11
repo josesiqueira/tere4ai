@@ -308,8 +308,16 @@ def _attach_features(bench: list[dict], features_path: Path) -> int:
 
 
 def load_items(benchmark_path=None, features_path=None) -> list[dict]:
+    """The main run's items: the hand-made test set and the benchmark payload.
+    A development set payload is refused: it is the pilot run's (--development-set),
+    and a main run on it would be labelled item_set "main" (spec G D-G84 (5))."""
     gold = harness.load_gold_items()
-    bench = harness.load_benchmark_items(benchmark_path or harness.BENCHMARK_SAMPLE_PATH)
+    path = Path(benchmark_path or harness.BENCHMARK_SAMPLE_PATH)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict) and "development_set" in payload:
+        raise ValueError(f"{path.name} is a development set payload, the pilot run's items; a main run reads the "
+                         "frozen sample (run the pilot run with --development-set)")
+    bench = harness.load_benchmark_items(path)
     # enrich free-text scenarios with cached elicited features when present
     # (scripts/elicit_benchmark_features.py); provenance kept per item
     features_path = features_path or ROOT / "eval" / "gold" / "benchmark_features.json"
@@ -557,7 +565,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         benchmark_path = args.benchmark or harness.BENCHMARK_SAMPLE_PATH
         features_path = args.features or (ROOT / "eval" / "gold" / "benchmark_features.json")
-        items = load_items(args.benchmark, args.features)
+        try:
+            items = load_items(args.benchmark, args.features)
+        except (OSError, ValueError) as exc:
+            print(f"refusing to run: {exception_reason(exc)}")
+            return 2
     print(f"items: {len(items)} | strategies: {strategies.STRATEGY_NAMES}")
 
     # live gates up front, zero cost on refusal

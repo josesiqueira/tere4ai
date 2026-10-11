@@ -299,23 +299,34 @@ def pilot_count(figures: dict[str, list[float | None]], *, z: float, half_width:
     each figure the standard deviation (n - 1) across the repetitions and the
     smallest odd N reaching the half-width; N is the largest of them, at most
     cap, with the precision reached when the cap binds. A figure without a
-    value in some repetition leaves N not computed (B150 Q11)."""
+    value in some repetition leaves N not computed (B150 Q11); a figure with
+    fewer than two values (one repetition only, or no case run in every
+    repetition) has no standard deviation, and N is not computed either, said in its own sentence (a
+    failure mechanic, not a question for Jose)."""
     if not figures:
         raise AnalysisError("the pilot run gave no figure")
     rows: dict[str, dict[str, Any]] = {}
     missing: list[str] = []
+    short: list[str] = []
     for name, values in figures.items():
         if len(values) < 2 or any(v is None for v in values):
-            missing.append(name)
+            (short if len(values) < 2 else missing).append(name)
             rows[name] = {"by_repetition": values, "standard_deviation": None, "required": None}
             continue
         sd = statistics.stdev(values)
         rows[name] = {"by_repetition": values, "standard_deviation": sd,
                       "required": required_repetitions(sd, z=z, half_width=half_width)}
-    if missing:
+    if missing or short:
+        reasons = []
+        if short:
+            reasons.append("not computed: a standard deviation needs a value in at least two repetitions, and "
+                           + ", ".join(short) + (" holds" if len(short) == 1 else " hold")
+                           + " fewer than two (one repetition only, or no case of it run in every repetition)")
+        if missing:
+            reasons.append(not_computed("the count when a figure has no value in a repetition ("
+                                        + ", ".join(missing) + ")", "B150 Q11"))
         return {"figures": rows, "count": None, "cap": cap, "cap_binds": None, "precision_reached": None,
-                "not_computed": not_computed("the count when a figure has no value in a repetition ("
-                                             + ", ".join(missing) + ")", "B150 Q11")}
+                "not_computed": "; ".join(reasons)}
     needed = max(r["required"] for r in rows.values())
     count = min(needed, cap)
     for r in rows.values():

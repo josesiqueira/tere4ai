@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import platform
 from collections import Counter
 from pathlib import Path
 
@@ -422,3 +423,52 @@ def test_a_first_run_stopped_and_never_resumed_is_refused(made, runner, tmp_path
                                            "--pilot-analysis", made["pilot"]["record_id"]]) == 2
     out = capsys.readouterr().out
     assert f"the group's first run {cut['record_id']} ended partial and kept no checkpoint" in out
+
+
+def test_the_main_record_names_the_count_it_read_and_the_interpreter(made, tmp_path):
+    # final review: the main record's config shows the N it read (Task 7 minor) and the interpreter whose
+    # random module drew the bootstrap (second seat P3, ruling R3)
+    assert made["an"].main(made["group"]) == 0
+    config = _newest_analysis(tmp_path)["config"]
+    assert (config["pilot_count"], config["pilot_count_reason"]) == (3, None)
+    assert config["python_version"] == platform.python_version()
+    assert made["pilot"]["config"]["python_version"] == platform.python_version()
+
+
+def test_a_failure_after_the_record_opened_ends_it_failed(made, tmp_path, capsys):
+    # second seat P2: --out-dir naming an existing file fails after store.begin; the record never stays running
+    blocker = tmp_path / "a_file_not_a_directory"
+    blocker.write_text("x", encoding="utf-8")
+    assert made["an"].main(made["group"] + ["--out-dir", str(blocker)]) == 2
+    rec = _newest_analysis(tmp_path)
+    assert rec["outcome"]["status"] == "failed" and rec["ended_at"] is not None
+    assert rec["outcome"]["error"].startswith("FileExistsError")
+    assert f"evaluation record {rec['record_id']} ended failed" in capsys.readouterr().out
+
+
+def _edit(tmp_path, record_id, change):
+    path = tmp_path / "evaluation_records" / f"{record_id}.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    change(record)
+    path.write_text(json.dumps(record), encoding="utf-8")
+
+
+@pytest.mark.parametrize("change, words", [
+    (lambda r: r["models"].update(generator_model="another"), "the pilot run ran other models than the main run"),
+    (lambda r: r["prompt_versions"]["graph_full"].update(judge_prompt_version="v2"),
+     "the pilot run ran other prompt versions than the main run"),
+])
+def test_a_pilot_run_on_other_instruments_is_refused(made, tmp_path, capsys, change, words):
+    # the Task 7 ruling: the count holds for the instruments it was fixed on (a failure mechanic)
+    _edit(tmp_path, made["pilot_runs"][2], change)
+    assert made["an"].main(made["group"]) == 2
+    assert words in capsys.readouterr().out
+
+
+def test_the_elicitors_entry_is_not_compared_between_pilot_and_main(made, tmp_path):
+    # each item set has its own facts file, read only by the classification cases of conditions 3 to 6,
+    # which no repetition reruns: the made pilot and main runs name different elicitor entries and pass
+    store = EvaluationRecordStore(tmp_path, create=False)
+    pilot_run, main_run = store.read(made["pilot_runs"][0]), store.read(made["main_runs"][0])
+    assert pilot_run["prompt_versions"]["elicit_features"] != main_run["prompt_versions"]["elicit_features"]
+    assert made["an"].main(made["group"]) == 0

@@ -19,7 +19,16 @@ drift. Per strategy it computes, from the per-item results only:
   equivalence is not judged here);
 - the determinism check: the graph conditions classify via deterministic
   rules over fixed features, so their flip count is expected to be 0 and
-  any nonzero value is a bug to investigate, not variance to report.
+  any nonzero value is a bug to investigate, not variance to report. A
+  graph condition the two runs share no labelled item for is named as not
+  checked, never as passed.
+
+Since B150 a repetition (run_ablations --repeat-of) does not run the
+classification cases of conditions 3 to 6 (spec G D-G84 (5)), so a first
+run compared with a repetition shares no labelled item for them: when the
+records of the two runs say one is a repetition and the other is not, the
+comparison is refused. The run-to-run variation of E6 is reported by
+scripts/analyse_ablations.py.
 
 Usage:
   .venv/bin/python scripts/variance_report.py \
@@ -172,6 +181,10 @@ def render_markdown(
         name for name in GRAPH_STRATEGIES
         if name in comparisons and comparisons[name]["label_flips"] > 0
     ]
+    unchecked = [
+        name for name in GRAPH_STRATEGIES
+        if name in comparisons and comparisons[name]["labelled_items"] == 0
+    ]
     if determinism_broken:
         lines += [
             "## DETERMINISM CHECK FAILED",
@@ -181,10 +194,16 @@ def render_markdown(
             "This is a bug to investigate, not run variance.",
             "",
         ]
-    else:
+    elif not unchecked or len(unchecked) < len([n for n in GRAPH_STRATEGIES if n in comparisons]):
         lines += [
             "Determinism check: the graph conditions flipped 0 labels, as the",
             "deterministic classifier over fixed features requires.",
+            "",
+        ]
+    if unchecked:
+        lines += [
+            f"Determinism check not made for {', '.join(unchecked)}: the two runs share",
+            "no labelled item for it, so no label could flip.",
             "",
         ]
 
@@ -197,6 +216,24 @@ def render_markdown(
         ]
         lines.append("")
     return "\n".join(lines)
+
+
+def repetition_refusal(store: EvaluationRecordStore, compares: list[str | None]) -> str | None:
+    """The refusal sentence when the records of the two runs say one is a
+    repetition (run_ablations --repeat-of) and the other is not, else None:
+    a repetition leaves out the classification cases of conditions 3 to 6
+    (spec G D-G84 (5)), so the determinism check would compare no label."""
+    if None in compares:
+        return None
+    roles = {rid: (store.read(rid).get("config") or {}).get("repetition") for rid in compares}
+    repeats = [rid for rid, role in roles.items() if role == "repeat"]
+    if len(repeats) != 1 or len(roles) != 2:
+        return None
+    first = next(rid for rid in roles if rid not in repeats)
+    return (f"refusing: run {repeats[0]} is a repetition and run {first} is not; a repetition does not run the "
+            "classification cases of conditions 3 to 6 (spec G D-G84 (5)), so their labels cannot be compared "
+            "and the determinism check would pass on no item. Compare two first runs, or read the run-to-run "
+            "variation from scripts/analyse_ablations.py")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -229,6 +266,10 @@ def main(argv: list[str] | None = None) -> int:
             if found is None:
                 notes.append(f"{kind} is named by no record")
             compares.append(found)  # None stays in the list: the schema allows it (R8)
+        refusal = repetition_refusal(store, compares)
+        if refusal is not None:
+            print(refusal)
+            return 2
         benchmark_path = args.benchmark or harness.BENCHMARK_SAMPLE_PATH
         record_id = store.begin(
             kind="comparison", step="E6", command="variance_report",
