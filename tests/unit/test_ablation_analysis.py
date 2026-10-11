@@ -268,18 +268,36 @@ def test_a_gated_answer_without_a_verdict_refuses():
 def test_gate_share_intervals_draw_each_case_with_all_its_repetitions():
     answers = {"a": [(True, True)] * 3, "b": [(False, False)] * 3,
                "c": [(True, False), (True, True), (True, True)]}
-    out = gate_share_intervals(answers, level=0.95, draws=500, seed=3, label="g")
-    low, high = out["share_delivered"]
+    kw = dict(level=0.95, draws=500, seed=3, label="g", conditional_up_to=25)
+    out = gate_share_intervals(answers, **kw)
+    low, high = out["share_delivered"]["interval"]
     assert 0 <= low <= high <= 1
-    # b is the only case with a wrong answer: a resample without it has none to catch
-    assert out["wrong_answers_caught"].startswith("not computed: awaiting Jose's decision")
-    assert "B150 Q11" in out["wrong_answers_caught"]
-    assert out == gate_share_intervals(answers, level=0.95, draws=500, seed=3, label="g")
+    assert out["share_delivered"]["left_out"] == 0 and out["share_delivered"]["label"] is None
+    # b is the only case with a wrong answer: a resample without it, about (2/3) cubed of the 500, has none
+    # to catch; far more than 25 are left out, so no interval is given (B150 Q11)
+    caught = out["wrong_answers_caught"]
+    assert caught["interval"] is None and caught["left_out"] > 25 and caught["draws"] == 500
+    assert caught["label"] == (f"none given: {caught['left_out']} of 500 resamples held no wrong answer, "
+                               "more than 25 (B150 Q11)")
+    assert out == gate_share_intervals(answers, **kw)
     every = {"a": [(False, True), (True, True)], "b": [(False, False), (True, True)]}
-    low, high = gate_share_intervals(every, level=0.95, draws=500, seed=3, label="g")["wrong_answers_caught"]
+    low, high = gate_share_intervals(every, **kw)["wrong_answers_caught"]["interval"]
     assert 0 <= low <= high <= 1
-    assert gate_share_intervals({"a": [(True, True)]}, level=0.95, draws=10, seed=3,
-                                label="g")["wrong_answers_caught"] is None  # nothing to count at all: n/a
+    assert gate_share_intervals({"a": [(True, True)]}, level=0.95, draws=10, seed=3, label="g",
+                                conditional_up_to=25)["wrong_answers_caught"] is None  # nothing to count at all
+
+
+def test_a_share_with_a_few_empty_resamples_gets_its_interval_labelled_conditional():
+    # one wrong answer among 20 cases: a resample misses it with chance (19/20) to the 20th, about 36% of
+    # draws; at conditional_up_to = 400 of 1000 the interval is given and labelled conditional
+    answers = {f"c{n:02d}": [(n != 0, True)] for n in range(20)}
+    out = gate_share_intervals(answers, level=0.95, draws=1000, seed=3, label="g", conditional_up_to=400)
+    caught = out["right_answers_blocked"]
+    assert caught["interval"] == [0.0, 0.0] and caught["left_out"] == 0
+    wrong = out["wrong_answers_caught"]
+    assert 1 <= wrong["left_out"] <= 400 and wrong["interval"] == [0.0, 0.0]
+    assert wrong["label"] == (f"conditional: {wrong['left_out']} of 1000 resamples held no wrong answer and "
+                              "were left out (B150 Q11)")
 
 
 def test_required_repetitions_is_the_smallest_odd_count_reaching_two_points():
@@ -305,11 +323,20 @@ def test_the_pilot_count_takes_the_most_demanding_figure_and_the_cap():
     assert capped["precision_reached"] == pytest.approx(1.96 * statistics.stdev(values) / math.sqrt(11))
 
 
-def test_a_figure_without_a_value_in_a_repetition_leaves_the_count_not_computed():
-    out = pilot_count({"wrong_answers_caught:graph_full": [0.5, None, 0.5, 0.5, 0.5]},
-                      z=1.96, half_width=0.02, cap=11)
-    assert out["count"] is None and "B150 Q11" in out["not_computed"]
-    assert "wrong_answers_caught:graph_full" in out["not_computed"]
+def test_a_figure_without_a_value_in_a_repetition_is_left_out_of_n_and_named():
+    out = pilot_count({"wrong_answers_caught:graph_full": [0.5, None, 0.5, None, 0.5],
+                       "accuracy:plain_llm": [1.0, 1.0, 1.0, 1.0, 0.975]}, z=1.96, half_width=0.02, cap=11)
+    assert out["count"] == 3 and out["not_computed"] is None
+    assert out["left_out_of_n"] == ["wrong_answers_caught:graph_full"]
+    row = out["figures"]["wrong_answers_caught:graph_full"]
+    assert row["left_out"] == "no value in repetition(s) 2, 4"
+    assert row["standard_deviation"] is None and row["required"] is None
+    assert "half_width_at_count" not in row
+    assert pilot_count({"a": [0.5, 0.5]}, z=1.96, half_width=0.02, cap=11)["left_out_of_n"] == []
+    every = pilot_count({"a": [None, 0.5, 0.5]}, z=1.96, half_width=0.02, cap=11)
+    assert every["count"] is None and every["left_out_of_n"] == ["a"]
+    assert every["not_computed"] == ("not computed: every figure was left out of N, each with no value in some "
+                                     "repetition (B150 Q11)")
 
 
 def test_a_figure_with_fewer_than_two_values_says_why_without_naming_a_question():
@@ -321,7 +348,10 @@ def test_a_figure_with_fewer_than_two_values_says_why_without_naming_a_question(
     assert out["not_computed"] == ("not computed: a standard deviation needs a value in at least two repetitions, "
                                    "and accuracy:graph_full holds fewer than two (one repetition only, or no case "
                                    "of it run in every repetition)")
+    assert out["left_out_of_n"] == []
+    # a figure short of two values keeps its own sentence; one without a value in a repetition is left out of N
     both = pilot_count({"a": [0.5], "b": [0.5, None]}, z=1.96, half_width=0.02, cap=11)
-    first, second = both["not_computed"].split("; ")
-    assert "a holds fewer than two" in first and "B150 Q11" not in first
-    assert "B150 Q11" in second and "(b)" in second
+    assert both["count"] is None and both["left_out_of_n"] == ["b"]
+    assert both["not_computed"] == ("not computed: a standard deviation needs a value in at least two "
+                                    "repetitions, and a holds fewer than two (one repetition only, or no case of "
+                                    "it run in every repetition)")

@@ -264,11 +264,14 @@ def gate_shares(rows: Sequence[Sequence[tuple[bool, bool]]]) -> dict[str, dict[s
 
 
 def gate_share_intervals(answers: dict[str, list[tuple[bool, bool]]], *, level: float, draws: int, seed: int,
-                         label: str) -> dict[str, list[float] | str | None]:
+                         label: str, conditional_up_to: int) -> dict[str, dict[str, Any] | None]:
     """Each share's percentile interval from a bootstrap over cases that draws
     each case with all its repetitions (spec G D-G84 (4)). None where the
-    share itself has nothing to count; the not-computed line where some
-    resample has nothing to count (B150 Q11)."""
+    share itself has nothing to count; otherwise labelled_interval's dict: a
+    resample with nothing to count is left out and counted, the interval
+    labelled conditional when 1 to conditional_up_to are left out and none
+    given above (B150 Q11, Jose 2026-10-11: "Leave out and label
+    (Recommended)")."""
     point = gate_shares(list(answers.values()))
     ids = sorted(answers)
     rng = seeded_rng(seed, label)
@@ -281,15 +284,13 @@ def gate_share_intervals(answers: dict[str, list[tuple[bool, bool]]], *, level: 
                 empty[share] += 1
             else:
                 drawn[share].append(value["rate"])
-    out: dict[str, list[float] | str | None] = {}
+    out: dict[str, dict[str, Any] | None] = {}
     for share in SHARES:
         if point[share]["rate"] is None:
             out[share] = None
-        elif empty[share]:
-            out[share] = not_computed(f"an interval when {empty[share]} of {draws} resamples hold no "
-                                      f"{_COUNTS[share]}", "B150 Q11")
         else:
-            out[share] = list(percentile_interval(drawn[share], level))
+            out[share] = labelled_interval(drawn[share], empty[share], draws=draws, level=level,
+                                           conditional_up_to=conditional_up_to, what=_COUNTS[share])
     return out
 
 
@@ -318,39 +319,48 @@ def pilot_count(figures: dict[str, list[float | None]], *, z: float, half_width:
     each figure the standard deviation (n - 1) across the repetitions and the
     smallest odd N reaching the half-width; N is the largest of them, at most
     cap, with the precision reached when the cap binds. A figure without a
-    value in some repetition leaves N not computed (B150 Q11); a figure with
-    fewer than two values (one repetition only, or no case run in every
-    repetition) has no standard deviation, and N is not computed either, said in its own sentence (a
-    failure mechanic, not a question for Jose)."""
+    value in some repetition is left out of N and named, with the
+    repetitions it lacks (B150 Q11, Jose 2026-10-11: "Leave out and label
+    (Recommended)"); when every figure is left out, N is not computed. A
+    figure with fewer than two values (one repetition only, or no case run in
+    every repetition) has no standard deviation, and N is not computed,
+    said in its own sentence (a failure mechanic, not a question for Jose)."""
     if not figures:
         raise AnalysisError("the pilot run gave no figure")
     rows: dict[str, dict[str, Any]] = {}
-    missing: list[str] = []
+    left_out: list[str] = []
     short: list[str] = []
     for name, values in figures.items():
-        if len(values) < 2 or any(v is None for v in values):
-            (short if len(values) < 2 else missing).append(name)
+        if len(values) < 2:
+            short.append(name)
             rows[name] = {"by_repetition": values, "standard_deviation": None, "required": None}
+            continue
+        if any(v is None for v in values):
+            left_out.append(name)
+            rows[name] = {"by_repetition": values, "standard_deviation": None, "required": None,
+                          "left_out": "no value in repetition(s) "
+                                      + ", ".join(str(i + 1) for i, v in enumerate(values) if v is None)}
             continue
         sd = statistics.stdev(values)
         rows[name] = {"by_repetition": values, "standard_deviation": sd,
                       "required": required_repetitions(sd, z=z, half_width=half_width)}
-    if missing or short:
-        reasons = []
-        if short:
-            reasons.append("not computed: a standard deviation needs a value in at least two repetitions, and "
-                           + ", ".join(short) + (" holds" if len(short) == 1 else " hold")
-                           + " fewer than two (one repetition only, or no case of it run in every repetition)")
-        if missing:
-            reasons.append(not_computed("the count when a figure has no value in a repetition ("
-                                        + ", ".join(missing) + ")", "B150 Q11"))
+    counted = [r for name, r in rows.items() if name not in short and name not in left_out]
+    reason = None
+    if short:
+        reason = ("not computed: a standard deviation needs a value in at least two repetitions, and "
+                  + ", ".join(short) + (" holds" if len(short) == 1 else " hold")
+                  + " fewer than two (one repetition only, or no case of it run in every repetition)")
+    elif not counted:
+        reason = ("not computed: every figure was left out of N, each with no value in some repetition "
+                  "(B150 Q11)")
+    if reason is not None:
         return {"figures": rows, "count": None, "cap": cap, "cap_binds": None, "precision_reached": None,
-                "not_computed": "; ".join(reasons)}
-    needed = max(r["required"] for r in rows.values())
+                "not_computed": reason, "left_out_of_n": left_out}
+    needed = max(r["required"] for r in counted)
     count = min(needed, cap)
-    for r in rows.values():
+    for r in counted:
         r["half_width_at_count"] = z * r["standard_deviation"] / math.sqrt(count)
     binds = needed > cap
     return {"figures": rows, "count": count, "cap": cap, "cap_binds": binds,
-            "precision_reached": max(r["half_width_at_count"] for r in rows.values()) if binds else None,
-            "not_computed": None}
+            "precision_reached": max(r["half_width_at_count"] for r in counted) if binds else None,
+            "not_computed": None, "left_out_of_n": left_out}

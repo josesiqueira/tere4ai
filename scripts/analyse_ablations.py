@@ -329,6 +329,8 @@ def analyse_main(items: list[dict], runs: list[dict], run_ids: list[str], summar
                                                  seed=interval["seed"], label=c["id"], threshold=threshold)})
     judge = declaration["runtime_judge"]
     judged_cases = [i for i in scored if i["kind"] in judge["case_kinds"]]
+    # B150 Q11: the limit of left-out resamples is the declaration's, the one rule E6 declares
+    conditional_up_to = declaration["empty_resamples"]["conditional_up_to"]
     runtime: dict[str, Any] = {}
     for condition in judge["conditions"]:
         answers, failed = gate_answers(judged_cases, runs, condition)
@@ -337,7 +339,8 @@ def analyse_main(items: list[dict], runs: list[dict], run_ids: list[str], summar
             "failed_calls_left_out": failed, "shares": gate_shares(list(answers.values())),
             "intervals": gate_share_intervals(answers, level=judge["interval"]["level"],
                                               draws=judge["interval"]["draws"], seed=judge["interval"]["seed"],
-                                              label=f"runtime_judge:{condition}"),
+                                              label=f"runtime_judge:{condition}",
+                                              conditional_up_to=conditional_up_to),
         }
     keys = {"hand_made": scored, "benchmark": [i for i in items if i["id"].startswith(KEY_PREFIXES["benchmark"])]}
     return {
@@ -415,10 +418,18 @@ def _share(share: dict[str, Any]) -> str:
 
 
 def _interval(value: Any) -> str:
+    """An interval as [low, high]; labelled_interval's dict as the interval
+    with its conditional label beside it, or its none-given label alone
+    (B150 Q11); None as n/a."""
     if value is None:
         return "n/a"
     if isinstance(value, str):
         return value
+    if isinstance(value, dict):
+        if value["interval"] is None:
+            return value["label"]
+        shown = _interval(value["interval"])
+        return shown if value["label"] is None else f"{shown}; {value['label']}"
     return f"[{value[0]:.3f}, {value[1]:.3f}]"
 
 
@@ -437,7 +448,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                   "| --- | --- | --- | --- |"]
         for name, row in pilot["figures"].items():
             values = ", ".join(_rate(v) for v in row["by_repetition"])
-            lines.append(f"| {name} | {values} | {_rate(row['standard_deviation'])} | {row['required'] or 'n/a'} |")
+            needs = row.get("left_out") or row["required"] or "n/a"
+            lines.append(f"| {name} | {values} | {_rate(row['standard_deviation'])} | {needs} |")
         lines.append("")
         if pilot["count"] is None:
             lines.append(f"N: {pilot['not_computed']}")
@@ -445,6 +457,9 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.append(f"N = {pilot['count']} (cap {pilot['cap']}"
                          + (f", the cap binds: precision reached {pilot['precision_reached']:.4f})"
                             if pilot["cap_binds"] else ")"))
+        if pilot["left_out_of_n"]:
+            lines.append("Left out of N (B150 Q11): " + "; ".join(
+                f"{name} ({pilot['figures'][name]['left_out']})" for name in pilot["left_out_of_n"]))
     else:
         family = report["primary_family"]
         lines += ["## The declared contrasts (hand-made legal test set)", "",

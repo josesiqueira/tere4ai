@@ -187,6 +187,11 @@ def _newest_analysis(tmp_path):
     return max(rows, key=lambda r: (r["started_at"], r["record_id"]))
 
 
+def _text(tmp_path, record):
+    copy = next(o for o in record["outputs"] if o["output_kind"] == "analysis_text")["copy"]
+    return (tmp_path / "evaluation_records" / copy).read_text(encoding="utf-8")
+
+
 def _report(tmp_path, record):
     copy = next(o for o in record["outputs"] if o["output_kind"] == "analysis")["copy"]
     return json.loads((tmp_path / "evaluation_records" / copy).read_text(encoding="utf-8"))
@@ -266,8 +271,23 @@ def test_the_runtime_judge_is_read_on_the_answers_it_gates(made, tmp_path):
     assert (six["right_answers_blocked"]["numerator"], six["right_answers_blocked"]["denominator"]) == (1, 6)
     assert (six["accuracy_among_delivered"]["numerator"], six["accuracy_among_delivered"]["denominator"]) == (5, 5)
     assert (six["share_delivered"]["numerator"], six["share_delivered"]["denominator"]) == (5, 9)
-    # a resample without qa-1 holds no wrong answer: the interval waits for Jose (B150 Q11)
-    assert "B150 Q11" in judge["graph_runtime_judge"]["intervals"]["wrong_answers_caught"]
+    # a resample without qa-1, about (2/3) cubed of the 1000, holds no wrong answer: far more than the
+    # declaration's 25 are left out, so no interval is given (B150 Q11)
+    caught = judge["graph_runtime_judge"]["intervals"]["wrong_answers_caught"]
+    assert caught["interval"] is None and caught["left_out"] > 25 and caught["draws"] == 1000
+    assert caught["label"] == (f"none given: {caught['left_out']} of 1000 resamples held no wrong answer, "
+                               "more than 25 (B150 Q11)")
+    # every resample holds an answer: the interval with no label
+    delivered = judge["graph_runtime_judge"]["intervals"]["share_delivered"]
+    assert delivered["left_out"] == 0 and delivered["label"] is None
+    assert 0 <= delivered["interval"][0] <= 5 / 9 <= delivered["interval"][1] <= 1
+    text = _text(tmp_path, _newest_analysis(tmp_path))
+    section = text.split("### graph_runtime_judge")[1].split("### graph_full")[0]
+    rows = {line.split(" | ")[0]: line for line in section.splitlines() if line.startswith("| ")}
+    assert rows["| wrong_answers_caught"].endswith(f"| {caught['label']} |")
+    assert rows["| share_delivered"].endswith(
+        f"| [{delivered['interval'][0]:.3f}, {delivered['interval'][1]:.3f}] |")
+    assert "conditional:" not in text
 
 
 def test_per_call_accuracy_failed_calls_and_what_is_not_computed(made, tmp_path):
@@ -436,6 +456,37 @@ def test_a_failed_pilot_call_is_listed_and_left_out_of_the_runtime_judge_shares(
     # in the accuracy the failed call counts wrong: 37 of 40 in repetition 4
     assert figures["accuracy:graph_runtime_judge"]["by_repetition"] == pytest.approx([0.95] * 3 + [0.925, 0.95])
     assert report["pilot"]["count"] == 3
+
+
+def test_a_pilot_figure_without_a_value_in_a_repetition_is_left_out_of_n_and_named(runner, tmp_path,  # noqa: F811
+                                                                                     monkeypatch):
+    # B150 Q11: in repetition 2 graph_runtime_judge answers cases 100 and 101 right, so it gives no wrong
+    # answer to catch; that figure is left out of N and named, and N is read on the others: its accuracy
+    # 0.95, 1, 0.95, 0.95, 0.95 has standard deviation 0.02236, (1.96 * 0.02236 / 0.02) squared = 4.8, so 5
+    gold, _, dev, feats, _ = _files(tmp_path)
+    monkeypatch.setattr(harness, "GOLD_SEED_PATH", gold)
+
+    def answer(name, item_id, rep):
+        result = pilot_answer(name, item_id, rep)
+        if name == "graph_runtime_judge" and rep == 1 and item_id.endswith((":100", ":101")):
+            result = {"answer_text": "x", "citations": [R10 + ":paragraph-1"], "risk_category": None,
+                      "judge_verdict": result["judge_verdict"]}
+        return result
+
+    _install(runner, monkeypatch, answer)
+    runs = _group(runner, tmp_path, "pilot", 5, ["--development-set", "--benchmark", str(dev), "--features", str(feats)])
+    assert _analyser(tmp_path).main(["--dump-dir", str(tmp_path), "--group", runs[0], "--pilot",
+                                     "--benchmark", str(dev)]) == 0
+    record = _newest_analysis(tmp_path)
+    pilot = _report(tmp_path, record)["pilot"]
+    name = "wrong_answers_caught:graph_runtime_judge"
+    assert pilot["figures"][name]["by_repetition"] == [0.5, None, 0.5, 0.5, 0.5]
+    assert pilot["figures"][name]["left_out"] == "no value in repetition(s) 2"
+    assert pilot["left_out_of_n"] == [name] and pilot["count"] == 5 and pilot["not_computed"] is None
+    assert record["config"]["pilot_count"] == 5
+    text = _text(tmp_path, record)
+    assert f"| {name} | 0.500, n/a, 0.500, 0.500, 0.500 | n/a | no value in repetition(s) 2 |" in text
+    assert f"Left out of N (B150 Q11): {name} (no value in repetition(s) 2)" in text
 
 
 def test_a_first_run_stopped_and_never_resumed_is_refused(made, runner, tmp_path, monkeypatch, capsys):  # noqa: F811
