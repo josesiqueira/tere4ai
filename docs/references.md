@@ -1419,20 +1419,22 @@ printed; the ACM Digital Library record is 10.5555/1756006.1859904; 162
 citations on OpenAlex, 2026-10-11, the count split over two records; passes
 the bar by peer review). The published PDF from the journal's site,
 refs/ADD-112_SelectiveClassification.pdf. VERIFIED 2026-10-11 (title,
-authors, journal, volume, year and pages from the first page). CORE.
-Grounds: the runtime judge's shares of spec G D-G84 (4): a selective
-classifier either outputs "reject" or its classifier's label (Section 2,
-equation (1), p. 1606); "The coverage of a selective classifier ( f , g) is
-the mean value of the selection function g(X) taken over the underlying
-distribution P" (Definition 1, p. 1606); and the risk of a selective
-classifier is "the average loss on the accepted samples" (Definition 2, p.
-1607). An answer the judge withholds is read as the paper's "reject", the
-share delivered as coverage and the accuracy among delivered answers as one
-minus the selective risk under the 0-1 loss; that reading is the thesis's.
-The paper defines population quantities for a noise-free classifier with a
-reject option and says nothing about language model answers or a judge.
-Staged in thesis refs/triage-b150-statistics/ and approved by Jose on
-2026-10-11 ("Register the three held (Recommended)", B150 Q7).
+authors, journal, volume, year and pages from the first page). SUPPORTING.
+Grounds, for two of the four runtime judge shares of spec G D-G84 (4): a
+selective classifier either outputs "reject" or its classifier's label
+(Section 2, equation (1), p. 1606); "The coverage of a selective classifier
+( f , g) is the mean value of the selection function g(X) taken over the
+underlying distribution P" (Definition 1, p. 1606), read as the share
+delivered; and the risk of a selective classifier is "the average loss on
+the accepted samples" (Definition 2, p. 1607), read as one minus the
+accuracy among delivered answers under the 0-1 loss. An answer the judge
+withholds is read as the paper's "reject"; that reading is the thesis's.
+The other two shares, wrong answers caught and right answers blocked, are
+not defined by the paper and are the thesis's own. The paper defines
+population quantities for a noise-free classifier with a reject option and
+says nothing about language model answers or a judge. Staged in thesis
+refs/triage-b150-statistics/ and approved by Jose on 2026-10-11 ("Register
+the three held (Recommended)", B150 Q7).
 
 **[ADD-113]** PEER. "Enabling Large Language Models to Generate Text with
 Citations", Gao, Yen, Yu, Chen, Proceedings of the 2023 Conference on
@@ -1440,18 +1442,19 @@ Empirical Methods in Natural Language Processing (EMNLP 2023), pp.
 6465-6488, DOI 10.18653/v1/2023.emnlp-main.398 (164 citations on Crossref,
 190 on OpenAlex, 2026-10-11; passes the bar by peer review). The published
 PDF from the ACL Anthology, refs/ADD-113_ALCE.pdf. VERIFIED 2026-10-11
-(title, authors, proceedings and pages from the first page; the PDF
-does not print the DOI, which is the ACL Anthology's, as staged). SUPPORTING. Grounds, in part: judging a question or
-retrieval case by its citations (spec G D-G84 (1)): "We evaluate citation
-qualities using two metrics: (1) citation recall, which determines if the
-output is entirely supported by cited passages, and (2) citation
-precision, which identifies any irrelevant citations." (Section 3.3, p.
-6468). ALCE checks with a natural language inference model that the cited
-passages entail the answer, and reports correctness separately; it does not
-match citations to reference passages a person wrote, so the thesis's match
-of cited node ids to the answer key is its own step. Staged in thesis
-refs/triage-b150-statistics/ and approved by Jose on 2026-10-11 ("Register
-the three held (Recommended)", B150 Q7).
+(title, authors, proceedings and pages from the first page; the DOI is the
+ACL Anthology's record, since the PDF does not print it). SUPPORTING.
+Grounds, in part: judging a question or retrieval case by its citations
+(spec G D-G84 (1)): "We evaluate citation qualities using two metrics: (1)
+citation recall, which determines if the output is entirely supported by
+cited passages, and (2) citation precision, which identifies any
+irrelevant citations." (Section 3.3, p. 6468). ALCE checks with a natural
+language inference model that the cited passages entail the answer, and
+reports correctness separately; it does not match citations to reference
+passages a person wrote, so the thesis's match of cited node ids to the
+answer key is its own step. Staged in thesis refs/triage-b150-statistics/
+and approved by Jose on 2026-10-11 ("Register the three held
+(Recommended)", B150 Q7).
 
 **[ADD-114]** PEER. "Accounting for Variance in Machine Learning
 Benchmarks", Bouthillier, Delaunay, Bronzi, Trofimov, Nichyporuk, Szeto,

@@ -17,15 +17,18 @@ beside it (B150 Q9); the runtime judge's four shares on the answers it
 gates (D-G84 (4)); the pilot run's count (D-G84 (5)). A figure that cannot
 be computed says why in its own sentence.
 
-How far the sources support it: the runtime judge's shares read the share
-delivered as coverage and the accuracy among delivered answers as one minus
-the selective risk (ADD-112, which defines them for a classifier with a
-reject option); judging an answer by its citations is supported in part by
-ADD-113 (ALCE judges citations by entailment; matching cited node ids to
-the key is the thesis's step); the pilot run's rule rests on the standard
-error over runs (ADD-114, in part; the rule that picks N is the thesis's). No I/O and no model;
-randomness only from a random.Random seeded with the recorded seed and a
-label.
+How far the sources support it: two of the runtime judge's four shares read
+the share delivered as coverage and the accuracy among delivered answers as
+one minus the selective risk (ADD-112, which defines them for a classifier
+with a reject option; wrong answers caught and right answers blocked are not
+defined there and are the thesis's own); judging an answer by its citations
+is supported in part by ADD-113 (ALCE judges citations by entailment;
+matching cited node ids to the key is the thesis's step); the pilot run's
+rule rests on the standard error over runs (ADD-114, in part; the rule that
+picks N is the thesis's).
+
+No I/O and no model; randomness only from a random.Random seeded with the
+recorded seed and a label.
 """
 
 from __future__ import annotations
