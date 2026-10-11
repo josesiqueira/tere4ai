@@ -14,9 +14,8 @@ threshold (ADD-73, pp. 1389 to 1390); each condition's per-call accuracy and
 run-to-run variation, descriptive; the four measures over the main run's
 repetitions as the mean with the standard deviation beside it (B150 Q9);
 the runtime judge's four shares on the answers it gates (D-G84 (4)); the
-pilot run's count (D-G84 (5)). What D-G84
-leaves unstated is returned as "not computed: awaiting Jose's decision" with
-its question (thesis/CLAUDE.md, the methods rule). No I/O and no model;
+pilot run's count (D-G84 (5)). A figure that cannot be computed says why
+in its own sentence. No I/O and no model;
 randomness only from a random.Random seeded with the recorded seed and a
 label.
 """
@@ -40,11 +39,6 @@ TOLERANCE = 1e-12
 
 class AnalysisError(ValueError):
     """The kept runs or the answer key cannot be read as D-G84 states; the message says why."""
-
-
-def not_computed(what: str, question: str) -> str:
-    """The line printed in place of a computation D-G84 leaves to Jose."""
-    return f"not computed: awaiting Jose's decision on {what} ({question})"
 
 
 def case_outcome(item: dict[str, Any], result: dict[str, Any] | None) -> bool:
@@ -228,7 +222,8 @@ def measure_values(block: dict[str, Any]) -> dict[str, float | int | None]:
     key's citations cited (micro), on the benchmark also at article level; the
     hallucinated citation rate. None where the run has nothing to count (a
     classification case not run in a repetition, D-G84 (5); a key with
-    nothing to cite)."""
+    nothing to cite; a run that emitted no citation, whose hallucinated
+    citation rate is vacuous, B161 Q2)."""
     cls = block["classification"]
     out: dict[str, float | int | None] = {
         "classification_accuracy": cls["accuracy"],
@@ -237,7 +232,9 @@ def measure_values(block: dict[str, Any]) -> dict[str, float | int | None]:
     }
     if "citation_completeness_article_level" in block:
         out["citation_completeness_article_level"] = block["citation_completeness_article_level"]["completeness"]
-    out["hallucinated_citation_rate"] = block["hallucinated_citation_rate"]["rate"]
+    # B161 Q2 (Jose, 2026-10-11, "Leave out, counted"): a rate over no citation has no value
+    out["hallucinated_citation_rate"] = (block["hallucinated_citation_rate"]["rate"]
+                                         if block["citations_emitted"] else None)
     return out
 
 
@@ -247,10 +244,12 @@ def measures_over_repetitions(blocks: list[dict[str, Any]]) -> dict[str, dict[st
     repetitions as the mean over the runs where it has a value, with the
     standard deviation (n - 1, ruling R8) beside; a measure with a value in
     one run only (run once, D-G84 (5)) is that value, with none (ruling R14).
-    Abstention carries the classification total it is counted out of, and
-    the hallucinated citation rate the number of runs that emitted no
-    citation (vacuous, Section 10.4). blocks: one by_answer_key block per
-    run, in group order."""
+    Abstention carries the classification total it is counted out of. A run
+    that emitted no citation (its hallucinated citation rate vacuous,
+    Section 10.4) is left out of that rate's mean and standard deviation and
+    counted as vacuous_runs (B161 Q2, Jose, 2026-10-11: "Leave out,
+    counted", by analogy with B150 Q11); when every run is vacuous the mean
+    is None. blocks: one by_answer_key block per run, in group order."""
     rows = [measure_values(b) for b in blocks]
     out: dict[str, dict[str, Any]] = {}
     for name in rows[0]:

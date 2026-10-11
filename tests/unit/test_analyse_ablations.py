@@ -339,6 +339,33 @@ def test_per_call_accuracy_failed_calls_and_what_is_not_computed(made, tmp_path)
     assert sorted(report["four_measures"]["by_run"]) == sorted(made["main_runs"])
 
 
+def _measure(mean, sd, runs, **extra):
+    return {"by_run": [], "runs_with_a_value": runs, "mean": mean, "standard_deviation": sd, **extra}
+
+
+def test_the_four_measures_cells_show_the_abstention_total_and_the_vacuous_runs(tmp_path):
+    # Task 6 review, Important: the mock group never has a vacuous run, so the two suffixes are pinned here
+    an = _analyser(tmp_path)
+    measures = {"classification_accuracy": _measure(0.75, 0.25, 3),
+                "abstention": _measure(2 / 3, 0.57735, 3, of=4),
+                "citation_completeness": _measure(None, None, 0),
+                "hallucinated_citation_rate": _measure(0.1, 0.1, 3, vacuous_runs=1)}
+    clean = dict(measures, hallucinated_citation_rate=_measure(0.2, 0.0, 3, vacuous_runs=0))
+    every = dict(measures, hallucinated_citation_rate=_measure(None, None, 0, vacuous_runs=3))
+    lines = an.four_measures_lines({"hand_made": {"plain_llm": measures, "graph_full": clean,
+                                                  "vector_rag": every}})
+    assert "| plain_llm | abstention | 0.667 of 4 | 0.577 | 3 |" in lines
+    # B161 Q2: a vacuous run is left out of the mean and counted beside it
+    assert ("| plain_llm | hallucinated_citation_rate | 0.100, 1 vacuous run(s) left out (B161 Q2) | 0.100 | 3 |"
+            in lines)
+    assert "| vector_rag | hallucinated_citation_rate | n/a, 3 vacuous run(s) left out (B161 Q2) | n/a | 0 |" in lines
+    assert "| graph_full | hallucinated_citation_rate | 0.200 | 0.000 | 3 |" in lines
+    assert "| plain_llm | citation_completeness | n/a | n/a | 0 |" in lines
+    assert "| plain_llm | classification_accuracy | 0.750 | 0.250 | 3 |" in lines
+    # a measure with one value: a run-once classification case, or any measure when the main run is one run
+    assert any("when the main run is a single run (the pilot run can fix N = 1)" in line for line in lines)
+
+
 def test_the_record_names_the_runs_it_read_and_the_text_report(made, tmp_path):
     assert made["an"].main(made["group"]) == 0
     rec = _newest_analysis(tmp_path)

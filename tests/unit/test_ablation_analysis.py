@@ -378,8 +378,12 @@ def test_the_four_measures_over_repetitions_are_the_mean_with_the_standard_devia
     assert out["abstention"]["standard_deviation"] == pytest.approx(math.sqrt(1 / 3))
     assert out["citation_completeness"]["mean"] == pytest.approx(2 / 3)
     assert out["citation_completeness_article_level"]["mean"] == pytest.approx(5 / 6)
+    # B161 Q2 (Jose, 2026-10-11, "Leave out, counted"): the first run emitted no citation, so its rate is
+    # vacuous: left out of the mean and the standard deviation and counted; mean of 0.1 and 0.2
     hall = out["hallucinated_citation_rate"]
-    assert hall["mean"] == pytest.approx(0.1) and hall["vacuous_runs"] == 1
+    assert hall["by_run"] == [None, 0.1, 0.2] and hall["runs_with_a_value"] == 2
+    assert hall["mean"] == pytest.approx(0.15) and hall["vacuous_runs"] == 1
+    assert hall["standard_deviation"] == pytest.approx(statistics.stdev([0.1, 0.2]))
 
 
 def test_a_measure_that_runs_once_is_its_single_value():
@@ -390,3 +394,6 @@ def test_a_measure_that_runs_once_is_its_single_value():
                                               "standard_deviation": None}
     assert out["abstention"]["by_run"] == [1, None, None]
     assert out["citation_completeness"]["mean"] is None and "citation_completeness_article_level" not in out
+    # every run vacuous: no mean, every run counted as left out (B161 Q2)
+    assert out["hallucinated_citation_rate"] == {"by_run": [None, None, None], "runs_with_a_value": 0,
+                                                 "mean": None, "standard_deviation": None, "vacuous_runs": 3}

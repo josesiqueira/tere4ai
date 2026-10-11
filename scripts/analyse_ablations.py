@@ -440,12 +440,12 @@ def _interval(value: Any) -> str:
 
 def _measure_cell(name: str, measure: dict[str, Any]) -> str:
     """A measure's mean: abstention with the total it is counted out of, the
-    hallucinated citation rate with the runs where it is vacuous."""
+    hallucinated citation rate with the vacuous runs left out of it (B161 Q2)."""
     cell = _rate(measure["mean"])
     if name == "abstention" and measure["mean"] is not None:
         cell += f" of {measure['of']}"
     if name == "hallucinated_citation_rate" and measure["vacuous_runs"]:
-        cell += f", vacuous in {measure['vacuous_runs']} run(s)"
+        cell += f", {measure['vacuous_runs']} vacuous run(s) left out (B161 Q2)"
     return cell
 
 
@@ -464,8 +464,9 @@ def four_measures_lines(over: dict[str, dict[str, dict[str, Any]]]) -> list[str]
                       for name in MEASURES if name in measures]
         lines.append("")
     lines += ["A measure with a value in one run only is a classification case of conditions 3 to 6, run once "
-              "(spec G D-G84 (5)): its single value, with no standard deviation. Each run's figures are in the "
-              "JSON file, under four_measures.by_run.", ""]
+              "(spec G D-G84 (5)), or any measure when the main run is a single run (the pilot run can fix N = 1): "
+              "its single value, with no standard deviation. Each run's figures are in the JSON file, under "
+              "four_measures.by_run.", ""]
     return lines
 
 
