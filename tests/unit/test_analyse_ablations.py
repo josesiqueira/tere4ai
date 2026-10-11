@@ -143,7 +143,8 @@ def _files(tmp_path):
     dev = tmp_path / "development_mock.json"
     dev.write_text(json.dumps({
         "development_set": {"rule": "mock", "sample_file": "benchmark_sample.json", "sample_sha256": sha,
-                            "draw": pilot_draw(load_declaration()), "scenarios": 0, "qa_pairs": 40},
+                            "draw": pilot_draw(load_declaration()), "scenarios": 0, "qa_pairs": 40,
+                            "benchmark_indexes": {"scenarios": [], "qa_pairs": list(range(100, 140))}},
         "scenarios": [],
         "qa_pairs": [{"question": "q", "answer": "a", "relevant_article": 10, "benchmark_index": i}
                      for i in range(100, 140)]}), encoding="utf-8")

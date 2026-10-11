@@ -313,7 +313,8 @@ def load_development_items(path: Path = DEVELOPMENT_PAYLOAD_PATH,
                            draw: dict[str, int] | None = None) -> list[dict[str, Any]]:
     """The pilot run's items; refused when the file is not a development set
     payload, was drawn against another frozen sample or, given the
-    declaration's draw (B150 Q10), was drawn otherwise."""
+    declaration's draw (B150 Q10), was drawn otherwise or holds other items
+    than the drawn indexes its block records."""
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     block = payload.get("development_set") if isinstance(payload, dict) else None
     if not isinstance(block, dict):
@@ -325,6 +326,13 @@ def load_development_items(path: Path = DEVELOPMENT_PAYLOAD_PATH,
     if draw is not None and block.get("draw") != draw:
         raise ValueError(f"{Path(path).name} was drawn with {block.get('draw')}, not the declaration's pilot sample "
                          f"{draw}; build it again with scripts/build_full_benchmark_payload.py --development-set")
+    if draw is not None:
+        held = {"scenarios": [s.get("benchmark_index") for s in payload.get("scenarios", [])],
+                "qa_pairs": [q.get("benchmark_index") for q in payload.get("qa_pairs", [])]}
+        if block.get("benchmark_indexes") != held:
+            raise ValueError(f"{Path(path).name} holds items that are not the drawn ones its development_set block "
+                             "records (benchmark_indexes); build it again with "
+                             "scripts/build_full_benchmark_payload.py --development-set")
     return load_benchmark_items(path)
 
 

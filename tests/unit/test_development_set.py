@@ -86,11 +86,22 @@ def _dev_file(tmp_path, sha=None, draw=DRAW):
                               "domain": "x", "risk_level": "high-risk", "related_articles": [6],
                               "obligations": [], "benchmark_index": 200}],
                "qa_pairs": [{"question": "q", "answer": "a", "relevant_article": 10, "benchmark_index": 300}]}
-    if draw is not None:
+    if draw is not None:  # a payload drawn by development_payload records the draw and the drawn indexes
         payload["development_set"]["draw"] = draw
+        payload["development_set"]["benchmark_indexes"] = {"scenarios": [200], "qa_pairs": [300]}
     path = tmp_path / "development_payload.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
+
+
+def test_a_payload_whose_items_are_not_the_drawn_ones_is_refused(tmp_path):
+    # the draw block is right, the items are not the indexes it records
+    path = _dev_file(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["scenarios"][0]["benchmark_index"] = 201
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="not the drawn ones"):
+        harness.load_development_items(path, draw=DRAW)
 
 
 def test_a_payload_that_is_not_the_development_set_is_refused(tmp_path):
@@ -121,6 +132,16 @@ def test_a_development_run_without_every_scenarios_facts_is_refused(runner, tmp_
     code = runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),
                              "--features", str(_feats(tmp_path, {}))))
     assert code == 2 and "lacks 1 development scenario" in capsys.readouterr().out
+    assert not (tmp_path / "evaluation_records").exists()
+
+
+@pytest.mark.parametrize("draw", [{**DRAW, "seed": 1}, None], ids=["another_seed", "no_draw"])
+def test_a_development_run_on_a_payload_drawn_otherwise_is_refused(runner, tmp_path, capsys, draw):  # noqa: F811
+    dev = _dev_file(tmp_path, draw=draw)
+    feats = _feats(tmp_path, {"bench:scenario:200": {"description": "d", "flags": {}}})
+    code = runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),
+                             "--features", str(feats)))
+    assert code == 2 and "not the declaration's pilot sample" in capsys.readouterr().out
     assert not (tmp_path / "evaluation_records").exists()
 
 
