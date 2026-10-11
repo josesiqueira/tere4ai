@@ -118,7 +118,7 @@ blocks) are kept for the readers of the July summaries.
 
 ## The declared analysis (spec G D-G84, B150)
 
-E6's analysis is declared before the main run in `eval/e6_declaration.json`, and every run record carries its digest. The pilot run comes first, on a random sample of the development set (the REF-15 items outside the frozen sample) with the frozen sample's composition, 8 scenarios per risk level and 15 question pairs, drawn by the declaration's seed (B150 Q10):
+E6's analysis is declared before the main run in `eval/e6_declaration.json`, and every run record carries its digest. The pilot run comes first, on a random sample of the development set (the REF-15 items outside the frozen sample) with the frozen sample's composition, 8 scenarios per risk level and 15 question pairs, drawn by the declaration's seed, 20261011 (B150 Q10):
 
     .venv/bin/python scripts/build_full_benchmark_payload.py --development-set
     .venv/bin/python scripts/elicit_benchmark_features.py --benchmark data/snapshots/benchmark/development_payload.json --out eval/gold/development_features.json

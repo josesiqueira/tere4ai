@@ -516,6 +516,9 @@ def test_the_report_prices_the_first_run_the_later_repetitions_the_main_run_and_
         assert words in " ".join(mock_report.split())
     assert "provisional ten" not in mock_report
     assert "every item outside the frozen sample" not in " ".join(mock_report.split())
+    assert re.search(r"\"E6 development set elicitation\" prices the pilot run's sample, \d+ scenarios drawn from "
+                     r"outside the frozen sample, a different set from the \d+ scenarios \"E6 elicitation\" prices",
+                     " ".join(mock_report.split()))
 
 
 def _per_kind(gen, judge):

@@ -1043,6 +1043,11 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         "| Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |",
         "",
         *([f"The pilot run: {res['pilot_note']}.", ""] if res["pilot_note"] else []),
+        *([f"\"E6 development set elicitation\" prices the pilot run's sample, "
+           f"{res['dev_elicit_rows'][0]['calls']} scenarios drawn from outside the frozen sample, a different set "
+           f"from the {next(r['calls'] for r in res['build_rows'] if r['step'] == 'E6 elicitation')} scenarios "
+           "\"E6 elicitation\" prices (the frozen sample's); the two rows nearly match because every call sends the "
+           "same system prompt and is priced at the same mean reply size.", ""] if res["dev_elicit_rows"] else []),
         "The control backlog prices one click on CredScore Article 25 sending every AI Act role's norms and "
         f"the norms whose addressee is not settled: {res['backlog_norms']} of the article's accepted norms in "
         "the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability "

@@ -59,6 +59,8 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 | E6 main run, N = 11 | judge (claude-opus-5-5) | 418 | 1,424,214 | 91,142 | 506,344 (164,568 to 911,419) | 8.42 | 15.82 | 24.49 |
 | Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |
 
+"E6 development set elicitation" prices the pilot run's sample, 32 scenarios drawn from outside the frozen sample, a different set from the 32 scenarios "E6 elicitation" prices (the frozen sample's); the two rows nearly match because every call sends the same system prompt and is priced at the same mean reply size.
+
 The control backlog prices one click on CredScore Article 25 sending every AI Act role's norms and the norms whose addressee is not settled: 18 of the article's accepted norms in the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability by classification and target system category, which this offline selection does not.
 The backlog judge's input is counted over the dry run's one-control reply, not the controls the generator writes, so it leaves out about 3,451 input tokens (the generator's visible output), about 0.01 USD at the judge's input price, which the rows above do not add.
 
