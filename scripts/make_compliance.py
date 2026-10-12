@@ -54,7 +54,7 @@ FEATURES: dict[str, Any] = {
     ],
     "autonomy": "advisory",
     "affected_persons": ["natural persons applying for consumer loans"],
-    "deployer_actor": "deployer",
+    "deployer_kind": "deployer",
     "deployer": {
         "body_governed_by_public_law": False,
         "private_entity_providing_public_services": True,

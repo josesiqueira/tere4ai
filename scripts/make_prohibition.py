@@ -67,7 +67,7 @@ ROUND_1: dict[str, Any] = {
     "purposes": PURPOSES,
     "autonomy": "advisory",
     "affected_persons": ["employees of the deploying employer"],
-    "deployer_actor": "deployer",
+    "deployer_kind": "deployer",
     "flags": {
         "emotion_recognition": True,
         "emotion_recognition_workplace_or_education": True,
@@ -86,7 +86,7 @@ ROUND_2: dict[str, Any] = {
     "purposes": PURPOSES,
     "autonomy": "advisory",
     "affected_persons": ["employees of the deploying employer"],
-    "deployer_actor": "deployer",
+    "deployer_kind": "deployer",
     "deployer": {
         "body_governed_by_public_law": False,
         "private_entity_providing_public_services": False,

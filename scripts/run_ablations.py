@@ -60,6 +60,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.elicit_features.elicitor import features_of_record  # noqa: E402
 from tere4ai.eval import harness, metrics, strategies  # noqa: E402
 from tere4ai.eval.ablation_declaration import (  # noqa: E402
     DECLARATION_PATH,
@@ -303,7 +304,8 @@ def _attach_features(bench: list[dict], features_path: Path) -> int:
     for item in bench:
         feats = by_item.get(item["id"])
         if feats and not item.get("system_features"):
-            item["system_features"] = feats
+            # B160 ruling R6: a facts file elicited before B160 names the old key
+            item["system_features"] = features_of_record(feats)
             item["features_provenance"] = "llm_elicited"
             enriched += 1
     return enriched

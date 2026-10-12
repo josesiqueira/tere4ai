@@ -46,6 +46,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai.elicit_features.elicitor import features_of_record  # noqa: E402
 from tere4ai.eval.harness import current_level, load_benchmark_items  # noqa: E402
 from tere4ai.mcp_server.classify import classify_ai_system  # noqa: E402
 
@@ -333,6 +334,8 @@ def build_report(
         features = features_by_item.get(item_id)
         if features is None:
             raise ValueError(f"{item_id}: no elicited features in {features_path}")
+        # B160 ruling R6: the kept facts file was elicited before B160
+        features = features_of_record(features)
 
         # Verify gold and predicted against the artifacts.
         if entry["gold"] != analysis["expected_gold"]:

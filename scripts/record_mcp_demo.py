@@ -94,7 +94,7 @@ SYSTEMS: list[dict[str, Any]] = [
                     "generates_synthetic_content": False,
                 },
                 "affected_persons": ["employees of the deploying company"],
-                "deployer_actor": "private_company",
+                "deployer_kind": "private_company",
                 "deployer": {
                     "body_governed_by_public_law": False,
                     "private_entity_providing_public_services": False,
@@ -150,7 +150,7 @@ SYSTEMS: list[dict[str, Any]] = [
                     "annex_i_covered_product": False,
                 },
                 "affected_persons": ["webshop visitors"],
-                "deployer_actor": "private_company",
+                "deployer_kind": "private_company",
                 "deployer": {
                     "body_governed_by_public_law": False,
                     "private_entity_providing_public_services": False,
@@ -210,7 +210,7 @@ SYSTEMS: list[dict[str, Any]] = [
                     "generates_synthetic_content": False,
                 },
                 "affected_persons": ["consumer loan applicants"],
-                "deployer_actor": "private_company",
+                "deployer_kind": "private_company",
                 "deployer": {
                     "body_governed_by_public_law": False,
                     "private_entity_providing_public_services": True,
@@ -254,7 +254,7 @@ SYSTEMS: list[dict[str, Any]] = [
                     "profiling_of_natural_persons": True,
                 },
                 "affected_persons": ["employees of the deploying company"],
-                "deployer_actor": "private_company",
+                "deployer_kind": "private_company",
                 "deployer": {
                     "body_governed_by_public_law": False,
                     "private_entity_providing_public_services": False,
@@ -305,7 +305,7 @@ SYSTEMS: list[dict[str, Any]] = [
                     "justice_democratic_use": False,
                 },
                 "affected_persons": ["employees of the deploying company"],
-                "deployer_actor": "private_company",
+                "deployer_kind": "private_company",
                 "deployer": {
                     "body_governed_by_public_law": False,
                     "private_entity_providing_public_services": False,
@@ -348,7 +348,7 @@ SYSTEMS: list[dict[str, Any]] = [
                     "biometric_identification": False,
                 },
                 "affected_persons": ["employed drivers"],
-                "deployer_actor": "private_company",
+                "deployer_kind": "private_company",
             }
         ],
         "source_trace": ["eu-ai-act:article-5:paragraph-1:point-f"],

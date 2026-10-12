@@ -51,8 +51,8 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 | Layer 3 alignment | judge (claude-opus-5-5) | 538 | 1,593,935 | 182,433 | 1,013,519 (329,406 to 1,824,334) | 12.33 | 26.65 | 43.50 |
 | Control backlog | generator (gpt-6-astra) | 1 | 11,727 | 2,446 | 13,590 (3,534 to 24,462) | 0.28 | 0.80 | 1.35 |
 | Control backlog | judge (claude-opus-5-5) | 1 | 17,467 | 218 | 1,211 (394 to 2,180) | 0.07 | 0.09 | 0.12 |
-| E6 elicitation | generator (gpt-6-astra) | 32 | 344,237 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
-| E6 development set elicitation | generator (gpt-6-astra) | 32 | 344,158 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
+| E6 elicitation | generator (gpt-6-astra) | 32 | 344,221 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
+| E6 development set elicitation | generator (gpt-6-astra) | 32 | 344,142 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
 | E6 pilot run, 5 repetitions | generator (gpt-6-astra) | 898 | 991,988 | 140,514 | 780,635 (203,028 to 1,405,143) | 19.08 | 48.95 | 81.17 |
 | E6 pilot run, 5 repetitions | judge (claude-opus-5-5) | 150 | 526,949 | 32,706 | 181,702 (59,055 to 327,064) | 3.08 | 5.74 | 8.86 |
 | E6 main run, N = 11 | generator (gpt-6-astra) | 2,242 | 2,885,434 | 328,060 | 1,822,554 (474,011 to 3,280,597) | 49.67 | 119.98 | 195.77 |

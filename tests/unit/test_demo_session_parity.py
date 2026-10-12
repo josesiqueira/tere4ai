@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from tere4ai.elicit_features.elicitor import features_of_record
 from tere4ai.mcp_server.classify import classify_ai_system
 from tere4ai.mcp_server.requirements import get_applicable_requirements
 
@@ -54,7 +55,8 @@ def test_recorded_spamguard_session_replays_identically(dump):
         assert set(line.keys()) == {"seq", "ts", "tool", "request", "envelope", "repo_ref"}
         if line["tool"] != "classify_ai_system":
             continue
-        live = classify_ai_system(line["request"]["features"], dump)
+        # B160 ruling R6: the recorded request names the fact as it was named then
+        live = classify_ai_system(features_of_record(line["request"]["features"]), dump)
         assert _mask(live) == _mask(line["envelope"])
 
 
@@ -85,7 +87,8 @@ def test_every_recorded_session_replays_identically(session_path, dump, norms):
         assert set(line.keys()) == {"seq", "ts", "tool", "request", "envelope", "repo_ref"}
         tool = line["tool"]
         if tool == "classify_ai_system":
-            live = classify_ai_system(line["request"]["features"], dump)
+            # B160 ruling R6: the recorded request names the fact as it was named then
+            live = classify_ai_system(features_of_record(line["request"]["features"]), dump)
         elif tool == "get_applicable_requirements":
             classification = line["request"]["classification"]
             live = get_applicable_requirements(classification, norms, dump)

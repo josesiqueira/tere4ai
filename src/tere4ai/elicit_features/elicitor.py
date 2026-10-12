@@ -50,9 +50,28 @@ PROMPT_NAME = "elicit_features"
 # DEC-18: the one default prompt version; the facade's elicit_envelope and
 # scripts/elicit_benchmark_features.py import it rather than repeat it.
 # B132 (spec G D-G68 (6)): v7 follows the Act as amended (the amended Annex I
-# points, points (ba) and (bb) as Article 5 nodes, the Annex I section fact),
-# the version of record for B74.
-DEFAULT_PROMPT_VERSION = "v7"
+# points, points (ba) and (bb) as Article 5 nodes, the Annex I section fact).
+# B160: v8 is v7 with the fact deployer_actor renamed deployer_kind, the
+# version of record for B74.
+DEFAULT_PROMPT_VERSION = "v8"
+# B160 ruling R6: the fact's name before B160. Live input carrying it is
+# refused by the schema; only features_of_record reads it, in facts stored
+# before B160. Deleted with the pre-B74 records after B74.
+FACT_NAME_BEFORE_B160 = "deployer_actor"
+
+
+def features_of_record(features: dict) -> dict:
+    """Facts stored before B160 (the benchmark gold features of prompts v1
+    and v2, the recorded demo sessions) as the schema reads them today: a
+    copy with deployer_actor renamed deployer_kind, its value kept. When both
+    keys are present, deployer_kind is kept and the old key dropped. The
+    input is never changed (B160 ruling R6)."""
+    if FACT_NAME_BEFORE_B160 not in features:
+        return dict(features)
+    renamed = {k: v for k, v in features.items() if k != FACT_NAME_BEFORE_B160}
+    renamed.setdefault("deployer_kind", features[FACT_NAME_BEFORE_B160])
+    return renamed
+
 MIN_QUOTE_WORDS = 3
 # Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
 NESTED_FACT_FIELDS = ("flags", "deployer")

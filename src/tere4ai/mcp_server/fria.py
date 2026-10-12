@@ -31,7 +31,7 @@ make the system high-risk under Article 6(2) and the assessment apply, the
 outcome is unknown and the fact is named. Only facts that could change the
 outcome are named.
 
-The free-text deployer_actor field is never read here: it is an open
+The free-text deployer_kind field is never read here: it is an open
 vocabulary and cannot be mapped deterministically onto the Article 27(1)
 legal categories. Only the structured deployer facts decide.
 

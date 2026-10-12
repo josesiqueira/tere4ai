@@ -205,7 +205,7 @@
         "type": "string"
       }
     },
-    "deployer_actor": {
+    "deployer_kind": {
       "type": [
         "string",
         "null"
