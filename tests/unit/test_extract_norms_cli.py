@@ -27,7 +27,7 @@ def test_slug_readable_for_small_runs():
 
 
 def _fakes(monkeypatch, cli, calls, results=None):
-    def fake_extract(dump, node_ids, generator, judge, prompt_version="v1"):
+    def fake_extract(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         calls.append(node_ids[0])
         if results is not None and node_ids[0] in results:
             return results[node_ids[0]]
@@ -114,11 +114,11 @@ def test_extract_writes_execution_record_and_run_id_on_checkpoint_lines(tmp_path
     seen: list[dict] = []
     inner = cli.extract_norms
 
-    def spy(dump, node_ids, generator, judge, prompt_version="v1"):
+    def spy(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         ck = out.with_suffix(".checkpoint.jsonl")
         if ck.is_file():
             seen.extend(json.loads(line) for line in ck.read_text().splitlines())
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", spy)
     rc = cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)])
@@ -245,10 +245,10 @@ def test_extract_failure_records_usage_and_keeps_checkpoint(tmp_path, monkeypatc
     _fakes(monkeypatch, cli, calls)
     inner = cli.extract_norms
 
-    def boom(dump, node_ids, generator, judge, prompt_version="v1"):
+    def boom(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         if node_ids[0] == "eu-ai-act:article-10":
             raise RuntimeError("usage limit reached")
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", boom)
     with pytest.raises(RuntimeError):
@@ -270,10 +270,10 @@ def test_ctrl_c_ends_the_execution_failed_with_the_spend_so_far(tmp_path, monkey
     _fakes(monkeypatch, cli, calls)
     inner = cli.extract_norms
 
-    def interrupted(dump, node_ids, generator, judge, prompt_version="v1"):
+    def interrupted(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         if node_ids[0] == "eu-ai-act:article-10":
             raise KeyboardInterrupt
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", interrupted)
     with pytest.raises(KeyboardInterrupt):
@@ -343,13 +343,13 @@ def test_a_long_group_keeps_the_execution_live(tmp_path, monkeypatch):
     inner = cli.extract_norms
     beats: list[str] = []
 
-    def slow(dump, node_ids, generator, judge, prompt_version="v1"):
+    def slow(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         store = BuildRecordStore(tmp_path)
         rid = store.resolve("test")
         beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
         time.sleep(0.3)
         beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", slow)
     assert cli.main(["--nodes", "eu-ai-act:article-9", "--dump", str(dump_path), "--out", str(out)]) == 0
@@ -366,13 +366,13 @@ def test_a_run_whose_record_is_published_under_it_stops_and_says_so(tmp_path, mo
     _fakes(monkeypatch, cli, calls)
     inner = cli.extract_norms
 
-    def published_meanwhile(dump, node_ids, generator, judge, prompt_version="v1"):
+    def published_meanwhile(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         store = BuildRecordStore(tmp_path)
         rid = store.resolve("test")
         record = json.loads((store.dir / f"{rid}.json").read_text())
         record["publication"] = PUBLISHED  # written by hand: the live check would refuse a real publish
         (store.dir / f"{rid}.json").write_text(json.dumps(record))
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", published_meanwhile)
     with pytest.raises(FrozenRecordError):
@@ -432,11 +432,11 @@ def test_a_sigterm_ends_the_extract_execution_failed_with_the_spend_so_far(tmp_p
     _fakes(monkeypatch, cli, calls)
     inner = cli.extract_norms
 
-    def terminated(dump, node_ids, generator, judge, prompt_version="v1"):
+    def terminated(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         if node_ids[0] == "eu-ai-act:article-10":
             os.kill(os.getpid(), signal.SIGTERM)
             time.sleep(1)
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", terminated)
     got, guard, restore = _guard_signals()
@@ -463,11 +463,11 @@ def test_each_finished_group_writes_the_usage_so_far_into_the_running_execution(
     inner = cli.extract_norms
     seen: list[dict] = []
 
-    def look(dump, node_ids, generator, judge, prompt_version="v1"):
+    def look(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         if node_ids[0] == "eu-ai-act:article-10":
             store = BuildRecordStore(tmp_path)
             seen.append(store.read(store.resolve("test"))["executions"][0])
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", look)
     assert cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)]) == 0
@@ -500,10 +500,10 @@ def test_a_backend_stop_is_recorded_keeps_the_checkpoint_prints_the_resume_and_r
     _fakes(monkeypatch, cli, calls)
     inner = cli.extract_norms
 
-    def stop_on_the_second_group(dump, node_ids, generator, judge, prompt_version="v1"):
+    def stop_on_the_second_group(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         if node_ids[0] == "eu-ai-act:article-10":
             raise InferenceBackendUnavailable(6, "HTTP 529")
-        return inner(dump, node_ids, generator, judge, prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", stop_on_the_second_group)
     argv = ["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out)]
@@ -534,7 +534,7 @@ def test_a_refused_declaration_is_recorded_and_exits_4(tmp_path, monkeypatch, ca
     out = tmp_path / "norms_test.json"
     _fakes(monkeypatch, cli, [])
 
-    def refused(dump, node_ids, generator, judge, prompt_version="v1"):
+    def refused(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         raise DeclaredParameterRefused("openai", "g", "temperature", "0", "HTTP 400: temperature unsupported")
 
     monkeypatch.setattr(cli, "extract_norms", refused)
@@ -672,10 +672,10 @@ def test_a_mock_model_run_of_the_v3_pipeline_sets_the_rule_value_counts_the_null
     generator, judge = _scripted_models(monkeypatch, cli, tmp_path)
     inner = cli.extract_norms
 
-    def stop_on_article_50(dump, node_ids, generator, judge, prompt_version="v1"):
+    def stop_on_article_50(dump, node_ids, generator, judge, prompt_version="v1", max_in_flight=1):
         if node_ids[0] == "eu-ai-act:article-50":
             raise InferenceBackendUnavailable(6, "HTTP 529")
-        return inner(dump, node_ids, generator, judge, prompt_version=prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version=prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", stop_on_article_50)
     # B144: v4 is the default; this run pins v3, which stays runnable (D-G76 (6))

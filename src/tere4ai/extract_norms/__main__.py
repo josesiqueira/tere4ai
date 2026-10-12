@@ -12,7 +12,9 @@ Runs the judged norm-extraction pipeline over the given Layer 1 node ids
 data/graph_dumps/norms_<slug>.json. Use --dry-run to list the source units
 without calling any model. Every attempt writes an execution record covering
 LAYER2_STEP1 and LAYER2_STEP2 into the build record store (D-G20), with run ids on every
-checkpoint line and a validated resume.
+checkpoint line and a validated resume. --max-in-flight (default 8, B164) bounds the
+source units of a group whose model calls run at once; the setting is recorded in the
+execution's config, and a resume may change it.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from tere4ai import parallel_calls
 from tere4ai.act_parties import ACT_PARTIES_PATH
 from tere4ai.extract_norms.actor_audit import (
     addressee_counts,
@@ -150,6 +153,7 @@ def _main(argv: list[str] | None = None) -> int:
                         help="build record alias or id (default: the output slug)")
     parser.add_argument("--accept-legacy-checkpoint", action="store_true",
                         help="inherit checkpoint lines written before build records existed (no run id)")
+    parallel_calls.add_max_in_flight_argument(parser)
     args = parser.parse_args(argv)
 
     node_ids = [node_id.strip() for node_id in args.nodes.split(",") if node_id.strip()]
@@ -191,7 +195,7 @@ def _main(argv: list[str] | None = None) -> int:
     inputs.append({"input_kind": "act_parties",
                    "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), Path(dump_dir).resolve()),
                    "sha256": sha256_of_file(ACT_PARTIES_PATH)})
-    config = {"prompt_version": args.prompt_version, "nodes": node_ids}
+    config = {"prompt_version": args.prompt_version, "nodes": node_ids, "max_in_flight": args.max_in_flight}
     # B79 item 10: the record is chosen here and created only after every
     # refusal below, so a refused run leaves no record and moves no alias
     choice = choose_record(store, args.record or out_path.stem.removeprefix("norms_"),
@@ -240,6 +244,7 @@ def _main(argv: list[str] | None = None) -> int:
         sampling=declared_sampling(generator, judge),
     )
 
+    print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
     group_results: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
     completed: list[str] = []
 
@@ -264,7 +269,8 @@ def _main(argv: list[str] | None = None) -> int:
                 if group_id in plan.entries_by_key:
                     continue
                 result = extract_norms(
-                    dump, [group_id], generator, judge, prompt_version=args.prompt_version
+                    dump, [group_id], generator, judge, prompt_version=args.prompt_version,
+                    max_in_flight=args.max_in_flight,
                 )
                 ckpt.write(json.dumps({"run_id": run_id, "group": group_id, "result": result}) + "\n")
                 ckpt.flush()

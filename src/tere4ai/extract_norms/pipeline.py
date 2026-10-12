@@ -63,6 +63,7 @@ from tere4ai.extract_norms.requirement_type import (
 from tere4ai.extract_norms.set_up_rule import rows_for
 from tere4ai.extract_norms.target_system_category import category_for
 from tere4ai.judge.config import require_independent_clients
+from tere4ai.parallel_calls import run_in_flight
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPTS_DIR = REPO_ROOT / "prompts"
@@ -469,6 +470,7 @@ def extract_norms(
     judge: ModelClient,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
     log_path: Path | None = None,
+    max_in_flight: int = 1,
 ) -> dict[str, Any]:
     """Run the judged extraction over the given node ids.
 
@@ -477,6 +479,8 @@ def extract_norms(
     the JudgeRun shape in alignments.schema.json with judge_kind
     "extraction". Failures are recorded in stats, never raised mid-batch
     (except the recital guard and unknown ids, which fail fast).
+    max_in_flight bounds the source units whose calls run at once (B164); 1,
+    the default, runs them one after the other in the calling thread.
     """
     require_independent_clients(generator, judge)
     log_path = log_path or DEFAULT_LOG_PATH
@@ -515,15 +519,17 @@ def extract_norms(
         **({"untyped_in_scope": 0} if typed else {}),
     }
 
-    for unit in units:
+    def unit_events(unit: dict[str, Any]) -> list[tuple[Any, ...]]:
+        """B164: one source unit's model calls and what they gave, in the
+        candidates' order. Runs on a worker thread when max_in_flight > 1;
+        reads the run's prompts and the dump, and writes only the log
+        (append_event takes a lock)."""
         node_id = unit["node_id"]
         if not unit["span_id"]:
             # A norm without a source span must never exist (Section 13).
-            stats["nodes_failed"].append({"node_id": node_id, "reason": "missing source_span"})
-            continue
+            return [("failed", {"node_id": node_id, "reason": "missing source_span"})]
         if not unit["text"].strip():
-            stats["nodes_failed"].append({"node_id": node_id, "reason": "empty text"})
-            continue
+            return [("failed", {"node_id": node_id, "reason": "empty text"})]
 
         gen_user = _generator_user_message(unit)
         parsed, error = _call_json_with_retry(generator, extract_prompt, gen_user)
@@ -543,23 +549,17 @@ def extract_norms(
             },
         )
         if parsed is None:
-            stats["nodes_failed"].append({"node_id": node_id, "reason": error})
-            continue
+            return [("failed", {"node_id": node_id, "reason": error})]
 
         candidates = parsed.get("norms", [])
         if not isinstance(candidates, list):
-            stats["nodes_failed"].append(
-                {"node_id": node_id, "reason": "generator JSON lacks a 'norms' list"}
-            )
-            continue
+            return [("failed", {"node_id": node_id, "reason": "generator JSON lacks a 'norms' list"})]
 
+        events: list[tuple[Any, ...]] = []
         for index, candidate in enumerate(candidates, start=1):
             if not isinstance(candidate, dict):
-                stats["invalid_norms"].append(
-                    {"node_id": node_id, "reason": "candidate is not a JSON object"}
-                )
+                events.append(("invalid", {"node_id": node_id, "reason": "candidate is not a JSON object"}))
                 continue
-            stats["candidates"] += 1
             candidate = {key: candidate.get(key) for key in fields if key in candidate}
             if typed:
                 # DEC-19: the scope is applied before the judge sees the
@@ -654,7 +654,19 @@ def extract_norms(
                 "judge_run_id": judge_run_id,
                 "review_status": "accepted" if verdict == "accepted" else "needs_review",
             }
+            events.append(("judged", norm, judge_run))
+        return events
 
+    for events in run_in_flight(units, unit_events, max_in_flight=max_in_flight):
+        for event in events:
+            if event[0] == "failed":
+                stats["nodes_failed"].append(event[1])
+                continue
+            if event[0] == "invalid":
+                stats["invalid_norms"].append(event[1])
+                continue
+            _judged, norm, judge_run = event
+            stats["candidates"] += 1
             if addressee_names:
                 # B145 (D-G80 (4)): the stored value, its stamp and its outcome
                 norm.update(addressee_fields(norm))
@@ -662,8 +674,8 @@ def extract_norms(
             if errors:
                 stats["invalid_norms"].append(
                     {
-                        "node_id": node_id,
-                        "norm_id": norm_id,
+                        "node_id": norm["source_node_id"],
+                        "norm_id": norm["norm_id"],
                         "errors": [error.message for error in errors[:5]],
                     }
                 )
@@ -672,7 +684,7 @@ def extract_norms(
                 judge_runs.append(judge_run)
                 continue
 
-            stats["verdicts"][verdict] += 1
+            stats["verdicts"][norm["judge_verdict"]] += 1
             if norm["target_system_category"] is None:
                 stats["without_target_system_category"] += 1
             if typed and norm["requirement_type"] is None and in_scope(norm):

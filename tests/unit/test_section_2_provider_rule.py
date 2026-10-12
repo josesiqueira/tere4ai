@@ -252,10 +252,10 @@ def test_a_resumed_run_audits_the_inherited_groups_too(tmp_path, monkeypatch):
     cli, argv, _out, _g, _j = _prepare(tmp_path, monkeypatch)
     inner = cli.extract_norms
 
-    def stop_on_article_17(dump, node_ids, generator, judge, prompt_version="v4"):
+    def stop_on_article_17(dump, node_ids, generator, judge, prompt_version="v4", max_in_flight=1):
         if node_ids[0] == U17:
             raise InferenceBackendUnavailable(6, "HTTP 529")
-        return inner(dump, node_ids, generator, judge, prompt_version=prompt_version)
+        return inner(dump, node_ids, generator, judge, prompt_version=prompt_version, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "extract_norms", stop_on_article_17)
     assert cli.main(argv) == 3
