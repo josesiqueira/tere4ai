@@ -1215,6 +1215,7 @@ different circumstances (with respect to missing data, prevalence
 distribution and number of raters or categories)" (Background, p. 2). A
 methods paper from a medical statistics venue, cited for the simulation
 evidence on the coefficients, never for a clinical claim.
+WITHDRAWN 2026-10-12 (Jose, asked whether to keep it as the statistics a field cites: "if this is clinical we dont use it"; thesis research/2026-10-12-records-questions.md and paper/design_decisions.md, the entry of 2026-10-12): BMC Medical Research Methodology is a medical-statistics venue, and sources come from empirical software engineering and LLM evaluation, never clinical literature (thesis CLAUDE.md, References). The entry's text is kept so the records that cite ADD-102 by id stay auditable. What still grounds each claim it supported is in thesis research/2026-10-08-evaluation-grounding.md, the entries of 2026-10-12 beside AGREEMENT-9, AGREEMENT-10 and CALIBRATION-16: ADD-93 (Hayes and Krippendorff 2007) for a bootstrap interval of alpha; no registered source for resampling whole units or for the 1,000 draws. Do not cite.
 
 **[ADD-103]** PEER. "Likert scales, levels of measurement and the 'laws' of
 statistics", Norman, Advances in Health Sciences Education 15:625-632,
@@ -1789,3 +1790,4 @@ reintroduced.
   now grounds on REF-11 and REF-12.
 
 - ADD-33 (Hasan 2016, IJSSOE systematic classification of regulatory-compliance approaches): dropped 2026-10-08 by Jose as out of date and never obtained; ADD-29 (Kosenkov et al. 2025) covers the ground.
+- ADD-102 (Zapf, Castell, Morawietz and Karch 2016, BMC Medical Research Methodology 16:93, which coefficient and which interval for nominal data): withdrawn 2026-10-12 by Jose as clinical literature ("if this is clinical we dont use it"); its entry stays above, marked WITHDRAWN; ADD-93 (Hayes and Krippendorff 2007) remains the registered source for a bootstrap interval of alpha.
