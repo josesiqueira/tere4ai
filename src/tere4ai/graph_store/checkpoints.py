@@ -120,6 +120,19 @@ def _digests(inputs: list[dict[str, Any]]) -> dict[str, str]:
     return {i["input_kind"]: i["sha256"] for i in inputs}
 
 
+# B164 (spec F D-F30 as amended 2026-10-12): keys of an execution's config that
+# say how a run sends its model calls, never what it computes; a resume may
+# change them (a run stopped by a rate limit at 8 calls in flight resumes at 4).
+CONFIG_KEYS_A_RESUME_MAY_CHANGE = frozenset({"max_in_flight"})
+
+
+def _compared_config(config: Any) -> Any:
+    """The configuration a resume must share: every key but the ones above."""
+    if not isinstance(config, dict):
+        return config
+    return {key: value for key, value in config.items() if key not in CONFIG_KEYS_A_RESUME_MAY_CHANGE}
+
+
 def prepare_resume(path: Path, key_field: str, result_keys: tuple[str, ...], *, resume: bool, accept_legacy: bool,
                    store: BuildRecordStore, record_id: str | None, expected_config: dict[str, Any],
                    expected_inputs: list[dict[str, Any]], expected_models: dict[str, Any] | None = None,
@@ -150,9 +163,11 @@ def prepare_resume(path: Path, key_field: str, result_keys: tuple[str, ...], *, 
         ex = known.get(run_id)
         if ex is None:
             raise IncompatibleCheckpointError(f"{path.name} belongs to run {run_id} which this record does not know")
-        if ex.get("config") != expected_config:
-            differing = sorted(k for k in set(ex.get("config", {})) | set(expected_config)
-                               if ex.get("config", {}).get(k) != expected_config.get(k))
+        recorded_config, expected = _compared_config(ex.get("config")), _compared_config(expected_config)
+        if recorded_config != expected:
+            recorded_keys = recorded_config if isinstance(recorded_config, dict) else {}
+            differing = sorted(k for k in set(recorded_keys) | set(expected)
+                               if recorded_keys.get(k) != expected.get(k))
             raise IncompatibleCheckpointError(f"{path.name}: run {run_id} used a different config: {', '.join(differing)}")
         theirs, ours = _digests(ex.get("inputs", [])), _digests(expected_inputs)
         differing = sorted(r for r in set(theirs) | set(ours) if theirs.get(r) != ours.get(r))

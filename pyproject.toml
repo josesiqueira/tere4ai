@@ -64,6 +64,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
     "live: calls real model APIs and costs money; enabled only with TERE4AI_LIVE_TESTS=1",
+    "default_max_in_flight: the test sees the commands' shipped --max-in-flight default (B164); every other unit test runs at 1 (tests/unit/conftest.py)",
 ]
 
 [tool.ruff]

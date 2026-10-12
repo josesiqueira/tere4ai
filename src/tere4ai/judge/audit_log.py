@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,11 @@ _SECRET_RE = re.compile(
 )
 REDACTED = "[REDACTED]"
 
+# B164 (R10): the extraction, alignment and runtime judge logs are appended to
+# from several calls in flight; one write per line, under one lock, so a long
+# line is never split by another.
+_APPEND_LOCK = threading.Lock()
+
 
 def scrub(value: Any) -> Any:
     """Replace key-material-shaped substrings anywhere in the event."""
@@ -51,9 +57,11 @@ def scrub(value: Any) -> Any:
 
 def append_event(log_path: Path, event: dict[str, Any]) -> None:
     """Append one scrubbed JSON line. Never raises key material into a log."""
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(scrub(event), ensure_ascii=False) + "\n")
+    line = json.dumps(scrub(event), ensure_ascii=False) + "\n"
+    with _APPEND_LOCK:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(line)
 
 
 def read_events(log_path: Path, kind: str | None = None) -> Iterator[dict[str, Any]]:

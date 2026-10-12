@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -310,6 +311,11 @@ class _SamplingRecord:
     _now = staticmethod(_utc_now)
     _retry_policy: RetryPolicy = SERVICE_POLICY
 
+    # B164 (ruling R10): one lock for every client's counts. usage[key] += n is
+    # a read and a write, so two calls in flight could lose one; a class
+    # attribute, so a client built with __new__ (the offline tests) has it too.
+    _usage_lock = threading.Lock()
+
     @property
     def temperature(self) -> str:
         return self._declared.temperature if self._declared is not None else NOT_DECLARED
@@ -331,19 +337,21 @@ class _SamplingRecord:
         return {"temperature": self.temperature, "effort": self.effort, "json_mode": self.json_mode}[parameter]
 
     def _count_sent(self) -> None:
-        self.usage["requests_sent"] = self.usage.get("requests_sent", 0) + 1
+        with self._usage_lock:
+            self.usage["requests_sent"] = self.usage.get("requests_sent", 0) + 1
 
     def _count_refused(self, exc: BaseException) -> None:
         """A failed attempt the inference backend answered with an HTTP error status
         (any numeric status_code) is refused (final review A3); a connection
         error, a timeout or an interrupt carries no status and is not. One of
         the seven statuses is also rejected before processing (spec F D-F32)."""
-        status = getattr(exc, "status_code", None)
-        if isinstance(status, int):
-            self.usage["requests_refused"] = self.usage.get("requests_refused", 0) + 1
-            if status in REJECTED_BEFORE_PROCESSING_STATUSES:
-                key = "requests_rejected_before_processing"
-                self.usage[key] = self.usage.get(key, 0) + 1
+        with self._usage_lock:
+            status = getattr(exc, "status_code", None)
+            if isinstance(status, int):
+                self.usage["requests_refused"] = self.usage.get("requests_refused", 0) + 1
+                if status in REJECTED_BEFORE_PROCESSING_STATUSES:
+                    key = "requests_rejected_before_processing"
+                    self.usage[key] = self.usage.get(key, 0) + 1
 
     def _count_reply(self, reported: object, input_field: str, output_field: str,
                      reasoning_path: tuple[str, str] | None = None) -> None:
@@ -353,31 +361,34 @@ class _SamplingRecord:
         the field holding the reasoning part of the output figure (B133); a
         reply counts as reporting reasoning only when that figure is an integer
         and the usage block is complete."""
-        self.usage["calls"] += 1
-        if reported is None:
-            return
-        input_tokens = getattr(reported, input_field, None)
-        output_tokens = getattr(reported, output_field, None)
-        if isinstance(input_tokens, int):
-            self.usage["input_tokens"] += input_tokens
-        if isinstance(output_tokens, int):
-            self.usage["output_tokens"] += output_tokens
-        if isinstance(input_tokens, int) and isinstance(output_tokens, int):
-            self.usage["replies_with_usage"] = self.usage.get("replies_with_usage", 0) + 1
-            if reasoning_path is not None:
-                details = getattr(reported, reasoning_path[0], None)
-                reasoning = getattr(details, reasoning_path[1], None)
-                if isinstance(reasoning, int):
-                    self.usage["reasoning_tokens"] = self.usage.get("reasoning_tokens", 0) + reasoning
-                    self.usage["replies_with_reasoning"] = self.usage.get("replies_with_reasoning", 0) + 1
+        with self._usage_lock:
+            self.usage["calls"] += 1
+            if reported is None:
+                return
+            input_tokens = getattr(reported, input_field, None)
+            output_tokens = getattr(reported, output_field, None)
+            if isinstance(input_tokens, int):
+                self.usage["input_tokens"] += input_tokens
+            if isinstance(output_tokens, int):
+                self.usage["output_tokens"] += output_tokens
+            if isinstance(input_tokens, int) and isinstance(output_tokens, int):
+                self.usage["replies_with_usage"] = self.usage.get("replies_with_usage", 0) + 1
+                if reasoning_path is not None:
+                    details = getattr(reported, reasoning_path[0], None)
+                    reasoning = getattr(details, reasoning_path[1], None)
+                    if isinstance(reasoning, int):
+                        self.usage["reasoning_tokens"] = self.usage.get("reasoning_tokens", 0) + reasoning
+                        self.usage["replies_with_reasoning"] = self.usage.get("replies_with_reasoning", 0) + 1
 
     def _alert(self, exc: BaseException, failed_attempt: int, attempts: int, pause: float) -> None:
         """Spec F D-F30: one line on standard error before each pause, in the
         one shape both repositories print (review X-M1); the pause in whole
         seconds rounded up, as the dashboard prints it (B101 ruling S1)."""
         when = self._now().astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-        print(f"ALERT {when} {self.inference_backend}:{self.model}: {_status_or_error(exc)}; attempt {failed_attempt} "
-              f"of {attempts} failed; next attempt in {math.ceil(pause)} s", file=sys.stderr, flush=True)
+        # B164 (R10): one write, so the alert lines of calls in flight never interleave
+        sys.stderr.write(f"ALERT {when} {self.inference_backend}:{self.model}: {_status_or_error(exc)}; attempt "
+                         f"{failed_attempt} of {attempts} failed; next attempt in {math.ceil(pause)} s\n")
+        sys.stderr.flush()
 
     def _send(self, do_request, parameter_named):
         """Send one request through do_request() under the client's retry
@@ -587,6 +598,11 @@ class FakeClient:
     single response string or a list of response strings consumed in order,
     which lets tests script a parse failure followed by a retry. Every call
     is recorded in .calls as (system, user) so tests can assert on inputs.
+
+    B164: complete() runs under a lock, so a test can call one FakeClient from
+    several threads; give each item a key of its own (for instance "Source unit
+    node id: <id>\n"), since two threads matching one key with a list of
+    replies take them in an order no test controls.
     """
 
     def __init__(self, scripted: dict, model: str = "fake-model"):
@@ -594,12 +610,14 @@ class FakeClient:
         self._scripted = {key: list(value) if isinstance(value, list) else [value]
                           for key, value in scripted.items()}
         self.calls: list[tuple[str, str]] = []
+        self._lock = threading.Lock()
 
     def complete(self, system: str, user: str) -> str:
-        self.calls.append((system, user))
-        for key, responses in self._scripted.items():
-            if key in user:
-                if len(responses) > 1:
-                    return responses.pop(0)
-                return responses[0]
-        raise KeyError(f"FakeClient has no scripted response matching this input; keys: {sorted(self._scripted)}")
+        with self._lock:
+            self.calls.append((system, user))
+            for key, responses in self._scripted.items():
+                if key in user:
+                    if len(responses) > 1:
+                        return responses.pop(0)
+                    return responses[0]
+            raise KeyError(f"FakeClient has no scripted response matching this input; keys: {sorted(self._scripted)}")
