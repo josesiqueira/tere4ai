@@ -362,7 +362,7 @@ def alignment_lines(
         raise SystemExit("the alignment dry run made no generator call: no accepted norm")
     accepted = {n["norm_id"]: n for n in norms if n.get("judge_verdict") == "accepted"}
     hleg_by_id = {node["id"]: node for node in hleg_nodes}
-    judge_system = align_pipeline.load_prompt("judge_alignment", "v1")
+    judge_system = align_pipeline.load_prompt("judge_alignment", align_pipeline.DEFAULT_PROMPT_VERSION)
     keys = ("target_id", "relation_type", "source_quote", "target_quote", "rationale")
     per_norm: dict[str, list[dict[str, Any]]] = {norm_id: [] for norm_id in accepted}
     judge_in: list[int] = []

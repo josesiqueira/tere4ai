@@ -80,6 +80,10 @@ RELATION_TYPES = (*PROPOSABLE_RELATION_TYPES, "no_clear_relation")
 _PROMPTS_WITH_ACTOR_LABEL = frozenset({"v1"})
 _PROMPTS_TAKING_ANY_CORRECTION = frozenset({"v1"})
 
+# The prompt version align_hleg and judge_alignment share (DEC-28: v2 is the
+# version of record for B74; v1 is the July build's, never edited).
+DEFAULT_PROMPT_VERSION = "v2"
+
 # spec G D-G86 (5), R13: the spread across the requirements, as found.
 SPREAD_KEYS = (
     "assertions_by_requirement",
@@ -246,7 +250,7 @@ def align_norms(
     hleg_nodes: list[dict[str, Any]],
     generator: ModelClient,
     judge: ModelClient,
-    prompt_version: str = "v1",
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
     log_path: Path | None = None,
     build_id: str = "adhoc",
 ) -> dict[str, Any]:

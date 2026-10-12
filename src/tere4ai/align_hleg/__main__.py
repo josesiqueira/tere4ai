@@ -2,6 +2,7 @@
 
 @implements: DEC-05, DEC-06 (partial: mapping judge), DEC-16 (partial: the LAYER3_STEP1 to LAYER3_STEP3 execution record)
 @implements: DEC-25
+@implements: DEC-28 (partial: the default prompt version and the printed spread)
 @grounded_by: REF-24, REF-21, REF-10, REF-16, ADD-20
 
 Runs the judged alignment pipeline over the accepted norms in the given
@@ -28,7 +29,7 @@ from pathlib import Path
 
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair, pair_refusal
-from tere4ai.align_hleg.pipeline import align_norms
+from tere4ai.align_hleg.pipeline import DEFAULT_PROMPT_VERSION, SPREAD_KEYS, align_norms
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     AnthropicJudge,
@@ -111,7 +112,8 @@ def _main(argv: list[str] | None = None) -> int:
         help=f"layer1 dump used to resolve norm source text (default {DEFAULT_DUMP_PATH})",
     )
     parser.add_argument(
-        "--prompt-version", default="v1", help="prompt version for generator and judge"
+        "--prompt-version", default=DEFAULT_PROMPT_VERSION,
+        help="prompt version for generator and judge (default %(default)s, DEC-28)",
     )
     parser.add_argument(
         "--dry-run",
@@ -391,6 +393,13 @@ def _main(argv: list[str] | None = None) -> int:
             f"invalid candidates: {len(stats.get('invalid_candidates', []))}, "
             f"invalid assertions dropped: {len(stats.get('invalid_assertions', []))}"
         )
+    # spec G D-G86 (5): the spread across the requirements, as found (R24:
+    # the output's stats and this summary, not the execution's counts)
+    spread = [stats.get(key) for key in SPREAD_KEYS]
+    if all(isinstance(counts, dict) for counts in spread) and spread[0]:
+        print("per requirement: assertions, accepted, norm and requirement pairs, accepted pairs")
+        for requirement_id in spread[0]:
+            print(f"  {requirement_id}: " + ", ".join(str(counts.get(requirement_id, 0)) for counts in spread))
     return 0
 
 

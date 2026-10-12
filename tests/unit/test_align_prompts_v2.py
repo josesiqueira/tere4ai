@@ -166,3 +166,16 @@ def test_the_v2_output_example_obeys_the_rules():
     assert candidate["target_id"] == "hleg:technical-robustness-and-safety" and candidate["target_id"] in hleg
     assert _quote_found(candidate["source_quote"], nodes["eu-ai-act:article-9:paragraph-1"]["text"])
     assert [i for i, d in hleg.items() if _quote_found(candidate["target_quote"], d)] == [candidate["target_id"]]
+
+
+def test_v2_is_the_default_and_the_version_of_record_for_b74():
+    """A10 (R1): one constant; the record file names its value (a YAML file
+    cannot read a Python constant, so the test checks the value)."""
+    import inspect
+
+    from tere4ai.align_hleg import pipeline
+
+    assert pipeline.DEFAULT_PROMPT_VERSION == "v2"
+    assert inspect.signature(pipeline.align_norms).parameters["prompt_version"].default == "v2"
+    record = (ROOT / "eval" / "config_evaluated.yaml").read_text(encoding="utf-8")
+    assert "  align_hleg: v2\n" in record and "  judge_alignment: v2\n" in record

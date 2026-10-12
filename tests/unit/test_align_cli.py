@@ -94,7 +94,7 @@ def test_checkpoint_resume_skips_done_batches(tmp_path, monkeypatch):
     ckpt.write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}", "result": {
         "assertions": [{"id": "align:pre1"}, {"id": "align:pre2"}], "mapping_runs": [], "judge_runs": [],
         "stats": {"norms_total": 2, "verdicts": {"accepted": 2}}}}) + "\n")
-    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume", "--batch-size", "2"])
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--prompt-version", "v1", "--resume", "--batch-size", "2"])
     assert rc == 0 and batches == [1]
     result = json.loads(out.read_text())
     assert len(result["assertions"]) == 3 and result["stats"]["norms_total"] == 3 and not ckpt.exists()
@@ -279,7 +279,7 @@ def test_align_resume_refuses_a_checkpoint_of_other_models(tmp_path, monkeypatch
     store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}", "result": {
         "assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
-    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume", "--batch-size", "2"])
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--prompt-version", "v1", "--resume", "--batch-size", "2"])
     assert rc == 2 and "different models: generator_model" in capsys.readouterr().err and batches == []
 
 
@@ -519,7 +519,7 @@ def test_a_resume_across_two_hleg_texts_is_refused(tmp_path, monkeypatch, capsys
     store.finish_execution(rid, prev, status="failed", error="KeyboardInterrupt: ")
     out.with_suffix(".checkpoint.jsonl").write_text(json.dumps({"run_id": prev, "batch": f"batch:0:{norms[0]['norm_id']}",
         "result": {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}}) + "\n")
-    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--resume"])
+    rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--prompt-version", "v1", "--resume"])
     kind = ("hleg_text", "hleg_derivation_record")[changed]
     assert rc == 2 and f"used different inputs: {kind}" in capsys.readouterr().err
 
@@ -565,3 +565,54 @@ def test_a_layer1_dump_node_that_is_not_an_object_is_refused_by_the_command(tmp_
     rc = cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(tmp_path / "alignments_test.json")])
     err = capsys.readouterr().err
     assert rc == 2 and "refusing to start" in err and "not a JSON object" in err and cli._TEST_POLICIES == []
+
+
+def test_the_command_runs_v2_by_default(tmp_path, monkeypatch):
+    """B163 (DEC-28, R1): no --prompt-version, as B74 runs it."""
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 2)
+    out = tmp_path / "alignments_test.json"
+    versions: list[str] = []
+    _fakes(monkeypatch, cli, [])
+    inner = cli.align_norms
+
+    def record_version(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc"):
+        versions.append(prompt_version)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+
+    monkeypatch.setattr(cli, "align_norms", record_version)
+    assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
+    assert versions == ["v2"]
+    ex = _first_execution(tmp_path)
+    assert ex["config"]["prompt_version"] == "v2"
+    assert ex["prompt_sha256"] == {"generator": cli.prompt_sha256("align_hleg-v2"),
+                                   "judge": cli.prompt_sha256("judge_alignment-v2")}
+    assert json.loads(out.read_text())["build"]["alignment_prompt_version"] == "v2"
+
+
+def test_the_command_prints_the_spread_per_requirement(tmp_path, monkeypatch, capsys):
+    """B163 (spec G D-G86 (5), R24): the four counts, summed over the batches."""
+    import tere4ai.align_hleg.__main__ as cli
+
+    norms_path, layer1, _ = _norms_file(tmp_path, 3)
+    out = tmp_path / "alignments_test.json"
+    _fakes(monkeypatch, cli, [])
+
+    def spread(chunk, hleg, generator, judge, prompt_version="v2", build_id="adhoc"):
+        n = len(chunk)
+        return {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {
+            "norms_total": n, "verdicts": {"accepted": n}, "mechanical_rejects": [], "norms_failed": [],
+            "assertions_by_requirement": {"hleg:a": 2 * n, "hleg:b": 0},
+            "accepted_by_requirement": {"hleg:a": n, "hleg:b": 0},
+            "pairs_by_requirement": {"hleg:a": n, "hleg:b": 0},
+            "accepted_pairs_by_requirement": {"hleg:a": n, "hleg:b": 0}}}
+
+    monkeypatch.setattr(cli, "align_norms", spread)
+    assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"]) == 0
+    printed = capsys.readouterr().out
+    assert ("per requirement: assertions, accepted, norm and requirement pairs, accepted pairs\n"
+            "  hleg:a: 6, 3, 3, 3\n  hleg:b: 0, 0, 0, 0\n") in printed
+    stats = json.loads(out.read_text())["stats"]
+    assert stats["pairs_by_requirement"] == {"hleg:a": 3, "hleg:b": 0}
+    assert "pairs_by_requirement" not in _first_execution(tmp_path)["counts"]

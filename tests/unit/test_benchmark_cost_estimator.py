@@ -711,3 +711,19 @@ def test_a_measured_path_that_is_missing_or_not_a_record_is_refused_by_name(tmp_
 def test_without_measured_usage_the_bands_are_the_declared_ones():
     assert est.reasoning_bands({"generator": 0.1}) == est.reasoning_bands({"generator": 0.1}, {})
     assert est.reasoning_bands({"generator": 0.1})["generator"]["low"] == 0.1
+
+
+def test_the_alignment_estimate_reads_the_default_judge_prompt(tmp_path):
+    """B163 (DEC-28, R14): the judge's input is judge_alignment v2, the
+    default, plus the pipeline's own message; the file is read from disk."""
+    accepted = [_mock_norm("eu-ai-act:article-9:paragraph-1")]
+    hleg = [{"id": "hleg:transparency", "name": "Transparency", "description": "Mock transparency.",
+             "source_span": {"span_id": "span:hleg:req4"}}]
+    assertions = [{"source_norm_id": accepted[0]["norm_id"], "target_id": "hleg:transparency",
+                   "relation_type": "supports", "source_quote": "risk management system",
+                   "target_quote": "transparency", "rationale": "mock"}]
+    lines = est.alignment_lines(accepted, hleg, assertions, [], accepted_norms=1, tmp_dir=tmp_path)
+    v2 = (ROOT / "prompts" / "judge_alignment" / "v2.md").read_text(encoding="utf-8")
+    candidate = {k: assertions[0][k] for k in ("target_id", "relation_type", "source_quote", "target_quote", "rationale")}
+    one = len(v2) + len(est.align_pipeline._judge_user_message(accepted[0], hleg[0], candidate))
+    assert lines["judge"]["in_chars"] == pytest.approx(lines["judge"]["calls"] * one)
