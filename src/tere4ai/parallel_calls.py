@@ -91,32 +91,44 @@ def run_in_flight(items: Sequence[T], work: Callable[[T], R], *, max_in_flight: 
 
 def _run_on_threads(items: list[Any], work: Callable[[Any], Any], limit: int,
                     on_result: Callable[[int, Any], None] | None) -> list[Any]:
-    finished: queue.SimpleQueue[tuple[int, bool, Any]] = queue.SimpleQueue()
-    waiting: dict[int, tuple[bool, Any]] = {}
+    # A worker stores its outcome in a dict (one store, atomic under the GIL)
+    # and only then puts a wake-up token on the queue. What is in flight is
+    # worked out from the threads started and the outcomes stored, never from
+    # a counter changed after a dequeue, so an interrupt landing between two
+    # statements of this thread cannot lose a finished item.
+    wake: queue.SimpleQueue[int] = queue.SimpleQueue()
+    outcomes: dict[int, tuple[bool, Any]] = {}
+    threads: list[threading.Thread] = []
+    failed = threading.Event()
     results: list[Any] = [None] * len(items)
-    started = handed = running = 0
-    stopped = False
+    handed = 0
+    handing = False  # True while an item is being handed on, so an interrupt there is seen
     failure: tuple[int, BaseException] | None = None
 
     def run_one(index: int) -> None:
         try:
-            finished.put((index, True, work(items[index])))
+            outcome = (True, work(items[index]))
         except BaseException as exc:  # handed to the calling thread, which raises it
-            finished.put((index, False, exc))
+            failed.set()
+            outcome = (False, exc)
+        outcomes[index] = outcome
+        wake.put(index)
 
-    def receive() -> None:
-        nonlocal running, stopped
-        index, ok, value = finished.get()
-        running -= 1
-        waiting[index] = (ok, value)
-        if not ok:
-            stopped = True
+    def running() -> int:
+        return sum(1 for index, thread in enumerate(threads) if index not in outcomes and thread.is_alive())
+
+    def wait_for_wake() -> None:
+        try:
+            wake.get(timeout=0.5)
+        except queue.Empty:
+            pass
 
     def hand_on() -> None:
-        nonlocal handed, failure
-        while handed in waiting:
+        nonlocal handed, failure, handing
+        while handed in outcomes:
             index = handed
-            ok, value = waiting.pop(index)
+            ok, value = outcomes[index]
+            handing = True
             handed += 1
             if ok:
                 results[index] = value
@@ -124,37 +136,41 @@ def _run_on_threads(items: list[Any], work: Callable[[Any], Any], limit: int,
                     on_result(index, value)
             elif failure is None:
                 failure = (index, value)
+            handing = False
 
     def wait_for_running() -> None:
         try:
-            while running:
-                receive()
+            while running():
+                wait_for_wake()
         except KeyboardInterrupt as again:
             raise KeyboardInterrupt(
-                f"{running} call(s) in flight were not waited for and are not counted") from again
+                f"{running()} call(s) in flight were not waited for and are not counted") from again
 
     try:
         while True:
-            while (not stopped and started < len(items) and running < limit
-                   and started - handed < 2 * limit):
-                threading.Thread(target=run_one, args=(started,), name=f"model-call-{started}",
-                                 daemon=True).start()
-                started += 1
-                running += 1
-            if running == 0:
-                break
-            receive()
             hand_on()
+            while (not failed.is_set() and len(threads) < len(items) and running() < limit
+                   and len(threads) - handed < 2 * limit):
+                index = len(threads)
+                thread = threading.Thread(target=run_one, args=(index,), name=f"model-call-{index}", daemon=True)
+                threads.append(thread)
+                thread.start()
+            if running() == 0:
+                hand_on()
+                break
+            wait_for_wake()
     except KeyboardInterrupt:
-        stopped = True
-        if running:
-            print(f"interrupted: waiting for {running} model call(s) in flight to return; interrupt again "
-                  "to stop at once (the calls then in flight are not counted)", file=sys.stderr, flush=True)
+        failed.set()
+        if running():
+            sys.stderr.write(f"interrupted: waiting for {running()} model call(s) in flight to return; "
+                             "interrupt again to stop at once (the calls then in flight are not counted)\n")
+            sys.stderr.flush()
         wait_for_running()
-        hand_on()
+        if not handing:  # an item cut short in on_result is never followed by a later one
+            hand_on()
         raise
     except BaseException:
-        stopped = True
+        failed.set()
         wait_for_running()
         raise
     if failure is not None:

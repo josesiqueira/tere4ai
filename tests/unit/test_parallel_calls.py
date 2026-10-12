@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import signal
 import sys
 import threading
@@ -85,22 +86,25 @@ def test_no_more_than_twice_the_setting_start_before_the_first_is_handed_on():
     """Review Focus 5: item 0 waits until item 3 has started; with 2 in flight, 2 x 2 = 4
     items may be started and not handed on, so item 4 starts only after item 0 is handed on."""
     release = threading.Event()
-    first_done = threading.Event()
+    lock = threading.Lock()
+    started = []
     seen = []
 
     def work(index):
+        with lock:
+            started.append(index)
         if index == 0:
             assert release.wait(timeout=5), "item 3 never started"
-            first_done.set()
+            time.sleep(0.05)  # time for a fifth item to start, were it allowed to
+            with lock:
+                seen.append(max(started))
             return 0
         if index == 3:
             release.set()
-        if index >= 4:
-            seen.append(first_done.is_set())
         return index
 
     assert run_in_flight(list(range(8)), work, max_in_flight=2) == list(range(8))
-    assert seen == [True, True, True, True]
+    assert seen == [3]
 
 
 def test_a_failure_stops_new_starts_hands_on_the_others_and_raises_the_earliest_items_error():
@@ -143,32 +147,106 @@ def test_an_error_in_on_result_waits_for_the_calls_in_flight_and_is_raised():
     assert probe.running == 0
 
 
+def _interrupt_when_started(count, go, delays=(0.0,)):
+    """A thread that waits until `count` items are running, sends SIGINT once per delay,
+    then lets the items go; returns the thread and a `running` counter for the work."""
+    lock = threading.Lock()
+    state = {"n": 0}
+    all_started = threading.Event()
+
+    def entered():
+        with lock:
+            state["n"] += 1
+            if state["n"] == count:
+                all_started.set()
+
+    def killer():
+        all_started.wait(timeout=5)
+        for delay in delays:
+            time.sleep(delay)
+            os.kill(os.getpid(), signal.SIGINT)
+        time.sleep(0.2)
+        go.set()
+
+    return threading.Thread(target=killer, daemon=True), entered
+
+
 def test_a_first_interrupt_waits_for_the_calls_in_flight_and_hands_them_on(capsys):
     handed = []
+    go = threading.Event()
+    killer, entered = _interrupt_when_started(4, go)
 
     def work(index):
-        time.sleep(0.3)
+        entered()
+        go.wait(timeout=5)
         return index
 
-    threading.Timer(0.1, os.kill, (os.getpid(), signal.SIGINT)).start()
-    with pytest.raises(KeyboardInterrupt):
-        run_in_flight(list(range(20)), work, max_in_flight=4, on_result=lambda i, r: handed.append(i))
+    killer.start()
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            run_in_flight(list(range(20)), work, max_in_flight=4, on_result=lambda i, r: handed.append(i))
+    finally:
+        go.set()
+        killer.join()
     assert handed == [0, 1, 2, 3]
     assert ("interrupted: waiting for 4 model call(s) in flight to return; interrupt again to stop at once "
-            "(the calls then in flight are not counted)") in capsys.readouterr().err
+            "(the calls then in flight are not counted)\n") in capsys.readouterr().err
 
 
 def test_a_second_interrupt_stops_at_once_and_names_the_calls_left_in_flight():
+    go = threading.Event()
+    killer, entered = _interrupt_when_started(4, go, delays=(0.0, 0.1))
+
     def work(index):
-        time.sleep(1.0)
+        entered()
+        go.wait(timeout=5)
         return index
 
-    for delay in (0.1, 0.2):
-        threading.Timer(delay, os.kill, (os.getpid(), signal.SIGINT)).start()
-    began = time.monotonic()
-    with pytest.raises(KeyboardInterrupt, match=r"^4 call\(s\) in flight were not waited for and are not counted$"):
-        run_in_flight(list(range(8)), work, max_in_flight=4)
-    assert time.monotonic() - began < 0.9
+    killer.start()
+    try:
+        with pytest.raises(KeyboardInterrupt,
+                           match=r"^4 call\(s\) in flight were not waited for and are not counted$"):
+            run_in_flight(list(range(8)), work, max_in_flight=4)
+    finally:
+        go.set()
+        killer.join()
+
+
+def test_an_interrupt_right_after_a_finished_item_is_dequeued_does_not_hang_the_wait(monkeypatch):
+    """The window between the queue handing an item over and the caller noting it."""
+    class Cutting(queue.SimpleQueue):
+        cut = False
+
+        def get(self, *args, **kwargs):
+            item = super().get(*args, **kwargs)
+            if not Cutting.cut:
+                Cutting.cut = True
+                raise KeyboardInterrupt
+            return item
+
+    monkeypatch.setattr(parallel_calls.queue, "SimpleQueue", Cutting)
+    handed = []
+
+    def work(index):
+        time.sleep(0.02)
+        return index
+
+    with pytest.raises(KeyboardInterrupt):
+        run_in_flight(list(range(8)), work, max_in_flight=4, on_result=lambda i, r: handed.append(i))
+    assert handed and handed == list(range(len(handed)))
+
+
+def test_an_interrupt_inside_on_result_hands_no_later_item_on():
+    handed = []
+
+    def on_result(index, result):
+        handed.append(index)
+        if index == 1:
+            raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        run_in_flight(list(range(8)), lambda i: (time.sleep(0.01), i)[1], max_in_flight=4, on_result=on_result)
+    assert handed == [0, 1]
 
 
 @pytest.mark.parametrize("value", [0, 17, -1, True, 2.0, "8"])
