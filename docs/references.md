@@ -1232,6 +1232,7 @@ Likert data, with small sample sizes, with unequal variances, and with
 non-normal distributions" (Summary, p. 631). A methods column from a health
 education venue, cited for the robustness argument, never for a clinical
 claim.
+WITHDRAWN 2026-10-12 (Jose, asked whether his ADD-102 answer, "if this is clinical we dont use it", puts this source out too: "Out, same rule (Recommended)"; thesis research/2026-10-12-records-questions.md): Advances in Health Sciences Education is a health-education venue, and sources come from empirical software engineering and LLM evaluation, never clinical literature (thesis CLAUDE.md, References). The entry's text is kept so the records that cite ADD-103 by id stay auditable. The supplementary analyses it was cited for (the mean score delta and the interval alpha, conditional on equal spacing) have no registered source for the robustness argument; they rest on spec F's declaration of the equal-spacing assumption (thesis research/2026-10-08-evaluation-grounding.md, the entry of 2026-10-12 beside CALIBRATION-11). Do not cite.
 
 **[ADD-104]** PEER. "Likert scales: how to (ab)use them?", Jamieson, Medical
 Education 38(12):1217-1218, 2004, DOI 10.1111/j.1365-2929.2004.02012.x. The
@@ -1251,6 +1252,7 @@ one assigns integers to represent 'fair' and 'good'!" (manuscript p. 3,
 after Kuzon, Urbanchek and McCabe 1996). A commentary from a medical
 education venue, cited for the measurement-level argument, never for a
 clinical claim.
+WITHDRAWN 2026-10-12 (Jose, asked whether his ADD-102 answer, "if this is clinical we dont use it", puts this source out too: "Out, same rule (Recommended)"; thesis research/2026-10-12-records-questions.md): Medical Education is a medical-education venue, and sources come from empirical software engineering and LLM evaluation, never clinical literature (thesis CLAUDE.md, References). The entry's text is kept so the records that cite ADD-104 by id stay auditable. The ordinal choice of spec F D-F20 and D-F21 rests on ADD-95 (Krippendorff 2004, p. 428: the coefficient "must not assume a metric of an order higher than warranted by the data in hand"), with ADD-106 for the ordinal difference function and ADD-105 for alpha's ordinal variant in a software engineering venue (thesis research/2026-10-08-evaluation-grounding.md, the entry of 2026-10-12 beside CALIBRATION-11). Do not cite.
 
 **[ADD-105]** PEER. "Reliability in software engineering qualitative
 research through Inter-Coder Agreement", González-Prieto, Perez, Diaz,
@@ -1791,3 +1793,4 @@ reintroduced.
 
 - ADD-33 (Hasan 2016, IJSSOE systematic classification of regulatory-compliance approaches): dropped 2026-10-08 by Jose as out of date and never obtained; ADD-29 (Kosenkov et al. 2025) covers the ground.
 - ADD-102 (Zapf, Castell, Morawietz and Karch 2016, BMC Medical Research Methodology 16:93, which coefficient and which interval for nominal data): withdrawn 2026-10-12 by Jose as clinical literature ("if this is clinical we dont use it"); its entry stays above, marked WITHDRAWN; ADD-93 (Hayes and Krippendorff 2007) remains the registered source for a bootstrap interval of alpha.
+- ADD-103 (Norman 2010, Advances in Health Sciences Education 15, the robustness of parametric statistics on Likert data) and ADD-104 (Jamieson 2004, Medical Education 38(12), Likert categories as ordinal): withdrawn 2026-10-12 by Jose under the same rule as ADD-102 ("Out, same rule (Recommended)"); their entries stay above, marked WITHDRAWN; the ordinal choice of spec F D-F20 and D-F21 rests on ADD-95 (Krippendorff 2004), with ADD-106 and ADD-105.
