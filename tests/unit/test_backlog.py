@@ -897,7 +897,7 @@ def test_a_null_typed_control_merges_only_with_another_null_typed_one(tmp_path):
     assert [(i["title"], i["requirement_type"]) for i in answer["items"]] == [
         ("Retain logs", "functional"), ("Log access", None)]
     assert answer["merged_items"] == 2
-    assert any("item 'Log review' merged into 'Log access'" in note and "same requirement_type None" in note
+    assert any("item 'Log review' merged into 'Log access'" in note and "with no valid requirement_type (one control" in note
                for note in answer["notes"])
     assert any("item 'Keep the logs' merged into 'Retain logs'" in note for note in answer["notes"])
     assert len(answer["judge_type_views"]) == 2

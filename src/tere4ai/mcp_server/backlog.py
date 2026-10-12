@@ -213,8 +213,13 @@ def _group_items(
         if "requirement_type" in item:
             note = (
                 f"item {item['title']!r} merged into {existing['title']!r}: "
-                f"both cite the identical norm set with the same requirement_type {item['requirement_type']!r} "
-                "(one control per norm set and requirement type)"
+                "both cite the identical norm set with "
+                + (
+                    f"the same requirement_type {item['requirement_type']!r}"
+                    if item["requirement_type"] is not None
+                    else "no valid requirement_type"
+                )
+                + " (one control per norm set and requirement type)"
             )
         else:
             note = (
