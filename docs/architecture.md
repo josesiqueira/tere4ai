@@ -1094,7 +1094,15 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   norms' types, so nothing invites a copy; a control and its norms stay
   linked by norm_ids. _clean_items keeps a control whose type is missing
   or invalid, with null and a note; _group_items merges by norm set as
-  today and the merged control keeps the first item's type. The runtime
+  today and the merged control keeps the first item's type. (Amended
+  2026-10-12, B159: _group_items merges by the norm set and the
+  requirement type together, so the functional and the quality control of
+  the Article 19 example above stay two controls, as rule 8 of
+  generate_backlog v2 asks; controls of one type citing the same norms
+  still merge, the first one's title, description and type kept, its
+  evidence unioned and the strictest priority, with a note; a control
+  whose type is null merges only with another null-typed control on the
+  same norms; the prompt does not change.) The runtime
   judge records its view of each control's type; the backlog's verdict
   does not depend on it. That view is optional in the same way: a reply
   that omits it or gives an invalid value keeps its verdict and records

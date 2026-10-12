@@ -187,30 +187,39 @@ def _mechanical_priority(
 def _group_items(
     items: list[dict[str, Any]], notes: list[str]
 ) -> tuple[list[dict[str, Any]], int]:
-    """Mechanical dedup: items citing the identical norm set are one control.
+    """Mechanical dedup: items citing the identical norm set with the same
+    requirement_type are one control.
 
-    The first item's title and description win, suggested evidence is
-    unioned in order, and the merged priority is the strictest. The first
-    item's requirement_type wins too (DEC-19), and a different type on a
-    merged item is named in the note. Returns (grouped_items, merged_count).
+    The key is the sorted norm set and the item's requirement_type together
+    (B159, DEC-19): two controls citing the same norms with different types
+    stay two controls, as rule 8 of generate_backlog v2 asks (a functional
+    and a quality control from one norm). A control whose type is null
+    (_clean_items keeps it with a note) merges only with another null-typed
+    control on the same norms. An untyped backlog (prompt v1) has no type on
+    any item, so its key is the norm set alone, as before. The first item's
+    title, description and type win, suggested evidence is unioned in order,
+    and the merged priority is the strictest; each merge is named in a note.
+    Returns (grouped_items, merged_count).
     """
-    grouped: dict[tuple[str, ...], dict[str, Any]] = {}
+    grouped: dict[tuple[tuple[str, ...], Any], dict[str, Any]] = {}
     merged = 0
     for item in items:
-        key = tuple(sorted(item["norm_ids"]))
+        key = (tuple(sorted(item["norm_ids"])), item.get("requirement_type"))
         existing = grouped.get(key)
         if existing is None:
             grouped[key] = item
             continue
         merged += 1
-        note = (
-            f"item {item['title']!r} merged into {existing['title']!r}: "
-            "both cite the identical norm set (one control per norm set)"
-        )
-        if item.get("requirement_type") != existing.get("requirement_type"):
-            note += (
-                f"; its requirement_type {item.get('requirement_type')!r} differs, "
-                f"the merged control keeps {existing.get('requirement_type')!r}"
+        if "requirement_type" in item:
+            note = (
+                f"item {item['title']!r} merged into {existing['title']!r}: "
+                f"both cite the identical norm set with the same requirement_type {item['requirement_type']!r} "
+                "(one control per norm set and requirement type)"
+            )
+        else:
+            note = (
+                f"item {item['title']!r} merged into {existing['title']!r}: "
+                "both cite the identical norm set (one control per norm set)"
             )
         notes.append(note)
         for artifact in item["suggested_evidence"]:

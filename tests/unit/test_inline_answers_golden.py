@@ -7,7 +7,11 @@ the functions, not the routes, whose inline path the existing facade tests
 hold (B138 phase 5 plan ruling P24). The answers were recorded from the code
 before the split (tests/fixtures/inline_answers_golden.json); only the time
 of the answer and the judge run's random id are left out of the comparison.
-FakeClient only: no network, no key."""
+B159 (2026-10-12) re-recorded one scenario, "backlog accepted typed": the
+merge keys on the norm set and the requirement type together, so its
+null-typed "Log access" is no longer merged into the functional "Keep a log"
+and stays a control of its own; every other scenario is as recorded before
+the split. FakeClient only: no network, no key."""
 
 from __future__ import annotations
 

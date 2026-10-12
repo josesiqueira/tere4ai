@@ -336,6 +336,18 @@
      "requirement_type": "functional"
     },
     {
+     "title": "Log access",
+     "description": "Do Log access.",
+     "norm_ids": [
+      "norm:eu-ai-act:article-12:paragraph-1:n1"
+     ],
+     "suggested_evidence": [
+      "a log"
+     ],
+     "priority": "must",
+     "requirement_type": null
+    },
+    {
      "title": "Ask",
      "description": "Do Ask.",
      "norm_ids": [
@@ -349,12 +361,11 @@
     }
    ],
    "dropped_items": 1,
-   "merged_items": 1,
+   "merged_items": 0,
    "notes": [
     "item 2 ('Log access') has no valid requirement_type ('bogus'); kept with null",
     "item 3 ('Ask') had invalid priority 'maybe'; recomputed mechanically from deontic types to 'should'",
-    "item 4 ('Ghost') dropped: cites norm_ids outside the input set: ['norm:nowhere']",
-    "item 'Log access' merged into 'Keep a log': both cite the identical norm set (one control per norm set); its requirement_type None differs, the merged control keeps 'functional'"
+    "item 4 ('Ghost') dropped: cites norm_ids outside the input set: ['norm:nowhere']"
    ],
    "judge_rationale": "Fine.",
    "judge_model": "fake-judge",
@@ -364,6 +375,10 @@
     {
      "judge_type_agrees": false,
      "judge_requirement_type": "quality"
+    },
+    {
+     "judge_type_agrees": null,
+     "judge_requirement_type": null
     },
     {
      "judge_type_agrees": null,
