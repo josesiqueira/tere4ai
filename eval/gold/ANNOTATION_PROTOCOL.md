@@ -134,6 +134,10 @@ assertions, not the eval items above. Assignment:
   actor-inference source text, it is the text the judge received, there
   for the actor criterion.
 - The annotator never sees the judge verdict while labelling.
+- For an alignment the judge corrected, the label judges the candidate as
+  the generator proposed it, accept or reject, and a judge acceptance
+  under a correction counts as an acceptance (Jose, 2026-10-12, B163 Q1:
+  "Proposed claim only"; spec G D-G86 (4) (c)).
 - false accept: judge accepted, gold says reject. false reject: judge
   rejected, gold says accept. A judge `needs_human_review` verdict is an
   abstention: it is counted and reported but is neither FA nor FR,

@@ -3,6 +3,7 @@
 @implements: DEC-11, DEC-17
 @implements: DEC-19
 @implements: DEC-21
+@implements: DEC-28 (partial: the E1 sheet of an alignment, blind, in one order, with the texts the judge read)
 @grounded_by: REF-16
 
 Implements the judge false-accept / false-reject labelling step of
@@ -12,8 +13,13 @@ published build artifacts, stratified over (extraction, mapping) x
 (accepted, rejected, needs_human_review), proportional to stratum size with
 a minimum of 3 items per non-empty stratum. Sampling is deterministic and
 content-addressed: within a stratum the decision ids are ordered by the
-sha256 hex digest of the id and the first k are taken. No random module, no
-model call, anywhere.
+sha256 hex digest of the id and the first k are taken. The sheet presents every
+item, of both judge kinds, in the order of that digest, so an item's position
+does not follow its stratum (spec G D-G86 (4) (a)). An alignment item shows the
+candidate as the judge received it (the generator's claimed type and rationale
+where the run kept them), the definitions and the two texts the judge read; the
+judge's correction is folded with the verdict. No random module, no model call,
+anywhere.
 
 Default mode writes:
 - eval/gold/judge_label_sheet.json: the machine sheet, one item per sampled
@@ -23,7 +29,7 @@ Default mode writes:
   The judge verdict is folded away per the protocol (the annotator labels
   blind and opens the verdict only afterwards).
 
-The label act (--label <decision id> <accept|reject> [--rationale TEXT], or
+The label act (--label <item id or decision id> <accept|reject> [--rationale TEXT], or
 --label-file <csv> with columns decision_id,human_label,human_rationale)
 both require --by <name>: each labelled item records human_label,
 human_rationale, labelled_by, and labelled_at (who and when, per item).
@@ -79,6 +85,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai.act_parties import is_v2  # noqa: E402
+from tere4ai.align_hleg.__main__ import _attach_source_text  # noqa: E402
+from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes  # noqa: E402
+from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair  # noqa: E402
+from tere4ai.align_hleg.pipeline import judge_texts  # noqa: E402
+from tere4ai.align_hleg.relation_types import (  # noqa: E402
+    RELATION_TYPE_DEFINITIONS_TEXT,
+    judge_read_definitions,
+)
 from tere4ai.eval.evaluation_record import (  # noqa: E402
     EvaluationRecordError,
     EvaluationRecordStore,
@@ -152,10 +166,112 @@ ASSERTION_SHEET_FIELDS = (
     "target_evidence_span_ids",
 )
 
+# spec G D-G86 (4) (a), R18: an alignment of a run that kept the candidate
+# (DEC-28) shows it as the judge received it; relation_type, which holds the
+# judge's correction where there is one, is folded with the verdict.
+CANDIDATE_SHEET_FIELDS = (
+    "id",
+    "source_norm_id",
+    "target_id",
+    "proposed_relation_type",
+    "source_quote",
+    "target_quote",
+    "generator_rationale",
+    "source_evidence_span_ids",
+    "target_evidence_span_ids",
+)
+RELATION_TYPE_NOTE = ("this run did not record the generator's claimed type, so the relation_type shown "
+                      "may be the judge's correction (spec G D-G86 (4) (a))")
+HLEG_NOT_RECORDED_NOTE = ("the alignments do not record the HLEG text they were aligned on (made before "
+                          "spec G D-G75 (7)): label the target side from the quote")
+HLEG_OTHER_TEXT_NOTE = ("the alignments were aligned on another HLEG text than the one on disk: label the "
+                        "target side from the quote")
+NO_HLEG_NODES_NOTE = "no HLEG text was given to the sheet: label the target side from the quote"
+NO_SOURCE_NORM_NOTE = "the source norm is not in the norms file: label the legal side from the quote and the excerpt"
+NO_SOURCE_TEXT_NOTE = "the source norm's text is not in layer1.json: label the legal side from the quote"
+PRESENTATION_ORDER = ("every item, of both judge kinds, in the order of sha256(decision_id), so an item's "
+                      "position does not follow its stratum (spec G D-G86 (4) (a), ruling R21)")
+
+
+def hleg_nodes_for(alignments_payload: dict[str, Any]) -> tuple[list[dict[str, Any]] | None, str | None]:
+    """The HLEG nodes the alignment judge read, built from the text on disk
+    when the alignments' build block names that text and its record by their
+    sha256 (spec G D-G75 (7)); otherwise None and the reason (R27)."""
+    build = alignments_payload.get("build") or {}
+    text_sha, record_sha = build.get("hleg_text_sha256"), build.get("hleg_derivation_record_sha256")
+    if not text_sha or not record_sha:
+        return None, HLEG_NOT_RECORDED_NOTE
+    try:
+        pair = load_pair()
+    except HlegSourceError as exc:
+        return None, f"the HLEG text on disk cannot be read ({exc}): label the target side from the quote"
+    if (pair.text_sha256, pair.record_sha256) != (text_sha, record_sha):
+        return None, HLEG_OTHER_TEXT_NOTE
+    return build_hleg_nodes(pair), None
+
+
+def _alignment_item_fields(
+    content: dict[str, Any],
+    run: dict[str, Any],
+    norms_by_id: dict[str, dict[str, Any]],
+    layer1_payload: dict[str, Any],
+    hleg_by_id: dict[str, dict[str, Any]],
+    hleg_note: str,
+) -> dict[str, Any]:
+    """What an alignment item adds (spec G D-G86 (4)): the note of an older
+    run, the definitions its judge read, and the two texts of the judge's
+    message, made by judge_texts over the source text the command resolves
+    (R19, provisional, awaiting Jose; R28)."""
+    fields: dict[str, Any] = {}
+    if "proposed_relation_type" not in content:
+        fields["relation_type_note"] = RELATION_TYPE_NOTE
+    if judge_read_definitions(run.get("prompt_version")):
+        fields["relation_type_definitions"] = RELATION_TYPE_DEFINITIONS_TEXT
+    notes: list[str] = []
+    resolved = None
+    norm = norms_by_id.get(content.get("source_norm_id"))
+    if norm is None:
+        notes.append(NO_SOURCE_NORM_NOTE)
+    else:
+        resolved = dict(norm)
+        _attach_source_text([resolved], layer1_payload)
+        if not resolved.get("source_text"):
+            notes.append(NO_SOURCE_TEXT_NOTE)
+            resolved = None
+    target = hleg_by_id.get(content.get("target_id"))
+    if target is None:
+        notes.append(hleg_note)
+    if resolved is not None and target is not None:
+        fields.update(judge_texts(resolved, target))
+    else:
+        fields.update({
+            "norm_source_text": resolved["source_text"] if resolved is not None else None,
+            "hleg_requirement": f"{target['id']} ({target['name']})" if target is not None else None,
+            "hleg_description": target["description"] if target is not None else None,
+        })
+    if notes:
+        fields["texts_notes"] = notes
+    return fields
+
 
 def _decision_sort_key(decision_id: str) -> str:
     """Content-hash ordering key: sha256 hex of the decision id."""
     return hashlib.sha256(decision_id.encode("utf-8")).hexdigest()
+
+
+def item_id_of(decision_id: str) -> str:
+    """The opaque id the reading copy names an item by (spec G D-G86 (4) (a),
+    R44): only accepted norms are aligned, so a norm, assertion, decision,
+    node or span id shared by an alignment item and an extraction item of the
+    same norm would tell the extraction verdict. The label act takes either id."""
+    return "item-" + _decision_sort_key(decision_id)[:12]
+
+
+# the judged-content keys the reading copy leaves out, by judge kind (R44)
+READING_COPY_HIDDEN = {
+    "extraction": frozenset({"norm_id"}),
+    "mapping": frozenset({"id", "source_norm_id", "source_evidence_span_ids", "target_evidence_span_ids"}),
+}
 
 
 def allocate_stratified(
@@ -333,6 +449,8 @@ def build_sheet(
     total: int = TOTAL_SAMPLE,
     minimum: int = MIN_PER_STRATUM,
     sample: dict[str, Any] | None = None,
+    hleg_nodes: list[dict[str, Any]] | None = None,
+    hleg_note: str | None = None,
 ) -> dict[str, Any]:
     """Build the label sheet dict: deterministic for fixed input payloads."""
     decisions, unjoinable = load_decisions(norms_payload, alignments_payload)
@@ -352,6 +470,7 @@ def build_sheet(
         n["id"]: n for n in layer1_payload.get("nodes", []) if isinstance(n, dict) and "id" in n
     }
     norms_by_id = {n.get("norm_id"): n for n in norms_payload.get("norms", [])}
+    hleg_by_id = {node["id"]: node for node in hleg_nodes} if hleg_nodes is not None else {}
 
     items: list[dict[str, Any]] = []
     for stratum in sorted(allocation):
@@ -368,6 +487,8 @@ def build_sheet(
             if decision["judge_kind"] == "extraction" and is_v2(content):
                 # B145: a norm of norms schema version 2 names the addressee's slots
                 fields = tuple(_V2_SHEET_NAMES.get(f, f) for f in NORM_SHEET_FIELDS)
+            if decision["judge_kind"] == "mapping" and "proposed_relation_type" in content:
+                fields = CANDIDATE_SHEET_FIELDS  # D-G86 (4) (a), R18
             judged_content = {f: content.get(f) for f in fields}
             if decision["judge_kind"] == "extraction" and "requirement_type" not in content:
                 # DEC-19: a build before DEC-19 records no type, and no
@@ -389,9 +510,15 @@ def build_sheet(
                 set_up = judge_set_up_block(
                     layer1_index, {"node_id": content.get("source_node_id")}, run.get("prompt_version") or "v1"
                 )
+            alignment = (
+                _alignment_item_fields(content, run, norms_by_id, layer1_payload, hleg_by_id,
+                                       hleg_note or NO_HLEG_NODES_NOTE)
+                if decision["judge_kind"] == "mapping" else {}
+            )
             items.append(
                 {
                     "decision_id": decision_id,
+                    "item_id": item_id_of(decision_id),
                     "stratum": {"judge_kind": decision["judge_kind"], "verdict": run["verdict"]},
                     "judge_run": {
                         "id": run["id"],
@@ -405,9 +532,12 @@ def build_sheet(
                         # DEC-19: the judge's recorded view of the type, when
                         # the run records it; shown only in the folded block.
                         **{k: run[k] for k in ("judge_type_agrees", "judge_requirement_type") if k in run},
+                        **({"corrected_relation_type": run.get("corrected_relation_type")}
+                           if decision["judge_kind"] == "mapping" else {}),
                     },
                     "judged_content": judged_content,
                     "source_excerpt": _source_excerpt(decision, layer1_index, norms_by_id),
+                    **alignment,
                     **({"actor_inference_source": inference} if inference is not None else {}),
                     **({"set_up_rows": set_up} if set_up is not None else {}),
                     "human_label": None,
@@ -415,12 +545,16 @@ def build_sheet(
                 }
             )
 
+    # spec G D-G86 (4) (a), R21: one order that does not follow the verdict;
+    # within each stratum it is the order the sample was drawn in
+    items.sort(key=lambda item: _decision_sort_key(item["decision_id"]))
+
     return {
         "purpose": (
             "Gold accept/reject labels for judge FA/FR rates "
             "(eval/gold/ANNOTATION_PROTOCOL.md). Record each label through "
             "the label act, never by editing this file: "
-            "scripts/sample_judge_decisions.py --label <decision id> "
+            "scripts/sample_judge_decisions.py --label <item id or decision id> "
             "<accept|reject> --rationale <one sentence> --by <name>, or "
             "--label-file <csv> --by <name> (columns decision_id, "
             "human_label, human_rationale); then run --compute."
@@ -442,6 +576,7 @@ def build_sheet(
                 "stratum, ids sorted by sha256(decision_id) and the first k "
                 "taken; no random module"
             ),
+            "presentation_order": PRESENTATION_ORDER,
             "total": sum(allocation.values()),
             "population": sum(sizes.values()),
             "strata": [
@@ -489,7 +624,7 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
         "",
         "> GENERATED by scripts/sample_judge_decisions.py from the published",
         "> build artifacts. This file is the reading copy. Record each label",
-        "> through the label act (--label <decision id> <accept|reject>",
+        "> through the label act (--label <item id> <accept|reject>",
         "> --rationale <one sentence> --by <name>, or --label-file <csv> --by",
         "> <name>); never edit judge_label_sheet.json by hand, the tool writes",
         "> it. Label BLIND: do not open the folded judge verdict blocks",
@@ -497,6 +632,13 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
         "",
         f"Labelling rule: {sheet['labelling_rule']}",
         "",
+    ]
+    definitions = next((it["relation_type_definitions"] for it in sheet["items"]
+                        if it.get("relation_type_definitions")), None)
+    if definitions:
+        lines += ["## Relation types (as the alignment judge received them, judge_alignment v2 and later)", "",
+                  *definitions.splitlines(), ""]
+    lines += [
         "## Sampling",
         "",
         "| judge_kind | verdict | population | sampled |",
@@ -518,14 +660,17 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
     for i, item in enumerate(sheet["items"], start=1):
         stratum = item["stratum"]
         lines += [
-            f"## Item {i:02d}: {item['decision_id']}",
+            f"## Item {i:02d}: {item.get('item_id') or item['decision_id']}",
             "",
             f"- stratum: {stratum['judge_kind']} / (verdict hidden below)",
             "",
             "### Judged content",
             "",
         ]
+        hidden = READING_COPY_HIDDEN.get(stratum["judge_kind"], frozenset()) if item.get("item_id") else frozenset()
         for key, value in item["judged_content"].items():
+            if key in hidden:
+                continue  # R44
             if key == "requirement_type" and value is None:
                 value = type_label(item["judged_content"])  # DEC-19, ruling 53
             if value in (None, [], ""):
@@ -533,12 +678,25 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
             if isinstance(value, list):
                 value = "; ".join(str(v) for v in value)
             lines.append(f"- {key}: {value}")
-        excerpt = item["source_excerpt"]
-        lines += ["", "### Source text (layer1)", ""]
-        if excerpt.get("text"):
-            lines += [f"Node `{excerpt['node_id']}`:", "", f"> {excerpt['text']}"]
+        if item.get("relation_type_note"):
+            lines.append(f"- note: {item['relation_type_note']}")
+        if item.get("norm_source_text"):
+            lines += ["", "### Legal source text (as the judge received it)", ""]
+            lines += [f"> {line}".rstrip() for line in item["norm_source_text"].splitlines()]
         else:
-            lines.append(f"Not resolvable: {excerpt.get('note', 'no source text')}")
+            excerpt = item["source_excerpt"]
+            lines += ["", "### Source text (layer1)", ""]
+            if excerpt.get("text"):
+                where = ("The norm's source unit:" if item.get("item_id") and stratum["judge_kind"] == "mapping"
+                         else f"Node `{excerpt['node_id']}`:")
+                lines += [where, "", f"> {excerpt['text']}"]
+            else:
+                lines.append(f"Not resolvable: {excerpt.get('note', 'no source text')}")
+        if item.get("hleg_description"):
+            lines += ["", f"### HLEG requirement description (as the judge received it): {item['hleg_requirement']}", ""]
+            lines += [f"> {line}".rstrip() for line in item["hleg_description"].splitlines()]
+        for note in item.get("texts_notes", []):
+            lines += ["", f"Not shown: {note}"]
         if item.get("actor_inference_source") is not None:
             heading = ("Addressee-inference source" if item["actor_inference_source"].startswith("Addressee")
                        else "Actor-inference source")
@@ -564,6 +722,8 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
             "",
             f"- verdict: {item['judge_run']['verdict']}",
             f"- rationale: {item['judge_run']['rationale']}",
+            *([f"- corrected_relation_type: {item['judge_run'].get('corrected_relation_type') or 'none'}"]
+              if "corrected_relation_type" in item["judge_run"] else []),
             *_type_view_lines(item["judge_run"]),
             "",
             "</details>",
@@ -704,13 +864,16 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
         print(refusal)
         return 2
     by_id = {it["decision_id"]: it for it in sheet.get("items", [])}
+    # R44: the reading copy names an item by its opaque item id; either id labels it
+    aliases = {it["item_id"]: it["decision_id"] for it in sheet.get("items", []) if it.get("item_id")}
     wanted: dict[str, tuple[str, str]] = {}
     # every id as named, in order: an id named twice would let the later
     # label silently replace the earlier one (B81 item 11), so it is refused
     named: list[str] = []
     if args.label:
-        wanted[args.label[0]] = (args.label[1], args.rationale)
-        named.append(args.label[0])
+        key = aliases.get(args.label[0], args.label[0])
+        wanted[key] = (args.label[1], args.rationale)
+        named.append(key)
     if args.label_file:
         if not args.label_file.is_file():
             print(f"label file not found: {args.label_file}")
@@ -722,8 +885,9 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
                 print(f"label file must have the columns decision_id and human_label; found: {fieldnames}")
                 return 2
             for row in reader:
-                wanted[row["decision_id"]] = (row["human_label"], row.get("human_rationale") or "")
-                named.append(row["decision_id"])
+                key = aliases.get(row["decision_id"], row["decision_id"])
+                wanted[key] = (row["human_label"], row.get("human_rationale") or "")
+                named.append(key)
     twice = sorted(i for i, n in Counter(named).items() if n > 1)
     if twice:
         print(f"refusing to label: decision ids named more than once in this act (by --label and a --label-file "
@@ -955,7 +1119,9 @@ def _draw_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     sample = {"sample_id": "sample-" + uuid.uuid4().hex[:12], "record_id": None,
               "drawn_at": datetime.now(UTC).isoformat(), "build": build}
     inputs = [input_ref("norms", norms_path), input_ref("alignments", alignments_path), input_ref("layer1_dump", layer1_path)]
-    sheet = build_sheet(norms_payload, alignments_payload, layer1_payload, sample=sample)
+    hleg_nodes, hleg_note = hleg_nodes_for(alignments_payload)
+    sheet = build_sheet(norms_payload, alignments_payload, layer1_payload, sample=sample,
+                        hleg_nodes=hleg_nodes, hleg_note=hleg_note)
     record_id = None
     if store is not None:
         record_id = store.begin(kind="sample", step="E1", command="sample_judge_decisions",

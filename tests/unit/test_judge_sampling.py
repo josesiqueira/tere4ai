@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import re
 import shutil
 import sys
 import threading
@@ -1374,3 +1375,199 @@ def test_the_e1_sheet_of_a_v4_run_shows_the_paragraph_of_a_point_source_as_the_j
         assert f"{text}\n\nCandidate norm (JSON):" in judge.calls[0][1], version
         assert ("[eu-ai-act:article-16:paragraph-1] Providers of high-risk AI systems shall ensure the logging."
                 in text) is shown, version
+
+
+# B163 (DEC-28, spec G D-G86 (4)): the E1 sheet of an alignment ------------
+
+
+def _sha_order(ids):
+    return sorted(ids, key=lambda i: hashlib.sha256(i.encode("utf-8")).hexdigest())
+
+
+def test_the_sheet_presents_every_item_in_the_sha256_order_of_its_decision_id():
+    """A19 (R21): items of both judge kinds interleave; the sampling and the
+    per-stratum counts are as before."""
+    payloads = _synthetic_payloads(extraction={"accepted": 5, "rejected": 4},
+                                   mapping={"accepted": 4, "rejected": 3, "needs_human_review": 3})
+    sheet = sampling.build_sheet(*payloads, total=19, minimum=3)
+    ids = [item["decision_id"] for item in sheet["items"]]
+    assert len(ids) == 19 and ids == _sha_order(ids)
+    strata = [(i["stratum"]["judge_kind"], i["stratum"]["verdict"]) for i in sheet["items"]]
+    changes = sum(1 for a, b in zip(strata, strata[1:], strict=False) if a != b)
+    assert changes > len(set(strata)) - 1  # not grouped by stratum (17 by the ids' hashes)
+    assert sheet["sampling"]["strata"] == [
+        {"judge_kind": k, "verdict": v, "population": n, "sampled": n}
+        for (k, v), n in sorted({("extraction", "accepted"): 5, ("extraction", "rejected"): 4,
+                                 ("mapping", "accepted"): 4, ("mapping", "needs_human_review"): 3,
+                                 ("mapping", "rejected"): 3}.items())]
+    assert "sha256(decision_id)" in sheet["sampling"]["presentation_order"]
+    md = sampling.render_sheet_md(sheet)
+    assert re.findall(r"^## Item \d\d: (\S+)$", md, re.MULTILINE) == [item["item_id"] for item in sheet["items"]]
+
+
+def _kept_candidate_payloads(prompt_version="v2"):
+    """One alignment of a run that kept the candidate: the generator claimed
+    related_to, the judge accepted it corrected to supports."""
+    norms, alignments, layer1 = _synthetic_payloads(extraction={}, mapping={"accepted": 1})
+    norms["norms"] = [{"norm_id": "norm:test:0", "source_node_id": "node:0", "judge_verdict": "accepted"}]
+    layer1["nodes"] = [{"id": "node:0", "text": "1. The full text of the legal unit, longer than any quote."}]
+    alignments["assertions"][0].update(relation_type="supports", proposed_relation_type="related_to",
+                                       generator_rationale="The generator's own words.",
+                                       rationale="The judge's correction.")
+    alignments["judge_runs"][0].update(corrected_relation_type="supports", prompt_version=prompt_version)
+    return norms, alignments, layer1
+
+
+HLEG_MOCK = [{"id": "hleg:transparency", "name": "Transparency",
+              "description": "Mock transparency, first paragraph.\n\nSecond paragraph.",
+              "source_span": {"span_id": "span:hleg:req4"}}]
+
+
+def test_an_alignment_that_kept_the_candidate_shows_the_claim_and_folds_the_correction():
+    """A11 (R18, R29): Judged content is the candidate as the judge received it."""
+    sheet = sampling.build_sheet(*_kept_candidate_payloads(), total=1, minimum=1, hleg_nodes=HLEG_MOCK)
+    (item,) = sheet["items"]
+    assert list(item["judged_content"]) == list(sampling.CANDIDATE_SHEET_FIELDS)
+    assert "relation_type" not in item["judged_content"] and "relation_type_note" not in item
+    assert item["judged_content"]["proposed_relation_type"] == "related_to"
+    assert item["judged_content"]["generator_rationale"] == "The generator's own words."
+    assert item["judge_run"]["corrected_relation_type"] == "supports"
+    md = sampling.render_sheet_md(sheet)
+    judged, folded = md.split("### Judged content", 1)[1].split("<details>", 1)
+    assert "- proposed_relation_type: related_to" in judged and "relation_type: supports" not in judged
+    assert "The judge's correction." not in judged
+    assert "- corrected_relation_type: supports" in folded
+
+
+def test_an_alignment_of_an_older_run_shows_the_stored_type_with_its_note():
+    """D-G86 (4) (a): a run without the kept fields."""
+    sheet = sampling.build_sheet(*_synthetic_payloads(extraction={}, mapping={"accepted": 1}), total=1, minimum=1)
+    (item,) = sheet["items"]
+    assert item["judged_content"]["relation_type"] == "supports"
+    assert item["relation_type_note"] == sampling.RELATION_TYPE_NOTE
+    md = sampling.render_sheet_md(sheet)
+    assert f"- note: {sampling.RELATION_TYPE_NOTE}" in md.split("<details>", 1)[0]
+    assert "- corrected_relation_type: none" in md.split("<details>", 1)[1]
+
+
+def test_the_definitions_follow_the_judge_runs_version():
+    """A11 (R10): a v2 judge read them, a v1 judge or an unversioned run did not."""
+    from tere4ai.align_hleg.relation_types import RELATION_TYPE_DEFINITIONS_TEXT
+
+    v2 = sampling.build_sheet(*_kept_candidate_payloads("v2"), total=1, minimum=1)
+    assert v2["items"][0]["relation_type_definitions"] == RELATION_TYPE_DEFINITIONS_TEXT
+    md = sampling.render_sheet_md(v2)
+    assert md.count(RELATION_TYPE_DEFINITIONS_TEXT.splitlines()[0]) == 1
+    assert md.index("## Relation types") < md.index("## Item 01")
+    for version in ("v1", None):
+        payloads = _kept_candidate_payloads("v1")
+        if version is None:
+            payloads[1]["judge_runs"][0].pop("prompt_version")
+        sheet = sampling.build_sheet(*payloads, total=1, minimum=1)
+        assert "relation_type_definitions" not in sheet["items"][0]
+        assert "## Relation types" not in sampling.render_sheet_md(sheet)
+
+
+def test_an_alignment_item_carries_the_texts_of_the_judges_message():
+    """A11 (R19, provisional, awaiting Jose; R28): the same function builds both."""
+    from tere4ai.align_hleg.pipeline import _judge_user_message
+
+    norms, alignments, layer1 = _kept_candidate_payloads()
+    sheet = sampling.build_sheet(norms, alignments, layer1, total=1, minimum=1, hleg_nodes=HLEG_MOCK)
+    (item,) = sheet["items"]
+    assert item["norm_source_text"] == "1. The full text of the legal unit, longer than any quote."
+    assert (item["hleg_requirement"], item["hleg_description"]) == ("hleg:transparency (Transparency)",
+                                                                    HLEG_MOCK[0]["description"])
+    message = _judge_user_message({**norms["norms"][0], "source_text": item["norm_source_text"]}, HLEG_MOCK[0], {})
+    assert f"Verbatim legal source text of the norm:\n{item['norm_source_text']}\n\n" in message
+    assert f"Target HLEG requirement: {item['hleg_requirement']}\nHLEG requirement description:\n" \
+           f"{item['hleg_description']}\n\n" in message
+    assert "texts_notes" not in item
+    md = sampling.render_sheet_md(sheet)
+    assert "### Legal source text (as the judge received it)" in md
+    assert "### HLEG requirement description (as the judge received it): hleg:transparency (Transparency)" in md
+    assert "> Mock transparency, first paragraph.\n>\n> Second paragraph." in md
+    assert "### Source text (layer1)" not in md
+
+
+def test_an_alignment_item_without_its_texts_says_why_and_keeps_the_excerpt():
+    norms, alignments, layer1 = _kept_candidate_payloads()
+    norms["norms"] = []
+    sheet = sampling.build_sheet(norms, alignments, layer1, total=1, minimum=1, hleg_note=sampling.HLEG_OTHER_TEXT_NOTE)
+    (item,) = sheet["items"]
+    assert (item["norm_source_text"], item["hleg_requirement"], item["hleg_description"]) == (None, None, None)
+    assert item["texts_notes"] == [sampling.NO_SOURCE_NORM_NOTE, sampling.HLEG_OTHER_TEXT_NOTE]
+    md = sampling.render_sheet_md(sheet)
+    assert "### Source text (layer1)" in md and sampling.HLEG_OTHER_TEXT_NOTE in md
+
+
+def test_hleg_nodes_for_reads_the_text_on_disk_only_when_the_alignments_name_it():
+    """Review Focus 4 (R27)."""
+    from tere4ai.align_hleg.hleg_source import load_pair
+
+    pair = load_pair()
+    named = {"build": {"hleg_text_sha256": pair.text_sha256, "hleg_derivation_record_sha256": pair.record_sha256}}
+    nodes, note = sampling.hleg_nodes_for(named)
+    assert note is None and len(nodes) == 7 and nodes[0]["id"] == "hleg:human-agency-and-oversight"
+    assert sampling.hleg_nodes_for({"build": {}}) == (None, sampling.HLEG_NOT_RECORDED_NOTE)
+    other = {"build": {"hleg_text_sha256": "0" * 64, "hleg_derivation_record_sha256": pair.record_sha256}}
+    assert sampling.hleg_nodes_for(other) == (None, sampling.HLEG_OTHER_TEXT_NOTE)
+
+
+@pytest.mark.skipif(not REAL_DUMPS_PRESENT, reason="published graph dumps not present")
+def test_the_sheet_over_the_july_alignments_keeps_the_stored_type_with_its_note_and_shows_no_hleg_text():
+    """Review Focus 4: the July file records neither the candidate nor its HLEG text."""
+    def load(path: Path) -> dict:
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    alignments = load(ALIGNMENTS_PATH)
+    nodes, note = sampling.hleg_nodes_for(alignments)
+    assert nodes is None and note == sampling.HLEG_NOT_RECORDED_NOTE
+    sheet = sampling.build_sheet(load(NORMS_PATH), alignments, load(LAYER1_PATH), hleg_nodes=nodes, hleg_note=note)
+    mapping = [i for i in sheet["items"] if i["stratum"]["judge_kind"] == "mapping"]
+    assert mapping
+    for item in mapping:
+        assert item["relation_type_note"] == sampling.RELATION_TYPE_NOTE and "relation_type_definitions" not in item
+        assert item["hleg_description"] is None and sampling.HLEG_NOT_RECORDED_NOTE in item["texts_notes"]
+        assert "source_excerpt" in item
+    sampling.render_sheet_md(sheet)
+
+
+def test_the_reading_copy_names_no_id_that_joins_an_alignment_to_an_extraction_item():
+    """Codex plan review P1 (R44): only accepted norms are aligned, so an id an
+    alignment item shares with an extraction item of the same norm would tell
+    the extraction verdict; the reading copy names each item by an opaque id."""
+    payloads = _synthetic_payloads(extraction={"accepted": 3, "rejected": 3}, mapping={"accepted": 3})
+    sheet = sampling.build_sheet(*payloads, total=9, minimum=3)
+    md = sampling.render_sheet_md(sheet)
+    sections = dict(zip([it["item_id"] for it in sheet["items"]], md.split("\n## Item ")[1:], strict=True))
+    linked = {a["source_norm_id"] for a in payloads[1]["assertions"]}
+    assert linked <= {n["norm_id"] for n in payloads[0]["norms"]}  # every alignment item's norm is on the sheet
+    for item in sheet["items"]:
+        assert item["item_id"] == "item-" + hashlib.sha256(item["decision_id"].encode("utf-8")).hexdigest()[:12]
+        section = sections[item["item_id"]]
+        assert section.split("\n", 1)[0].endswith(f": {item['item_id']}")
+        assert item["decision_id"] not in md
+        forbidden = (("norm:test:", "align:test:", "span:", "node:") if item["stratum"]["judge_kind"] == "mapping"
+                     else ("norm:test:",))
+        for text in forbidden:
+            assert text not in section, (item["item_id"], text)
+
+
+def test_the_label_act_takes_the_item_id_and_records_the_decision_id(tmp_path, capsys):
+    """R44: the label act resolves the opaque id; naming one item by both ids is refused."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    item = json.loads((tmp_path / "sheet.json").read_text())["items"][0]
+    assert f"## Item 01: {item['item_id']}\n" in (tmp_path / "sheet.md").read_text()
+    assert sampling.main(_draw_argv(tmp_path, "--label", item["item_id"], "accept", "--by", "Jose")) == 0
+    after = json.loads((tmp_path / "sheet.json").read_text())["items"][0]
+    assert after["human_label"] == "accept" and after["decision_id"] == item["decision_id"]
+    store = EvaluationRecordStore(tmp_path, create=False)
+    (rec,) = [r for r in store.list_records() if r["kind"] == "labelling"]
+    assert rec["config"]["labels"] == {item["decision_id"]: "accept"}
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text(f"decision_id,human_label,human_rationale\n{item['decision_id']},reject,r\n", encoding="utf-8")
+    assert sampling.main(_draw_argv(tmp_path, "--label", item["item_id"], "reject", "--label-file", str(csv_path),
+                                    "--by", "Jose", "--force")) == 2
+    assert "named more than once" in capsys.readouterr().out
