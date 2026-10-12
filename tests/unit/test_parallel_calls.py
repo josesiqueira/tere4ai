@@ -249,6 +249,29 @@ def test_an_interrupt_inside_on_result_hands_no_later_item_on():
     assert handed == [0, 1]
 
 
+@pytest.mark.parametrize("limit", [1, 2, 8, 16])
+def test_instant_work_over_more_than_twice_the_setting_items_is_never_cut_short(limit):
+    """Every call can finish before the loop looks again; no item may be skipped."""
+    items = list(range(40))
+    for _ in range(200):
+        handed = []
+        results = run_in_flight(items, lambda i: i * 2, max_in_flight=limit, on_result=lambda i, r: handed.append(i))
+        assert results == [i * 2 for i in items]
+        assert handed == items
+
+
+@pytest.mark.parametrize("limit", [2, 8])
+def test_instant_work_with_a_failing_item_raises_the_earliest_error(limit):
+    def work(index):
+        if index in (7, 9):
+            raise ValueError(f"item {index}")
+        return index
+
+    for _ in range(200):
+        with pytest.raises(ValueError, match="^item 7$"):
+            run_in_flight(list(range(40)), work, max_in_flight=limit)
+
+
 @pytest.mark.parametrize("value", [0, 17, -1, True, 2.0, "8"])
 def test_a_setting_outside_1_to_16_is_refused(value):
     with pytest.raises(ValueError, match="max_in_flight must be an integer from 1 to 16"):

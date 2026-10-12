@@ -157,7 +157,10 @@ def _run_on_threads(items: list[Any], work: Callable[[Any], Any], limit: int,
                 thread.start()
             if running() == 0:
                 hand_on()
-                break
+                # nothing in flight: done only when nothing is left to start
+                if failed.is_set() or len(threads) == len(items):
+                    break
+                continue
             wait_for_wake()
     except KeyboardInterrupt:
         failed.set()
