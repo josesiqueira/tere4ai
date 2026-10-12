@@ -28,6 +28,13 @@ enforced here:
   data/review_queue/alignment_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
   prompts.
+- B164 (spec F D-F30 as amended 2026-10-12): with max_in_flight above 1 the
+  norms' model calls run on worker threads, at most max_in_flight norms at
+  once (tere4ai.parallel_calls); each norm's request is built from that norm
+  alone, and the assertions, judge runs and stats (the spread counts
+  included) are assembled in the norms' order in the calling thread, which
+  also validates every assertion, so the result equals a run with one call at
+  a time; the log lines come in the order the calls finish.
 """
 
 from __future__ import annotations
@@ -54,6 +61,7 @@ from tere4ai.extract_norms.pipeline import (
     prompt_sha256,
 )
 from tere4ai.judge.config import require_independent_clients
+from tere4ai.parallel_calls import run_in_flight
 
 ALIGNMENTS_SCHEMA_PATH = REPO_ROOT / "schema" / "json_schemas" / "alignments.schema.json"
 DEFAULT_LOG_PATH = REPO_ROOT / "data" / "review_queue" / "alignment_log.jsonl"
@@ -276,6 +284,7 @@ def align_norms(
     prompt_version: str = DEFAULT_PROMPT_VERSION,
     log_path: Path | None = None,
     build_id: str = "adhoc",
+    max_in_flight: int = 1,
 ) -> dict[str, Any]:
     """Run the judged alignment of accepted norms against the HLEG nodes.
 
@@ -285,6 +294,8 @@ def align_norms(
     {"assertions": [...], "mapping_runs": [...], "judge_runs": [...],
     "stats": {...}}. Assertions conform to the AlignmentAssertion shape in
     alignments.schema.json; invalid ones are recorded in stats and dropped.
+    max_in_flight bounds the norms whose calls run at once (B164); 1, the
+    default, runs them one after the other in the calling thread.
     """
     require_independent_clients(generator, judge)
     log_path = log_path or DEFAULT_LOG_PATH
@@ -326,19 +337,21 @@ def align_norms(
     }
     seen: dict[str, set[tuple[str, str]]] = {"pairs": set(), "accepted_pairs": set()}
 
-    for norm in norms:
+    def norm_events(norm: dict[str, Any]) -> list[tuple[Any, ...]]:
+        """B164: one norm's model calls and what they gave, in the candidates'
+        order. Runs on a worker thread when max_in_flight > 1; reads the run's
+        prompts and the HLEG nodes, and writes only the log (append_event takes
+        a lock)."""
+        events: list[tuple[Any, ...]] = []
         norm_id = norm.get("norm_id", "norm:unknown")
         if norm.get("judge_verdict") != "accepted":
             # Only judge-accepted norms are aligned (Section 7 gating).
-            stats["norms_skipped_not_accepted"] += 1
-            continue
+            return [("skipped",)]
         source_text = norm.get("source_text")
         if not isinstance(source_text, str) or not source_text.strip():
-            stats["norms_failed"].append({"norm_id": norm_id, "reason": "missing source_text"})
-            continue
+            return [("failed", {"norm_id": norm_id, "reason": "missing source_text"})]
         if not norm.get("source_span_id"):
-            stats["norms_failed"].append({"norm_id": norm_id, "reason": "missing source_span_id"})
-            continue
+            return [("failed", {"norm_id": norm_id, "reason": "missing source_span_id"})]
 
         gen_user = _generator_user_message(norm, hleg_nodes, prompt_version=prompt_version)
         parsed, error = _call_json_with_retry(generator, align_prompt, gen_user)
@@ -358,67 +371,58 @@ def align_norms(
             },
         )
         if parsed is None:
-            stats["norms_failed"].append({"norm_id": norm_id, "reason": error})
-            continue
+            return [("failed", {"norm_id": norm_id, "reason": error})]
 
         candidates = parsed.get("alignments")
         if not isinstance(candidates, list):
-            stats["norms_failed"].append(
-                {"norm_id": norm_id, "reason": "generator JSON lacks an 'alignments' list"}
-            )
-            continue
+            return [("failed", {"norm_id": norm_id, "reason": "generator JSON lacks an 'alignments' list"})]
         if not candidates:
             # Zero alignments is a valid answer: no_clear_relation is the
             # default and a mapping is never forced (Section 4).
-            stats["zero_alignment_norms"] += 1
-            continue
+            return [("zero",)]
         if len(candidates) > MAX_CANDIDATES_PER_NORM:
-            stats["invalid_candidates"].append(
-                {
-                    "norm_id": norm_id,
-                    "reason": f"generator proposed {len(candidates)} candidates; "
-                    f"kept the first {MAX_CANDIDATES_PER_NORM}",
-                }
+            events.append(
+                (
+                    "invalid",
+                    {
+                        "norm_id": norm_id,
+                        "reason": f"generator proposed {len(candidates)} candidates; "
+                        f"kept the first {MAX_CANDIDATES_PER_NORM}",
+                    },
+                )
             )
             candidates = candidates[:MAX_CANDIDATES_PER_NORM]
 
         for index, candidate in enumerate(candidates, start=1):
             if not isinstance(candidate, dict):
-                stats["invalid_candidates"].append(
-                    {"norm_id": norm_id, "reason": "candidate is not a JSON object"}
-                )
+                events.append(("invalid", {"norm_id": norm_id, "reason": "candidate is not a JSON object"}))
                 continue
             target_id = candidate.get("target_id")
             target = hleg_by_id.get(target_id)
             if target is None:
                 # The seven-requirement set is closed; an unknown target id
                 # is an invented requirement and never enters the graph.
-                stats["invalid_candidates"].append(
-                    {"norm_id": norm_id, "reason": f"unknown target_id: {target_id!r}"}
-                )
+                events.append(("invalid", {"norm_id": norm_id, "reason": f"unknown target_id: {target_id!r}"}))
                 continue
             proposed_relation = candidate.get("relation_type")
             if proposed_relation not in PROPOSABLE_RELATION_TYPES:
-                stats["invalid_candidates"].append(
-                    {
-                        "norm_id": norm_id,
-                        "target_id": target_id,
-                        "reason": f"invalid relation_type: {proposed_relation!r}",
-                    }
+                events.append(
+                    (
+                        "invalid",
+                        {"norm_id": norm_id, "target_id": target_id, "reason": f"invalid relation_type: {proposed_relation!r}"},
+                    )
                 )
                 continue
             target_span_id = (target.get("source_span") or {}).get("span_id")
             if not target_span_id:
-                stats["invalid_candidates"].append(
-                    {
-                        "norm_id": norm_id,
-                        "target_id": target_id,
-                        "reason": "target HLEG node has no source span",
-                    }
+                events.append(
+                    (
+                        "invalid",
+                        {"norm_id": norm_id, "target_id": target_id, "reason": "target HLEG node has no source span"},
+                    )
                 )
                 continue
 
-            stats["candidates"] += 1
             norm_suffix = _id_suffix(norm_id)
             target_suffix = _id_suffix(target_id)
             judge_run_id = f"judgerun:mapping:{norm_suffix}:{target_suffix}:c{index}"
@@ -429,17 +433,13 @@ def align_norms(
                 # Mechanical rejection: no judge call, no assertion. The
                 # JudgeRun-shaped record keeps the audit trail.
                 started_at = _now()
-                judge_runs.append(
-                    _mechanical_judge_run(judge_run_id, prompt_version, build_id, started_at)
-                )
-                stats["mechanical_rejects"].append(
-                    {
-                        "norm_id": norm_id,
-                        "target_id": target_id,
-                        "source_quote_found": source_quote_ok,
-                        "target_quote_found": target_quote_ok,
-                    }
-                )
+                mechanical = _mechanical_judge_run(judge_run_id, prompt_version, build_id, started_at)
+                reject = {
+                    "norm_id": norm_id,
+                    "target_id": target_id,
+                    "source_quote_found": source_quote_ok,
+                    "target_quote_found": target_quote_ok,
+                }
                 _log_event(
                     log_path,
                     {
@@ -457,6 +457,7 @@ def align_norms(
                         "rationale": "quote not found in source",
                     },
                 )
+                events.append(("mechanical", mechanical, reject))
                 continue
 
             judge_user = _judge_user_message(norm, target, candidate)
@@ -548,26 +549,48 @@ def align_norms(
                 ),
                 "review_status": "accepted" if verdict == "accepted" else "needs_review",
             }
+            events.append(("judged", assertion, judge_run))
+        return events
 
-            errors = sorted(validator.iter_errors(assertion), key=lambda e: list(e.path))
-            if errors:
-                stats["invalid_assertions"].append(
-                    {
-                        "norm_id": norm_id,
-                        "target_id": target_id,
-                        "assertion_id": assertion["id"],
-                        "errors": [err.message for err in errors[:5]],
-                    }
-                )
-                # The judge decision stays logged and kept (Section 7), but
-                # the invalid assertion never enters the output.
+    for events in run_in_flight(norms, norm_events, max_in_flight=max_in_flight):
+        for event in events:
+            kind = event[0]
+            if kind == "skipped":
+                stats["norms_skipped_not_accepted"] += 1
+            elif kind == "failed":
+                stats["norms_failed"].append(event[1])
+            elif kind == "zero":
+                stats["zero_alignment_norms"] += 1
+            elif kind == "invalid":
+                stats["invalid_candidates"].append(event[1])
+            elif kind == "mechanical":
+                # Mechanical rejection: no judge call, no assertion. The
+                # JudgeRun-shaped record keeps the audit trail.
+                stats["candidates"] += 1
+                judge_runs.append(event[1])
+                stats["mechanical_rejects"].append(event[2])
+            else:
+                _judged, assertion, judge_run = event
+                stats["candidates"] += 1
+                errors = sorted(validator.iter_errors(assertion), key=lambda e: list(e.path))
+                if errors:
+                    stats["invalid_assertions"].append(
+                        {
+                            "norm_id": assertion["source_norm_id"],
+                            "target_id": assertion["target_id"],
+                            "assertion_id": assertion["id"],
+                            "errors": [err.message for err in errors[:5]],
+                        }
+                    )
+                    # The judge decision stays logged and kept (Section 7), but
+                    # the invalid assertion never enters the output.
+                    judge_runs.append(judge_run)
+                    continue
+                verdict = assertion["judge_verdict"]
+                stats["verdicts"][verdict] += 1
+                _count_spread(stats, seen, assertion["source_norm_id"], assertion["target_id"], verdict == "accepted")
                 judge_runs.append(judge_run)
-                continue
-
-            stats["verdicts"][verdict] += 1
-            _count_spread(stats, seen, norm_id, target_id, verdict == "accepted")
-            judge_runs.append(judge_run)
-            assertions.append(assertion)
+                assertions.append(assertion)
 
     mapping_run["completed_at"] = _now()
     return {

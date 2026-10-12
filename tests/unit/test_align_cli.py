@@ -41,7 +41,7 @@ def _first_execution(tmp_path):
 
 
 def _fakes(monkeypatch, cli, batches):
-    def fake_align(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+    def fake_align(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc", max_in_flight=1):
         batches.append(len(chunk))
         return {"assertions": [{"id": f"align:{c['norm_id']}"} for c in chunk], "mapping_runs": [], "judge_runs": [],
                 "stats": {"norms_total": len(chunk), "verdicts": {"accepted": len(chunk)}, "mechanical_rejects": [],
@@ -295,10 +295,10 @@ def test_ctrl_c_ends_the_align_execution_failed_with_the_spend_so_far(tmp_path, 
     _fakes(monkeypatch, cli, batches)
     inner = cli.align_norms
 
-    def interrupted(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+    def interrupted(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc", max_in_flight=1):
         if chunk[0]["norm_id"].endswith(":n2"):
             raise KeyboardInterrupt
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", interrupted)
     with pytest.raises(KeyboardInterrupt):
@@ -329,13 +329,13 @@ def test_a_long_batch_keeps_the_execution_live(tmp_path, monkeypatch):
     inner = cli.align_norms
     beats: list[str] = []
 
-    def slow(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+    def slow(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc", max_in_flight=1):
         store = BuildRecordStore(tmp_path)
         rid = store.resolve("test")
         beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
         time.sleep(0.3)
         beats.append(store.read(rid)["executions"][0]["heartbeat_at"])
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", slow)
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
@@ -378,13 +378,13 @@ def test_a_sighup_ends_the_align_execution_failed_and_each_batch_writes_the_usag
     inner = cli.align_norms
     seen: list[dict] = []
 
-    def hung_up(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+    def hung_up(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc", max_in_flight=1):
         if chunk[0]["norm_id"].endswith(":n2"):
             store = BuildRecordStore(tmp_path)
             seen.append(store.read(store.resolve("test"))["executions"][0])
             os.kill(os.getpid(), signal.SIGHUP)
             time.sleep(1)
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", hung_up)
     got: list[int] = []
@@ -417,10 +417,10 @@ def test_a_backend_stop_ends_the_align_execution_failed_and_prints_the_resume(tm
     _fakes(monkeypatch, cli, batches)
     inner = cli.align_norms
 
-    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc", max_in_flight=1):
         if chunk[0]["norm_id"].endswith(":n2"):
             raise InferenceBackendUnavailable(6, "APIConnectionError: Connection error.")
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", stop_on_the_second_batch)
     argv = ["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"]
@@ -449,10 +449,10 @@ def test_a_refused_declared_parameter_ends_the_align_execution_failed_and_exits_
     _fakes(monkeypatch, cli, [])
     inner = cli.align_norms
 
-    def refuse_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+    def refuse_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc", max_in_flight=1):
         if chunk[0]["norm_id"].endswith(":n2"):
             raise DeclaredParameterRefused("anthropic", "j", "effort", "xhigh", "HTTP 400: effort unsupported")
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", refuse_on_the_second_batch)
     argv = ["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"]
@@ -577,9 +577,9 @@ def test_the_command_runs_v2_by_default(tmp_path, monkeypatch):
     _fakes(monkeypatch, cli, [])
     inner = cli.align_norms
 
-    def record_version(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc"):
+    def record_version(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc", max_in_flight=1):
         versions.append(prompt_version)
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", record_version)
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
@@ -599,7 +599,7 @@ def test_the_command_prints_the_spread_per_requirement(tmp_path, monkeypatch, ca
     out = tmp_path / "alignments_test.json"
     _fakes(monkeypatch, cli, [])
 
-    def spread(chunk, hleg, generator, judge, prompt_version="v2", build_id="adhoc"):
+    def spread(chunk, hleg, generator, judge, prompt_version="v2", build_id="adhoc", max_in_flight=1):
         n = len(chunk)
         # B163 final review F6: the command recounts the spread from the assertions, so the stub returns
         # two per norm on hleg:a (one accepted, one not): the same counts as the stats below

@@ -320,7 +320,7 @@ def _script(name):
 
 
 def _align_fakes(monkeypatch, cli):
-    def fake_align(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc"):
+    def fake_align(chunk, hleg, generator, judge, prompt_version="v1", build_id="adhoc", max_in_flight=1):
         return {"assertions": [{"id": f"align:{c['norm_id']}"} for c in chunk], "mapping_runs": [], "judge_runs": [],
                 "stats": {"norms_total": len(chunk), "verdicts": {"accepted": len(chunk)}, "mechanical_rejects": []}}
 

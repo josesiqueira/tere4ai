@@ -11,7 +11,9 @@ data/graph_dumps/alignments_<slug>.json. Norm source text is resolved from
 the layer1 dump via each norm's source_node_id. Use --dry-run to list the
 norms that would be aligned without calling any model. Every attempt writes
 an execution record covering LAYER3_STEP1 to LAYER3_STEP3 into the build record store
-(D-G20), with run ids on every checkpoint line and a validated resume.
+(D-G20), with run ids on every checkpoint line and a validated resume. --max-in-flight
+(default 8, B164) bounds the norms of a batch whose model calls run at once; the setting is
+recorded in the execution's config, and a resume may change it.
 
 The HLEG text and its derivation record it aligns on are inputs of the
 execution and go into the output's build block (spec G D-G75 (7)); a resume
@@ -27,6 +29,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from tere4ai import parallel_calls
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair, pair_refusal
 from tere4ai.align_hleg.pipeline import DEFAULT_PROMPT_VERSION, SPREAD_KEYS, align_norms, spread_of
@@ -139,6 +142,7 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--accept-legacy-checkpoint", action="store_true",
                         help="has no effect for align_hleg: checkpoint lines without a run id carry no record of the HLEG text they were "
                          "aligned on and are always refused (spec G D-G75 (7))")
+    parallel_calls.add_max_in_flight_argument(parser)
     args = parser.parse_args(argv)
 
     payload = json.loads(args.norms.read_text(encoding="utf-8"))
@@ -206,7 +210,8 @@ def _main(argv: list[str] | None = None) -> int:
               {"input_kind": "layer1_dump", "file": relative_to_dump_dir(args.dump, dump_dir), "sha256": layer1_digest},
               {"input_kind": "hleg_text", "file": TEXT_FILE, "sha256": hleg_pair.text_sha256},
               {"input_kind": "hleg_derivation_record", "file": RECORD_FILE, "sha256": hleg_pair.record_sha256}]
-    config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size}
+    config = {"prompt_version": args.prompt_version, "batch_size": args.batch_size,
+              "max_in_flight": args.max_in_flight}
     ref = args.record or store.find_by_output_digest(norms_digest) or slug
     # B79 item 10: the record is chosen here and created only after every
     # refusal below, so a refused run leaves no record and moves no alias
@@ -264,6 +269,7 @@ def _main(argv: list[str] | None = None) -> int:
         sampling=declared_sampling(generator, judge),
     )
 
+    print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
     partials: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
     completed: list[str] = []
 
@@ -287,7 +293,8 @@ def _main(argv: list[str] | None = None) -> int:
                 if batch_key in plan.entries_by_key:
                     continue
                 partial = align_norms(chunk, hleg_nodes, generator, judge,
-                                      prompt_version=args.prompt_version, build_id=build_id)
+                                      prompt_version=args.prompt_version, build_id=build_id,
+                                      max_in_flight=args.max_in_flight)
                 ckpt.write(json.dumps({"run_id": run_id, "batch": batch_key, "result": partial}) + "\n")
                 ckpt.flush()
                 partials.append(partial)

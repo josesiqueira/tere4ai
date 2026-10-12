@@ -337,10 +337,10 @@ def test_a_run_stopped_after_its_first_batch_resumes_with_v2_and_counts_the_same
     cli, argv, out, _g, _j = _prepare(tmp_path, monkeypatch)
     inner = cli.align_norms
 
-    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc"):
+    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc", max_in_flight=1):
         if chunk[0]["norm_id"] == N50:
             raise InferenceBackendUnavailable(6, "HTTP 529")
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", stop_on_the_second_batch)
     assert cli.main([*argv, "--batch-size", "2"]) == 3
@@ -360,10 +360,10 @@ def test_a_resume_over_a_checkpoint_without_the_spread_counts_it_from_the_assert
     cli, argv, out, _g, _j = _prepare(tmp_path, monkeypatch)
     inner = cli.align_norms
 
-    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc"):
+    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc", max_in_flight=1):
         if chunk[0]["norm_id"] == N50:
             raise InferenceBackendUnavailable(6, "HTTP 529")
-        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", stop_on_the_second_batch)
     assert cli.main([*argv, "--batch-size", "2"]) == 3
@@ -390,10 +390,10 @@ def test_a_v1_checkpoint_is_refused_by_a_v2_run(tmp_path, monkeypatch, capsys):
     cli, argv, _out, generator, _j = _prepare(tmp_path, monkeypatch)
     inner = cli.align_norms
 
-    def stop_on_the_second_batch(chunk, hleg, generator_, judge, prompt_version="unset", build_id="adhoc"):
+    def stop_on_the_second_batch(chunk, hleg, generator_, judge, prompt_version="unset", build_id="adhoc", max_in_flight=1):
         if chunk[0]["norm_id"] == N50:
             raise InferenceBackendUnavailable(6, "HTTP 529")
-        return inner(chunk, hleg, generator_, judge, prompt_version=prompt_version, build_id=build_id)
+        return inner(chunk, hleg, generator_, judge, prompt_version=prompt_version, build_id=build_id, max_in_flight=max_in_flight)
 
     monkeypatch.setattr(cli, "align_norms", stop_on_the_second_batch)
     assert cli.main([*argv, "--batch-size", "2", "--prompt-version", "v1"]) == 3
