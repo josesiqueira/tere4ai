@@ -109,7 +109,7 @@ def test_the_committed_tables_declare_gpt_6_sol_as_the_spec_quotes_it():
     row = load_model_parameters()["gpt-6-sol"]
     assert (row["inference_backend"], row["temperature"], row["effort"], row["json_mode"]) == ("openai", "N/A", "high", "sent")
     # Ruling R80: the day the page was read, 2026-10-06 or later, never a fixed date.
-    assert row["documentation"]["url"] == "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-sol"
+    assert row["documentation"]["url"] == "https://developers.openai.com/api/docs/models/gpt-6-sol"
     assert row["documentation"]["read_on"] >= "2026-10-06"
     price = load_model_prices()["gpt-6-sol"]
     assert (price["input"], price["output"], price["batch_input"], price["batch_output"]) == (2.0, 10.0, 1.0, 5.0)
