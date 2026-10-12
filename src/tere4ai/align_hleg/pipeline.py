@@ -1,6 +1,7 @@
 """MILESTONE2 alignment pipeline: norms to HLEG requirements, with the mapping judge.
 
 @implements: DEC-05, DEC-06 (partial: mapping judge)
+@implements: DEC-28 (partial: the v2 generator input, the reply guard, the kept candidate fields and the spread)
 @grounded_by: REF-24, REF-21, REF-10, REF-16
 
 A mapping is an auditable claim, not law (architecture.md Section 4). Nothing
@@ -21,7 +22,8 @@ enforced here:
   without evidence span ids on both sides (alignments.schema.json enforces
   minItems 1; invalid assertions are recorded and dropped).
 - The judge may correct the relation type; corrected_relation_type overrides
-  the proposed one.
+  the proposed one, which the assertion keeps as proposed_relation_type with
+  the generator's rationale (DEC-28).
 - Every generator and judge call is logged to
   data/review_queue/alignment_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
@@ -38,7 +40,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from tere4ai.act_parties import actor_slots_for_digests
+from tere4ai.act_parties import actor_slots_for_digests, slots_of
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import (
     REPO_ROOT,
@@ -69,6 +71,22 @@ PROPOSABLE_RELATION_TYPES = (
     "conflicts_with",
 )
 RELATION_TYPES = (*PROPOSABLE_RELATION_TYPES, "no_clear_relation")
+
+# DEC-28 (spec G D-G86 (1), G2): a v1 run keeps the generator input v1 had,
+# its party labelled "Actor:", and v1's handling of the judge's reply, so the
+# version names one instrument. From v2 on the label is "Addressee:" (spec G
+# D-G80's word) and a no_clear_relation correction with any verdict but
+# "rejected" is unusable (CHANGE3).
+_PROMPTS_WITH_ACTOR_LABEL = frozenset({"v1"})
+_PROMPTS_TAKING_ANY_CORRECTION = frozenset({"v1"})
+
+# spec G D-G86 (5), R13: the spread across the requirements, as found.
+SPREAD_KEYS = (
+    "assertions_by_requirement",
+    "accepted_by_requirement",
+    "pairs_by_requirement",
+    "accepted_pairs_by_requirement",
+)
 
 _WHITESPACE = re.compile(r"\s+")
 
@@ -109,12 +127,20 @@ def _id_suffix(prefixed_id: str) -> str:
     return prefixed_id.split(":", 1)[1] if ":" in prefixed_id else prefixed_id
 
 
-def _generator_user_message(norm: dict[str, Any], hleg_nodes: list[dict[str, Any]]) -> str:
-    slots = actor_slots_for_digests(norm)
+def _generator_user_message(
+    norm: dict[str, Any], hleg_nodes: list[dict[str, Any]], *, prompt_version: str
+) -> str:
+    if prompt_version in _PROMPTS_WITH_ACTOR_LABEL:
+        # brief R50 (B145): v1's input reads the party through the digests' helper
+        slots = actor_slots_for_digests(norm)
+        party = f"Actor: {slots['actor_explicit'] or slots['actor_inferred'] or 'unspecified'}"
+    else:
+        explicit, inferred, _source = slots_of(norm)
+        party = f"Addressee: {explicit or inferred or 'unspecified'}"
     lines = [
         f"Norm id: {norm['norm_id']}",
         f"Deontic type: {norm['deontic_type']}",
-        f"Actor: {slots['actor_explicit'] or slots['actor_inferred'] or 'unspecified'}",
+        party,
         f"Action: {norm['action']}",
         f"Object: {norm['object']}",
         f"Conditions: {json.dumps(norm.get('conditions') or [], ensure_ascii=False)}",
@@ -130,14 +156,26 @@ def _generator_user_message(norm: dict[str, Any], hleg_nodes: list[dict[str, Any
     return "\n".join(lines)
 
 
+def judge_texts(norm: dict[str, Any], target: dict[str, Any]) -> dict[str, str]:
+    """The texts the alignment judge's message holds, as it holds them: the
+    norm's verbatim source text and the target requirement's name and
+    description. The E1 label sheet shows the same (spec G D-G86 (4) (d))."""
+    return {
+        "norm_source_text": norm["source_text"],
+        "hleg_requirement": f"{target['id']} ({target['name']})",
+        "hleg_description": target["description"],
+    }
+
+
 def _judge_user_message(
     norm: dict[str, Any], target: dict[str, Any], candidate: dict[str, Any]
 ) -> str:
+    texts = judge_texts(norm, target)
     return (
         f"Norm id: {norm['norm_id']}\n"
-        f"Verbatim legal source text of the norm:\n{norm['source_text']}\n\n"
-        f"Target HLEG requirement: {target['id']} ({target['name']})\n"
-        f"HLEG requirement description:\n{target['description']}\n\n"
+        f"Verbatim legal source text of the norm:\n{texts['norm_source_text']}\n\n"
+        f"Target HLEG requirement: {texts['hleg_requirement']}\n"
+        f"HLEG requirement description:\n{texts['hleg_description']}\n\n"
         f"Candidate alignment (JSON):\n{json.dumps(candidate, ensure_ascii=False, indent=1)}"
     )
 
@@ -150,6 +188,24 @@ def _zero_scores() -> dict[str, float]:
         "evidence_strength": 0.0,
         "judge_confidence": 0.0,
     }
+
+
+def _count_spread(
+    stats: dict[str, Any], seen: dict[str, set[tuple[str, str]]], norm_id: str, target_id: str, accepted: bool
+) -> None:
+    """One assertion into the four per-requirement counts (R13). A norm and
+    requirement pair counts once among the pairs, however many quote pairs
+    support it (a requirement proposed twice for one norm, rule 5). A norm's
+    candidates come from one generator call, so its pairs never span two of
+    the command's batches and the batches' counts add up."""
+    stats["assertions_by_requirement"][target_id] += 1
+    if accepted:
+        stats["accepted_by_requirement"][target_id] += 1
+    for key, pairs, counted in (("pairs_by_requirement", seen["pairs"], True),
+                                ("accepted_pairs_by_requirement", seen["accepted_pairs"], accepted)):
+        if counted and (norm_id, target_id) not in pairs:
+            pairs.add((norm_id, target_id))
+            stats[key][target_id] += 1
 
 
 def _mechanical_judge_run(
@@ -239,7 +295,9 @@ def align_norms(
         "invalid_candidates": [],
         "invalid_assertions": [],
         "verdicts": {"accepted": 0, "rejected": 0, "needs_human_review": 0},
+        **{key: {node["id"]: 0 for node in hleg_nodes} for key in SPREAD_KEYS},
     }
+    seen: dict[str, set[tuple[str, str]]] = {"pairs": set(), "accepted_pairs": set()}
 
     for norm in norms:
         norm_id = norm.get("norm_id", "norm:unknown")
@@ -255,7 +313,7 @@ def align_norms(
             stats["norms_failed"].append({"norm_id": norm_id, "reason": "missing source_span_id"})
             continue
 
-        gen_user = _generator_user_message(norm, hleg_nodes)
+        gen_user = _generator_user_message(norm, hleg_nodes, prompt_version=prompt_version)
         parsed, error = _call_json_with_retry(generator, align_prompt, gen_user)
         _log_event(
             log_path,
@@ -383,6 +441,18 @@ def align_norms(
                 "needs_human_review",
             ):
                 judged = _fallback_judge_result(judge_error or "missing or invalid verdict")
+            elif (
+                prompt_version not in _PROMPTS_TAKING_ANY_CORRECTION
+                and judged.get("corrected_relation_type") == "no_clear_relation"
+                and judged["verdict"] != "rejected"
+            ):
+                # CHANGE3 (R3): only a rejection may carry no_clear_relation;
+                # the judge's own verdict and rationale go into the reason (G13)
+                judged = _fallback_judge_result(
+                    f"verdict {judged['verdict']!r} with corrected_relation_type no_clear_relation, "
+                    "which only a rejection may carry (judge_alignment checks 3 and 4); the judge's "
+                    f"rationale: {judged.get('rationale') or 'no rationale returned'}"
+                )
             verdict = judged["verdict"]
             scores = _judge_scores(judged)
             rationale = str(judged.get("rationale") or "no rationale returned")
@@ -444,6 +514,11 @@ def align_norms(
                 "judge_run_id": judge_run_id,
                 "judge_verdict": verdict,
                 "rationale": rationale,
+                # CHANGE10 (R11, R25): the candidate as the generator claimed it
+                "proposed_relation_type": proposed_relation,
+                "generator_rationale": (
+                    candidate.get("rationale") if isinstance(candidate.get("rationale"), str) else None
+                ),
                 "review_status": "accepted" if verdict == "accepted" else "needs_review",
             }
 
@@ -463,6 +538,7 @@ def align_norms(
                 continue
 
             stats["verdicts"][verdict] += 1
+            _count_spread(stats, seen, norm_id, target_id, verdict == "accepted")
             judge_runs.append(judge_run)
             assertions.append(assertion)
 

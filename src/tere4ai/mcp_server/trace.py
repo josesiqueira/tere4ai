@@ -70,6 +70,10 @@ def _render_assertion(
         "source_norm_id": assertion.get("source_norm_id"),
         "target_id": assertion.get("target_id"),
         "relation_type": assertion.get("relation_type"),
+        # DEC-28 (B163, R43): the type the generator claimed, served only when
+        # the assertion carries it, so an answer over an older file is unchanged
+        **({"proposed_relation_type": assertion["proposed_relation_type"]}
+           if "proposed_relation_type" in assertion else {}),
         "scores": dict(assertion.get("scores") or {}),
         "final_score": assertion.get("final_score"),
         "judge_verdict": assertion.get("judge_verdict"),

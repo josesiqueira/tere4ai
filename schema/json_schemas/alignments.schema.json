@@ -171,6 +171,14 @@
         "judge_run_id": { "type": "string" },
         "judge_verdict": { "$ref": "#/$defs/judgeVerdict" },
         "rationale": { "type": "string" },
+        "proposed_relation_type": {
+          "enum": ["directly_operationalizes", "partially_operationalizes", "supports", "related_to", "conflicts_with"],
+          "description": "DEC-28 (B163): the relation type the generator claimed, before any correction; relation_type holds the judge's correction where there is one; absent in files written before DEC-28"
+        },
+        "generator_rationale": {
+          "type": ["string", "null"],
+          "description": "DEC-28 (B163): the generator's rationale for the candidate, the object of the judge's check 2; rationale holds the judge's; null when the generator gave none as text; absent in files written before DEC-28"
+        },
         "review_status": {
           "enum": ["auto_accepted", "needs_review", "accepted", "rejected"]
         }

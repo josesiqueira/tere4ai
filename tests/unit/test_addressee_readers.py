@@ -1,7 +1,7 @@
 """B145 (brief R16, R48, R50; A19, A20): every reader outside the served
 path reads a norm of either schema version through tere4ai.act_parties,
 and the digests that pass a norm's party to another instrument's model keep
-their key "actor" and their content byte for byte."""
+their key "actor" and their content byte for byte. Layer 3's v1 input is one of them; its v2 input says Addressee (B163, DEC-28)."""
 
 from __future__ import annotations
 
@@ -50,15 +50,19 @@ def test_the_model_digests_keep_their_key_and_content_in_either_version():
     """A20: the content at tere4ai2 8440c99 for a version 1 norm, the same for version 2."""
     for norm in (V1, V2):
         norm = {**norm, "source_text": "1. Providers of high-risk AI systems shall put a quality management system in place"}
-        align = align_pipeline._generator_user_message(norm, [])
+        align = align_pipeline._generator_user_message(norm, [], prompt_version="v1")
         assert "Actor: providers of high-risk AI systems\n" in align
+        # B163 (DEC-28, R6): Layer 3's v2 input names the party with the settled word
+        assert "Addressee: providers of high-risk AI systems\n" in align_pipeline._generator_user_message(
+            norm, [], prompt_version="v2")
         ev = evidence._generator_user_message(norm, {"artifact_type": "document", "content": "x"})
         assert "Actor: providers of high-risk AI systems\n" in ev
         assert GraphStrategy._norm_text(norm).startswith("providers of high-risk AI systems put in place")
         digest = runtime_grounding._norm_digest(norm)
         assert (digest["actor_explicit"], digest["actor_inferred"]) == ("providers of high-risk AI systems", None)
     text = {"source_text": "1. Providers ..."}
-    assert align_pipeline._generator_user_message({**V1, **text}, []) == align_pipeline._generator_user_message({**V2, **text}, [])
+    assert align_pipeline._generator_user_message({**V1, **text}, [], prompt_version="v1") == align_pipeline._generator_user_message(
+        {**V2, **text}, [], prompt_version="v1")
 
 
 def test_the_review_queue_digest_is_the_same_for_either_version():
