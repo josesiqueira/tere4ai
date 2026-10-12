@@ -1499,7 +1499,8 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   price loader of the judge's configuration reads, refused when either
   row is missing or when it equals TERE4AI_GENERATOR_MODEL or the
   record's generator model. The first model is gpt-6-sol (temperature
-  N/A, effort xhigh; JSON mode sent, the owner's 2026-09-30 reading for
+  N/A, effort xhigh, high since 2026-10-12 (B167, spec F D-F22 as
+  amended); JSON mode sent, the owner's 2026-09-30 reading for
   gpt-6-astra extended to gpt-6-sol, not a statement of the gpt-6-sol
   pages; 2.00 and 10.00 USD per million input and output tokens at
   short context, 4.00 and 15.00 above 272,000 input tokens, batch 1.00

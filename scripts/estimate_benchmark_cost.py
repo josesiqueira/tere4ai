@@ -29,7 +29,11 @@ Token model, stated plainly so nobody mistakes this for a measurement:
   reasoning as output: billed = visible reply / (1 - r), where r is the
   reasoning share, a declared band (low: measured at the API default in
   the aborted extraction; central: the only xhigh measurement; high:
-  declared). Nothing is measured at xhigh for either declared model.
+  declared). Nothing is measured at xhigh for either declared model, and
+  nothing at high, the effort both declare since 2026-10-12 (B167, spec F
+  D-F22 as amended): where a model component's declared effort is below
+  xhigh, the report says the central and high shares are an upper reading
+  at that effort, stated, not measured.
 - The visible reply sizes come from stored replies: July norms and
   alignments (tracked dumps), the run-2 ablation checkpoint, the runtime
   judge's mean reply size (frozen in RATIOS, runtime_judge_reply_chars) and
@@ -86,6 +90,7 @@ from tere4ai.eval.harness import (  # noqa: E402
 from tere4ai.eval.strategies import STRATEGY_NAMES  # noqa: E402
 from tere4ai.extract_norms import pipeline as extract_pipeline  # noqa: E402
 from tere4ai.judge.config import (  # noqa: E402
+    EFFORT_LEVELS,
     MODEL_PRICES_FILE,
     MODEL_PRICES_PATH,
     ConfigurationError,
@@ -986,6 +991,26 @@ def _reasoning_share_lines(res: dict[str, Any], low_sources: dict[str, str]) -> 
     return lines
 
 
+def _effort_reading_lines(res: dict[str, Any]) -> list[str]:
+    """B167: the central share and the backlog generator's one measured call
+    were measured at effort xhigh. A model component on the declared band
+    whose declared effort is below xhigh gets one line saying the shares
+    are an upper reading at its effort, stated, not measured."""
+    below = EFFORT_LEVELS[:EFFORT_LEVELS.index("xhigh")]
+    lines = []
+    for component in ("generator", "judge"):
+        effort = res["declared"][component].effort
+        if effort in below and not res.get("measured", {}).get(component):
+            measured_at_xhigh = ("the central share and the backlog generator's one measured call "
+                                 "(backlog_generator_billed_tokens) were" if component == "generator"
+                                 else "the central share was")
+            lines.append(f"- {component}: {measured_at_xhigh} measured at effort xhigh; nothing is measured at "
+                         f"effort {effort}, the {component}'s declared effort (spec F D-F22 as amended 2026-10-12, "
+                         f"B167), so its central and high figures are an upper reading at {effort}, stated, "
+                         "not measured.")
+    return lines
+
+
 def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
     declared, rows, n = res["declared"], res["rows"], res["n"]
     lines = [
@@ -1029,6 +1054,7 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
         lines.append(f"- {name} = {r['value']}: {r['source']}")
     lines += ["", "Reasoning share of billed output, r (billed output = visible reply / (1 - r)):", ""]
     lines += _reasoning_share_lines(res, low_sources)
+    lines += _effort_reading_lines(res)
     lines += [
         "- The backlog generator's central output is the one measured call scaled by the norms sent over the "
         "norms that call sent, see backlog_generator_billed_tokens and backlog_generator_measured_norms "

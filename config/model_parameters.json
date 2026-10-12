@@ -5,42 +5,42 @@
   "claude-opus-5-5": {
    "inference_backend": "anthropic",
    "temperature": "N/A",
-   "effort": "xhigh",
+   "effort": "high",
    "json_mode": "N/A",
-   "documentation": {"url": "https://platform.claude.com/docs/en/models/opus-5-5/migration-guide", "read_on": "2026-09-28"},
-   "note": "Read 2026-09-28 on the model developer's documentation. Temperature N/A: \"Setting `temperature`, `top_p`, or `top_k` to any non-default value on Claude Opus 4.7 and later models, including Claude Opus 5.5, returns a 400 error\" (the migration guide above; the Messages API reference, https://platform.claude.com/docs/en/api/messages/create, says the same for models released after Claude Opus 4.6). Effort xhigh: \"All five levels (`low`, `medium`, `high`, `xhigh`, `max`) are supported, and the default is `medium`.\" (the migration guide), and the effort page, https://platform.claude.com/docs/en/build-with-claude/effort, lists Claude Opus 5.5 under xhigh; xhigh is the level spec F Section 4 chose. JSON mode N/A: the model developer documents structured outputs for the model, but the judge client sends no JSON mode parameter (ruling P1)."
+   "documentation": {"url": "https://platform.claude.com/docs/en/models/opus-5-5/migration-guide", "read_on": "2026-10-12"},
+   "note": "Temperature and JSON mode read 2026-09-28, effort read 2026-10-12, on the model developer's documentation. Temperature N/A: \"Setting `temperature`, `top_p`, or `top_k` to any non-default value on Claude Opus 4.7 and later models, including Claude Opus 5.5, returns a 400 error\" (the migration guide above; the Messages API reference, https://platform.claude.com/docs/en/api/messages/create, says the same for models released after Claude Opus 4.6). Effort high, read 2026-10-12: \"All five levels (`low`, `medium`, `high`, `xhigh`, `max`) are supported, and the default is `medium`.\" (the migration guide above), so high is sent explicitly; high is the level spec F D-F22, as amended 2026-10-12 (B167), sets for every instrument (xhigh until then). JSON mode N/A: the model developer documents structured outputs for the model, but the judge client sends no JSON mode parameter (ruling P1)."
   },
   "gpt-6-astra": {
    "inference_backend": "openai",
    "temperature": "N/A",
-   "effort": "xhigh",
+   "effort": "high",
    "json_mode": "sent",
-   "documentation": {"url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra", "read_on": "2026-09-28"},
-   "note": "Read 2026-09-28 on the model developer's documentation. Temperature N/A: the GPT-6 guide, https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra, under \"Set `model` to `gpt-6-astra`, `gpt-6-sol`, or `gpt-6-luna`, then check the following:\", says \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\", and the declared effort is xhigh (the model also answered 400 to temperature 0 in B74, norms_core.b74.json). Effort xhigh: the model page above says \"`reasoning.effort` supports `low`, `medium`, `high`, `xhigh`, and `max`.\"; xhigh is the level spec F Section 4 chose. JSON mode sent, marked: the model page names no JSON mode (it lists Structured outputs as supported and Chat Completions as an endpoint); the structured outputs guide, https://developers.openai.com/api/docs/guides/structured-outputs, states it for the API, not per model: \"Both Structured Outputs and JSON mode are supported in the Responses API, Chat Completions API, Assistants API, Fine-tuning API and Batch API.\" The client sends it at tere4ai2 9673819 and no record says it was refused. Asked in B101 whether this row declares JSON mode \"sent\" or \"N/A, not sent\", Jose chose \"sent\" on 2026-09-30."
+   "documentation": {"url": "https://developers.openai.com/api/docs/models/gpt-6-astra", "read_on": "2026-10-12"},
+   "note": "Temperature and JSON mode read 2026-09-28, effort read 2026-10-12, on the model developer's documentation. Temperature N/A: the GPT-6 guide, https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra, under \"Set `model` to `gpt-6-astra`, `gpt-6-sol`, or `gpt-6-luna`, then check the following:\", says \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\", and the declared effort is high (the model also answered 400 to temperature 0 in B74, norms_core.b74.json). Effort high, read 2026-10-12: the model page above says \"`reasoning.effort` supports `low`, `medium`, `high`, `xhigh`, and `max`.\"; high is the level spec F D-F22, as amended 2026-10-12 (B167), sets for every instrument (xhigh until then). JSON mode sent, marked: the model page names no JSON mode (it lists Structured outputs as supported and Chat Completions as an endpoint); the structured outputs guide, https://developers.openai.com/api/docs/guides/structured-outputs, states it for the API, not per model: \"Both Structured Outputs and JSON mode are supported in the Responses API, Chat Completions API, Assistants API, Fine-tuning API and Batch API.\" The client sends it at tere4ai2 9673819 and no record says it was refused. Asked in B101 whether this row declares JSON mode \"sent\" or \"N/A, not sent\", Jose chose \"sent\" on 2026-09-30."
   },
   "gpt-6-sol": {
    "inference_backend": "openai",
    "temperature": "N/A",
-   "effort": "xhigh",
+   "effort": "high",
    "json_mode": "sent",
-   "documentation": {"url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-sol", "read_on": "2026-10-06"},
-   "note": "The demo judge of DEC-24 (spec G D-G74 (5)), read 2026-10-06 on the model developer's documentation. Temperature N/A: the GPT-6 guide above says \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\", and the declared effort is xhigh. Effort xhigh: the model page, https://developers.openai.com/api/docs/models/gpt-6-sol, lists \"none, low, medium (default), high, xhigh, and max\"; xhigh is the level spec F Section 4 chose for every instrument. JSON mode sent: Jose's reading of 2026-09-30 for gpt-6-astra extended to gpt-6-sol, not a statement of the gpt-6-sol pages (the model page lists structured outputs and Chat Completions; the structured outputs guide, https://developers.openai.com/api/docs/guides/structured-outputs, states JSON mode for the API)."
+   "documentation": {"url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-sol", "read_on": "2026-10-12"},
+   "note": "The demo judge of DEC-24 (spec G D-G74 (5)); temperature and JSON mode read 2026-10-06, effort read 2026-10-12, on the model developer's documentation. Temperature N/A: the GPT-6 guide above says \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\", and the declared effort is high. Effort high, read 2026-10-12: the model page, https://developers.openai.com/api/docs/models/gpt-6-sol, says \"`reasoning.effort` supports `none`, `low`, `medium` (default), `high`, `xhigh`, and `max`.\"; high is the level spec F D-F22, as amended 2026-10-12 (B167), sets for every instrument (xhigh until then). JSON mode sent: Jose's reading of 2026-09-30 for gpt-6-astra extended to gpt-6-sol, not a statement of the gpt-6-sol pages (the model page lists structured outputs and Chat Completions; the structured outputs guide, https://developers.openai.com/api/docs/guides/structured-outputs, states JSON mode for the API)."
   },
   "gpt-5.6-luna": {
    "inference_backend": "openai",
    "temperature": "N/A",
-   "effort": "xhigh",
+   "effort": "high",
    "json_mode": "sent",
    "documentation": {"url": "https://developers.openai.com/api/docs/models/gpt-5.6-luna", "read_on": "2026-10-12"},
-   "note": "The model of the B88 rehearsal of 2026-10-12, both generator and judge, on Jose's decision (thesis board/cards/B88.md, \"Now, gpt-5.6-luna, few Articles\"); not a B74 instrument. Read 2026-10-12 on the model page above: \"Reasoning.effort supports: none, low, medium (default), high, xhigh, and max.\"; its supported features list \"structured_outputs\". Effort xhigh: the level spec F Section 4 chose for every instrument. Temperature N/A: the dashboard's declaration of 2026-09-28 for this model (tere4ai-dashboard src/lib/experiment/prices.json), reasoning models taking no temperature when reasoning effort is not none. JSON mode sent: as for gpt-6-astra and gpt-6-sol."
+   "note": "The model of the B88 rehearsal of 2026-10-12, both generator and judge, on Jose's decision (thesis board/cards/B88.md, \"Now, gpt-5.6-luna, few Articles\"); not a B74 instrument. Read 2026-10-12 on the model page above: \"Reasoning.effort supports: none, low, medium (default), high, xhigh, and max.\"; its supported features list \"structured_outputs\". Effort high: the level spec F D-F22, as amended 2026-10-12 (B167), sets for every instrument (xhigh until then). Temperature N/A: the dashboard's declaration of 2026-09-28 for this model (tere4ai-dashboard src/lib/experiment/prices.json), reasoning models taking no temperature when reasoning effort is not none. JSON mode sent: as for gpt-6-astra and gpt-6-sol."
   },
   "gpt-5.6-terra": {
    "inference_backend": "openai",
    "temperature": "N/A",
-   "effort": "xhigh",
+   "effort": "high",
    "json_mode": "sent",
    "documentation": {"url": "https://developers.openai.com/api/docs/models/gpt-5.6-terra", "read_on": "2026-10-12"},
-   "note": "The generator of the B88 rehearsal of 2026-10-12 (gpt-5.6-luna judges), OpenAI only on Jose's decision (thesis board/cards/B88.md); not a B74 instrument. Read 2026-10-12 on the model page above: \"Reasoning.effort supports: none, low, medium (default), high, xhigh, and max.\"; its supported features list \"structured_outputs\". Effort xhigh: the level spec F Section 4 chose for every instrument. Temperature N/A: the dashboard's declaration of 2026-09-28 for this model (tere4ai-dashboard src/lib/experiment/prices.json), reasoning models taking no temperature when reasoning effort is not none. JSON mode sent: as for gpt-6-astra and gpt-6-sol."
+   "note": "The generator of the B88 rehearsal of 2026-10-12 (gpt-5.6-luna judges), OpenAI only on Jose's decision (thesis board/cards/B88.md); not a B74 instrument. Read 2026-10-12 on the model page above: \"Reasoning.effort supports: none, low, medium (default), high, xhigh, and max.\"; its supported features list \"structured_outputs\". Effort high: the level spec F D-F22, as amended 2026-10-12 (B167), sets for every instrument (xhigh until then). Temperature N/A: the dashboard's declaration of 2026-09-28 for this model (tere4ai-dashboard src/lib/experiment/prices.json), reasoning models taking no temperature when reasoning effort is not none. JSON mode sent: as for gpt-6-astra and gpt-6-sol."
   }
  }
 }

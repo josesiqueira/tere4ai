@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 import pytest
+from tests.fixtures.model_parameters import declared as declared_row
 
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
 from tere4ai.eval.ablation_declaration import load_declaration
@@ -183,9 +184,9 @@ def test_declared_models_reads_the_two_ids_with_their_declared_rows():
     declared = est.declared_models(
         {"TERE4AI_GENERATOR_MODEL": "gpt-6-astra", "TERE4AI_JUDGE_MODEL": "claude-opus-5-5"})
     assert declared["generator"].model_id == "gpt-6-astra"
-    assert declared["generator"].inference_backend == "openai" and declared["generator"].effort == "xhigh"
+    assert declared["generator"].inference_backend == "openai" and declared["generator"].effort == "high"
     assert declared["judge"].model_id == "claude-opus-5-5"
-    assert declared["judge"].inference_backend == "anthropic" and declared["judge"].effort == "xhigh"
+    assert declared["judge"].inference_backend == "anthropic" and declared["judge"].effort == "high"
 
 
 @pytest.mark.parametrize("missing", ["TERE4AI_GENERATOR_MODEL", "TERE4AI_JUDGE_MODEL"])
@@ -494,12 +495,32 @@ def mock_report(tmp_path, monkeypatch):
 
 
 def test_the_report_names_both_models_with_effort_and_each_price_with_its_page_and_day(mock_report):
-    for text in ("gpt-6-astra", "claude-opus-5-5", "effort xhigh",
+    for text in ("gpt-6-astra", "claude-opus-5-5", "effort high",
                  "https://developers.openai.com/api/docs/pricing",
                  "https://platform.claude.com/docs/en/about-claude/pricing",
                  "read 2026-10-04"):
         assert text in mock_report
     assert "10.00 USD in" in mock_report and "20.00 USD out" in mock_report
+
+
+def test_the_report_says_the_xhigh_shares_are_an_upper_reading_at_the_declared_high(mock_report):
+    # B167: both models declare high since 2026-10-12; the central share and the
+    # backlog call were measured at xhigh, and nothing at high
+    for component in ("generator", "judge"):
+        line = next(x for x in mock_report.splitlines()
+                    if x.startswith(f"- {component}: the central share") and "upper reading" in x)
+        assert "measured at effort xhigh; nothing is measured at effort high" in line
+        assert "an upper reading at high, stated, not measured" in line
+    assert ("- generator: the central share and the backlog generator's one measured call "
+            "(backlog_generator_billed_tokens) were measured at effort xhigh") in mock_report
+
+
+def test_no_upper_reading_line_at_xhigh_or_for_a_measured_component():
+    pair = {"generator": declared_row("gen-x", "openai", effort="xhigh"),
+            "judge": declared_row("judge-y", "anthropic", effort="high")}
+    lines = est._effort_reading_lines({"declared": pair})
+    assert len(lines) == 1 and lines[0].startswith("- judge:") and "backlog" not in lines[0]
+    assert est._effort_reading_lines({"declared": pair, "measured": {"judge": {"share": 0.5}}}) == []
 
 
 def test_the_report_has_one_row_per_step_and_component(mock_report):

@@ -5,6 +5,10 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B167: every declared effort is high, not xhigh (2026-10-12)
+- B167: config/model_parameters.json declares effort high, not xhigh, on its five rows (claude-opus-5-5, gpt-6-astra, gpt-6-sol, gpt-5.6-luna, gpt-5.6-terra), spec F D-F22 as amended 2026-10-12 (Jose: "i want to change reasoning effort to high, not xhigh, so we have faster result"). Each row's effort was read on the model developer's page on 2026-10-12 and its note quotes the page; gpt-6-astra's documentation is now its model page, which states the levels; temperature and JSON mode are unchanged. The generator, the runtime judge, the demo judge and the elicitor read the table when they start, so a running facade sends high once restarted; nothing in the code changes.
+- docs/benchmark_cost_estimate.md regenerated: both models print effort high, and a line per model says the central reasoning share (and the backlog generator's one measured call) was measured at xhigh, with nothing measured at high, so the central and high figures are an upper reading at high, stated, not measured; the effort enters no figure. The B74 sequence moves from 402.02 to 408.62 USD (band 194.09 to 643.24), every change in the runtime judge's E6 input tokens, which B165's source text adds and which the estimate had not been regenerated for; docs/traceability.md regenerated likewise (B165's source_text.py).
+
 ### B165: the runtime judge receives each cited norm's source text (2026-10-12)
 - The runtime grounding judge receives each cited norm's verbatim source text on the facade's POST /api/evidence and POST /api/backlog routes (inline, the on-demand generator and POST /api/backlog/judge) and in E6's conditions 5 and 6, as the MCP tools and runtime_grounding v2's check 0 require; before, those paths gave it source_text null and check 0 failed. One shared helper, tere4ai.mcp_server.source_text (attach_source_text in place, with_source_text on copies, so the facade's loaded norms payload is never changed). The generator's input in E6 is unchanged; the signed record's fields are unchanged.
 
