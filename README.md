@@ -335,6 +335,21 @@ units, move it away before starting again under the corrected row. A
 published record is frozen: further work on the same alias continues as a
 descendant record.
 
+The paid terminal runs (`extract_norms`, `align_hleg`, `scripts/elicit_benchmark_features.py`
+and `scripts/run_ablations.py`) send their model calls a few at a time:
+`--max-in-flight N` (1 to 16, default 8) bounds the calls in flight, and 1 sends
+them one at a time as before. Each call is built from its own source unit, norm,
+scenario or item, and every result is written in the source order, so the output
+files are the ones a run with one call at a time writes from the same replies;
+only the lines of the audit logs come in the order the calls finish. The calls run
+inside each checkpointed group, batch or unit, so a stop loses at most the one in
+flight, as before. Each call keeps the overload pauses above. The setting is
+recorded in the execution record's config (the evaluation record's for
+run_ablations, the features file for the elicitation), and a resume may change it.
+A first interrupt waits for the calls in flight and records them, which can include
+a call waiting out its retry pause (minutes under the terminal policy); a second
+stops at once, and the execution's error names the calls it did not wait for.
+
 Tracked in git because they are publication evidence or inputs:
 `build_chain_*.json`, `publications/`, `BUILD_CHAIN_CURRENT.txt`,
 `*.reference.json`, `*.adjudicated.json`, the core dumps. Ignored because

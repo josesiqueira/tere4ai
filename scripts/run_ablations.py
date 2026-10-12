@@ -38,6 +38,12 @@ D-G84 (5) (B150 Q10), with no hand-made item; a development run on a payload
 not drawn by the declaration's draw, without its facts file, or with a
 scenario the file lacks, is refused.
 
+B164 (spec F D-F30 as amended 2026-10-12): --max-in-flight (default 8) bounds
+the items of a (condition, batch) unit run at once; the units run one after
+the other, so each unit's usage is still the clients' counts before and after
+it, and the unit's results are kept in the items' order; the record's config
+names the setting.
+
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
 (items x strategies) generator calls in the first run, plus question and
@@ -60,6 +66,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai import parallel_calls  # noqa: E402
 from tere4ai.elicit_features.elicitor import features_of_record  # noqa: E402
 from tere4ai.eval import harness, metrics, strategies  # noqa: E402
 from tere4ai.eval.ablation_declaration import (  # noqa: E402
@@ -94,6 +101,7 @@ from tere4ai.extract_norms.model_clients import (  # noqa: E402
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
 from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
+from tere4ai.parallel_calls import run_in_flight  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
 DEVELOPMENT_FEATURES_PATH = ROOT / "eval" / "gold" / "development_features.json"
@@ -523,6 +531,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="resume a checkpoint no evaluation record names (the note is recorded)")
     parser.add_argument("--declaration", type=Path, default=DECLARATION_PATH,
                         help="E6's declaration (spec G D-G84); its digest goes into the record")
+    parallel_calls.add_max_in_flight_argument(parser)
     args = parser.parse_args(argv)
     if args.repeat_of is not None and args.no_record:
         print("--repeat-of: a --no-record run records no relation; drop one of the two flags")
@@ -675,7 +684,8 @@ def main(argv: list[str] | None = None) -> int:
             models=config, prompt_versions=elicitor_versions or None, config={
                 "strategies": list(strategies.STRATEGY_NAMES), "batch_size": BATCH_SIZE,
                 "metrics_version": METRICS_VERSION, "code_version": code_version(ROOT), "mode": "live",
-                "item_set": item_set, "repetition": "repeat" if args.repeat_of is not None else "first"},
+                "item_set": item_set, "repetition": "repeat" if args.repeat_of is not None else "first",
+                "max_in_flight": args.max_in_flight},
             item_selection=[i["id"] for i in items], intended_items=[i["id"] for i in items],
             relations={"repeat_of": args.repeat_of, "resumes_record_id": resumes},
             counts={"units_resumed": len(done)},
@@ -704,6 +714,7 @@ def main(argv: list[str] | None = None) -> int:
         # spec F D-F30: a terminal run with a checkpoint waits out an overload
         generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
         judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
+        print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
 
         with checkpoint_path.open("a", encoding="utf-8") as ckpt:
             for strategy_name in strategies.STRATEGY_NAMES:
@@ -726,10 +737,10 @@ def main(argv: list[str] | None = None) -> int:
                         "generator": dict(generator.usage),
                         "judge": dict(judge.usage),
                     }
-                    per_item = {}
-                    for item in batch:
+                    def answer(item: dict, fn: Any = fn) -> dict:
+                        """One item's answer (B164: on a worker thread when --max-in-flight > 1)."""
                         try:
-                            per_item[item["id"]] = fn(item)
+                            return fn(item)
                         except InferenceBackendRefused as exc:
                             # spec F D-F30, B101 ruling S5: the reason names the item, which is
                             # fixed before the resume, never skipped
@@ -737,11 +748,10 @@ def main(argv: list[str] | None = None) -> int:
                         except (InferenceBackendUnavailable, ConfigurationError):
                             raise  # spec F D-F29, D-F30: a stop of the run, never an item's error
                         except Exception as exc:  # record, never abort the sweep
-                            per_item[item["id"]] = {
-                                "error": exception_reason(exc),
-                                "answer_text": "",
-                                "citations": [],
-                            }
+                            return {"error": exception_reason(exc), "answer_text": "", "citations": []}
+
+                    answers = run_in_flight(batch, answer, max_in_flight=args.max_in_flight)
+                    per_item = {item["id"]: result for item, result in zip(batch, answers, strict=True)}
                     # token deltas the inference backends reported for exactly this unit, so the
                     # checkpoint carries true spend across resumes (Section 13)
                     clients = {"generator": generator, "judge": judge}

@@ -20,6 +20,12 @@ quotes, dropped facts and prompt record, and the output names the prompt
 once (the run is on one build) beside quotes_by_item, dropped_by_item and
 the unchanged features_by_item. A rerun over entries of another prompt
 version, template or build is refused, as one under other models is.
+
+B164 (spec F D-F30 as amended 2026-10-12): --max-in-flight (default 8)
+scenarios are elicited at once; the checkpoint lines are written and the items
+printed in the benchmark's order, and the output lists the items in that order
+(ruling R16), so a run at 8 writes the files a run at 1 writes; the output names
+the setting (max_in_flight).
 """
 
 from __future__ import annotations
@@ -33,6 +39,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from tere4ai import parallel_calls  # noqa: E402
 from tere4ai.elicit_features import elicit, render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import (  # noqa: E402
     DEFAULT_PROMPT_VERSION,
@@ -49,6 +56,7 @@ from tere4ai.extract_norms.model_clients import (  # noqa: E402
 )
 from tere4ai.graph_store.publication import load_active  # noqa: E402
 from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
+from tere4ai.parallel_calls import run_in_flight  # noqa: E402
 
 DEFAULT_OUT = ROOT / "eval" / "gold" / "benchmark_features.json"
 # B10: the prompt record's fields a resumed entry must share with the run:
@@ -69,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
         "--prompt-version", default=DEFAULT_PROMPT_VERSION,
         help="elicitor prompt version, recorded in the output (default: the elicitor's own)",
     )
+    parallel_calls.add_max_in_flight_argument(parser)
     args = parser.parse_args(argv)
     run_argv = list(sys.argv[1:] if argv is None else argv)
     OUT = args.out
@@ -119,54 +128,55 @@ def main(argv: list[str] | None = None) -> int:
               "resume it, or move the checkpoint away to start again")
         return 2
     generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)  # spec F D-F30: a terminal run with a checkpoint waits out an overload
+    print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
+
+    def entry_for(item: dict) -> tuple[dict, str]:
+        """One scenario's entry and the word printed for it (B164: on a worker thread when
+        --max-in-flight > 1; it writes nothing)."""
+        description = item.get("system_text") or ""
+        if len(description) < 10:
+            return {
+                "item_id": item["id"],
+                "features": None,
+                "quotes": {},
+                "dropped": [],
+                "notes": ["no usable system_text; skipped without a model call"],
+                "prompt": prompt,
+                "provenance": "llm_elicited",
+                "elicitor_model": cfg.generator_model,
+                "models": models,
+            }, "SKIPPED (no text)"
+        try:
+            result = elicit(description, generator, dump=dump, snapshots_dir=SNAPSHOTS_DIR,
+                            prompt_version=args.prompt_version)
+        except InferenceBackendRefused as exc:
+            # spec F D-F30, B101 ruling S5: the reason names the item, which is
+            # fixed before the rerun, never skipped
+            raise InferenceBackendRefused(f"{exc.cause} (item {item['id']})") from exc
+        features = result.features
+        return {
+            "item_id": item["id"],
+            "features": features,
+            "quotes": result.quotes,
+            "dropped": result.dropped,
+            "notes": result.notes,
+            "prompt": result.prompt,
+            "provenance": "llm_elicited",
+            "elicitor_model": cfg.generator_model,
+            "models": models,
+        }, ("ok" if features else "FAILED")
 
     try:
         with CKPT.open("a", encoding="utf-8") as ckpt:
-            for item in items:
-                if item["id"] in done:
-                    continue
-                description = item.get("system_text") or ""
-                if len(description) < 10:
-                    entry = {
-                        "item_id": item["id"],
-                        "features": None,
-                        "quotes": {},
-                        "dropped": [],
-                        "notes": ["no usable system_text; skipped without a model call"],
-                        "prompt": prompt,
-                        "provenance": "llm_elicited",
-                        "elicitor_model": cfg.generator_model,
-                        "models": models,
-                    }
-                    ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
-                    ckpt.flush()
-                    done[item["id"]] = entry
-                    print(f"  {item['id']}: SKIPPED (no text)", flush=True)
-                    continue
-                try:
-                    result = elicit(description, generator, dump=dump, snapshots_dir=SNAPSHOTS_DIR,
-                                    prompt_version=args.prompt_version)
-                except InferenceBackendRefused as exc:
-                    # spec F D-F30, B101 ruling S5: the reason names the item, which is
-                    # fixed before the rerun, never skipped
-                    raise InferenceBackendRefused(f"{exc.cause} (item {item['id']})") from exc
-                features = result.features
-                entry = {
-                    "item_id": item["id"],
-                    "features": features,
-                    "quotes": result.quotes,
-                    "dropped": result.dropped,
-                    "notes": result.notes,
-                    "prompt": result.prompt,
-                    "provenance": "llm_elicited",
-                    "elicitor_model": cfg.generator_model,
-                    "models": models,
-                }
+            def keep(_index: int, outcome: tuple[dict, str]) -> None:
+                entry, word = outcome
                 ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 ckpt.flush()
-                done[item["id"]] = entry
-                status = "ok" if features else "FAILED"
-                print(f"  {item['id']}: {status}", flush=True)
+                done[entry["item_id"]] = entry
+                print(f"  {entry['item_id']}: {word}", flush=True)
+
+            run_in_flight([item for item in items if item["id"] not in done], entry_for,
+                          max_in_flight=args.max_in_flight, on_result=keep)
     except (InferenceBackendUnavailable, InferenceBackendRefused) as exc:
         # spec F D-F30: the checkpoint stays; re-running the same command resumes
         print(f"stopped: {exc}", file=sys.stderr)
@@ -180,21 +190,27 @@ def main(argv: list[str] | None = None) -> int:
         print(f"stopped: {exc}", file=sys.stderr)
         return 4
 
+    # B164 (R16): the items in the benchmark's order, then any checkpoint entry for an
+    # item the benchmark no longer lists, in the file's order; a run with one call at a
+    # time, whose checkpoint is always a prefix, writes the order it always wrote
+    listed = [i["id"] for i in items if i["id"] in done]
+    order = list(dict.fromkeys(listed + [k for k in done if k not in set(listed)]))
     payload = {
         "provenance": "llm_elicited",
         "elicitor_model": cfg.generator_model,
         "models": models,
         "prompt_version": args.prompt_version,
         "prompt": prompt,
+        "max_in_flight": args.max_in_flight,
         "note": (
             "Machine-elicited features for benchmark free-text scenarios. The "
             "deterministic classifier still decides; elicitation only supplies "
             "facts, and omitted flags surface as missing_facts. Human-verified "
             "features per the annotation protocol supersede these."
         ),
-        "features_by_item": {k: v["features"] for k, v in done.items()},
-        "quotes_by_item": {k: v["quotes"] for k, v in done.items()},
-        "dropped_by_item": {k: v["dropped"] for k, v in done.items()},
+        "features_by_item": {k: done[k]["features"] for k in order},
+        "quotes_by_item": {k: done[k]["quotes"] for k in order},
+        "dropped_by_item": {k: done[k]["dropped"] for k in order},
     }
     tmp = OUT.with_suffix(".writing.json")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")

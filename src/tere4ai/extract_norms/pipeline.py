@@ -39,6 +39,12 @@ Section 7 before it may be accepted. Hard invariants enforced here:
   data/review_queue/extraction_log.jsonl (model id, prompt version, input
   hash, verdict and rationale for judge calls). Never API keys, never full
   prompts.
+- B164 (spec F D-F30 as amended 2026-10-12): with max_in_flight above 1 the
+  source units of a group run on worker threads, at most max_in_flight at
+  once (tere4ai.parallel_calls); each unit's request is built from that unit
+  alone, and the norms, judge runs and stats are assembled in the units'
+  order in the calling thread, so the result equals a run with one call at a
+  time; the log lines come in the order the calls finish.
 """
 
 from __future__ import annotations
