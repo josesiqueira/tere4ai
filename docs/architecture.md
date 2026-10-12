@@ -1801,6 +1801,57 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   line run, the requirements tool and the facade over its output) and
   test_party_names_guard.py; docs/benchmark_cost_estimate.md is
   regenerated with v5; CHANGELOG.md names the contract change.
+- DEC-28: Layer 3's two instruments, the generator's prompt align_hleg and
+  the alignment judge's prompt judge_alignment, are revised together to
+  v2, the alignment command's default and the version of record for B74
+  (added 2026-10-12; thesis task B163, spec G D-G86 and the rulings in
+  sdd/2026-10-12-B163-layer3-prompts/progress.md in the private research
+  repository; the owner's words: "we can just revise the prompt which
+  sounds normal", and on the spread of alignments across the seven
+  requirements: "dont try to forcebly make it more even, because this just
+  might be a finding we can discuss in the thesis"). Engineering decision
+  (an instrument consistent with itself, with its pair and with the code
+  that runs it; Section 7); it needs no literature grounding (AGENTS.md
+  grounding bar).
+  The changes, each answering a defect of the v1 files or a lesson of the
+  Layer 2 revisions: the model-facing text says alignment, never mapping
+  (the code identifiers mapping_run_id, judge_kind "mapping" and
+  MappingRun stay); the judge receives the five relation-type definitions
+  the generator has always received, from one file both prompts carry
+  byte for byte (prompts/relation_type/definitions.md); no_clear_relation
+  is only the corrected type of a rejection, and under v2 a reply that
+  pairs it with any other verdict is unusable and goes to human review
+  with zero scores, its reason holding the judge's verdict and rationale;
+  the output example's relation type is partially_operationalizes, as the
+  definitions give for its Article 9(1) quote against "developed with a
+  preventative approach to risks"; the generator's input labels the
+  norm's party "Addressee:"; and the prompt states the quote check the
+  code runs (every run of whitespace counts as one space). A v1 run keeps
+  v1's input and v1's handling of the judge's reply. Every assertion,
+  whatever the version, keeps the generator's claimed type
+  (proposed_relation_type) and rationale (generator_rationale); the
+  alignment stats count, for each of the seven requirements, the
+  assertions, the accepted ones and the distinct norm and requirement
+  pairs, accepted and in all. The E1 label sheet shows an alignment as the
+  judge received it (the claimed type, the definitions and, provisional
+  until the owner answers, spec G D-G86 (4) (d), the full legal text and
+  HLEG description), the judge's correction only under the folded
+  verdict, every item in one order, by the sha256 of its decision id,
+  that does not follow the verdict, and every item under an opaque id,
+  so no id joins an alignment item to an extraction item of the same
+  norm. Nothing is changed to move the spread across the seven
+  requirements.
+  Defense: a judge cannot check a type against definitions it was never
+  given, and a prompt that allows in one check what another forbids
+  leaves the outcome to the model; v1 stays runnable, so the July record
+  keeps naming the instrument that made it, and the E1 labeller reads
+  what the judge read without seeing what it decided.
+  Cost if wrong: before B74, two prompt files, a reply guard, two record
+  fields, four counts and a sheet to redo, with no model call; after B74,
+  every alignment made and judged again.
+  verify: prompts/align_hleg/v2.md, prompts/judge_alignment/v2.md and
+  prompts/relation_type/definitions.md; tests/unit/test_align_prompts_v2.py
+  (draft until B163's last tere4ai2 task).
 
 ## 17. Implementation-traceability convention
 
