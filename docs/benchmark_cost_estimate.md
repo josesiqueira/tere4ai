@@ -47,8 +47,8 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Layer 2 extraction | generator (gpt-6-astra) | 424 | 2,617,243 | 70,755 | 393,083 (102,233 to 707,549) | 28.67 | 45.83 | 64.17 |
 | Layer 2 extraction | judge (claude-opus-5-5) | 529 | 2,510,397 | 173,672 | 964,845 (313,587 to 1,736,721) | 15.31 | 29.34 | 45.78 |
-| Layer 3 alignment | generator (gpt-6-astra) | 468 | 2,817,737 | 252,264 | 1,401,464 (364,493 to 2,522,635) | 43.58 | 98.25 | 157.13 |
-| Layer 3 alignment | judge (claude-opus-5-5) | 538 | 1,593,935 | 182,433 | 1,013,519 (329,406 to 1,824,334) | 12.33 | 26.65 | 43.50 |
+| Layer 3 alignment | generator (gpt-6-astra) | 468 | 2,826,824 | 252,264 | 1,401,464 (364,493 to 2,522,635) | 43.67 | 98.34 | 157.23 |
+| Layer 3 alignment | judge (claude-opus-5-5) | 538 | 1,772,101 | 182,433 | 1,013,519 (329,406 to 1,824,334) | 12.97 | 27.36 | 44.28 |
 | Control backlog | generator (gpt-6-astra) | 1 | 11,727 | 2,446 | 13,590 (3,534 to 24,462) | 0.28 | 0.80 | 1.35 |
 | Control backlog | judge (claude-opus-5-5) | 1 | 17,467 | 218 | 1,211 (394 to 2,180) | 0.07 | 0.09 | 0.12 |
 | E6 elicitation | generator (gpt-6-astra) | 32 | 344,221 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
@@ -99,7 +99,7 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 ## Alignment rationale: a proxy, and the cost without it
 
 - A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, in the generator's output and in the judge's input. The direction of the proxy's error is unknown, because the generator's rationale is not recorded: it may be shorter or longer.
-- Sensitivity calculation, not a bound: the total without the rationale in both places is 357.06 USD central (175.59 low, 556.01 high), against the stated total of 401.22 (187.43 low, 635.10 high).
+- Sensitivity calculation, not a bound: the total without the rationale in both places is 357.87 USD central (176.31 low, 556.90 high), against the stated total of 402.02 (188.15 low, 635.99 high).
 
 ## Reference outside the total
 
@@ -111,10 +111,10 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 
 ## Batch
 
-- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 200.61 USD (band 93.72 to 317.55). It is a lever and not in the total: the clients call the synchronous APIs.
+- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 201.01 USD (band 94.08 to 317.99). It is a lever and not in the total: the clients call the synchronous APIs.
 
 ## Total
 
-Total for the B74 sequence: 401.22 USD (band 187.43 to 635.10)
+Total for the B74 sequence: 402.02 USD (band 188.15 to 635.99)
 
 The band takes the low input and the low reasoning share at its low end, and the high input and the high reasoning share at its high end. It includes the main run at N = 11, the pilot run and the development set's elicitation.
