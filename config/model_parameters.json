@@ -33,6 +33,14 @@
    "json_mode": "sent",
    "documentation": {"url": "https://developers.openai.com/api/docs/models/gpt-5.6-luna", "read_on": "2026-10-12"},
    "note": "The model of the B88 rehearsal of 2026-10-12, both generator and judge, on Jose's decision (thesis board/cards/B88.md, \"Now, gpt-5.6-luna, few Articles\"); not a B74 instrument. Read 2026-10-12 on the model page above: \"Reasoning.effort supports: none, low, medium (default), high, xhigh, and max.\"; its supported features list \"structured_outputs\". Effort xhigh: the level spec F Section 4 chose for every instrument. Temperature N/A: the dashboard's declaration of 2026-09-28 for this model (tere4ai-dashboard src/lib/experiment/prices.json), reasoning models taking no temperature when reasoning effort is not none. JSON mode sent: as for gpt-6-astra and gpt-6-sol."
+  },
+  "gpt-5.6-terra": {
+   "inference_backend": "openai",
+   "temperature": "N/A",
+   "effort": "xhigh",
+   "json_mode": "sent",
+   "documentation": {"url": "https://developers.openai.com/api/docs/models/gpt-5.6-terra", "read_on": "2026-10-12"},
+   "note": "The generator of the B88 rehearsal of 2026-10-12 (gpt-5.6-luna judges), OpenAI only on Jose's decision (thesis board/cards/B88.md); not a B74 instrument. Read 2026-10-12 on the model page above: \"Reasoning.effort supports: none, low, medium (default), high, xhigh, and max.\"; its supported features list \"structured_outputs\". Effort xhigh: the level spec F Section 4 chose for every instrument. Temperature N/A: the dashboard's declaration of 2026-09-28 for this model (tere4ai-dashboard src/lib/experiment/prices.json), reasoning models taking no temperature when reasoning effort is not none. JSON mode sent: as for gpt-6-astra and gpt-6-sol."
   }
  }
 }
