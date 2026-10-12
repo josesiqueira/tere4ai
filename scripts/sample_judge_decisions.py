@@ -222,7 +222,7 @@ def _alignment_item_fields(
     """What an alignment item adds (spec G D-G86 (4)): the note of an older
     run, the definitions its judge read, and the two texts of the judge's
     message, made by judge_texts over the source text the command resolves
-    (R19, provisional, awaiting Jose; R28)."""
+    (R19, Jose's decision of 2026-10-12, "Full texts (Recommended)"; R28)."""
     fields: dict[str, Any] = {}
     if "proposed_relation_type" not in content:
         fields["relation_type_note"] = RELATION_TYPE_NOTE
