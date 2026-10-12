@@ -15,12 +15,17 @@ for every max_in_flight:
   results in the items' order;
 - an exception in an item stops the starting of new items; the items in
   flight are waited for and their results handed on; then the exception of
-  the earliest failing item in the items' order is raised;
+  the earliest failing item in the items' order is raised; an exception
+  raised by on_result for a later item does not hide an earlier item's
+  failure, which is raised from it;
 - a first interrupt (KeyboardInterrupt in the calling thread, which SIGTERM
   and SIGHUP become under signals_as_interrupt) also stops the starting,
   says so on standard error, waits for the items in flight, hands their
   results on and is raised; a second interrupt while waiting is raised at
-  once, naming the calls left in flight, which are not counted.
+  once, stating how many calls were left in flight, which are not counted;
+- an item counts as in flight from the moment its thread's start() returns
+  until its outcome is stored; a thread whose start() an interrupt cut
+  short never calls work, so no call runs that the wait does not count.
 
 max_in_flight 1 is the loop each runner had before B164: the items run in
 the calling thread, one after the other, with no thread at all.
@@ -93,19 +98,32 @@ def _run_on_threads(items: list[Any], work: Callable[[Any], Any], limit: int,
                     on_result: Callable[[int, Any], None] | None) -> list[Any]:
     # A worker stores its outcome in a dict (one store, atomic under the GIL)
     # and only then puts a wake-up token on the queue. What is in flight is
-    # worked out from the threads started and the outcomes stored, never from
+    # worked out from the threads released and the outcomes stored, never from
     # a counter changed after a dequeue, so an interrupt landing between two
     # statements of this thread cannot lose a finished item.
+    #
+    # A new thread first waits at its gate. The calling thread notes it as
+    # released only once start() has returned, and only then opens the gate
+    # with go[index] True. An interrupt inside start() (the new thread may be
+    # launched and not yet alive) leaves the thread unreleased: every gate
+    # still closed is then opened with go False, so that thread returns
+    # without calling work, and no call is ever made that the wait does not
+    # count (final review F1).
     wake: queue.SimpleQueue[int] = queue.SimpleQueue()
     outcomes: dict[int, tuple[bool, Any]] = {}
-    threads: list[threading.Thread] = []
+    gates: list[threading.Event] = []
+    go: dict[int, bool] = {}
+    released = 0  # threads 0 to released - 1 have started and may call work
     failed = threading.Event()
     results: list[Any] = [None] * len(items)
     handed = 0
     handing = False  # True while an item is being handed on, so an interrupt there is seen
     failure: tuple[int, BaseException] | None = None
 
-    def run_one(index: int) -> None:
+    def run_one(index: int, gate: threading.Event) -> None:
+        gate.wait()
+        if not go[index]:
+            return  # its start was cut short by an interrupt: never run, never counted
         try:
             outcome = (True, work(items[index]))
         except BaseException as exc:  # handed to the calling thread, which raises it
@@ -115,7 +133,7 @@ def _run_on_threads(items: list[Any], work: Callable[[Any], Any], limit: int,
         wake.put(index)
 
     def running() -> int:
-        return sum(1 for index, thread in enumerate(threads) if index not in outcomes and thread.is_alive())
+        return sum(1 for index in range(released) if index not in outcomes)
 
     def wait_for_wake() -> None:
         try:
@@ -133,13 +151,23 @@ def _run_on_threads(items: list[Any], work: Callable[[Any], Any], limit: int,
             if ok:
                 results[index] = value
                 if on_result is not None:
-                    on_result(index, value)
+                    try:
+                        on_result(index, value)
+                    except Exception as exc:
+                        # an earlier item's failure is the one one at a time
+                        # would have raised (final review F3)
+                        if failure is not None:
+                            raise failure[1] from exc
+                        raise
             elif failure is None:
                 failure = (index, value)
             handing = False
 
     def wait_for_running() -> None:
         try:
+            for index, gate in enumerate(gates):  # every thread created gets its answer
+                go.setdefault(index, index < released)
+                gate.set()
             while running():
                 wait_for_wake()
         except KeyboardInterrupt as again:
@@ -149,16 +177,21 @@ def _run_on_threads(items: list[Any], work: Callable[[Any], Any], limit: int,
     try:
         while True:
             hand_on()
-            while (not failed.is_set() and len(threads) < len(items) and running() < limit
-                   and len(threads) - handed < 2 * limit):
-                index = len(threads)
-                thread = threading.Thread(target=run_one, args=(index,), name=f"model-call-{index}", daemon=True)
-                threads.append(thread)
+            while (not failed.is_set() and len(gates) < len(items) and running() < limit
+                   and len(gates) - handed < 2 * limit):
+                index = len(gates)
+                gate = threading.Event()
+                thread = threading.Thread(target=run_one, args=(index, gate), name=f"model-call-{index}",
+                                          daemon=True)
+                gates.append(gate)
                 thread.start()
+                released = index + 1
+                go[index] = True
+                gate.set()
             if running() == 0:
                 hand_on()
                 # nothing in flight: done only when nothing is left to start
-                if failed.is_set() or len(threads) == len(items):
+                if failed.is_set() or len(gates) == len(items):
                     break
                 continue
             wait_for_wake()

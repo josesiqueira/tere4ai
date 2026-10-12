@@ -13,7 +13,7 @@ import time
 from tere4ai.align_hleg import pipeline
 from tere4ai.align_hleg.hleg_source import load_pair
 from tere4ai.align_hleg.pipeline import align_norms
-from tere4ai.extract_norms.model_clients import FakeClient, InferenceBackendUnavailable
+from tere4ai.extract_norms.model_clients import FakeClient, InferenceBackendUnavailable, _new_usage
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
 
@@ -82,7 +82,10 @@ def _judge_script():
 
 
 class _Timed(FakeClient):
-    """Replies take longer for earlier norms; counts the calls running at once."""
+    """Replies take longer for earlier norms; counts the calls running at once. Metered
+    (final review F5): each reply counts one call, its prompt's characters as input
+    tokens and its reply's as output tokens, under the stub's lock; a stopped call counts
+    nothing."""
 
     sampling = temperature = "N/A"
     effort = "high"
@@ -94,6 +97,7 @@ class _Timed(FakeClient):
         self.delay = delay
         self._gauge = threading.Lock()
         self.running = self.most = 0
+        self._usage = _new_usage()
 
     def complete(self, system, user):
         norm_id = next(n for n in ORDER if f"Norm id: {n}\n" in user)
@@ -106,11 +110,17 @@ class _Timed(FakeClient):
             self.running -= 1
         if norm_id == self.stop_on:
             raise InferenceBackendUnavailable(6, "HTTP 529")
-        return super().complete(system, user)
+        reply = super().complete(system, user)
+        with self._gauge:
+            for key, count in (("calls", 1), ("requests_sent", 1), ("replies_with_usage", 1),
+                               ("input_tokens", len(system) + len(user)), ("output_tokens", len(reply))):
+                self._usage[key] += count
+        return reply
 
     @property
     def usage(self):
-        return {}
+        with self._gauge:
+            return dict(self._usage)
 
 
 def _untimed(value):
@@ -124,8 +134,9 @@ def _untimed(value):
     return value
 
 
-def _direct(max_in_flight, tmp_path, delay=0.002):
-    generator, judge = _Timed(_generator_script(), "g", delay=delay), _Timed(_judge_script(), "j", delay=delay)
+def _direct(max_in_flight, tmp_path, delay=0.002, judge_script=None):
+    generator = _Timed(_generator_script(), "g", delay=delay)
+    judge = _Timed(judge_script or _judge_script(), "j", delay=delay)
     log = tmp_path / f"alignment_log_{max_in_flight}.jsonl"
     result = align_norms(NORMS, HLEG, generator, judge, prompt_version="v2", log_path=log,
                          build_id="build-mock-b164", max_in_flight=max_in_flight)
@@ -147,9 +158,34 @@ def test_eight_calls_in_flight_give_the_result_of_one_at_a_time_byte_for_byte(tm
     assert (len(g1.calls), len(j1.calls)) == (11, 10)
     assert sorted(g8.calls) == sorted(g1.calls) and sorted(j8.calls) == sorted(j1.calls)
     assert g1.most == j1.most == 1 and 1 < g8.most <= 8 and j8.most <= 8
+    # the clients' usage: the same counts, whatever the order the calls finished in
+    assert (g1.usage["calls"], j1.usage["calls"]) == (11, 10)
+    assert (g8.usage, j8.usage) == (g1.usage, j1.usage)
     lines1 = [json.dumps(_untimed(json.loads(line))) for line in log1.read_text().splitlines()]
     lines8 = [json.dumps(_untimed(json.loads(line))) for line in log8.read_text().splitlines()]
     assert len(lines1) == 21 and sorted(lines8) == sorted(lines1)
+
+
+def test_the_no_clear_relation_guard_holds_at_eight(tmp_path):
+    """Final review F13 (B163's guard above setting 1): the judge pairs no_clear_relation
+    with an acceptance on norm 9 and with needs_human_review on norm 1; under v2 both go to
+    human review with zero scores and the judge's verdict and rationale in the reason,
+    at 8 as at 1."""
+    script = _judge_script()
+    script[f"Norm id: {NORMS[8]['norm_id']}\n"] = _judged("accepted", "no_clear_relation")
+    script[f"Norm id: {NORMS[0]['norm_id']}\n"] = _judged("needs_human_review", "no_clear_relation")
+    one, _, _, _ = _direct(1, tmp_path, judge_script=dict(script))
+    eight, g8, _, _ = _direct(8, tmp_path, judge_script=dict(script))
+    assert 1 < g8.most <= 8
+    assert json.dumps(_untimed(eight), ensure_ascii=False) == json.dumps(_untimed(one), ensure_ascii=False)
+    for norm, said in ((NORMS[8], "accepted"), (NORMS[0], "needs_human_review")):
+        guarded = [a for a in eight["assertions"] if a["source_norm_id"] == norm["norm_id"]]
+        assert guarded
+        for assertion in guarded:
+            assert assertion["judge_verdict"] == "needs_human_review"
+            assert f"verdict {said!r} with corrected_relation_type no_clear_relation" in assertion["rationale"]
+            assert f"scripted {said}" in assertion["rationale"]
+            assert set(assertion["scores"].values()) == {0}
 
 
 def test_instant_replies_at_eight_give_the_result_of_one_at_a_time(tmp_path):
@@ -163,7 +199,7 @@ def test_instant_replies_at_eight_give_the_result_of_one_at_a_time(tmp_path):
     assert sorted(lines8) == sorted(lines1)
 
 
-def _command(tmp_path, monkeypatch, max_in_flight, stop_on=None):
+def _command(tmp_path, monkeypatch, max_in_flight, stop_on=None, norms=NORMS):
     import tere4ai.align_hleg.__main__ as cli
 
     pair = load_pair()
@@ -174,7 +210,7 @@ def _command(tmp_path, monkeypatch, max_in_flight, stop_on=None):
 
     norms_path, layer1 = tmp_path / "norms_mock.json", tmp_path / "layer1.json"
     if not norms_path.exists():
-        norms_path.write_text(json.dumps({"build": {"build_id": "build-mock-b164"}, "norms": NORMS}), encoding="utf-8")
+        norms_path.write_text(json.dumps({"build": {"build_id": "build-mock-b164"}, "norms": norms}), encoding="utf-8")
         layer1.write_text(json.dumps({"build": {}, "edges": [], "nodes": [
             {"id": f"srcfile:{TEXT_FILE}", "layer": 0, "type": "SourceFile", "file": TEXT_FILE, "sha256": pair.text_sha256},
             {"id": f"srcfile:{RECORD_FILE}", "layer": 0, "type": "SourceFile", "file": RECORD_FILE,
@@ -212,6 +248,10 @@ def test_the_command_at_eight_writes_the_alignments_file_and_record_of_one_at_a_
     assert most[1] == 1 and 1 < most[8] <= 8
     (payload1, ex1), (payload8, ex8) = files[1], files[8]
     assert json.dumps(_untimed(payload8), ensure_ascii=False) == json.dumps(_untimed(payload1), ensure_ascii=False)
+    # the usage written in the alignments file and in the record: equal, and not empty (F5)
+    assert payload1["build"]["alignment_usage"]["generator"]["calls"] == 11
+    assert payload1["build"]["alignment_usage"]["judge"]["calls"] == 10
+    assert payload8["build"]["alignment_usage"] == payload1["build"]["alignment_usage"] == ex1["usage"] == ex8["usage"]
     assert len(payload8["mapping_runs"]) == 3  # batches of 4 over 12 norms
     assert (ex1["config"], ex8["config"]) == ({"prompt_version": "v2", "batch_size": 4, "max_in_flight": 1},
                                               {"prompt_version": "v2", "batch_size": 4, "max_in_flight": 8})
@@ -221,12 +261,23 @@ def test_the_command_at_eight_writes_the_alignments_file_and_record_of_one_at_a_
 
 def test_a_run_stopped_at_eight_resumes_at_two(tmp_path, monkeypatch):
     """Review Focus 2: norm 5's judge call stops the second batch (norms 5 to 8), which
-    is not checkpointed; a resume at another setting finishes the run."""
+    is not checkpointed; a resume at another setting finishes the run. The alignments file
+    equals the uninterrupted run's but for its usage: the resumed invocation records the
+    usage of the calls it made, which leaves out the inherited first batch, so it equals a
+    run over norms 5 to 12 alone (final review F5)."""
     reference = tmp_path / "reference"
     reference.mkdir()
     cli, argv, out, _ = _command(reference, monkeypatch, 1)
     assert cli.main(argv) == 0
-    expected = json.dumps(_untimed(json.loads(out.read_text(encoding="utf-8"))), ensure_ascii=False)
+    payload = _untimed(json.loads(out.read_text(encoding="utf-8")))
+    total_usage = payload["build"].pop("alignment_usage")
+    expected = json.dumps(payload, ensure_ascii=False)
+    tail = tmp_path / "norms-5-to-12"
+    tail.mkdir()
+    cli, argv, out, _ = _command(tail, monkeypatch, 1, norms=NORMS[4:])
+    assert cli.main(argv) == 0
+    usage_tail = json.loads(out.read_text(encoding="utf-8"))["build"]["alignment_usage"]
+    assert 0 < usage_tail["generator"]["calls"] < total_usage["generator"]["calls"]
 
     stopped = tmp_path / "stopped"
     stopped.mkdir()
@@ -236,7 +287,10 @@ def test_a_run_stopped_at_eight_resumes_at_two(tmp_path, monkeypatch):
     assert [json.loads(line)["batch"] for line in ckpt.read_text().splitlines()] == [f"batch:0:{NORMS[0]['norm_id']}"]
     cli, argv, out, _ = _command(stopped, monkeypatch, 2)
     assert cli.main([*argv, "--resume"]) == 0
-    assert json.dumps(_untimed(json.loads(out.read_text(encoding="utf-8"))), ensure_ascii=False) == expected
+    resumed_payload = _untimed(json.loads(out.read_text(encoding="utf-8")))
+    assert resumed_payload["build"].pop("alignment_usage") == usage_tail
+    assert json.dumps(resumed_payload, ensure_ascii=False) == expected
     first, resumed = _executions(stopped)
     assert (first["config"]["max_in_flight"], resumed["config"]["max_in_flight"]) == (8, 2)
     assert resumed["inherited_keys"] == [f"batch:0:{NORMS[0]['norm_id']}"]
+    assert resumed["usage"] == usage_tail

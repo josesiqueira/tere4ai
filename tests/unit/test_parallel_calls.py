@@ -249,9 +249,68 @@ def test_an_interrupt_inside_on_result_hands_no_later_item_on():
     assert handed == [0, 1]
 
 
+def test_an_interrupt_while_a_thread_is_starting_leaves_no_call_unaccounted(monkeypatch, capsys):
+    """Final review F1: a real SIGINT lands inside Thread.start() of item 2 while the new
+    thread's bootstrap is still delayed, so the thread is not yet alive. The pool may not
+    return while that thread can still make its call: every call made is handed on."""
+    ran, handed = [], []
+    lock = threading.Lock()
+    bootstrap = threading.Thread._bootstrap
+
+    def slow_bootstrap(self):
+        if self.name == "model-call-2":
+            os.kill(os.getpid(), signal.SIGINT)  # the caller is now waiting inside start()
+            time.sleep(0.3)
+        bootstrap(self)
+
+    monkeypatch.setattr(threading.Thread, "_bootstrap", slow_bootstrap)
+
+    def work(index):
+        with lock:
+            ran.append(index)
+        time.sleep(0.05)
+        return index
+
+    with pytest.raises(KeyboardInterrupt):
+        run_in_flight(list(range(8)), work, max_in_flight=4, on_result=lambda i, r: handed.append(i))
+    time.sleep(0.6)  # past the delayed bootstrap: a thread left behind would have run by now
+    assert sorted(ran) == handed == [0, 1]
+    assert "interrupted: waiting for 2 model call(s) in flight to return" in capsys.readouterr().err
+
+
+def test_a_later_items_on_result_error_does_not_hide_an_earlier_items_failure():
+    """Final review F3: item 0's call fails, item 1's checkpoint write fails; the earliest
+    failure in the items' order is the one raised, as one at a time would raise it."""
+    item_1_done = threading.Event()
+
+    class Unavailable(Exception):
+        pass
+
+    def work(index):
+        if index == 0:
+            assert item_1_done.wait(timeout=5)
+            raise Unavailable("inference backend unavailable after 6 attempts: HTTP 529")
+        if index == 1:
+            item_1_done.set()
+        return index
+
+    def on_result(index, result):
+        if index == 1:
+            raise OSError("checkpoint not writable")
+
+    for limit in (1, 2, 8):
+        item_1_done.clear()
+        if limit == 1:
+            item_1_done.set()
+        with pytest.raises(Unavailable, match="HTTP 529"):
+            run_in_flight(list(range(4)), work, max_in_flight=limit, on_result=on_result)
+
+
 @pytest.mark.parametrize("limit", [1, 2, 8, 16])
 def test_instant_work_over_more_than_twice_the_setting_items_is_never_cut_short(limit):
-    """Every call can finish before the loop looks again; no item may be skipped."""
+    """Every call can finish before the loop looks again; no item may be skipped. Setting 1
+    runs the sequential branch of run_in_flight (R1), which has no thread loop; 2, 8 and 16
+    run the thread loop."""
     items = list(range(40))
     for _ in range(200):
         handed = []

@@ -194,7 +194,8 @@ def main(argv: list[str] | None = None) -> int:
     # item the benchmark no longer lists, in the file's order; a run with one call at a
     # time, whose checkpoint is always a prefix, writes the order it always wrote
     listed = [i["id"] for i in items if i["id"] in done]
-    order = list(dict.fromkeys(listed + [k for k in done if k not in set(listed)]))
+    seen = set(listed)
+    order = listed + [k for k in done if k not in seen]
     payload = {
         "provenance": "llm_elicited",
         "elicitor_model": cfg.generator_model,

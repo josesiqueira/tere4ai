@@ -20,11 +20,21 @@ ITEMS = [{"id": f"gold:cls-{n:02d}", "prompt": "p", "gold": "high"} for n in ran
 
 
 class Gauge:
-    """The most generator calls running at once."""
+    """The most generator calls running at once (the same interface as the elicitation
+    test's Gauge: used as `with gauge:` around one call, read as `gauge.most`)."""
 
     def __init__(self):
         self.lock = threading.Lock()
         self.running = self.most = 0
+
+    def __enter__(self):
+        with self.lock:
+            self.running += 1
+            self.most = max(self.most, self.running)
+
+    def __exit__(self, *exc):
+        with self.lock:
+            self.running -= 1
 
 
 def _stub(model, gauge=None, pause=0.002):
@@ -33,14 +43,8 @@ def _stub(model, gauge=None, pause=0.002):
 
     def create(**kwargs):
         item_id = kwargs["messages"][1]["content"]
-        if gauge is not None:
-            with gauge.lock:
-                gauge.running += 1
-                gauge.most = max(gauge.most, gauge.running)
-        time.sleep(pause * (24 - int(item_id[-2:])))
-        if gauge is not None:
-            with gauge.lock:
-                gauge.running -= 1
+        with gauge or Gauge():
+            time.sleep(pause * (24 - int(item_id[-2:])))
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=f"answer {item_id}"))],
                                usage=SimpleNamespace(prompt_tokens=len(item_id), completion_tokens=2))
 

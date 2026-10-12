@@ -32,7 +32,8 @@ def _cfg():
 
 
 class Gauge:
-    """The most elicitations running at once."""
+    """The most elicitations running at once (the same interface as the E6 test's Gauge:
+    used as `with gauge:` around one call, read as `gauge.most`)."""
 
     def __init__(self):
         self.lock = threading.Lock()
