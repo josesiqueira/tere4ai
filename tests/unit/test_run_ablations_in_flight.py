@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,13 +19,28 @@ ROOT = Path(__file__).resolve().parents[2]
 ITEMS = [{"id": f"gold:cls-{n:02d}", "prompt": "p", "gold": "high"} for n in range(1, 24)]
 
 
-def _stub(model):
+class Gauge:
+    """The most generator calls running at once."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.running = self.most = 0
+
+
+def _stub(model, gauge=None, pause=0.002):
     client = OpenAIGenerator.__new__(OpenAIGenerator)
     client.model, client.usage = model, _new_usage()
 
     def create(**kwargs):
         item_id = kwargs["messages"][1]["content"]
-        time.sleep(0.002 * (24 - int(item_id[-2:])))
+        if gauge is not None:
+            with gauge.lock:
+                gauge.running += 1
+                gauge.most = max(gauge.most, gauge.running)
+        time.sleep(pause * (24 - int(item_id[-2:])))
+        if gauge is not None:
+            with gauge.lock:
+                gauge.running -= 1
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=f"answer {item_id}"))],
                                usage=SimpleNamespace(prompt_tokens=len(item_id), completion_tokens=2))
 
@@ -32,7 +48,7 @@ def _stub(model):
     return client
 
 
-def _runner(monkeypatch, run_dir):
+def _runner(monkeypatch, run_dir, gauge=None, pause=0.002):
     spec = importlib.util.spec_from_file_location("run_ablations", ROOT / "scripts" / "run_ablations.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -53,7 +69,7 @@ def _runner(monkeypatch, run_dir):
         return strategy
 
     monkeypatch.setattr(mod.strategies, "build_strategy", build)
-    monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: _stub("g"))
+    monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: _stub("g", gauge, pause))
     monkeypatch.setattr(mod, "AnthropicJudge", lambda cfg, **kw: _stub("j"))
     monkeypatch.setattr(mod, "load_model_config", lambda: object())
     monkeypatch.setattr(mod, "RESULTS_DIR", run_dir / "results")
@@ -61,20 +77,23 @@ def _runner(monkeypatch, run_dir):
 
 
 def test_eight_in_flight_write_the_summary_and_checkpoint_of_one_at_a_time(tmp_path, monkeypatch, capsys):
-    runs = {}
+    runs, most = {}, {}
     for setting in (1, 8):
         run_dir = tmp_path / f"at-{setting}"
         run_dir.mkdir()
-        mod = _runner(monkeypatch, run_dir)
+        gauge = Gauge()
+        mod = _runner(monkeypatch, run_dir, gauge)
         results = run_dir / "results"
         argv = ["--dump-dir", str(run_dir), "--checkpoint", str(results / "ablation_checkpoint.jsonl"),
                 "--summary", str(results / "ablation_summary.json"), "--features", str(run_dir / "no_features.json"),
                 "--max-in-flight", str(setting)]
         assert mod.main(argv) == 0
         assert f"calls in flight: at most {setting} (--max-in-flight)\n" in capsys.readouterr().out
+        most[setting] = gauge.most
         (record,) = [r for r in EvaluationRecordStore(run_dir, create=False).list_records() if not r.get("unreadable")]
         runs[setting] = ((results / "ablation_summary.json").read_bytes(),
                          (results / "ablation_checkpoint.jsonl").read_bytes(), record)
+    assert most[1] == 1 and 1 < most[8] <= 8  # the setting reaches the calls
     (summary1, checkpoint1, record1), (summary8, checkpoint8, record8) = runs[1], runs[8]
     assert summary8 == summary1 and checkpoint8 == checkpoint1
     units = [json.loads(line) for line in checkpoint1.decode().splitlines()]
@@ -85,3 +104,19 @@ def test_eight_in_flight_write_the_summary_and_checkpoint_of_one_at_a_time(tmp_p
     for key in ("usage", "counts"):
         assert record8[key] == record1[key], key
     assert record8["outcome"]["completed_items"] == record1["outcome"]["completed_items"]
+
+
+def test_instant_work_writes_the_same_files_at_eight_as_at_one(tmp_path, monkeypatch):
+    written = {}
+    for setting in (1, 8):
+        run_dir = tmp_path / f"instant-{setting}"
+        run_dir.mkdir()
+        mod = _runner(monkeypatch, run_dir, pause=0)
+        results = run_dir / "results"
+        argv = ["--dump-dir", str(run_dir), "--checkpoint", str(results / "ablation_checkpoint.jsonl"),
+                "--summary", str(results / "ablation_summary.json"), "--features", str(run_dir / "no_features.json"),
+                "--max-in-flight", str(setting)]
+        assert mod.main(argv) == 0
+        written[setting] = ((results / "ablation_summary.json").read_bytes(),
+                            (results / "ablation_checkpoint.jsonl").read_bytes())
+    assert written[8] == written[1]

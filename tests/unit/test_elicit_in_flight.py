@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import threading
 import time
 from pathlib import Path
 
@@ -30,7 +31,24 @@ def _cfg():
                        generator_parameters=declared("g", "openai"), judge_parameters=declared("claude-j", "anthropic"))
 
 
-def _script(monkeypatch, fail_on=None):
+class Gauge:
+    """The most elicitations running at once."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.running = self.most = 0
+
+    def __enter__(self):
+        with self.lock:
+            self.running += 1
+            self.most = max(self.most, self.running)
+
+    def __exit__(self, *exc):
+        with self.lock:
+            self.running -= 1
+
+
+def _script(monkeypatch, fail_on=None, gauge=None, pause=0.003):
     spec = importlib.util.spec_from_file_location("elicit_benchmark_features",
                                                   ROOT / "scripts" / "elicit_benchmark_features.py")
     mod = importlib.util.module_from_spec(spec)
@@ -43,7 +61,8 @@ def _script(monkeypatch, fail_on=None):
 
     def elicit(description, generator, *, dump, snapshots_dir, prompt_version):
         number = int(description.rsplit(" ", 1)[1])
-        time.sleep(0.003 * (8 - number))  # later scenarios answer first
+        with gauge or Gauge():
+            time.sleep(pause * (8 - number))  # later scenarios answer first
         if description == fail_on:
             raise InferenceBackendUnavailable(6, "HTTP 529")
         return Elicitation(features={"flag": number % 2 == 0}, quotes={}, dropped=[],
@@ -64,16 +83,19 @@ def _printed_items(printed):
 
 
 def test_four_in_flight_write_the_checkpoint_and_the_file_of_one_at_a_time(tmp_path, monkeypatch, capsys):
-    outs = {}
+    outs, most = {}, {}
     for setting in (1, 4):
         out = tmp_path / f"features_{setting}.json"
-        assert _script(monkeypatch).main(["--out", str(out), "--max-in-flight", str(setting)]) == 0
+        gauge = Gauge()
+        assert _script(monkeypatch, gauge=gauge).main(["--out", str(out), "--max-in-flight", str(setting)]) == 0
+        most[setting] = gauge.most
         printed = capsys.readouterr().out
         assert f"calls in flight: at most {setting} (--max-in-flight)\n" in printed
         assert "  bench:short: SKIPPED (no text)\n" in printed
         outs[setting] = (_payload(out), _printed_items(printed))
     ((setting1, file1), items1), ((setting4, file4), items4) = outs[1], outs[4]
     assert (setting1, setting4) == (1, 4) and file4 == file1
+    assert most[1] == 1 and 1 < most[4] <= 4  # the setting reaches the calls
     assert items1 == items4 == [i["id"] for i in ITEMS]
     assert list(json.loads(file1)["features_by_item"]) == [i["id"] for i in ITEMS]
 
@@ -92,3 +114,12 @@ def test_a_stop_with_a_gap_reruns_to_the_uninterrupted_file(tmp_path, monkeypatc
     assert kept == [i["id"] for i in ITEMS if i["id"] in kept]
     assert _script(monkeypatch).main(["--out", str(out), "--max-in-flight", "4"]) == 0
     assert _payload(out)[1] == _payload(reference)[1]
+
+
+def test_instant_work_writes_the_same_file_at_four_as_at_one(tmp_path, monkeypatch):
+    payloads = {}
+    for setting in (1, 4):
+        out = tmp_path / f"instant_{setting}.json"
+        assert _script(monkeypatch, pause=0).main(["--out", str(out), "--max-in-flight", str(setting)]) == 0
+        payloads[setting] = _payload(out)
+    assert payloads[4][1] == payloads[1][1]
