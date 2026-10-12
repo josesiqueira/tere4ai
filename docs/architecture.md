@@ -1844,8 +1844,8 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   alignment stats count, for each of the seven requirements, the
   assertions, the accepted ones and the distinct norm and requirement
   pairs, accepted and in all. The E1 label sheet shows an alignment as the
-  judge received it (the claimed type, the definitions and, provisional
-  until the owner answers, spec G D-G86 (4) (d), the full legal text and
+  judge received it (the claimed type, the definitions and, the owner's
+  decision of 2026-10-12, spec G D-G86 (4) (d), the full legal text and
   HLEG description), the judge's correction only under the folded
   verdict, every item in one order, by the sha256 of its decision id,
   that does not follow the verdict, and every item under an opaque id,
