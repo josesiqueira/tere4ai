@@ -54,6 +54,13 @@ PROMPT_NAME = "elicit_features"
 # B160: v8 is v7 with the fact deployer_actor renamed deployer_kind, the
 # version of record for B74.
 DEFAULT_PROMPT_VERSION = "v8"
+MIN_QUOTE_WORDS = 3
+# Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
+NESTED_FACT_FIELDS = ("flags", "deployer")
+
+_schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+_validator = Draft202012Validator(_schema)
+
 # B160 ruling R6: the fact's name before B160. Live input carrying it is
 # refused by the schema; only features_of_record reads it, in facts stored
 # before B160. Deleted with the pre-B74 records after B74.
@@ -71,13 +78,6 @@ def features_of_record(features: dict) -> dict:
     renamed = {k: v for k, v in features.items() if k != FACT_NAME_BEFORE_B160}
     renamed.setdefault("deployer_kind", features[FACT_NAME_BEFORE_B160])
     return renamed
-
-MIN_QUOTE_WORDS = 3
-# Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
-NESTED_FACT_FIELDS = ("flags", "deployer")
-
-_schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-_validator = Draft202012Validator(_schema)
 
 
 @dataclass(frozen=True)

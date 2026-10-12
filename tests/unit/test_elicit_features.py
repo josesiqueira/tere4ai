@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tere4ai.elicit_features import elicit
-from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
+from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION, FACT_NAME_BEFORE_B160
 from tere4ai.extract_norms.model_clients import FakeClient
 
 DESC = "A chatbot that answers shopper questions and tracks their mood at work."
@@ -663,6 +663,28 @@ def test_null_deployer_key_is_unknown_not_a_schema_violation(dump):
     assert len(gen.systems) == 1, "no retry"
     assert result.dropped == []
     assert "deployer" not in result.features
+
+
+def test_a_reply_naming_the_fact_by_its_old_key_is_cleaned_away(dump):
+    """B160 ruling R7: a reply that names the deployer's legal form by its
+    name before B160 is cleaned to the schema's fields before validation:
+    the fact is dropped as unknown, never read as deployer_kind, and the
+    reply is accepted on the first attempt."""
+    quote = "A chatbot on our bank's website"
+    result, gen = _run(
+        {"features": {FACT_NAME_BEFORE_B160: "private_company",
+                      "flags": {"interacts_with_natural_persons": True}},
+         "quotes": {FACT_NAME_BEFORE_B160: "our bank's website",
+                    "flags.interacts_with_natural_persons": quote}},
+        dump,
+    )
+    assert len(gen.systems) == 1, "no retry"
+    assert result.features["flags"] == {"interacts_with_natural_persons": True}
+    for key in (FACT_NAME_BEFORE_B160, "deployer_kind"):
+        assert key not in result.features
+        assert key not in result.quotes
+    assert all(FACT_NAME_BEFORE_B160 not in d["path"] for d in result.dropped)
+    assert any("attempt 1" in n for n in result.notes)
 
 
 LOAN = "The bank scores loan applicants, then a clerk decides."

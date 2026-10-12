@@ -16,10 +16,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from tere4ai.elicit_features.elicitor import features_of_record
 from tere4ai.mcp_server.classify import classify_ai_system
 from tere4ai.mcp_server.requirements import get_applicable_requirements
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def envelope_of(line: dict, dump: dict, norms: dict) -> dict:
+    """The envelope the tool answers today for one recorded line. A recorded
+    request keeps its facts as recorded; classify reads them through
+    features_of_record, since a session recorded before B160 names the
+    deployer's legal form by its old key (B160 ruling R6)."""
+    if line["tool"] == "classify_ai_system":
+        return classify_ai_system(features_of_record(line["request"]["features"]), dump)
+    return get_applicable_requirements(line["request"]["classification"], norms, dump)
 
 
 def main() -> int:
@@ -32,10 +43,7 @@ def main() -> int:
             if not raw.strip():
                 continue
             line = json.loads(raw)
-            if line["tool"] == "classify_ai_system":
-                line["envelope"] = classify_ai_system(line["request"]["features"], dump)
-            else:
-                line["envelope"] = get_applicable_requirements(line["request"]["classification"], norms, dump)
+            line["envelope"] = envelope_of(line, dump, norms)
             lines.append(json.dumps(line, ensure_ascii=False, sort_keys=True))
         session.write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"re-recorded {session.name}: {len(lines)} lines")

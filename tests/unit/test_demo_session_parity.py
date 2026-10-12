@@ -12,6 +12,7 @@ alone, matching the module-level signature in tere4ai.mcp_server.classify
 internally); this test loads the same on-disk dump the live server uses.
 """
 
+import importlib.util
 import json
 from pathlib import Path
 
@@ -105,3 +106,22 @@ def test_every_recorded_session_replays_identically(session_path, dump, norms):
         replayed += 1
 
     assert replayed == len(lines)
+
+
+@pytest.mark.skipif(not NORMS_PATH.is_file(), reason="norms_core.json dump not built")
+def test_the_rerecord_script_reads_a_recorded_request_through_features_of_record(dump, norms):
+    """B160 ruling R6: scripts/rerecord_demo_sessions.py computes each
+    envelope from the request as recorded, read through features_of_record,
+    so re-recording the spamguard session (recorded before B160) writes the
+    envelope it recorded, never a refusal. Nothing is written here."""
+    spec = importlib.util.spec_from_file_location(
+        "rerecord_demo_sessions", ROOT / "scripts" / "rerecord_demo_sessions.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    lines = [json.loads(line) for line in FIXTURE.read_text().splitlines() if line.strip()]
+    classify_lines = [line for line in lines if line["tool"] == "classify_ai_system"]
+    assert classify_lines
+    for line in classify_lines:
+        envelope = mod.envelope_of(line, dump, norms)
+        assert envelope["status"] != "rejected_as_unsupported"
+        assert _mask(envelope) == _mask(line["envelope"])
