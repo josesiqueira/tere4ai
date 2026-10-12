@@ -725,5 +725,9 @@ def test_the_alignment_estimate_reads_the_default_judge_prompt(tmp_path):
     lines = est.alignment_lines(accepted, hleg, assertions, [], accepted_norms=1, tmp_dir=tmp_path)
     v2 = (ROOT / "prompts" / "judge_alignment" / "v2.md").read_text(encoding="utf-8")
     candidate = {k: assertions[0][k] for k in ("target_id", "relation_type", "source_quote", "target_quote", "rationale")}
-    one = len(v2) + len(est.align_pipeline._judge_user_message(accepted[0], hleg[0], candidate))
-    assert lines["judge"]["in_chars"] == pytest.approx(lines["judge"]["calls"] * one)
+    message = len(est.align_pipeline._judge_user_message(accepted[0], hleg[0], candidate))
+    # B163 final review F10: the estimate carries the v2 file read from disk, and not v1's text
+    v1 = (ROOT / "prompts" / "judge_alignment" / "v1.md").read_text(encoding="utf-8")
+    assert len(v1) != len(v2)
+    assert lines["judge"]["in_chars"] == pytest.approx(lines["judge"]["calls"] * (len(v2) + message))
+    assert lines["judge"]["in_chars"] != pytest.approx(lines["judge"]["calls"] * (len(v1) + message))

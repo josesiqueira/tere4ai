@@ -1,7 +1,8 @@
 """B145 (brief R16, R48, R50; A19, A20): every reader outside the served
 path reads a norm of either schema version through tere4ai.act_parties,
 and the digests that pass a norm's party to another instrument's model keep
-their key "actor" and their content byte for byte. Layer 3's v1 input is one of them; its v2 input says Addressee (B163, DEC-28)."""
+their key "actor" and their content byte for byte. Layer 3's v1 input is one of them; its v2 input says Addressee (B163,
+DEC-28)."""
 
 from __future__ import annotations
 

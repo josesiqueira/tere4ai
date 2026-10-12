@@ -30,6 +30,8 @@ POINT_A = "eu-ai-act:article-16:paragraph-1:point-a"
 AGENCY = "hleg:human-agency-and-oversight"
 ROBUSTNESS = "hleg:technical-robustness-and-safety"
 TRANSPARENCY = "hleg:transparency"
+PRIVACY = "hleg:privacy-and-data-governance"
+DIVERSITY = "hleg:diversity-non-discrimination-and-fairness"
 SOCIETAL = "hleg:societal-and-environmental-well-being"
 ACCOUNTABILITY = "hleg:accountability"
 N9, N12, N50, N50B, N50C, N50D = (f"norm:{A9}:n1", f"norm:{A12}:n1", f"norm:{A50_1}:n1", f"norm:{A50_1}:n2",
@@ -128,9 +130,17 @@ def _guard(verdict, rationale):
             f"carry (judge_alignment checks 3 and 4); the judge's rationale: {rationale}")
 
 
+# the seven requirements in the order the spread is stored and printed, written
+# out here so the test does not take its expectation from the code it checks
+HLEG_ORDER = [AGENCY, ROBUSTNESS, PRIVACY, TRANSPARENCY, DIVERSITY, SOCIETAL, ACCOUNTABILITY]
+
+
+def test_the_hleg_nodes_come_in_the_order_the_spread_is_stored():
+    assert [n["id"] for n in build_hleg_nodes(load_pair())] == HLEG_ORDER
+
+
 def _counts(**values):
-    order = [n["id"] for n in build_hleg_nodes(load_pair())]
-    return {i: values.get(i, 0) for i in order}
+    return {i: values.get(i, 0) for i in HLEG_ORDER}
 
 
 EXPECTED_STATS = {
@@ -342,6 +352,37 @@ def test_a_run_stopped_after_its_first_batch_resumes_with_v2_and_counts_the_same
     assert json.loads(out.read_text(encoding="utf-8"))["stats"] == EXPECTED_STATS
 
 
+def test_a_resume_over_a_checkpoint_without_the_spread_counts_it_from_the_assertions(tmp_path, monkeypatch):
+    """B163 final review F6: batches written before B163 lack the four spread dicts; the stats still equal
+    the counts recomputed from the merged assertions (and so an uninterrupted run's)."""
+    from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
+
+    cli, argv, out, _g, _j = _prepare(tmp_path, monkeypatch)
+    inner = cli.align_norms
+
+    def stop_on_the_second_batch(chunk, hleg, generator, judge, prompt_version="unset", build_id="adhoc"):
+        if chunk[0]["norm_id"] == N50:
+            raise InferenceBackendUnavailable(6, "HTTP 529")
+        return inner(chunk, hleg, generator, judge, prompt_version=prompt_version, build_id=build_id)
+
+    monkeypatch.setattr(cli, "align_norms", stop_on_the_second_batch)
+    assert cli.main([*argv, "--batch-size", "2"]) == 3
+    checkpoint = out.with_suffix(".checkpoint.jsonl")
+    lines = [json.loads(line) for line in checkpoint.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert lines, "the first batch is in the checkpoint"
+    spread_keys = ("assertions_by_requirement", "accepted_by_requirement", "pairs_by_requirement",
+                   "accepted_pairs_by_requirement")
+    for line in lines:
+        for key in spread_keys:
+            line["result"]["stats"].pop(key)
+    checkpoint.write_text("".join(json.dumps(line) + "\n" for line in lines), encoding="utf-8")
+    monkeypatch.setattr(cli, "align_norms", inner)
+    assert cli.main([*argv, "--batch-size", "2", "--resume"]) == 0
+    stats = json.loads(out.read_text(encoding="utf-8"))["stats"]
+    assert stats == EXPECTED_STATS
+    assert any(stats["assertions_by_requirement"].values())
+
+
 def test_a_v1_checkpoint_is_refused_by_a_v2_run(tmp_path, monkeypatch, capsys):
     """Review Focus 2: the command's stale-checkpoint refusal, exit 2."""
     from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
@@ -363,10 +404,10 @@ def test_a_v1_checkpoint_is_refused_by_a_v2_run(tmp_path, monkeypatch, capsys):
     assert len(generator.calls) == calls, "refused before any model call"
 
 
-def _sampling():
+def _sampling(monkeypatch):
     spec = importlib.util.spec_from_file_location("sample_judge_decisions", ROOT / "scripts" / "sample_judge_decisions.py")
     module = importlib.util.module_from_spec(spec)
-    sys.modules["sample_judge_decisions"] = module
+    monkeypatch.setitem(sys.modules, "sample_judge_decisions", module)
     spec.loader.exec_module(module)
     return module
 
@@ -375,7 +416,7 @@ def test_the_e1_sheet_of_the_v2_run_is_blind_and_shows_what_the_judge_read(tmp_p
     """A11 end to end: no correction under Judged content; the claimed type;
     the definitions once; the two texts equal to the judge's message; one
     order by the decision ids' sha256 (R21)."""
-    sampling = _sampling()
+    sampling = _sampling(monkeypatch)
     payload, _ex, _g, judge = _run(tmp_path, monkeypatch)
     norms = json.loads((tmp_path / "norms_core.json").read_text(encoding="utf-8"))
     layer1 = json.loads((tmp_path / "layer1.json").read_text(encoding="utf-8"))

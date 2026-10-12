@@ -199,9 +199,9 @@ def _count_spread(
 ) -> None:
     """One assertion into the four per-requirement counts (R13). A norm and
     requirement pair counts once among the pairs, however many quote pairs
-    support it (a requirement proposed twice for one norm, rule 5). A norm's
-    candidates come from one generator call, so its pairs never span two of
-    the command's batches and the batches' counts add up."""
+    support it (a requirement proposed twice for one norm, rule 5). The command
+    recounts the spread from the merged assertions (`spread_of`), so a batch
+    kept without these counts still counts."""
     stats["assertions_by_requirement"][target_id] += 1
     if accepted:
         stats["accepted_by_requirement"][target_id] += 1
@@ -210,6 +210,29 @@ def _count_spread(
         if counted and (norm_id, target_id) not in pairs:
             pairs.add((norm_id, target_id))
             stats[key][target_id] += 1
+
+
+def spread_of(assertions: list[dict[str, Any]], requirement_ids: list[str]) -> dict[str, dict[str, int]]:
+    """The four per-requirement counts (R13), recounted from assertions: the
+    command's merge calls it so a batch kept before B163 (no counts) still counts."""
+    counts = {key: {rid: 0 for rid in requirement_ids} for key in SPREAD_KEYS}
+    pairs: set[tuple[Any, str]] = set()
+    accepted_pairs: set[tuple[Any, str]] = set()
+    for assertion in assertions:
+        target_id = assertion.get("target_id")
+        if target_id not in counts["assertions_by_requirement"]:
+            continue
+        pair = (assertion.get("source_norm_id"), target_id)
+        accepted = assertion.get("judge_verdict") == "accepted"
+        counts["assertions_by_requirement"][target_id] += 1
+        if accepted:
+            counts["accepted_by_requirement"][target_id] += 1
+        for key, seen, counted in (("pairs_by_requirement", pairs, True),
+                                   ("accepted_pairs_by_requirement", accepted_pairs, accepted)):
+            if counted and pair not in seen:
+                seen.add(pair)
+                counts[key][target_id] += 1
+    return counts
 
 
 def _mechanical_judge_run(

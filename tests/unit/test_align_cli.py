@@ -601,7 +601,12 @@ def test_the_command_prints_the_spread_per_requirement(tmp_path, monkeypatch, ca
 
     def spread(chunk, hleg, generator, judge, prompt_version="v2", build_id="adhoc"):
         n = len(chunk)
-        return {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {
+        # B163 final review F6: the command recounts the spread from the assertions, so the stub returns
+        # two per norm on hleg:a (one accepted, one not): the same counts as the stats below
+        assertions = [{"id": f"align:{c['norm_id']}:{i}", "source_norm_id": c["norm_id"], "target_id": "hleg:a",
+                       "judge_verdict": verdict}
+                      for c in chunk for i, verdict in enumerate(("accepted", "rejected"))]
+        return {"assertions": assertions, "mapping_runs": [], "judge_runs": [], "stats": {
             "norms_total": n, "verdicts": {"accepted": n}, "mechanical_rejects": [], "norms_failed": [],
             "assertions_by_requirement": {"hleg:a": 2 * n, "hleg:b": 0},
             "accepted_by_requirement": {"hleg:a": n, "hleg:b": 0},
@@ -609,6 +614,7 @@ def test_the_command_prints_the_spread_per_requirement(tmp_path, monkeypatch, ca
             "accepted_pairs_by_requirement": {"hleg:a": n, "hleg:b": 0}}}
 
     monkeypatch.setattr(cli, "align_norms", spread)
+    monkeypatch.setattr(cli, "build_hleg_nodes", lambda pair: [{"id": "hleg:a"}, {"id": "hleg:b"}])
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out), "--batch-size", "2"]) == 0
     printed = capsys.readouterr().out
     assert ("per requirement: assertions, accepted, norm and requirement pairs, accepted pairs\n"

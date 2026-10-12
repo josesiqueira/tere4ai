@@ -30,7 +30,8 @@ Default mode writes:
   blind and opens the verdict only afterwards).
 
 The label act (--label <item id or decision id> <accept|reject> [--rationale TEXT], or
---label-file <csv> with columns decision_id,human_label,human_rationale)
+--label-file <csv> with columns decision_id,human_label,human_rationale;
+the decision_id column takes the item id the reading copy shows, or a decision id)
 both require --by <name>: each labelled item records human_label,
 human_rationale, labelled_by, and labelled_at (who and when, per item).
 Both flags may be given in one act for distinct ids; an id named twice, by
@@ -557,7 +558,8 @@ def build_sheet(
             "scripts/sample_judge_decisions.py --label <item id or decision id> "
             "<accept|reject> --rationale <one sentence> --by <name>, or "
             "--label-file <csv> --by <name> (columns decision_id, "
-            "human_label, human_rationale); then run --compute."
+            "human_label, human_rationale; the decision_id column takes the item id); "
+            "then run --compute."
         ),
         "labelling_rule": (
             "accept only if ALL judge criteria hold against the source text "
@@ -626,7 +628,7 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
         "> build artifacts. This file is the reading copy. Record each label",
         "> through the label act (--label <item id> <accept|reject>",
         "> --rationale <one sentence> --by <name>, or --label-file <csv> --by",
-        "> <name>); never edit judge_label_sheet.json by hand, the tool writes",
+        "> <name>, whose decision_id column takes the item id); never edit judge_label_sheet.json by hand, the tool writes",
         "> it. Label BLIND: do not open the folded judge verdict blocks",
         "> until your label is written down.",
         "",
@@ -687,6 +689,8 @@ def render_sheet_md(sheet: dict[str, Any]) -> str:
             excerpt = item["source_excerpt"]
             lines += ["", "### Source text (layer1)", ""]
             if excerpt.get("text"):
+                # defensive branch (R44), kept for an alignment whose source norm has no
+                # text: the reading copy then never falls back to a node id
                 where = ("The norm's source unit:" if item.get("item_id") and stratum["judge_kind"] == "mapping"
                          else f"Node `{excerpt['node_id']}`:")
                 lines += [where, "", f"> {excerpt['text']}"]
@@ -870,10 +874,17 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     # every id as named, in order: an id named twice would let the later
     # label silently replace the earlier one (B81 item 11), so it is refused
     named: list[str] = []
-    if args.label:
-        key = aliases.get(args.label[0], args.label[0])
-        wanted[key] = (args.label[1], args.rationale)
+    typed: dict[str, list[str]] = {}  # the id as the labeller typed it, so a refusal never prints a decision id
+
+    def _name(as_typed: str) -> str:
+        key = aliases.get(as_typed, as_typed)
+        typed.setdefault(key, []).append(as_typed)
         named.append(key)
+        return key
+
+    if args.label:
+        key = _name(args.label[0])
+        wanted[key] = (args.label[1], args.rationale)
     if args.label_file:
         if not args.label_file.is_file():
             print(f"label file not found: {args.label_file}")
@@ -885,13 +896,12 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
                 print(f"label file must have the columns decision_id and human_label; found: {fieldnames}")
                 return 2
             for row in reader:
-                key = aliases.get(row["decision_id"], row["decision_id"])
+                key = _name(row["decision_id"])
                 wanted[key] = (row["human_label"], row.get("human_rationale") or "")
-                named.append(key)
     twice = sorted(i for i, n in Counter(named).items() if n > 1)
     if twice:
         print(f"refusing to label: decision ids named more than once in this act (by --label and a --label-file "
-              f"row, or by two rows): {twice}; name each id once")
+              f"row, or by two rows): {[typed[i][0] for i in twice]}; name each id once")
         return 2
     unknown = [i for i in wanted if i not in by_id]
     bad = [i for i, (label, _) in wanted.items() if label not in JUDGE_GOLD_LABELS]
@@ -901,7 +911,7 @@ def _label_act(args: argparse.Namespace, argv: list[str] | None) -> int:
     already = [i for i in wanted if by_id[i].get("human_label") is not None]
     if already and not args.force:
         it = by_id[already[0]]
-        print(f"refusing to relabel {already[0]}: labelled by {it.get('labelled_by')} at "
+        print(f"refusing to relabel {typed[already[0]][0]}: labelled by {it.get('labelled_by')} at "
               f"{it.get('labelled_at')}; pass --force to replace")
         return 1
     store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
@@ -1197,12 +1207,12 @@ def main(argv: list[str] | None = None) -> int:
         help="draw without writing an evaluation record",
     )
     parser.add_argument(
-        "--label", nargs=2, metavar=("DECISION_ID", "LABEL"), default=None,
-        help="label one decision id accept or reject",
+        "--label", nargs=2, metavar=("ID", "LABEL"), default=None,
+        help="label one item (the item id the reading copy shows, or a decision id) accept or reject",
     )
     parser.add_argument(
         "--label-file", type=Path, default=None,
-        help="a csv with columns decision_id,human_label,human_rationale",
+        help="a csv with columns decision_id,human_label,human_rationale (the decision_id column takes the item id)",
     )
     parser.add_argument("--by", default=None, help="who is labelling (required by --label/--label-file)")
     parser.add_argument("--rationale", default="", help="rationale for --label")

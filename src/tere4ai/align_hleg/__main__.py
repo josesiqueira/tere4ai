@@ -29,7 +29,7 @@ from pathlib import Path
 
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair, pair_refusal
-from tere4ai.align_hleg.pipeline import DEFAULT_PROMPT_VERSION, SPREAD_KEYS, align_norms
+from tere4ai.align_hleg.pipeline import DEFAULT_PROMPT_VERSION, SPREAD_KEYS, align_norms, spread_of
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     AnthropicJudge,
@@ -312,6 +312,11 @@ def _main(argv: list[str] | None = None) -> int:
                     bucket = result["stats"].setdefault(key, {})
                     for k, v in value.items():
                         bucket[k] = bucket.get(k, 0) + v
+
+        # D-G86 (5): the spread is recounted from the merged assertions, so a batch
+        # inherited from a checkpoint written before B163 (without the four counts)
+        # still counts, and the stored and printed counts are true on every resume
+        result["stats"].update(spread_of(result["assertions"], [node["id"] for node in hleg_nodes]))
 
         # The norms file's own reference block (a materialised Layer 2) is
         # upstream provenance, kept under norms_reference: build.reference is

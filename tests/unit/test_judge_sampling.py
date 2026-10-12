@@ -1571,3 +1571,39 @@ def test_the_label_act_takes_the_item_id_and_records_the_decision_id(tmp_path, c
     assert sampling.main(_draw_argv(tmp_path, "--label", item["item_id"], "reject", "--label-file", str(csv_path),
                                     "--by", "Jose", "--force")) == 2
     assert "named more than once" in capsys.readouterr().out
+
+
+def test_the_label_file_takes_the_item_id_in_its_decision_id_column(tmp_path):
+    """B163 final review F1: the reading copy names items by item id only, so the csv's decision_id column takes it."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    sheet = json.loads((tmp_path / "sheet.json").read_text())
+    item = sheet["items"][0]
+    md = (tmp_path / "sheet.md").read_text()
+    assert "decision_id column takes the item id" in md
+    assert "decision_id column takes the item id" in sheet["purpose"]
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text(f"decision_id,human_label,human_rationale\n{item['item_id']},accept,ok\n", encoding="utf-8")
+    assert sampling.main(_draw_argv(tmp_path, "--label-file", str(csv_path), "--by", "Jose")) == 0
+    after = json.loads((tmp_path / "sheet.json").read_text())["items"][0]
+    assert after["human_label"] == "accept" and after["decision_id"] == item["decision_id"]
+    (rec,) = [r for r in EvaluationRecordStore(tmp_path, create=False).list_records() if r["kind"] == "labelling"]
+    assert rec["config"]["labels"] == {item["decision_id"]: "accept"}
+
+
+def test_label_act_refusals_echo_the_id_as_the_labeller_typed_it(tmp_path, capsys):
+    """B163 final review F2: a refusal never prints the decision id (it names the norm) when an item id was typed."""
+    _write_payloads(tmp_path)
+    assert sampling.main(_draw_argv(tmp_path)) == 0
+    item = json.loads((tmp_path / "sheet.json").read_text())["items"][0]
+    assert sampling.main(_draw_argv(tmp_path, "--label", item["item_id"], "accept", "--by", "Jose")) == 0
+    capsys.readouterr()
+    assert sampling.main(_draw_argv(tmp_path, "--label", item["item_id"], "reject", "--by", "Ana")) == 1
+    out = capsys.readouterr().out
+    assert f"refusing to relabel {item['item_id']}:" in out and item["decision_id"] not in out
+    csv_path = tmp_path / "labels.csv"
+    csv_path.write_text(f"decision_id,human_label,human_rationale\n{item['item_id']},reject,r\n", encoding="utf-8")
+    assert sampling.main(_draw_argv(tmp_path, "--label", item["item_id"], "reject", "--label-file", str(csv_path),
+                                    "--by", "Jose", "--force")) == 2
+    out = capsys.readouterr().out
+    assert "named more than once" in out and item["item_id"] in out and item["decision_id"] not in out

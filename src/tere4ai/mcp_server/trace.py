@@ -12,6 +12,7 @@ so the envelope judge_verdict is not_applicable_deterministic while each
 assertion carries its own build-time verdict.
 
 @implements: DEC-08, DEC-17
+@implements: DEC-28 (partial: the type the generator claimed, served when the assertion has it)
 @grounded_by: REF-17, REF-16
 """
 

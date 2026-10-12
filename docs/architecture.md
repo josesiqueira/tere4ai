@@ -269,7 +269,8 @@ Three judges, kept separate:
   receives the five relation-type definitions the generator receives,
   from one shared file, and no_clear_relation is only the corrected type
   of a rejection: a reply that pairs it with another verdict goes to human
-  review; its input, its verdict values and its scores do not change.
+  review; the message it judges, its verdict values and its scores do
+  not change.
 - Runtime grounding judge: on every generated requirement, backlog item, or
   evidence evaluation, checks that cited nodes support the claim, that law,
   ethics guideline, guidance, and inferred engineering practice are
@@ -1848,7 +1849,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   verdict, every item in one order, by the sha256 of its decision id,
   that does not follow the verdict, and every item under an opaque id,
   so no id joins an alignment item to an extraction item of the same
-  norm. Nothing is changed to move the spread across the seven
+  norm. The E1 label judges the candidate as the generator proposed it,
+  accept or reject, and a judge acceptance under a correction counts as
+  an acceptance (Jose, 2026-10-12, B163 Q1: "Proposed claim only"; spec G
+  D-G86 (4) (c)). Nothing is changed to move the spread across the seven
   requirements.
   Defense: a judge cannot check a type against definitions it was never
   given, and a prompt that allows in one check what another forbids
