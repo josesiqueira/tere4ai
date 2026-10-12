@@ -132,6 +132,7 @@ from tere4ai.mcp_server import evidence as evidence_tool
 from tere4ai.mcp_server import explain as explain_tool
 from tere4ai.mcp_server import requirements as requirements_tool
 from tere4ai.mcp_server import trace as trace_tool
+from tere4ai.mcp_server.source_text import with_source_text
 from tere4ai.mcp_server.spans import (
     SpanIntegrityError,
     SpanNotFoundError,
@@ -1171,8 +1172,10 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         if unknown:
             return _before_any_model_call(404, {"error": "unknown norm_ids", "unknown_norm_ids": unknown})
         record = body.signed_record
+        # B165: the judge receives each norm's verbatim source text, as the MCP tool's does
+        cited = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], request.app.state.dump)
         return _judge_part_response(record, lambda: backlog_tool.judge_backlog_on_demand(
-            [norms_by_id[norm_id] for norm_id in body.norm_ids], record["core"]["items"], body.system_context, judge,
+            cited, record["core"]["items"], body.system_context, judge,
             prompt_version=record["judge_prompt"]["version"]))
 
     @app.post("/api/evidence")
@@ -1197,7 +1200,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return JSONResponse(status_code=503, content={"error": str(exc)})
         try:
             envelope = evidence_tool.evaluate_project_evidence(
-                norm,
+                with_source_text([norm], request.app.state.dump)[0],  # B165: copy, the loaded payload stays as it is
                 {
                     "artifact_type": body.artifact_type,
                     "content": body.content,
@@ -1237,7 +1240,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             if body.judge == "on_demand":
                 return _before_any_model_call(404, content)
             return JSONResponse(status_code=404, content=content)
-        norms = [norms_by_id[norm_id] for norm_id in body.norm_ids]
+        # B165: copies carrying each norm's verbatim source text (the MCP tool's input)
+        norms = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], request.app.state.dump)
         refusals = backlog_tool.deleted_source_refusals(norms, request.app.state.dump)
         if refusals:
             # B132: never a backlog from wording the Omnibus deleted; no model call.

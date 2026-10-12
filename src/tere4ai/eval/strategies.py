@@ -52,6 +52,7 @@ from typing import Any, Protocol
 from tere4ai.act_parties import actor_slots_for_digests
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.mcp_server.classify import classify_ai_system
+from tere4ai.mcp_server.source_text import with_source_text
 
 STRATEGY_NAMES = (
     "plain_llm",
@@ -511,9 +512,14 @@ class GraphStrategy:
             result.setdefault("notes", []).append(
                 f"citations withheld (not in graph dump): {', '.join(withheld)}"
             )
+        # B165: the judge's check 0 compares the answer with each cited norm's
+        # verbatim source text, which the generator's digests do not carry; the
+        # same norms, as copies with source_text from the dump (the generator's
+        # input stays the digests, byte for byte).
+        cited = with_source_text([self._norms_by_id[d["norm_id"]] for d in digests], self._dump)
         judged = ground_check(
             answer_text=result["answer_text"],
-            cited_norms=digests,
+            cited_norms=cited,
             evidence_text=None,
             judge=self._runtime_judge,
             prompt_version=self._judge_prompt_version,

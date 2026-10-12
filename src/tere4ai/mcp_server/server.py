@@ -64,6 +64,7 @@ from tere4ai.mcp_server import requirements as requirements_rules
 from tere4ai.mcp_server import spans as spans_rules
 from tere4ai.mcp_server import trace as trace_rules
 from tere4ai.mcp_server import trace_code as trace_code_rules
+from tere4ai.mcp_server.source_text import attach_source_text
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DUMP_PATH = _PROJECT_ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -180,23 +181,7 @@ def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:
     return _active().dump
 
 
-def _attach_source_text(norms: list[dict[str, Any]], dump: dict[str, Any]) -> None:
-    """Resolve each norm's verbatim source_text from its Layer 1 source node.
-
-    The runtime grounding judge and the evidence/backlog generators need the
-    norm's exact legal wording to detect paraphrase drift, but the served
-    norms payload does not carry source_text, so resolve it here from the
-    dump before the model ever sees the norm (audit 2026-07-20 D4/F6).
-    """
-    nodes = {
-        n["id"]: n for n in dump.get("nodes", []) if isinstance(n, dict) and "id" in n
-    }
-    for norm in norms:
-        if norm.get("source_text"):
-            continue
-        node = nodes.get(norm.get("source_node_id", ""))
-        if node is not None and node.get("text"):
-            norm["source_text"] = node["text"]
+_attach_source_text = attach_source_text  # name kept for callers and tests
 
 
 def _empty_content_envelope(field: str, dump: dict[str, Any]) -> dict[str, Any]:
