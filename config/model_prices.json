@@ -31,6 +31,16 @@
       "batch_output": "5.00",
       "pricing": {"url": "https://developers.openai.com/api/docs/pricing", "read_on": "2026-10-06"},
       "quote": "The demo judge of DEC-24 (spec G D-G74 (5)). Standard, gpt-6-sol: short context input $2.00 and output $10.00 per million tokens; long context (above 272K input tokens) input $4.00 and output $15.00; Batch: short context input $1.00 and output $5.00. \"Short context: ≤272K input tokens. Long context: >272K input tokens.\" Reasoning, https://developers.openai.com/api/docs/guides/reasoning: reasoning tokens \"are billed as output tokens.\""
+    },
+    "gpt-5.6-luna": {
+      "inference_backend": "openai",
+      "currency": "USD",
+      "input": "0.20",
+      "output": "1.20",
+      "batch_input": "0.10",
+      "batch_output": "0.60",
+      "pricing": {"url": "https://developers.openai.com/api/docs/pricing", "read_on": "2026-10-12"},
+      "quote": "The B88 rehearsal model of 2026-10-12, not a B74 instrument. Standard, gpt-5.6-luna: \"| gpt-5.6-luna | $0.20 | $0.02 | $0.25 | $1.20 | $0.40 | $0.04 | $0.50 | $1.80 |\" (short context input $0.20 and output $1.20 per million tokens; long context input $0.40 and output $1.80); Batch: \"| gpt-5.6-luna | $0.10 | $0.01 | $0.125 | $0.60 | $0.20 | $0.02 | $0.25 | $0.90 |\". \"Short context: ≤272K input tokens. Long context: >272K input tokens.\""
     }
   }
 }
