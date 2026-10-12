@@ -171,8 +171,10 @@ def test_the_command_at_eight_writes_the_norms_file_and_record_of_one_at_a_time(
     for setting in (1, 8):
         run_dir = tmp_path / f"at-{setting}"
         run_dir.mkdir()
-        cli, argv, out, _g, _j = _command(run_dir, monkeypatch, setting)
+        cli, argv, out, generator, judge = _command(run_dir, monkeypatch, setting)
         assert cli.main(argv) == 0
+        # the setting reaches the calls: one at a time at 1, overlapping (never above 8) at 8
+        assert (generator.most == 1) if setting == 1 else (1 < generator.most <= 8 and judge.most <= 8)
         assert f"calls in flight: at most {setting} (--max-in-flight)\n" in capsys.readouterr().out
         files[setting] = (json.loads(out.read_text(encoding="utf-8")), _executions(run_dir)[0])
     (payload1, ex1), (payload8, ex8) = files[1], files[8]
@@ -196,13 +198,15 @@ def test_a_run_stopped_with_calls_in_flight_resumes_to_the_uninterrupted_result(
 
     stopped = tmp_path / "stopped"
     stopped.mkdir()
-    cli, argv, out, _g, _j = _command(stopped, monkeypatch, 8, stop_on=f"{ART14}:paragraph-3")
+    cli, argv, out, generator, judge = _command(stopped, monkeypatch, 8, stop_on=f"{ART14}:paragraph-3")
     assert cli.main(argv) == 3
+    assert 1 < generator.most <= 8 and judge.most <= 8  # stopped with calls in flight
     assert "stopped: inference backend unavailable after 6 attempts: HTTP 529" in capsys.readouterr().err
     ckpt = out.with_suffix(".checkpoint.jsonl")
     assert [json.loads(line)["group"] for line in ckpt.read_text().splitlines()] == [ART9]
-    cli, argv, out, _g, _j = _command(stopped, monkeypatch, 8)
+    cli, argv, out, generator, judge = _command(stopped, monkeypatch, 8)
     assert cli.main([*argv, "--resume"]) == 0
+    assert generator.most <= 8 and judge.most <= 8
     assert json.dumps(_untimed(json.loads(out.read_text(encoding="utf-8"))), ensure_ascii=False) == json.dumps(
         expected, ensure_ascii=False)
     first, resumed = _executions(stopped)
