@@ -36,7 +36,7 @@ HUMAN = "#d2649a"    # human review
 OK = "#3fb950"       # accepted
 BAD = "#f85149"      # rejected / degraded
 
-DIAGRAM_DATE = "2026-10-09"
+DIAGRAM_DATE = "2026-10-12"
 OUT_PATH = Path(__file__).resolve().parents[1] / f"judge_diagram_{DIAGRAM_DATE}.svg"
 
 _parts: list[str] = []
@@ -142,7 +142,7 @@ def build() -> str:
         ["adjudicated via scripts/review_cli.py;", "decisions republished with", "HUMAN_REVIEWED_* provenance"],
         HUMAN, "#231018", title_size=13)
 
-    # Lane 2: mapping judge
+    # Lane 2: alignment judge
     lane_label(452, "BUILD TIME 2 - HLEG ETHICS ALIGNMENT  (align_hleg/pipeline.py)")
     y = 472
     box(40, y, 240, 124, "Accepted norm",
@@ -154,8 +154,8 @@ def build() -> str:
     box(630, y, 250, 124, "Mechanical quote gate",
         ["each quote must be a verbatim", "substring of its side's text;", "failures NEVER reach the judge", "(logged as mechanical:quote_check)"],
         MECH, "#141920")
-    box(930, y, 270, 124, "Mapping judge",
-        ["prompts/judge_alignment/v1.md", "4 checks; may CORRECT the", "relation type (closed set);", "no forced mapping"],
+    box(930, y, 270, 124, "Alignment judge",
+        ["prompts/judge_alignment/v2.md", "4 checks on the shared", "relation-type definitions;", "may CORRECT the type;", "no forced alignment"],
         JUDGE, "#191426")
     arrow(280, y + 62, 330, y + 62)
     arrow(580, y + 62, 630, y + 62)

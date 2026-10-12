@@ -100,15 +100,15 @@ merit, this document says so explicitly instead of inventing a citation.
 - See it: jq '.stats.verdicts' data/graph_dumps/norms_core.json
   (339 accepted / 54 rejected / 41 review).
 
-### 5. Build-time mapping judge with mechanical quote gate
+### 5. Build-time alignment judge with mechanical quote gate
 - Grounding: ADD-16, REF-24 as above; REF-10 (PEER, mapping sibling);
   quote verification grounded by ADD-18 (PEER, hallucination detection) and
   ADD-19 (PEER, faithfulness metrics).
-- Implementation: src/tere4ai/align_hleg/pipeline.py:308-341 (verbatim
+- Implementation: src/tere4ai/align_hleg/pipeline.py:403-437 (verbatim
   quote gate BEFORE the judge; failures logged as mechanical:quote_check and
-  never judged), :345-357 (verdict gate, relation-type correction against the
-  closed set).
-- Tests: tests/unit/test_align_hleg.py:200, :228, :250, :263, :274.
+  never judged), :441-465 (verdict gate, the v2 reply guard, relation-type
+  correction against the closed set).
+- Tests: tests/unit/test_align_hleg.py:159, :214, :242, :279, :290, :548.
 - See it: judge_diagram.svg lane 2; alignment stats in
   data/graph_dumps/alignments_core.json.
 
@@ -178,7 +178,7 @@ merit, this document says so explicitly instead of inventing a citation.
 
 ### 12. Reified AlignmentAssertions (auditable claims, not truth edges) (DEC-05)
 - Grounding: REF-21 (PEER, edge-information tradeoff), REF-10 (PEER), REF-24.
-- Implementation: align_hleg/pipeline.py:391-409;
+- Implementation: align_hleg/pipeline.py:504-527;
   graph_store/layer23.py:204-275 (no direct norm-to-HLEG edge exists);
   gate PUBLICATION_GATE4 validate_graph/gates.py:112-119.
 - Tests: tests/unit/test_align_hleg.py:150; tests/unit/test_validate_graph.py:40.

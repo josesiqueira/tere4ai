@@ -24,7 +24,7 @@ from make_judge_diagram import OUT_PATH, build  # noqa: E402
 
 REQUIRED_FACTS = (
     "Extraction judge",
-    "Mapping judge",
+    "Alignment judge",
     "Runtime grounding judge",
     "Mechanical quote gate",
     "never accept anything",

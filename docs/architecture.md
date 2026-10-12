@@ -131,6 +131,10 @@ grounded_by: REF-24, REF-21, REF-10
   normative relevance, operational utility, evidence strength, judge
   confidence), a final score, generator and judge model and prompt versions,
   judge verdict, rationale, and review status.
+  Since DEC-28 (2026-10-12) it also keeps the relation type the generator
+  claimed (proposed_relation_type) and the generator's rationale
+  (generator_rationale); relation_type and rationale stay the judge's
+  correction, where there is one, and the judge's rationale.
 - Relation types: directly_operationalizes, partially_operationalizes, supports,
   related_to, conflicts_with, no_clear_relation.
 
@@ -258,9 +262,14 @@ Three judges, kept separate:
   a unit it receives the unit's set-up rows with the setting-up node's
   text, and its input labels say "Addressee-inference source"; its six
   checks, verdict values and scores do not change.
-- Build-time mapping judge: before an alignment is accepted, scores it, may
-  correct the relation type, and rejects any mapping whose rationale relies on
-  concepts absent from both source spans.
+- Build-time alignment judge (judge_kind "mapping" in records): before an
+  alignment is accepted, scores it, may correct the relation type, and
+  rejects any alignment whose rationale relies on concepts absent from
+  both source spans. Since judge_alignment v2 (2026-10-12, DEC-28) it
+  receives the five relation-type definitions the generator receives,
+  from one shared file, and no_clear_relation is only the corrected type
+  of a rejection: a reply that pairs it with another verdict goes to human
+  review; its input, its verdict values and its scores do not change.
 - Runtime grounding judge: on every generated requirement, backlog item, or
   evidence evaluation, checks that cited nodes support the claim, that law,
   ethics guideline, guidance, and inferred engineering practice are
@@ -1850,8 +1859,19 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   fields, four counts and a sheet to redo, with no model call; after B74,
   every alignment made and judged again.
   verify: prompts/align_hleg/v2.md, prompts/judge_alignment/v2.md and
-  prompts/relation_type/definitions.md; tests/unit/test_align_prompts_v2.py
-  (draft until B163's last tere4ai2 task).
+  prompts/relation_type/definitions.md; src/tere4ai/align_hleg/
+  relation_types.py, pipeline.py (DEFAULT_PROMPT_VERSION, judge_texts,
+  the reply guard, the kept fields, SPREAD_KEYS) and __main__.py;
+  src/tere4ai/mcp_server/trace.py (the claimed type, served when an
+  assertion carries it);
+  schema/json_schemas/alignments.schema.json;
+  scripts/sample_judge_decisions.py (the E1 sheet, its opaque item ids) and
+  scripts/estimate_benchmark_cost.py; eval/config_evaluated.yaml;
+  eval/gold/ANNOTATION_PROTOCOL.md; tests/unit/test_align_prompts_v2.py,
+  test_align_hleg.py, test_align_cli.py, test_judge_sampling.py and
+  test_align_v2_mock_run.py (the mock-model command line run and the E1
+  sheet over its output); docs/benchmark_cost_estimate.md is regenerated
+  with v2; CHANGELOG.md names the contract change.
 
 ## 17. Implementation-traceability convention
 
