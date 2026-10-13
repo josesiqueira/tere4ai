@@ -74,17 +74,16 @@ generated claims) is realised here as the independent judge family (DEC-07).
 
 **[SELF-06]** PEER. "The EU AI Act is a Good Start But Falls Short",
 Veesommai Sillberg, Siqueira De Cerqueira, Sillberg, Kemell, Abrahamsson,
-Software Business (ICSOB 2024), Lecture Notes in Business Information
-Processing, Springer, 2025, pp. 114 to 130, DOI 10.1007/978-3-031-85849-9_10.
+in E. Papatheocharous et al. (Eds.), Software Business (ICSOB 2024), LNBIP
+539, Springer, 2025, pp. 114 to 130, DOI 10.1007/978-3-031-85849-9_10.
 SUPPORTING. The author is second author. A multivocal literature review (56
-of 130 sources) whose key challenges for complying with the Act are
-liability, discrimination and tool adequacy. Held as the arXiv author
-version v3 (arXiv 2411.08535v3),
-../thesis/refs/SELF-06_ICSOB-EUAIActGoodStart_PREPRINT.pdf; the version of
-record needs institutional access. Registered 2026-10-13 on Jose's approval
-("ok you can take that icosb paper and do staging and approval i approved it
-lets go") for the motivation of the SEIS 2027 paper; note
-../thesis/refs/notes/SELF-06.md (two quotes, ANCHOR_EXACT).
+of 130 sources) that names liability, discrimination and tool adequacy as
+major obstacles for enterprises complying with the Act. Held as the
+Springer version of record, ../thesis/refs/SELF-06_ICSOB-EUAIActGoodStart.pdf.
+Registered 2026-10-13 on Jose's approval ("ok you can take that icosb paper
+and do staging and approval i approved it lets go") for the motivation of
+the SEIS 2027 paper; note ../thesis/refs/notes/SELF-06.md (two quotes,
+ANCHOR_EXACT, printed pages).
 
 ## Legal source and structure
 
