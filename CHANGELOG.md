@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### docs: DEC-09 corrected on where the tools serve from (2026-10-13)
+- docs/architecture.md Section 5 and DEC-09 get a dated correction: the MCP server and the facade serve from the published JSON dumps, Neo4j is loaded at publication for the post-load gates, nothing queries it at run time, and the RDF export (scripts/export_rdf.py) is run by hand. Jose asked for it on 2026-10-13 ("put dec-09's a dated correction"). No code changes.
+
 ### B164: model calls sent a few at a time (2026-10-12)
 - extract_norms, align_hleg, scripts/elicit_benchmark_features.py and scripts/run_ablations.py take `--max-in-flight` (1 to 16, default 8): the source units of a group, the norms of a batch, the scenarios and the items of an E6 unit are sent that many at a time (tere4ai.parallel_calls.run_in_flight, daemon threads), and every file and line is written in the source order, so a run at 8 writes what a run at 1 writes from the same replies (spec F D-F30 as amended 2026-10-12); the audit log lines follow completion order at a setting above 1. The setting is in the execution's config (a resume may change it, checkpoints.CONFIG_KEYS_A_RESUME_MAY_CHANGE), in E6's record config and in the features file. B88's rehearsal took about 1 hour 50 minutes at one call at a time; B74's about 5,700 calls would take about 20 hours.
 - The model clients' usage counts are written under one lock, an alert line is one write, FakeClient and the judge logs' append take a lock; the facade and the MCP server, which make one call per request, change in nothing else.

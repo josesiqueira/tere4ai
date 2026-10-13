@@ -152,6 +152,24 @@ OVR-8. grounded_by: REF-21, REF-22, REF-08, REF-25, REF-23
   lock out RDF later. Validation is Pydantic plus Cypher constraints; RDF export
   is the interoperability path.
 
+Added 2026-10-13 (correction, Jose's request): as of 2026-10-13 Neo4j is
+not the store the tools serve from. The MCP server and the HTTP facade read
+the versioned JSON dumps (data/graph_dumps/layer1.json, norms_core.json,
+alignments_core.json): "no running Neo4j is required"
+(src/tere4ai/mcp_server/server.py:5 to 8; DUMP_PATH, NORMS_PATH and
+ALIGNMENTS_PATH at :70 to :72; http_facade/app.py:150). Neo4j is loaded by
+scripts/publish_layer23.py at publication, where the post-load gates run
+on it; the publication then records the digests of the files it verified
+in build_chain_<id>.json, and the server checks at start that the files it
+serves reproduce a recorded build chain (server.py:812 to 840). No tool and
+no dashboard page queries Neo4j at run time (checked 2026-10-13). The RDF
+export is scripts/export_rdf.py, run by hand against a loaded Neo4j with
+n10s, not a step of publication. The record above, written for v2's start,
+says "Operational store: Neo4j (labeled property graph)"; why the serving
+path differs: not recorded in this file (the MCP server's header gives the
+dumps as "versioned build artifacts"). The edge-native provenance and the
+reject-not-infer rationale still hold for the graph as built and checked.
+
 ## 6. Build-time pipeline and ingestion
 Engineering MUST (determinism and reproducibility, see Section 13);
 corroborated by REF-27, REF-26. Structure and identifiers grounded by REF-03,
@@ -692,6 +710,10 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 - DEC-09: Neo4j primary plus RDF export. grounded_by REF-21, REF-22, REF-08, REF-25, REF-23.
   Defense: edge-native provenance and a reject-not-infer task fit property graphs.
   verify: graph_store/ uses Neo4j; rdf_export_roundtrip test.
+  Added 2026-10-13 (correction): the tools serve from the published JSON
+  dumps, not from Neo4j; Neo4j holds a build at publication, where the
+  post-load gates run, and the RDF export is a script run by hand. See
+  Section 5, the entry of the same date.
 - DEC-10: full structural mirror, deep only on high-risk core. grounded_by
   REF-17, REF-15, ADD-24.
   Defense: value and benchmarks concentrate on the high-risk regime.
