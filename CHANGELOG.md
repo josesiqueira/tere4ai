@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B170 part 1: the extractor no longer writes the lifecycle phase (2026-10-13)
+- prompts/extract_norms/v6.md is v5 without lifecycle_phase_ids (its example line and its slot definition); prompts/judge_norms/v6.md is v5 under the new version line. v6 is DEFAULT_PROMPT_VERSION and the version of record in eval/config_evaluated.yaml; under v6 the judge's candidate does not carry the slot and the norm has no lifecycle_phase_ids key (pipeline._PROMPTS_WITH_LIFECYCLE); v1 to v5 are unchanged. No source grounds the slot's ten values (Jose, 2026-10-13: "if it is not grounded in anything we will drop from everywhere"); the schema, the readers and the dashboard keep it until card B170, after B74. tests/unit/test_norms_prompts_v6.py pins the two prompts; the tests that pinned v5 as the default read v6, and the v5 tests run v5 explicitly. docs/benchmark_cost_estimate.md regenerated: the B74 sequence moves from 408.62 to 408.23 USD (band 193.74 to 642.82).
+
 ### docs: DEC-09 corrected on where the tools serve from (2026-10-13)
 - docs/architecture.md Section 5 and DEC-09 get a dated correction: the MCP server and the facade serve from the published JSON dumps, Neo4j is loaded at publication for the post-load gates, nothing queries it at run time, and the RDF export (scripts/export_rdf.py) is run by hand. Jose asked for it on 2026-10-13 ("put dec-09's a dated correction"). No code changes.
 

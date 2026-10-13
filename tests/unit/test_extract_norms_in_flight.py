@@ -199,7 +199,7 @@ def test_the_command_at_eight_writes_the_norms_file_and_record_of_one_at_a_time(
     assert payload8["build"]["extraction_usage"] == payload1["build"]["extraction_usage"] == ex1["usage"] == ex8["usage"]
     assert (ex1["config"]["max_in_flight"], ex8["config"]["max_in_flight"]) == (1, 8)
     assert {k: v for k, v in ex8["config"].items() if k != "max_in_flight"} == {
-        "prompt_version": "v5", "nodes": [ART9, ART14]}
+        "prompt_version": "v6", "nodes": [ART9, ART14]}
     for key in ("completed_keys", "counts", "work_failures", "status", "inherited_keys"):
         assert ex8[key] == ex1[key], key
     assert ex8["completed_keys"] == [ART9, ART14]

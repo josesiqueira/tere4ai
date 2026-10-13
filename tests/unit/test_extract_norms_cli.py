@@ -91,7 +91,8 @@ def test_checkpoint_resume_skips_done_groups(tmp_path, monkeypatch):
         "norms": [{"norm_id": "norm:eu-ai-act:article-9:n1"}], "judge_runs": [],
         "stats": {"source_units": 1, "candidates": 1, "verdicts": {"accepted": 1}, "nodes_failed": [], "invalid_norms": []},
     }}) + "\n")
-    rc = cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out), "--resume"])
+    rc = cli.main(["--nodes", "eu-ai-act:article-9,eu-ai-act:article-10", "--dump", str(dump_path), "--out", str(out), "--resume",
+                   "--prompt-version", "v5"])
     assert rc == 0 and calls == ["eu-ai-act:article-10"]
     payload = json.loads(out.read_text())
     assert {n["norm_id"] for n in payload["norms"]} == {"norm:eu-ai-act:article-9:n1", "norm:eu-ai-act:article-10:n1"}

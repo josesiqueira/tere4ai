@@ -85,7 +85,9 @@ EXTRACTION_METHOD = "llm_extract_v1"
 # DEC-26: v4 gives every requirement of Articles 8 to 15 whose text names no
 # person or body that must act to the provider through Article 16(a));
 # DEC-27: v5 carries the set-up rule and the settled words.
-DEFAULT_PROMPT_VERSION = "v5"
+# 2026-10-13 (B170 part 1): v6 is v5 without lifecycle_phase_ids, a slot no
+# source grounds; judge_norms v6 is judge_norms v5 under the new version line.
+DEFAULT_PROMPT_VERSION = "v6"
 # B4: judge_norms v1 never received the actor-inference source text; a v1
 # run keeps the input v1 had, so the version names one instrument.
 _PROMPTS_WITHOUT_INFERENCE_TEXT = frozenset({"v1"})
@@ -103,7 +105,12 @@ _PROMPTS_WITHOUT_PARAGRAPH_OF_POINT = frozenset({"v1", "v2", "v3"})
 # 2 with the stored value, and whose judge reads the labels "Addressee-
 # inference source" and a covered unit's set-up rows. v1 to v4 keep the
 # names, the schema and the judge input they had.
-_PROMPTS_WITH_ADDRESSEE = frozenset({"v5"})
+_PROMPTS_WITH_ADDRESSEE = frozenset({"v5", "v6"})
+# B170 part 1 (2026-10-13): the prompt versions whose extractor writes
+# lifecycle_phase_ids. From v6 on the slot is not asked for, not given to the
+# judge and not stored, since no source grounds its ten values (Jose: "if it
+# is not grounded in anything we will drop from everywhere").
+_PROMPTS_WITH_LIFECYCLE = frozenset({"v1", "v2", "v3", "v4", "v5"})
 _V1_SLOTS = ("actor_explicit", "actor_inferred", "actor_inference_source_node_id")
 _V2_SLOTS = ("addressee_explicit", "addressee_inferred", "addressee_inference_source_node_id")
 
@@ -503,11 +510,13 @@ def extract_norms(
     nodes = _index_nodes(dump)
     typed = types_for(prompt_version)  # B65 ruling 49
     with_model_category = prompt_version in _PROMPTS_WITH_MODEL_CATEGORY
+    with_lifecycle = prompt_version in _PROMPTS_WITH_LIFECYCLE
     fields = tuple(
         key
         for key in candidate_fields(prompt_version)
         if (typed or key != "requirement_type")
         and (with_model_category or key != "target_system_category")
+        and (with_lifecycle or key != "lifecycle_phase_ids")
     )
 
     norms: list[dict[str, Any]] = []
@@ -650,7 +659,7 @@ def extract_norms(
                 "exceptions": candidate.get("exceptions") or [],
                 "condition_ids": [],
                 "exception_ids": [],
-                "lifecycle_phase_ids": candidate.get("lifecycle_phase_ids") or [],
+                **({"lifecycle_phase_ids": candidate.get("lifecycle_phase_ids") or []} if with_lifecycle else {}),
                 **({"requirement_type": candidate["requirement_type"], **type_view} if typed else {}),
                 "extraction_method": EXTRACTION_METHOD,
                 "extractor_model": generator.model,

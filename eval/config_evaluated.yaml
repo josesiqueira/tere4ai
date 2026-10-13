@@ -17,8 +17,8 @@ judges:
   temperature: 0
   kinds: [extraction, mapping, runtime_grounding]
 prompt_versions:
-  extract_norms: v5
-  judge_norms: v5
+  extract_norms: v6
+  judge_norms: v6
   align_hleg: v2
   judge_alignment: v2
   evaluate_evidence: v1

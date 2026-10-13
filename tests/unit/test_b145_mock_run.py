@@ -97,7 +97,8 @@ def _run(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "DEFAULT_LOG_PATH", tmp_path / "extraction_log.jsonl")
     out = tmp_path / "norms_core.json"
     # no --prompt-version: the run takes the default, v5, as B74 does
-    assert cli.main(["--nodes", ",".join(UNITS), "--dump", str(dump_path), "--out", str(out)]) == 0
+    assert cli.main(["--nodes", ",".join(UNITS), "--dump", str(dump_path), "--out", str(out),
+                     "--prompt-version", "v5"]) == 0
     store = BuildRecordStore(tmp_path)
     (execution,) = store.read(store.resolve("core"))["executions"]
     return json.loads(out.read_text(encoding="utf-8")), execution, judge, out

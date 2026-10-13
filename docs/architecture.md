@@ -93,6 +93,17 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   about; the addressee stays in the actor fields. A rule sets it from the
   norm's source Article or Annex, never a model; null only for a source
   unit outside the rule table. grounded_by: REF-01
+- Lifecycle phase (added 2026-10-13, thesis card B170 part 1, spec G
+  D-G87 in the private research repository): as of 2026-10-13 the
+  extractor no longer writes lifecycle_phase_ids. extract_norms v6 is v5
+  without the slot and judge_norms v6 is v5 under the new version line;
+  v6 is the default and the version of record (eval/config_evaluated.yaml),
+  and a v6 norm has no lifecycle_phase_ids key. No source, decision or
+  record grounds the ten values (searched 2026-10-13), and no rule reads
+  them; the owner's words: "if it is not grounded in anything we will
+  drop from everywhere". The list above still names the slot, which runs
+  under v1 to v5 keep; removing it from the schema and the readers is
+  card B170, after B74.
 - Schema is grounded in Institutional Grammar (OVR-9): actor (the addressee from norms schema version 2, DEC-27) maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
   Aim. Pull the primary sources (REF-14c) before citing.
