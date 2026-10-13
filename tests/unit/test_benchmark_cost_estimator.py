@@ -210,15 +210,19 @@ def test_the_script_names_no_model():
 
 def test_the_repository_price_file_loads_and_each_row_reads_its_day():
     prices = est.load_model_prices(PRICES_PATH)
-    assert set(prices) == {"claude-opus-5-5", "gpt-6-astra", "gpt-6-sol", "gpt-5.6-luna", "gpt-5.6-terra"}
+    assert set(prices) == {"claude-opus-5-5", "gpt-6-astra", "gpt-6-sol", "gpt-5.6-luna", "gpt-5.6-terra",
+                           "gpt-6-luna"}
     # DEC-24: gpt-6-sol, the demo judge, read on the day its row was written
     # (D-G74 was decided 2026-10-06, so not before); gpt-5.6-luna and
-    # gpt-5.6-terra, the B88 rehearsal models, read 2026-10-12; the others 2026-10-04
+    # gpt-5.6-terra, the B88 rehearsal models, read 2026-10-12; gpt-6-luna, the
+    # model of the build 2026-10-13-gpt-6-luna-1, read 2026-10-13; the others 2026-10-04
     for model, row in prices.items():
         if model == "gpt-6-sol":
             assert row["pricing"]["read_on"] >= "2026-10-06"
         elif model in ("gpt-5.6-luna", "gpt-5.6-terra"):
             assert row["pricing"]["read_on"] == "2026-10-12"
+        elif model == "gpt-6-luna":
+            assert row["pricing"]["read_on"] == "2026-10-13"
         else:
             assert row["pricing"]["read_on"] == "2026-10-04"
         assert row["pricing"]["url"].startswith("https://")
@@ -228,6 +232,7 @@ def test_the_repository_price_file_loads_and_each_row_reads_its_day():
     assert (prices["gpt-6-astra"]["input"], prices["gpt-6-astra"]["output"]) == (10.0, 50.0)
     assert (prices["gpt-5.6-luna"]["input"], prices["gpt-5.6-luna"]["output"]) == (0.2, 1.2)
     assert (prices["gpt-5.6-terra"]["input"], prices["gpt-5.6-terra"]["output"]) == (2.0, 12.0)
+    assert (prices["gpt-6-luna"]["input"], prices["gpt-6-luna"]["output"]) == (0.1, 0.5)
 
 
 # ---------------------------------------------------------------- B120 task 2

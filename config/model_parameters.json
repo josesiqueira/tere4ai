@@ -41,6 +41,14 @@
    "json_mode": "sent",
    "documentation": {"url": "https://developers.openai.com/api/docs/models/gpt-5.6-terra", "read_on": "2026-10-12"},
    "note": "The generator of the B88 rehearsal of 2026-10-12 (gpt-5.6-luna judges), OpenAI only on Jose's decision (thesis board/cards/B88.md); not a B74 instrument. Read 2026-10-12 on the model page above: \"Reasoning.effort supports: none, low, medium (default), high, xhigh, and max.\"; its supported features list \"structured_outputs\". Effort high: the level spec F D-F22, as amended 2026-10-12 (B167), sets for every instrument (xhigh until then). Temperature N/A: the dashboard's declaration of 2026-09-28 for this model (tere4ai-dashboard src/lib/experiment/prices.json), reasoning models taking no temperature when reasoning effort is not none. JSON mode sent: as for gpt-6-astra and gpt-6-sol."
+  },
+  "gpt-6-luna": {
+   "inference_backend": "openai",
+   "temperature": "N/A",
+   "effort": "high",
+   "json_mode": "sent",
+   "documentation": {"url": "https://developers.openai.com/api/docs/models/gpt-6-luna", "read_on": "2026-10-13"},
+   "note": "The model of the build 2026-10-13-gpt-6-luna-1, both generator and judge, on Jose's decision of 2026-10-13 (\"at this moment just put gpt-6-luna to be the reviewer too, we are just checking the whole build\"); not a B74 instrument. Read 2026-10-13 on the model page above: \"`reasoning.effort` supports `none`, `low`, `medium` (default), `high`, `xhigh`, and `max`.\"; its supported features list \"structured_outputs\"; Chat Completions \"Supported\". Effort high: the level spec F D-F22, as amended 2026-10-12 (B167), sets for every instrument. Temperature N/A: the dashboard's declaration for this model (tere4ai-dashboard src/lib/experiment/prices.json, read 2026-10-12), and the GPT-6 guide for gpt-6-astra, gpt-6-sol and gpt-6-luna: \"When reasoning effort is not `none`, remove `temperature`, `top_p`, and `top_logprobs`.\" JSON mode sent: as for gpt-6-astra and gpt-6-sol."
   }
  }
 }

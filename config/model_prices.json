@@ -51,6 +51,16 @@
       "batch_output": "6.00",
       "pricing": {"url": "https://developers.openai.com/api/docs/pricing", "read_on": "2026-10-12"},
       "quote": "The B88 rehearsal generator of 2026-10-12, not a B74 instrument. Standard, gpt-5.6-terra: \"| gpt-5.6-terra | $2.00 | $0.20 | $2.50 | $12.00 | $4.00 | $0.40 | $5.00 | $18.00 |\" (short context input $2.00 and output $12.00 per million tokens; long context input $4.00 and output $18.00); Batch: \"| gpt-5.6-terra | $1.00 | $0.10 | $1.25 | $6.00 | $2.00 | $0.20 | $2.50 | $9.00 |\". \"Short context: ≤272K input tokens. Long context: >272K input tokens.\""
+    },
+    "gpt-6-luna": {
+      "inference_backend": "openai",
+      "currency": "USD",
+      "input": "0.10",
+      "output": "0.50",
+      "batch_input": "0.05",
+      "batch_output": "0.25",
+      "pricing": {"url": "https://developers.openai.com/api/docs/pricing", "read_on": "2026-10-13"},
+      "quote": "The model of the build 2026-10-13-gpt-6-luna-1, not a B74 instrument. Standard: \"| gpt-6-luna | $0.10 | $0.01 | $0.125 | $0.50 | $0.20 | $0.02 | $0.25 | $0.75 |\" (short context input $0.10 and output $0.50 per million tokens; long context input $0.20 and output $0.75); Batch: \"| gpt-6-luna | $0.05 | $0.005 | $0.0625 | $0.25 | $0.10 | $0.01 | $0.125 | $0.375 |\". \"Short context: ≤272K input tokens. Long context: >272K input tokens.\""
     }
   }
 }
