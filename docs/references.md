@@ -1786,6 +1786,37 @@ computes annotator-model agreement on pre-annotated cases only. Staged in
 thesis refs/triage-b153-hypotheses/ and approved by Jose on 2026-10-12
 ("Register all sixteen (Recommended)", card B153).
 
+**[ADD-131]** PEER. "Design Science in Information Systems Research", Hevner,
+March, Park, Ram, MIS Quarterly 28(1):75-105, March 2004, DOI
+10.2307/25148625 (9197 citations on Crossref, 2026-10-14; Crossref prints
+the pages as 75-106, the article's footer as 75-105). The publisher's
+typeset article, supplied by Jose, ../thesis/refs/ADD-131_HevnerDesignScience.pdf
+(32 PDF pages; printed page = PDF page + 74). VERIFIED 2026-10-14 (title,
+authors, journal, volume, issue, pages and year from the first page and
+the footer). CORE. Grounds: the research frame of the SEIS 2027 paper and
+of the PhD, which SELF-01 and SELF-04 already cite it for (thesis
+SEIS_2027.md section 3; Jose, 2026-10-14: "we are using HEVNER for DESIGN
+SCIENCE RESEARCH ... adapt accordingly ANYWHERE NEEDED"): the principle
+that "knowledge and understanding of a design problem and its solution are
+acquired in the building and application of an artifact" (p. 82); the
+seven guidelines of Table 1 (p. 83), of which the paper names guideline 1,
+"Design-science research must produce a viable artifact in the form of a
+construct, a model, a method, or an instantiation" (the build is an
+instantiation), guideline 3, "The utility, quality, and efficacy of a
+design artifact must be rigorously demonstrated via well-executed
+evaluation methods" (p. 85), with accuracy among the attributes an artifact
+is evaluated on (p. 85) and the case study among the observational methods
+of Table 2 (p. 86), and guideline 6, the design as a search process
+(p. 88), described after Markus et al. as "iteratively identifying
+deficiencies in constructed prototype software systems and creatively
+developing solutions to address them" (p. 90), the form RQ1 takes (each
+design element with the failure that required it); and the authors'
+caution that they "advise against mandatory or rote use of the
+guidelines" (p. 82). Staged in thesis refs/triage-seis/ and approved by
+Jose on 2026-10-14 (the words above). Wieringa (2014), which framed the
+research questions until that day, is dropped; Peffers et al. (2007) stays
+in the paper's bib uncited.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
