@@ -1817,6 +1817,64 @@ Jose on 2026-10-14 (the words above). Wieringa (2014), which framed the
 research questions until that day, is dropped; Peffers et al. (2007) stays
 in the paper's bib uncited.
 
+**[ADD-132]** PEER. "Identifying Civilians Killed by Police with Distantly
+Supervised Entity-Event Extraction", Keith, Handler, Pinkham, Magliozzi,
+McDuffie, O'Connor, Proceedings of the 2017 Conference on Empirical Methods
+in Natural Language Processing (EMNLP 2017), pp. 1547-1557, DOI
+10.18653/v1/D17-1163 (9 citations on Crossref, 2026-10-14; passes the bar by
+peer review). The version of record from the ACL Anthology,
+../thesis/refs/ADD-132_KeithResampleDocuments.pdf (11 PDF pages, printed
+page = PDF page + 1546). VERIFIED 2026-10-14 (title, authors, proceedings
+and pages from the first page). SUPPORTING. Grounds: the NLP precedent for
+resampling the unit the items come from rather than the items, the interval
+the SEIS 2027 evaluation prints for every share (thesis SEIS_2027.md 3g, the
+decision of 2026-10-14): "It is not clear what the appropriate unit of
+resampling should be ... parsing and machine translation research in NLP
+often resamples sentences, which is inappropriate for our setting. We elect
+to resample documents in the test set" (Section 6.2, p. 1554). Staged in
+thesis refs/triage-seis/ from the checked deep research answer of
+2026-10-14 and approved by Jose the same day ("Ok go on").
+
+**[ADD-133]** PEER. "Obligation and Prohibition Extraction Using
+Hierarchical RNNs", Chalkidis, Androutsopoulos, Michos, Proceedings of the
+56th Annual Meeting of the Association for Computational Linguistics
+(Volume 2: Short Papers), ACL 2018, pp. 254-259, DOI 10.18653/v1/P18-2041
+(31 citations on Crossref, 2026-10-14; passes the bar by peer review). The
+version of record from the ACL Anthology,
+../thesis/refs/ADD-133_ChalkidisObligationLists.pdf (6 PDF pages, printed
+page = PDF page + 253). VERIFIED 2026-10-14 (title, authors, proceedings and
+pages from the first page). SUPPORTING. Grounds: contracts, not EU
+legislation; cited for the annotation distinction between the sentence
+that opens a list and the items under it, which the SEIS participants'
+instruction on list points follows (thesis SEIS_2027.md 3g, the decision of
+2026-10-14): the gold classes "Oblig./Prohib. List Intro", "Obligation List
+Item" and "Prohibition List Item" (Table 1, p. 255) and the preprocessing
+that "treats the introductory clause and each nested clause as separate
+sentences, since each nested clause may belong in a different class"
+(Section 3, p. 255). Clause classification, not six-part norm extraction.
+Staged in thesis refs/triage-seis/ from the checked deep research answer of
+2026-10-14 and approved by Jose the same day ("Ok go on").
+
+**[ADD-134]** PEER. "Comparing Bayesian Models of Annotation", Paun,
+Carpenter, Chamberlain, Hovy, Kruschwitz, Poesio, Transactions of the
+Association for Computational Linguistics 6:571-585, 2018, DOI
+10.1162/tacl_a_00040 (120 citations on Semantic Scholar, 2026-10-14; passes
+the bar by peer review). The version of record from the ACL Anthology,
+../thesis/refs/ADD-134_PaunBayesianAnnotation.pdf (15 PDF pages, printed
+page = PDF page + 570). VERIFIED 2026-10-14 (title, authors, journal, volume
+and pages from the first page). SUPPORTING. Grounds: what the majority
+reference of the SEIS evaluation assumes, stated beside the headline share
+(thesis SEIS_2027.md 3g, the decision of 2026-10-14): "The standard
+methodology for analyzing crowdsourced data in NLP is based on majority
+voting (selecting the label chosen by the majority of coders) and
+inter-annotator coefficients of agreement ... However, aggregation by
+majority vote implicitly assumes equal expertise among the annotators"
+(Section 1, p. 571). The Bayesian models it compares are the alternative
+not taken for a group of seven participants with no validated estimate of
+each one's accuracy. Staged in thesis refs/triage-seis/ (named in the SEIS
+paper's orange notes since B171) and approved by Jose on 2026-10-14 ("Ok go
+on").
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
