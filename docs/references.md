@@ -1043,7 +1043,8 @@ and Measures 1,1: 77-89, 2007"), so quotes carry the manuscript's PDF pages;
 no DOI printed. NEEDS-CHECK 2026-10-08: the DOI 10.1080/19312450709336664
 named by the triage record is to be confirmed from the publisher's page;
 authors, title, venue, volume, issue, pages and year from the manuscript's
-first line. CORE. Grounds: the alpha statistic of spec F D-F20 (the
+first line. VERIFIED 2026-10-14 (B171 Task 6): DOI resolved on Crossref to
+this article. CORE. Grounds: the alpha statistic of spec F D-F20 (the
 between-instrument row) and D-F21 (one coefficient on one measurement level
 for every agreement comparison) and of spec G Section 6 and D-G17 (the human
 annotators): "we propose Krippendorff's alpha as the standard reliability
@@ -1061,7 +1062,8 @@ the journal pages; the cover sheet prints the stable URL
 jstor.org/stable/2529310; no DOI printed). NEEDS-CHECK 2026-10-08: the DOI
 10.2307/2529310 named by the triage record is to be confirmed from the
 publisher's page; authors, title, venue, volume, issue, pages and year from
-the cover sheet and the first page. CORE. Grounds: the reading bands the
+the cover sheet and the first page. VERIFIED 2026-10-14 (B171 Task 6): DOI
+resolved on Crossref to this article. CORE. Grounds: the reading bands the
 annotation code and the calibration report print with every kappa and alpha
 (spec G Section 6 and D-G17, "the Landis and Koch band"; spec F D-F20 reads
 the between-instrument alpha with no threshold): "the following labels will
