@@ -262,6 +262,9 @@ def test_graph_runtime_judge_takes_a_prompt_version_suffix(tmp_path):
     assert strategy.models["judge_prompt_version"] == "v2"
     assert build_strategy("graph_runtime_judge", make_generator(), MINI_DUMP, MINI_NORMS,
                           judge=make_judge()).models["judge_prompt_version"] == "v3"
+    # a condition named with @v1 keeps v1 (B174 R6: only the unnamed default moved)
+    assert build_strategy("graph_runtime_judge@v1", make_generator(), MINI_DUMP, MINI_NORMS,
+                          judge=make_judge()).models["judge_prompt_version"] == "v1"
 
 
 def test_the_runtime_judge_is_not_called_on_a_classification_case(tmp_path):

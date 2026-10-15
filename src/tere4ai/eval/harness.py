@@ -371,7 +371,8 @@ def runtime_judge_prompt_sha256(models_by_strategy: dict[str, dict[str, Any]]) -
 
     Hashed the way tere4ai.judge.runtime_grounding does (load_prompt, then
     prompt_sha256), never reimplemented; the key is "runtime_grounding" for
-    the v1 prompt and "runtime_grounding@<version>" for a variant."""
+    the v1 prompt and "runtime_grounding@<version>" for any other version
+    (since B174 the default run records "runtime_grounding@v3")."""
     from tere4ai.judge.runtime_grounding import load_prompt, prompt_sha256
 
     hashes: dict[str, str] = {}
