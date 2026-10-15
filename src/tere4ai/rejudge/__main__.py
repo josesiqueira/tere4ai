@@ -1,4 +1,4 @@
-"""Entry point: python -m tere4ai.rejudge norms --source SRC --out-dir NEW --name NAME --cost-stop USD
+"""Entry point: python -m tere4ai.rejudge {norms,alignments} --source SRC --out-dir NEW --name NAME --cost-stop USD
 
 @implements: DEC-06 (partial: re-judging stored candidates)
 @implements: DEC-07
@@ -12,9 +12,14 @@ norms_NAME.json, logs/ with the judge's event log (R8), build_records/
 with the new record. `norms` judges every stored candidate norm again with
 zero generator calls (Layer 2); every attempt is an execution rejudge_norms
 covering LAYER2_STEP1 and LAYER2_STEP2, checkpointed per Article or Annex
-(R7) and resumable as extract_norms is. The failure mechanics are the
-sibling commands' (R12) plus the cost stop (R10, exit 5). The source folder
-is only read.
+(R7) and resumable as extract_norms is. `alignments` then judges the stored
+alignment candidates of the norms the new judge accepts again and aligns
+the newly accepted norms with the generator (Layer 3, R9), into
+alignments_NAME.json; every attempt is an execution rejudge_alignments
+covering LAYER3_STEP1 to LAYER3_STEP3, checkpointed per batch as align_hleg
+is, and it runs only over the norms file a done rejudge_norms execution of
+the record wrote. The failure mechanics are the sibling commands' (R12)
+plus the cost stop (R10, exit 5). The source folder is only read.
 """
 
 from __future__ import annotations
@@ -30,23 +35,43 @@ from typing import Any
 
 from tere4ai import parallel_calls
 from tere4ai.act_parties import ACT_PARTIES_PATH
+from tere4ai.align_hleg.__main__ import _attach_source_text
+from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
+from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair
 from tere4ai.extract_norms.actor_audit import addressee_counts, section_2_checks
-from tere4ai.extract_norms.model_clients import TERMINAL_POLICY, AnthropicJudge, declared_sampling
+from tere4ai.extract_norms.model_clients import (
+    TERMINAL_POLICY,
+    AnthropicJudge,
+    OpenAIGenerator,
+    declared_sampling,
+)
 from tere4ai.extract_norms.pipeline import load_prompt, prompt_sha256
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import (
     BuildRecordStore,
     Heartbeat,
+    RecordError,
     create_chosen_record,
     relative_to_dump_dir,
     signals_as_interrupt,
 )
+from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
 from tere4ai.judge.config import (
     ConfigurationError,
     ModelConfigError,
     load_model_config,
     load_model_prices,
 )
+from tere4ai.rejudge.alignments import (
+    ALIGN_PROMPT_KIND,
+    alignments_refusal,
+    merge_batches,
+    rejudge_batch,
+    rejudged_alignment_build,
+    source_index,
+    source_verdict_counts,
+)
+from tere4ai.rejudge.alignments import JUDGE_PROMPT_KIND as ALIGNMENT_JUDGE_PROMPT_KIND
 from tere4ai.rejudge.cost import CostStop, record_spend, usage_cost, usd
 from tere4ai.rejudge.norms import (
     JUDGE_PROMPT_KIND,
@@ -75,6 +100,9 @@ from tere4ai.rejudge.source import SourceError, name_refusal, read_source
 NORMS_COMMAND = "rejudge_norms"
 NORMS_RESULT_KEYS = ("norms", "judge_runs", "stats")
 EXTRACTION_LOG = "rejudge_extraction_log.jsonl"
+ALIGNMENTS_COMMAND = "rejudge_alignments"
+ALIGNMENTS_RESULT_KEYS = ("assertions", "mapping_runs", "judge_runs", "stats")
+ALIGNMENT_LOG = "rejudge_alignment_log.jsonl"
 
 
 def _now_iso() -> str:
@@ -88,6 +116,16 @@ def _cost_stop(text: str) -> float:
         raise argparse.ArgumentTypeError(f"{text!r} is not an amount in USD") from None
     if not value > 0:
         raise argparse.ArgumentTypeError("the cost stop must be above 0 USD")
+    return value
+
+
+def _batch_size(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a whole number") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError("the batch size must be at least 1")
     return value
 
 
@@ -113,6 +151,13 @@ def _parser() -> argparse.ArgumentParser:
     norms = commands.add_parser("norms", help="Layer 2: judge every stored candidate norm again, no generator call")
     _common_arguments(norms)
     parallel_calls.add_max_in_flight_argument(norms)
+    alignments = commands.add_parser(
+        "alignments", help="Layer 3: judge the stored alignment candidates again; the generator aligns only the norms "
+                           "newly accepted by `norms`")
+    _common_arguments(alignments)
+    alignments.add_argument("--batch-size", type=_batch_size, default=20,
+                            help="norms per checkpointed batch (default 20)")
+    parallel_calls.add_max_in_flight_argument(alignments)
     return parser
 
 
@@ -129,10 +174,35 @@ def _main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "norms":
             return run_norms(args, run_argv)
+        if args.command == "alignments":
+            return run_alignments(args, run_argv)
     except Refusal as refusal:
         print(refusal.message, file=sys.stderr)
         return refusal.code
     raise AssertionError(f"unknown subcommand {args.command!r}")  # argparse refuses it first
+
+
+def _check_name(args: argparse.Namespace, source_name: str, judge_model: str) -> None:
+    """R11: the name follows the rule and the out-dir is named by it (exit 2)."""
+    refusal = name_refusal(args.name, source_name, judge_model)
+    if refusal is None and args.out_dir.name != args.name:
+        refusal = f"the out-dir {args.out_dir} must be named {args.name}"
+    if refusal:
+        raise refuse(refusal)
+
+
+def _prices_for(models: dict[str, str]) -> dict[str, dict[str, Any]]:
+    """The price table with a row for each model component that will make calls,
+    {component: model} (exit 4 otherwise: the cost stop could not be kept)."""
+    try:
+        prices = load_model_prices()
+    except ConfigurationError as exc:
+        raise Refusal(4, f"stopped: {exc}") from None
+    for component, model in models.items():
+        if model not in prices:
+            raise Refusal(4, f"stopped: configuration error: config/model_prices.json has no price row for the "
+                             f"{component} {model!r}, so the cost stop cannot be kept")
+    return prices
 
 
 def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
@@ -154,18 +224,8 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     if refusal:
         raise refuse(refusal)
     judge_model = models["judge_model"]
-    refusal = name_refusal(args.name, source.name, judge_model)
-    if refusal is None and args.out_dir.name != args.name:
-        refusal = f"the out-dir {args.out_dir} must be named {args.name}"
-    if refusal:
-        raise refuse(refusal)
-    try:
-        prices = load_model_prices()
-    except ConfigurationError as exc:
-        raise Refusal(4, f"stopped: {exc}") from None
-    if judge_model not in prices:
-        raise Refusal(4, f"stopped: configuration error: config/model_prices.json has no price row for the judge "
-                         f"{judge_model!r}, so the cost stop cannot be kept")
+    _check_name(args, source.name, judge_model)
+    prices = _prices_for({"judge": judge_model})
 
     out_dir = args.out_dir
     (out_dir / "logs").mkdir(parents=True, exist_ok=True)
@@ -300,6 +360,231 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     print(f"verdicts: {done['stats']['verdicts']} (the source's {verdict_counts(source_norms)})")
     print(f"changed against the source: {len(done['changed'])}")
     this_run = usage_cost(usage_of(judge), judge_price)
+    print(f"spend: {usd(this_run)} USD at list price in this run, {usd(record_spend(store.read(record_id), prices))} "
+          "USD over the record's rejudge executions")
+    return 0
+
+
+
+def _norms_output_refusal(out_dir: Path, name: str, norms_path: Path) -> str | None:
+    """Why NEW/norms_NAME.json is not the output of a done rejudge_norms
+    execution of the record NAME resolves to, or None. Reads only: the store
+    is opened without creating its folder."""
+    run_first = "run `norms` with the same --out-dir and --name first"
+    if not norms_path.is_file():
+        return f"{norms_path} is missing; {run_first}"
+    store = BuildRecordStore(out_dir, create=False)
+    try:
+        record_id = store.resolve(name)
+        record = store.read(record_id) if record_id else None
+    except RecordError as exc:
+        return f"the build record {name} cannot be read: {exc}"
+    if record is None:
+        return f"there is no build record {name} in {out_dir}; {run_first}"
+    digest = sha256_of_file(norms_path)
+    for ex in record.get("executions") or []:
+        if ex.get("command") == NORMS_COMMAND and ex.get("status") == "done" and any(
+                out.get("output_kind") == "norms" and out.get("sha256") == digest for out in ex.get("outputs") or []):
+            return None
+    return (f"{norms_path.name} (sha256 {digest}) is not the output of a done {NORMS_COMMAND} execution of the "
+            f"record {name}; {run_first}")
+
+
+def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
+    """The Layer 3 flow: every refusal (a Refusal) before any record is written,
+    then one execution re-judging the batches not yet in the checkpoint (R9)."""
+    try:
+        source = read_source(args.source)
+        source_payload = json.loads(source.alignments_path.read_text(encoding="utf-8"))
+        source_norms = json.loads(source.norms_path.read_text(encoding="utf-8")).get("norms") or []
+    except SourceError as exc:
+        raise refuse(str(exc)) from None
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise refuse(f"the source alignments or norms file cannot be read ({type(exc).__name__})") from None
+    try:
+        cfg = load_model_config()
+    except ModelConfigError as exc:
+        raise Refusal(4, f"stopped: {exc}") from None
+    models = cfg.as_public_dict()
+    refusal = alignments_refusal(source_payload, models, source.norms_sha256)
+    if refusal:
+        raise refuse(refusal)
+    try:
+        source_alignments = source_index(source_payload)
+    except ValueError as exc:
+        raise refuse(str(exc)) from None
+    judge_model, generator_model = models["judge_model"], models["generator_model"]
+    _check_name(args, source.name, judge_model)
+    prices = _prices_for({"judge": judge_model, "generator": generator_model})
+
+    out_dir = args.out_dir
+    norms_path = out_dir / f"norms_{args.name}.json"
+    refusal = _norms_output_refusal(out_dir, args.name, norms_path)
+    if refusal:
+        raise refuse(refusal)
+    source_build = source_payload["build"]
+    # D-G75 (7): the HLEG text and record are the source's, so a stored quote is
+    # checked and judged against the text it was made on
+    try:
+        pair = load_pair()
+    except HlegSourceError as exc:
+        raise refuse(f"the HLEG text cannot be read: {exc}") from None
+    if (pair.text_sha256, pair.record_sha256) != (source_build.get("hleg_text_sha256"),
+                                                    source_build.get("hleg_derivation_record_sha256")):
+        raise refuse(f"the HLEG text and derivation record have sha256 {pair.text_sha256} and {pair.record_sha256} "
+                     f"today; the source alignments were made on {source_build.get('hleg_text_sha256')} and "
+                     f"{source_build.get('hleg_derivation_record_sha256')}")
+    layer1_path = out_dir / "layer1.json"
+    if not layer1_path.is_file() or sha256_of_file(layer1_path) != source.layer1_sha256:
+        raise refuse(f"{layer1_path} is not the source's layer1.json")
+
+    (out_dir / "logs").mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"alignments_{args.name}.json"
+    log_path = out_dir / "logs" / ALIGNMENT_LOG
+    checkpoint_path = out_path.with_suffix(".checkpoint.jsonl")
+    store = BuildRecordStore(out_dir)
+    dump = json.loads(layer1_path.read_text(encoding="utf-8"))
+    choice = choose_output_record(store, out_dir, out_path, alias=args.name,
+                                  base_build_id=dump.get("build", {}).get("build_id"),
+                                  layer1_digest=source.layer1_sha256, command=ALIGNMENTS_COMMAND)
+
+    norms_payload = json.loads(norms_path.read_text(encoding="utf-8"))
+    norms: list[dict[str, Any]] = norms_payload.get("norms") or []
+    _attach_source_text(norms, dump)
+    prompt_version = source_build["alignment_prompt_version"]
+    # R6: the judge runs keep the source's base build id
+    build_id = source_build.get("build_id", "build-unknown")
+    description = f"generator output of {source.name}, judged by {judge_model}"
+    norms_digest = sha256_of_file(norms_path)
+    inputs = [
+        {"input_kind": "norms", "file": relative_to_dump_dir(norms_path, out_dir), "sha256": norms_digest},
+        {"input_kind": "source_alignments",
+         "file": os.path.relpath(source.alignments_path.resolve(), out_dir.resolve()),
+         "sha256": source.alignments_sha256},
+        {"input_kind": "layer1_dump", "file": relative_to_dump_dir(layer1_path, out_dir),
+         "sha256": source.layer1_sha256},
+        {"input_kind": "hleg_text", "file": TEXT_FILE, "sha256": pair.text_sha256},
+        {"input_kind": "hleg_derivation_record", "file": RECORD_FILE, "sha256": pair.record_sha256},
+    ]
+    config = {"prompt_version": prompt_version, "batch_size": args.batch_size, "max_in_flight": args.max_in_flight,
+              "cost_stop_usd": args.cost_stop, "source_build": source.name, "source_record_id": source.record_id,
+              "source_chain_id": source.chain_id, "judged_by": judge_model, "description": description}
+    prompts = {"generator": prompt_sha256(load_prompt(ALIGN_PROMPT_KIND, prompt_version)),
+               "judge": prompt_sha256(load_prompt(ALIGNMENT_JUDGE_PROMPT_KIND, prompt_version))}
+    plan = plan_resume(checkpoint_path, "batch", ALIGNMENTS_RESULT_KEYS, resume=args.resume, store=store,
+                       choice=choice, config=config, inputs=inputs, models=models, prompts=prompts)
+
+    # spec F D-F30: a terminal run with a checkpoint waits out an overload; the
+    # generator is called for the newly accepted norms only (R9)
+    generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
+    judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
+    hleg_nodes = build_hleg_nodes(pair)
+    record_id, message = create_chosen_record(store, choice)
+    if message:
+        print(message)
+    batches = [(f"batch:{i}:{norms[i]['norm_id']}", norms[i:i + args.batch_size])
+               for i in range(0, len(norms), args.batch_size)]
+    run_id = store.start_execution(
+        record_id, command=ALIGNMENTS_COMMAND, covers_steps=["LAYER3_STEP1", "LAYER3_STEP2", "LAYER3_STEP3"],
+        argv=run_argv, inputs=inputs, config=config, expected_total=len(batches), work_unit="batches",
+        checkpoint_file=relative_to_dump_dir(checkpoint_path, out_dir),
+        resumes_run_id=plan.resumes_run_id, inherited_keys=plan.inherited_keys, inherited_from=plan.inherited_from,
+        models=models, prompt_sha256=prompts, sampling=declared_sampling(generator, judge),
+    )
+    execution = Execution(
+        store=store, record_id=record_id, run_id=run_id, checkpoint_path=checkpoint_path, run_argv=run_argv,
+        expected_total=len(batches), inherited=len(plan.inherited_keys), work_unit="batches",
+        usage=lambda: {"generator": usage_of(generator), "judge": usage_of(judge)},
+        sampling=lambda: declared_sampling(generator, judge),
+    )
+    source_verdicts = {norm["norm_id"]: norm.get("judge_verdict") for norm in source_norms}
+    requirement_ids = [node["id"] for node in hleg_nodes]
+
+    def spent_so_far() -> float:
+        return (record_spend(store.read(record_id), prices, excluding=run_id)
+                + usage_cost(usage_of(generator), prices[generator_model])
+                + usage_cost(usage_of(judge), prices[judge_model]))
+
+    def rejudge_batches() -> dict[str, Any]:
+        print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
+        partials: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
+        with Heartbeat(store, record_id, run_id), checkpoint_path.open("a", encoding="utf-8") as ckpt:
+            for batch_key, chunk in batches:
+                if batch_key in plan.entries_by_key:
+                    continue
+                # R10: the record's other rejudge executions plus this run so far
+                so_far = spent_so_far()
+                if so_far >= args.cost_stop:
+                    raise CostStop(so_far, args.cost_stop)
+                partial = rejudge_batch(chunk, source_verdicts, source_alignments, hleg_nodes, generator, judge,
+                                        prompt_version=prompt_version, log_path=log_path, build_id=build_id,
+                                        max_in_flight=args.max_in_flight)
+                ckpt.write(json.dumps({"run_id": run_id, "batch": batch_key, "result": partial}) + "\n")
+                ckpt.flush()
+                partials.append(partial)
+                execution.completed.append(batch_key)
+                # the usage so far rides on the beat: a SIGKILL loses at most the batch in flight
+                store.heartbeat(record_id, run_id, usage=execution.usage())
+                stats = partial["stats"]
+                print(f"  {batch_key}: {len(partial['assertions'])} assertions, verdicts {stats['verdicts']}, "
+                      f"{len(stats['newly_aligned_norms'])} newly aligned, {len(stats['dropped_assertions'])} "
+                      "dropped", flush=True)
+
+        result = merge_batches(partials, source_alignments, requirement_ids)
+        stats = result["stats"]
+        sampling = declared_sampling(generator, judge)
+        source_usage = source_build.get("alignment_usage") or {}
+        rejudge_block = {
+            "description": description, "source_build": source.name,
+            "source_alignments_sha256": source.alignments_sha256, "source_aligned_at": source_build.get("aligned_at"),
+            "carried_generator_usage": source_usage.get("generator"), "source_judge_usage": source_usage.get("judge"),
+        }
+        payload = {
+            "build": rejudged_alignment_build(
+                norms_payload.get("build") or {}, source_build, public_models=models,
+                judge_sampling=sampling["judge"], judge_effort=effort_of(judge), usage=execution.usage(),
+                norms_sha256=norms_digest, hleg_text_sha256=pair.text_sha256,
+                hleg_derivation_record_sha256=pair.record_sha256, aligned_at=_now_iso(), rejudge=rejudge_block),
+            **result,
+        }
+        tmp_path = out_path.with_suffix(".writing.json")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp_path.replace(out_path)
+        newly, dropped = stats.get("newly_aligned_norms") or [], stats.get("dropped_assertions") or []
+        store.finish_execution(
+            record_id, run_id, status="done",
+            outputs=[{"output_kind": "alignments", "file": relative_to_dump_dir(out_path, out_dir),
+                      "sha256": sha256_of_file(out_path)}],
+            # A count the stats do not hold is null, never zero (D-G25).
+            counts={"norms_total": stats.get("norms_total"),
+                    "norms_skipped_not_accepted": stats.get("norms_skipped_not_accepted"),
+                    "zero_alignment_norms": stats.get("zero_alignment_norms"),
+                    "candidates": stats.get("candidates"), "verdicts": stats.get("verdicts"),
+                    "mechanical_rejects_count": len(stats.get("mechanical_rejects") or []),
+                    "newly_aligned_norms": {"count": len(newly), "norm_ids": newly},
+                    "dropped_assertions": {"count": len(dropped), "assertion_ids": dropped},
+                    "carried_candidates": stats.get("carried_candidates"),
+                    "source_verdicts": source_verdict_counts(source_payload.get("assertions") or [])},
+            usage=execution.usage(), sampling=sampling, completed_keys=execution.completed,
+            work_failures={"nodes_failed": 0, "norms_failed": len(stats.get("norms_failed") or [])},
+        )
+        return stats
+
+    code, stats = execution.run(rejudge_batches)
+    if code:
+        return code
+    checkpoint_path.unlink(missing_ok=True)
+
+    print(f"wrote {out_path}")
+    print(f"norms: {stats.get('norms_total', 0)} total, {stats.get('norms_skipped_not_accepted', 0)} skipped (not "
+          f"accepted), {stats.get('zero_alignment_norms', 0)} with zero alignments")
+    print(f"candidates: {stats.get('candidates', 0)} ({stats.get('carried_candidates', 0)} stored ones judged again), "
+          f"verdicts: {stats.get('verdicts', {})} (the source's "
+          f"{source_verdict_counts(source_payload.get('assertions') or [])})")
+    print(f"newly aligned norms: {len(stats.get('newly_aligned_norms') or [])}, assertions dropped: "
+          f"{len(stats.get('dropped_assertions') or [])}")
+    this_run = (usage_cost(usage_of(generator), prices[generator_model])
+                + usage_cost(usage_of(judge), prices[judge_model]))
     print(f"spend: {usd(this_run)} USD at list price in this run, {usd(record_spend(store.read(record_id), prices))} "
           "USD over the record's rejudge executions")
     return 0

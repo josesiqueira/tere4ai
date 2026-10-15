@@ -17,7 +17,8 @@ A; three groups, Article 16, 17 and 99):
 
 The judge messages the source's judges received are kept beside the folder
 (source_judge_messages.json in tmp_path, outside the source folder) by norm
-id and by assertion id.
+id and by assertion id. ScriptedGenerator answers the Layer 3 generator for a
+norm the rejudge newly accepts (C, NEW_NORM_CANDIDATES).
 """
 
 from __future__ import annotations
@@ -65,10 +66,12 @@ SOURCE_MODELS = {
     "generator_json_mode": "sent", "model_parameters_sha256": "source-parameters-sha256",
 }
 # A scripted judge call's usage, and the list prices the tests price it at:
-# (1000 * 4.00 + 100 * 20.00) / 1e6 = 0.006 USD per call.
+# (1000 * 4.00 + 100 * 20.00) / 1e6 = 0.006 USD per call; a generator call
+# at the gpt-fake row (1000 * 10.00 + 100 * 50.00) / 1e6 = 0.015 USD.
 INPUT_TOKENS_PER_CALL = 1000
 OUTPUT_TOKENS_PER_CALL = 100
 USD_PER_JUDGE_CALL = 0.006
+USD_PER_GENERATOR_CALL = 0.015
 
 
 def unit_key(unit: str) -> str:
@@ -106,11 +109,12 @@ GENERATOR_REPLIES = {
 }
 
 
-def judge_reply(verdict: str, evidence_strength: float = 0.8, rationale: str = "scripted") -> str:
+def judge_reply(verdict: str, evidence_strength: float = 0.8, rationale: str = "scripted",
+                corrected: str | None = None) -> str:
     """A judge reply both judges parse: the extraction judge reads the verdict,
     the scores and the type view, the alignment judge also the correction."""
     return json.dumps({
-        "verdict": verdict, "corrected_relation_type": None,
+        "verdict": verdict, "corrected_relation_type": corrected,
         "scores": {"semantic_similarity": 0.9, "normative_relevance": 0.9, "operational_utility": 0.8,
                    "evidence_strength": evidence_strength, "judge_confidence": 0.9},
         "rationale": rationale, "requirement_type_agrees": True,
@@ -135,12 +139,23 @@ ALIGNMENT_CANDIDATES = {
 }
 
 
-def _alignment_reply(norm_id: str, hleg: list[dict[str, Any]]) -> str:
+# What the Layer 3 generator proposes for C, rejected by the source's judge and
+# accepted by the rejudge (Article 16(1): "1. Providers of high-risk AI systems shall:").
+NEW_NORM_CANDIDATES = {
+    NORM_C: [
+        {"target_quote": "to allow for traceability", "relation_type": "supports",
+         "source_quote": "Providers of high-risk AI systems", "rationale": "Providers keep systems traceable.",
+         "requirement": "Transparency"},
+    ],
+}
+
+
+def _alignment_reply(norm_id: str, hleg: list[dict[str, Any]], candidates: dict | None = None) -> str:
     by_name = {h["name"]: h["id"] for h in hleg}
     return json.dumps({"alignments": [
         {"target_id": by_name[c["requirement"]], "relation_type": c["relation_type"],
          "source_quote": c["source_quote"], "target_quote": c["target_quote"], "rationale": c["rationale"]}
-        for c in ALIGNMENT_CANDIDATES[norm_id]]})
+        for c in (candidates or ALIGNMENT_CANDIDATES)[norm_id]]})
 
 
 def make_source_build(tmp_path: Path) -> Path:
@@ -292,10 +307,11 @@ class ScriptedJudge:
     each call adds INPUT_TOKENS_PER_CALL and OUTPUT_TOKENS_PER_CALL. verdicts
     maps a substring of the message to a verdict (the first match wins; else
     accepted); errors maps a substring to an exception raised before any usage
-    is counted; on_call(user) runs at the start of every call."""
+    is counted; on_call(user) runs at the start of every call; corrections maps
+    a substring to the corrected_relation_type the reply carries."""
 
     def __init__(self, verdicts: dict[str, str] | None = None, *, errors: dict[str, BaseException] | None = None,
-                 model: str = JUDGE_MODEL, on_call=None):
+                 model: str = JUDGE_MODEL, on_call=None, corrections: dict[str, str] | None = None):
         self.model = model
         self.effort = "high"
         self.temperature = "0"
@@ -305,6 +321,7 @@ class ScriptedJudge:
         self.verdicts = dict(verdicts or {})
         self.errors = dict(errors or {})
         self.on_call = on_call
+        self.corrections = dict(corrections or {})
         self.calls: list[tuple[str, str]] = []
 
     def complete(self, system: str, user: str) -> str:
@@ -320,7 +337,38 @@ class ScriptedJudge:
                             ("replies_with_usage", 1))):
             self.usage[key] += value
         verdict = next((v for k, v in self.verdicts.items() if k in user), "accepted")
-        return judge_reply(verdict, 0.7, rationale=f"scripted by {self.model}")
+        corrected = next((v for k, v in self.corrections.items() if k in user), None)
+        return judge_reply(verdict, 0.7, rationale=f"scripted by {self.model}", corrected=corrected)
+
+
+class ScriptedGenerator:
+    """A Layer 3 generator client with the attributes the commands read and a
+    usage record (INPUT_TOKENS_PER_CALL and OUTPUT_TOKENS_PER_CALL a call, so
+    (1000 * 10.00 + 100 * 50.00) / 1e6 = 0.015 USD at the gpt-fake row): it
+    answers "Norm id: <id>" with NEW_NORM_CANDIDATES[id] and fails the test on
+    any other norm."""
+
+    def __init__(self, candidates: dict | None = None, model: str = GENERATOR_MODEL):
+        self.model = model
+        self.effort = "high"
+        self.temperature = "N/A"
+        self.sampling = "N/A"
+        self.json_mode = "sent"
+        self.usage = dict.fromkeys(USAGE_KEYS, 0)
+        self.candidates = dict(candidates if candidates is not None else NEW_NORM_CANDIDATES)
+        self.hleg = build_hleg_nodes(load_pair())
+        self.calls: list[tuple[str, str]] = []
+
+    def complete(self, system: str, user: str) -> str:
+        self.calls.append((system, user))
+        for key, value in ((("calls", 1), ("input_tokens", INPUT_TOKENS_PER_CALL),
+                            ("output_tokens", OUTPUT_TOKENS_PER_CALL), ("requests_sent", 1),
+                            ("replies_with_usage", 1))):
+            self.usage[key] += value
+        norm_id = next((n for n in self.candidates if f"Norm id: {n}\n" in user), None)
+        if norm_id is None:
+            raise AssertionError(f"the generator was called for a norm it has no script for: {user.splitlines()[0]}")
+        return _alignment_reply(norm_id, self.hleg, self.candidates)
 
 
 def no_generator(*_args: Any, **_kwargs: Any) -> Any:
