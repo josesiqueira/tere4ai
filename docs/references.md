@@ -1875,6 +1875,28 @@ each one's accuracy. Staged in thesis refs/triage-seis/ (named in the SEIS
 paper's orange notes since B171) and approved by Jose on 2026-10-14 ("Ok go
 on").
 
+**[ADD-135]** PEER. "Bootstrapping Clustered Data", Field, Welsh, Journal of
+the Royal Statistical Society Series B 69(3):369-390, 2007, DOI
+10.1111/j.1467-9868.2007.00593.x (360 citations on Crossref, 2026-10-14;
+passes the bar by peer review). The publisher's typeset article, journal
+layout, held as ../thesis/refs/ADD-135_FieldWelshClusterBootstrap.pdf (22
+PDF pages, printed page = PDF page + 368), obtained from a copy hosted at
+bemlar.ism.ac.jp (the Wiley page is paywalled). VERIFIED 2026-10-15 (title,
+authors, journal, volume, part and pages from the first page). SUPPORTING.
+Grounds: the statistics source for the interval the SEIS 2027 evaluation
+prints for every share and every alpha, a percentile bootstrap that
+resamples whole units of the Act (thesis SEIS_2027.md 3g, the decision of
+2026-10-14): the cluster bootstrap is the "version of the randomized
+cluster bootstrap in which clusters are selected by simple random sampling
+with replacement and there is no subsequent permutation" (Section 1, p.
+370), and "the cluster bootstrap gives consistent estimates under both the
+transformation and the random-effect model" (Summary, p. 369). The paper
+proves consistency of variance estimates for one-way arrays; the
+percentile interval of a share is the thesis's use of the same resampling,
+not a result the paper states. Staged in thesis refs/triage-seis/ on
+2026-10-14 and approved by Jose on 2026-10-15 ("ok i have to register this
+field and welsh apparently it is really good").
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
