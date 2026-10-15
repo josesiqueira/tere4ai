@@ -31,6 +31,7 @@ from tests.unit.rejudge_mock_build import (
     folder_state,
     make_source_build,
     patch_command,
+    prices,
     source_judge_messages,
     unit_key,
 )
@@ -47,7 +48,7 @@ from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import present_record
 from tere4ai.rejudge.norms import JUDGE_FIELDS, norms_refusal
-from tere4ai.rejudge.source import expected_name, name_refusal
+from tere4ai.rejudge.source import SourceError, expected_name, name_refusal, read_source
 
 DESCRIPTION = "generator output of 2026-10-14-gpt-fake-high, judged by claude-fake"
 ZERO_USAGE = dict.fromkeys(USAGE_KEYS, 0)
@@ -372,3 +373,82 @@ def test_the_presenter_reads_rejudge_progress(tmp_path, source, monkeypatch):
     assert ended["provenance"]["models"] == "recorded" and ended["provenance"]["usage"] == "recorded"
     assert "the command calls no model" not in ended["reasons"].values()
 
+
+
+def test_a_source_norm_without_a_judge_field_is_refused(tmp_path, source, monkeypatch, capsys):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+
+    def drop_type_view(payload):
+        del next(n for n in payload["norms"] if n["norm_id"] == NORM_D)["judge_type_agrees"]
+
+    copy = _copy_with_norms(source, tmp_path, drop_type_view)
+    new_dir = _new(tmp_path)
+    assert cli.main(_argv(copy, new_dir)) == 2
+    assert f"the source norm {NORM_D} lacks judge_type_agrees" in capsys.readouterr().err
+    assert judge.calls == [] and not new_dir.exists()
+    assert norms_refusal({"build": {"prompt_version": "v6"}, "judge_runs": []}, fake_cfg().as_public_dict()) == \
+        "the source build holds no judge runs, nothing to re-judge"
+
+
+def test_a_published_file_outside_the_source_folder_is_refused(tmp_path, source):
+    copy = tmp_path / "copies" / SOURCE_NAME
+    shutil.copytree(source, copy)
+    shutil.copyfile(copy / NORMS_FILE, tmp_path / "copies" / "outside.json")
+    manifest_path = next((copy / "publications").glob("*.json"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    next(i for i in manifest["inputs"] if i["input_kind"] == "norms")["file"] = "../outside.json"
+    manifest_path.write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+    with pytest.raises(SourceError, match="lies outside the source folder"):
+        read_source(copy)
+
+
+def test_an_output_that_names_a_published_artefact_exits_1(tmp_path, source, monkeypatch, capsys):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    new_dir = _new(tmp_path)
+    (new_dir / "publications").mkdir(parents=True)
+    out_path = new_dir / f"norms_{NEW_NAME}.json"
+    out_path.write_text('{"published": true}', encoding="utf-8")
+    (new_dir / "publications" / "0123456789ab.json").write_text(json.dumps(
+        {"chain_id": "0123456789ab", "inputs": [{"input_kind": "norms", "file": out_path.name,
+                                                 "sha256": sha256_of_file(out_path)}]}), encoding="utf-8")
+    assert cli.main(_argv(source, new_dir)) == 1
+    assert "it is an input of publication 0123456789ab" in capsys.readouterr().err
+    assert out_path.read_text(encoding="utf-8") == '{"published": true}'
+    assert judge.calls == [] and _no_record(new_dir)
+
+
+def test_a_stale_checkpoint_without_resume_exits_2(tmp_path, source, monkeypatch, capsys):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    new_dir = _new(tmp_path)
+    new_dir.mkdir(parents=True)
+    checkpoint = new_dir / f"norms_{NEW_NAME}.checkpoint.jsonl"
+    checkpoint.write_text(json.dumps({"run_id": "0" * 12, "group": GROUPS[0],
+                                      "result": {"norms": [], "judge_runs": [], "stats": {}}}) + "\n")
+    assert cli.main(_argv(source, new_dir)) == 2
+    assert "pass --resume" in capsys.readouterr().err
+    assert judge.calls == [] and _no_record(new_dir)
+
+
+def test_a_layer1_with_another_digest_exits_2(tmp_path, source, monkeypatch, capsys):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    new_dir = _new(tmp_path)
+    new_dir.mkdir(parents=True)
+    (new_dir / "layer1.json").write_text("{}", encoding="utf-8")
+    assert cli.main(_argv(source, new_dir)) == 2
+    assert "is not the source's layer1.json" in capsys.readouterr().err
+    assert (new_dir / "layer1.json").read_text(encoding="utf-8") == "{}"
+    assert judge.calls == [] and _no_record(new_dir)
+
+
+def test_a_missing_judge_price_row_exits_4(tmp_path, source, monkeypatch, capsys):
+    judge = ScriptedJudge()
+    rows = {model: row for model, row in prices().items() if model != "claude-fake"}
+    patch_command(monkeypatch, cli, judge, price_rows=rows)
+    new_dir = _new(tmp_path)
+    assert cli.main(_argv(source, new_dir)) == 4
+    assert "no price row for the judge 'claude-fake'" in capsys.readouterr().err
+    assert judge.calls == [] and not new_dir.exists()

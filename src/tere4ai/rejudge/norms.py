@@ -37,10 +37,6 @@ from tere4ai.parallel_calls import run_in_flight
 JUDGE_PROMPT_KIND = "judge_norms"
 JUDGE_FIELDS = ("judge_verdict", "review_status", "confidence", "judge_type_agrees", "judge_requirement_type")
 VERDICTS = ("accepted", "rejected", "needs_human_review")
-# The source's stats a re-judge carries: what the generator and the schema
-# decided, which no judge changes.
-CARRIED_STATS = ("source_units", "nodes_failed", "invalid_norms", "without_target_system_category",
-                 "untyped_in_scope")
 
 
 def group_of(norm: dict[str, Any]) -> str:
@@ -118,8 +114,10 @@ def merge_in_source_order(source_norms: list[dict[str, Any]], results: list[dict
 
 def recounted_stats(source_stats: dict[str, Any], norms: list[dict[str, Any]]) -> dict[str, Any]:
     """The source's stats in their key order with the candidates and verdicts
-    counted again over the re-judged norms; the rest (CARRIED_STATS: what the
-    generator and the schema decided, which no judge changes) carried."""
+    counted again over the re-judged norms; the rest (source_units,
+    nodes_failed, invalid_norms, without_target_system_category,
+    untyped_in_scope: what the generator and the schema decided, which no judge
+    changes) carried."""
     return {**source_stats, "candidates": len(norms), "verdicts": verdict_counts(norms)}
 
 
@@ -174,10 +172,22 @@ def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any])
         today = prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, version))
     except FileNotFoundError:
         return f"there is no {JUDGE_PROMPT_KIND} prompt {version} in this checkout"
-    recorded = sorted({str(run.get("prompt_sha256")) for run in source_payload.get("judge_runs") or []})
+    judge_runs = source_payload.get("judge_runs") or []
+    if not judge_runs:
+        return "the source build holds no judge runs, nothing to re-judge"
+    recorded = sorted({str(run.get("prompt_sha256")) for run in judge_runs})
     if recorded != [today]:
         return (f"the {JUDGE_PROMPT_KIND} {version} prompt has sha256 {today} today; the source's judge runs "
                 f"recorded {', '.join(recorded) or 'none'}")
+    # every field a re-judge reads or sets again, so the new norm keeps the
+    # stored key order (a typed version's type view included)
+    needed = ("norm_id", "source_node_id", "judge_run_id", "judge_verdict", "review_status", "confidence",
+              *(("judge_type_agrees", "judge_requirement_type") if types_for(version) else ()))
+    for norm in source_payload.get("norms") or []:
+        lacking = [key for key in needed if key not in norm]
+        if lacking:
+            return (f"the source norm {norm.get('norm_id', '(no norm_id)')} lacks {', '.join(lacking)}, "
+                    f"which a {version} norm carries")
     source_models = build.get("extraction_models") or {}
     differing = [key for key in GENERATOR_KEYS if source_models.get(key) != public_models.get(key)]
     if differing:

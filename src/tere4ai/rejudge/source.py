@@ -91,6 +91,8 @@ def read_source(source_dir: Path | str) -> SourceBuild:
         if entry is None or not entry.get("file") or not entry.get("sha256"):
             raise SourceError(f"the publication manifest of chain {chain_id} names no {kind} input with its sha256")
         path = source_dir / entry["file"]
+        if not path.resolve().is_relative_to(source_dir.resolve()):
+            raise SourceError(f"the published {kind} file {entry['file']} lies outside the source folder")
         if not path.is_file():
             raise SourceError(f"the published {kind} file {entry['file']} is missing")
         actual = sha256_of_file(path)
