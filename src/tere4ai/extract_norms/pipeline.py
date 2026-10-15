@@ -478,8 +478,10 @@ def _fallback_judge_result(reason: str) -> dict[str, Any]:
 
 def judged_candidate_fields(prompt_version: str) -> tuple[str, ...]:
     """The keys of the candidate the extraction judge of this prompt version
-    receives, in the order it receives them: the extractor's fields less the
-    ones this version does not ask for, give to the judge or keep."""
+    receives, in the order it receives them: every extractor field, without
+    the ones this prompt version leaves out (the model category, which the
+    judge never sees; the type fields of an untyped version; the lifecycle
+    field of a version without it)."""
     typed = types_for(prompt_version)  # B65 ruling 49
     with_model_category = prompt_version in _PROMPTS_WITH_MODEL_CATEGORY
     with_lifecycle = prompt_version in _PROMPTS_WITH_LIFECYCLE
