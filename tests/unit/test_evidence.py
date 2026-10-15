@@ -303,8 +303,10 @@ def test_malformed_evidence_raises_value_error(tmp_path):
 
 def test_evidence_keeps_evaluate_evidence_v1_and_its_judge_is_runtime_grounding_v3(tmp_path):
     """DEC-19 (B65 ruling 16): evaluate_project_evidence keeps
-    evaluate_evidence v1; its version is no longer the backlog's. B174
-    (2026-10-15): its judge moved from runtime_grounding v1 to v3."""
+    evaluate_evidence v1, not the backlog's generator prompt. B174
+    (2026-10-15): its judge moved from runtime_grounding v1 to v3, the
+    version the backlog's judge runs too, so the judge's version is shared
+    again."""
     generator = FakeClient({NORM["norm_id"]: gen_answer("satisfied", [REAL_QUOTE])}, model="fake-generator")
     judge = FakeClient({NORM["norm_id"]: JUDGE_ACCEPT}, model="fake-judge")
     envelope = evaluate_project_evidence(NORM, EVIDENCE, generator, judge, log_path=tmp_path / "log.jsonl")

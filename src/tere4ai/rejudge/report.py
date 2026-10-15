@@ -250,12 +250,17 @@ def _render(source: SourceBuild, out_dir: Path, name: str, record_id: str, recor
     norms_runs, align_runs = _executions(record, NORMS_COMMAND), _executions(record, ALIGNMENTS_COMMAND)
     made_on = min((ex.get("started_at") for ex in [*norms_runs, *align_runs] if ex.get("started_at")), default=None)
     made_on_text = _utc(made_on)[:10] if made_on else NOT_RECORDED
+    # B174 R5: the judge's prompt version and the source's; a build made before
+    # B174 records only one, the source's, under which it was judged
     pv, apv = build.get("prompt_version"), abuild.get("alignment_prompt_version")
+    spv, sapv = rejudge.get("source_prompt_version", pv), arejudge.get("source_prompt_version", apv)
     out: list[str] = [
         f"# Build {name}", "",
         f"Generator output of {source.name}, judged by {judge} (effort {_or_not_recorded(emodels.get('judge_effort'))}, "
         f"temperature {_or_not_recorded(emodels.get('judge_temperature'))}), made by `python -m tere4ai.rejudge` "
         f"(card B173) on {made_on_text}.", "",
+        f"Judged under judge_norms {_or_not_recorded(pv)}; the source under {_or_not_recorded(spv)}. Alignments "
+        f"judged under judge_alignment {_or_not_recorded(apv)}; the source under {_or_not_recorded(sapv)}.", "",
         "## What it is", "",
     ]
     in_flight = sorted({str((ex.get("config") or {}).get("max_in_flight")) for ex in [*norms_runs, *align_runs]
@@ -278,9 +283,11 @@ def _render(source: SourceBuild, out_dir: Path, name: str, record_id: str, recor
                    f"{_or_not_recorded(amodels.get('judge_model'))}, effort "
                    f"{_or_not_recorded(amodels.get('judge_effort'))}, temperature "
                    f"{_or_not_recorded(amodels.get('judge_temperature'))}, the alignment judge"],
-        ["Prompts", f"extract_norms {_or_not_recorded(pv)} (the source's generator), judge_norms "
-                    f"{_or_not_recorded(pv)}, align_hleg {_or_not_recorded(apv)}, judge_alignment "
-                    f"{_or_not_recorded(apv)}"],
+        ["Prompts", f"extract_norms {_or_not_recorded(spv)} (the source's generator), judge_norms "
+                    f"{_or_not_recorded(pv)} (the source's {_or_not_recorded(spv)}), align_hleg "
+                    f"{_or_not_recorded(sapv)} (the source's generator; {_or_not_recorded(apv)} for the newly "
+                    f"accepted norms), judge_alignment {_or_not_recorded(apv)} (the source's "
+                    f"{_or_not_recorded(sapv)})"],
         ["Code", f"{_code_version()} (the checkout that wrote this report; the records do not name the code)"],
         ["Calls in flight", ", ".join(in_flight) if in_flight else NOT_RECORDED],
         ["Ran", "; ".join(ran) if ran else NOT_RECORDED],

@@ -56,9 +56,9 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 | E6 elicitation | generator (gpt-6-astra) | 32 | 344,221 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
 | E6 development set elicitation | generator (gpt-6-astra) | 32 | 344,142 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
 | E6 pilot run, 5 repetitions | generator (gpt-6-astra) | 898 | 991,988 | 140,514 | 780,635 (203,028 to 1,405,143) | 19.08 | 48.95 | 81.17 |
-| E6 pilot run, 5 repetitions | judge (claude-opus-5-5) | 150 | 968,911 | 32,706 | 181,702 (59,055 to 327,064) | 4.67 | 7.51 | 10.80 |
+| E6 pilot run, 5 repetitions | judge (claude-opus-5-5) | 150 | 1,242,096 | 32,706 | 181,702 (59,055 to 327,064) | 5.65 | 8.60 | 12.01 |
 | E6 main run, N = 11 | generator (gpt-6-astra) | 2,242 | 2,885,434 | 328,060 | 1,822,554 (474,011 to 3,280,597) | 49.67 | 119.98 | 195.77 |
-| E6 main run, N = 11 | judge (claude-opus-5-5) | 418 | 2,631,162 | 91,142 | 506,344 (164,568 to 911,419) | 12.76 | 20.65 | 29.81 |
+| E6 main run, N = 11 | judge (claude-opus-5-5) | 418 | 3,392,438 | 91,142 | 506,344 (164,568 to 911,419) | 15.50 | 23.70 | 33.16 |
 | Campaigns (Section 10.4) | none | 0 | 0 | 0 | 0 | 0.00 | 0.00 | 0.00 |
 
 "E6 development set elicitation" prices the pilot run's sample, 32 scenarios drawn from outside the frozen sample, a different set from the 32 scenarios "E6 elicitation" prices (the frozen sample's); the two rows nearly match because every call sends the same system prompt and is priced at the same mean reply size.
@@ -73,11 +73,11 @@ Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.
 | Step | Model component (model) | Calls | Input tokens | Visible output tokens | Billed output tokens, central (low to high) | Low USD | Central USD | High USD |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | E6 ablation, first run | generator (gpt-6-astra) | 342 | 315,764 | 67,958 | 377,543 (98,192 to 679,578) | 7.75 | 22.03 | 37.45 |
-| E6 ablation, first run | judge (claude-opus-5-5) | 38 | 239,197 | 8,286 | 46,031 (14,961 to 82,856) | 1.16 | 1.88 | 2.71 |
+| E6 ablation, first run | judge (claude-opus-5-5) | 38 | 308,403 | 8,286 | 46,031 (14,961 to 82,856) | 1.41 | 2.15 | 3.01 |
 | E6 ablation, each repetition after the first | generator (gpt-6-astra) | 190 | 256,967 | 26,010 | 144,501 (37,582 to 260,102) | 4.19 | 9.79 | 15.83 |
-| E6 ablation, each repetition after the first | judge (claude-opus-5-5) | 38 | 239,197 | 8,286 | 46,031 (14,961 to 82,856) | 1.16 | 1.88 | 2.71 |
+| E6 ablation, each repetition after the first | judge (claude-opus-5-5) | 38 | 308,403 | 8,286 | 46,031 (14,961 to 82,856) | 1.41 | 2.15 | 3.01 |
 
-The first run costs 23.91 USD (band 8.91 to 40.16) and each repetition after it 11.67 USD (band 5.35 to 18.54). The first run runs every condition on every case; each repetition after it runs conditions 1 and 2 on every case and conditions 3 to 6 on question and retrieval cases only, since no model call decides a classification case's scored outcome there (spec G D-G84 (5)), and the runtime judge is called on question and retrieval cases only (D-G84 (4)). The main run is priced at N = 11, the most the pilot run's rule allows (D-G84 (5): the smallest odd N reaching a half-width of 2 percentage points, at most 11), so the figure errs high; at the pilot's N, take the first run plus (N minus 1) times one repetition after the first.
+The first run costs 24.19 USD (band 9.16 to 40.47) and each repetition after it 11.95 USD (band 5.60 to 18.85). The first run runs every condition on every case; each repetition after it runs conditions 1 and 2 on every case and conditions 3 to 6 on question and retrieval cases only, since no model call decides a classification case's scored outcome there (spec G D-G84 (5)), and the runtime judge is called on question and retrieval cases only (D-G84 (4)). The main run is priced at N = 11, the most the pilot run's rule allows (D-G84 (5): the smallest odd N reaching a half-width of 2 percentage points, at most 11), so the figure errs high; at the pilot's N, take the first run plus (N minus 1) times one repetition after the first.
 
 A scenario without facts is counted with its explanation call: in the dry run it takes a stand-in of its own text with no flags, so conditions 3 to 6 call the generator to explain the classifier's level as a real run with elicited facts does; the estimate before B150 left those calls out (B150 ruling R32).
 
@@ -91,8 +91,8 @@ Per-strategy dry-run counts of the first run (visible output at the model develo
 | vector_rag | 57 | 91,765 | 9,513 | 0 | 0 | 0 |
 | graph_no_judge | 57 | 52,525 | 13,051 | 0 | 0 | 0 |
 | graph_build_judge | 57 | 53,671 | 13,519 | 0 | 0 | 0 |
-| graph_full | 57 | 53,671 | 13,525 | 19 | 117,604 | 4,143 |
-| graph_runtime_judge | 57 | 52,525 | 13,051 | 19 | 121,592 | 4,143 |
+| graph_full | 57 | 53,671 | 13,525 | 19 | 152,208 | 4,143 |
+| graph_runtime_judge | 57 | 52,525 | 13,051 | 19 | 156,196 | 4,143 |
 
 The elicitation output size counts features only: the facts file (eval/gold/benchmark_features.json) holds no quotes, so the quotes of a reply to the default elicitor prompt are not in the figure.
 
@@ -101,11 +101,11 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 ## Alignment rationale: a proxy, and the cost without it
 
 - A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, in the generator's output and in the judge's input. The direction of the proxy's error is unknown, because the generator's rationale is not recorded: it may be shorter or longer.
-- Sensitivity calculation, not a bound: the total without the rationale in both places is 364.76 USD central (182.52 low, 564.48 high), against the stated total of 408.92 (194.36 low, 643.57 high).
+- Sensitivity calculation, not a bound: the total without the rationale in both places is 368.90 USD central (186.24 low, 569.03 high), against the stated total of 413.06 (198.08 low, 648.12 high).
 
 ## Reference outside the total
 
-- Full benchmark (476 items), one ablation run: 196.83 USD (band 70.56 to 333.57); its elicitation of 339 scenarios: 51.73 USD (band 36.78 to 67.59). Outside the total (ruling R4): E6 is priced as spec G Section 10.4 states it, over the hand-made test set and the frozen sample.
+- Full benchmark (476 items), one ablation run: 198.82 USD (band 72.36 to 335.77); its elicitation of 339 scenarios: 51.73 USD (band 36.78 to 67.59). Outside the total (ruling R4): E6 is priced as spec G Section 10.4 states it, over the hand-made test set and the frozen sample.
 
 ## Excluded
 
@@ -113,10 +113,10 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 
 ## Batch
 
-- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 204.46 USD (band 97.18 to 321.79). It is a lever and not in the total: the clients call the synchronous APIs.
+- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 206.53 USD (band 99.04 to 324.06). It is a lever and not in the total: the clients call the synchronous APIs.
 
 ## Total
 
-Total for the B74 sequence: 408.92 USD (band 194.36 to 643.57)
+Total for the B74 sequence: 413.06 USD (band 198.08 to 648.12)
 
 The band takes the low input and the low reasoning share at its low end, and the high input and the high reasoning share at its high end. It includes the main run at N = 11, the pilot run and the development set's elicitation.

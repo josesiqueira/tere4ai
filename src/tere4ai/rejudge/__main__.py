@@ -26,7 +26,14 @@ is only read, and the new build's folder never lies inside it, equals it or
 holds it. `norms` runs the Layer 3 checks of the source alignments before it
 writes anything (layer3_source), so Layer 2 is never paid for a source whose
 Layer 3 would be refused; each subcommand names its judge (model, effort,
-temperature) before its first call (final review).
+temperature, prompt version) before its first call (final review).
+
+Card B174 (R4): the judges run at the code's default prompt versions
+(NORMS_JUDGE_VERSION, ALIGNMENTS_JUDGE_VERSION), which may be newer than the
+source's; a source judged under an older version is accepted when the
+candidate has the same shape under both, and the new files record both
+versions (build.prompt_version and alignment_prompt_version the judge's, the
+rejudge blocks source_prompt_version and judge_prompt_version).
 """
 
 from __future__ import annotations
@@ -45,6 +52,7 @@ from tere4ai.act_parties import ACT_PARTIES_PATH
 from tere4ai.align_hleg.__main__ import _attach_source_text
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
 from tere4ai.align_hleg.hleg_source import HlegPair, HlegSourceError, load_pair
+from tere4ai.align_hleg.pipeline import DEFAULT_PROMPT_VERSION as ALIGNMENTS_JUDGE_VERSION
 from tere4ai.extract_norms.actor_audit import addressee_counts, section_2_checks
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
@@ -52,6 +60,7 @@ from tere4ai.extract_norms.model_clients import (
     OpenAIGenerator,
     declared_sampling,
 )
+from tere4ai.extract_norms.pipeline import DEFAULT_PROMPT_VERSION as NORMS_JUDGE_VERSION
 from tere4ai.extract_norms.pipeline import load_prompt, prompt_sha256
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import (
@@ -236,10 +245,12 @@ def _check_name(args: argparse.Namespace, source: SourceBuild, judge_model: str)
     _check_out_dir(args, source.dir)
 
 
-def _announce_judge(judge: object) -> None:
-    """The judge the run pays, named before its first call (final review)."""
+def _announce_judge(judge: object, prompt_kind: str, judge_version: str, source_version: str) -> None:
+    """The judge the run pays and its prompt version beside the source's, named
+    before its first call (final review, B174 R5)."""
     print(f"judging with {getattr(judge, 'model', 'unknown')}, effort {effort_of(judge)}, temperature "
-          f"{getattr(judge, 'temperature', 'unknown')}", flush=True)
+          f"{getattr(judge, 'temperature', 'unknown')}, under {prompt_kind} {judge_version}; the source under "
+          f"{source_version}", flush=True)
 
 
 class Layer3Source(NamedTuple):
@@ -264,7 +275,7 @@ def layer3_source(source: SourceBuild, models: dict[str, Any]) -> Layer3Source:
         payload = json.loads(source.alignments_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise refuse(f"the source alignments file cannot be read ({type(exc).__name__})") from None
-    refusal = alignments_refusal(payload, models, source.norms_sha256)
+    refusal = alignments_refusal(payload, models, source.norms_sha256, ALIGNMENTS_JUDGE_VERSION)
     if refusal:
         raise refuse(refusal)
     try:
@@ -338,7 +349,7 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     except ModelConfigError as exc:
         raise Refusal(4, f"stopped: {exc}") from None
     models = cfg.as_public_dict()
-    refusal = norms_refusal(source_payload, models)
+    refusal = norms_refusal(source_payload, models, NORMS_JUDGE_VERSION)
     if refusal:
         raise refuse(refusal)
     # Layer 3's checks of the source too, before Layer 2 is paid
@@ -370,7 +381,9 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
                                   layer1_digest=source.layer1_sha256)
 
     source_build = source_payload["build"]
-    prompt_version = source_build["prompt_version"]
+    # B174 R4: the judge runs under the code's default version; the candidates
+    # and messages are rebuilt under the source's
+    source_version, judge_version = source_build["prompt_version"], NORMS_JUDGE_VERSION
     # R6: the judge runs keep the source's base build id
     build_id = source_build.get("build_id", "build-unknown")
     description = f"generator output of {source.name}, judged by {judge_model}"
@@ -384,10 +397,11 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
          "file": os.path.relpath(ACT_PARTIES_PATH.resolve(), out_dir.resolve()),
          "sha256": sha256_of_file(ACT_PARTIES_PATH)},
     ]
-    config = {"prompt_version": prompt_version, "max_in_flight": args.max_in_flight,
+    config = {"prompt_version": judge_version, "source_prompt_version": source_version,
+              "max_in_flight": args.max_in_flight,
               "cost_stop_usd": args.cost_stop, "source_build": source.name, "source_record_id": source.record_id,
               "source_chain_id": source.chain_id, "judged_by": judge_model, "description": description}
-    prompts = {"judge": prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, prompt_version))}
+    prompts = {"judge": prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, judge_version))}
     plan = plan_resume(checkpoint_path, "group", NORMS_RESULT_KEYS, resume=args.resume, store=store, choice=choice,
                        config=config, inputs=inputs, models=models, prompts=prompts)
 
@@ -415,7 +429,7 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     judge_price = prices[judge_model]
 
     def judge_groups() -> dict[str, Any]:
-        _announce_judge(judge)
+        _announce_judge(judge, JUDGE_PROMPT_KIND, judge_version, source_version)
         print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
         group_results: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
         with Heartbeat(store, record_id, run_id), checkpoint_path.open("a", encoding="utf-8") as ckpt:
@@ -428,8 +442,8 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
                 if so_far >= args.cost_stop:
                     raise CostStop(so_far, args.cost_stop)
                 result = rejudge_group(dump, [n for n in source_norms if group_of(n) == group], judge,
-                                       prompt_version=prompt_version, log_path=log_path, build_id=build_id,
-                                       max_in_flight=args.max_in_flight)
+                                       source_prompt_version=source_version, judge_prompt_version=judge_version,
+                                       log_path=log_path, build_id=build_id, max_in_flight=args.max_in_flight)
                 ckpt.write(json.dumps({"run_id": run_id, "group": group, "result": result}) + "\n")
                 ckpt.flush()
                 group_results.append(result)
@@ -450,12 +464,13 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
             "source_judge_model": (source_build.get("extraction_models") or {}).get("judge_model"),
             "judge_model": judge_model, "rejudged_at": _now_iso(),
             "carried_generator_usage": source_usage.get("generator"), "source_judge_usage": source_usage.get("judge"),
+            "source_prompt_version": source_version, "judge_prompt_version": judge_version,
         }
         replaced = {
             "build": rejudged_build_block(
                 source_build, public_models=models, judge_sampling=sampling["judge"], judge_effort=effort_of(judge),
                 judge_temperature=sampling["judge_temperature"], judge_usage=usage_of(judge),
-                zero_usage=zero_usage()),
+                zero_usage=zero_usage(), prompt_version=judge_version),
             "norms": norms, "judge_runs": judge_runs, "stats": stats,
         }
         payload = {key: replaced.get(key, value) for key, value in source_payload.items()}
@@ -578,7 +593,9 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
     norms_payload = json.loads(norms_path.read_text(encoding="utf-8"))
     norms: list[dict[str, Any]] = norms_payload.get("norms") or []
     _attach_source_text(norms, dump)
-    prompt_version = source_build["alignment_prompt_version"]
+    # B174 R4: the judge and the generator of the newly accepted norms run
+    # under the code's default version
+    source_version, judge_version = source_build["alignment_prompt_version"], ALIGNMENTS_JUDGE_VERSION
     # R6: the judge runs keep the source's base build id
     build_id = source_build.get("build_id", "build-unknown")
     description = f"generator output of {source.name}, judged by {judge_model}"
@@ -593,11 +610,12 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
         {"input_kind": "hleg_text", "file": TEXT_FILE, "sha256": pair.text_sha256},
         {"input_kind": "hleg_derivation_record", "file": RECORD_FILE, "sha256": pair.record_sha256},
     ]
-    config = {"prompt_version": prompt_version, "batch_size": args.batch_size, "max_in_flight": args.max_in_flight,
+    config = {"prompt_version": judge_version, "source_prompt_version": source_version,
+              "batch_size": args.batch_size, "max_in_flight": args.max_in_flight,
               "cost_stop_usd": args.cost_stop, "source_build": source.name, "source_record_id": source.record_id,
               "source_chain_id": source.chain_id, "judged_by": judge_model, "description": description}
-    prompts = {"generator": prompt_sha256(load_prompt(ALIGN_PROMPT_KIND, prompt_version)),
-               "judge": prompt_sha256(load_prompt(ALIGNMENT_JUDGE_PROMPT_KIND, prompt_version))}
+    prompts = {"generator": prompt_sha256(load_prompt(ALIGN_PROMPT_KIND, judge_version)),
+               "judge": prompt_sha256(load_prompt(ALIGNMENT_JUDGE_PROMPT_KIND, judge_version))}
     plan = plan_resume(checkpoint_path, "batch", ALIGNMENTS_RESULT_KEYS, resume=args.resume, store=store,
                        choice=choice, config=config, inputs=inputs, models=models, prompts=prompts)
 
@@ -632,7 +650,7 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
                 + usage_cost(usage_of(judge), prices[judge_model]))
 
     def rejudge_batches() -> dict[str, Any]:
-        _announce_judge(judge)
+        _announce_judge(judge, ALIGNMENT_JUDGE_PROMPT_KIND, judge_version, source_version)
         print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
         partials: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
         with Heartbeat(store, record_id, run_id), checkpoint_path.open("a", encoding="utf-8") as ckpt:
@@ -644,7 +662,7 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
                 if so_far >= args.cost_stop:
                     raise CostStop(so_far, args.cost_stop)
                 partial = rejudge_batch(chunk, source_verdicts, source_alignments, hleg_nodes, generator, judge,
-                                        prompt_version=prompt_version, log_path=log_path, build_id=build_id,
+                                        prompt_version=judge_version, log_path=log_path, build_id=build_id,
                                         max_in_flight=args.max_in_flight)
                 ckpt.write(json.dumps({"run_id": run_id, "batch": batch_key, "result": partial}) + "\n")
                 ckpt.flush()
@@ -665,13 +683,15 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
             "description": description, "source_build": source.name,
             "source_alignments_sha256": source.alignments_sha256, "source_aligned_at": source_build.get("aligned_at"),
             "carried_generator_usage": source_usage.get("generator"), "source_judge_usage": source_usage.get("judge"),
+            "source_prompt_version": source_version, "judge_prompt_version": judge_version,
         }
         payload = {
             "build": rejudged_alignment_build(
                 norms_payload.get("build") or {}, source_build, public_models=models,
                 judge_sampling=sampling["judge"], judge_effort=effort_of(judge), usage=execution.usage(),
                 norms_sha256=norms_digest, hleg_text_sha256=pair.text_sha256,
-                hleg_derivation_record_sha256=pair.record_sha256, aligned_at=_now_iso(), rejudge=rejudge_block),
+                hleg_derivation_record_sha256=pair.record_sha256, aligned_at=_now_iso(),
+                prompt_version=judge_version, rejudge=rejudge_block),
             **result,
         }
         tmp_path = out_path.with_suffix(".writing.json")

@@ -15,6 +15,11 @@ candidate whose quotes are verbatim prefixes of the norm's source text and
 of the hleg:accountability description. Skipped when the thesis checkout or
 the build is absent.
 
+B174: the build was judged under judge_norms v6 and judge_alignment v2; the
+command judges it under the code's defaults, v7 and v3, whose system prompts
+hold the paragraph on the Act in force, with the messages rebuilt under the
+source's versions.
+
 @implements: DEC-06 (partial: re-judging stored candidates)
 @implements: DEC-16 (partial: the rejudge executions)
 @grounded_by: REF-24, ADD-20
@@ -43,6 +48,7 @@ from tests.unit.rejudge_mock_build import (
     patch_command,
     prices,
 )
+from tests.unit.test_judge_prompts_in_force import PARAGRAPH
 
 import tere4ai.rejudge.__main__ as cli
 import tere4ai.rejudge.report as report
@@ -54,6 +60,7 @@ from tere4ai.extract_norms.pipeline import (
     _index_nodes,
     candidate_of_norm,
     judge_message,
+    load_prompt,
     unit_of_norm,
 )
 from tere4ai.graph_store.build_record import BuildRecordStore
@@ -210,6 +217,13 @@ def test_rejudge_end_to_end_on_the_astra_build(tmp_path, monkeypatch, in_flight)
     assert len(norms_judge.calls) == len(source_norms) == 480
     assert Counter(user for _system, user in norms_judge.calls) == Counter(message_of.values())
     norms_payload = _load(new_dir / f"norms_{NAME}.json")
+    # B174: a v6 source judged under v7, whose system prompt holds the paragraph
+    assert prompt_version == "v6" and source_alignments_payload["build"]["alignment_prompt_version"] == "v2"
+    assert {system for system, _user in norms_judge.calls} == {load_prompt("judge_norms", "v7")}
+    assert PARAGRAPH in load_prompt("judge_norms", "v7")
+    assert {r["prompt_version"] for r in norms_payload["judge_runs"]} == {"v7"}
+    assert norms_payload["build"]["prompt_version"] == "v7"
+    assert norms_payload["rejudge"]["source_prompt_version"] == "v6"
     assert norms_payload["build"]["extraction_usage"]["generator"]["calls"] == 0
     changed = {n["norm_id"]: n["judge_verdict"] for n, s in zip(norms_payload["norms"], source_norms, strict=True)
                if n["judge_verdict"] != s["judge_verdict"]}
@@ -228,6 +242,12 @@ def test_rejudge_end_to_end_on_the_astra_build(tmp_path, monkeypatch, in_flight)
     assert sorted(called) == sorted(newly_accepted)
     alignments = _load(new_dir / f"alignments_{NAME}.json")
     stats = alignments["stats"]
+    # B174: a v2 source judged under v3, whose system prompt holds the paragraph
+    assert {system for system, _user in alignment_judge.calls} == {load_prompt("judge_alignment", "v3")}
+    assert PARAGRAPH in load_prompt("judge_alignment", "v3")
+    assert {r["prompt_version"] for r in alignments["judge_runs"] if r["judge_model"] == JUDGE_MODEL} == {"v3"}
+    assert alignments["build"]["alignment_prompt_version"] == "v3"
+    assert alignments["build"]["alignment_rejudge"]["source_prompt_version"] == "v2"
     assert sorted(stats["newly_aligned_norms"]) == sorted(newly_accepted)
     dropped = [aid for norm_id in newly_rejected for aid in assertions_of[norm_id]]
     assert sorted(stats["dropped_assertions"]) == sorted(dropped)

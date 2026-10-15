@@ -98,6 +98,11 @@ def test_the_report_lists_exactly_the_changed_verdicts(rejudged):
     assert f"| `{d_assertion}` | `{NORM_D}` | accepted | rejected |\n" in section
     assert f"| Norm | New assertions | accepted |\n|---|---|---|\n| `{NORM_C}` | 1 | 1 |\n" in section
     assert "## What it is" in text and "| Build id | not published yet |" in text
+    # B174 R5: the judge's prompt version and the source's
+    assert ("Judged under judge_norms v7; the source under v6. Alignments judged under judge_alignment v3; the "
+            "source under v2.\n") in text
+    assert ("| Prompts | extract_norms v6 (the source's generator), judge_norms v7 (the source's v6), align_hleg v2 "
+            "(the source's generator; v3 for the newly accepted norms), judge_alignment v3 (the source's v2) |") in text
     assert "## Counts" in text and "## Files" in text
     # the sections in the order of the brief
     order = ["## What it is", "## Counts", "## Cost, as the inference backends report it",

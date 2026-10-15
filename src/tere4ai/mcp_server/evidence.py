@@ -52,14 +52,14 @@ from tere4ai.mcp_server.tools import make_envelope
 
 TOOL_NAME = "evaluate_project_evidence"
 
-# DEC-19: the evidence path keeps its prompts. evaluate_evidence stays at v1
-# here; its version is not the one the backlog shares (generate_backlog v2,
-# runtime_grounding v2).
+# DEC-19: the evidence path's generator keeps evaluate_evidence v1, which is
+# not the backlog's generator prompt (generate_backlog).
 # 2026-10-15 (B174): the evidence tool's judge moves to runtime_grounding v3,
-# v2 plus a paragraph stating that the legal text is the Act in force. The
-# judge's message and the handling of its verdict are those of v1; v2's type
-# view is asked for and recorded on a control backlog only, so an evidence
-# answer records none. evaluate_evidence stays at v1.
+# v2 plus a paragraph stating that the legal text is the Act in force, the
+# version the backlog's judge runs too, so the judge's version is shared
+# again. The judge's message and the handling of its verdict are those of
+# v1; v2's type view is asked for and recorded on a control backlog only, so
+# an evidence answer records none. evaluate_evidence stays at v1.
 GENERATOR_PROMPT_VERSION = "v1"
 JUDGE_PROMPT_VERSION = "v3"
 

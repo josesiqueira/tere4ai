@@ -66,6 +66,12 @@ STRATEGY_NAMES = (
 # The conditions that call the runtime grounding judge (B126 ruling R2):
 # every caller asks uses_runtime_judge, never compares a name with one of these.
 _RUNTIME_JUDGE_STRATEGIES = frozenset({"graph_full", "graph_runtime_judge"})
+# The runtime grounding judge's prompt version for a condition named without
+# a "@vN" suffix. 2026-10-15 (B174 ruling R6): v1 to v3, the version that
+# states the legal text is the Act in force, as for the backlog and the
+# evidence tool (Jose: "standard for any model we eventually use as judge");
+# a condition named with a version keeps that version.
+RUNTIME_JUDGE_PROMPT_VERSION = "v3"
 
 
 def uses_runtime_judge(name: str) -> bool:
@@ -275,7 +281,7 @@ class GraphStrategy:
         runtime_judge: ModelClient | None = None,
         top_k_norms: int = 8,
         judge_log_path: Any = None,
-        judge_prompt_version: str = "v1",
+        judge_prompt_version: str = RUNTIME_JUDGE_PROMPT_VERSION,
     ):
         self.name = name
         self._judge_prompt_version = judge_prompt_version
@@ -564,6 +570,6 @@ def build_strategy(
         return GraphStrategy(
             name, generator, dump, norms_payload, judged_only=base == "graph_full",
             runtime_judge=judge, judge_log_path=judge_log_path,
-            judge_prompt_version=prompt_version or "v1",
+            judge_prompt_version=prompt_version or RUNTIME_JUDGE_PROMPT_VERSION,
         )
     raise ValueError(f"unknown strategy {name!r}; known: {', '.join(STRATEGY_NAMES)}")

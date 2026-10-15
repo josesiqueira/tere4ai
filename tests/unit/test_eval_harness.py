@@ -261,7 +261,7 @@ def test_graph_runtime_judge_takes_a_prompt_version_suffix(tmp_path):
     assert strategy.name == "graph_runtime_judge@v2"
     assert strategy.models["judge_prompt_version"] == "v2"
     assert build_strategy("graph_runtime_judge", make_generator(), MINI_DUMP, MINI_NORMS,
-                          judge=make_judge()).models["judge_prompt_version"] == "v1"
+                          judge=make_judge()).models["judge_prompt_version"] == "v3"
 
 
 def test_the_runtime_judge_is_not_called_on_a_classification_case(tmp_path):
@@ -640,7 +640,10 @@ def test_graph_full_at_version_runs_that_judge_prompt(tmp_path, monkeypatch):
     assert '"prompt_version": "vB"' in log
 
 
-def test_plain_graph_full_defaults_to_v1(tmp_path):
+def test_plain_graph_full_defaults_to_v3(tmp_path):
+    """B174 ruling R6: the runtime judge of a condition named without a
+    version runs runtime_grounding v3, the version that states the legal text
+    is the Act in force."""
     strategy = build_strategy(
         "graph_full",
         make_generator(),
@@ -649,7 +652,7 @@ def test_plain_graph_full_defaults_to_v1(tmp_path):
         judge=make_judge(),
         judge_log_path=tmp_path / "judge_log.jsonl",
     )
-    assert strategy.models["judge_prompt_version"] == "v1"
+    assert strategy.models["judge_prompt_version"] == "v3"
 
 
 def test_audit_log_scrubs_key_material(tmp_path):
@@ -907,7 +910,7 @@ def test_an_offline_run_with_graph_full_records_the_runtime_judge_prompt_hash(tm
           "dump_dir": tmp_path, "judge_log_path": tmp_path / "judge_log.jsonl"}
     full = run_eval(list(GOLD_3)[:1], ["plain_llm", "graph_full"], results_dir=tmp_path / "r", **kw)
     assert store.read(full["record_id"])["prompt_sha256"] == {
-        "runtime_grounding": prompt_sha256(load_prompt("runtime_grounding", "v1"))}
+        "runtime_grounding@v3": prompt_sha256(load_prompt("runtime_grounding", "v3"))}
     plain = run_eval(list(GOLD_3)[:1], ["plain_llm"], results_dir=tmp_path / "r2", **kw)
     assert store.read(plain["record_id"])["prompt_sha256"] is None
 
@@ -951,7 +954,9 @@ def test_an_offline_run_with_graph_runtime_judge_records_the_runtime_judge_promp
     out = run_eval(list(GOLD_3)[:1], ["graph_runtime_judge"], generator_factory=h.OfflineStubClient,
                    judge_factory=h.OfflineStubClient, record_store=store, dump_dir=tmp_path,
                    judge_log_path=tmp_path / "judge_log.jsonl", results_dir=tmp_path / "r")
-    assert store.read(out["record_id"])["prompt_sha256"] == expected
+    # B174 ruling R6: a condition named without a version runs v3
+    assert store.read(out["record_id"])["prompt_sha256"] == {
+        "runtime_grounding@v3": prompt_sha256(load_prompt("runtime_grounding", "v3"))}
 
 
 def test_a_failure_finish_refused_by_validation_still_ends_the_record_failed(tmp_path, monkeypatch):

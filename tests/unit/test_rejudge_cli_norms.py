@@ -45,7 +45,13 @@ from tere4ai.extract_norms.model_clients import (
     InferenceBackendRefused,
     InferenceBackendUnavailable,
 )
-from tere4ai.extract_norms.pipeline import load_prompt
+from tere4ai.extract_norms.pipeline import (
+    _index_nodes,
+    candidate_of_norm,
+    judge_message,
+    load_prompt,
+    unit_of_norm,
+)
 from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore
 from tere4ai.graph_store.present import present_record
@@ -107,12 +113,13 @@ def test_norms_writes_a_new_build_with_zero_generator_calls(tmp_path, source, mo
     assert ex["usage"]["generator"] == ZERO_USAGE
     assert ex["usage"]["judge"]["calls"] == 4 and ex["usage"]["judge"]["input_tokens"] == 4000
     assert ex["config"]["description"] == DESCRIPTION
-    assert ex["config"] == {"prompt_version": "v6", "max_in_flight": 1, "cost_stop_usd": 1000.0,
+    assert ex["config"] == {"prompt_version": "v7", "source_prompt_version": "v6", "max_in_flight": 1,
+                            "cost_stop_usd": 1000.0,
                             "source_build": SOURCE_NAME, "source_record_id": record_source_id(source),
                             "source_chain_id": "a1b2c3d4e5f6", "judged_by": "claude-fake",
                             "description": DESCRIPTION}
     assert ex["models"] == fake_cfg().as_public_dict()
-    assert ex["prompt_sha256"] == {"judge": rejudge_norms.prompt_sha256(load_prompt("judge_norms", "v6"))}
+    assert ex["prompt_sha256"] == {"judge": rejudge_norms.prompt_sha256(load_prompt("judge_norms", "v7"))}
     assert ex["sampling"]["judge"] == "0" and ex["sampling"]["generator"] is None
     kinds = {i["input_kind"]: i for i in ex["inputs"]}
     assert kinds["layer1_dump"] == {"input_kind": "layer1_dump", "file": "layer1.json",
@@ -172,12 +179,13 @@ def test_only_the_judge_fields_change_and_ids_are_kept(tmp_path, source, monkeyp
     assert models["model_parameters_sha256"] == "environment-parameters-sha256"
     assert build["extraction_temperature"] == {"generator": "N/A", "judge": "0"}
     assert build["extraction_sampling"] == {"generator": "N/A", "judge": "0"}
-    assert build["extracted_at"] == old_build["extracted_at"] and build["prompt_version"] == "v6"
+    assert build["extracted_at"] == old_build["extracted_at"] and build["prompt_version"] == "v7"
     rejudge = after["rejudge"]
     assert rejudge["source_build"] == SOURCE_NAME and rejudge["source_judge_model"] == "gpt-fake-sol"
     assert rejudge["source_norms_sha256"] == sha256_of_file(source / NORMS_FILE)
     assert rejudge["carried_generator_usage"] == old_build["extraction_usage"]["generator"]
     assert rejudge["source_judge_usage"] == old_build["extraction_usage"]["judge"]
+    assert (rejudge["source_prompt_version"], rejudge["judge_prompt_version"]) == ("v6", "v7")
     _store, record = _record(new_dir)
     assert record["executions"][0]["counts"]["changed_verdicts"] == {"count": 2, "norm_ids": [NORM_C, NORM_A]}
 
@@ -188,8 +196,80 @@ def test_every_stored_norm_is_judged_once_with_its_generation_time_message(tmp_p
     assert cli.main(_argv(source, _new(tmp_path))) == 0
     captured = source_judge_messages(tmp_path)["norms"]
     assert len(judge.calls) == 4
-    assert {system for system, _user in judge.calls} == {load_prompt("judge_norms", "v6")}
+    assert {system for system, _user in judge.calls} == {load_prompt("judge_norms", "v7")}
     assert [user for _system, user in judge.calls] == [captured[norm_id] for norm_id in FILE_ORDER]
+
+
+def test_a_source_judged_under_v6_is_rejudged_under_v7(tmp_path, source, monkeypatch):
+    """B174 R4: the judge runs at the code's default version, v7; the mock
+    source was judged under v6. The candidates and messages are rebuilt under
+    v6, which gives v7's text too (pinned below), so the judge reads the
+    messages captured at generation time under v7's system prompt."""
+    assert rejudge_norms.DEFAULT_PROMPT_VERSION == "v7"
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    new_dir = _new(tmp_path)
+    assert cli.main(_argv(source, new_dir)) == 0
+    v7 = load_prompt("judge_norms", "v7")
+    assert "the law in force" in v7 and "the law in force" not in load_prompt("judge_norms", "v6")
+    assert {system for system, _user in judge.calls} == {v7}
+    captured = source_judge_messages(tmp_path)["norms"]
+    assert [user for _system, user in judge.calls] == [captured[norm_id] for norm_id in FILE_ORDER]
+    payload, source_payload = _payload(new_dir), _source_norms(source)
+    assert {(r["prompt_version"], r["prompt_sha256"]) for r in payload["judge_runs"]} == {
+        ("v7", rejudge_norms.prompt_sha256(v7))}
+    assert {r["prompt_version"] for r in source_payload["judge_runs"]} == {"v6"}
+    assert payload["build"]["prompt_version"] == "v7" and source_payload["build"]["prompt_version"] == "v6"
+    assert (payload["rejudge"]["source_prompt_version"], payload["rejudge"]["judge_prompt_version"]) == ("v6", "v7")
+    events = [json.loads(line) for line in
+              (new_dir / "logs" / "rejudge_extraction_log.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert {e["prompt_version"] for e in events} == {"v7"}
+    # the message rebuilt for a stored norm is the same text under v6 and v7
+    dump = json.loads((source / "layer1.json").read_text(encoding="utf-8"))
+    nodes = _index_nodes(dump)
+    for norm in source_payload["norms"]:
+        unit = unit_of_norm(dump, norm)
+        messages = {version: judge_message(dump, nodes, unit, candidate_of_norm(norm, version), version)
+                    for version in ("v6", "v7")}
+        assert messages["v7"] == messages["v6"] == captured[norm["norm_id"]]
+
+
+def test_a_source_whose_candidate_shape_differs_from_the_judge_version_is_refused(tmp_path, source, monkeypatch,
+                                                                                capsys):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    real = rejudge_norms.judged_candidate_fields
+    monkeypatch.setattr(rejudge_norms, "judged_candidate_fields",
+                        lambda version: (*real(version), "a_field_v7_adds") if version == "v7" else real(version))
+    new_dir = _new(tmp_path)
+    assert cli.main(_argv(source, new_dir)) == 2
+    err = capsys.readouterr().err
+    assert "judged under prompt version v6, whose judge received a candidate of another shape than the " \
+           "judge_norms v7 judge receives" in err and "a_field_v7_adds" in err
+    assert judge.calls == [] and not new_dir.exists()
+    # the typing too: a judge version typed where the source's is not
+    monkeypatch.setattr(rejudge_norms, "judged_candidate_fields", real)
+    monkeypatch.setattr(rejudge_norms, "types_for", lambda version: version != "v6")
+    assert "another shape" in norms_refusal(_source_norms(source), fake_cfg().as_public_dict(), "v7")
+
+
+def test_a_source_whose_judge_runs_carry_another_sha_is_still_refused(tmp_path, source, monkeypatch, capsys):
+    """The source's judge runs must carry the sha256 of the SOURCE version's
+    file as it is today (v6), the proof that the source was judged with the
+    file in the repository; v7's digest does not stand in for it."""
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    v6_sha = rejudge_norms.prompt_sha256(load_prompt("judge_norms", "v6"))
+    v7_sha = rejudge_norms.prompt_sha256(load_prompt("judge_norms", "v7"))
+    for digest in ("0" * 64, v7_sha):
+        copy = _copy_with_norms(source, tmp_path / digest[:8],
+                                lambda payload, d=digest: [run.__setitem__("prompt_sha256", d)
+                                                           for run in payload["judge_runs"]])
+        new_dir = _new(tmp_path)
+        assert cli.main(_argv(copy, new_dir)) == 2
+        assert (f"the judge_norms v6 prompt has sha256 {v6_sha} today; the source's judge runs recorded "
+                f"{digest}") in capsys.readouterr().err
+        assert judge.calls == [] and not new_dir.exists()
 
 
 def test_the_source_folder_is_left_unchanged(tmp_path, source, monkeypatch):
@@ -601,7 +681,8 @@ def test_the_judge_is_named_before_the_first_call(tmp_path, source, monkeypatch,
     judge = ScriptedJudge(on_call=lambda _user: seen.append(capsys.readouterr().out))
     patch_command(monkeypatch, cli, judge)
     assert cli.main(_argv(source, _new(tmp_path))) == 0
-    assert "judging with claude-fake, effort high, temperature 0\n" in seen[0]
+    assert "judging with claude-fake, effort high, temperature 0, under judge_norms v7; the source under v6\n" \
+        in seen[0]
 
 
 def test_a_name_that_spells_another_declared_model_is_refused(tmp_path, source, monkeypatch, capsys):

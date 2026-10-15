@@ -368,7 +368,11 @@ is stored whole (every candidate norm with the fields the judge read, every
 alignment candidate with its quotes), so the new judge reads what the old
 one read. The source folder is found through its `ACTIVE_MANIFEST.json`,
 every published file is checked against its digest, and nothing in it is
-written (it is never opened as a build record store).
+written (it is never opened as a build record store). The judges run at the
+code's default prompt versions (judge_norms v7, judge_alignment v3); a source
+judged under an older version is accepted when the candidate the judge
+receives has the same shape under both, and the new build records both
+versions.
 
     .venv/bin/python -m tere4ai.rejudge norms --source SRC --out-dir NEW --name NAME --cost-stop USD
     .venv/bin/python -m tere4ai.rejudge alignments --source SRC --out-dir NEW --name NAME --cost-stop USD

@@ -26,6 +26,12 @@ not aligned again, so the generator is called for exactly the newly accepted
 norms. Everything is assembled in the norms' order, a new norm's results at
 its place in the batch, and every assertion is validated as align_norms
 validates it.
+
+The judge (and the generator of the newly accepted norms) runs at the code's
+default prompt version (B174 R4), which may be newer than the source's: a
+source made under an older version is accepted when the candidate and the
+handling of the judge's relation type are the same under both
+(same_candidate_shape). The judge's message holds no version-dependent part.
 """
 
 from __future__ import annotations
@@ -37,6 +43,8 @@ from pathlib import Path
 from typing import Any
 
 from tere4ai.align_hleg.pipeline import (
+    _PROMPTS_TAKING_ANY_CORRECTION,
+    DEFAULT_PROMPT_VERSION,
     MECHANICAL_JUDGE_MODEL,
     SPREAD_KEYS,
     _alignments_validator,
@@ -144,13 +152,26 @@ def source_index(payload: dict[str, Any], requirement_ids: Collection[str]) -> S
     )
 
 
+def same_candidate_shape(source_version: str, judge_version: str) -> bool:
+    """True when a candidate stored under source_version can be judged under
+    judge_version (B174 R4): both rebuild the five-key candidate (neither is
+    v1, DEC-28) and both handle a no_clear_relation correction alike."""
+    return (source_version not in UNREBUILDABLE_PROMPT_VERSIONS
+            and judge_version not in UNREBUILDABLE_PROMPT_VERSIONS
+            and (source_version in _PROMPTS_TAKING_ANY_CORRECTION)
+            == (judge_version in _PROMPTS_TAKING_ANY_CORRECTION))
+
+
 def alignments_refusal(source_payload: dict[str, Any], public_models: dict[str, Any],
-                       source_norms_sha256: str) -> str | None:
-    """Why the source alignments cannot be re-judged in this environment (R5), or
-    None: a materialised reference file, a prompt version v1, an assertion
-    without proposed_relation_type or whose generator_rationale is not a
-    string (its candidate cannot be rebuilt), a judge_alignment or align_hleg prompt
-    whose text today differs from what the source's judge or alignment runs
+                       source_norms_sha256: str, judge_version: str = DEFAULT_PROMPT_VERSION) -> str | None:
+    """Why the source alignments cannot be re-judged in this environment under
+    the prompt version judge_version (R5, B174 R4), or None: a materialised
+    reference file, a prompt version v1, an assertion without
+    proposed_relation_type or whose generator_rationale is not a string (its
+    candidate cannot be rebuilt), a judge version missing from the checkout or
+    whose candidate or relation-type handling differs from the source
+    version's, a source version's judge_alignment or align_hleg prompt whose
+    text today differs from what the source's judge or alignment runs
     recorded, alignments made over another norms file than the source's, or a
     generator that is not the source's."""
     materialised = materialised_refusal(source_payload)
@@ -171,6 +192,15 @@ def alignments_refusal(source_payload: dict[str, Any], public_models: dict[str, 
             return (f"the source assertion {assertion.get('id', '(no id)')} keeps no generator_rationale as text "
                     f"({assertion.get('generator_rationale')!r}); the generation-time judge read the generator's "
                     "rationale, so its candidate cannot be rebuilt")
+    for kind in (JUDGE_PROMPT_KIND, ALIGN_PROMPT_KIND):
+        try:
+            load_prompt(kind, judge_version)
+        except FileNotFoundError:
+            return f"there is no {kind} prompt {judge_version} in this checkout"
+    if not same_candidate_shape(version, judge_version):
+        return (f"the source alignments were made under prompt version {version}, whose candidate or handling of "
+                f"the judge's relation type differs from {judge_version}'s; their candidates cannot be judged "
+                f"under {judge_version}")
     for kind, runs in ((JUDGE_PROMPT_KIND, [run for run in source_payload.get("judge_runs") or []
                                             if run.get("judge_model") != MECHANICAL_JUDGE_MODEL]),
                        (ALIGN_PROMPT_KIND, source_payload.get("mapping_runs") or [])):
@@ -250,7 +280,10 @@ def rejudge_batch(
     and carried_candidates (the stored candidates checked again) added;
     mapping_runs holds the source runs the kept assertions name, in the source
     file's order, then the run of align_norms when the batch has newly accepted
-    norms. max_in_flight bounds the norms whose calls run at once (B164)."""
+    norms. prompt_version is the judge's (B174 R4): the judge's system prompt,
+    the judge and mechanical runs and the generator of the newly accepted
+    norms take it. max_in_flight bounds the norms whose calls run at once
+    (B164)."""
     judge_prompt = load_prompt(JUDGE_PROMPT_KIND, prompt_version)
     judge_prompt_sha256 = prompt_sha256(judge_prompt)
     validator = _alignments_validator()
@@ -391,13 +424,14 @@ def merge_batches(partials: list[dict[str, Any]], source: SourceAlignments,
 def rejudged_alignment_build(norms_build: dict[str, Any], source_build: dict[str, Any], *,
                              public_models: dict[str, Any], judge_sampling: str | None, judge_effort: str,
                              usage: dict[str, Any], norms_sha256: str, hleg_text_sha256: str,
-                             hleg_derivation_record_sha256: str, aligned_at: str,
+                             hleg_derivation_record_sha256: str, aligned_at: str, prompt_version: str,
                              rejudge: dict[str, Any]) -> dict[str, Any]:
     """The build block as align_hleg writes it over the re-judged norms file (its
     reference block kept under norms_reference), with the source's generator
     fields and the new judge's fields in alignment_models, alignment_sampling
-    and alignment_effort, this run's usage, the source's prompt version, and
-    the alignment_rejudge block last."""
+    and alignment_effort, this run's usage, the judge's prompt version (B174
+    R4; the source's is in alignment_rejudge), and the alignment_rejudge block
+    last."""
     upstream = dict(norms_build)
     norms_reference = upstream.pop("reference", None)
     models = {**(source_build.get("alignment_models") or {}),
@@ -413,6 +447,6 @@ def rejudged_alignment_build(norms_build: dict[str, Any], source_build: dict[str
         "hleg_text_sha256": hleg_text_sha256,
         "hleg_derivation_record_sha256": hleg_derivation_record_sha256,
         "aligned_at": aligned_at,
-        "alignment_prompt_version": source_build.get("alignment_prompt_version"),
+        "alignment_prompt_version": prompt_version,
         "alignment_rejudge": rejudge,
     }

@@ -18,13 +18,19 @@ import json
 from pathlib import Path
 
 import pytest
+from tests.unit.test_rejudge_messages import A16_PA, A17_P1, A99_P1, _dump
 
 from tere4ai.align_hleg import pipeline as align_pipeline
+from tere4ai.align_hleg.relation_types import judge_read_definitions
 from tere4ai.extract_norms import pipeline as extract_pipeline
 from tere4ai.extract_norms.model_clients import FakeClient
+from tere4ai.extract_norms.requirement_type import is_operator_actor, types_for
+from tere4ai.extract_norms.scope_first_reading import FIRST_READING_VERSIONS
 from tere4ai.judge.runtime_grounding import ground_check
 from tere4ai.mcp_server import backlog, evidence
 from tere4ai.mcp_server.evidence import evaluate_project_evidence
+from tere4ai.rejudge import alignments as rejudge_alignments
+from tere4ai.rejudge import norms as rejudge_norms
 
 ROOT = Path(__file__).resolve().parents[2]
 LAYER1 = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -101,9 +107,61 @@ def test_the_defaults_are_the_new_versions():
     for line in ("extract_norms: v7", "judge_norms: v7", "align_hleg: v3", "judge_alignment: v3",
                  "evaluate_evidence: v1", "generate_backlog: v3", "runtime_grounding: v3"):
         assert f"  {line}\n" in record, line
-    # v7 is read as v6 by every version table, v3 as v2.
+    # v7 is read as v6 by every version table, v3 as v2 (each gate below).
     assert extract_pipeline.writes_addressee("v7")
     assert extract_pipeline.candidate_fields("v7") == extract_pipeline.candidate_fields("v6")
+
+
+def _inference_block(version):
+    """The paragraph-of-point gate: a candidate inferred through point (a) of
+    Article 16(1), judged on Article 99(1)."""
+    dump = _dump()
+    nodes = extract_pipeline._index_nodes(dump)
+    unit = extract_pipeline.unit_of_norm(dump, {"source_node_id": A99_P1})
+    slots = [n for n in extract_pipeline.candidate_fields(version)
+             if n.endswith(("_explicit", "_inferred", "_inference_source_node_id"))]
+    candidate = {slots[0]: None, slots[1]: "provider", slots[2]: A16_PA}
+    return extract_pipeline.judge_inference_block(dump, nodes, unit, candidate, version)
+
+
+def _set_up_block(version):
+    """The set-up gate: Article 17(1), a unit the set-up table covers."""
+    nodes = extract_pipeline._index_nodes(_dump())
+    return extract_pipeline.judge_set_up_block(nodes, {"node_id": A17_P1}, version)
+
+
+# Every version gate of the extraction and alignment instruments, each read
+# under the new version and under the one it continues (Task 1 review minor 3).
+EXTRACTION_GATES = {
+    "writes_addressee": extract_pipeline.writes_addressee,
+    "candidate_fields": extract_pipeline.candidate_fields,
+    "judged_candidate_fields": extract_pipeline.judged_candidate_fields,
+    "types_for": types_for,
+    "inference text": lambda v: v in extract_pipeline._PROMPTS_WITHOUT_INFERENCE_TEXT,
+    "model category": lambda v: v in extract_pipeline._PROMPTS_WITH_MODEL_CATEGORY,
+    "paragraph of point": lambda v: v not in extract_pipeline._PROMPTS_WITHOUT_PARAGRAPH_OF_POINT,
+    "paragraph of point, the judge's text": _inference_block,
+    "lifecycle": lambda v: v in extract_pipeline._PROMPTS_WITH_LIFECYCLE,
+    "set-up rows": _set_up_block,
+    "scope_first_reading": lambda v: v in FIRST_READING_VERSIONS,
+    "requirement_type scope": lambda v: (is_operator_actor("the notified body", None, v),
+                                         is_operator_actor(None, "provider", v)),
+    "rejudge norms rebuildable": lambda v: v in rejudge_norms.UNREBUILDABLE_PROMPT_VERSIONS,
+}
+ALIGNMENT_GATES = {
+    "actor label": lambda v: v in align_pipeline._PROMPTS_WITH_ACTOR_LABEL,
+    "any correction": lambda v: v in align_pipeline._PROMPTS_TAKING_ANY_CORRECTION,
+    "judge_read_definitions": judge_read_definitions,
+    "rejudge alignments rebuildable": lambda v: v in rejudge_alignments.UNREBUILDABLE_PROMPT_VERSIONS,
+}
+
+
+@pytest.mark.parametrize(("gate", "new", "old"),
+                         [(g, "v7", "v6") for g in EXTRACTION_GATES] + [(g, "v3", "v2") for g in ALIGNMENT_GATES])
+def test_every_version_gate_reads_the_new_version_as_its_predecessor(gate, new, old):
+    function = (EXTRACTION_GATES | ALIGNMENT_GATES)[gate]
+    assert function(new) == function(old)
+    assert _set_up_block("v6") is not None and _inference_block("v6") is not None
 
 
 EVIDENCE_NORM = {
@@ -123,9 +181,18 @@ GENERATOR_REPLY = json.dumps({"assessment": "satisfied",
                               "gaps": [], "rationale": "The plan names the system."})
 
 
-def _evidence_run(tmp_path, **kwargs):
+# The replies a v3 judge sends: v2's instructions ask for "type_views": [] on
+# any answer that is not a backlog; a judge may still send views.
+ACCEPT_NO_VIEWS = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded in the cited norm.",
+                              "type_views": []})
+ACCEPT_WITH_VIEWS = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded in the cited norm.",
+                                "type_views": [{"item": 1, "requirement_type_agrees": False,
+                                                "requirement_type": "process"}]})
+
+
+def _evidence_run(tmp_path, reply=ACCEPT, **kwargs):
     generator = FakeClient({EVIDENCE_NORM["norm_id"]: GENERATOR_REPLY}, model="fake-generator")
-    judge = FakeClient({EVIDENCE_NORM["norm_id"]: ACCEPT}, model="fake-judge")
+    judge = FakeClient({EVIDENCE_NORM["norm_id"]: reply}, model="fake-judge")
     envelope = evaluate_project_evidence(EVIDENCE_NORM, EVIDENCE, generator, judge, graph_version="build-test",
                                          log_path=tmp_path / "runtime_log.jsonl", **kwargs)
     return envelope, judge
@@ -136,9 +203,10 @@ def _comparable(envelope):
     return {**{k: v for k, v in envelope.items() if k not in ("answer", "generated_at")}, "answer": answer}
 
 
-def test_the_evidence_judge_under_v3_records_no_type_view(tmp_path):
-    v3, v3_judge = _evidence_run(tmp_path)  # the default is v3
-    v1, v1_judge = _evidence_run(tmp_path, judge_prompt_version="v1")
+@pytest.mark.parametrize("reply", [ACCEPT_NO_VIEWS, ACCEPT_WITH_VIEWS], ids=["empty views", "views sent"])
+def test_the_evidence_judge_under_v3_records_no_type_view(tmp_path, reply):
+    v3, v3_judge = _evidence_run(tmp_path, reply)  # the default is v3
+    v1, v1_judge = _evidence_run(tmp_path, reply, judge_prompt_version="v1")
     assert PARAGRAPH in v3_judge.calls[0][0] and PARAGRAPH not in v1_judge.calls[0][0]
     assert v3_judge.calls[0][1] == v1_judge.calls[0][1]  # the judge reads the same message
     assert v3["judge_verdict"] == "accepted" and v3["status"] == "satisfied_with_evidence"
@@ -146,10 +214,12 @@ def test_the_evidence_judge_under_v3_records_no_type_view(tmp_path):
     assert "judge_type_views" not in v3["answer"]
     log = [json.loads(line) for line in (tmp_path / "runtime_log.jsonl").read_text(encoding="utf-8").splitlines()]
     assert [e["prompt_version"] for e in log if e.get("direction") == "judge"] == ["v3", "v1"]
-    judge = FakeClient({EVIDENCE_NORM["norm_id"]: ACCEPT}, model="fake-judge")
+    # ground_check hands the raw views back; the evidence answer never records them
+    judge = FakeClient({EVIDENCE_NORM["norm_id"]: reply}, model="fake-judge")
     check = ground_check(GENERATOR_REPLY, [EVIDENCE_NORM], EVIDENCE["content"], judge, prompt_version="v3",
                          log_path=tmp_path / "ground.jsonl")
-    assert check["verdict"] == "accepted" and check["type_views"] is None
+    assert check["verdict"] == "accepted" and check["type_views"] == json.loads(reply)["type_views"]
+    assert not any("type_view" in key for key in v3["answer"])
 
 
 @pytest.mark.skipif(not LAYER1.is_file(), reason="the tracked layer1.json is absent")

@@ -14,6 +14,13 @@ The new norm is the stored one with only the judge's fields set again
 (JUDGE_FIELDS) as extract_norms sets them; every id and the key order are
 kept (R6). The checkpoint groups are the Article or Annex of each norm, in
 the source file's order (R7). This module imports no generator client.
+
+The judge runs at the code's default prompt version (B174 R4), which may be
+newer than the source's: a source judged under an older version is accepted
+when the candidate the judge receives has the same shape under both
+(same_candidate_shape). The candidate and the judge's message are rebuilt
+under the source's version, so the message is the one built at generation
+time, and the judge's system prompt is the judge version's file.
 """
 
 from __future__ import annotations
@@ -24,10 +31,12 @@ from typing import Any
 from tere4ai.act_parties import slots_of
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import (
+    DEFAULT_PROMPT_VERSION,
     _index_nodes,
     candidate_of_norm,
     judge_candidate,
     judge_message,
+    judged_candidate_fields,
     load_prompt,
     prompt_sha256,
     unit_of_norm,
@@ -77,26 +86,31 @@ def rejudge_group(
     norms: list[dict[str, Any]],
     judge: ModelClient,
     *,
-    prompt_version: str,
+    source_prompt_version: str,
+    judge_prompt_version: str,
     log_path: Path,
     build_id: str,
     max_in_flight: int = 1,
 ) -> dict[str, Any]:
     """Judge each stored norm again. Returns {"norms", "judge_runs", "stats"} in
     the norms' order, the shape of an extract_norms group result; stats holds
-    the candidates judged and the new verdicts. max_in_flight bounds the judge
-    calls running at once (B164)."""
-    judge_prompt = load_prompt(JUDGE_PROMPT_KIND, prompt_version)
+    the candidates judged and the new verdicts. The candidate and the message
+    are rebuilt under the source's prompt version, so the judge reads the
+    message built at generation time; the system prompt is the judge
+    version's file and the judge runs carry the judge version (B174 R4;
+    norms_refusal has checked that the two versions give the candidate the
+    same shape). max_in_flight bounds the judge calls running at once (B164)."""
+    judge_prompt = load_prompt(JUDGE_PROMPT_KIND, judge_prompt_version)
     judge_prompt_sha256 = prompt_sha256(judge_prompt)
     nodes = _index_nodes(dump)
-    typed = types_for(prompt_version)
+    typed = types_for(judge_prompt_version)
 
     def judge_one(norm: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-        candidate = candidate_of_norm(norm, prompt_version)
-        judge_user = judge_message(dump, nodes, unit_of_norm(dump, norm), candidate, prompt_version)
+        candidate = candidate_of_norm(norm, source_prompt_version)
+        judge_user = judge_message(dump, nodes, unit_of_norm(dump, norm), candidate, source_prompt_version)
         judge_run, type_view = judge_candidate(
             judge, judge_prompt, judge_prompt_sha256, judge_user, candidate,
-            node_id=norm["source_node_id"], prompt_version=prompt_version, log_path=log_path,
+            node_id=norm["source_node_id"], prompt_version=judge_prompt_version, log_path=log_path,
             judge_run_id=norm["judge_run_id"], build_id=build_id,
         )
         verdict = judge_run["verdict"]
@@ -144,13 +158,15 @@ def changed_verdicts(source_norms: list[dict[str, Any]], norms: list[dict[str, A
 
 def rejudged_build_block(source_build: dict[str, Any], *, public_models: dict[str, Any], judge_sampling: str | None,
                          judge_effort: str, judge_temperature: str | None, judge_usage: dict[str, Any],
-                         zero_usage: dict[str, int]) -> dict[str, Any]:
+                         zero_usage: dict[str, int], prompt_version: str) -> dict[str, Any]:
     """The source's build block with the judge's fields from the new judge (the
     judge's model, effort, temperature and the parameters digest in
     extraction_models; the judge entries of extraction_sampling,
-    extraction_effort and extraction_temperature) and this run's usage; the
-    generator's fields, extracted_at and prompt_version carried."""
+    extraction_effort and extraction_temperature), this run's usage and the
+    judge's prompt version (B174 R4; the source's is in the rejudge block);
+    the generator's fields and extracted_at carried."""
     block = {**source_build}
+    block["prompt_version"] = prompt_version
     block["extraction_models"] = {
         **(source_build.get("extraction_models") or {}),
         **{key: public_models.get(key) for key in ("judge_model", "judge_effort", "judge_temperature",
@@ -171,14 +187,27 @@ UNREBUILDABLE_PROMPT_VERSIONS = ("v1", "v2")
 GENERATOR_KEYS = ("generator_model", "generator_effort", "generator_temperature", "generator_json_mode")
 
 
-def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any]) -> str | None:
-    """Why the source norms cannot be re-judged in this environment (R5), or
-    None: a materialised reference file, a prompt version whose candidates
-    cannot be rebuilt, a judge prompt whose text today differs from the one
-    the source's judge runs recorded, a norm whose inferred addressee is
-    null beside an inference source node (the generation-time judge read
-    that node's text, which the stored norm cannot give back), or a
-    generator that is not the source's."""
+def same_candidate_shape(source_version: str, judge_version: str) -> bool:
+    """True when the judge of judge_version receives a candidate of the same
+    shape as the judge of source_version (B174 R4): the same keys in the same
+    order and the same typing, so a norm judged under the source's version can
+    be judged again under the judge's."""
+    return (judged_candidate_fields(source_version) == judged_candidate_fields(judge_version)
+            and types_for(source_version) == types_for(judge_version))
+
+
+def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any],
+                  judge_version: str = DEFAULT_PROMPT_VERSION) -> str | None:
+    """Why the source norms cannot be re-judged in this environment under the
+    judge prompt version judge_version (R5, B174 R4), or None: a materialised
+    reference file, a prompt version whose candidates cannot be rebuilt, a
+    judge version missing from the checkout or whose candidate differs in
+    shape from the source version's, a source version's judge prompt whose
+    text today differs from the one the source's judge runs recorded (the
+    proof that the source was judged with the file in the repository), a
+    norm whose inferred addressee is null beside an inference source node
+    (the generation-time judge read that node's text, which the stored norm
+    cannot give back), or a generator that is not the source's."""
     materialised = materialised_refusal(source_payload)
     if materialised:
         return materialised
@@ -189,10 +218,18 @@ def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any])
     if version in UNREBUILDABLE_PROMPT_VERSIONS:
         return (f"the source norms were judged under prompt version {version}, whose judge read "
                 "target_system_category, which a norm does not keep (DEC-21); their candidates cannot be rebuilt")
-    try:
-        today = prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, version))
-    except FileNotFoundError:
-        return f"there is no {JUDGE_PROMPT_KIND} prompt {version} in this checkout"
+    for needed_version in dict.fromkeys((judge_version, version)):
+        try:
+            load_prompt(JUDGE_PROMPT_KIND, needed_version)
+        except FileNotFoundError:
+            return f"there is no {JUDGE_PROMPT_KIND} prompt {needed_version} in this checkout"
+    if not same_candidate_shape(version, judge_version):
+        return (f"the source norms were judged under prompt version {version}, whose judge received a candidate "
+                f"of another shape than the {JUDGE_PROMPT_KIND} {judge_version} judge receives (its fields "
+                f"{', '.join(judged_candidate_fields(version))}, typed {types_for(version)}; under {judge_version} "
+                f"{', '.join(judged_candidate_fields(judge_version))}, typed {types_for(judge_version)}); their "
+                f"candidates cannot be judged under {judge_version}")
+    today = prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, version))
     judge_runs = source_payload.get("judge_runs") or []
     if not judge_runs:
         return "the source build holds no judge runs, nothing to re-judge"

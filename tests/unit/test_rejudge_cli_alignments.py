@@ -134,7 +134,7 @@ def _copy_with_alignments(source, tmp_path, mutate):
 def test_layer3_generator_calls_are_exactly_the_newly_accepted_norms(tmp_path, source, monkeypatch):
     new_dir, _judge, generator = _both(tmp_path, source, monkeypatch)
     assert _norm_lines(generator.calls) == [f"Norm id: {NORM_C}"]
-    assert {system for system, _user in generator.calls} == {load_prompt("align_hleg", "v2")}
+    assert {system for system, _user in generator.calls} == {load_prompt("align_hleg", "v3")}
     payload = _alignments(new_dir)
     assert payload["stats"]["newly_aligned_norms"] == [NORM_C]
     source_runs = _source_alignments(source)["mapping_runs"]
@@ -154,11 +154,77 @@ def test_layer3_generator_calls_are_exactly_the_newly_accepted_norms(tmp_path, s
 def test_carried_candidates_are_judged_with_the_generation_time_message(tmp_path, source, monkeypatch):
     _new_dir, judge, _generator = _both(tmp_path, source, monkeypatch)
     captured = source_judge_messages(tmp_path)["alignments"]
-    assert {system for system, _user in judge.calls} == {load_prompt("judge_alignment", "v2")}
+    assert {system for system, _user in judge.calls} == {load_prompt("judge_alignment", "v3")}
     # C's new candidate, then A's two stored ones; nothing for B or D
     assert _norm_lines(judge.calls) == [f"Norm id: {n}" for n in (NORM_C, NORM_A, NORM_A)]
     a_messages = [user for _system, user in judge.calls if f"Norm id: {NORM_A}\n" in user]
     assert a_messages == [captured[assertion_id] for assertion_id in _source_ids(source, NORM_A)]
+
+
+def test_a_source_made_under_v2_is_rejudged_under_v3(tmp_path, source, monkeypatch):
+    """B174 R4: the alignment judge, and the generator of the newly accepted
+    norms, run at the code's default version, v3; the mock source was made
+    under v2. The stored candidates reach the judge as at generation time,
+    under v3's system prompt."""
+    assert rejudge_alignments.DEFAULT_PROMPT_VERSION == "v3"
+    new_dir, judge, generator = _both(tmp_path, source, monkeypatch)
+    v3 = load_prompt("judge_alignment", "v3")
+    assert "the law in force" in v3 and "the law in force" not in load_prompt("judge_alignment", "v2")
+    assert {system for system, _user in judge.calls} == {v3}
+    assert {system for system, _user in generator.calls} == {load_prompt("align_hleg", "v3")}
+    captured = source_judge_messages(tmp_path)["alignments"]
+    a_messages = [user for _system, user in judge.calls if f"Norm id: {NORM_A}\n" in user]
+    assert a_messages == [captured[assertion_id] for assertion_id in _source_ids(source, NORM_A)]
+    payload, source_payload = _alignments(new_dir), _source_alignments(source)
+    source_run_ids = {r["id"] for r in source_payload["mapping_runs"]}
+    judged = [r for r in payload["judge_runs"] if r["judge_model"] != MECHANICAL_JUDGE_MODEL]
+    assert {(r["prompt_version"], r["prompt_sha256"]) for r in judged} == {("v3", prompt_sha256(v3))}
+    assert {r["prompt_version"] for r in source_payload["judge_runs"]} == {"v2"}
+    new_runs = [r for r in payload["mapping_runs"] if r["id"] not in source_run_ids]
+    assert {(r["prompt_version"], r["prompt_sha256"]) for r in new_runs} == {
+        ("v3", prompt_sha256(load_prompt("align_hleg", "v3")))}
+    # the source's runs the kept assertions name are carried with their v2 records
+    assert {r["prompt_version"] for r in payload["mapping_runs"] if r["id"] in source_run_ids} == {"v2"}
+    build = payload["build"]
+    assert build["alignment_prompt_version"] == "v3" and source_payload["build"]["alignment_prompt_version"] == "v2"
+    assert (build["alignment_rejudge"]["source_prompt_version"],
+            build["alignment_rejudge"]["judge_prompt_version"]) == ("v2", "v3")
+
+
+def test_a_source_whose_relation_type_handling_differs_from_the_judge_version_is_refused(tmp_path, source,
+                                                                                       monkeypatch, capsys):
+    monkeypatch.setattr(rejudge_alignments, "_PROMPTS_TAKING_ANY_CORRECTION", frozenset({"v1", "v3"}))
+    for command in ("norms", "alignments"):
+        judge, generator = ScriptedJudge(), ScriptedGenerator()
+        patch_command(monkeypatch, cli, judge, generator=generator)
+        new_dir = _new(tmp_path, under=command)
+        assert cli.main(_argv(command, source, new_dir)) == 2
+        assert ("the source alignments were made under prompt version v2, whose candidate or handling of the "
+                "judge's relation type differs from v3's") in capsys.readouterr().err
+        assert judge.calls == [] and generator.calls == [] and not new_dir.exists()
+
+
+def test_a_source_whose_alignment_runs_carry_another_sha_is_still_refused(tmp_path, source, monkeypatch, capsys):
+    """The source's judge and alignment runs must carry the sha256 of the
+    source version's files (v2) as they are today; v3's digests do not stand
+    in for them."""
+    for kind, key, whose in (("judge_alignment", "judge_runs", "judge runs"),
+                             ("align_hleg", "mapping_runs", "alignment runs")):
+        v3_sha = prompt_sha256(load_prompt(kind, "v3"))
+
+        def mutate(payload, key=key, v3_sha=v3_sha):
+            for run in payload[key]:
+                if run.get("judge_model") != MECHANICAL_JUDGE_MODEL:
+                    run["prompt_sha256"] = v3_sha
+
+        copy = _copy_with_alignments(source, tmp_path / kind, mutate)
+        judge, generator = ScriptedJudge(), ScriptedGenerator()
+        patch_command(monkeypatch, cli, judge, generator=generator)
+        new_dir = _new(tmp_path, under=kind)
+        assert cli.main(_argv("alignments", copy, new_dir)) == 2
+        assert (f"the {kind} v2 prompt has sha256 {prompt_sha256(load_prompt(kind, 'v2'))} today; the source's "
+                f"{whose} recorded {v3_sha}") in capsys.readouterr().err
+        assert judge.calls == [] and generator.calls == [] and not new_dir.exists()
 
 
 def test_alignments_of_norms_now_rejected_are_dropped_and_counted(tmp_path, source, monkeypatch):
@@ -268,13 +334,14 @@ def test_the_alignments_file_names_its_norms_digest_and_both_usage_blocks(tmp_pa
     assert models["model_parameters_sha256"] == "environment-parameters-sha256"
     assert build["alignment_sampling"] == {"generator": "N/A", "judge": "0"}
     assert build["alignment_effort"] == {"generator": "high", "judge": "high"}
-    assert build["alignment_prompt_version"] == "v2"
+    assert build["alignment_prompt_version"] == "v3"
     assert build["alignment_rejudge"] == {
         "description": DESCRIPTION, "source_build": SOURCE_NAME,
         "source_alignments_sha256": sha256_of_file(source / ALIGNMENTS_FILE),
         "source_aligned_at": source_build["aligned_at"],
         "carried_generator_usage": source_build["alignment_usage"]["generator"],
         "source_judge_usage": source_build["alignment_usage"]["judge"],
+        "source_prompt_version": "v2", "judge_prompt_version": "v3",
     }
     assert list(build)[-1] == "alignment_rejudge"
     # the record
@@ -282,7 +349,8 @@ def test_the_alignments_file_names_its_norms_digest_and_both_usage_blocks(tmp_pa
     assert ex["work_unit"] == "batches" and ex["expected_total"] == 1
     source_record_id = json.loads((source / "publications" / "a1b2c3d4e5f6.json").read_text(
         encoding="utf-8"))["record_id"]
-    assert ex["config"] == {"prompt_version": "v2", "batch_size": 20, "max_in_flight": 1, "cost_stop_usd": 1000.0,
+    assert ex["config"] == {"prompt_version": "v3", "source_prompt_version": "v2", "batch_size": 20,
+                            "max_in_flight": 1, "cost_stop_usd": 1000.0,
                             "source_build": SOURCE_NAME, "source_record_id": source_record_id,
                             "source_chain_id": "a1b2c3d4e5f6", "judged_by": "claude-fake",
                             "description": DESCRIPTION}
@@ -295,8 +363,8 @@ def test_the_alignments_file_names_its_norms_digest_and_both_usage_blocks(tmp_pa
         {"input_kind": "hleg_derivation_record", "file": RECORD_FILE, "sha256": pair.record_sha256},
     ]
     assert ex["models"] == fake_cfg().as_public_dict()
-    assert ex["prompt_sha256"] == {"generator": prompt_sha256(load_prompt("align_hleg", "v2")),
-                                   "judge": prompt_sha256(load_prompt("judge_alignment", "v2"))}
+    assert ex["prompt_sha256"] == {"generator": prompt_sha256(load_prompt("align_hleg", "v3")),
+                                   "judge": prompt_sha256(load_prompt("judge_alignment", "v3"))}
     assert ex["outputs"] == [{"output_kind": "alignments", "file": f"alignments_{NEW_NAME}.json",
                               "sha256": sha256_of_file(new_dir / f"alignments_{NEW_NAME}.json")}]
     assert ex["counts"]["source_verdicts"] == {"accepted": 3, "rejected": 0, "needs_human_review": 0}
@@ -611,4 +679,5 @@ def test_alignments_names_its_judge_before_the_first_batch(tmp_path, source, mon
     generator = ScriptedGenerator()
     patch_command(monkeypatch, cli, judge, generator=generator)
     assert cli.main(_argv("alignments", source, new_dir)) == 0
-    assert "judging with claude-fake, effort high, temperature 0\n" in seen[0]
+    assert "judging with claude-fake, effort high, temperature 0, under judge_alignment v3; the source under v2\n" \
+        in seen[0]
