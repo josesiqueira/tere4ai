@@ -32,7 +32,7 @@ from typing import Any
 from tere4ai.graph_store.build_record import BuildRecordStore, RecordError
 from tere4ai.judge.config import ConfigurationError, load_model_prices
 from tere4ai.rejudge.cost import usage_cost, usd
-from tere4ai.rejudge.norms import VERDICTS
+from tere4ai.rejudge.norms import VERDICTS, verdict_counts
 from tere4ai.rejudge.run import Refusal, refuse
 from tere4ai.rejudge.source import SourceBuild, SourceError, read_source
 
@@ -82,13 +82,6 @@ def _verdicts(counts: Any) -> str:
         return NOT_RECORDED
     keys = [*VERDICTS, *(k for k in counts if k not in VERDICTS)]
     return ", ".join(f"{key} {counts.get(key, 0)}" for key in keys)
-
-
-def _verdict_counts(items: list[dict[str, Any]]) -> dict[str, int]:
-    counts = dict.fromkeys(VERDICTS, 0)
-    for item in items:
-        counts[item.get("judge_verdict")] = counts.get(item.get("judge_verdict"), 0) + 1
-    return counts
 
 
 def _code_version() -> str:
@@ -208,10 +201,15 @@ def _price_line(model: str, prices: dict[str, dict[str, Any]]) -> str:
 def _carried_line(step: str, usage: Any, model: Any, prices: dict[str, dict[str, Any]]) -> str:
     if not isinstance(usage, dict):
         return f"- {step}: {NOT_RECORDED}"
-    cost = usd(usage_cost(usage, prices[model])) + " USD" if model in prices else f"no price row for {model}"
+    if model in prices:
+        cost = usd(usage_cost(usage, prices[model])) + " USD at list price"
+    elif model is None:
+        cost = "no price, the model is not recorded"
+    else:
+        cost = f"no price row for {model}"
     return (f"- {step} ({_or_not_recorded(model)}): {_count(usage.get('calls'))} calls, "
             f"{_count(usage.get('input_tokens'))} input tokens, {_count(usage.get('output_tokens'))} output tokens, "
-            f"{cost} at list price")
+            f"{cost}")
 
 
 def _files_section(out_dir: Path, name: str) -> list[str]:
@@ -246,6 +244,8 @@ def _render(source: SourceBuild, out_dir: Path, name: str, record_id: str, recor
     amodels = abuild.get("alignment_models") or {}
     judge = _or_not_recorded(emodels.get("judge_model") or rejudge.get("judge_model"))
     source_judge = _or_not_recorded(rejudge.get("source_judge_model"))
+    source_alignment_judge = _or_not_recorded(
+        ((source_alignments_payload.get("build") or {}).get("alignment_models") or {}).get("judge_model"))
     norms_runs, align_runs = _executions(record, NORMS_COMMAND), _executions(record, ALIGNMENTS_COMMAND)
     made_on = min((ex.get("started_at") for ex in [*norms_runs, *align_runs] if ex.get("started_at")), default=None)
     made_on_text = _utc(made_on)[:10] if made_on else NOT_RECORDED
@@ -305,7 +305,7 @@ def _render(source: SourceBuild, out_dir: Path, name: str, record_id: str, recor
         "Layer 2 (no generator call):", "",
         f"- candidate norms judged again: {_count(len(norms))} (the source: {_count(len(source_norms))}), on "
         f"{_count(stats.get('source_units'))} source units",
-        f"- verdicts: {_verdicts(_verdict_counts(norms))} (the source's: {_verdicts(_verdict_counts(source_norms))})",
+        f"- verdicts: {_verdicts(verdict_counts(norms))} (the source's: {_verdicts(verdict_counts(source_norms))})",
         f"- norms whose verdict changed: {layer2_changed}",
         "", "Layer 3:", "",
         f"- norms: {_count(norms_total)}, of which {_count(aligned)} accepted and aligned, {_count(skipped)} not "
@@ -317,7 +317,7 @@ def _render(source: SourceBuild, out_dir: Path, name: str, record_id: str, recor
         f"- source assertions dropped (their norm no longer accepted): {len(dropped)}",
         f"- kept assertions whose verdict changed: {layer3_changed}",
         f"- verdicts of the assertions: {_verdicts(astats.get('verdicts'))} (the source's: "
-        f"{_verdicts(_verdict_counts(source_assertions))})",
+        f"{_verdicts(verdict_counts(source_assertions))})",
     ]
 
     l2_usage, l2_cost, l2_models = _usage_row(norms_runs, "judge", prices)
@@ -346,7 +346,9 @@ def _render(source: SourceBuild, out_dir: Path, name: str, record_id: str, recor
         "", "## Cost, as the inference backends report it", "",
         f"Summed over the build record's {len(norms_runs)} {NORMS_COMMAND} and {len(align_runs)} "
         f"{ALIGNMENTS_COMMAND} executions (every attempt, a stopped one included); output tokens include "
-        "reasoning, as billed; every input token at the full input price.", "",
+        "reasoning, as billed; every input token at the full input price. build.extraction_usage and "
+        "build.alignment_usage in the norms and alignments files hold only the last attempt's usage, while this "
+        "table sums every attempt in the record.", "",
         *_table(["Step", "Calls", "Input tokens", "Output tokens", "USD at list price"], cost_rows),
         "", "Prices:",
         *(_price_line(model, prices) for model in priced_models),
@@ -383,10 +385,10 @@ def _render(source: SourceBuild, out_dir: Path, name: str, record_id: str, recor
         f"Layer 2, norms ({len(l2_rows)}):", "",
         *(_table(["Norm", "Source unit", source_judge, judge], l2_rows) if l2_rows else ["None."]),
         "", f"Layer 3, kept assertions whose verdict changed ({len(l3_rows)}):", "",
-        *(_table(["Assertion", source_judge, _or_not_recorded(amodels.get("judge_model"))], l3_rows)
+        *(_table(["Assertion", source_alignment_judge, _or_not_recorded(amodels.get("judge_model"))], l3_rows)
           if l3_rows else ["None."]),
         "", f"Layer 3, assertions dropped because their norm is no longer accepted ({len(dropped_rows)}):", "",
-        *(_table(["Assertion", "Norm", source_judge, f"the norm under {judge}"], dropped_rows)
+        *(_table(["Assertion", "Norm", source_alignment_judge, f"the norm under {judge}"], dropped_rows)
           if dropped_rows else ["None."]),
         "", f"Layer 3, newly accepted norms aligned by the generator ({len(new_rows)}):", "",
         *(_table(["Norm", "New assertions", "accepted"], new_rows) if new_rows else ["None."]),

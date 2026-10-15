@@ -241,16 +241,24 @@ def test_rejudge_end_to_end_on_the_astra_build(tmp_path, monkeypatch):
     assert publish["command"] == "publish_layer23" and publish["status"] == "done"
     assert [(g["name"], g["ok"]) for g in publish["gates"]] == [(name, True) for name in GATES]
 
-    # the report lists the six norm changes
+    # the report lists exactly the changes: the six norms, no changed kept
+    # assertion, the dropped assertions of the newly rejected norms, the new ones
     monkeypatch.setattr(report, "load_model_prices", lambda: price_rows)
     assert cli.main(_argv("report", new_dir)) == 0
     with (new_dir / "changed_verdicts.csv").open(encoding="utf-8", newline="") as handle:
-        rows = list(csv.DictReader(handle))
+        rows = list(csv.reader(handle))
     unit_of = {n["norm_id"]: n["source_node_id"] for n in source_norms}
-    assert sorted((r["id"], r["source_unit_or_norm"], r["source_verdict"], r["new_verdict"])
-                  for r in rows if r["layer"] == "layer2") == sorted(
-        (norm_id, unit_of[norm_id], "accepted" if verdict == "rejected" else "rejected", verdict)
-        for norm_id, verdict in flipped.items())
+    source_by_id = {a["id"]: a for a in source_assertions}
+    assert rows == [
+        ["layer", "id", "source_unit_or_norm", "source_verdict", "new_verdict"],
+        *(["layer2", n["norm_id"], unit_of[n["norm_id"]], n["judge_verdict"], flipped[n["norm_id"]]]
+          for n in source_norms if n["norm_id"] in flipped),
+        *(["layer3", aid, source_by_id[aid]["source_norm_id"], source_by_id[aid]["judge_verdict"],
+           "dropped, norm not accepted"] for aid in stats["dropped_assertions"]),
+        *(["layer3", a["id"], a["source_norm_id"], "new, norm newly accepted", "accepted"]
+          for a in alignments["assertions"] if a["id"] in new_ids),
+    ]
+    assert len(rows) == 1 + 2 * FLIPS + len(dropped) + FLIPS
     readme = (new_dir / "README.md").read_text(encoding="utf-8")
     assert f"## Verdicts that changed against {source_models['judge_model']}" in readme
     assert all(f"| `{norm_id}` | `{unit_of[norm_id]}` |" in readme for norm_id in flipped)

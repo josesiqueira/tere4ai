@@ -53,7 +53,8 @@ def groups_in_order(norms: list[dict[str, Any]]) -> list[str]:
 def verdict_counts(norms: list[dict[str, Any]]) -> dict[str, int]:
     counts = dict.fromkeys(VERDICTS, 0)
     for norm in norms:
-        counts[norm["judge_verdict"]] = counts.get(norm["judge_verdict"], 0) + 1
+        verdict = norm.get("judge_verdict")
+        counts[verdict] = counts.get(verdict, 0) + 1
     return counts
 
 

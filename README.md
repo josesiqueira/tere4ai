@@ -372,10 +372,13 @@ written (it is never opened as a build record store).
 
     .venv/bin/python -m tere4ai.rejudge norms --source SRC --out-dir NEW --name NAME --cost-stop USD
     .venv/bin/python -m tere4ai.rejudge alignments --source SRC --out-dir NEW --name NAME --cost-stop USD
-    .venv/bin/python -m tere4ai.rejudge report --source SRC --out-dir NEW --name NAME
     .venv/bin/python scripts/publish_layer23.py --norms NEW/norms_NAME.json \
         --alignments NEW/alignments_NAME.json --dump NEW/layer1.json --record NAME
     .venv/bin/python scripts/activate_build.py <chain id printed by publish> --dump-dir NEW
+    .venv/bin/python -m tere4ai.rejudge report --source SRC --out-dir NEW --name NAME
+
+`report` runs last, after activation, so the report names the publication
+and the activation; run it again with `--overwrite` to refresh it.
 
 - `norms` copies `layer1.json` byte for byte into NEW and judges every
   stored candidate norm again with zero generator calls (Layer 2), one
