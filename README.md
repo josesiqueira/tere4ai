@@ -359,6 +359,78 @@ they are per-checkout run state: `build_records/`, `*.checkpoint.jsonl`,
 `*.writing.json`, `*.building.json`, `ACTIVE_MANIFEST.json`,
 `NEO4J_TARGET.json`.
 
+## Re-judging a published build
+
+`python -m tere4ai.rejudge` (card B173) takes a published build and the
+judge model `.env` names, and writes a new build whose generator output is
+the source's and whose verdicts are the new judge's. The generator's output
+is stored whole (every candidate norm with the fields the judge read, every
+alignment candidate with its quotes), so the new judge reads what the old
+one read. The source folder is found through its `ACTIVE_MANIFEST.json`,
+every published file is checked against its digest, and nothing in it is
+written (it is never opened as a build record store).
+
+    .venv/bin/python -m tere4ai.rejudge norms --source SRC --out-dir NEW --name NAME --cost-stop USD
+    .venv/bin/python -m tere4ai.rejudge alignments --source SRC --out-dir NEW --name NAME --cost-stop USD
+    .venv/bin/python -m tere4ai.rejudge report --source SRC --out-dir NEW --name NAME
+    .venv/bin/python scripts/publish_layer23.py --norms NEW/norms_NAME.json \
+        --alignments NEW/alignments_NAME.json --dump NEW/layer1.json --record NAME
+    .venv/bin/python scripts/activate_build.py <chain id printed by publish> --dump-dir NEW
+
+- `norms` copies `layer1.json` byte for byte into NEW and judges every
+  stored candidate norm again with zero generator calls (Layer 2), one
+  execution `rejudge_norms` checkpointed per Article or Annex. Every id is
+  kept; a norm changes only in the judge's fields.
+- `alignments` runs over the norms file a done `rejudge_norms` execution of
+  the same record wrote (Layer 3, one execution `rejudge_alignments`
+  checkpointed per batch of `--batch-size` norms, default 20): a norm the
+  new judge does not accept is skipped and its source assertions are
+  listed as dropped; a norm both judges accept has its stored candidates
+  checked again by the quote check and judged again; a norm only the new
+  judge accepts is aligned by the generator, which is called for those
+  norms and no other.
+- `report` writes NEW/README.md (what the build is, its counts, its cost,
+  every verdict that changed against the source's judge, its files) and
+  NEW/changed_verdicts.csv (one row per changed norm, changed kept
+  assertion, dropped assertion and new assertion), every number read from
+  the files and the record; an existing report is replaced only with
+  `--overwrite`.
+- Publication and activation are the scripts above, unchanged: run
+  `publish_layer23.py` with `--gates-only` first, then without it to load
+  Neo4j.
+
+Refused at start (exit 2): a norms prompt version v1 or v2 or an
+alignments prompt version v1 (their candidates cannot be rebuilt from what
+a norm or an assertion keeps), a prompt whose text today differs from the
+one the source's runs recorded, and a generator in `.env` that differs from
+the source's in model, effort, temperature or JSON mode (Layer 3 aligns
+the newly accepted norms with it). A rebuilt candidate equals the one the
+source's judge read when the generator wrote each field as stored: a key
+the generator wrote beyond the shape was never stored, a missing key is
+rebuilt as null and a blank addressee reads null, so in those cases the new
+judge reads the same content in a different spelling.
+
+The name: `--name` is `<date>-<source name without its date>-<judge model
+without "claude-">`, any valid date, with an optional `-N`, and the last
+part of `--out-dir` must be the name (2026-10-14-gpt-6-astra-high judged by
+claude-opus-5-5 on 2026-10-16 gives 2026-10-16-gpt-6-astra-high-opus-5-5).
+
+The cost stop: `--cost-stop` is required. Before each group or batch the
+command sums the list-price cost (config/model_prices.json, every input
+token at the full input price) of every rejudge execution of the record
+plus this run's usage so far, and at the stop ends the execution failed,
+keeps the checkpoint, prints the command that resumes it and exits with
+code 5; a resume may raise the stop. The stop is checked before each group
+or batch, so a run can pass it by at most the group in flight (one Article
+or Annex of judge calls at Layer 2, one batch of norms at Layer 3). The
+other failure mechanics are those of extract_norms and align_hleg (exit 3
+when the inference backend stays unavailable, 4 on a configuration error,
+`--resume`, `--max-in-flight`).
+
+The logs: the judges' and the generator's events, each with the sha256 of
+its input, go to NEW/logs/rejudge_extraction_log.jsonl and
+NEW/logs/rejudge_alignment_log.jsonl, so they stay with the build.
+
 ## Evaluation records (E1, E6)
 
 Every measurement run writes one record under

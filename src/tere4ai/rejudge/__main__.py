@@ -1,4 +1,4 @@
-"""Entry point: python -m tere4ai.rejudge {norms,alignments} --source SRC --out-dir NEW --name NAME --cost-stop USD
+"""Entry point: python -m tere4ai.rejudge {norms,alignments,report} --source SRC --out-dir NEW --name NAME
 
 @implements: DEC-06 (partial: re-judging stored candidates)
 @implements: DEC-07
@@ -19,7 +19,10 @@ alignments_NAME.json; every attempt is an execution rejudge_alignments
 covering LAYER3_STEP1 to LAYER3_STEP3, checkpointed per batch as align_hleg
 is, and it runs only over the norms file a done rejudge_norms execution of
 the record wrote. The failure mechanics are the sibling commands' (R12)
-plus the cost stop (R10, exit 5). The source folder is only read.
+plus the cost stop (R10, exit 5). `report` writes NEW/README.md and
+NEW/changed_verdicts.csv from the files and the record (report.py), and
+replaces an existing report only with --overwrite (R11). The source folder
+is only read.
 """
 
 from __future__ import annotations
@@ -84,6 +87,7 @@ from tere4ai.rejudge.norms import (
     rejudged_build_block,
     verdict_counts,
 )
+from tere4ai.rejudge.report import write_report
 from tere4ai.rejudge.run import (
     Execution,
     Refusal,
@@ -157,6 +161,14 @@ def _parser() -> argparse.ArgumentParser:
     alignments.add_argument("--batch-size", type=_batch_size, default=20,
                             help="norms per checkpointed batch (default 20)")
     parallel_calls.add_max_in_flight_argument(alignments)
+    report = commands.add_parser(
+        "report", help="write README.md and changed_verdicts.csv of the new build from its files and its record")
+    report.add_argument("--source", type=Path, required=True,
+                        help="the published build that was re-judged (read only, never written)")
+    report.add_argument("--out-dir", type=Path, required=True, help="the new build folder; its name must be --name")
+    report.add_argument("--name", required=True, help="the new build's name, as `norms` and `alignments` took it")
+    report.add_argument("--overwrite", action="store_true", help="replace an existing README.md and "
+                                                                  "changed_verdicts.csv")
     return parser
 
 
@@ -175,6 +187,8 @@ def _main(argv: list[str] | None = None) -> int:
             return run_norms(args, run_argv)
         if args.command == "alignments":
             return run_alignments(args, run_argv)
+        if args.command == "report":
+            return run_report(args)
     except Refusal as refusal:
         print(refusal.message, file=sys.stderr)
         return refusal.code
@@ -591,6 +605,16 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
                 + usage_cost(usage_of(judge), prices[judge_model]))
     print(f"spend: {usd(this_run)} USD at list price in this run, {usd(record_spend(store.read(record_id), prices))} "
           "USD over the record's rejudge executions")
+    return 0
+
+
+def run_report(args: argparse.Namespace) -> int:
+    """Write the new build's README.md and changed_verdicts.csv (refusals as a Refusal)."""
+    if args.out_dir.name != args.name:
+        raise refuse(f"the out-dir {args.out_dir} must be named {args.name}")
+    readme, csv_path = write_report(args.source, args.out_dir, args.name, overwrite=args.overwrite)
+    print(f"wrote {readme}")
+    print(f"wrote {csv_path}")
     return 0
 
 
