@@ -315,6 +315,28 @@ references correctly only around 50 to 68 percent of the time without gating
 therefore calibrated reliance and improved grounding, with judge false-accept
 and false-reject rates as headline metrics, never "accurate compliance".
 
+Added 2026-10-15 (B174, Jose: "make that standard for any model we
+eventually use as judge"): every judge prompt states, in one paragraph
+after its first, that the legal text it receives is Regulation (EU)
+2024/1689 as amended by Regulation (EU) 2026/1744, in force since 27 July
+2026, that the inserted and replaced units (Article 4a, Article 5(1) points
+(ba) and (bb), Article 6(1a), Annex XIV) are binding law, not a proposal,
+and that the judge reads the text in front of it as the law whatever its
+own knowledge predates. The versions of record are judge_norms v7 (with
+extract_norms v7, byte-identical to v6), judge_alignment v3 (with
+align_hleg v3, identical to v2) and runtime_grounding v3 (with
+generate_backlog v3, identical to v2; the evidence tool's judge and the
+E6 ablation's runtime judge read v3 too); the checks do not change. Why:
+claude-opus-5-5 re-judging the build 2026-10-14-gpt-6-astra-high under
+judge_norms v6 rejected every norm on an Omnibus-changed unit as "a
+proposal" (check 6) from its own knowledge of the Act, while gpt-6-sol had
+accepted them; a verdict driven by a model's knowledge cutoff is not a
+judgment of the candidate. The re-judge command (B173) judges at the
+code's default versions and accepts a source judged under an older
+version when the candidate shape is the same, recording both versions.
+Earlier entries of this file that name v6, v2 or v1 as the version of
+record are history.
+
 Model configuration (updated per @USER.md, supersedes the earlier OVR-4
 recommendation):
 - TERE4AI internal models default to OpenAI, carried from v1. This is the
