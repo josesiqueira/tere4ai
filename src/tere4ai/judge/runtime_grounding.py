@@ -112,7 +112,8 @@ def ground_check(
     cited_norms: list[dict[str, Any]],
     evidence_text: str | None,
     judge: ModelClient,
-    prompt_version: str = "v1",
+    *,
+    prompt_version: str,
     log_path: Path | None = None,
     build_id: str = "runtime",
     context: str = "runtime_answer",
@@ -130,7 +131,9 @@ def ground_check(
     runtime_grounding v2 on a control backlog), None when absent; the
     caller cleans it, and it never touches the verdict. judge_setting
     (DEC-24): "demo" for the facade's demo judge, written on the log line
-    and the judge run; None leaves both as they were.
+    and the judge run; None leaves both as they were. prompt_version is
+    named by every caller, with no default (B174 final review: a default
+    of v1 would judge without the text-in-force paragraph).
     """
     log_path = log_path or DEFAULT_LOG_PATH
     judge_prompt = load_prompt("runtime_grounding", prompt_version)

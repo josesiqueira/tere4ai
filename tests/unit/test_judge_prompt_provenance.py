@@ -144,6 +144,7 @@ def test_runtime_grounding_judgerun_carries_the_real_prompt_hash(tmp_path):
         cited_norms=[{"norm_id": "norm:x", "conditions": [], "exceptions": []}],
         evidence_text=None,
         judge=judge,
+        prompt_version="v1",
         log_path=tmp_path / "runtime_log.jsonl",
     )
     expected = prompt_sha256(load_prompt("runtime_grounding", "v1"))

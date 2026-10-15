@@ -25,6 +25,7 @@ time, and the judge's system prompt is the judge version's file.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +61,35 @@ def materialised_refusal(payload: dict[str, Any]) -> str | None:
     generator wrote, so no message the generation-time judge read can be
     rebuilt from them."""
     return MATERIALISED_REFUSAL if already_materialised(payload) else None
+
+
+def runs_prompt_refusal(kind: str, runs: list[dict[str, Any]], whose: str,
+                        load: Callable[[str, str], str]) -> str | None:
+    """Why the source's runs of a prompt kind do not prove the prompt files
+    they ran under are the files in the repository today, or None (B174 final
+    review): each run is hashed against the prompt file of the prompt_version
+    the run itself records, not the file header's, since a build the re-judge
+    produced keeps the generator runs it carried under the source's version
+    beside its own runs under the judge's. A run that records no
+    prompt_version is refused naming it; whose names the runs in the message
+    ("judge runs", "alignment runs"); load reads a prompt file (the calling
+    module's load_prompt)."""
+    recorded: dict[str, set[str]] = {}
+    for run in runs:
+        version = run.get("prompt_version")
+        if not isinstance(version, str) or not version:
+            return (f"the source's {whose} include {run.get('id', '(no id)')}, which records no prompt_version; "
+                    f"its {kind} prompt cannot be checked against the file in the repository")
+        recorded.setdefault(version, set()).add(str(run.get("prompt_sha256")))
+    for version, digests in recorded.items():
+        try:
+            today = prompt_sha256(load(kind, version))
+        except FileNotFoundError:
+            return f"there is no {kind} prompt {version} in this checkout"
+        if digests != {today}:
+            return (f"the {kind} {version} prompt has sha256 {today} today; the source's {whose} recorded "
+                    f"{', '.join(sorted(digests))}")
+    return None
 
 
 def group_of(norm: dict[str, Any]) -> str:
@@ -202,12 +232,13 @@ def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any],
     judge prompt version judge_version (R5, B174 R4), or None: a materialised
     reference file, a prompt version whose candidates cannot be rebuilt, a
     judge version missing from the checkout or whose candidate differs in
-    shape from the source version's, a source version's judge prompt whose
-    text today differs from the one the source's judge runs recorded (the
-    proof that the source was judged with the file in the repository), a
-    norm whose inferred addressee is null beside an inference source node
-    (the generation-time judge read that node's text, which the stored norm
-    cannot give back), or a generator that is not the source's."""
+    shape from the source version's, a judge prompt whose text today differs
+    from the one a source judge run recorded under the version that run names
+    (runs_prompt_refusal: the proof that the source was judged with the file
+    in the repository), a norm whose inferred addressee is null beside an
+    inference source node (the generation-time judge read that node's text,
+    which the stored norm cannot give back), or a generator that is not the
+    source's."""
     materialised = materialised_refusal(source_payload)
     if materialised:
         return materialised
@@ -229,14 +260,12 @@ def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any],
                 f"{', '.join(judged_candidate_fields(version))}, typed {types_for(version)}; under {judge_version} "
                 f"{', '.join(judged_candidate_fields(judge_version))}, typed {types_for(judge_version)}); their "
                 f"candidates cannot be judged under {judge_version}")
-    today = prompt_sha256(load_prompt(JUDGE_PROMPT_KIND, version))
     judge_runs = source_payload.get("judge_runs") or []
     if not judge_runs:
         return "the source build holds no judge runs, nothing to re-judge"
-    recorded = sorted({str(run.get("prompt_sha256")) for run in judge_runs})
-    if recorded != [today]:
-        return (f"the {JUDGE_PROMPT_KIND} {version} prompt has sha256 {today} today; the source's judge runs "
-                f"recorded {', '.join(recorded) or 'none'}")
+    drift = runs_prompt_refusal(JUDGE_PROMPT_KIND, judge_runs, "judge runs", load_prompt)
+    if drift:
+        return drift
     # every field a re-judge reads or sets again, so the new norm keeps the
     # stored key order (a typed version's type view included)
     needed = ("norm_id", "source_node_id", "judge_run_id", "judge_verdict", "review_status", "confidence",

@@ -59,7 +59,12 @@ from tere4ai.align_hleg.pipeline import (
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import load_prompt, prompt_sha256
 from tere4ai.parallel_calls import run_in_flight
-from tere4ai.rejudge.norms import GENERATOR_KEYS, VERDICTS, materialised_refusal
+from tere4ai.rejudge.norms import (
+    GENERATOR_KEYS,
+    VERDICTS,
+    materialised_refusal,
+    runs_prompt_refusal,
+)
 
 ALIGN_PROMPT_KIND = "align_hleg"
 JUDGE_PROMPT_KIND = "judge_alignment"
@@ -170,10 +175,12 @@ def alignments_refusal(source_payload: dict[str, Any], public_models: dict[str, 
     proposed_relation_type or whose generator_rationale is not a string (its
     candidate cannot be rebuilt), a judge version missing from the checkout or
     whose candidate or relation-type handling differs from the source
-    version's, a source version's judge_alignment or align_hleg prompt whose
-    text today differs from what the source's judge or alignment runs
-    recorded, alignments made over another norms file than the source's, or a
-    generator that is not the source's."""
+    version's, a judge_alignment or align_hleg prompt whose text today differs
+    from what a source judge or alignment run recorded under the version that
+    run names (runs_prompt_refusal: a re-judged build keeps the alignment runs
+    it carried under the source's version beside its own under the judge's),
+    alignments made over another norms file than the source's, or a generator
+    that is not the source's."""
     materialised = materialised_refusal(source_payload)
     if materialised:
         return materialised
@@ -193,26 +200,22 @@ def alignments_refusal(source_payload: dict[str, Any], public_models: dict[str, 
                     f"({assertion.get('generator_rationale')!r}); the generation-time judge read the generator's "
                     "rationale, so its candidate cannot be rebuilt")
     for kind in (JUDGE_PROMPT_KIND, ALIGN_PROMPT_KIND):
-        try:
-            load_prompt(kind, judge_version)
-        except FileNotFoundError:
-            return f"there is no {kind} prompt {judge_version} in this checkout"
+        for needed_version in dict.fromkeys((judge_version, version)):
+            try:
+                load_prompt(kind, needed_version)
+            except FileNotFoundError:
+                return f"there is no {kind} prompt {needed_version} in this checkout"
     if not same_candidate_shape(version, judge_version):
         return (f"the source alignments were made under prompt version {version}, whose candidate or handling of "
                 f"the judge's relation type differs from {judge_version}'s; their candidates cannot be judged "
                 f"under {judge_version}")
-    for kind, runs in ((JUDGE_PROMPT_KIND, [run for run in source_payload.get("judge_runs") or []
-                                            if run.get("judge_model") != MECHANICAL_JUDGE_MODEL]),
-                       (ALIGN_PROMPT_KIND, source_payload.get("mapping_runs") or [])):
-        try:
-            today = prompt_sha256(load_prompt(kind, version))
-        except FileNotFoundError:
-            return f"there is no {kind} prompt {version} in this checkout"
-        recorded = sorted({str(run.get("prompt_sha256")) for run in runs})
-        if any(digest != today for digest in recorded):
-            whose = "judge runs" if kind == JUDGE_PROMPT_KIND else "alignment runs"
-            return (f"the {kind} {version} prompt has sha256 {today} today; the source's {whose} recorded "
-                    f"{', '.join(recorded)}")
+    for kind, runs, whose in ((JUDGE_PROMPT_KIND, [run for run in source_payload.get("judge_runs") or []
+                                                   if run.get("judge_model") != MECHANICAL_JUDGE_MODEL],
+                               "judge runs"),
+                              (ALIGN_PROMPT_KIND, source_payload.get("mapping_runs") or [], "alignment runs")):
+        drift = runs_prompt_refusal(kind, runs, whose, load_prompt)
+        if drift:
+            return drift
     if build.get("alignment_input_sha256") != source_norms_sha256:
         return (f"the source alignments were made over a norms file with sha256 {build.get('alignment_input_sha256')}, "
                 f"the source's norms file has {source_norms_sha256}")

@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.judge.runtime_grounding import ground_check
 
@@ -187,6 +189,7 @@ def test_judge_sees_the_norms_verbatim_source_text(tmp_path):
         ],
         evidence_text=None,
         judge=judge,
+        prompt_version="v1",
         log_path=tmp_path / "runtime_log.jsonl",
     )
     _, judge_user = judge.calls[0]
@@ -210,8 +213,19 @@ def test_ground_check_passes_the_judges_type_views_on_and_none_when_absent(tmp_p
 def test_a_demo_judge_call_carries_judge_setting_on_its_log_line_and_run(tmp_path):
     judge = FakeClient({"Generated runtime answer": '{"verdict": "accepted", "rationale": "ok"}'}, model="gpt-judge")
     log = tmp_path / "log.jsonl"
-    demo = ground_check("{}", [{"norm_id": "n"}], "text", judge, log_path=log, judge_setting="demo")
-    plain = ground_check("{}", [{"norm_id": "n"}], "text", judge, log_path=log)
+    demo = ground_check("{}", [{"norm_id": "n"}], "text", judge, prompt_version="v1", log_path=log,
+                        judge_setting="demo")
+    plain = ground_check("{}", [{"norm_id": "n"}], "text", judge, prompt_version="v1", log_path=log)
     lines = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
     assert lines[0]["judge_setting"] == "demo" and "judge_setting" not in lines[1]
     assert demo["judge_run"]["judge_setting"] == "demo" and "judge_setting" not in plain["judge_run"]
+
+
+def test_ground_check_has_no_default_prompt_version():
+    """B174 final review: every caller names the judge prompt version; there is
+    no default that would fall back to v1, the prompt without the text-in-force
+    paragraph."""
+    judge = FakeClient({"Generated runtime answer": JUDGE_ACCEPT}, model="fake-judge")
+    with pytest.raises(TypeError, match="prompt_version"):
+        ground_check("{}", [NORM], "text", judge)  # type: ignore[call-arg]
+    assert judge.calls == []
