@@ -69,7 +69,6 @@ from tere4ai.rejudge.alignments import (
     rejudge_batch,
     rejudged_alignment_build,
     source_index,
-    source_verdict_counts,
 )
 from tere4ai.rejudge.alignments import JUDGE_PROMPT_KIND as ALIGNMENT_JUDGE_PROMPT_KIND
 from tere4ai.rejudge.cost import CostStop, record_spend, usage_cost, usd
@@ -365,11 +364,11 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     return 0
 
 
-
-def _norms_output_refusal(out_dir: Path, name: str, norms_path: Path) -> str | None:
+def _norms_output_refusal(out_dir: Path, name: str, norms_path: Path, source_record_id: str) -> str | None:
     """Why NEW/norms_NAME.json is not the output of a done rejudge_norms
-    execution of the record NAME resolves to, or None. Reads only: the store
-    is opened without creating its folder."""
+    execution of the record NAME resolves to, made from the source record
+    --source names, or None. Reads only: the store is opened without creating
+    its folder."""
     run_first = "run `norms` with the same --out-dir and --name first"
     if not norms_path.is_file():
         return f"{norms_path} is missing; {run_first}"
@@ -385,6 +384,10 @@ def _norms_output_refusal(out_dir: Path, name: str, norms_path: Path) -> str | N
     for ex in record.get("executions") or []:
         if ex.get("command") == NORMS_COMMAND and ex.get("status") == "done" and any(
                 out.get("output_kind") == "norms" and out.get("sha256") == digest for out in ex.get("outputs") or []):
+            made_from = (ex.get("config") or {}).get("source_record_id")
+            if made_from != source_record_id:
+                return (f"{norms_path.name} was re-judged from the source record {made_from}, not from "
+                        f"{source_record_id}, the record of --source")
             return None
     return (f"{norms_path.name} (sha256 {digest}) is not the output of a done {NORMS_COMMAND} execution of the "
             f"record {name}; {run_first}")
@@ -410,7 +413,12 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
     if refusal:
         raise refuse(refusal)
     try:
-        source_alignments = source_index(source_payload)
+        pair = load_pair()
+    except HlegSourceError as exc:
+        raise refuse(f"the HLEG text cannot be read: {exc}") from None
+    hleg_nodes = build_hleg_nodes(pair)
+    try:
+        source_alignments = source_index(source_payload, [node["id"] for node in hleg_nodes])
     except ValueError as exc:
         raise refuse(str(exc)) from None
     judge_model, generator_model = models["judge_model"], models["generator_model"]
@@ -419,16 +427,12 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
 
     out_dir = args.out_dir
     norms_path = out_dir / f"norms_{args.name}.json"
-    refusal = _norms_output_refusal(out_dir, args.name, norms_path)
+    refusal = _norms_output_refusal(out_dir, args.name, norms_path, source.record_id)
     if refusal:
         raise refuse(refusal)
     source_build = source_payload["build"]
     # D-G75 (7): the HLEG text and record are the source's, so a stored quote is
     # checked and judged against the text it was made on
-    try:
-        pair = load_pair()
-    except HlegSourceError as exc:
-        raise refuse(f"the HLEG text cannot be read: {exc}") from None
     if (pair.text_sha256, pair.record_sha256) != (source_build.get("hleg_text_sha256"),
                                                     source_build.get("hleg_derivation_record_sha256")):
         raise refuse(f"the HLEG text and derivation record have sha256 {pair.text_sha256} and {pair.record_sha256} "
@@ -478,7 +482,6 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
     # generator is called for the newly accepted norms only (R9)
     generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)
     judge = AnthropicJudge(cfg, retry_policy=TERMINAL_POLICY)
-    hleg_nodes = build_hleg_nodes(pair)
     record_id, message = create_chosen_record(store, choice)
     if message:
         print(message)
@@ -560,11 +563,12 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
                     "norms_skipped_not_accepted": stats.get("norms_skipped_not_accepted"),
                     "zero_alignment_norms": stats.get("zero_alignment_norms"),
                     "candidates": stats.get("candidates"), "verdicts": stats.get("verdicts"),
-                    "mechanical_rejects_count": len(stats.get("mechanical_rejects") or []),
+                    "mechanical_rejects_count": (len(stats["mechanical_rejects"])
+                                                 if isinstance(stats.get("mechanical_rejects"), list) else None),
                     "newly_aligned_norms": {"count": len(newly), "norm_ids": newly},
                     "dropped_assertions": {"count": len(dropped), "assertion_ids": dropped},
                     "carried_candidates": stats.get("carried_candidates"),
-                    "source_verdicts": source_verdict_counts(source_payload.get("assertions") or [])},
+                    "source_verdicts": verdict_counts(source_payload.get("assertions") or [])},
             usage=execution.usage(), sampling=sampling, completed_keys=execution.completed,
             work_failures={"nodes_failed": 0, "norms_failed": len(stats.get("norms_failed") or [])},
         )
@@ -580,7 +584,7 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
           f"accepted), {stats.get('zero_alignment_norms', 0)} with zero alignments")
     print(f"candidates: {stats.get('candidates', 0)} ({stats.get('carried_candidates', 0)} stored ones judged again), "
           f"verdicts: {stats.get('verdicts', {})} (the source's "
-          f"{source_verdict_counts(source_payload.get('assertions') or [])})")
+          f"{verdict_counts(source_payload.get('assertions') or [])})")
     print(f"newly aligned norms: {len(stats.get('newly_aligned_norms') or [])}, assertions dropped: "
           f"{len(stats.get('dropped_assertions') or [])}")
     this_run = (usage_cost(usage_of(generator), prices[generator_model])

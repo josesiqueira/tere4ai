@@ -31,6 +31,7 @@ validates it.
 from __future__ import annotations
 
 import re
+from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -91,13 +92,21 @@ def _by_norm(entries: list[dict[str, Any]], key: str) -> dict[str, list[dict[str
     return out
 
 
-def source_index(payload: dict[str, Any]) -> SourceAlignments:
+def source_index(payload: dict[str, Any], requirement_ids: Collection[str]) -> SourceAlignments:
     """Index the source alignments file. A mechanical judge run is matched to its
     norm by the id prefix judgerun:mapping:<norm id without 'norm:'>: and paired,
     in order, with that norm's stats.mechanical_rejects entries; a run or an
-    entry left unpaired raises ValueError, as does an assertion or judge run
-    id that does not end in its candidate's index (align_norms' ids)."""
+    entry left unpaired raises ValueError, as do an assertion or judge run id
+    that does not end in its candidate's index (align_norms' ids), an
+    assertion whose target is not among requirement_ids (the HLEG nodes), and
+    any invalid assertion (stats.invalid_assertions: a judged candidate whose
+    assertion failed the schema, which no stored assertion lets this command
+    judge again or carry)."""
     stats = payload.get("stats") or {}
+    invalid_assertions = stats.get("invalid_assertions") or []
+    if invalid_assertions:
+        raise ValueError(f"the source holds {len(invalid_assertions)} invalid assertion(s), which this command "
+                         "cannot carry or re-judge")
     judge_runs = payload.get("judge_runs") or []
     mechanical_runs = [run for run in judge_runs if run.get("judge_model") == MECHANICAL_JUDGE_MODEL]
     mechanical_by_norm: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
@@ -119,6 +128,9 @@ def source_index(payload: dict[str, Any]) -> SourceAlignments:
                 and _INDEXED_JUDGE_RUN.fullmatch(str(assertion.get("judge_run_id")))):
             raise ValueError(f"the source assertion {assertion.get('id')} or its judge run "
                              f"{assertion.get('judge_run_id')} does not end in the candidate's index")
+        if assertion.get("target_id") not in requirement_ids:
+            raise ValueError(f"the source assertion {assertion.get('id')} names {assertion.get('target_id')!r}, "
+                             "which is not one of the seven HLEG requirements")
     for run in mechanical_runs:
         if not _INDEXED_JUDGE_RUN.fullmatch(run["id"]):
             raise ValueError(f"the source mechanical judge run {run['id']} does not end in the candidate's index")
@@ -251,7 +263,7 @@ def rejudge_batch(
         for stored in source.assertions_by_norm.get(norm["norm_id"], []):
             candidate = alignment_candidate_of(stored)
             target = hleg_by_id.get(stored["target_id"])
-            if target is None:
+            if target is None:  # source_index refuses this before any record; a guard
                 raise ValueError(f"the source assertion {stored['id']} names {stored['target_id']!r}, "
                                  "which is not one of the seven HLEG requirements")
             judge_run_id = stored["judge_run_id"]
@@ -345,6 +357,7 @@ def merge_batches(partials: list[dict[str, Any]], source: SourceAlignments,
     summed), the spread recounted from the merged assertions (spread_of), and
     the alignment runs deduplicated by id: the source runs in the source file's
     order, then the new runs in the batches' order."""
+    # the merge of align_hleg/__main__.py (its batch loop's end), kept a copy so align_hleg is unchanged
     result: dict[str, Any] = {"assertions": [], "mapping_runs": [], "judge_runs": [], "stats": {}}
     runs: dict[str, dict[str, Any]] = {}
     for partial in partials:
@@ -365,14 +378,6 @@ def merge_batches(partials: list[dict[str, Any]], source: SourceAlignments,
                               + [run for run_id, run in runs.items() if run_id not in source.mapping_runs_by_id])
     result["stats"].update(spread_of(result["assertions"], requirement_ids))
     return result
-
-
-def source_verdict_counts(assertions: list[dict[str, Any]]) -> dict[str, int]:
-    """The source assertions' verdicts, counted."""
-    counts = dict.fromkeys(VERDICTS, 0)
-    for assertion in assertions:
-        counts[assertion["judge_verdict"]] = counts.get(assertion["judge_verdict"], 0) + 1
-    return counts
 
 
 def rejudged_alignment_build(norms_build: dict[str, Any], source_build: dict[str, Any], *,

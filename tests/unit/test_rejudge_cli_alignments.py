@@ -335,6 +335,24 @@ def test_a_norms_file_not_made_by_the_records_rejudge_is_refused(tmp_path, sourc
     assert _alignments_execution(new_dir) == [] and not (new_dir / f"alignments_{NEW_NAME}.json").exists()
 
 
+def test_a_norms_file_rejudged_from_another_source_is_refused(tmp_path, source, monkeypatch, capsys):
+    new_dir = _new(tmp_path)
+    _rejudge_norms(monkeypatch, source, new_dir)
+    store, record = _record(new_dir)
+    record_path = new_dir / "build_records" / f"{record['record_id']}.json"
+    stored = json.loads(record_path.read_text(encoding="utf-8"))
+    (norms_ex,) = [ex for ex in stored["executions"] if ex["command"] == "rejudge_norms"]
+    source_record_id = norms_ex["config"]["source_record_id"]
+    norms_ex["config"]["source_record_id"] = "another-source-record"
+    record_path.write_text(json.dumps(stored, indent=1), encoding="utf-8")
+    judge, generator = ScriptedJudge(), ScriptedGenerator()
+    patch_command(monkeypatch, cli, judge, generator=generator)
+    assert cli.main(_argv("alignments", source, new_dir)) == 2
+    assert (f"was re-judged from the source record another-source-record, not from {source_record_id}, the "
+            "record of --source") in capsys.readouterr().err
+    assert judge.calls == [] and generator.calls == [] and _alignments_execution(new_dir) == []
+
+
 def _without_run_details(payload, source_run_ids):
     """A payload less what differs between two runs over the same verdicts: the
     clock, this run's usage, the new alignment run's random id and the digest of
@@ -466,11 +484,18 @@ def _refusal_case(name):
         "unpaired mechanical run": (lambda p: p["judge_runs"].append(
             {"id": "judgerun:mapping:x:n1:accountability:c1", "judge_model": MECHANICAL_JUDGE_MODEL}), None,
             "has no mechanical reject of its norm"),
+        # a judged candidate whose assertion failed the schema: nothing stored to judge again or carry
+        "invalid assertion": (lambda p: p["stats"]["invalid_assertions"].append(
+            {"norm_id": NORM_A, "target_id": "hleg:accountability", "assertion_id": "align:x:accountability:3",
+             "errors": ["'source_evidence_span_ids' is a required property"]}), None,
+            "the source holds 1 invalid assertion(s), which this command cannot carry or re-judge"),
+        "unknown target": (lambda p: p["assertions"][0].__setitem__("target_id", "hleg:invented"), None,
+                           "names 'hleg:invented', which is not one of the seven HLEG requirements"),
     }[name]
 
 
 @pytest.mark.parametrize("case", ["v1", "no claimed type", "other norms", "other generator",
-                                  "unpaired mechanical run"])
+                                  "unpaired mechanical run", "invalid assertion", "unknown target"])
 def test_a_source_the_alignments_cannot_rejudge_is_refused_before_any_record(tmp_path, source, monkeypatch, capsys,
                                                                              case):
     mutate, cfg, said = _refusal_case(case)
