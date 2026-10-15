@@ -571,6 +571,10 @@ def test_a_fresh_norms_run_over_a_consumed_norms_file_is_refused(tmp_path, sourc
             "would pay the judges again and leave the alignments stale)") in capsys.readouterr().err
     assert again.calls == [] and folder_state(new_dir) == before
     assert len(_record(new_dir)[1]["executions"]) == 1
+    # a --resume once the run finished (no checkpoint left) is the same re-run
+    assert cli.main([*_argv(source, new_dir), "--resume"]) == 2
+    assert "is the output of the done execution" in capsys.readouterr().err
+    assert again.calls == [] and folder_state(new_dir) == before
 
 
 @pytest.mark.parametrize("raised", [InferenceBackendRefused("HTTP 400 invalid request"), KeyboardInterrupt()],

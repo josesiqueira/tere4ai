@@ -349,7 +349,8 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
 
     out_dir = args.out_dir
     out_path = out_dir / f"norms_{args.name}.json"
-    if not args.resume:
+    # a --resume with no checkpoint left (the run finished) would also pay again
+    if not args.resume or not out_path.with_suffix(".checkpoint.jsonl").is_file():
         refusal = _consumed_norms_refusal(out_dir, args.name, out_path)
         if refusal:
             raise refuse(refusal)
