@@ -44,10 +44,14 @@ DEPENDS_ON = {"LAYER1_STEP1": "LAYER0_STEP1", "LAYER2_STEP1": "LAYER1_STEP1", "L
               "LAYER3_STEP2": "LAYER3_STEP1", "LAYER3_STEP3": "LAYER3_STEP2", "LAYER3_STEP4": "LAYER3_STEP3",
               "LAYER3_STEP5": "LAYER3_STEP4", "PUBLICATION_STEP1": "LAYER3_STEP3",
               "PUBLICATION_STEP2": "PUBLICATION_STEP1"}
+# B173 (R2): the rejudge executions checkpoint as the commands they re-judge
 RESULT_KEYS_OF = {"extract_norms": ("norms", "judge_runs", "stats"),
-                  "align_hleg": ("assertions", "mapping_runs", "judge_runs", "stats")}
-KEY_FIELD_OF = {"extract_norms": "group", "align_hleg": "batch"}
-MODEL_COMMANDS = ("extract_norms", "align_hleg")
+                  "align_hleg": ("assertions", "mapping_runs", "judge_runs", "stats"),
+                  "rejudge_norms": ("norms", "judge_runs", "stats"),
+                  "rejudge_alignments": ("assertions", "mapping_runs", "judge_runs", "stats")}
+KEY_FIELD_OF = {"extract_norms": "group", "align_hleg": "batch", "rejudge_norms": "group",
+                "rejudge_alignments": "batch"}
+MODEL_COMMANDS = ("extract_norms", "align_hleg", "rejudge_norms", "rejudge_alignments")
 PARSE_STEPS = ("LAYER0_STEP1", "LAYER1_STEP1")
 
 NOT_RECORDED = "not recorded by the command"

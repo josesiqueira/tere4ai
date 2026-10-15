@@ -123,7 +123,8 @@ def _digests(inputs: list[dict[str, Any]]) -> dict[str, str]:
 # B164 (spec F D-F30 as amended 2026-10-12): keys of an execution's config that
 # say how a run sends its model calls, never what it computes; a resume may
 # change them (a run stopped by a rate limit at 8 calls in flight resumes at 4).
-CONFIG_KEYS_A_RESUME_MAY_CHANGE = frozenset({"max_in_flight"})
+# B173 R10: the cost stop too, so a run stopped by it resumes with a higher one.
+CONFIG_KEYS_A_RESUME_MAY_CHANGE = frozenset({"max_in_flight", "cost_stop_usd"})
 
 
 def _compared_config(config: Any) -> Any:

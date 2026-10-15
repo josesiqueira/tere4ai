@@ -974,11 +974,11 @@ def test_the_service_policy_is_unchanged():
     assert TERMINAL_POLICY.pauses == (10.0, 30.0, 90.0, 270.0, 600.0) and TERMINAL_POLICY.attempts == 6
 
 
-def test_only_the_four_terminal_commands_choose_the_terminal_policy():
+def test_only_the_terminal_commands_choose_the_terminal_policy():
     """B99 (spec F D-F30): the facade, the MCP server and the harness keep the
     service policy by not naming one; only the runs with a checkpoint and a
     resume name the terminal policy (scripts/elicit_benchmark_features.py
-    since B101 ruling S4), and only the two scripts name the inference
+    since B101 ruling S4, tere4ai.rejudge since B173 R12), and only the two scripts name the inference
     backend refusal, to name the item it stopped on (ruling P21, B101 ruling S5)."""
     from pathlib import Path
 
@@ -991,7 +991,8 @@ def test_only_the_four_terminal_commands_choose_the_terminal_policy():
     assert users("TERMINAL_POLICY") == ["scripts/elicit_benchmark_features.py", "scripts/run_ablations.py",
                                         "src/tere4ai/align_hleg/__main__.py",
                                         "src/tere4ai/extract_norms/__main__.py",
-                                        "src/tere4ai/extract_norms/model_clients.py"]
+                                        "src/tere4ai/extract_norms/model_clients.py",
+                                        "src/tere4ai/rejudge/__main__.py"]
     assert users("InferenceBackendRefused") == ["scripts/elicit_benchmark_features.py", "scripts/run_ablations.py",
                                         "src/tere4ai/extract_norms/model_clients.py"]
 
