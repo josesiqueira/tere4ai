@@ -407,7 +407,19 @@ alignments prompt version v1 (their candidates cannot be rebuilt from what
 a norm or an assertion keeps), a prompt whose text today differs from the
 one the source's runs recorded, and a generator in `.env` that differs from
 the source's in model, effort, temperature or JSON mode (Layer 3 aligns
-the newly accepted norms with it). A rebuilt candidate equals the one the
+the newly accepted norms with it). Also refused: a source file with human
+decisions applied (a reference block or a `human_review` entry: only a
+generator build can be re-judged), a norm that keeps an inference source
+node beside no inferred addressee, an assertion without a
+`generator_rationale` text, an out-dir inside the source folder, equal to
+it or holding it, a live `rejudge_` execution of either subcommand on the
+record, `alignments` under another judge (model, effort, temperature,
+parameters digest) than the `norms` run's, a `norms` run without
+`--resume` over a norms file a done execution already wrote, and a
+`report` over alignments made on another norms file. `norms` runs the
+Layer 3 checks of the source alignments (the HLEG text digests, invalid
+assertions, mechanical runs, targets) before it writes anything, so Layer 2
+is never paid for a source whose Layer 3 would be refused. A rebuilt candidate equals the one the
 source's judge read when the generator wrote each field as stored: a key
 the generator wrote beyond the shape was never stored, a missing key is
 rebuilt as null and a blank addressee reads null, so in those cases the new
@@ -417,6 +429,11 @@ The name: `--name` is `<date>-<source name without its date>-<judge model
 without "claude-">`, any valid date, with an optional `-N`, and the last
 part of `--out-dir` must be the name (2026-10-14-gpt-6-astra-high judged by
 claude-opus-5-5 on 2026-10-16 gives 2026-10-16-gpt-6-astra-high-opus-5-5).
+A name that also spells the source judged by another model of
+config/model_parameters.json is refused (judged by claude-opus-5, the name
+...-opus-5-5 also reads as the claude-opus-5-5 build). Each subcommand
+prints "judging with <model>, effort <effort>, temperature <temperature>"
+before its first call.
 
 The cost stop: `--cost-stop` is required. Before each group or batch the
 command sums the list-price cost (config/model_prices.json, every input
@@ -428,7 +445,9 @@ or batch, so a run can pass it by at most the group in flight (one Article
 or Annex of judge calls at Layer 2, one batch of norms at Layer 3). The
 other failure mechanics are those of extract_norms and align_hleg (exit 3
 when the inference backend stays unavailable, 4 on a configuration error,
-`--resume`, `--max-in-flight`).
+`--resume`, `--max-in-flight`); a request the inference backend refuses
+and an interrupt also end the execution failed and print the resume
+command.
 
 The logs: the judges' and the generator's events, each with the sha256 of
 its input, go to NEW/logs/rejudge_extraction_log.jsonl and

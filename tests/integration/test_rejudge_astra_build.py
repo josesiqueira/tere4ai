@@ -1,7 +1,8 @@
 """B173 task 4: `python -m tere4ai.rejudge` end to end on the published astra
 build (thesis/builds/2026-10-14-gpt-6-astra-high, read only), with scripted
 clients, never a paid model call: `norms`, `alignments`, the publication
-gates of scripts/publish_layer23.py (--gates-only) and `report`.
+gates of scripts/publish_layer23.py (--gates-only) and `report`, at one call
+in flight and at eight (final review: the files are the same either way).
 
 The scripted Layer 2 judge answers each message with the verdict the source's
 judge (gpt-6-sol) gave its norm, found by rebuilding every norm's message,
@@ -25,6 +26,7 @@ import csv
 import json
 import subprocess
 import sys
+import threading
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -81,16 +83,19 @@ class _Scripted:
         self.json_mode = json_mode
         self.usage = dict.fromkeys(USAGE_KEYS, 0)
         self.calls: list[tuple[str, str]] = []
+        # several calls run at once under --max-in-flight 8: the counts are kept under a lock
+        self._lock = threading.Lock()
 
     def answer(self, user: str) -> str:
         raise NotImplementedError
 
     def complete(self, system: str, user: str) -> str:
-        self.calls.append((system, user))
-        for key, value in (("calls", 1), ("input_tokens", INPUT_TOKENS_PER_CALL),
-                           ("output_tokens", OUTPUT_TOKENS_PER_CALL), ("requests_sent", 1),
-                           ("replies_with_usage", 1)):
-            self.usage[key] += value
+        with self._lock:
+            self.calls.append((system, user))
+            for key, value in (("calls", 1), ("input_tokens", INPUT_TOKENS_PER_CALL),
+                               ("output_tokens", OUTPUT_TOKENS_PER_CALL), ("requests_sent", 1),
+                               ("replies_with_usage", 1)):
+                self.usage[key] += value
         return self.answer(user)
 
 
@@ -124,7 +129,8 @@ class AlignmentJudge(_Scripted):
         key = (norm_id, candidate["target_id"], candidate["source_quote"], candidate["target_quote"])
         verdict = self.source_verdicts.get(key)
         if verdict is None:
-            self.new_candidates += 1
+            with self._lock:
+                self.new_candidates += 1
             verdict = "accepted"
         return judge_reply(verdict, 0.7, rationale="scripted")
 
@@ -162,7 +168,8 @@ def _argv(command: str, new_dir: Path, *extra: str) -> list[str]:
     return [command, "--source", str(SRC), "--out-dir", str(new_dir), "--name", NAME, *extra]
 
 
-def test_rejudge_end_to_end_on_the_astra_build(tmp_path, monkeypatch):
+@pytest.mark.parametrize("in_flight", ["1", "8"])
+def test_rejudge_end_to_end_on_the_astra_build(tmp_path, monkeypatch, in_flight):
     before = folder_state(SRC)
     dump, source_norms_payload, source_alignments_payload = _source_files()
     source_norms = source_norms_payload["norms"]
@@ -199,7 +206,7 @@ def test_rejudge_end_to_end_on_the_astra_build(tmp_path, monkeypatch):
     # Layer 2: 480 judge calls, every message the rebuilt one, no generator built
     norms_judge = NormsJudge(verdict_of_message)
     patch_command(monkeypatch, cli, norms_judge, cfg=cfg, price_rows=price_rows)
-    assert cli.main(_argv("norms", new_dir, "--cost-stop", "1000", "--max-in-flight", "1")) == 0
+    assert cli.main(_argv("norms", new_dir, "--cost-stop", "1000", "--max-in-flight", in_flight)) == 0
     assert len(norms_judge.calls) == len(source_norms) == 480
     assert Counter(user for _system, user in norms_judge.calls) == Counter(message_of.values())
     norms_payload = _load(new_dir / f"norms_{NAME}.json")
@@ -216,7 +223,7 @@ def test_rejudge_end_to_end_on_the_astra_build(tmp_path, monkeypatch):
     alignment_judge = AlignmentJudge({(a["source_norm_id"], a["target_id"], a["source_quote"], a["target_quote"]):
                                       a["judge_verdict"] for a in source_assertions})
     patch_command(monkeypatch, cli, alignment_judge, cfg=cfg, price_rows=price_rows, generator=generator)
-    assert cli.main(_argv("alignments", new_dir, "--cost-stop", "1000", "--max-in-flight", "1")) == 0
+    assert cli.main(_argv("alignments", new_dir, "--cost-stop", "1000", "--max-in-flight", in_flight)) == 0
     called = [user.split("\n", 1)[0].removeprefix("Norm id: ") for _system, user in generator.calls]
     assert sorted(called) == sorted(newly_accepted)
     alignments = _load(new_dir / f"alignments_{NAME}.json")

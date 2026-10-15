@@ -491,19 +491,28 @@ def _refusal_case(name):
             "the source holds 1 invalid assertion(s), which this command cannot carry or re-judge"),
         "unknown target": (lambda p: p["assertions"][0].__setitem__("target_id", "hleg:invented"), None,
                            "names 'hleg:invented', which is not one of the seven HLEG requirements"),
+        # the generation-time judge read the generator's rationale, which a null cannot give back
+        "no generator rationale": (lambda p: p["assertions"][0].__setitem__("generator_rationale", None), None,
+                                   "keeps no generator_rationale as text (None)"),
     }[name]
 
 
 @pytest.mark.parametrize("case", ["v1", "no claimed type", "other norms", "other generator",
-                                  "unpaired mechanical run", "invalid assertion", "unknown target"])
+                                  "unpaired mechanical run", "invalid assertion", "unknown target",
+                                  "no generator rationale"])
+@pytest.mark.parametrize("command", ["alignments", "norms"])
 def test_a_source_the_alignments_cannot_rejudge_is_refused_before_any_record(tmp_path, source, monkeypatch, capsys,
-                                                                             case):
+                                                                             case, command):
+    """`norms` runs the same Layer 3 checks before it writes anything (final
+    review), so Layer 2 is never paid for a source whose Layer 3 is refused."""
     mutate, cfg, said = _refusal_case(case)
+    if command == "norms" and case == "other generator":
+        said = "differs from the source's in generator_effort"  # norms_refusal says it first
     src = _copy_with_alignments(source, tmp_path, mutate) if mutate else source
     judge, generator = ScriptedJudge(), ScriptedGenerator()
     patch_command(monkeypatch, cli, judge, cfg=cfg, generator=generator)
     new_dir = _new(tmp_path)
-    assert cli.main(_argv("alignments", src, new_dir)) == 2
+    assert cli.main(_argv(command, src, new_dir)) == 2
     assert said in capsys.readouterr().err
     assert judge.calls == [] and generator.calls == [] and not new_dir.exists()
 
@@ -527,13 +536,14 @@ def test_changed_prompts_another_hleg_text_and_a_missing_generator_price_are_ref
     assert f"no price row for the generator '{GENERATOR_MODEL}'" in capsys.readouterr().err
     assert not new_dir.exists()
 
-    # the HLEG pair is checked once the norms run made the folder
+    # the HLEG pair is checked before anything is written, by `norms` too
+    # (final review: Layer 2 is never paid for a source whose Layer 3 is refused)
     copy = _copy_with_alignments(source, tmp_path, lambda p: p["build"].__setitem__("hleg_text_sha256", "1" * 64))
-    _rejudge_norms(monkeypatch, copy, new_dir)
-    patch_command(monkeypatch, cli, judge, generator=generator)
-    assert cli.main(_argv("alignments", copy, new_dir)) == 2
-    assert "the source alignments were made on " + "1" * 64 in capsys.readouterr().err
-    assert judge.calls == [] and generator.calls == [] and _alignments_execution(new_dir) == []
+    for command in ("norms", "alignments"):
+        patch_command(monkeypatch, cli, judge, generator=generator)
+        assert cli.main(_argv(command, copy, new_dir)) == 2
+        assert "the source alignments were made on " + "1" * 64 in capsys.readouterr().err
+    assert judge.calls == [] and generator.calls == [] and not new_dir.exists()
 
 
 def test_the_terminal_policy_builds_both_clients(tmp_path, source, monkeypatch):
@@ -545,3 +555,60 @@ def test_the_terminal_policy_builds_both_clients(tmp_path, source, monkeypatch):
     monkeypatch.setattr(cli, "OpenAIGenerator", lambda _cfg, **kw: built.append(kw.get("retry_policy")) or generator)
     assert cli.main(_argv("alignments", source, new_dir)) == 0
     assert policies == [TERMINAL_POLICY] and built == [TERMINAL_POLICY]
+
+
+# ---- final review fixes (B173)
+
+
+def test_a_live_rejudge_execution_of_the_other_subcommand_refuses_alignments(tmp_path, source, monkeypatch, capsys):
+    new_dir = _new(tmp_path)
+    _rejudge_norms(monkeypatch, source, new_dir)
+    store, record = _record(new_dir)
+    # a `norms` run still running on the record: a fresh heartbeat
+    live = store.start_execution(record["record_id"], command="rejudge_norms",
+                                 covers_steps=["LAYER2_STEP1", "LAYER2_STEP2"], argv=[], inputs=[], config={},
+                                 expected_total=3, work_unit="groups", checkpoint_file=None, models={},
+                                 prompt_sha256={}, sampling={})
+    judge, generator = ScriptedJudge(), ScriptedGenerator()
+    patch_command(monkeypatch, cli, judge, generator=generator)
+    assert cli.main(_argv("alignments", source, new_dir)) == 2
+    err = capsys.readouterr().err
+    assert f"has a live running execution: {live} (rejudge_norms, heartbeat " in err
+    assert judge.calls == [] and generator.calls == [] and _alignments_execution(new_dir) == []
+    assert not (new_dir / f"alignments_{NEW_NAME}.json").exists()
+
+
+def test_layer3_is_refused_under_another_judge_than_the_norms_run(tmp_path, source, monkeypatch, capsys):
+    new_dir = _new(tmp_path)
+    _rejudge_norms(monkeypatch, source, new_dir)
+    judge, generator = ScriptedJudge(), ScriptedGenerator()
+    # the environment names another effort than the norms run's judge
+    patch_command(monkeypatch, cli, judge, cfg=fake_cfg(judge_effort="xhigh"), generator=generator)
+    assert cli.main(_argv("alignments", source, new_dir)) == 2
+    assert "in judge_effort ('xhigh', the norms run 'high'); Layer 3 is judged by the judge of Layer 2" in \
+        capsys.readouterr().err
+    # the record's execution names another effort than the environment
+    _store, record = _record(new_dir)
+    record_path = new_dir / "build_records" / f"{record['record_id']}.json"
+    stored = json.loads(record_path.read_text(encoding="utf-8"))
+    (norms_ex,) = [ex for ex in stored["executions"] if ex["command"] == "rejudge_norms"]
+    norms_ex["models"]["judge_effort"] = "low"
+    record_path.write_text(json.dumps(stored, indent=1), encoding="utf-8")
+    patch_command(monkeypatch, cli, judge, generator=generator)
+    assert cli.main(_argv("alignments", source, new_dir)) == 2
+    err = capsys.readouterr().err
+    assert f"re-judged norms_{NEW_NAME}.json (execution {norms_ex['run_id']}) in judge_effort ('high', the norms run " \
+           "'low')" in err
+    assert judge.calls == [] and generator.calls == [] and _alignments_execution(new_dir) == []
+
+
+def test_alignments_names_its_judge_before_the_first_batch(tmp_path, source, monkeypatch, capsys):
+    new_dir = _new(tmp_path)
+    _rejudge_norms(monkeypatch, source, new_dir)
+    capsys.readouterr()
+    seen: list[str] = []
+    judge = ScriptedJudge(on_call=lambda _user: seen.append(capsys.readouterr().out))
+    generator = ScriptedGenerator()
+    patch_command(monkeypatch, cli, judge, generator=generator)
+    assert cli.main(_argv("alignments", source, new_dir)) == 0
+    assert "judging with claude-fake, effort high, temperature 0\n" in seen[0]

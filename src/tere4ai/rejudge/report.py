@@ -29,6 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from tere4ai.graph_store.build_chain import sha256_of_file
 from tere4ai.graph_store.build_record import BuildRecordStore, RecordError
 from tere4ai.judge.config import ConfigurationError, load_model_prices
 from tere4ai.rejudge.cost import usage_cost, usd
@@ -410,8 +411,9 @@ def write_report(source: Path | str, out_dir: Path | str, name: str, *, overwrit
     """Write NEW/README.md and NEW/changed_verdicts.csv for the re-judged build
     NAME made from the published build in source, and return their paths.
     Raises Refusal: a source that cannot be read, a missing norms or
-    alignments file or record (exit 2), the price table unreadable (exit 4),
-    or an existing report without overwrite (exit 1)."""
+    alignments file or record, an alignments file made over another norms
+    file than NEW/norms_NAME.json (exit 2), the price table unreadable (exit
+    4), or an existing report without overwrite (exit 1)."""
     out_dir = Path(out_dir)
     readme, csv_path = out_dir / README_FILE, out_dir / CSV_FILE
     existing = [p.name for p in (readme, csv_path) if p.exists()]
@@ -428,6 +430,13 @@ def write_report(source: Path | str, out_dir: Path | str, name: str, *, overwrit
     source_alignments_payload = _read_json(src.alignments_path, "the source alignments file")
     if (norms_payload.get("rejudge") or {}).get("source_record_id") != src.record_id:
         raise refuse(f"norms_{name}.json was not re-judged from the source record {src.record_id} that --source names")
+    # final review: the two files describe one build only when the alignments
+    # were made over this very norms file (a later `norms` run leaves them stale)
+    norms_digest = sha256_of_file(out_dir / f"norms_{name}.json")
+    aligned_over = (alignments_payload.get("build") or {}).get("alignment_input_sha256")
+    if aligned_over != norms_digest:
+        raise refuse(f"alignments_{name}.json was made over a norms file with sha256 {aligned_over}; "
+                     f"norms_{name}.json has sha256 {norms_digest}; run `alignments` again over it")
     store = BuildRecordStore(out_dir, create=False)
     try:
         record_id = store.resolve(name)

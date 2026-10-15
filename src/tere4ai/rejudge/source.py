@@ -17,13 +17,18 @@ constraints), and nothing in it is written.
 The new build's name (B173 R11): <date>-<source name without its leading
 date>-<judge model without a leading "claude-">, any valid date, with an
 optional trailing -N; 2026-10-14-gpt-6-astra-high judged by claude-opus-5-5
-on 2026-10-16 gives 2026-10-16-gpt-6-astra-high-opus-5-5.
+on 2026-10-16 gives 2026-10-16-gpt-6-astra-high-opus-5-5. A name that also
+spells the source judged by another declared model is refused (final review:
+judged by claude-opus-5, ...-opus-5-5 reads as opus-5 plus -5 and as
+opus-5-5). The new build's folder never lies inside the source folder, equals
+it or holds it (out_dir_refusal), so nothing is written into the source.
 """
 
 from __future__ import annotations
 
 import json
 import re
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -121,10 +126,14 @@ def expected_name(source_name: str, judge_model: str, day: date) -> str:
     return f"{day.isoformat()}-{_name_stem(source_name, judge_model)}"
 
 
-def name_refusal(name: str, source_name: str, judge_model: str) -> str | None:
+def name_refusal(name: str, source_name: str, judge_model: str,
+                 declared_models: Collection[str] = ()) -> str | None:
     """Why name breaks the rule (R11), or None: any valid date, then the
     source name without its date, then the judge model without "claude-",
-    then an optional -N."""
+    then an optional -N; and the name, after its date, must not spell the
+    source judged by another model of declared_models (the models
+    config/model_parameters.json declares): judged by claude-opus-5, the name
+    ...-opus-5-5 is refused, since it reads as the build of claude-opus-5-5."""
     pattern = re.compile(r"(\d{4}-\d{2}-\d{2})-" + re.escape(_name_stem(source_name, judge_model)) + r"(-\d+)?")
     match = pattern.fullmatch(name)
     valid_day = False
@@ -135,7 +144,28 @@ def name_refusal(name: str, source_name: str, judge_model: str) -> str | None:
         except ValueError:
             valid_day = False
     if valid_day:
+        assert match is not None
+        tail = name[len(match.group(1)) + 1:]
+        for other in sorted(declared_models):
+            if other != judge_model and tail == _name_stem(source_name, other):
+                return (f"the name {name!r} also reads as {source_name} judged by {other}, a model "
+                        f"config/model_parameters.json declares, not by {judge_model}; choose a trailing -N "
+                        "that spells no other model's name")
         return None
     return (f"the name {name!r} does not follow the rule <date>-<source name without its date>-<judge model "
             f"without 'claude-'>[-N]; for {source_name} judged by {judge_model} it reads "
             f"{expected_name(source_name, judge_model, date.today())}")
+
+
+def out_dir_refusal(out_dir: Path | str, source_dir: Path | str) -> str | None:
+    """Why the new build's folder may not be written, or None: it equals the
+    source folder, lies inside it or holds it, both resolved with their
+    symbolic links (final review: the source is never written)."""
+    new, src = Path(out_dir).resolve(), Path(source_dir).resolve()
+    if new == src:
+        return f"the out-dir {out_dir} is the source folder {source_dir}"
+    if new.is_relative_to(src):
+        return f"the out-dir {out_dir} lies inside the source folder {source_dir}"
+    if src.is_relative_to(new):
+        return f"the out-dir {out_dir} holds the source folder {source_dir}"
+    return None

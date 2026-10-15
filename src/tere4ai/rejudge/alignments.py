@@ -51,7 +51,7 @@ from tere4ai.align_hleg.pipeline import (
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import load_prompt, prompt_sha256
 from tere4ai.parallel_calls import run_in_flight
-from tere4ai.rejudge.norms import GENERATOR_KEYS, VERDICTS
+from tere4ai.rejudge.norms import GENERATOR_KEYS, VERDICTS, materialised_refusal
 
 ALIGN_PROMPT_KIND = "align_hleg"
 JUDGE_PROMPT_KIND = "judge_alignment"
@@ -147,11 +147,15 @@ def source_index(payload: dict[str, Any], requirement_ids: Collection[str]) -> S
 def alignments_refusal(source_payload: dict[str, Any], public_models: dict[str, Any],
                        source_norms_sha256: str) -> str | None:
     """Why the source alignments cannot be re-judged in this environment (R5), or
-    None: a prompt version v1 or an assertion without proposed_relation_type
-    (its candidate cannot be rebuilt), a judge_alignment or align_hleg prompt
+    None: a materialised reference file, a prompt version v1, an assertion
+    without proposed_relation_type or whose generator_rationale is not a
+    string (its candidate cannot be rebuilt), a judge_alignment or align_hleg prompt
     whose text today differs from what the source's judge or alignment runs
     recorded, alignments made over another norms file than the source's, or a
     generator that is not the source's."""
+    materialised = materialised_refusal(source_payload)
+    if materialised:
+        return materialised
     build = source_payload.get("build") or {}
     version = build.get("alignment_prompt_version")
     if not isinstance(version, str) or not version:
@@ -163,6 +167,10 @@ def alignments_refusal(source_payload: dict[str, Any], public_models: dict[str, 
         if not assertion.get("proposed_relation_type"):
             return (f"the source assertion {assertion.get('id', '(no id)')} has no proposed_relation_type (kept "
                     "before DEC-28); its candidate cannot be rebuilt")
+        if not isinstance(assertion.get("generator_rationale"), str):
+            return (f"the source assertion {assertion.get('id', '(no id)')} keeps no generator_rationale as text "
+                    f"({assertion.get('generator_rationale')!r}); the generation-time judge read the generator's "
+                    "rationale, so its candidate cannot be rebuilt")
     for kind, runs in ((JUDGE_PROMPT_KIND, [run for run in source_payload.get("judge_runs") or []
                                             if run.get("judge_model") != MECHANICAL_JUDGE_MODEL]),
                        (ALIGN_PROMPT_KIND, source_payload.get("mapping_runs") or [])):

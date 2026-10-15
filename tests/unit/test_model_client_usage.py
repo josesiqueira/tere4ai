@@ -979,7 +979,8 @@ def test_only_the_terminal_commands_choose_the_terminal_policy():
     service policy by not naming one; only the runs with a checkpoint and a
     resume name the terminal policy (scripts/elicit_benchmark_features.py
     since B101 ruling S4, tere4ai.rejudge since B173 R12), and only the two scripts name the inference
-    backend refusal, to name the item it stopped on (ruling P21, B101 ruling S5)."""
+    backend refusal, to name the item it stopped on (ruling P21, B101 ruling S5), and the rejudge's
+    execution end, to print the resume command before raising it again (B173 final review)."""
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
@@ -994,7 +995,8 @@ def test_only_the_terminal_commands_choose_the_terminal_policy():
                                         "src/tere4ai/extract_norms/model_clients.py",
                                         "src/tere4ai/rejudge/__main__.py"]
     assert users("InferenceBackendRefused") == ["scripts/elicit_benchmark_features.py", "scripts/run_ablations.py",
-                                        "src/tere4ai/extract_norms/model_clients.py"]
+                                        "src/tere4ai/extract_norms/model_clients.py",
+                                        "src/tere4ai/rejudge/run.py"]
 
 
 # B133: the reasoning part of the output figure, recorded beside the input and

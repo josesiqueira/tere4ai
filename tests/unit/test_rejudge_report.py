@@ -32,6 +32,7 @@ from tests.unit.test_rejudge_cli_alignments import _alignments, _both, _source_a
 
 import tere4ai.rejudge.__main__ as cli
 import tere4ai.rejudge.report as report
+from tere4ai.graph_store.build_chain import sha256_of_file
 
 # The quote of A's first source assertion; the new alignment judge rejects it.
 A_FIRST_QUOTE = "A risk log shall be kept"
@@ -150,3 +151,16 @@ def test_the_report_has_no_em_or_en_dash(rejudged):
     for name in ("README.md", "changed_verdicts.csv"):
         text = (new_dir / name).read_text(encoding="utf-8")
         assert "\u2014" not in text and "\u2013" not in text, name
+
+
+def test_a_report_over_alignments_made_on_another_norms_file_is_refused(rejudged, capsys):
+    """Final review: the two files describe one build only when the alignments
+    were made over this very norms file."""
+    source, new_dir = rejudged
+    norms_path = new_dir / f"norms_{NEW_NAME}.json"
+    aligned_over = _alignments(new_dir)["build"]["alignment_input_sha256"]
+    norms_path.write_text(norms_path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    assert _report(source, new_dir) == 2
+    assert (f"alignments_{NEW_NAME}.json was made over a norms file with sha256 {aligned_over}; norms_{NEW_NAME}.json "
+            f"has sha256 {sha256_of_file(norms_path)}") in capsys.readouterr().err
+    assert not (new_dir / "README.md").exists() and not (new_dir / "changed_verdicts.csv").exists()

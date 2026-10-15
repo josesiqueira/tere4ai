@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tere4ai.act_parties import slots_of
 from tere4ai.extract_norms.model_clients import ModelClient
 from tere4ai.extract_norms.pipeline import (
     _index_nodes,
@@ -33,10 +34,23 @@ from tere4ai.extract_norms.pipeline import (
 )
 from tere4ai.extract_norms.requirement_type import types_for
 from tere4ai.parallel_calls import run_in_flight
+from tere4ai.review_queue.materialize import already_materialised
 
 JUDGE_PROMPT_KIND = "judge_norms"
 JUDGE_FIELDS = ("judge_verdict", "review_status", "confidence", "judge_type_agrees", "judge_requirement_type")
 VERDICTS = ("accepted", "rejected", "needs_human_review")
+MATERIALISED_REFUSAL = ("the source is a materialised reference file (human decisions applied); only a generator "
+                        "build can be re-judged")
+
+
+def materialised_refusal(payload: dict[str, Any]) -> str | None:
+    """Why a source norms or alignments file cannot be re-judged because people's
+    decisions were applied to it (its own reference block, or an item with a
+    human_review entry; review_queue.materialize.already_materialised), or
+    None (final review): the stored items are then no longer what the
+    generator wrote, so no message the generation-time judge read can be
+    rebuilt from them."""
+    return MATERIALISED_REFUSAL if already_materialised(payload) else None
 
 
 def group_of(norm: dict[str, Any]) -> str:
@@ -159,9 +173,15 @@ GENERATOR_KEYS = ("generator_model", "generator_effort", "generator_temperature"
 
 def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any]) -> str | None:
     """Why the source norms cannot be re-judged in this environment (R5), or
-    None: a prompt version whose candidates cannot be rebuilt, a judge prompt
-    whose text today differs from the one the source's judge runs recorded,
-    or a generator that is not the source's."""
+    None: a materialised reference file, a prompt version whose candidates
+    cannot be rebuilt, a judge prompt whose text today differs from the one
+    the source's judge runs recorded, a norm whose inferred addressee is
+    null beside an inference source node (the generation-time judge read
+    that node's text, which the stored norm cannot give back), or a
+    generator that is not the source's."""
+    materialised = materialised_refusal(source_payload)
+    if materialised:
+        return materialised
     build = source_payload.get("build") or {}
     version = build.get("prompt_version")
     if not isinstance(version, str) or not version:
@@ -189,6 +209,11 @@ def norms_refusal(source_payload: dict[str, Any], public_models: dict[str, Any])
         if lacking:
             return (f"the source norm {norm.get('norm_id', '(no norm_id)')} lacks {', '.join(lacking)}, "
                     f"which a {version} norm carries")
+        _explicit, inferred, source_node = slots_of(norm)
+        if inferred is None and source_node is not None:
+            return (f"the source norm {norm.get('norm_id', '(no norm_id)')} keeps the inference source node "
+                    f"{source_node} beside no inferred addressee; the generation-time judge read the inference "
+                    "text, which the stored norm cannot give back, so its message cannot be rebuilt")
     source_models = build.get("extraction_models") or {}
     differing = [key for key in GENERATOR_KEYS if source_models.get(key) != public_models.get(key)]
     if differing:

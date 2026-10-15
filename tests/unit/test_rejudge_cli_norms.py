@@ -35,12 +35,14 @@ from tests.unit.rejudge_mock_build import (
     source_judge_messages,
     unit_key,
 )
+from tests.unit.test_rejudge_cli_alignments import _copy_with_alignments
 
 import tere4ai.rejudge.__main__ as cli
 import tere4ai.rejudge.norms as rejudge_norms
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
     USAGE_KEYS,
+    InferenceBackendRefused,
     InferenceBackendUnavailable,
 )
 from tere4ai.extract_norms.pipeline import load_prompt
@@ -451,4 +453,169 @@ def test_a_missing_judge_price_row_exits_4(tmp_path, source, monkeypatch, capsys
     new_dir = _new(tmp_path)
     assert cli.main(_argv(source, new_dir)) == 4
     assert "no price row for the judge 'claude-fake'" in capsys.readouterr().err
+    assert judge.calls == [] and not new_dir.exists()
+
+
+# ---- final review fixes (B173): the guards the two final reviewers found
+
+
+def _copy_named(source, folder):
+    """A copy of the source build in folder (any name: the source is found by its
+    activation pointer, never by its folder's name)."""
+    shutil.copytree(source, folder)
+    return folder
+
+
+@pytest.mark.parametrize("command", ["norms", "alignments", "report"])
+def test_an_out_dir_inside_the_source_folder_is_refused(tmp_path, source, monkeypatch, capsys, command):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    new_dir = source / NEW_NAME
+    argv = ["--source", str(source), "--out-dir", str(new_dir), "--name", NEW_NAME]
+    argv = [command, *argv] if command == "report" else [command, *argv, "--cost-stop", "1000"]
+    assert cli.main(argv) == 2
+    assert f"the out-dir {new_dir} lies inside the source folder {source}" in capsys.readouterr().err
+    # nothing written into the source (the fixture checks every sha256 too), no record, no call
+    assert not new_dir.exists() and judge.calls == []
+
+
+def test_an_out_dir_equal_to_holding_or_linked_into_the_source_is_refused(tmp_path, source, monkeypatch, capsys):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    # equal: a source copy in a folder named by the new name
+    equal = _copy_named(source, tmp_path / "equal" / NEW_NAME)
+    before = folder_state(equal)
+    assert cli.main(_argv(equal, equal)) == 2
+    assert f"the out-dir {equal} is the source folder {equal}" in capsys.readouterr().err
+    assert folder_state(equal) == before
+    # holding: a source copy inside a folder named by the new name
+    holder = tmp_path / "holding" / NEW_NAME
+    inner = _copy_named(source, holder / SOURCE_NAME)
+    assert cli.main(_argv(inner, holder)) == 2
+    assert f"the out-dir {holder} holds the source folder {inner}" in capsys.readouterr().err
+    assert sorted(p.name for p in holder.iterdir()) == [SOURCE_NAME]
+    # a symbolic link to the source: resolved, so the out-dir under it lies inside the source
+    link = tmp_path / "link"
+    link.symlink_to(source, target_is_directory=True)
+    assert cli.main(_argv(source, link / NEW_NAME)) == 2
+    assert "lies inside the source folder" in capsys.readouterr().err
+    assert judge.calls == []
+
+
+def _reference(kind):
+    return {"kind": kind, "layer": 2 if kind == "norms" else 3, "freeze_id": "freeze-x"}
+
+
+_HUMAN_REVIEW = {"decision": "keep", "decided_by": "HUMAN1"}
+# (the file changed, the change): its own reference block, or an item with a human_review entry
+MATERIALISED = {
+    "norms reference": ("norms", lambda p: p["build"].__setitem__("reference", _reference("norms"))),
+    "norms human review": ("norms", lambda p: p["norms"][0].__setitem__("human_review", _HUMAN_REVIEW)),
+    "alignments reference": ("alignments", lambda p: p["build"].__setitem__("reference", _reference("alignments"))),
+    "alignments human review": ("alignments", lambda p: p["assertions"][0].__setitem__("human_review",
+                                                                                         _HUMAN_REVIEW)),
+}
+
+
+@pytest.mark.parametrize("case", list(MATERIALISED))
+@pytest.mark.parametrize("command", ["norms", "alignments"])
+def test_a_materialised_source_is_refused(tmp_path, source, monkeypatch, capsys, case, command):
+    which, mutate = MATERIALISED[case]
+    if which == "norms":
+        copy = _copy_with_norms(source, tmp_path, mutate)
+    else:
+        copy = _copy_with_alignments(source, tmp_path, mutate)
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    new_dir = _new(tmp_path)
+    argv = [command, "--source", str(copy), "--out-dir", str(new_dir), "--name", NEW_NAME, "--cost-stop", "1000"]
+    assert cli.main(argv) == 2
+    assert ("the source is a materialised reference file (human decisions applied); only a generator build can be "
+            "re-judged") in capsys.readouterr().err
+    assert judge.calls == [] and not new_dir.exists()
+
+
+def test_a_norm_with_an_inference_source_and_no_inferred_addressee_is_refused(tmp_path, source, monkeypatch,
+                                                                              capsys):
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+
+    def source_without_addressee(payload):
+        norm = next(n for n in payload["norms"] if n["norm_id"] == NORM_C)
+        assert norm["addressee_inferred"] is None
+        norm["addressee_inference_source_node_id"] = "eu-ai-act:article-16:paragraph-1:point-a"
+
+    copy = _copy_with_norms(source, tmp_path, source_without_addressee)
+    new_dir = _new(tmp_path)
+    assert cli.main(_argv(copy, new_dir)) == 2
+    err = capsys.readouterr().err
+    assert (f"the source norm {NORM_C} keeps the inference source node eu-ai-act:article-16:paragraph-1:point-a "
+            "beside no inferred addressee") in err
+    assert "cannot give back" in err
+    assert judge.calls == [] and not new_dir.exists()
+
+
+def test_a_fresh_norms_run_over_a_consumed_norms_file_is_refused(tmp_path, source, monkeypatch, capsys):
+    new_dir = _new(tmp_path)
+    patch_command(monkeypatch, cli, ScriptedJudge())
+    assert cli.main(_argv(source, new_dir)) == 0
+    capsys.readouterr()
+    out_path = new_dir / f"norms_{NEW_NAME}.json"
+    before = folder_state(new_dir)
+    _store, record = _record(new_dir)
+    (done,) = record["executions"]
+    again = ScriptedJudge()
+    patch_command(monkeypatch, cli, again)
+    assert cli.main(_argv(source, new_dir)) == 2
+    assert (f"{out_path.name} is the output of the done execution {done['run_id']}; choose another --name (a re-run "
+            "would pay the judges again and leave the alignments stale)") in capsys.readouterr().err
+    assert again.calls == [] and folder_state(new_dir) == before
+    assert len(_record(new_dir)[1]["executions"]) == 1
+
+
+@pytest.mark.parametrize("raised", [InferenceBackendRefused("HTTP 400 invalid request"), KeyboardInterrupt()],
+                         ids=["refused", "interrupt"])
+def test_a_refused_request_or_an_interrupt_ends_failed_and_prints_the_resume_command(tmp_path, source, monkeypatch,
+                                                                                    capsys, raised):
+    judge = ScriptedJudge(errors={unit_key(UNIT_OF[NORM_B]): raised})
+    patch_command(monkeypatch, cli, judge)
+    new_dir = _new(tmp_path)
+    with pytest.raises(type(raised)):
+        cli.main(_argv(source, new_dir))
+    err = capsys.readouterr().err
+    assert f"  .venv/bin/python -m tere4ai.rejudge norms --source {source}" in err
+    assert err.rstrip().endswith("--resume") and "1 of 3 groups done" in err
+    _store, record = _record(new_dir)
+    (ex,) = record["executions"]
+    assert ex["status"] == "failed" and ex["error"].startswith(type(raised).__name__)
+    assert ex["completed_keys"] == [GROUPS[0]] and ex["usage"]["judge"]["calls"] == 2
+    assert (new_dir / f"norms_{NEW_NAME}.checkpoint.jsonl").is_file()
+
+
+def test_the_judge_is_named_before_the_first_call(tmp_path, source, monkeypatch, capsys):
+    seen: list[str] = []
+    judge = ScriptedJudge(on_call=lambda _user: seen.append(capsys.readouterr().out))
+    patch_command(monkeypatch, cli, judge)
+    assert cli.main(_argv(source, _new(tmp_path))) == 0
+    assert "judging with claude-fake, effort high, temperature 0\n" in seen[0]
+
+
+def test_a_name_that_spells_another_declared_model_is_refused(tmp_path, source, monkeypatch, capsys):
+    declared = ["claude-opus-5", "claude-opus-5-5", "gpt-6-astra"]
+    src_name = "2026-10-14-gpt-6-astra-high"
+    # judged by claude-opus-5, ...-opus-5-5 reads as opus-5 plus -5 and as opus-5-5
+    refusal = name_refusal("2026-10-16-gpt-6-astra-high-opus-5-5", src_name, "claude-opus-5", declared)
+    assert "also reads as 2026-10-14-gpt-6-astra-high judged by claude-opus-5-5" in refusal
+    # the rule's own names read one way only
+    assert name_refusal("2026-10-16-gpt-6-astra-high-opus-5-5", src_name, "claude-opus-5-5", declared) is None
+    assert name_refusal("2026-10-16-gpt-6-astra-high-opus-5-2", src_name, "claude-opus-5", declared) is None
+    assert name_refusal("2026-10-16-gpt-6-astra-high-opus-5-5", src_name, "claude-opus-5") is None
+    # the command reads the declared models from config/model_parameters.json
+    judge = ScriptedJudge()
+    patch_command(monkeypatch, cli, judge)
+    monkeypatch.setattr(cli, "load_model_parameters", lambda: {"claude-fake": {}, "claude-fake-2": {}})
+    name = "2026-10-16-gpt-fake-high-fake-2"
+    new_dir = _new(tmp_path, name)
+    assert cli.main(_argv(source, new_dir, name)) == 2
+    assert "also reads as 2026-10-14-gpt-fake-high judged by claude-fake-2" in capsys.readouterr().err
     assert judge.calls == [] and not new_dir.exists()

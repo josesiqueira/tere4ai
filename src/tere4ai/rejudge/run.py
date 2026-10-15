@@ -8,13 +8,16 @@ record is written, and the end of an execution that stops.
 
 The rules are those extract_norms and align_hleg follow (B173 R12; those
 commands are not changed by this card): nothing in a published build is
-edited in place (exit 1); a run never starts beside a live run of the same
-command (exit 2) or over a checkpoint it cannot inherit (exit 2); a stopped
-execution always ends failed with its usage, and the command that continues
-it is printed: exit 3 when the inference backend stayed unavailable (spec F
-D-F30), 4 on a configuration error (spec F D-F29), 5 at the cost stop
-(R10); any other exception, an interrupt included, ends it failed and is
-raised again (B79 item 22).
+edited in place (exit 1); a run never starts beside a live rejudge run of
+either subcommand on the same record (exit 2; final review: the cost stop
+sums the record's executions, which two live runs would each read without
+the other's spend) or over a checkpoint it cannot inherit (exit 2); a
+stopped execution always ends failed with its usage, and the command that
+continues it is printed: exit 3 when the inference backend stayed
+unavailable (spec F D-F30), 4 on a configuration error (spec F D-F29), 5 at
+the cost stop (R10); a refusal of the inference backend and an interrupt
+print it too and are raised again; any other exception ends it failed and
+is raised again (B79 item 22).
 """
 
 from __future__ import annotations
@@ -25,14 +28,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
 
-from tere4ai.extract_norms.model_clients import USAGE_KEYS, InferenceBackendUnavailable
+from tere4ai.extract_norms.model_clients import (
+    USAGE_KEYS,
+    InferenceBackendRefused,
+    InferenceBackendUnavailable,
+)
 from tere4ai.graph_store.build_record import (
+    HEARTBEAT_EXPIRY_SECONDS,
     BuildRecordStore,
     RecordChoice,
     RecordError,
     choose_record,
     existing_artefact_digest,
-    live_run_refusal,
     published_artefact_owner,
 )
 from tere4ai.graph_store.checkpoints import (
@@ -45,6 +52,7 @@ from tere4ai.judge.config import ModelConfigError
 from tere4ai.rejudge.cost import CostStop
 
 PROGRAM = ".venv/bin/python -m tere4ai.rejudge"
+COMMAND_PREFIX = "rejudge_"
 T = TypeVar("T")
 
 
@@ -78,26 +86,42 @@ def zero_usage() -> dict[str, int]:
 
 
 def choose_output_record(store: BuildRecordStore, out_dir: Path, out_path: Path, *, alias: str,
-                         base_build_id: str | None, layer1_digest: str, command: str) -> RecordChoice:
+                         base_build_id: str | None, layer1_digest: str) -> RecordChoice:
     """The record the run will write, chosen without writing it (B79 item 10),
     after the refusals of the output and the record: out_path names a published
-    artefact (exit 1), a live execution of command runs on the record (exit 2),
+    artefact (exit 1), a live rejudge execution of either subcommand runs on
+    the record (exit 2, live_rejudge_refusal),
     the record continues a published one and out_path already holds a file
-    (exit 1). Touches out_path, the zero-cost writability probe of extract_norms.
-    Raises Refusal."""
+    (exit 1). Touches out_path once no live run refuses the record, the
+    zero-cost writability probe of extract_norms. Raises Refusal."""
     existing = existing_artefact_digest(out_path)
     owner = published_artefact_owner(store, out_dir, existing) if existing else None
     if owner:
         raise Refusal(1, f"refusing to overwrite {out_path.name}: it is {owner}; choose another --name")
-    out_path.touch()
     choice = choose_record(store, alias, base_build_id, layer1_digest)
-    live = live_run_refusal(store, choice.record_id, command) if choice.record_id else None
+    live = live_rejudge_refusal(store, choice.record_id) if choice.record_id else None
     if live:
         raise refuse(live)
+    out_path.touch()
     if choice.message and existing:
         raise Refusal(1, f"refusing to overwrite {out_path.name}: {choice.message}, and the file belongs to the "
                          "record it continues; choose another --name")
     return choice
+
+
+def live_rejudge_refusal(store: BuildRecordStore, record_id: str) -> str | None:
+    """Why a rejudge run on the record is refused, or None: an execution of
+    either rejudge subcommand is live on it (final review: an `alignments` run
+    beside a live `norms` run would read a norms file still being made, and
+    each run's cost stop would miss the other's spend). Worded as
+    build_record.live_run_refusal words its refusal, which stays per command
+    for the sibling commands."""
+    live = [ex for ex in store.live_executions(record_id) if str(ex.get("command")).startswith(COMMAND_PREFIX)]
+    if not live:
+        return None
+    named = ", ".join(f"{ex['run_id']} ({ex['command']}, heartbeat {ex['heartbeat_at']})" for ex in live)
+    return (f"record {record_id} has a live running execution: {named}; wait for it to end or stop it "
+            f"(a killed run stops blocking {HEARTBEAT_EXPIRY_SECONDS} s after its last heartbeat)")
 
 
 def plan_resume(checkpoint_path: Path, key_field: str, result_keys: tuple[str, ...], *, resume: bool,
@@ -153,8 +177,10 @@ class Execution:
         """(0, work()) when the work ends; otherwise the execution ends failed
         and the exit code comes back: 5 at the cost stop and 3 when the
         inference backend stayed unavailable, each with the resume command; 4
-        on a configuration error. Any other exception is raised again after
-        the execution is ended."""
+        on a configuration error. A refusal of the inference backend and an
+        interrupt (SIGTERM and SIGHUP included, signals_as_interrupt) print
+        the resume command too and are raised again; any other exception is
+        raised again after the execution is ended."""
         try:
             return 0, work()
         except CostStop as exc:
@@ -167,6 +193,13 @@ class Execution:
             print(f"stopped: {exc}", file=sys.stderr)
             self.print_resume()
             return 3, None
+        except (InferenceBackendRefused, KeyboardInterrupt) as exc:
+            # a request no retry fixes, or the operator's stop: the groups or
+            # batches done are in the checkpoint, so the run can continue
+            self.end_failed(f"{type(exc).__name__}: {exc}")
+            print(f"stopped: {exc or type(exc).__name__}", file=sys.stderr)
+            self.print_resume()
+            raise
         except ModelConfigError as exc:
             # a declared parameter the inference backend refused, or a price row missing
             self.end_failed(str(exc))

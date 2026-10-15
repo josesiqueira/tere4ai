@@ -22,7 +22,11 @@ the record wrote. The failure mechanics are the sibling commands' (R12)
 plus the cost stop (R10, exit 5). `report` writes NEW/README.md and
 NEW/changed_verdicts.csv from the files and the record (report.py), and
 replaces an existing report only with --overwrite (R11). The source folder
-is only read.
+is only read, and the new build's folder never lies inside it, equals it or
+holds it. `norms` runs the Layer 3 checks of the source alignments before it
+writes anything (layer3_source), so Layer 2 is never paid for a source whose
+Layer 3 would be refused; each subcommand names its judge (model, effort,
+temperature) before its first call (final review).
 """
 
 from __future__ import annotations
@@ -34,13 +38,13 @@ import shutil
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from tere4ai import parallel_calls
 from tere4ai.act_parties import ACT_PARTIES_PATH
 from tere4ai.align_hleg.__main__ import _attach_source_text
 from tere4ai.align_hleg.hleg_nodes import build_hleg_nodes
-from tere4ai.align_hleg.hleg_source import HlegSourceError, load_pair
+from tere4ai.align_hleg.hleg_source import HlegPair, HlegSourceError, load_pair
 from tere4ai.extract_norms.actor_audit import addressee_counts, section_2_checks
 from tere4ai.extract_norms.model_clients import (
     TERMINAL_POLICY,
@@ -63,10 +67,13 @@ from tere4ai.judge.config import (
     ConfigurationError,
     ModelConfigError,
     load_model_config,
+    load_model_parameters,
     load_model_prices,
 )
 from tere4ai.rejudge.alignments import (
     ALIGN_PROMPT_KIND,
+    JUDGE_MODEL_KEYS,
+    SourceAlignments,
     alignments_refusal,
     merge_batches,
     rejudge_batch,
@@ -80,6 +87,7 @@ from tere4ai.rejudge.norms import (
     changed_verdicts,
     group_of,
     groups_in_order,
+    materialised_refusal,
     merge_in_source_order,
     norms_refusal,
     recounted_stats,
@@ -98,7 +106,13 @@ from tere4ai.rejudge.run import (
     usage_of,
     zero_usage,
 )
-from tere4ai.rejudge.source import SourceError, name_refusal, read_source
+from tere4ai.rejudge.source import (
+    SourceBuild,
+    SourceError,
+    name_refusal,
+    out_dir_refusal,
+    read_source,
+)
 
 NORMS_COMMAND = "rejudge_norms"
 NORMS_RESULT_KEYS = ("norms", "judge_runs", "stats")
@@ -195,13 +209,104 @@ def _main(argv: list[str] | None = None) -> int:
     raise AssertionError(f"unknown subcommand {args.command!r}")  # argparse refuses it first
 
 
-def _check_name(args: argparse.Namespace, source_name: str, judge_model: str) -> None:
-    """R11: the name follows the rule and the out-dir is named by it (exit 2)."""
-    refusal = name_refusal(args.name, source_name, judge_model)
-    if refusal is None and args.out_dir.name != args.name:
-        refusal = f"the out-dir {args.out_dir} must be named {args.name}"
+def _declared_models() -> list[str]:
+    """The model ids config/model_parameters.json declares (exit 4 when it
+    cannot be read), so a name that spells another model's build is refused."""
+    try:
+        return list(load_model_parameters())
+    except ConfigurationError as exc:
+        raise Refusal(4, f"stopped: {exc}") from None
+
+
+def _check_out_dir(args: argparse.Namespace, source_dir: Path) -> None:
+    """The out-dir is named by --name and lies outside the source folder, which
+    it neither equals nor holds (exit 2)."""
+    refusal = (f"the out-dir {args.out_dir} must be named {args.name}" if args.out_dir.name != args.name
+               else out_dir_refusal(args.out_dir, source_dir))
     if refusal:
         raise refuse(refusal)
+
+
+def _check_name(args: argparse.Namespace, source: SourceBuild, judge_model: str) -> None:
+    """R11: the name follows the rule and reads as one judge's build only, and
+    the out-dir is named by it and lies outside the source folder (exit 2)."""
+    refusal = name_refusal(args.name, source.name, judge_model, _declared_models())
+    if refusal:
+        raise refuse(refusal)
+    _check_out_dir(args, source.dir)
+
+
+def _announce_judge(judge: object) -> None:
+    """The judge the run pays, named before its first call (final review)."""
+    print(f"judging with {getattr(judge, 'model', 'unknown')}, effort {effort_of(judge)}, temperature "
+          f"{getattr(judge, 'temperature', 'unknown')}", flush=True)
+
+
+class Layer3Source(NamedTuple):
+    """The source alignments as Layer 3 reads them, checked."""
+
+    payload: dict[str, Any]
+    pair: HlegPair
+    hleg_nodes: list[dict[str, Any]]
+    index: SourceAlignments
+
+
+def layer3_source(source: SourceBuild, models: dict[str, Any]) -> Layer3Source:
+    """The Layer 3 checks that need no new folder, run by `alignments` and,
+    before it writes anything, by `norms` (final review: Layer 2 is never paid
+    for a source whose Layer 3 would be refused): the source alignments file
+    read and refused as alignments_refusal refuses it (R5), the HLEG text and
+    derivation record today equal to those the source alignments were made on
+    (D-G75 (7): a stored quote is checked and judged against the text it was
+    made on), and the file indexed by source_index (its invalid assertions,
+    the pairing of its mechanical runs, its targets). Raises Refusal (exit 2)."""
+    try:
+        payload = json.loads(source.alignments_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise refuse(f"the source alignments file cannot be read ({type(exc).__name__})") from None
+    refusal = alignments_refusal(payload, models, source.norms_sha256)
+    if refusal:
+        raise refuse(refusal)
+    try:
+        pair = load_pair()
+    except HlegSourceError as exc:
+        raise refuse(f"the HLEG text cannot be read: {exc}") from None
+    build = payload["build"]
+    if (pair.text_sha256, pair.record_sha256) != (build.get("hleg_text_sha256"),
+                                                    build.get("hleg_derivation_record_sha256")):
+        raise refuse(f"the HLEG text and derivation record have sha256 {pair.text_sha256} and {pair.record_sha256} "
+                     f"today; the source alignments were made on {build.get('hleg_text_sha256')} and "
+                     f"{build.get('hleg_derivation_record_sha256')}")
+    hleg_nodes = build_hleg_nodes(pair)
+    try:
+        index = source_index(payload, [node["id"] for node in hleg_nodes])
+    except ValueError as exc:
+        raise refuse(str(exc)) from None
+    return Layer3Source(payload, pair, hleg_nodes, index)
+
+
+def _consumed_norms_refusal(out_dir: Path, name: str, out_path: Path) -> str | None:
+    """Why a fresh `norms` run (no --resume) may not write out_path, or None:
+    the file is the output of a done rejudge_norms execution of the record
+    NAME resolves to (final review: a second run would pay the judges again
+    and leave the alignments made over the first stale). Reads only."""
+    if not out_path.is_file():
+        return None
+    store = BuildRecordStore(out_dir, create=False)
+    try:
+        record_id = store.resolve(name)
+        record = store.read(record_id) if record_id else None
+    except RecordError:
+        return None  # the record is refused with its reason when the run chooses it
+    if record is None:
+        return None
+    digest = sha256_of_file(out_path)
+    for ex in record.get("executions") or []:
+        if ex.get("command") == NORMS_COMMAND and ex.get("status") == "done" and any(
+                out.get("output_kind") == "norms" and out.get("sha256") == digest for out in ex.get("outputs") or []):
+            return (f"{out_path.name} is the output of the done execution {ex.get('run_id')}; choose another --name "
+                    "(a re-run would pay the judges again and leave the alignments stale)")
+    return None
 
 
 def _prices_for(models: dict[str, str]) -> dict[str, dict[str, Any]]:
@@ -236,11 +341,18 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     refusal = norms_refusal(source_payload, models)
     if refusal:
         raise refuse(refusal)
+    # Layer 3's checks of the source too, before Layer 2 is paid
+    layer3_source(source, models)
     judge_model = models["judge_model"]
-    _check_name(args, source.name, judge_model)
+    _check_name(args, source, judge_model)
     prices = _prices_for({"judge": judge_model})
 
     out_dir = args.out_dir
+    out_path = out_dir / f"norms_{args.name}.json"
+    if not args.resume:
+        refusal = _consumed_norms_refusal(out_dir, args.name, out_path)
+        if refusal:
+            raise refuse(refusal)
     (out_dir / "logs").mkdir(parents=True, exist_ok=True)
     layer1_path = out_dir / "layer1.json"
     if layer1_path.exists():
@@ -248,14 +360,13 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
             raise refuse(f"{layer1_path} is not the source's layer1.json (another sha256)")
     else:
         shutil.copyfile(source.layer1_path, layer1_path)
-    out_path = out_dir / f"norms_{args.name}.json"
     log_path = out_dir / "logs" / EXTRACTION_LOG
     checkpoint_path = out_path.with_suffix(".checkpoint.jsonl")
     store = BuildRecordStore(out_dir)
     dump = json.loads(layer1_path.read_text(encoding="utf-8"))
     choice = choose_output_record(store, out_dir, out_path, alias=args.name,
                                   base_build_id=dump.get("build", {}).get("build_id"),
-                                  layer1_digest=source.layer1_sha256, command=NORMS_COMMAND)
+                                  layer1_digest=source.layer1_sha256)
 
     source_build = source_payload["build"]
     prompt_version = source_build["prompt_version"]
@@ -303,6 +414,7 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     judge_price = prices[judge_model]
 
     def judge_groups() -> dict[str, Any]:
+        _announce_judge(judge)
         print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
         group_results: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
         with Heartbeat(store, record_id, run_id), checkpoint_path.open("a", encoding="utf-8") as ckpt:
@@ -378,11 +490,14 @@ def run_norms(args: argparse.Namespace, run_argv: list[str]) -> int:
     return 0
 
 
-def _norms_output_refusal(out_dir: Path, name: str, norms_path: Path, source_record_id: str) -> str | None:
+def _norms_output_refusal(out_dir: Path, name: str, norms_path: Path, source_record_id: str,
+                          public_models: dict[str, Any]) -> str | None:
     """Why NEW/norms_NAME.json is not the output of a done rejudge_norms
     execution of the record NAME resolves to, made from the source record
-    --source names, or None. Reads only: the store is opened without creating
-    its folder."""
+    --source names by the judge the environment names now (its model,
+    effort, temperature and parameters digest: Layer 3 is judged by Layer 2's
+    judge, final review), or None. Reads only: the store is opened without
+    creating its folder."""
     run_first = "run `norms` with the same --out-dir and --name first"
     if not norms_path.is_file():
         return f"{norms_path} is missing; {run_first}"
@@ -402,6 +517,14 @@ def _norms_output_refusal(out_dir: Path, name: str, norms_path: Path, source_rec
             if made_from != source_record_id:
                 return (f"{norms_path.name} was re-judged from the source record {made_from}, not from "
                         f"{source_record_id}, the record of --source")
+            theirs = ex.get("models") or {}
+            differing = [key for key in JUDGE_MODEL_KEYS if theirs.get(key) != public_models.get(key)]
+            if differing:
+                return (f"the judge in the environment differs from the one that re-judged {norms_path.name} "
+                        f"(execution {ex.get('run_id')}) in "
+                        + ", ".join(f"{key} ({public_models.get(key)!r}, the norms run {theirs.get(key)!r})"
+                                    for key in differing)
+                        + "; Layer 3 is judged by the judge of Layer 2")
             return None
     return (f"{norms_path.name} (sha256 {digest}) is not the output of a done {NORMS_COMMAND} execution of the "
             f"record {name}; {run_first}")
@@ -412,46 +535,31 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
     then one execution re-judging the batches not yet in the checkpoint (R9)."""
     try:
         source = read_source(args.source)
-        source_payload = json.loads(source.alignments_path.read_text(encoding="utf-8"))
-        source_norms = json.loads(source.norms_path.read_text(encoding="utf-8")).get("norms") or []
+        source_norms_payload = json.loads(source.norms_path.read_text(encoding="utf-8"))
     except SourceError as exc:
         raise refuse(str(exc)) from None
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise refuse(f"the source alignments or norms file cannot be read ({type(exc).__name__})") from None
+        raise refuse(f"the source norms file cannot be read ({type(exc).__name__})") from None
+    source_norms = source_norms_payload.get("norms") or []
     try:
         cfg = load_model_config()
     except ModelConfigError as exc:
         raise Refusal(4, f"stopped: {exc}") from None
     models = cfg.as_public_dict()
-    refusal = alignments_refusal(source_payload, models, source.norms_sha256)
+    refusal = materialised_refusal(source_norms_payload)
     if refusal:
         raise refuse(refusal)
-    try:
-        pair = load_pair()
-    except HlegSourceError as exc:
-        raise refuse(f"the HLEG text cannot be read: {exc}") from None
-    hleg_nodes = build_hleg_nodes(pair)
-    try:
-        source_alignments = source_index(source_payload, [node["id"] for node in hleg_nodes])
-    except ValueError as exc:
-        raise refuse(str(exc)) from None
+    source_payload, pair, hleg_nodes, source_alignments = layer3_source(source, models)
     judge_model, generator_model = models["judge_model"], models["generator_model"]
-    _check_name(args, source.name, judge_model)
+    _check_name(args, source, judge_model)
     prices = _prices_for({"judge": judge_model, "generator": generator_model})
 
     out_dir = args.out_dir
     norms_path = out_dir / f"norms_{args.name}.json"
-    refusal = _norms_output_refusal(out_dir, args.name, norms_path, source.record_id)
+    refusal = _norms_output_refusal(out_dir, args.name, norms_path, source.record_id, models)
     if refusal:
         raise refuse(refusal)
     source_build = source_payload["build"]
-    # D-G75 (7): the HLEG text and record are the source's, so a stored quote is
-    # checked and judged against the text it was made on
-    if (pair.text_sha256, pair.record_sha256) != (source_build.get("hleg_text_sha256"),
-                                                    source_build.get("hleg_derivation_record_sha256")):
-        raise refuse(f"the HLEG text and derivation record have sha256 {pair.text_sha256} and {pair.record_sha256} "
-                     f"today; the source alignments were made on {source_build.get('hleg_text_sha256')} and "
-                     f"{source_build.get('hleg_derivation_record_sha256')}")
     layer1_path = out_dir / "layer1.json"
     if not layer1_path.is_file() or sha256_of_file(layer1_path) != source.layer1_sha256:
         raise refuse(f"{layer1_path} is not the source's layer1.json")
@@ -464,7 +572,7 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
     dump = json.loads(layer1_path.read_text(encoding="utf-8"))
     choice = choose_output_record(store, out_dir, out_path, alias=args.name,
                                   base_build_id=dump.get("build", {}).get("build_id"),
-                                  layer1_digest=source.layer1_sha256, command=ALIGNMENTS_COMMAND)
+                                  layer1_digest=source.layer1_sha256)
 
     norms_payload = json.loads(norms_path.read_text(encoding="utf-8"))
     norms: list[dict[str, Any]] = norms_payload.get("norms") or []
@@ -523,6 +631,7 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
                 + usage_cost(usage_of(judge), prices[judge_model]))
 
     def rejudge_batches() -> dict[str, Any]:
+        _announce_judge(judge)
         print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
         partials: list[dict] = [plan.entries_by_key[k]["result"] for k in plan.inherited_keys]
         with Heartbeat(store, record_id, run_id), checkpoint_path.open("a", encoding="utf-8") as ckpt:
@@ -610,8 +719,7 @@ def run_alignments(args: argparse.Namespace, run_argv: list[str]) -> int:
 
 def run_report(args: argparse.Namespace) -> int:
     """Write the new build's README.md and changed_verdicts.csv (refusals as a Refusal)."""
-    if args.out_dir.name != args.name:
-        raise refuse(f"the out-dir {args.out_dir} must be named {args.name}")
+    _check_out_dir(args, args.source)
     readme, csv_path = write_report(args.source, args.out_dir, args.name, overwrite=args.overwrite)
     print(f"wrote {readme}")
     print(f"wrote {csv_path}")
