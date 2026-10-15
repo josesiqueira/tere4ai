@@ -276,6 +276,196 @@ def _mechanical_judge_run(
     }
 
 
+def alignment_candidate_of(assertion: dict[str, Any]) -> dict[str, Any]:
+    """The candidate a stored assertion stands for, rebuilt as the five keys of
+    the align_hleg v2 output shape in its order, the relation type as the
+    generator claimed it (B173 R4). An assertion kept before DEC-28 has no
+    claimed type, so its message cannot be rebuilt and the call is refused."""
+    if not assertion.get("proposed_relation_type"):
+        raise ValueError(
+            f"assertion {assertion.get('id')} has no proposed_relation_type (kept before DEC-28); "
+            "its candidate cannot be rebuilt"
+        )
+    return {
+        "target_id": assertion.get("target_id"),
+        "relation_type": assertion["proposed_relation_type"],
+        "source_quote": assertion.get("source_quote"),
+        "target_quote": assertion.get("target_quote"),
+        "rationale": assertion.get("generator_rationale"),
+    }
+
+
+def quote_check(
+    norm: dict[str, Any],
+    target: dict[str, Any],
+    candidate: dict[str, Any],
+    *,
+    prompt_version: str,
+    log_path: Path,
+    build_id: str,
+    judge_run_id: str,
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """The mechanical quote check of one candidate: None when both quotes are
+    found; otherwise the logged JudgeRun-shaped rejection and the reject
+    record, with no judge call."""
+    source_quote_ok = _quote_found(candidate.get("source_quote"), norm["source_text"])
+    target_quote_ok = _quote_found(candidate.get("target_quote"), target["description"])
+    if source_quote_ok and target_quote_ok:
+        return None
+    norm_id = norm.get("norm_id", "norm:unknown")
+    started_at = _now()
+    mechanical = _mechanical_judge_run(judge_run_id, prompt_version, build_id, started_at)
+    reject = {
+        "norm_id": norm_id,
+        "target_id": candidate.get("target_id"),
+        "source_quote_found": source_quote_ok,
+        "target_quote_found": target_quote_ok,
+    }
+    _log_event(
+        log_path,
+        {
+            "timestamp": _now(),
+            "direction": "mechanical",
+            "norm_id": norm_id,
+            "target_id": candidate.get("target_id"),
+            "model": MECHANICAL_JUDGE_MODEL,
+            "effort": "not applicable (mechanical gate)",
+            "prompt_version": prompt_version,
+            "input_sha256": _input_hash(json.dumps(candidate, ensure_ascii=False, sort_keys=True)),
+            "verdict": "rejected",
+            "rationale": "quote not found in source",
+        },
+    )
+    return mechanical, reject
+
+
+def judge_alignment(
+    norm: dict[str, Any],
+    target: dict[str, Any],
+    candidate: dict[str, Any],
+    judge: ModelClient,
+    judge_prompt: str,
+    judge_prompt_sha256: str,
+    *,
+    prompt_version: str,
+    log_path: Path,
+    build_id: str,
+    judge_run_id: str,
+) -> dict[str, Any]:
+    """One alignment judge call on one candidate, with one retry on unparseable
+    JSON, the human-review fallback on an unusable reply and the v2 guard on a
+    no_clear_relation correction; logs the call. Returns the judge run."""
+    norm_id = norm.get("norm_id", "norm:unknown")
+    judge_user = _judge_user_message(norm, target, candidate)
+    judge_started = _now()
+    judged, judge_error = _call_json_with_retry(judge, judge_prompt, judge_user)
+    if judged is None or judged.get("verdict") not in (
+        "accepted",
+        "rejected",
+        "needs_human_review",
+    ):
+        judged = _fallback_judge_result(judge_error or "missing or invalid verdict")
+    elif (
+        prompt_version not in _PROMPTS_TAKING_ANY_CORRECTION
+        and judged.get("corrected_relation_type") == "no_clear_relation"
+        and judged["verdict"] != "rejected"
+    ):
+        # CHANGE3 (R3): only a rejection may carry no_clear_relation;
+        # the judge's own verdict and rationale go into the reason (G13)
+        judged = _fallback_judge_result(
+            f"verdict {judged['verdict']!r} with corrected_relation_type no_clear_relation, "
+            "which only a rejection may carry (judge_alignment checks 3 and 4); the judge's "
+            f"rationale: {judged.get('rationale') or 'no rationale returned'}"
+        )
+    verdict = judged["verdict"]
+    scores = _judge_scores(judged)
+    rationale = str(judged.get("rationale") or "no rationale returned")
+    corrected = judged.get("corrected_relation_type")
+    if corrected not in RELATION_TYPES:
+        corrected = None
+
+    _log_event(
+        log_path,
+        {
+            "timestamp": _now(),
+            "direction": "judge",
+            "norm_id": norm_id,
+            "target_id": candidate.get("target_id"),
+            "model": judge.model,
+            "effort": getattr(judge, "effort", "not configured"),
+            "prompt_version": prompt_version,
+            "prompt_sha256": judge_prompt_sha256,
+            "input_sha256": _input_hash(judge_user),
+            "verdict": verdict,
+            "corrected_relation_type": corrected,
+            "rationale": rationale,
+        },
+    )
+
+    return {
+        "id": judge_run_id,
+        "type": "JudgeRun",
+        "layer": 3,
+        "judge_kind": "mapping",
+        "judge_model": judge.model,
+        "judge_effort": getattr(judge, "effort", "not configured"),
+        "judge_temperature": getattr(judge, "temperature", "not configured"),
+        "prompt_version": prompt_version,
+        "prompt_sha256": judge_prompt_sha256,
+        "verdict": verdict,
+        "scores": scores,
+        "rationale": rationale,
+        "corrected_relation_type": corrected,
+        "started_at": judge_started,
+        "completed_at": _now(),
+        "build_id": build_id,
+    }
+
+
+def assertion_of(
+    norm: dict[str, Any],
+    target: dict[str, Any],
+    candidate: dict[str, Any],
+    judge_run: dict[str, Any],
+    *,
+    index: int,
+    mapping_run_id: str,
+    target_span_id: str,
+) -> dict[str, Any]:
+    """The AlignmentAssertion of one judged candidate: the judge's correction
+    overrides the claimed relation type, which the assertion keeps (DEC-28)."""
+    norm_id = norm.get("norm_id", "norm:unknown")
+    target_id = target["id"]
+    norm_suffix = _id_suffix(norm_id)
+    target_suffix = _id_suffix(target_id)
+    proposed_relation = candidate.get("relation_type")
+    scores = judge_run["scores"]
+    return {
+        "id": f"align:{norm_suffix}:{target_suffix}:{index}",
+        "type": "AlignmentAssertion",
+        "layer": 3,
+        "source_norm_id": norm_id,
+        "target_id": target_id,
+        "relation_type": judge_run["corrected_relation_type"] or proposed_relation,
+        "source_evidence_span_ids": [norm["source_span_id"]],
+        "target_evidence_span_ids": [target_span_id],
+        "source_quote": candidate.get("source_quote"),
+        "target_quote": candidate.get("target_quote"),
+        "scores": scores,
+        "final_score": sum(scores.values()) / len(scores),
+        "mapping_run_id": mapping_run_id,
+        "judge_run_id": judge_run["id"],
+        "judge_verdict": judge_run["verdict"],
+        "rationale": judge_run["rationale"],
+        # CHANGE10 (R11, R25): the candidate as the generator claimed it
+        "proposed_relation_type": proposed_relation,
+        "generator_rationale": (
+            candidate.get("rationale") if isinstance(candidate.get("rationale"), str) else None
+        ),
+        "review_status": "accepted" if judge_run["verdict"] == "accepted" else "needs_review",
+    }
+
+
 def align_norms(
     norms: list[dict[str, Any]],
     hleg_nodes: list[dict[str, Any]],
@@ -427,128 +617,24 @@ def align_norms(
             target_suffix = _id_suffix(target_id)
             judge_run_id = f"judgerun:mapping:{norm_suffix}:{target_suffix}:c{index}"
 
-            source_quote_ok = _quote_found(candidate.get("source_quote"), source_text)
-            target_quote_ok = _quote_found(candidate.get("target_quote"), target["description"])
-            if not (source_quote_ok and target_quote_ok):
+            checked = quote_check(
+                norm, target, candidate,
+                prompt_version=prompt_version, log_path=log_path, build_id=build_id, judge_run_id=judge_run_id,
+            )
+            if checked is not None:
                 # Mechanical rejection: no judge call, no assertion. The
                 # JudgeRun-shaped record keeps the audit trail.
-                started_at = _now()
-                mechanical = _mechanical_judge_run(judge_run_id, prompt_version, build_id, started_at)
-                reject = {
-                    "norm_id": norm_id,
-                    "target_id": target_id,
-                    "source_quote_found": source_quote_ok,
-                    "target_quote_found": target_quote_ok,
-                }
-                _log_event(
-                    log_path,
-                    {
-                        "timestamp": _now(),
-                        "direction": "mechanical",
-                        "norm_id": norm_id,
-                        "target_id": target_id,
-                        "model": MECHANICAL_JUDGE_MODEL,
-                        "effort": "not applicable (mechanical gate)",
-                        "prompt_version": prompt_version,
-                        "input_sha256": _input_hash(
-                            json.dumps(candidate, ensure_ascii=False, sort_keys=True)
-                        ),
-                        "verdict": "rejected",
-                        "rationale": "quote not found in source",
-                    },
-                )
-                events.append(("mechanical", mechanical, reject))
+                events.append(("mechanical", *checked))
                 continue
 
-            judge_user = _judge_user_message(norm, target, candidate)
-            judge_started = _now()
-            judged, judge_error = _call_json_with_retry(judge, judge_prompt, judge_user)
-            if judged is None or judged.get("verdict") not in (
-                "accepted",
-                "rejected",
-                "needs_human_review",
-            ):
-                judged = _fallback_judge_result(judge_error or "missing or invalid verdict")
-            elif (
-                prompt_version not in _PROMPTS_TAKING_ANY_CORRECTION
-                and judged.get("corrected_relation_type") == "no_clear_relation"
-                and judged["verdict"] != "rejected"
-            ):
-                # CHANGE3 (R3): only a rejection may carry no_clear_relation;
-                # the judge's own verdict and rationale go into the reason (G13)
-                judged = _fallback_judge_result(
-                    f"verdict {judged['verdict']!r} with corrected_relation_type no_clear_relation, "
-                    "which only a rejection may carry (judge_alignment checks 3 and 4); the judge's "
-                    f"rationale: {judged.get('rationale') or 'no rationale returned'}"
-                )
-            verdict = judged["verdict"]
-            scores = _judge_scores(judged)
-            rationale = str(judged.get("rationale") or "no rationale returned")
-            corrected = judged.get("corrected_relation_type")
-            if corrected not in RELATION_TYPES:
-                corrected = None
-
-            _log_event(
-                log_path,
-                {
-                    "timestamp": _now(),
-                    "direction": "judge",
-                    "norm_id": norm_id,
-                    "target_id": target_id,
-                    "model": judge.model,
-                    "effort": getattr(judge, "effort", "not configured"),
-                    "prompt_version": prompt_version,
-                    "prompt_sha256": judge_prompt_sha256,
-                    "input_sha256": _input_hash(judge_user),
-                    "verdict": verdict,
-                    "corrected_relation_type": corrected,
-                    "rationale": rationale,
-                },
+            judge_run = judge_alignment(
+                norm, target, candidate, judge, judge_prompt, judge_prompt_sha256,
+                prompt_version=prompt_version, log_path=log_path, build_id=build_id, judge_run_id=judge_run_id,
             )
-
-            judge_run = {
-                "id": judge_run_id,
-                "type": "JudgeRun",
-                "layer": 3,
-                "judge_kind": "mapping",
-                "judge_model": judge.model,
-                "judge_effort": getattr(judge, "effort", "not configured"),
-                "judge_temperature": getattr(judge, "temperature", "not configured"),
-                "prompt_version": prompt_version,
-                "prompt_sha256": judge_prompt_sha256,
-                "verdict": verdict,
-                "scores": scores,
-                "rationale": rationale,
-                "corrected_relation_type": corrected,
-                "started_at": judge_started,
-                "completed_at": _now(),
-                "build_id": build_id,
-            }
-
-            assertion = {
-                "id": f"align:{norm_suffix}:{target_suffix}:{index}",
-                "type": "AlignmentAssertion",
-                "layer": 3,
-                "source_norm_id": norm_id,
-                "target_id": target_id,
-                "relation_type": corrected or proposed_relation,
-                "source_evidence_span_ids": [norm["source_span_id"]],
-                "target_evidence_span_ids": [target_span_id],
-                "source_quote": candidate.get("source_quote"),
-                "target_quote": candidate.get("target_quote"),
-                "scores": scores,
-                "final_score": sum(scores.values()) / len(scores),
-                "mapping_run_id": mapping_run["id"],
-                "judge_run_id": judge_run_id,
-                "judge_verdict": verdict,
-                "rationale": rationale,
-                # CHANGE10 (R11, R25): the candidate as the generator claimed it
-                "proposed_relation_type": proposed_relation,
-                "generator_rationale": (
-                    candidate.get("rationale") if isinstance(candidate.get("rationale"), str) else None
-                ),
-                "review_status": "accepted" if verdict == "accepted" else "needs_review",
-            }
+            assertion = assertion_of(
+                norm, target, candidate, judge_run,
+                index=index, mapping_run_id=mapping_run["id"], target_span_id=target_span_id,
+            )
             events.append(("judged", assertion, judge_run))
         return events
 

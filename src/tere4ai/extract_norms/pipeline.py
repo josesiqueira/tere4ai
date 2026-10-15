@@ -476,6 +476,129 @@ def _fallback_judge_result(reason: str) -> dict[str, Any]:
     }
 
 
+def judged_candidate_fields(prompt_version: str) -> tuple[str, ...]:
+    """The keys of the candidate the extraction judge of this prompt version
+    receives, in the order it receives them: the extractor's fields less the
+    ones this version does not ask for, give to the judge or keep."""
+    typed = types_for(prompt_version)  # B65 ruling 49
+    with_model_category = prompt_version in _PROMPTS_WITH_MODEL_CATEGORY
+    with_lifecycle = prompt_version in _PROMPTS_WITH_LIFECYCLE
+    return tuple(
+        key
+        for key in candidate_fields(prompt_version)
+        if (typed or key != "requirement_type")
+        and (with_model_category or key != "target_system_category")
+        and (with_lifecycle or key != "lifecycle_phase_ids")
+    )
+
+
+def judge_message(
+    dump: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    unit: dict[str, Any],
+    candidate: dict[str, Any],
+    prompt_version: str,
+) -> str:
+    """The user message the extraction judge receives for one candidate on one
+    source unit: the unit, its inference block and set-up rows, the candidate."""
+    return _judge_user_message(
+        unit, candidate, judge_inference_block(dump, nodes, unit, candidate, prompt_version),
+        judge_set_up_block(nodes, unit, prompt_version),
+    )
+
+
+def candidate_of_norm(norm: dict[str, Any], prompt_version: str) -> dict[str, Any]:
+    """The candidate a stored norm stands for, rebuilt as the judge's keys read
+    from the norm in the judge's order (B173 R4). Under v1 and v2 the judge read
+    target_system_category, which the norm does not keep (DEC-21), so the
+    message cannot be rebuilt and the call is refused."""
+    if prompt_version in _PROMPTS_WITH_MODEL_CATEGORY:
+        raise ValueError(
+            f"prompt version {prompt_version} gave the judge target_system_category, which a norm does not "
+            "keep (DEC-21); its candidate cannot be rebuilt from a stored norm"
+        )
+    return {key: norm.get(key) for key in judged_candidate_fields(prompt_version)}
+
+
+def unit_of_norm(dump: dict[str, Any], norm: dict[str, Any]) -> dict[str, Any]:
+    """The source unit of a stored norm, expanded from the dump as a run expands it."""
+    units = expand_source_units(dump, [norm["source_node_id"]])
+    if not units:
+        raise ValueError(f"no source unit for {norm['source_node_id']}")
+    return units[0]
+
+
+def judge_candidate(
+    judge: ModelClient,
+    judge_prompt: str,
+    judge_prompt_sha256: str,
+    judge_user: str,
+    candidate: dict[str, Any],
+    *,
+    node_id: str,
+    prompt_version: str,
+    log_path: Path,
+    judge_run_id: str,
+    build_id: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """One judge call on one candidate, with one retry on unparseable JSON and
+    the human-review fallback on an unusable reply; logs the call. Returns the
+    judge run and the judge's type view (empty before v2)."""
+    judge_started = _now()
+    judged, judge_error = _call_json_with_retry(judge, judge_prompt, judge_user)
+    if judged is None or judged.get("verdict") not in (
+        "accepted",
+        "rejected",
+        "needs_human_review",
+    ):
+        judged = _fallback_judge_result(judge_error or "missing or invalid verdict")
+    verdict = judged["verdict"]
+    scores = _judge_scores(judged)
+    rationale = str(judged.get("rationale") or "no rationale returned")
+    # DEC-19: recorded beside the verdict, never gating it.
+    type_view: dict[str, Any] = {}
+    if types_for(prompt_version):
+        agrees, judge_type = parse_judge_view(judged, candidate["requirement_type"])
+        type_view = {"judge_type_agrees": agrees, "judge_requirement_type": judge_type}
+
+    _log_event(
+        log_path,
+        {
+            "timestamp": _now(),
+            "direction": "judge",
+            "node_id": node_id,
+            "model": judge.model,
+            "effort": getattr(judge, "effort", "not configured"),
+            "prompt_version": prompt_version,
+            "prompt_sha256": judge_prompt_sha256,
+            "input_sha256": _input_hash(judge_user),
+            "verdict": verdict,
+            "rationale": rationale,
+            **type_view,
+        },
+    )
+
+    judge_run = {
+        "id": judge_run_id,
+        "type": "JudgeRun",
+        "layer": 3,
+        "judge_kind": "extraction",
+        "judge_model": judge.model,
+        "judge_effort": getattr(judge, "effort", "not configured"),
+        "judge_temperature": getattr(judge, "temperature", "not configured"),
+        "prompt_version": prompt_version,
+        "prompt_sha256": judge_prompt_sha256,
+        "verdict": verdict,
+        "scores": scores,
+        "rationale": rationale,
+        **type_view,
+        "started_at": judge_started,
+        "completed_at": _now(),
+        "build_id": build_id,
+    }
+    return judge_run, type_view
+
+
 def extract_norms(
     dump: dict[str, Any],
     node_ids: list[str],
@@ -509,15 +632,8 @@ def extract_norms(
     units = expand_source_units(dump, node_ids)
     nodes = _index_nodes(dump)
     typed = types_for(prompt_version)  # B65 ruling 49
-    with_model_category = prompt_version in _PROMPTS_WITH_MODEL_CATEGORY
     with_lifecycle = prompt_version in _PROMPTS_WITH_LIFECYCLE
-    fields = tuple(
-        key
-        for key in candidate_fields(prompt_version)
-        if (typed or key != "requirement_type")
-        and (with_model_category or key != "target_system_category")
-        and (with_lifecycle or key != "lifecycle_phase_ids")
-    )
+    fields = judged_candidate_fields(prompt_version)
 
     norms: list[dict[str, Any]] = []
     judge_runs: list[dict[str, Any]] = []
@@ -583,64 +699,16 @@ def extract_norms(
                 # a dropped norm.
                 candidate["requirement_type"] = scoped_type({**candidate, "source_node_id": node_id}, prompt_version)
 
-            judge_user = _judge_user_message(
-                unit, candidate, judge_inference_block(dump, nodes, unit, candidate, prompt_version),
-                judge_set_up_block(nodes, unit, prompt_version),
-            )
-            judge_started = _now()
-            judged, judge_error = _call_json_with_retry(judge, judge_prompt, judge_user)
-            if judged is None or judged.get("verdict") not in (
-                "accepted",
-                "rejected",
-                "needs_human_review",
-            ):
-                judged = _fallback_judge_result(judge_error or "missing or invalid verdict")
-            verdict = judged["verdict"]
-            scores = _judge_scores(judged)
-            rationale = str(judged.get("rationale") or "no rationale returned")
-            # DEC-19: recorded beside the verdict, never gating it.
-            type_view: dict[str, Any] = {}
-            if typed:
-                agrees, judge_type = parse_judge_view(judged, candidate["requirement_type"])
-                type_view = {"judge_type_agrees": agrees, "judge_requirement_type": judge_type}
-
-            _log_event(
-                log_path,
-                {
-                    "timestamp": _now(),
-                    "direction": "judge",
-                    "node_id": node_id,
-                    "model": judge.model,
-                    "effort": getattr(judge, "effort", "not configured"),
-                    "prompt_version": prompt_version,
-                    "prompt_sha256": judge_prompt_sha256,
-                    "input_sha256": _input_hash(judge_user),
-                    "verdict": verdict,
-                    "rationale": rationale,
-                    **type_view,
-                },
-            )
-
+            judge_user = judge_message(dump, nodes, unit, candidate, prompt_version)
             norm_id = f"norm:{node_id}:n{index}"
             judge_run_id = f"judgerun:extraction:{node_id}:n{index}"
-            judge_run = {
-                "id": judge_run_id,
-                "type": "JudgeRun",
-                "layer": 3,
-                "judge_kind": "extraction",
-                "judge_model": judge.model,
-                "judge_effort": getattr(judge, "effort", "not configured"),
-                "judge_temperature": getattr(judge, "temperature", "not configured"),
-                "prompt_version": prompt_version,
-                "prompt_sha256": judge_prompt_sha256,
-                "verdict": verdict,
-                "scores": scores,
-                "rationale": rationale,
-                **type_view,
-                "started_at": judge_started,
-                "completed_at": _now(),
-                "build_id": build_id,
-            }
+            judge_run, type_view = judge_candidate(
+                judge, judge_prompt, judge_prompt_sha256, judge_user, candidate,
+                node_id=node_id, prompt_version=prompt_version, log_path=log_path,
+                judge_run_id=judge_run_id, build_id=build_id,
+            )
+            verdict = judge_run["verdict"]
+            scores = judge_run["scores"]
 
             norm = {
                 "norm_id": norm_id,
