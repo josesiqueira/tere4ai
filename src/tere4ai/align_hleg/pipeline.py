@@ -90,7 +90,12 @@ _PROMPTS_TAKING_ANY_CORRECTION = frozenset({"v1"})
 
 # The prompt version align_hleg and judge_alignment share (DEC-28: v2 is the
 # version of record for B74; v1 is the July build's, never edited).
-DEFAULT_PROMPT_VERSION = "v2"
+# 2026-10-15 (B174): judge_alignment v3 is v2 plus a paragraph stating that
+# the legal text is the Act as amended by the Digital Omnibus, in force;
+# align_hleg v3 is byte-identical to v2 under the new version line. v3 is the
+# default and the version of record, and every v1-only gate above treats it
+# as v2.
+DEFAULT_PROMPT_VERSION = "v3"
 
 # spec G D-G86 (5), R13: the spread across the requirements, as found.
 SPREAD_KEYS = (

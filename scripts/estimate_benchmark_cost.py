@@ -2,7 +2,7 @@
 
 @implements: DEC-11 (partial: cost estimate for the B74 sequence, dry run only)
 @implements: DEC-24 (its price loader in judge/config.py; the demo judge's log lines left out)
-@implements: DEC-28 (partial: the alignment lines read the default prompt version, align_hleg and judge_alignment v2)
+@implements: DEC-28 (partial: the alignment lines read the default prompt version, align_hleg and judge_alignment v3 since B174)
 @grounded_by: REF-15
 
 The sequence is Layer 2 extraction, Layer 3 alignment, the control backlog,

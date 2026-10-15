@@ -5,6 +5,10 @@
 # build (gpt-5.2, claude-opus-4-8, built 2026-07-08), which is disposable; the
 # prompt versions were moved to v4 on 2026-10-07 (B144) and to v5 on 2026-10-09
 # (B145), and align_hleg and judge_alignment to v2 on 2026-10-12 (B163, DEC-28).
+# On 2026-10-15 the prompt versions were moved to extract_norms and judge_norms
+# v7, align_hleg and judge_alignment v3, and generate_backlog and
+# runtime_grounding v3, the runtime judge of the backlog and of the evidence
+# tool alike (B174: every judge prompt states the legal text is the Act in force).
 # B74 rewrites this file for the build the thesis reports, with a row per model
 # in config/model_parameters.json (sdd/2026-09-27-B99-before-rehearsal/ledger.md:16).
 generator:
@@ -17,13 +21,13 @@ judges:
   temperature: 0
   kinds: [extraction, mapping, runtime_grounding]
 prompt_versions:
-  extract_norms: v6
-  judge_norms: v6
-  align_hleg: v2
-  judge_alignment: v2
+  extract_norms: v7
+  judge_norms: v7
+  align_hleg: v3
+  judge_alignment: v3
   evaluate_evidence: v1
-  generate_backlog: v1
-  runtime_grounding: v1
+  generate_backlog: v3
+  runtime_grounding: v3
 builds:
   layer1: build-3b753e5e9297
   norms: norms_core.json (2026-07-08, 434 norms, 339 accepted)

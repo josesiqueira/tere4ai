@@ -567,8 +567,9 @@ def test_a_layer1_dump_node_that_is_not_an_object_is_refused_by_the_command(tmp_
     assert rc == 2 and "refusing to start" in err and "not a JSON object" in err and cli._TEST_POLICIES == []
 
 
-def test_the_command_runs_v2_by_default(tmp_path, monkeypatch):
-    """B163 (DEC-28, R1): no --prompt-version, as B74 runs it."""
+def test_the_command_runs_v3_by_default(tmp_path, monkeypatch):
+    """B163 (DEC-28, R1): no --prompt-version, as B74 runs it; v2 until
+    B174, v3 since 2026-10-15."""
     import tere4ai.align_hleg.__main__ as cli
 
     norms_path, layer1, _ = _norms_file(tmp_path, 2)
@@ -583,12 +584,12 @@ def test_the_command_runs_v2_by_default(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "align_norms", record_version)
     assert cli.main(["--norms", str(norms_path), "--dump", str(layer1), "--out", str(out)]) == 0
-    assert versions == ["v2"]
+    assert versions == ["v3"]
     ex = _first_execution(tmp_path)
-    assert ex["config"]["prompt_version"] == "v2"
-    assert ex["prompt_sha256"] == {"generator": cli.prompt_sha256("align_hleg-v2"),
-                                   "judge": cli.prompt_sha256("judge_alignment-v2")}
-    assert json.loads(out.read_text())["build"]["alignment_prompt_version"] == "v2"
+    assert ex["config"]["prompt_version"] == "v3"
+    assert ex["prompt_sha256"] == {"generator": cli.prompt_sha256("align_hleg-v3"),
+                                   "judge": cli.prompt_sha256("judge_alignment-v3")}
+    assert json.loads(out.read_text())["build"]["alignment_prompt_version"] == "v3"
 
 
 def test_the_command_prints_the_spread_per_requirement(tmp_path, monkeypatch, capsys):

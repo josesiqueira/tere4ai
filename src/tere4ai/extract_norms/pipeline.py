@@ -87,7 +87,11 @@ EXTRACTION_METHOD = "llm_extract_v1"
 # DEC-27: v5 carries the set-up rule and the settled words.
 # 2026-10-13 (B170 part 1): v6 is v5 without lifecycle_phase_ids, a slot no
 # source grounds; judge_norms v6 is judge_norms v5 under the new version line.
-DEFAULT_PROMPT_VERSION = "v6"
+# 2026-10-15 (B174): judge_norms v7 is v6 plus a paragraph stating that the
+# legal text is the Act as amended by the Digital Omnibus, in force;
+# extract_norms v7 is byte-identical to v6 under the new version line. Every
+# version table treats v7 as v6.
+DEFAULT_PROMPT_VERSION = "v7"
 # B4: judge_norms v1 never received the actor-inference source text; a v1
 # run keeps the input v1 had, so the version names one instrument.
 _PROMPTS_WITHOUT_INFERENCE_TEXT = frozenset({"v1"})
@@ -105,7 +109,7 @@ _PROMPTS_WITHOUT_PARAGRAPH_OF_POINT = frozenset({"v1", "v2", "v3"})
 # 2 with the stored value, and whose judge reads the labels "Addressee-
 # inference source" and a covered unit's set-up rows. v1 to v4 keep the
 # names, the schema and the judge input they had.
-_PROMPTS_WITH_ADDRESSEE = frozenset({"v5", "v6"})
+_PROMPTS_WITH_ADDRESSEE = frozenset({"v5", "v6", "v7"})
 # B170 part 1 (2026-10-13): the prompt versions whose extractor writes
 # lifecycle_phase_ids. From v6 on the slot is not asked for, not given to the
 # judge and not stored, since no source grounds its ten values (Jose: "if it

@@ -1,10 +1,12 @@
 """B163 (DEC-28, spec G D-G86; the brief's Section 5 and acceptance A9): the
-alignment command at its default, align_hleg v2 and judge_alignment v2, with
+alignment command at its default (align_hleg v2 and judge_alignment v2 until
+B174; since 2026-10-15 v3, v2 plus the judge's paragraph on the Act in
+force, so the run records VERSION below), with
 scripted models (no network, no keys) over five accepted norms of Articles
 9(1), 12(1), 50(1) and 50(2) and one rejected norm, their source texts read
 from a copy of the tracked layer1.json, then the E1 sheet drawn from its
 output. The scripted replies stand for a model; what a real model does
-under v2 is measured by B74, not here."""
+under the default is measured by B74, not here."""
 
 from __future__ import annotations
 
@@ -28,6 +30,7 @@ pytestmark = pytest.mark.skipif(not LAYER1.is_file(), reason="the tracked layer1
 A9, A12, A50_1, A50_2 = (f"eu-ai-act:article-{a}:paragraph-{p}" for a, p in ((9, 1), (12, 1), (50, 1), (50, 2)))
 POINT_A = "eu-ai-act:article-16:paragraph-1:point-a"
 AGENCY = "hleg:human-agency-and-oversight"
+VERSION = "v3"  # the command's default since B174
 ROBUSTNESS = "hleg:technical-robustness-and-safety"
 TRANSPARENCY = "hleg:transparency"
 PRIVACY = "hleg:privacy-and-data-governance"
@@ -161,11 +164,11 @@ EXPECTED_STATS = {
 }
 
 
-def _text(kind, version="v2"):
+def _text(kind, version=VERSION):
     return (ROOT / "prompts" / kind / f"{version}.md").read_text(encoding="utf-8")
 
 
-def _sha(kind, version="v2"):
+def _sha(kind, version=VERSION):
     return hashlib.sha256((ROOT / "prompts" / kind / f"{version}.md").read_bytes()).hexdigest()
 
 
@@ -231,22 +234,22 @@ def _aid(norm_id, target, index):
     return f"align:{norm_id.removeprefix('norm:')}:{target.removeprefix('hleg:')}:{index}"
 
 
-def test_the_run_records_v2_and_both_v2_hashes_everywhere(tmp_path, monkeypatch):
+def test_the_run_records_the_default_and_both_hashes_everywhere(tmp_path, monkeypatch):
     payload, execution, generator, judge = _run(tmp_path, monkeypatch)
-    assert execution["config"]["prompt_version"] == "v2"
+    assert execution["config"]["prompt_version"] == VERSION
     assert execution["prompt_sha256"] == {"generator": _sha("align_hleg"), "judge": _sha("judge_alignment")}
-    assert payload["build"]["alignment_prompt_version"] == "v2"
+    assert payload["build"]["alignment_prompt_version"] == VERSION
     assert payload["build"]["hleg_text_sha256"] == load_pair().text_sha256
     (mapping_run,) = payload["mapping_runs"]
-    assert (mapping_run["prompt_version"], mapping_run["prompt_sha256"]) == ("v2", _sha("align_hleg"))
+    assert (mapping_run["prompt_version"], mapping_run["prompt_sha256"]) == (VERSION, _sha("align_hleg"))
     model_runs = [r for r in payload["judge_runs"] if r["judge_model"] == "j"]
     (gate_run,) = [r for r in payload["judge_runs"] if r["judge_model"] == "mechanical:quote_check"]
     assert len(model_runs) == 6
-    assert {(r["prompt_version"], r["prompt_sha256"]) for r in model_runs} == {("v2", _sha("judge_alignment"))}
-    assert (gate_run["prompt_version"], gate_run["prompt_sha256"]) == ("v2", GATE_SHA256)
+    assert {(r["prompt_version"], r["prompt_sha256"]) for r in model_runs} == {(VERSION, _sha("judge_alignment"))}
+    assert (gate_run["prompt_version"], gate_run["prompt_sha256"]) == (VERSION, GATE_SHA256)
     log = [json.loads(line) for line in (tmp_path / "alignment_log.jsonl").read_text().splitlines()]
     assert sorted(line["direction"] for line in log) == ["generator"] * 5 + ["judge"] * 6 + ["mechanical"]
-    assert {line["prompt_version"] for line in log} == {"v2"}
+    assert {line["prompt_version"] for line in log} == {VERSION}
     assert {line["prompt_sha256"] for line in log if line["direction"] == "generator"} == {_sha("align_hleg")}
     assert {line["prompt_sha256"] for line in log if line["direction"] == "judge"} == {_sha("judge_alignment")}
     assert [s for s, _u in generator.calls] == [_text("align_hleg")] * 5
@@ -330,7 +333,7 @@ def test_the_command_prints_the_summary_and_the_spread(tmp_path, monkeypatch, ca
     assert "  hleg:transparency: 3, 2, 2, 1\n" in printed
 
 
-def test_a_run_stopped_after_its_first_batch_resumes_with_v2_and_counts_the_same(tmp_path, monkeypatch):
+def test_a_run_stopped_after_its_first_batch_resumes_with_the_default_and_counts_the_same(tmp_path, monkeypatch):
     """Review Focus 1: the inherited batch's counts are summed with the rest."""
     from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
 
@@ -348,7 +351,7 @@ def test_a_run_stopped_after_its_first_batch_resumes_with_v2_and_counts_the_same
     assert cli.main([*argv, "--batch-size", "2", "--resume"]) == 0
     store = BuildRecordStore(tmp_path)
     _first, resumed = store.read(store.resolve("core"))["executions"]
-    assert resumed["inherited_keys"] == [f"batch:0:{N9}"] and resumed["config"]["prompt_version"] == "v2"
+    assert resumed["inherited_keys"] == [f"batch:0:{N9}"] and resumed["config"]["prompt_version"] == VERSION
     assert json.loads(out.read_text(encoding="utf-8"))["stats"] == EXPECTED_STATS
 
 
@@ -383,7 +386,7 @@ def test_a_resume_over_a_checkpoint_without_the_spread_counts_it_from_the_assert
     assert any(stats["assertions_by_requirement"].values())
 
 
-def test_a_v1_checkpoint_is_refused_by_a_v2_run(tmp_path, monkeypatch, capsys):
+def test_a_v1_checkpoint_is_refused_by_a_default_run(tmp_path, monkeypatch, capsys):
     """Review Focus 2: the command's stale-checkpoint refusal, exit 2."""
     from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
 
@@ -412,7 +415,7 @@ def _sampling(monkeypatch):
     return module
 
 
-def test_the_e1_sheet_of_the_v2_run_is_blind_and_shows_what_the_judge_read(tmp_path, monkeypatch):
+def test_the_e1_sheet_of_the_default_run_is_blind_and_shows_what_the_judge_read(tmp_path, monkeypatch):
     """A11 end to end: no correction under Judged content; the claimed type;
     the definitions once; the two texts equal to the judge's message; one
     order by the decision ids' sha256 (R21)."""

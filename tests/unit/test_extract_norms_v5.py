@@ -44,13 +44,15 @@ def _run(dump, unit, candidate, version, tmp_path):
     return result, judge.calls[0][1]
 
 
-def test_v6_is_the_default_and_the_version_of_record_for_b74_and_v5_stays_runnable():
+def test_v7_is_the_default_and_the_version_of_record_for_b74_and_v5_stays_runnable():
     """B170 part 1 (2026-10-13): v6 (v5 without lifecycle_phase_ids) replaced
-    v5 as the default and the version of record; v5 keeps its behaviour."""
-    assert pipeline.DEFAULT_PROMPT_VERSION == "v6"
+    v5 as the default and the version of record; v5 keeps its behaviour.
+    B174 (2026-10-15): v7 (v6 plus the judge's paragraph on the Act in
+    force) replaced v6 as both, and is read as v6."""
+    assert pipeline.DEFAULT_PROMPT_VERSION == "v7"
     record = (ROOT / "eval" / "config_evaluated.yaml").read_text(encoding="utf-8")
-    assert "  extract_norms: v6\n" in record and "  judge_norms: v6\n" in record
-    assert pipeline.writes_addressee("v5") and pipeline.writes_addressee("v6")
+    assert "  extract_norms: v7\n" in record and "  judge_norms: v7\n" in record
+    assert all(pipeline.writes_addressee(v) for v in ("v5", "v6", "v7"))
     assert not any(pipeline.writes_addressee(v) for v in ("v1", "v2", "v3", "v4"))
     assert pipeline.candidate_fields("v4") == pipeline._NORM_CANDIDATE_FIELDS
     assert "addressee_explicit" in pipeline.candidate_fields("v5")

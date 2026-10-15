@@ -485,20 +485,21 @@ def test_the_v2_prompts_carry_the_definitions_and_the_scope_verbatim():
     assert "requirement_type" not in load_prompt("judge_norms", "v1")
 
 
-def test_extraction_defaults_to_the_v6_prompts(tmp_path):
-    """B170 part 1 (2026-10-13): v6 is the default; it neither asks for
-    lifecycle_phase_ids nor stores it."""
-    assert DEFAULT_PROMPT_VERSION == "v6"
+def test_extraction_defaults_to_the_v7_prompts(tmp_path):
+    """B170 part 1 (2026-10-13): v6 was made the default; it neither asks for
+    lifecycle_phase_ids nor stores it. B174 (2026-10-15): v7, v6 plus the
+    judge's paragraph on the Act in force, is the default, read as v6."""
+    assert DEFAULT_PROMPT_VERSION == "v7"
     generator = FakeClient({PARA_ID: GENERATOR_ANSWER}, model="fake-generator")
     judge = FakeClient({PARA_ID: JUDGE_ACCEPT}, model="fake-judge")
     result = extract_norms(FAKE_DUMP, [PARA_ID], generator, judge, log_path=tmp_path / "log.jsonl")
-    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v6")
-    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v6")
+    assert generator.calls[0][0].startswith("# extract_norms system prompt, version v7")
+    assert judge.calls[0][0].startswith("# judge_norms system prompt, version v7")
     assert "lifecycle" not in generator.calls[0][0].lower()
     assert "lifecycle_phase_ids" not in judge.calls[0][1]
     assert "lifecycle_phase_ids" not in result["norms"][0]
-    assert result["norms"][0]["extractor_prompt_version"] == "v6"
-    assert result["judge_runs"][0]["prompt_version"] == "v6"
+    assert result["norms"][0]["extractor_prompt_version"] == "v7"
+    assert result["judge_runs"][0]["prompt_version"] == "v7"
 
 
 def test_the_v2_judge_receives_the_actor_inference_source_text(tmp_path):

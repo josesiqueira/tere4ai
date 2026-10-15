@@ -253,8 +253,8 @@ def test_the_command_at_eight_writes_the_alignments_file_and_record_of_one_at_a_
     assert payload1["build"]["alignment_usage"]["judge"]["calls"] == 10
     assert payload8["build"]["alignment_usage"] == payload1["build"]["alignment_usage"] == ex1["usage"] == ex8["usage"]
     assert len(payload8["mapping_runs"]) == 3  # batches of 4 over 12 norms
-    assert (ex1["config"], ex8["config"]) == ({"prompt_version": "v2", "batch_size": 4, "max_in_flight": 1},
-                                              {"prompt_version": "v2", "batch_size": 4, "max_in_flight": 8})
+    assert (ex1["config"], ex8["config"]) == ({"prompt_version": "v3", "batch_size": 4, "max_in_flight": 1},
+                                              {"prompt_version": "v3", "batch_size": 4, "max_in_flight": 8})
     for key in ("completed_keys", "counts", "work_failures", "status"):
         assert ex8[key] == ex1[key], key
 

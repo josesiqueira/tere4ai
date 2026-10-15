@@ -779,24 +779,27 @@ def judge_with_views(verdict_json, views):
     return json.dumps(reply)
 
 
-def test_the_v2_backlog_prompts_carry_the_definitions_and_are_the_default(tmp_path):
-    assert DEFAULT_PROMPT_VERSION == "v2"
-    generate = load_prompt("generate_backlog", "v2")
-    grounding = load_prompt("runtime_grounding", "v2")
-    for prompt in (generate, grounding):
-        assert DEFINITIONS_TEXT in prompt
-        assert SCOPE_TEXT not in prompt  # every control is typed; the scope is the norms'
-    assert '"requirement_type": "process"' in generate
-    assert '"type_views"' in grounding and "never a reason" in grounding
-    assert '"requirement_type_agrees": false' not in grounding  # the example shows agreement
+def test_the_typed_backlog_prompts_carry_the_definitions_and_v3_is_the_default(tmp_path):
+    """DEC-19: v2 carries the definitions; B174 (2026-10-15): v3, the default,
+    is v2 plus the judge's paragraph on the Act in force."""
+    assert DEFAULT_PROMPT_VERSION == "v3"
+    for version in ("v2", "v3"):
+        generate = load_prompt("generate_backlog", version)
+        grounding = load_prompt("runtime_grounding", version)
+        for prompt in (generate, grounding):
+            assert DEFINITIONS_TEXT in prompt
+            assert SCOPE_TEXT not in prompt  # every control is typed; the scope is the norms'
+        assert '"requirement_type": "process"' in generate
+        assert '"type_views"' in grounding and "never a reason" in grounding
+        assert '"requirement_type_agrees": false' not in grounding  # the example shows agreement
     generator = FakeClient({KEY: gen_items(typed_item("Risk process", [KEY], "process"))}, model="fake-generator")
     judge = FakeClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
     envelope = generate_control_backlog([NORM_A], "A triage system.", generator, judge,
                                         log_path=tmp_path / "runtime_log.jsonl")
-    assert generator.calls[0][0].startswith("# generate_backlog system prompt, version v2")
-    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v2")
-    assert envelope["answer"]["generator_prompt_version"] == "v2"
-    assert envelope["answer"]["judge_prompt_version"] == "v2"
+    assert generator.calls[0][0].startswith("# generate_backlog system prompt, version v3")
+    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v3")
+    assert envelope["answer"]["generator_prompt_version"] == "v3"
+    assert envelope["answer"]["judge_prompt_version"] == "v3"
 
 
 def test_each_control_keeps_its_own_type(tmp_path):

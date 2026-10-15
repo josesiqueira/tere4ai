@@ -46,7 +46,7 @@ def test_the_generator_alone_answers_not_checked_with_the_items_as_produced(tmp_
     assert (envelope["status"], envelope["judge_verdict"]) == ("requires_human_review", NOT_CHECKED)
     answer = envelope["answer"]
     assert [item["title"] for item in answer["items"]] == ["Keep a log", "Oversee"]
-    assert (answer["dropped_items"], answer["merged_items"], answer["generator_model"], answer["judge_prompt_version"]) == (0, 0, "gpt-gen", "v2")
+    assert (answer["dropped_items"], answer["merged_items"], answer["generator_model"], answer["judge_prompt_version"]) == (0, 0, "gpt-gen", "v3")
     assert "judge_model" not in answer and "judge_rationale" not in answer and answer["usage"]["judge"] is None
     assert envelope["missing_facts"][-1] == NOT_CHECKED_NOTE
 

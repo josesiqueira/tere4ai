@@ -19,7 +19,7 @@ tracked tree changes a figure: the repository's .env, when present, is loaded, b
 variable wins over the file, and no other variable it may set reaches a figure.
 Input is priced uncached: the clients send no cache_control (Anthropic caches nothing)
 and record no cached tokens; automatic caching on the OpenAI side can only lower the figure.
-Every request stays under 272,000 input tokens (asserted; the largest is 17,467), so the short-context prices apply. Standard tier.
+Every request stays under 272,000 input tokens (asserted; the largest is 17,627), so the short-context prices apply. Standard tier.
 
 ## Ratios and their sources
 
@@ -48,11 +48,11 @@ Reasoning share of billed output, r (billed output = visible reply / (1 - r)):
 | Step | Model component (model) | Calls | Input tokens | Visible output tokens | Billed output tokens, central (low to high) | Low USD | Central USD | High USD |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Layer 2 extraction | generator (gpt-6-astra) | 424 | 2,583,385 | 70,755 | 393,083 (102,233 to 707,549) | 28.36 | 45.49 | 63.79 |
-| Layer 2 extraction | judge (claude-opus-5-5) | 529 | 2,498,986 | 173,672 | 964,845 (313,587 to 1,736,721) | 15.27 | 29.29 | 45.73 |
+| Layer 2 extraction | judge (claude-opus-5-5) | 529 | 2,583,771 | 173,672 | 964,845 (313,587 to 1,736,721) | 15.57 | 29.63 | 46.10 |
 | Layer 3 alignment | generator (gpt-6-astra) | 468 | 2,826,824 | 252,264 | 1,401,464 (364,493 to 2,522,635) | 43.67 | 98.34 | 157.23 |
-| Layer 3 alignment | judge (claude-opus-5-5) | 538 | 1,772,101 | 182,433 | 1,013,519 (329,406 to 1,824,334) | 12.97 | 27.36 | 44.28 |
+| Layer 3 alignment | judge (claude-opus-5-5) | 538 | 1,858,329 | 182,433 | 1,013,519 (329,406 to 1,824,334) | 13.28 | 27.70 | 44.66 |
 | Control backlog | generator (gpt-6-astra) | 1 | 11,727 | 2,446 | 13,590 (3,534 to 24,462) | 0.28 | 0.80 | 1.35 |
-| Control backlog | judge (claude-opus-5-5) | 1 | 17,467 | 218 | 1,211 (394 to 2,180) | 0.07 | 0.09 | 0.12 |
+| Control backlog | judge (claude-opus-5-5) | 1 | 17,627 | 218 | 1,211 (394 to 2,180) | 0.07 | 0.09 | 0.12 |
 | E6 elicitation | generator (gpt-6-astra) | 32 | 344,221 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
 | E6 development set elicitation | generator (gpt-6-astra) | 32 | 344,142 | 5,190 | 28,832 (7,499 to 51,898) | 3.47 | 4.88 | 6.38 |
 | E6 pilot run, 5 repetitions | generator (gpt-6-astra) | 898 | 991,988 | 140,514 | 780,635 (203,028 to 1,405,143) | 19.08 | 48.95 | 81.17 |
@@ -101,7 +101,7 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 ## Alignment rationale: a proxy, and the cost without it
 
 - A stored assertion's rationale is the judge's, not the generator's (the pipeline keeps the judge's on the assertion), and no record holds the generator's own reply (the logs keep hashes only). The alignment step therefore uses the judge's rationale as a proxy for the generator's, in the generator's output and in the judge's input. The direction of the proxy's error is unknown, because the generator's rationale is not recorded: it may be shorter or longer.
-- Sensitivity calculation, not a bound: the total without the rationale in both places is 364.08 USD central (181.90 low, 563.73 high), against the stated total of 408.23 (193.74 low, 642.82 high).
+- Sensitivity calculation, not a bound: the total without the rationale in both places is 364.76 USD central (182.52 low, 564.48 high), against the stated total of 408.92 (194.36 low, 643.57 high).
 
 ## Reference outside the total
 
@@ -113,10 +113,10 @@ graph_runtime_judge was not run in run 2: its output uses the observed answer si
 
 ## Batch
 
-- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 204.12 USD (band 96.87 to 321.41). It is a lever and not in the total: the clients call the synchronous APIs.
+- Batch (ruling R6): the same sequence at the Batch prices (50 percent on both inference backends) would cost 204.46 USD (band 97.18 to 321.79). It is a lever and not in the total: the clients call the synchronous APIs.
 
 ## Total
 
-Total for the B74 sequence: 408.23 USD (band 193.74 to 642.82)
+Total for the B74 sequence: 408.92 USD (band 194.36 to 643.57)
 
 The band takes the low input and the low reasoning share at its low end, and the high input and the high reasoning share at its high end. It includes the main run at N = 11, the pilot run and the development set's elicitation.

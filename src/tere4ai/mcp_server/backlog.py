@@ -84,7 +84,10 @@ TOOL_NAME = "generate_control_backlog"
 GENERATOR_PROMPT = "generate_backlog"
 # generate_backlog and runtime_grounding share this version for a backlog
 # (DEC-19: v2 carries each control's requirement type and the judge's view).
-DEFAULT_PROMPT_VERSION = "v2"
+# 2026-10-15 (B174): runtime_grounding v3 is v2 plus a paragraph stating that
+# the legal text is the Act as amended by the Digital Omnibus, in force;
+# generate_backlog v3 is byte-identical to v2 under the new version line.
+DEFAULT_PROMPT_VERSION = "v3"
 
 PRIORITIES = ("must", "should")
 # Deontic types whose norms make a backlog item mandatory (Section 3).

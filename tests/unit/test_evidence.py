@@ -265,9 +265,10 @@ def test_runtime_log_written_with_no_key_material(tmp_path):
     lines = [json.loads(line) for line in log_path.read_text().splitlines()]
     directions = [line["direction"] for line in lines]
     assert directions == ["generator", "judge"]
+    # the generator runs evaluate_evidence v1; the judge, runtime_grounding v3 (B174)
+    assert [line["prompt_version"] for line in lines] == ["v1", "v3"]
     for line in lines:
         assert len(line["input_sha256"]) == 64
-        assert line["prompt_version"] == "v1"
         assert line["effort"] == "not configured"  # FakeClient declares no effort
     judge_line = lines[1]
     assert judge_line["judge_kind"] == "runtime_grounding"
@@ -300,13 +301,13 @@ def test_malformed_evidence_raises_value_error(tmp_path):
         )
 
 
-def test_evidence_keeps_its_v1_prompts_after_the_backlog_moved_to_v2(tmp_path):
+def test_evidence_keeps_evaluate_evidence_v1_and_its_judge_is_runtime_grounding_v3(tmp_path):
     """DEC-19 (B65 ruling 16): evaluate_project_evidence keeps
-    evaluate_evidence v1 and runtime_grounding v1; its version is no longer
-    the backlog's."""
+    evaluate_evidence v1; its version is no longer the backlog's. B174
+    (2026-10-15): its judge moved from runtime_grounding v1 to v3."""
     generator = FakeClient({NORM["norm_id"]: gen_answer("satisfied", [REAL_QUOTE])}, model="fake-generator")
     judge = FakeClient({NORM["norm_id"]: JUDGE_ACCEPT}, model="fake-judge")
     envelope = evaluate_project_evidence(NORM, EVIDENCE, generator, judge, log_path=tmp_path / "log.jsonl")
     assert envelope["judge_verdict"] == "accepted"
     assert generator.calls[0][0].startswith("# evaluate_evidence system prompt, version v1")
-    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v1")
+    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v3")

@@ -65,7 +65,7 @@ UNTRUSTED_END = "UNTRUSTED PROJECT TEXT END"
 # paraphrase drift from the statute is invisible to the judge).
 # DEC-19: the norms' requirement_type is left out on purpose: a control's
 # type is its own, so the judge's view of it must not be read off the norms
-# (B65 ruling 10), and the evidence judge (runtime_grounding v1) keeps the
+# (B65 ruling 10), and the evidence judge (runtime_grounding v1, v3 since B174) keeps the
 # input it had.
 _NORM_DIGEST_FIELDS = (
     "norm_id",

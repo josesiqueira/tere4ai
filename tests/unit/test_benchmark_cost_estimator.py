@@ -740,8 +740,9 @@ def test_without_measured_usage_the_bands_are_the_declared_ones():
 
 
 def test_the_alignment_estimate_reads_the_default_judge_prompt(tmp_path):
-    """B163 (DEC-28, R14): the judge's input is judge_alignment v2, the
-    default, plus the pipeline's own message; the file is read from disk."""
+    """B163 (DEC-28, R14): the judge's input is the default judge_alignment
+    file (v2 until B174, v3 since 2026-10-15), plus the pipeline's own
+    message; the file is read from disk."""
     accepted = [_mock_norm("eu-ai-act:article-9:paragraph-1")]
     hleg = [{"id": "hleg:transparency", "name": "Transparency", "description": "Mock transparency.",
              "source_span": {"span_id": "span:hleg:req4"}}]
@@ -749,10 +750,10 @@ def test_the_alignment_estimate_reads_the_default_judge_prompt(tmp_path):
                    "relation_type": "supports", "source_quote": "risk management system",
                    "target_quote": "transparency", "rationale": "mock"}]
     lines = est.alignment_lines(accepted, hleg, assertions, [], accepted_norms=1, tmp_dir=tmp_path)
-    v2 = (ROOT / "prompts" / "judge_alignment" / "v2.md").read_text(encoding="utf-8")
+    v2 = (ROOT / "prompts" / "judge_alignment" / "v3.md").read_text(encoding="utf-8")  # the default (B174)
     candidate = {k: assertions[0][k] for k in ("target_id", "relation_type", "source_quote", "target_quote", "rationale")}
     message = len(est.align_pipeline._judge_user_message(accepted[0], hleg[0], candidate))
-    # B163 final review F10: the estimate carries the v2 file read from disk, and not v1's text
+    # B163 final review F10: the estimate carries the default file read from disk, and not v1's text
     v1 = (ROOT / "prompts" / "judge_alignment" / "v1.md").read_text(encoding="utf-8")
     assert len(v1) != len(v2)
     assert lines["judge"]["in_chars"] == pytest.approx(lines["judge"]["calls"] * (len(v2) + message))
