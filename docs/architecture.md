@@ -330,7 +330,9 @@ E6 ablation's runtime judge read v3 too); the checks do not change. Why:
 claude-opus-5-5 re-judging the build 2026-10-14-gpt-6-astra-high under
 judge_norms v6 rejected every norm on an Omnibus-changed unit as "a
 proposal" (check 6) from its own knowledge of the Act, while gpt-6-sol had
-accepted them; a verdict driven by a model's knowledge cutoff is not a
+accepted them (corrected 2026-10-16: sol under v6 accepted 8 of Article 4a's
+17 norms and rejected 9 on their content; Opus under v6 accepted none); a
+verdict driven by a model's knowledge cutoff is not a
 judgment of the candidate. The re-judge command (B173) judges at the
 code's default versions and accepts a source judged under an older
 version when the candidate shape is the same, recording both versions.
