@@ -191,7 +191,7 @@ def test_facade_and_mcp_serve_the_activated_build_and_refuse_a_drifted_one(tmp_p
     activate(tmp_path, chain_id)
     with TestClient(facade.create_app(tmp_path)) as client:
         assert client.get("/api/health").json()["norms_build"] == "build-b+chain-" + chain_id
-    monkeypatch.setattr(server, "DUMP_PATH", tmp_path / "layer1.json")
+    monkeypatch.setenv("TERE4AI_DUMP_DIR", str(tmp_path))
     assert server._read_dump()["build"]["build_id"] == "build-b+chain-" + chain_id
     report = server.coverage_report()
     assert report["graph_version"] == "build-b+chain-" + chain_id
@@ -217,7 +217,7 @@ def test_loaded_build_is_taken_once_per_mcp_call(tmp_path, monkeypatch):
     files = _dumps(tmp_path)
     chain_id = _publish_fixture(tmp_path, files)
     activate(tmp_path, chain_id)
-    monkeypatch.setattr(server, "DUMP_PATH", tmp_path / "layer1.json")
+    monkeypatch.setenv("TERE4AI_DUMP_DIR", str(tmp_path))
     monkeypatch.setattr(server, "_active", counting)
     server.explain_requirement("norm:none")
     assert len(calls) == 1, "one LoadedBuild per tool call, never one per payload"

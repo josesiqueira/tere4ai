@@ -694,7 +694,7 @@ def test_the_startup_check_verifies_an_activated_publication_without_a_layer1_js
                                files={"layer1_dump": layer1.name, "norms": norms.name, "alignments": None})
     activate(tmp_path, chain["chain_id"])
     norms.write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [1]}))
-    monkeypatch.setattr(server, "DUMP_PATH", tmp_path / "layer1.json")
+    monkeypatch.setenv("TERE4AI_DUMP_DIR", str(tmp_path))
     monkeypatch.setenv("TERE4AI_MCP_REQUIRE_DUMP_INTEGRITY", "1")
     with pytest.raises(RuntimeError, match="dump integrity check FAILED: norms file norms_core.b74.json differs"):
         server._check_dump_integrity_at_startup()

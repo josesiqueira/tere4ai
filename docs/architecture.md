@@ -1934,6 +1934,54 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   test_align_v2_mock_run.py (the mock-model command line run and the E1
   sheet over its output); docs/benchmark_cost_estimate.md is regenerated
   with v2; CHANGELOG.md names the contract change.
+- DEC-29: tere4ai2 serves the newest published build: one resolver names
+  the directory the MCP server and the HTTP facade read, and the MCP server
+  resolves it on every tool call (added 2026-10-18; thesis task B177, plan
+  sdd/2026-10-18-B177-newest-build/plan.md and its rulings R1 to R6 in the
+  private research repository; the owner's words: "everytime thre is a new
+  one, this latest should be th e one being served everywhere ... Make a
+  mechanism so that everytime there is a new build it is the one that is
+  being used EVERYWHERE"). Engineering decision (traceability, no silent
+  degradation, Section 13); corroborated by ADD-20 and REF-27.
+  The rule: resolve_served takes, in this order, the directory a caller
+  passes (the facade's create_app argument, the tests); else
+  TERE4AI_DUMP_DIR when it is non-empty, a pinned directory; else, when
+  TERE4AI_BUILDS_DIR is non-empty, the newest published build in it; else
+  data/graph_dumps. Both variables are read after load_dotenv_once, so an
+  exported value wins over the .env. A published build is an immediate
+  subfolder of the builds directory whose ACTIVE_MANIFEST.json names a
+  chain with a readable publications/<chain>.json; the newest is the one
+  whose published_at, read as an ISO 8601 time, is latest, a tie going to
+  the greater folder name. A subfolder without a pointer, with an
+  unreadable pointer or manifest, or with a published_at that is no ISO
+  8601 time, is not a candidate. A builds directory with no candidate is an
+  error naming the builds folder by its name only, and the newest build is
+  verified by load_active as every activated build is: a drifted newest
+  build is refused as today, never replaced by an older one. Whatever the
+  source, the newest published build of TERE4AI_BUILDS_DIR is reported
+  beside the served directory, so a pinned directory can be compared with
+  it. The one-way rule holds because the builds directory is a setting,
+  never a path written in tere4ai2's code, tests or docs; with neither
+  variable set every answer is today's. The MCP server's _active and its
+  start-up integrity check use the resolver on every call, so the next
+  call after a newer build is published serves it, with no restart. The
+  HTTP facade's switch to a newer build while it runs and the health
+  answer's fields naming the served and the newest build follow in the
+  same card.
+  Defense: a build published and not served is a build nobody reads, and
+  a server that keeps an older build without saying so is a silent
+  degradation; ordering by the time the publication records, not by a
+  folder name or a file time, follows the record the publication writes
+  last, and refusing a drifted newest build rather than falling back
+  keeps every answer tied to one verified build.
+  Cost if wrong: one module and two call sites in the MCP server, with
+  their tests; no data and no model call.
+  verify: src/tere4ai/graph_store/served_build.py (resolve_served,
+  newest_published); src/tere4ai/mcp_server/server.py (_active, the
+  start-up check _check_dump_integrity_at_startup);
+  tests/unit/test_served_build.py; tests/unit/conftest.py (the autouse
+  fixture that keeps the developer's TERE4AI_BUILDS_DIR and
+  TERE4AI_DUMP_DIR out of every unit test).
 
 ## 17. Implementation-traceability convention
 

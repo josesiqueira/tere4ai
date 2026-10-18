@@ -18,3 +18,19 @@ from tere4ai import parallel_calls
 def _one_call_in_flight_unless_marked(request, monkeypatch):
     if request.node.get_closest_marker("default_max_in_flight") is None:
         monkeypatch.setattr(parallel_calls, "DEFAULT_MAX_IN_FLIGHT", 1)
+
+
+@pytest.fixture(autouse=True)
+def _no_served_build_settings_from_the_developer(monkeypatch):
+    """B177 (DEC-29): no test sees the developer's TERE4AI_BUILDS_DIR or
+    TERE4AI_DUMP_DIR. Both are removed from the environment, and dotenv's
+    loader is a no-op for the test, so load_dotenv_once (which imports it on
+    every call) cannot bring them back from tere4ai2/.env. A test that needs
+    either variable sets it itself."""
+    monkeypatch.delenv("TERE4AI_BUILDS_DIR", raising=False)
+    monkeypatch.delenv("TERE4AI_DUMP_DIR", raising=False)
+    try:
+        import dotenv
+    except ImportError:  # load_dotenv_once then reads nothing either
+        return
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *args, **kwargs: False)

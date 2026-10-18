@@ -2,10 +2,11 @@
 
 Wraps the pure functions in tools.py, classify.py, requirements.py,
 evidence.py, and backlog.py as read-only MCP tools (no write surface,
-architecture.md Section 8). The Layer 0+1 dump is read from
-data/graph_dumps/layer1.json and the judged norms payload from
-data/graph_dumps/norms_core.json (versioned build artifacts); no running
-Neo4j is required. If a dump has not been built, the tools return a
+architecture.md Section 8). The Layer 0+1 dump and the judged norms
+payload are read from the directory served_build.resolve_served names on
+each call (data/graph_dumps by default, TERE4AI_DUMP_DIR when pinned, the
+newest published build of TERE4AI_BUILDS_DIR otherwise); no running Neo4j
+is required. If a dump has not been built, the tools return a
 degraded envelope instead of failing silently (Section 13).
 
 evaluate_project_evidence, evaluate_project_evidence_batch and
@@ -53,6 +54,7 @@ from tere4ai.graph_store.publication import (
     active_manifest,
     load_active,
 )
+from tere4ai.graph_store.served_build import resolve_served
 from tere4ai.judge.config import ModelConfigError, load_model_config
 from tere4ai.mcp_server import backlog as backlog_rules
 from tere4ai.mcp_server import classify as classify_rules
@@ -173,8 +175,15 @@ def _active() -> LoadedBuild:
     """One LoadedBuild per tool call (D-G21): the activated publication when
     ACTIVE_MANIFEST.json exists (verified on every call, a drifted file
     refusing service), else the legacy dumps. Read fresh, so the server
-    follows a new activation at its next call."""
-    return load_active(DUMP_PATH.parent)
+    follows a new activation at its next call. The directory is resolved on
+    every call too (B177, DEC-29), so the next call after a newer build is
+    published in TERE4AI_BUILDS_DIR serves it; a builds directory with no
+    published build is answered as a missing build, naming the reason."""
+    resolution = resolve_served()
+    loaded = load_active(resolution.dump_dir)
+    if resolution.error:
+        return LoadedBuild(None, None, None, None, loaded.source, resolution.error)
+    return loaded
 
 
 def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:
@@ -820,21 +829,23 @@ def _check_dump_integrity_at_startup() -> None:
     production deployment should do. Absent dumps are handled by the
     per-tool dump-missing envelopes, not here. An activation pointer is
     checked even without a layer1.json, since the activated publication may
-    name its Layer 1 file otherwise (B79 item 23).
+    name its Layer 1 file otherwise (B79 item 23). The directory checked is
+    the one resolve_served names, the one the first tool call will serve.
     """
-    if not DUMP_PATH.is_file() and not (DUMP_PATH.parent / ACTIVE_POINTER).is_file():
+    dump_dir = resolve_served().dump_dir
+    if not (dump_dir / DUMP_PATH.name).is_file() and not (dump_dir / ACTIVE_POINTER).is_file():
         return
     from tere4ai.graph_store.build_chain import verify_dumps_against_chain
 
-    manifest = active_manifest(DUMP_PATH.parent)
-    if manifest is None and (DUMP_PATH.parent / ACTIVE_POINTER).is_file():
+    manifest = active_manifest(dump_dir)
+    if manifest is None and (dump_dir / ACTIVE_POINTER).is_file():
         print(
             f"TERE4AI: the activation pointer {ACTIVE_POINTER} or its publication manifest is "
             "unreadable; running the legacy three-file integrity check instead",
             file=sys.stderr,
         )
     ok, detail = verify_dumps_against_chain(
-        DUMP_PATH.parent, chain_id=manifest["chain_id"] if manifest else None
+        dump_dir, chain_id=manifest["chain_id"] if manifest else None
     )
     if ok:
         return
