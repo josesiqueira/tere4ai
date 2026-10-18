@@ -148,7 +148,7 @@ def test_the_build_routes_keep_serving_while_the_graph_load_is_refused(tmp_path)
     rid = BuildRecordStore(tmp_path).create_record("core.b75", "build-b", None)
     (tmp_path / "norms_core.json").write_text("{}")
     with TestClient(facade.create_app(tmp_path)) as client:
-        assert client.app.state.load_error
+        assert client.app.state.served.load_error
         assert client.get("/api/health").status_code == 503
         response = client.get("/api/builds")
         assert response.status_code == 200

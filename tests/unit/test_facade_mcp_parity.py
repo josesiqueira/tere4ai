@@ -95,7 +95,7 @@ def _canon(payload):
 
 def test_classify_parity(client):
     via_http = client.post("/api/classify", json={"features": TRIAGE_FEATURES}).json()
-    direct = classify_tool.classify_ai_system(TRIAGE_FEATURES, client.app.state.dump)
+    direct = classify_tool.classify_ai_system(TRIAGE_FEATURES, client.app.state.served.dump)
     assert _canon(via_http) == _canon(direct)
 
 
@@ -108,8 +108,8 @@ def test_requirements_parity(client):
     ).json()
     direct = requirements_tool.get_applicable_requirements(
         classification,
-        client.app.state.norms,
-        client.app.state.dump,
+        client.app.state.served.norms,
+        client.app.state.served.dump,
         actor=None,
     )
     assert _canon(via_http) == _canon(direct)
@@ -119,9 +119,9 @@ def test_explain_parity(client):
     via_http = client.post("/api/explain", json={"norm_id": ACCEPTED_NORM_ID}).json()
     direct = explain_tool.explain_requirement(
         ACCEPTED_NORM_ID,
-        client.app.state.dump,
-        client.app.state.norms,
-        client.app.state.alignments,
+        client.app.state.served.dump,
+        client.app.state.served.norms,
+        client.app.state.served.alignments,
     )
     assert _canon(via_http) == _canon(direct)
 
@@ -129,7 +129,7 @@ def test_explain_parity(client):
 def test_trace_parity(client):
     via_http = client.post("/api/trace", json={"id": ACCEPTED_NORM_ID}).json()
     direct = trace_tool.trace_alignment(
-        ACCEPTED_NORM_ID, client.app.state.alignments, client.app.state.dump
+        ACCEPTED_NORM_ID, client.app.state.served.alignments, client.app.state.served.dump
     )
     assert _canon(via_http) == _canon(direct)
 
@@ -141,7 +141,7 @@ def test_trace_batch_inner_envelope_parity(client):
         "/api/trace/batch", json={"ids": [ACCEPTED_NORM_ID]}
     ).json()
     direct = trace_tool.trace_alignment(
-        ACCEPTED_NORM_ID, client.app.state.alignments, client.app.state.dump
+        ACCEPTED_NORM_ID, client.app.state.served.alignments, client.app.state.served.dump
     )
     assert _canon(via_http["envelopes"][ACCEPTED_NORM_ID]) == _canon(direct)
 
@@ -150,7 +150,7 @@ def test_span_parity(client):
     # Use a span the accepted norm actually cites, resolved from the live dump.
     norm = next(
         n
-        for n in client.app.state.norms["norms"]
+        for n in client.app.state.served.norms["norms"]
         if n["norm_id"] == ACCEPTED_NORM_ID
     )
     span_id = norm["source_span_id"]
@@ -164,17 +164,17 @@ def test_span_parity(client):
     # resolve_span alone; it now checks both surfaces stay in agreement.)
     envelope = resolve_span_envelope(
         span_id,
-        client.app.state.dump,
+        client.app.state.served.dump,
         SNAPSHOTS_DIR,
-        extra_nodes=client.app.state.served_hleg.nodes,
-        extra_refusal=client.app.state.served_hleg.refusal,
+        extra_nodes=client.app.state.served.served_hleg.nodes,
+        extra_refusal=client.app.state.served.served_hleg.refusal,
     )
     span = resolve_span(
         span_id,
-        client.app.state.dump,
+        client.app.state.served.dump,
         SNAPSHOTS_DIR,
-        extra_nodes=client.app.state.served_hleg.nodes,
-        extra_refusal=client.app.state.served_hleg.refusal,
+        extra_nodes=client.app.state.served.served_hleg.nodes,
+        extra_refusal=client.app.state.served.served_hleg.refusal,
     )
     assert _canon({key: via_http[key] for key in envelope}) == _canon(envelope)
     for key in span:
@@ -186,9 +186,9 @@ def test_unknown_norm_parity_on_clean_envelope(client):
     via_http = client.post("/api/explain", json={"norm_id": "norm:does-not-exist"}).json()
     direct = explain_tool.explain_requirement(
         "norm:does-not-exist",
-        client.app.state.dump,
-        client.app.state.norms,
-        client.app.state.alignments,
+        client.app.state.served.dump,
+        client.app.state.served.norms,
+        client.app.state.served.alignments,
     )
     assert _canon(via_http) == _canon(direct)
 
@@ -204,7 +204,7 @@ def test_coverage_parity_via_mcp_wrapper(client, monkeypatch):
     so only the wrapper's pass-through is under test."""
     from tere4ai.mcp_server import server
 
-    state = client.app.state
+    state = client.app.state.served
     monkeypatch.setattr(
         server, "_active", lambda: LoadedBuild(state.dump, state.norms, state.alignments, "b", "manifest", None)
     )

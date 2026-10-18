@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -121,7 +122,7 @@ def test_a_missing_signing_key_or_generator_setting_is_refused_before_any_model_
 def test_an_unloaded_graph_on_demand_says_no_model_was_called(client, generator_only):
     generator = generator_only({})
     build = _build(client)
-    client.app.state.load_error = "graph dumps unavailable: mock"
+    client.app.state.served = replace(client.app.state.served, load_error="graph dumps unavailable: mock")
     on_demand = _backlog(client, expected_norms_build=build)
     inline = client.post("/api/backlog", json={"norm_ids": [ACCEPTED_NORM_ID], "system_context": CONTEXT})
     assert (on_demand.status_code, on_demand.json()["model_called"]) == (503, False)
@@ -168,7 +169,7 @@ def test_a_generator_failure_is_billed_and_a_deleted_source_or_another_build_is_
     response = _backlog(client)
     assert (response.status_code, response.json()["model_called"]) == (502, True)
     monkeypatch.setattr(facade.backlog_tool, "generate_control_backlog_on_demand", real)
-    norms = client.app.state.norms
+    norms = client.app.state.served.norms
     norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
     moved = {**norm, "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n9", "source_node_id": "eu-ai-act:article-10:paragraph-5"}
     monkeypatch.setitem(norms, "norms", [*norms["norms"], moved])
@@ -204,7 +205,7 @@ def test_an_answer_the_facade_cannot_sign_is_returned_unsigned_with_its_reason(c
 # paid header; the inline path answers as before.
 def test_a_norm_not_accepted_on_demand_is_refused_before_any_model_call_and_not_billed(client, generator_only, monkeypatch):
     generator = generator_only({})
-    norms = client.app.state.norms
+    norms = client.app.state.served.norms
     norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
     rejected = {**norm, "norm_id": "norm:eu-ai-act:article-9:paragraph-1:n99", "judge_verdict": "rejected"}
     monkeypatch.setitem(norms, "norms", [*norms["norms"], rejected])

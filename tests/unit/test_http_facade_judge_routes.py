@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -141,7 +142,7 @@ def test_a_demo_judge_not_configured_is_refused_before_any_model_call(client, mo
 # false at the judge route, before any check or model call.
 def test_an_unloaded_graph_is_refused_before_any_model_call(client, models):
     answer = _answer(client)
-    client.app.state.load_error = "graph dumps unavailable: mock"
+    client.app.state.served = replace(client.app.state.served, load_error="graph dumps unavailable: mock")
     response = _judge(client, answer)
     assert (response.status_code, response.json()["model_called"]) == (503, False)
     assert models.judge.calls == []

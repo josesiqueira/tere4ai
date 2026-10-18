@@ -448,7 +448,7 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
     # B160: to v8 (deployer_kind).
     assert answer["prompt"]["version"] == "v8"
     assert re.fullmatch(r"[0-9a-f]{64}", answer["prompt"]["template_sha256"])
-    served = client.app.state.dump["build"]["build_id"]
+    served = client.app.state.served.dump["build"]["build_id"]
     assert answer["prompt"]["graph_version"] == served == env["graph_version"]
     named = [m for m in env["missing_facts"] if "social_scoring" in m]
     assert named == ["flags.social_scoring dropped: quote not in the description"]
@@ -536,7 +536,7 @@ def test_explain_endpoint_returns_full_explanation(client):
     response = client.post("/api/explain", json={"norm_id": ACCEPTED_NORM_ID})
     assert response.status_code == 200
     envelope = response.json()
-    dump = client.app.state.dump
+    dump = client.app.state.served.dump
     if hleg_pair_listed_as_on_disk(dump):
         assert envelope["status"] == "satisfied_with_evidence"
         assert not any(f.startswith(REFUSAL_PREFIX) for f in envelope["missing_facts"])
@@ -727,7 +727,7 @@ def test_span_endpoint_carries_section_8_envelope(client):
 
 def test_span_endpoint_refuses_hleg_spans_of_a_build_not_made_on_the_text(client):
     # D-G75 (8) and (9): the tracked build lists the v1 copy, not the derived text and its record.
-    if hleg_pair_listed_as_on_disk(client.app.state.dump):
+    if hleg_pair_listed_as_on_disk(client.app.state.served.dump):
         pytest.skip("the served build already lists the derived text (after B74)")
     response = client.get("/api/span/span:hleg:req2")
     assert response.status_code == 503
@@ -1109,7 +1109,7 @@ def test_backlog_refuses_a_norm_on_a_deleted_unit_before_any_model_call(client, 
         raise AssertionError("a paid client was built")
 
     monkeypatch.setattr(facade, "_build_paid_clients", no_paid_clients)
-    norms = client.app.state.norms
+    norms = client.app.state.served.norms
     norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
     moved = {**norm, "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n9",
              "source_node_id": "eu-ai-act:article-10:paragraph-5"}

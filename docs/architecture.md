@@ -1935,8 +1935,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   sheet over its output); docs/benchmark_cost_estimate.md is regenerated
   with v2; CHANGELOG.md names the contract change.
 - DEC-29: tere4ai2 serves the newest published build: one resolver names
-  the directory the MCP server and the HTTP facade read, and the MCP server
-  resolves it on every tool call (added 2026-10-18; thesis task B177, plan
+  the directory the MCP server and the HTTP facade read, the MCP server
+  resolves it on every tool call, and the facade switches to a newer build
+  while it runs, one build per request (added 2026-10-18; thesis task B177, plan
   sdd/2026-10-18-B177-newest-build/plan.md and its rulings R1 to R6 in the
   private research repository; the owner's words: "everytime thre is a new
   one, this latest should be th e one being served everywhere ... Make a
@@ -1965,23 +1966,55 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   variable set every answer is today's. The MCP server's _active and its
   start-up integrity check use the resolver on every call, so the next
   call after a newer build is published serves it, with no restart. The
-  HTTP facade's switch to a newer build while it runs and the health
-  answer's fields naming the served and the newest build follow in the
-  same card.
+  HTTP facade holds the build it serves as one frozen ServedState (the
+  payloads, the core node list, the served HLEG spans, the load error, the
+  resolution and the publication the directory serves) in app.state.served;
+  a middleware, first in the chain, copies that reference into the
+  request's state before the handler runs, and every handler reads the
+  build only from there, so one request sees one build from start to end.
+  When the source is the newest published build, the same middleware
+  rechecks the builds directory at most every TERE4AI_BUILD_RECHECK_SECONDS
+  (default 30; 0 rechecks on every request; any value that is not a
+  number of seconds, 0 or more, stops the facade at start-up); when the
+  newest published chain differs from the served one, it loads the newer
+  build in a worker thread, off the event loop, and replaces
+  app.state.served in one assignment. A lock taken without waiting keeps a
+  second request from starting a second load, and every request that
+  arrives during a load is served by the build that is ready. A newer
+  build that fails verification becomes the served build with its error,
+  never an older one. Each switch writes one line to the facade's request
+  log with the old and the new chain id and published_at. A pinned,
+  explicit or default directory is never rechecked. /api/health, on its
+  200 and its 503 answers, carries served (source, the folder's name,
+  chain_id, build_id and published_at, the last three null for the legacy
+  files), newest_published (folder, chain_id, build_id, published_at, read
+  on every call; null when TERE4AI_BUILDS_DIR is not set or holds no
+  published build) and served_is_newest (null when there is no newest
+  build to compare with); its other fields keep their values.
   Defense: a build published and not served is a build nobody reads, and
   a server that keeps an older build without saying so is a silent
   degradation; ordering by the time the publication records, not by a
   folder name or a file time, follows the record the publication writes
   last, and refusing a drifted newest build rather than falling back
   keeps every answer tied to one verified build.
-  Cost if wrong: one module and two call sites in the MCP server, with
-  their tests; no data and no model call.
+  Cost if wrong: one module and two call sites in the MCP server, one
+  module, a middleware and the handlers' reads in the facade, with their
+  tests; no data and no model call.
   verify: src/tere4ai/graph_store/served_build.py (resolve_served,
   newest_published); src/tere4ai/mcp_server/server.py (_active, the
   start-up check _check_dump_integrity_at_startup);
-  tests/unit/test_served_build.py; tests/unit/conftest.py (the autouse
-  fixture that keeps the developer's TERE4AI_BUILDS_DIR and
-  TERE4AI_DUMP_DIR out of every unit test).
+  src/tere4ai/http_facade/served_state.py (ServedState, load_served_state,
+  build_recheck_seconds, BuildFollower, health_fields);
+  src/tere4ai/http_facade/app.py (the lifespan, the serve_one_build
+  middleware, _served, /api/health); .env.example (TERE4AI_BUILDS_DIR,
+  TERE4AI_BUILD_RECHECK_SECONDS); tests/unit/test_served_build.py,
+  tests/unit/test_facade_newest_build.py (the switch with no restart, the
+  request in flight answered from its own build, one load for two
+  requests, the health fields in each source, a drifted newer build
+  answered 503), tests/unit/published_builds.py (the mock published
+  builds both files use); tests/unit/conftest.py (the autouse fixture that
+  keeps the developer's TERE4AI_BUILDS_DIR and TERE4AI_DUMP_DIR out of
+  every unit test).
 
 ## 17. Implementation-traceability convention
 

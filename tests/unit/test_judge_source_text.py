@@ -50,8 +50,8 @@ def _escaped(text: str) -> str:
 
 
 def _source_text(app, norm_id: str) -> str:
-    norm = next(n for n in app.state.norms["norms"] if n["norm_id"] == norm_id)
-    node = next(n for n in app.state.dump["nodes"] if n["id"] == norm["source_node_id"])
+    norm = next(n for n in app.state.served.norms["norms"] if n["norm_id"] == norm_id)
+    node = next(n for n in app.state.served.dump["nodes"] if n["id"] == norm["source_node_id"])
     assert node["text"]
     return node["text"]
 
@@ -138,12 +138,12 @@ def test_facade_backlog_judge_route_judge_holds_the_source_text(client, clients)
 
 @needs_dumps
 def test_facade_does_not_mutate_its_loaded_norms_payload(client, clients):
-    before = json.dumps(client.app.state.norms, sort_keys=True)
+    before = json.dumps(client.app.state.served.norms, sort_keys=True)
     assert client.post("/api/backlog", json={"norm_ids": [NORM_ID], "system_context": CONTEXT}).status_code == 200
     assert client.post("/api/evidence", json={"norm_id": NORM_ID, "artifact_type": "plan",
                                               "content": QUOTE + " reviewed quarterly."}).status_code == 200
     assert _on_demand(client).status_code == 200
-    assert json.dumps(client.app.state.norms, sort_keys=True) == before
+    assert json.dumps(client.app.state.served.norms, sort_keys=True) == before
     served = client.post("/api/requirements", json={"classification": client.post(
         "/api/classify", json={"features": {"description": "x", "domain": "healthcare", "autonomy": "advisory",
                                             "flags": {"essential_services_access": True}}}).json()})

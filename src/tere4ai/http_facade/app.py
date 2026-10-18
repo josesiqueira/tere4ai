@@ -16,9 +16,16 @@ generate_control_backlog, elicit_features) over the versioned offline graph dump
 
 Behavioral contract:
 - The Layer 0+1 dump (layer1.json) and the judged norms payload
-  (norms_core.json) are loaded once at startup. If either is missing, every
-  endpoint returns a clean 503 JSON payload, never a traceback (no silent
-  degradation, Section 13).
+  (norms_core.json) are loaded at startup from the directory
+  graph_store.served_build.resolve_served names (DEC-29). If either is
+  missing, every endpoint returns a clean 503 JSON payload, never a
+  traceback (no silent degradation, Section 13).
+- DEC-29: when that directory is the newest published build of
+  TERE4AI_BUILDS_DIR, the facade rechecks the builds directory at most every
+  TERE4AI_BUILD_RECHECK_SECONDS (default 30) and switches to a newer build
+  with no restart (http_facade/served_state.py); each request is served by
+  the one build its request took at its start, and /api/health names the
+  served build, the newest published one and whether they are the same.
 - /api/classify, /api/requirements, /api/explain, /api/trace,
   /api/trace/batch, and /api/span/{span_id} are deterministic and free.
   /api/explain and the trace endpoints additionally need
@@ -91,7 +98,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field, model_validator
 
-from tere4ai.align_hleg.hleg_source import served_hleg
 from tere4ai.eval.evaluation_record import RECORD_FILE_STEM as _EVAL_REF_RE
 from tere4ai.eval.evaluation_record import EvaluationRecordStore, reduce_paths
 from tere4ai.eval.present_evaluation import (
@@ -113,7 +119,15 @@ from tere4ai.graph_store.present import (
     synthesise_legacy_records,
     unreadable,
 )
-from tere4ai.graph_store.publication import load_active, read_target_state
+from tere4ai.graph_store.publication import read_target_state
+from tere4ai.graph_store.served_build import resolve_served
+from tere4ai.http_facade.served_state import (
+    BuildFollower,
+    ServedState,
+    build_recheck_seconds,
+    health_fields,
+    load_served_state,
+)
 from tere4ai.http_facade.signed import RecordError, build_record, sha256_text, sign, verify
 from tere4ai.judge.config import (
     ModelConfigError,
@@ -368,32 +382,35 @@ def _build_paid_clients() -> tuple[Any, Any]:
     return OpenAIGenerator(cfg), AnthropicJudge(cfg)
 
 
+def _served(request: Request) -> ServedState:
+    """DEC-29: the build this request is served from, the snapshot the
+    serve_one_build middleware took at its start. Handlers read the build
+    only through it, never through app.state, where a switch to a newer
+    build during the request would reach them."""
+    return request.state.served
+
+
 def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None = None) -> FastAPI:
     """Facade app factory. dump_dir overrides the graph dump location
-    (also settable via the TERE4AI_DUMP_DIR environment variable). eval_root
+    (else TERE4AI_DUMP_DIR, else the newest published build of
+    TERE4AI_BUILDS_DIR, else data/graph_dumps; DEC-29). eval_root
     overrides the checkout root the evaluation routes read eval/ and docs/
     legacy files from (also settable via TERE4AI_EVAL_ROOT)."""
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        base = Path(dump_dir or os.environ.get(DUMP_DIR_ENV) or DEFAULT_DUMP_DIR)
-        # One loader for the facade and the MCP server (D-G21): the activated
-        # publication when ACTIVE_MANIFEST.json exists (verified, a drifted
-        # file refusing service), else the legacy files under the directory's
-        # chain (B74). Loaded once here: a restart is the only way the facade
-        # changes builds.
-        loaded = load_active(base)
-        app.state.dump, app.state.norms, app.state.alignments = loaded.dump, loaded.norms, loaded.alignments
-        app.state.served_source = loaded.source
-        app.state.dump_dir = base
+        # One resolver names the directory (DEC-29): the create_app argument,
+        # else TERE4AI_DUMP_DIR, else the newest published build of
+        # TERE4AI_BUILDS_DIR, else data/graph_dumps. One loader reads it
+        # (D-G21): the activated publication when ACTIVE_MANIFEST.json exists
+        # (verified, a drifted file refusing service), else the legacy files
+        # under the directory's chain (B74). The build is one frozen
+        # ServedState; on the newest source the middleware below replaces it
+        # when a newer build is published, with no restart.
+        resolution = resolve_served(dump_dir or None)
+        app.state.served = load_served_state(resolution)
+        app.state.build_follower = BuildFollower(build_recheck_seconds())
         app.state.eval_root = Path(eval_root or os.environ.get("TERE4AI_EVAL_ROOT") or _PROJECT_ROOT)
-        core_path = base / "core_nodes.txt"
-        app.state.core_nodes = (
-            [n.strip() for n in core_path.read_text(encoding="utf-8").split(",") if n.strip()]
-            if core_path.is_file()
-            else None
-        )
-        app.state.served_hleg = served_hleg(loaded.dump)
         try:
             raw = FEATURES_SCHEMA_PATH.read_bytes()
             app.state.features_schema = json.loads(raw)
@@ -404,19 +421,6 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         except (OSError, json.JSONDecodeError):
             app.state.features_schema = None
             app.state.features_schema_sha256 = None
-        missing = [
-            name
-            for name, payload in (("layer1.json", app.state.dump), ("norms_core.json", app.state.norms))
-            if payload is None
-        ]
-        # Name the files, not the absolute server directory (audit W4).
-        app.state.load_error = loaded.error or (
-            f"graph dumps unavailable: missing or unreadable {', '.join(missing)}; "
-            "build them with python -m tere4ai.parse_legal_structure "
-            "and python -m tere4ai.extract_norms"
-            if missing
-            else None
-        )
         yield
 
     app = FastAPI(title="TERE4AI v2 demo facade", lifespan=lifespan)
@@ -485,41 +489,58 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         started = _time.perf_counter()
         response = await call_next(request)
         latency_ms = round((_time.perf_counter() - started) * 1000, 1)
+        _log_line(
+            {
+                "ts": _time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "method": request.method,
+                "path": request.url.path,
+                "status": response.status_code,
+                "latency_ms": latency_ms,
+                "client": client,
+                "paid": PAID_HEADER in response.headers,
+            }
+        )
+        return response
+
+    def _log_line(line: dict[str, Any]) -> None:
         try:
             request_log_path.parent.mkdir(parents=True, exist_ok=True)
             with request_log_path.open("a", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(
-                        {
-                            "ts": _time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-                            "method": request.method,
-                            "path": request.url.path,
-                            "status": response.status_code,
-                            "latency_ms": latency_ms,
-                            "client": client,
-                            "paid": PAID_HEADER in response.headers,
-                        }
-                    )
-                    + "\n"
-                )
+                fh.write(json.dumps(line) + "\n")
         except OSError:
             # Logging must never take the service down (Section 13); the
             # request still succeeds if the log volume is read-only.
             pass
-        return response
+
+    def _log_build_event(event: dict[str, Any]) -> None:
+        import time as _time
+
+        _log_line({"ts": _time.strftime("%Y-%m-%dT%H:%M:%S%z"), **event})
+
+    # DEC-29: added last, so it is the outermost middleware, first in the
+    # chain. It follows a newer published build when one is due (the load
+    # runs in a worker thread, never on the event loop), then takes the
+    # request's snapshot: the handler reads the build only through
+    # request.state.served (_served), so a switch during the request does
+    # not reach it.
+    @app.middleware("http")
+    async def serve_one_build(request: Request, call_next):
+        await request.app.state.build_follower.follow(request.app, _log_build_event)
+        request.state.served = request.app.state.served
+        return await call_next(request)
 
     def _unavailable(request: Request) -> JSONResponse | None:
-        error = request.app.state.load_error
+        error = _served(request).load_error
         if error is None:
             return None
         return JSONResponse(status_code=503, content={"error": error})
 
     def _graph_version(request: Request) -> str:
-        dump = request.app.state.dump or {}
+        dump = _served(request).dump or {}
         return str(dump.get("build", {}).get("build_id", "unknown"))
 
     def _norms_by_id(request: Request) -> dict[str, dict[str, Any]]:
-        payload = request.app.state.norms or {}
+        payload = _served(request).norms or {}
         return {
             n["norm_id"]: n
             for n in payload.get("norms", [])
@@ -527,7 +548,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         }
 
     def _norms_build(request: Request) -> str:
-        return str((request.app.state.norms or {}).get("build", {}).get("build_id", "unknown"))
+        return str((_served(request).norms or {}).get("build", {}).get("build_id", "unknown"))
 
     def _before_any_model_call(status: int, content: dict[str, Any]) -> JSONResponse:
         """DEC-24 (spec G D-G74 (2), ruling S69): a refusal of an on-demand
@@ -675,11 +696,14 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
     @app.get("/api/health")
     def health(request: Request) -> JSONResponse:
         load_dotenv_once()
-        error = request.app.state.load_error
+        error = _served(request).load_error
+        # DEC-29: the served build, the newest published one and whether they
+        # are the same, on the 200 and the 503 answers alike.
+        builds = health_fields(_served(request))
         if error is not None:
-            return JSONResponse(status_code=503, content={"ok": False, "error": error})
+            return JSONResponse(status_code=503, content={"ok": False, "error": error, **builds})
         norms_build = str(
-            (request.app.state.norms or {}).get("build", {}).get("build_id", "unknown")
+            (_served(request).norms or {}).get("build", {}).get("build_id", "unknown")
         )
         return JSONResponse(
             content={
@@ -698,6 +722,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 # readiness apart; the signing key present or missing, never
                 # its value.
                 "routes": route_readiness(),
+                **builds,
             }
         )
 
@@ -727,9 +752,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         if unavailable is not None:
             return unavailable
         payload = coverage_report(
-            request.app.state.dump,
-            norms_payload=request.app.state.norms,
-            alignments_payload=request.app.state.alignments,
+            _served(request).dump,
+            norms_payload=_served(request).norms,
+            alignments_payload=_served(request).alignments,
         )
         return JSONResponse(content=_sanitize_non_finite(payload))
 
@@ -740,7 +765,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         unavailable = _unavailable(request)
         if unavailable is not None:
             return unavailable
-        envelope = classify_tool.classify_ai_system(body.features, request.app.state.dump)
+        envelope = classify_tool.classify_ai_system(body.features, _served(request).dump)
         return JSONResponse(content=envelope)
 
     @app.post("/api/requirements")
@@ -751,15 +776,15 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return unavailable
         envelope = requirements_tool.get_applicable_requirements(
             body.classification,
-            request.app.state.norms,
-            request.app.state.dump,
+            _served(request).norms,
+            _served(request).dump,
             body.addressee,
             actor=body.actor,
         )
         return JSONResponse(content=envelope)
 
     def _alignments_unavailable(request: Request) -> JSONResponse | None:
-        if request.app.state.alignments is not None:
+        if _served(request).alignments is not None:
             return None
         return JSONResponse(
             status_code=503,
@@ -779,12 +804,12 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         missing_alignments = _alignments_unavailable(request)
         if missing_alignments is not None:
             return missing_alignments
-        assertions = (request.app.state.alignments or {}).get("assertions", [])
+        assertions = (_served(request).alignments or {}).get("assertions", [])
         accepted = [a for a in assertions if a.get("judge_verdict") == "accepted"]
         aligned_norm_ids = {a.get("source_norm_id") for a in accepted}
         accepted_norms = [
             n.get("norm_id")
-            for n in (request.app.state.norms or {}).get("norms", [])
+            for n in (_served(request).norms or {}).get("norms", [])
             if n.get("judge_verdict") == "accepted"
         ]
         orphans = [nid for nid in accepted_norms if nid not in aligned_norm_ids]
@@ -809,13 +834,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         unavailable = _unavailable(request)
         if unavailable is not None:
             return unavailable
-        core = request.app.state.core_nodes
+        core = _served(request).core_nodes
         if not core:
             return JSONResponse(status_code=503, content={"error": "core node list unavailable"})
         from tere4ai.extract_norms.pipeline import expand_source_units
 
-        dump = request.app.state.dump or {}
-        norms_payload = request.app.state.norms or {}
+        dump = _served(request).dump or {}
+        norms_payload = _served(request).norms or {}
         runs = {r.get("id"): r for r in norms_payload.get("judge_runs", []) if isinstance(r, dict)}
         by_unit: dict[str, list[dict[str, Any]]] = {}
         for norm in norms_payload.get("norms", []):
@@ -885,13 +910,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         return gv.split("+chain-", 1)[1] if "+chain-" in gv else None
 
     def _synthesised(request: Request) -> list[dict[str, Any]]:
-        return synthesise_legacy_records(request.app.state.dump_dir)
+        return synthesise_legacy_records(_served(request).dump_dir)
 
     @app.get("/api/builds")
     def builds(request: Request) -> JSONResponse:
         # Spec G 3.1, D-G19, D-G25: the build records read per request,
         # never cached, every figure dated; nothing is created on a read.
-        dump_dir = request.app.state.dump_dir
+        dump_dir = _served(request).dump_dir
         now = datetime.now(UTC)
         served = _served_chain(request)
         store = BuildRecordStore(dump_dir, create=False)
@@ -916,7 +941,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
     def build_detail(ref: str, request: Request) -> JSONResponse:
         if not _BUILD_REF_RE.match(ref):
             return JSONResponse(status_code=422, content={"error": "build reference has characters outside [A-Za-z0-9._-]"})
-        dump_dir = request.app.state.dump_dir
+        dump_dir = _served(request).dump_dir
         store = BuildRecordStore(dump_dir, create=False)
         now = datetime.now(UTC)
         served = _served_chain(request)
@@ -944,7 +969,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
 
     def _evaluation_store(request: Request) -> EvaluationRecordStore:
         # read-only (D-G34): a GET never creates evaluation_records/
-        return EvaluationRecordStore(request.app.state.dump_dir, create=False)
+        return EvaluationRecordStore(_served(request).dump_dir, create=False)
 
     @app.get("/api/evaluations")
     def evaluations(request: Request) -> JSONResponse:
@@ -1004,9 +1029,9 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return unavailable
         envelope = explain_tool.explain_requirement(
             body.norm_id,
-            request.app.state.dump,
-            request.app.state.norms,
-            request.app.state.alignments,
+            _served(request).dump,
+            _served(request).norms,
+            _served(request).alignments,
             earlier_version=body.earlier_version,
         )
         return JSONResponse(content=envelope)
@@ -1018,7 +1043,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         if unavailable is not None:
             return unavailable
         envelope = trace_tool.trace_alignment(
-            body.id, request.app.state.alignments, request.app.state.dump
+            body.id, _served(request).alignments, _served(request).dump
         )
         return JSONResponse(content=envelope)
 
@@ -1033,7 +1058,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return unavailable
         envelopes = {
             item_id: trace_tool.trace_alignment(
-                item_id, request.app.state.alignments, request.app.state.dump
+                item_id, _served(request).alignments, _served(request).dump
             )
             for item_id in dict.fromkeys(body.ids)
         }
@@ -1058,10 +1083,10 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         try:
             resolved = resolve_span(
                 span_id,
-                request.app.state.dump,
+                _served(request).dump,
                 SNAPSHOTS_DIR,
-                extra_nodes=request.app.state.served_hleg.nodes,
-                extra_refusal=request.app.state.served_hleg.refusal,
+                extra_nodes=_served(request).served_hleg.nodes,
+                extra_refusal=_served(request).served_hleg.refusal,
             )
         except SpanNotFoundError as exc:
             return JSONResponse(
@@ -1173,7 +1198,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return _before_any_model_call(404, {"error": "unknown norm_ids", "unknown_norm_ids": unknown})
         record = body.signed_record
         # B165: the judge receives each norm's verbatim source text, as the MCP tool's does
-        cited = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], request.app.state.dump)
+        cited = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], _served(request).dump)
         return _judge_part_response(record, lambda: backlog_tool.judge_backlog_on_demand(
             cited, record["core"]["items"], body.system_context, judge,
             prompt_version=record["judge_prompt"]["version"]))
@@ -1200,7 +1225,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return JSONResponse(status_code=503, content={"error": str(exc)})
         try:
             envelope = evidence_tool.evaluate_project_evidence(
-                with_source_text([norm], request.app.state.dump)[0],  # B165: copy, the loaded payload stays as it is
+                with_source_text([norm], _served(request).dump)[0],  # B165: copy, the loaded payload stays as it is
                 {
                     "artifact_type": body.artifact_type,
                     "content": body.content,
@@ -1241,8 +1266,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 return _before_any_model_call(404, content)
             return JSONResponse(status_code=404, content=content)
         # B165: copies carrying each norm's verbatim source text (the MCP tool's input)
-        norms = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], request.app.state.dump)
-        refusals = backlog_tool.deleted_source_refusals(norms, request.app.state.dump)
+        norms = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], _served(request).dump)
+        refusals = backlog_tool.deleted_source_refusals(norms, _served(request).dump)
         if refusals:
             # B132: never a backlog from wording the Omnibus deleted; no model call.
             content = {"error": "; ".join(refusals.values()), "refused_norm_ids": list(refusals)}
@@ -1288,7 +1313,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             envelope = elicit_tool.elicit_envelope(
                 body.description,
                 generator,
-                dump=request.app.state.dump,
+                dump=_served(request).dump,
                 snapshots_dir=SNAPSHOTS_DIR,
             )
         except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
