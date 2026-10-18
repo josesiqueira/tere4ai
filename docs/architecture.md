@@ -1981,8 +1981,14 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   app.state.served in one assignment. A lock taken without waiting keeps a
   second request from starting a second load, and every request that
   arrives during a load is served by the build that is ready. A newer
-  build that fails verification becomes the served build with its error,
-  never an older one. Each switch writes one line to the facade's request
+  build that fails verification, or whose load raises, becomes the served
+  build with its error, never an older one. While the served build has an
+  error, each recheck loads the newest build again even when its chain is
+  the same (a build copied into the builds folder by hand can be read
+  before its files are complete), and replaces the served state only when
+  the result differs, the error gone or changed. A recheck that cannot
+  read the builds directory keeps the served build and logs the reason,
+  with no path. Each switch writes one line to the facade's request
   log with the old and the new chain id and published_at. A pinned,
   explicit or default directory is never rechecked. /api/health, on its
   200 and its 503 answers, carries served (source, the folder's name,

@@ -86,6 +86,7 @@ import math
 import os
 import re
 import tempfile
+import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -120,6 +121,10 @@ from tere4ai.graph_store.present import (
     unreadable,
 )
 from tere4ai.graph_store.publication import read_target_state
+
+# DEFAULT_DUMP_DIR and DUMP_DIR_ENV are kept as names of this module for its readers.
+from tere4ai.graph_store.served_build import DEFAULT_DUMP_DIR as DEFAULT_DUMP_DIR
+from tere4ai.graph_store.served_build import DUMP_DIR_ENV as DUMP_DIR_ENV
 from tere4ai.graph_store.served_build import resolve_served
 from tere4ai.http_facade.served_state import (
     BuildFollower,
@@ -161,9 +166,7 @@ from tere4ai.mcp_server.tools import (
 from tere4ai.report.render import render_report_from_paths
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_DUMP_DIR = _PROJECT_ROOT / "data" / "graph_dumps"
 SNAPSHOTS_DIR = _PROJECT_ROOT / "data" / "snapshots"
-DUMP_DIR_ENV = "TERE4AI_DUMP_DIR"
 FEATURES_SCHEMA_PATH = (
     _PROJECT_ROOT / "schema" / "json_schemas" / "system_features.schema.json"
 )
@@ -465,12 +468,10 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
 
     @app.middleware("http")
     async def harden(request: Request, call_next):
-        import time as _time
-
         client = request.client.host if request.client else "unknown"
         limit = request.app.state.rate_limit_per_minute
         if limit > 0:
-            window = int(_time.time() // 60)
+            window = int(time.time() // 60)
             windows = request.app.state.rate_windows
             key = (client, window)
             # Drop stale windows so the map cannot grow unbounded.
@@ -483,15 +484,15 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                     # B138 fix wave W4: answered before any model call, and
                     # said, so a paid caller records it as not billed.
                     content={"error": "rate limit exceeded", "limit_per_minute": limit, "model_called": False},
-                    headers={"Retry-After": str(60 - int(_time.time() % 60))},
+                    headers={"Retry-After": str(60 - int(time.time() % 60))},
                 )
 
-        started = _time.perf_counter()
+        started = time.perf_counter()
         response = await call_next(request)
-        latency_ms = round((_time.perf_counter() - started) * 1000, 1)
+        latency_ms = round((time.perf_counter() - started) * 1000, 1)
         _log_line(
             {
-                "ts": _time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "method": request.method,
                 "path": request.url.path,
                 "status": response.status_code,
@@ -513,9 +514,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             pass
 
     def _log_build_event(event: dict[str, Any]) -> None:
-        import time as _time
-
-        _log_line({"ts": _time.strftime("%Y-%m-%dT%H:%M:%S%z"), **event})
+        _log_line({"ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"), **event})
 
     # DEC-29: added last, so it is the outermost middleware, first in the
     # chain. It follows a newer published build when one is due (the load

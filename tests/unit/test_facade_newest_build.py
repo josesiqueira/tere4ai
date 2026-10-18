@@ -276,7 +276,9 @@ def test_the_503_answer_of_missing_legacy_files_carries_the_fields(tmp_path):
 
 
 def test_the_served_state_is_one_frozen_object_per_request(tmp_path, monkeypatch):
-    builds = _builds(tmp_path, monkeypatch)
+    # a long interval: at recheck 0 the follower would load the newest build
+    # again over the replaced state's error
+    builds = _builds(tmp_path, monkeypatch, recheck="3600")
     publish_build(builds / FIRST, FIRST_AT)
     with TestClient(facade.create_app()) as client:
         state = client.app.state.served
@@ -294,3 +296,60 @@ def test_no_handler_reads_the_build_through_app_state():
     source = Path(facade.__file__).read_text(encoding="utf-8")
     fields = "dump|norms|alignments|served_source|dump_dir|core_nodes|served_hleg|load_error"
     assert re.findall(rf"app\.state\.(?:{fields})\b", source) == []
+
+
+def test_a_newer_build_served_as_an_error_is_served_once_its_files_are_complete(tmp_path, monkeypatch, request_log):
+    # A build copied into the builds folder by hand: its pointer and
+    # manifest land before its last file is complete. The recheck reads it
+    # broken and serves the error; when the copy finishes the chain is the
+    # same, and the next recheck serves the build.
+    builds = _builds(tmp_path, monkeypatch)
+    first = publish_build(builds / FIRST, FIRST_AT)
+    with TestClient(facade.create_app()) as client:
+        assert client.get("/api/health").status_code == 200
+        second = publish_build(builds / SECOND, SECOND_AT)
+        norms_path = builds / SECOND / "norms_core.json"
+        complete = norms_path.read_bytes()
+        norms_path.write_text(json.dumps({"norms": [1]}), encoding="utf-8")
+        assert client.get("/api/health").status_code == 503
+        # still broken: reloaded, the same error, no second switch line
+        assert client.get("/api/health").status_code == 503
+        assert len(_switch_lines(request_log)) == 1
+        norms_path.write_bytes(complete)
+        health = client.get("/api/health")
+        assert health.status_code == 200
+        assert health.json()["graph_version"] == _build_id(SECOND, second)
+        assert health.json()["served_is_newest"] is True
+        # served and without error: the same chain is not loaded again
+        assert client.get("/api/health").status_code == 200
+    switches = _switch_lines(request_log)
+    assert [(s["old_chain_id"], s["new_chain_id"]) for s in switches] == [(first, second), (second, second)]
+
+
+def test_a_newer_build_whose_load_raises_is_served_as_its_error_never_the_older_one(tmp_path, monkeypatch,
+                                                                                     request_log):
+    builds = _builds(tmp_path, monkeypatch)
+    publish_build(builds / FIRST, FIRST_AT)
+    with TestClient(facade.create_app()) as client:
+        assert client.get("/api/health").status_code == 200
+        second = publish_build(builds / SECOND, SECOND_AT)
+        # A manifest with no files key is already reported by the verifier
+        # ("malformed"), so the raise is made here: the loader fails on the
+        # newer folder only, as an unreadable file would make it.
+        real_load_active = served_state.load_active
+
+        def raising_load_active(dump_dir):
+            if Path(dump_dir).name == SECOND:
+                raise KeyError("files")
+            return real_load_active(dump_dir)
+
+        monkeypatch.setattr(served_state, "load_active", raising_load_active)
+        health = client.get("/api/health")
+        assert health.status_code == 503
+        body = health.json()
+        assert body["error"].startswith(f"the newest build {SECOND} could not be loaded: KeyError")
+        assert body["served"] == {"source": "newest", **_described(SECOND, second, SECOND_AT)}
+        assert body["served_is_newest"] is True
+        assert client.post("/api/classify", json={"features": {}}).status_code == 503
+        assert str(tmp_path) not in health.text
+    assert len(_switch_lines(request_log)) == 1

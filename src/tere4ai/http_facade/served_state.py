@@ -14,8 +14,9 @@ build from there, so a request sees one build from start to end.
 When the resolution's source is "newest", BuildFollower rechecks the builds
 directory at most every TERE4AI_BUILD_RECHECK_SECONDS (default 30; 0
 rechecks on every request). When the newest published chain differs from
-the served one, it loads the newer build in a worker thread and replaces
-app.state.served in one assignment. A lock taken without waiting keeps a
+the served one, or the served state has an error, it loads the newest build
+in a worker thread and replaces app.state.served in one assignment (for the
+same chain only when the result differs). A lock taken without waiting keeps a
 second request from starting a second load: that request, and every other
 one until the load is done, is served by the state that is ready. A newer
 build that fails verification becomes the served state with its error, as
@@ -74,10 +75,17 @@ def _published(dump_dir: Path) -> PublishedBuild | None:
     manifest = active_manifest(dump_dir)
     if manifest is None:
         return None
-
     return PublishedBuild(folder=dump_dir.name, dump_dir=dump_dir, chain_id=str(manifest.get("chain_id", "")),
                           build_id=str(manifest.get("build_id", "")),
                           published_at=str(manifest.get("published_at", "")))
+
+
+def _error_state(resolution: Resolution, error: str, published: PublishedBuild | None) -> ServedState:
+    """A state that serves nothing but its error, every endpoint answering
+    503 with it (no silent degradation, Section 13)."""
+    return ServedState(dump=None, norms=None, alignments=None, served_source="manifest",
+                       dump_dir=resolution.dump_dir, core_nodes=None, served_hleg=served_hleg(None),
+                       load_error=error, resolution=resolution, published=published)
 
 
 def load_served_state(resolution: Resolution) -> ServedState:
@@ -86,12 +94,13 @@ def load_served_state(resolution: Resolution) -> ServedState:
     exists (verified, a drifted file refusing service), else the legacy
     files. A resolution error (a builds directory with no published build)
     is served as a missing build naming that reason, as the MCP server
-    answers it."""
+    answers it; the builds directory itself is not loaded."""
+    if resolution.error is not None:
+        # served_source "manifest": a builds directory serves published
+        # builds only, never legacy files.
+        return _error_state(resolution, resolution.error, None)
     base = resolution.dump_dir
     loaded = load_active(base)
-    if resolution.error is not None:
-        return ServedState(None, None, None, loaded.source, base, None, served_hleg(None), resolution.error,
-                           resolution, None)
     core_path = base / "core_nodes.txt"
     core_nodes = (
         [n.strip() for n in core_path.read_text(encoding="utf-8").split(",") if n.strip()]
@@ -108,8 +117,10 @@ def load_served_state(resolution: Resolution) -> ServedState:
         if missing
         else None
     )
-    return ServedState(loaded.dump, loaded.norms, loaded.alignments, loaded.source, base, core_nodes,
-                       served_hleg(loaded.dump), load_error, resolution, _published(base))
+    return ServedState(dump=loaded.dump, norms=loaded.norms, alignments=loaded.alignments,
+                       served_source=loaded.source, dump_dir=base, core_nodes=core_nodes,
+                       served_hleg=served_hleg(loaded.dump), load_error=load_error, resolution=resolution,
+                       published=_published(base))
 
 
 def build_recheck_seconds() -> float:
@@ -132,13 +143,21 @@ def _chain(build: PublishedBuild | None) -> str | None:
     return build.chain_id if build is not None else None
 
 
-def _newer_state(current: ServedState) -> ServedState | None:
-    """The state of the newest published build when its chain differs from
-    the one served, else None. Runs in a worker thread."""
-    resolution = resolve_served()
-    if resolution.source != "newest" or _chain(resolution.newest) == _chain(current.resolution.newest):
-        return None
-    return load_served_state(resolution)
+def _load_newest(resolution: Resolution) -> ServedState:
+    """load_served_state for a newest build found by a recheck; a load that
+    raises (a manifest missing a key load_active reads, say) becomes the
+    served error state, as a verification failure does, never a fall back
+    to the build served before. Runs in a worker thread."""
+    try:
+        return load_served_state(resolution)
+    except Exception as exc:  # noqa: BLE001 - served as the build's error, never a 500
+        try:
+            published = _published(resolution.dump_dir)
+        except Exception:  # noqa: BLE001 - the error state names the folder through the resolution
+            published = None
+        folder = resolution.newest.folder if resolution.newest else resolution.dump_dir.name
+        return _error_state(resolution, f"the newest build {folder} could not be loaded: {exception_reason(exc)}",
+                            published)
 
 
 class BuildFollower:
@@ -151,7 +170,13 @@ class BuildFollower:
 
     async def follow(self, app: Any, log: Callable[[dict[str, Any]], None]) -> None:
         """Replace app.state.served with the newest published build when it
-        is due and differs; never waits for a load another request runs."""
+        is due and differs; never waits for a load another request runs.
+
+        A newest chain other than the served one is loaded and served. The
+        same chain is loaded again only while the served state has an error
+        (a build copied into the builds folder by hand can be read before
+        its files are complete), and replaces it only when the result
+        differs, the error gone or changed, so the log does not repeat."""
         current: ServedState = app.state.served
         if current.resolution.source != "newest":
             return
@@ -163,11 +188,17 @@ class BuildFollower:
             self._last_check = time.monotonic()
             current = app.state.served
             try:
-                newer = await asyncio.to_thread(_newer_state, current)
+                resolution = await asyncio.to_thread(resolve_served)
             except Exception as exc:  # noqa: BLE001 - the served build stays; the reason is logged
                 log({"event": "served_build_recheck_failed", "reason": exception_reason(exc)})
                 return
-            if newer is None:
+            if resolution.source != "newest":
+                return
+            same_chain = _chain(resolution.newest) == _chain(current.resolution.newest)
+            if same_chain and current.load_error is None:
+                return
+            newer = await asyncio.to_thread(_load_newest, resolution)
+            if same_chain and newer.load_error == current.load_error:
                 return
             app.state.served = newer
             old, new = current.resolution.newest, newer.resolution.newest
