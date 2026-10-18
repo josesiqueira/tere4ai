@@ -178,12 +178,14 @@ def _active() -> LoadedBuild:
     follows a new activation at its next call. The directory is resolved on
     every call too (B177, DEC-29), so the next call after a newer build is
     published in TERE4AI_BUILDS_DIR serves it; a builds directory with no
-    published build is answered as a missing build, naming the reason."""
+    published build, or that cannot be read, is answered as a missing
+    build naming the reason, and the builds directory itself is never
+    loaded (source "manifest": a builds directory serves published builds
+    only, as the facade's error state says)."""
     resolution = resolve_served()
-    loaded = load_active(resolution.dump_dir)
     if resolution.error:
-        return LoadedBuild(None, None, None, None, loaded.source, resolution.error)
-    return loaded
+        return LoadedBuild(None, None, None, None, "manifest", resolution.error)
+    return load_active(resolution.dump_dir)
 
 
 def _read_dump(dump_path: Path = DUMP_PATH) -> dict[str, Any] | None:
@@ -830,9 +832,14 @@ def _check_dump_integrity_at_startup() -> None:
     per-tool dump-missing envelopes, not here. An activation pointer is
     checked even without a layer1.json, since the activated publication may
     name its Layer 1 file otherwise (B79 item 23). The directory checked is
-    the one resolve_served names, the one the first tool call will serve.
+    the one resolve_served names, the one the first tool call will serve;
+    a resolution error (a builds directory with no published build, or that
+    cannot be read) is answered by every tool call, so nothing is checked.
     """
-    dump_dir = resolve_served().dump_dir
+    resolution = resolve_served()
+    if resolution.error:
+        return
+    dump_dir = resolution.dump_dir
     if not (dump_dir / DUMP_PATH.name).is_file() and not (dump_dir / ACTIVE_POINTER).is_file():
         return
     from tere4ai.graph_store.build_chain import verify_dumps_against_chain

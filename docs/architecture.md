@@ -1953,10 +1953,13 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   subfolder of the builds directory whose ACTIVE_MANIFEST.json names a
   chain with a readable publications/<chain>.json; the newest is the one
   whose published_at, read as an ISO 8601 time, is latest, a tie going to
-  the greater folder name. A subfolder without a pointer, with an
-  unreadable pointer or manifest, or with a published_at that is no ISO
-  8601 time, is not a candidate. A builds directory with no candidate is an
-  error naming the builds folder by its name only, and the newest build is
+  the greater folder name. A subfolder that cannot be read, without a
+  pointer, with an unreadable pointer or manifest (invalid UTF-8
+  included), with a chain_id or build_id that is no string, or with a
+  published_at that is no ISO 8601 time, is not a candidate. A builds
+  directory with no candidate, or that cannot be read, is an error naming
+  the builds folder by its name only (an explicit or pinned directory is
+  still served, with no newest build beside it), and the newest build is
   verified by load_active as every activated build is: a drifted newest
   build is refused as today, never replaced by an older one. Whatever the
   source, the newest published build of TERE4AI_BUILDS_DIR is reported
@@ -1976,15 +1979,17 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   rechecks the builds directory at most every TERE4AI_BUILD_RECHECK_SECONDS
   (default 30; 0 rechecks on every request; any value that is not a
   number of seconds, 0 or more, stops the facade at start-up); when the
-  newest published chain differs from the served one, it loads the newer
+  newest published build differs from the served one (a build is its
+  folder and its chain id together, so identical inputs republished into
+  a newer folder are loaded and verified as that folder), it loads the newer
   build in a worker thread, off the event loop, and replaces
   app.state.served in one assignment. A lock taken without waiting keeps a
   second request from starting a second load, and every request that
   arrives during a load is served by the build that is ready. A newer
   build that fails verification, or whose load raises, becomes the served
   build with its error, never an older one. While the served build has an
-  error, each recheck loads the newest build again even when its chain is
-  the same (a build copied into the builds folder by hand can be read
+  error, each recheck loads the newest build again even when it is the
+  same build (a build copied into the builds folder by hand can be read
   before its files are complete), and replaces the served state only when
   the result differs, the error gone or changed. A recheck that cannot
   read the builds directory keeps the served build and logs the reason,
@@ -1995,8 +2000,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   chain_id, build_id and published_at, the last three null for the legacy
   files), newest_published (folder, chain_id, build_id, published_at, read
   on every call; null when TERE4AI_BUILDS_DIR is not set or holds no
-  published build) and served_is_newest (null when there is no newest
-  build to compare with); its other fields keep their values.
+  published build, or cannot be read) and served_is_newest (the folder
+  and the chain id compared together; null when there is no newest build
+  to compare with); its other fields keep their values.
   Defense: a build published and not served is a build nobody reads, and
   a server that keeps an older build without saying so is a silent
   degradation; ordering by the time the publication records, not by a

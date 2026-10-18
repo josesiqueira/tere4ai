@@ -13,16 +13,18 @@ build from there, so a request sees one build from start to end.
 
 When the resolution's source is "newest", BuildFollower rechecks the builds
 directory at most every TERE4AI_BUILD_RECHECK_SECONDS (default 30; 0
-rechecks on every request). When the newest published chain differs from
-the served one, or the served state has an error, it loads the newest build
-in a worker thread and replaces app.state.served in one assignment (for the
-same chain only when the result differs). A lock taken without waiting keeps a
+rechecks on every request). When the newest published build (its folder
+and its chain id together) differs from the served one, or the served
+state has an error, it loads the newest build in a worker thread and
+replaces app.state.served in one assignment (for the same build only when
+the result differs). A lock taken without waiting keeps a
 second request from starting a second load: that request, and every other
 one until the load is done, is served by the state that is ready. A newer
 build that fails verification becomes the served state with its error, as
 the start-up load would make it: the facade never falls back to an older
-build (architecture.md Section 13). A pinned, explicit or default
-directory is never rechecked.
+build (architecture.md Section 13). A recheck that cannot read the
+builds directory keeps the served build and logs the reason. A pinned,
+explicit or default directory is never rechecked.
 """
 
 from __future__ import annotations
@@ -44,8 +46,8 @@ from tere4ai.graph_store.served_build import (
     BUILDS_DIR_ENV,
     PublishedBuild,
     Resolution,
-    newest_published,
     resolve_served,
+    scan_builds,
 )
 
 RECHECK_ENV = "TERE4AI_BUILD_RECHECK_SECONDS"
@@ -143,6 +145,13 @@ def _chain(build: PublishedBuild | None) -> str | None:
     return build.chain_id if build is not None else None
 
 
+def _identity(build: PublishedBuild | None) -> tuple[str, str] | None:
+    # A build is its folder and its chain together: identical inputs
+    # republished into a newer folder keep the chain id, and that folder is
+    # still a build of its own, loaded and verified when it is the newest.
+    return (build.folder, build.chain_id) if build is not None else None
+
+
 def _load_newest(resolution: Resolution) -> ServedState:
     """load_served_state for a newest build found by a recheck; a load that
     raises (a manifest missing a key load_active reads, say) becomes the
@@ -172,8 +181,9 @@ class BuildFollower:
         """Replace app.state.served with the newest published build when it
         is due and differs; never waits for a load another request runs.
 
-        A newest chain other than the served one is loaded and served. The
-        same chain is loaded again only while the served state has an error
+        A newest build other than the served one (another folder, or another
+        chain) is loaded and served. The same build is loaded again only
+        while the served state has an error
         (a build copied into the builds folder by hand can be read before
         its files are complete), and replaces it only when the result
         differs, the error gone or changed, so the log does not repeat."""
@@ -194,11 +204,16 @@ class BuildFollower:
                 return
             if resolution.source != "newest":
                 return
-            same_chain = _chain(resolution.newest) == _chain(current.resolution.newest)
-            if same_chain and current.load_error is None:
+            if resolution.unreadable:
+                # The builds directory cannot be read now: the served build
+                # stays, as when the resolver raises; the reason has no path.
+                log({"event": "served_build_recheck_failed", "reason": resolution.error})
+                return
+            same_build = _identity(resolution.newest) == _identity(current.resolution.newest)
+            if same_build and current.load_error is None:
                 return
             newer = await asyncio.to_thread(_load_newest, resolution)
-            if same_chain and newer.load_error == current.load_error:
+            if same_build and newer.load_error == current.load_error:
                 return
             app.state.served = newer
             old, new = current.resolution.newest, newer.resolution.newest
@@ -220,15 +235,19 @@ def health_fields(state: ServedState) -> dict[str, Any]:
     """The health answer's served, newest_published and served_is_newest.
     The newest published build is read on every call from
     TERE4AI_BUILDS_DIR (null when it is not set or holds no published
-    build), so a pinned directory is compared with what is published now;
-    served_is_newest is null when there is no newest build to compare
-    with. Folders are named by their name only (audit W4)."""
+    build, or cannot be read), so a pinned directory is compared with what
+    is published now; served_is_newest compares the folder and the chain id
+    together and is null when there is no newest build to compare with.
+    Folders are named by their name only (audit W4)."""
     published = state.published
     served = {"source": state.resolution.source, "folder": state.dump_dir.name,
               "chain_id": published.chain_id if published else None,
               "build_id": published.build_id if published else None,
               "published_at": published.published_at if published else None}
     builds_value = os.environ.get(BUILDS_DIR_ENV, "")
-    newest = newest_published(Path(builds_value)) if builds_value else None
-    served_is_newest = None if newest is None else (published is not None and published.chain_id == newest.chain_id)
+    # scan_builds never raises: a builds directory that cannot be read gives
+    # no newest build here, and its reason is the served error when it is
+    # the source (resolve_served).
+    newest = scan_builds(Path(builds_value))[0] if builds_value else None
+    served_is_newest = None if newest is None else _identity(published) == _identity(newest)
     return {"served": served, "newest_published": _described(newest), "served_is_newest": served_is_newest}

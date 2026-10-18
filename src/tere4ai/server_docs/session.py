@@ -40,13 +40,21 @@ _CALL_TIMEOUT_SECONDS = 60
 def server_env(extra: dict[str, str] | None = None, root: Path = ROOT) -> dict[str, str]:
     """A minimal environment for the server process: no model keys passed
     (a paid tool would still read .env; guard_calls is what refuses it), no
-    network update check, no banner on stdout (stdio carries the protocol)."""
+    network update check, no banner on stdout (stdio carries the protocol).
+
+    TERE4AI_BUILDS_DIR and TERE4AI_DUMP_DIR are set empty unless extra sets
+    them (B177, DEC-29): the resolver reads an empty value as unset, and the
+    repository's .env never overrides a variable present in the
+    environment, so the server serves the repository's own dumps whatever
+    the developer's .env names."""
     env = {
         "PATH": os.environ.get("PATH", ""),
         "HOME": os.environ.get("HOME", ""),
         "PYTHONPATH": str(root / "src"),
         "FASTMCP_CHECK_FOR_UPDATES": "off",
         "FASTMCP_SHOW_SERVER_BANNER": "false",
+        "TERE4AI_BUILDS_DIR": "",
+        "TERE4AI_DUMP_DIR": "",
     }
     env.update(extra or {})
     return env

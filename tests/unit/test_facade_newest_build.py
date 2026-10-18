@@ -353,3 +353,109 @@ def test_a_newer_build_whose_load_raises_is_served_as_its_error_never_the_older_
         assert client.post("/api/classify", json={"features": {}}).status_code == 503
         assert str(tmp_path) not in health.text
     assert len(_switch_lines(request_log)) == 1
+
+
+def test_a_newer_folder_with_the_same_chain_is_loaded_verified_and_served(tmp_path, monkeypatch, request_log):
+    # Identical inputs republished into a newer folder keep the chain id; the
+    # folder is a build of its own, so it is loaded, verified and served, and
+    # a drifted file in it is answered as its error (final review finding 1).
+    builds = _builds(tmp_path, monkeypatch)
+    first = publish_build(builds / FIRST, FIRST_AT, marker="same")
+    with TestClient(facade.create_app()) as client:
+        assert client.get("/api/health").status_code == 200
+        assert publish_build(builds / SECOND, SECOND_AT, marker="same") == first
+        (builds / SECOND / "norms_core.json").write_text(json.dumps({"norms": [1]}), encoding="utf-8")
+        health = client.get("/api/health")
+        assert health.status_code == 503
+        body = health.json()
+        assert "differs" in body["error"] and "norms_core.json" in body["error"]
+        assert body["served"] == {"source": "newest", **_described(SECOND, first, SECOND_AT)}
+        assert body["served_is_newest"] is True
+    assert len(_switch_lines(request_log)) == 1
+
+
+def test_a_clean_newer_folder_with_the_same_chain_is_switched_to(tmp_path, monkeypatch, request_log):
+    builds = _builds(tmp_path, monkeypatch)
+    first = publish_build(builds / FIRST, FIRST_AT, marker="same")
+    with TestClient(facade.create_app()) as client:
+        assert client.get("/api/health").json()["served"]["folder"] == FIRST
+        assert publish_build(builds / SECOND, SECOND_AT, marker="same") == first
+        body = client.get("/api/health").json()
+        assert body["ok"] is True and body["graph_version"] == _build_id(SECOND, first)
+        assert body["served"] == {"source": "newest", **_described(SECOND, first, SECOND_AT)}
+        assert body["newest_published"] == _described(SECOND, first, SECOND_AT)
+        assert body["served_is_newest"] is True
+        # served: the same folder and chain are not loaded again
+        assert client.get("/api/health").json()["graph_version"] == _build_id(SECOND, first)
+    switches = _switch_lines(request_log)
+    assert [(s["old_published_at"], s["new_published_at"]) for s in switches] == [(FIRST_AT, SECOND_AT)]
+
+
+def test_a_pinned_folder_is_not_the_newest_when_a_newer_folder_has_its_chain(tmp_path, monkeypatch):
+    builds = _builds(tmp_path, monkeypatch)
+    first = publish_build(builds / FIRST, FIRST_AT, marker="same")
+    assert publish_build(builds / SECOND, SECOND_AT, marker="same") == first
+    monkeypatch.setenv("TERE4AI_DUMP_DIR", str(builds / FIRST))
+    with TestClient(facade.create_app()) as client:
+        body = client.get("/api/health").json()
+    assert body["served"]["folder"] == FIRST and body["newest_published"]["folder"] == SECOND
+    assert body["served_is_newest"] is False
+
+
+def _unreadable(monkeypatch, folder: Path) -> None:
+    """Path.iterdir raises for folder, as a builds directory whose
+    permissions were removed does (a chmod would not stop a root user)."""
+    real_iterdir = Path.iterdir
+
+    def iterdir(self):
+        if self == folder:
+            raise PermissionError(13, "Permission denied", str(folder))
+        return real_iterdir(self)
+
+    monkeypatch.setattr(Path, "iterdir", iterdir)
+
+
+def test_an_unreadable_builds_directory_beside_a_pinned_one_answers_health_with_no_newest(tmp_path, monkeypatch):
+    builds = _builds(tmp_path, monkeypatch)
+    first = publish_build(builds / FIRST, FIRST_AT)
+    monkeypatch.setenv("TERE4AI_DUMP_DIR", str(builds / FIRST))
+    with TestClient(facade.create_app()) as client:
+        _unreadable(monkeypatch, builds)
+        health = client.get("/api/health")
+    assert health.status_code == 200
+    body = health.json()
+    assert body["graph_version"] == _build_id(FIRST, first)
+    assert body["served"] == {"source": "pinned", **_described(FIRST, first, FIRST_AT)}
+    assert body["newest_published"] is None and body["served_is_newest"] is None
+
+
+def test_an_unreadable_builds_directory_as_the_source_answers_503_naming_its_folder(tmp_path, monkeypatch):
+    builds = _builds(tmp_path, monkeypatch)
+    publish_build(builds / FIRST, FIRST_AT)
+    _unreadable(monkeypatch, builds)
+    with TestClient(facade.create_app()) as client:
+        health = client.get("/api/health")
+    assert health.status_code == 503
+    body = health.json()
+    assert body["error"].startswith("the builds directory builds cannot be read: PermissionError")
+    assert body["newest_published"] is None and body["served_is_newest"] is None
+    assert str(tmp_path) not in health.text
+
+
+def test_a_recheck_that_cannot_read_the_builds_directory_keeps_the_served_build(tmp_path, monkeypatch, request_log):
+    builds = _builds(tmp_path, monkeypatch)
+    first = publish_build(builds / FIRST, FIRST_AT)
+    with TestClient(facade.create_app()) as client:
+        assert client.get("/api/health").status_code == 200
+        _unreadable(monkeypatch, builds)
+        health = client.get("/api/health")
+        assert health.status_code == 200
+        body = health.json()
+        assert body["graph_version"] == _build_id(FIRST, first)
+        assert body["served"] == {"source": "newest", **_described(FIRST, first, FIRST_AT)}
+        assert body["newest_published"] is None and body["served_is_newest"] is None
+    lines = [json.loads(line) for line in request_log.read_text(encoding="utf-8").splitlines()]
+    failed = [line for line in lines if line.get("event") == "served_build_recheck_failed"]
+    assert failed and failed[0]["reason"].startswith("the builds directory builds cannot be read: PermissionError")
+    assert _switch_lines(request_log) == []
+    assert str(tmp_path) not in request_log.read_text(encoding="utf-8")
