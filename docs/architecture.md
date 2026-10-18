@@ -2027,6 +2027,18 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   builds both files use); tests/unit/conftest.py (the autouse fixture that
   keeps the developer's TERE4AI_BUILDS_DIR and TERE4AI_DUMP_DIR out of
   every unit test).
+  Amended 2026-10-18 (the same card; Jose, on the newest build being the
+  gpt-6-sol re-judge by publication time: "THE LATEST BUILD IS THE GPT 6
+  ASTRA WITH THE OPUS 5-5 AS A JUDGE"): a build whose norms or alignments
+  file records, in its build block's extraction_models or alignment_models,
+  a judge that fails DEC-07 (judge/config.py assert_independent_judge: an
+  OpenAI-family judge, or the generator judging its own output) is a
+  comparison build and never a candidate; a build that records no judge
+  stays one. The builds made with the build-only patch (an OpenAI judge,
+  refused on main by DEC-07) are therefore kept and never served. verify:
+  served_build.py _judged_independently; tests/unit/test_served_build.py
+  (a newer build judged by an OpenAI model not served, a self-judging
+  build not served, a build recording no judge still a candidate).
 
 ## 17. Implementation-traceability convention
 

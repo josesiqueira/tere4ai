@@ -328,3 +328,47 @@ def test_a_server_child_never_reads_the_build_settings_of_the_developer_dotenv(t
     assert child_source(unpinned) == "newest"
     # a caller's extra still sets them
     assert server_env({"TERE4AI_BUILDS_DIR": str(builds)}, root=ROOT)["TERE4AI_BUILDS_DIR"] == str(builds)
+
+
+# Jose, 2026-10-18: "THE LATEST BUILD IS THE GPT 6 ASTRA WITH THE OPUS 5-5 AS A
+# JUDGE": a build whose recorded judge fails DEC-07 (an OpenAI-family judge,
+# or the generator judging itself) is a comparison build, never the served one.
+_ASTRA_OPUS = {"extraction_models": {"generator_model": "gpt-6-astra", "judge_model": "claude-opus-5-5"},
+               "alignment_models": {"generator_model": "gpt-6-astra", "judge_model": "claude-opus-5-5"}}
+_ASTRA_SOL = {"extraction_models": {"generator_model": "gpt-6-astra", "judge_model": "gpt-6-sol"},
+              "alignment_models": {"generator_model": "gpt-6-astra", "judge_model": "gpt-6-sol"}}
+
+
+def test_a_newer_build_judged_by_an_openai_model_is_not_served(tmp_path, monkeypatch):
+    builds = tmp_path / "builds"
+    _publish(builds / "2026-10-16-astra-opus", "2026-10-15T21:52:19+00:00", judges=_ASTRA_OPUS)
+    _publish(builds / "2026-10-16-astra-sol", "2026-10-16T08:32:25+00:00", judges=_ASTRA_SOL)
+    monkeypatch.setenv("TERE4AI_BUILDS_DIR", str(builds))
+    resolution = resolve_served()
+    assert resolution.source == "newest" and resolution.error is None
+    assert resolution.newest is not None and resolution.newest.folder == "2026-10-16-astra-opus"
+    assert resolution.dump_dir == builds / "2026-10-16-astra-opus"
+
+
+def test_a_build_whose_generator_judges_itself_is_not_served(tmp_path, monkeypatch):
+    builds = tmp_path / "builds"
+    _publish(builds / "older-opus", "2026-10-13T10:00:00+00:00", judges=_ASTRA_OPUS)
+    _publish(builds / "newer-self", "2026-10-14T10:00:00+00:00",
+             judges={"extraction_models": {"generator_model": "claude-opus-5-5", "judge_model": "claude-opus-5-5"}})
+    monkeypatch.setenv("TERE4AI_BUILDS_DIR", str(builds))
+    assert newest_published(builds).folder == "older-opus"
+
+
+def test_a_build_that_records_no_judge_is_still_a_candidate(tmp_path, monkeypatch):
+    builds = tmp_path / "builds"
+    _publish(builds / "older-opus", "2026-10-13T10:00:00+00:00", judges=_ASTRA_OPUS)
+    _publish(builds / "newer-unrecorded", "2026-10-14T10:00:00+00:00")
+    assert newest_published(builds).folder == "newer-unrecorded"
+
+
+def test_only_builds_judged_by_openai_models_leave_no_published_build(tmp_path, monkeypatch):
+    builds = tmp_path / "builds"
+    _publish(builds / "astra-sol", "2026-10-16T08:32:25+00:00", judges=_ASTRA_SOL)
+    monkeypatch.setenv("TERE4AI_BUILDS_DIR", str(builds))
+    resolution = resolve_served()
+    assert resolution.newest is None and resolution.error is not None

@@ -14,7 +14,12 @@ no path to it is written in this repository.
 A published build is an immediate subfolder of the builds directory whose
 ACTIVE_MANIFEST.json names a chain with a readable publications/<chain>.json;
 the newest is the one whose published_at is latest, ties going to the
-greater folder name. A subfolder that cannot be read is not a candidate;
+greater folder name. A build whose norms or alignments file records a
+judge that fails DEC-07 (an OpenAI-family judge, or the generator judging
+its own output; judge/config.py assert_independent_judge) is a comparison
+build and never a candidate (Jose, 2026-10-18: "THE LATEST BUILD IS THE
+GPT 6 ASTRA WITH THE OPUS 5-5 AS A JUDGE"); a build that records no judge
+stays a candidate. A subfolder that cannot be read is not a candidate;
 a builds directory that cannot be read is an error naming its folder, as
 one with no published build is. Nothing is cached: every call reads the
 folders afresh, so the next call after a newer build is published serves
@@ -25,6 +30,7 @@ Section 13).
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -33,7 +39,7 @@ from typing import Literal
 
 from tere4ai.graph_store.present import exception_reason
 from tere4ai.graph_store.publication import active_manifest
-from tere4ai.judge.config import load_dotenv_once
+from tere4ai.judge.config import ModelConfigError, assert_independent_judge, load_dotenv_once
 
 DUMP_DIR_ENV = "TERE4AI_DUMP_DIR"
 BUILDS_DIR_ENV = "TERE4AI_BUILDS_DIR"
@@ -82,6 +88,45 @@ def _published_time(value: object) -> datetime | None:
     return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
+_BUILD_BLOCKS: dict[tuple[str, int, int], dict] = {}
+
+
+def _build_block(path: Path) -> dict:
+    """The build block of a dump file, kept per path, size and modification
+    time so a recheck does not parse the same large file again."""
+    stat = path.stat()
+    key = (str(path), stat.st_size, stat.st_mtime_ns)
+    if key not in _BUILD_BLOCKS:
+        try:
+            block = json.loads(path.read_text(encoding="utf-8")).get("build")
+        except (ValueError, AttributeError):
+            block = None
+        _BUILD_BLOCKS[key] = block if isinstance(block, dict) else {}
+    return _BUILD_BLOCKS[key]
+
+
+def _judged_independently(folder: Path, manifest: dict) -> bool:
+    """False when the build's norms or alignments file records a judge that
+    fails DEC-07; True otherwise, a build recording no judge included."""
+    files = manifest.get("files")
+    if not isinstance(files, dict):
+        return True
+    for name in ("norms", "alignments"):
+        relative = files.get(name)
+        if not isinstance(relative, str) or not (folder / relative).is_file():
+            continue
+        block = _build_block(folder / relative)
+        for key in ("extraction_models", "alignment_models"):
+            models = block.get(key)
+            if not isinstance(models, dict) or not isinstance(models.get("judge_model"), str):
+                continue
+            try:
+                assert_independent_judge(str(models.get("generator_model") or ""), models["judge_model"])
+            except ModelConfigError:
+                return False
+    return True
+
+
 def _candidate(folder: Path) -> tuple[datetime, PublishedBuild] | None:
     # active_manifest reads the pointer and publications/<chain>.json, and
     # answers None for a missing or unreadable one of either.
@@ -91,6 +136,8 @@ def _candidate(folder: Path) -> tuple[datetime, PublishedBuild] | None:
     moment = _published_time(manifest.get("published_at"))
     chain_id, build_id = manifest.get("chain_id"), manifest.get("build_id")
     if moment is None or not isinstance(chain_id, str) or not isinstance(build_id, str):
+        return None
+    if not _judged_independently(folder, manifest):
         return None
     return moment, PublishedBuild(folder=folder.name, dump_dir=folder, chain_id=chain_id, build_id=build_id,
                                   published_at=str(manifest["published_at"]))
