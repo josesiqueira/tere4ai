@@ -1,6 +1,6 @@
-"""Deterministic HLEGRequirementSubtopic nodes (Layer 3 subtopic targets).
+"""Deterministic HLEGRequirementSubtopic nodes (Layer 3 structure; never alignment targets).
 
-@implements: DEC-05 (partial: subtopic targets under the seven HLEG requirements)
+@implements: DEC-05 (partial: subtopic nodes under the seven HLEG requirements, never alignment targets)
 @implements: DEC-25 (partial: the publisher's headings)
 @grounded_by: ADD-01, REF-10
 
@@ -12,6 +12,12 @@ end; its description is the first sentence after the heading; its id is
 hleg:<req-slug>:subtopic:<slug of the heading>. Each parent HLEGRequirement
 gets a HAS_SUBTOPIC edge, provenance EXTRACTED_SOURCE, method
 SUBTOPIC_METHOD. No LLM or model client is used anywhere in this module.
+
+The subtopics are structure of the HLEG text, not alignment targets: Layer 3
+aligns norms with the seven HLEGRequirement nodes only (pipeline.py, the
+closed set of seven), and no MCP tool reads a subtopic node. Alignment at
+subtopic level is future work (thesis paper/threats_limitations_and_future_work.md
+row 2.12; Jose, 2026-10-11 and 2026-11-02).
 """
 
 from __future__ import annotations
