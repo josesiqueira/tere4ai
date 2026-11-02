@@ -104,9 +104,13 @@ grounded_by: REF-11, REF-12, REF-07, REF-13, REF-14c
   drop from everywhere". The list above still names the slot, which runs
   under v1 to v5 keep; removing it from the schema and the readers is
   card B170, after B74.
-- Schema is grounded in Institutional Grammar (OVR-9): actor (the addressee from norms schema version 2, DEC-27) maps to Attribute,
+- Schema is named after the Institutional Grammar (OVR-9): actor (the addressee from norms schema version 2, DEC-27) maps to Attribute,
   deontic_type and modal map to Deontic, action and object and conditions map to
-  Aim. Pull the primary sources (REF-14c) before citing.
+  Aim. The naming is the project's own (DEC-03, as rewritten 2026-11-02, B162):
+  the Institutional Grammar primaries (Crawford and Ostrom 1995; Ostrom 2005)
+  are not in the register (REF-14b is held for background only and dropped),
+  REF-14c is Liga and Palmirani's deontic sentence classification, not a
+  primary, and REF-13 (PRE) supports the naming without grounding it.
 - The addressee (the Institutional Grammar's Attribute; until B145 the
   "actor") is placed on one value of the Act's parties, the one list
   schema/act_parties.json (37 values: the six AI Act roles of Article
@@ -684,7 +688,7 @@ Open decisions:
 - OPEN-STANDARDS: standards mapping (TAIR) deferred to v2.1.
 
 Sources to verify before the thesis (see references.md [VERIFY] tags): the
-Omnibus final OJ citation, the Institutional Grammar primaries (REF-14c), the
+Omnibus final OJ citation, the Institutional Grammar primaries (not in the register; REF-14c is Liga and Palmirani, see DEC-03), the
 exact XTRAREG and Galli metrics, AIRO's canonical URL, and the AI Act Evaluation
 Benchmark coverage.
 
@@ -706,8 +710,33 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Defense: references are exact pointers, so rule resolution is deterministic;
   references and conditionals are also the highest-error zone for LLMs.
   verify: src/resolve_crossrefs/ rule pass plus AMBIGUOUS queue; crossref test.
-- DEC-03: NormativeStatement first-class, Institutional Grammar. grounded_by REF-11,
-  REF-12, REF-13. Defense: deontic-KG practice; an article holds many norms.
+- DEC-03: NormativeStatement first-class; norms extracted per operative sentence
+  within a paragraph or point, with the Article as context; slots named after
+  the Institutional Grammar. grounded_by REF-11, REF-12 (thesis refs/notes/REF-11.md
+  q5 to q9 and REF-12.md q5 to q11, written 2026-11-02, card B162): both papers
+  decompose the regulation into its paragraphs, isolate the sentence carrying
+  the modal as the object of analysis (so an Article holds many obligations),
+  and represent an obligation as a deontic construct with recurring elements
+  (deontic modality, addressee, predicate, target, specifications,
+  pre-conditions, beneficiary); REF-12 also gives the model the whole Article
+  and the cited paragraphs as context and reports that the sentence-level
+  focus improves classification. What neither paper grounds, stated here as
+  the project's own choices (B162): (a) the slot names after the Institutional
+  Grammar (Attribute, Deontic, Aim; Crawford and Ostrom 1995): neither paper
+  names it, both rest on legal theory and analytical philosophy; REF-13 (PRE)
+  cites the Institutional Grammar Tool and supports but cannot ground; the
+  correspondence (addressee to Attribute, deontic_type and modal to Deontic,
+  action, object and conditions to Aim) is this project's alignment of two
+  schemes that overlap element by element; (b) the split of one sentence into
+  several norms when it lists duties or parties (extract_norms v7): both
+  papers analyse one sentence as one obligation, and REF-12's "one or more
+  obligations/prohibitions of action" once the addressees are identified is
+  the nearest statement, made about obligations of being; (c) the exceptions
+  slot, which neither paper has, and the absence of their beneficiary and
+  specifications elements. Until 2026-11-02 this line read "NormativeStatement
+  first-class, Institutional Grammar. grounded_by REF-11, REF-12, REF-13", with
+  no note quoting either paper on the decomposition.
+  Defense: deontic-KG practice; an article holds many norms.
   verify: src/extract_norms/ emits norm nodes; norm_extraction test.
 - DEC-04: actor inferred via Article 16, canonicalised. grounded_by REF-11, REF-12.
   Defense: multi-party texts cause object/actor misidentification.
