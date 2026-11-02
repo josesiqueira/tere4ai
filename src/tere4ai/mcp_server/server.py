@@ -381,7 +381,8 @@ def trace_alignment(id: str) -> dict[str, Any]:
     that norm; given an HLEG requirement id, the assertions targeting it.
     Every assertion is rendered with relation type, scores, judge verdict
     and rationale, alignment and judge runs (models, prompt versions), and
-    evidence span ids on both sides; never a bare edge. The alignments are
+    evidence span ids on both sides, never as a direct edge from norm to
+    requirement. The alignments are
     LLM-generated and not expert-validated. Deterministic and free."""
     loaded = _active()
     dump = loaded.dump

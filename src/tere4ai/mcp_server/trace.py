@@ -1,7 +1,8 @@
 """Section 8 required tool: trace_alignment as a pure, deterministic function.
 
 Renders EU AI Act to HLEG alignments as their full reified chains, never as
-bare edges (DEC-05 storage discipline carried into presentation): every
+a direct edge from norm to requirement (DEC-05 storage discipline carried
+into presentation): every
 assertion is shown with its relation type, score dimensions, final score,
 build-time judge verdict and rationale, the MappingRun (generator model and
 prompt version), the JudgeRun (judge model and rationale), and the evidence
@@ -53,7 +54,7 @@ def _render_assertion(
     judge_runs: dict[str, dict[str, Any]],
     missing_facts: list[str],
 ) -> dict[str, Any]:
-    """One assertion as its full reified chain, never a bare edge."""
+    """One assertion as its full reified chain, never a direct norm-to-requirement edge."""
     mapping_run = mapping_runs.get(str(assertion.get("mapping_run_id")))
     judge_run = judge_runs.get(str(assertion.get("judge_run_id")))
     if mapping_run is None:

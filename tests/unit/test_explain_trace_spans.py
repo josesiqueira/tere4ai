@@ -219,7 +219,7 @@ def test_trace_hleg_target_renders_full_reified_chains(
     assert answer["caveat"] == HLEG_MAPPING_CAVEAT
     assert HLEG_MAPPING_CAVEAT in envelope["legal_status_notes"]
     for assertion in answer["assertions"]:
-        # Full reified chain, never a bare edge.
+        # Full reified chain, never a direct norm-to-requirement edge.
         assert assertion["target_id"] == HLEG_ID
         assert assertion["relation_type"]
         assert assertion["scores"]
