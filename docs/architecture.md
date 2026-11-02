@@ -698,6 +698,18 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
 (where an auditor or the agent confirms it was built). Modules carry
 `@implements` and `@grounded_by` tags; see Section 17.
 
+Two kinds of decision (stated 2026-11-02, card B180, on Jose's word; the
+rule is AGENTS.md's grounding bar): a research or empirical MUST carries
+grounded_by with at least one PEER, STD or OFF source, and a PRE, PROJ or
+PRAC source may only support it (DEC-03 to DEC-12, DEC-19, DEC-26, DEC-27);
+an engineering MUST (determinism, reproducibility, security, performance,
+serving, naming) is labelled "Engineering MUST" or "engineering decision",
+claims no literature grounding, and may name sources that bear on it as
+"corroborated by" without claiming they ground it (DEC-01, DEC-02, DEC-13 to
+DEC-18, DEC-20 to DEC-25, DEC-28, DEC-29). The thesis presents the first kind
+as grounded design and the second as engineering practice, never the other
+way round.
+
 - DEC-01: Layer 1 parsed deterministically, no LLM. Engineering MUST (determinism,
   reproducibility, no-silent-degradation, Section 13); corroborated by REF-27, REF-08.
   Defense: the authoritative structure must be deterministic and reproducible;
@@ -752,7 +764,20 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   Defense: unjudged legal grounding is only 50 to 68 percent correct.
   verify: src/judge/ three entry points; runtime_grounding test asserts no answer without a verdict.
 - DEC-07: OpenAI generator, independent non-OpenAI judge (decided 2026-07-08).
-  grounded_by REF-24.
+  grounded_by REF-24, ADD-84, ADD-85, ADD-126; ADD-91 (PRE) supports (the
+  three ADD sources attached 2026-11-02, card B180, on Jose's word; their
+  quote-checked notes are in the thesis repository, refs/notes/). What each
+  grounds: ADD-84 (Panickssery, Bowman and Feng, NeurIPS 2024), an LLM
+  evaluator that recognises its own text scores it higher, the self-preference
+  result that a same-family judge would import; ADD-85 (Ye et al., ICLR 2025),
+  twelve measured bias types in LLM judges, self-enhancement among them, and
+  the authors' recommendation to separate generator and judge; ADD-126 (Goel
+  et al., ICML 2025), models that err alike undermine each other's oversight,
+  so a held-out judge of another family is a comparison, never a neutral
+  control (the reading spec F takes for its hypotheses); ADD-91 (Spiliopoulou
+  et al., preprint), family bias measured with quality held fixed, supporting
+  only. Until 2026-11-02 the line read "grounded_by REF-24" alone while these
+  sources were cited in spec F and the threats register.
   Defense: same-family judge failure modes correlate; an independent judge
   family strengthens the control and the thesis claim.
   verify: eval/config_evaluated.yaml records generator and judge models.
@@ -797,7 +822,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   tests/unit/test_sources.py, tests/unit/test_in_force_build.py.
 - DEC-13: feature elicitation splits fact extraction from decision (added
   2026-07-09). Engineering MUST (the trust split of Section 0: the LLM never
-  decides classification); corroborated by REF-17, REF-16.
+  decides classification); corroborated by REF-17, REF-16 and, since
+  2026-11-02 (B180), ADD-112 (selective classification: an answer is a label
+  or a reject, never a guess).
   Defense: free-text inputs need facts extracted before rules can run; the
   elicitor emits only schema-valid facts with textual support, omits unknowns,
   and never outputs a risk category, so the deterministic ladder and its
@@ -967,7 +994,9 @@ Per decision: grounded_by, a one-sentence viva defense, and verify_in_code
   2026-10-01; extended 2026-10-02, B123; thesis tasks B36.1 and B36.2,
   brief sdd/2026-10-01-B36-classifier-answer/brief.md in the private
   research repository). Engineering MUST (no silent degradation, Section
-  13; the same missing_facts discipline as DEC-13 and DEC-14); the rules
+  13; the same missing_facts discipline as DEC-13 and DEC-14; corroborated
+  since 2026-11-02 (B180) by ADD-112, selective classification: an answer is
+  a label or a reject, never a guess); the rules
   mirror the frozen source text (REF-01): Article 5(1) points (a) to (h)
   with their statutory qualifiers, and Article 50(6), under which the
   transparency obligations "shall not affect the requirements and
