@@ -1897,6 +1897,35 @@ not a result the paper states. Staged in thesis refs/triage-seis/ on
 2026-10-14 and approved by Jose on 2026-10-15 ("ok i have to register this
 field and welsh apparently it is really good").
 
+**[ADD-136]** PEER. "Requirements engineering for artificial intelligence
+systems: A systematic mapping study", Ahmad, Abdelrazek, Arora, Bano, Grundy,
+Information and Software Technology 158, article 107176, 2023, DOI
+10.1016/j.infsof.2023.107176 (123 citations on Crossref, 2026-11-03; passes
+the bar by peer review). The publisher's typeset article, held as
+../thesis/refs/ADD-136_AhmadRE4AIMapping.pdf (21 PDF pages, printed page =
+PDF page), from Jose's Zotero library (collection RE4AI, added 2026-09-09).
+VERIFIED 2026-11-03 (title, authors, journal, volume, article number and DOI
+from the first page). SUPPORTING. Grounds: the motivation of the REFSQ 2027
+paper and the thesis for an empirical evaluation of a trustworthy-AI RE
+artifact: a 43-study mapping of RE for AI systems (search to mid-2021) that
+found "no or little empirical studies on ethics and trust aspects of RE4AI"
+(p. 2), "limited empirical work on explainability and none for ethics and
+trust" (p. 17), and asked for "more empirical research on RE for explainable,
+trustworthy and ethical AI software" (p. 17); the HLEG guidelines read as
+lawful, ethical and robust, where "Lawful means that developers should comply
+with all legal regulations" (p. 17); the recommendation that "researchers
+should construct a reference map to document requirements for AI systems"
+(p. 16), which the graph of the Act's units and norms is one answer to; and
+the quality checklist the mapping applied to empirical RE4AI papers (Table 4,
+p. 5: sample size justified, participants described, raw data presented, a
+chain of evidence) with the count that 9 of 30 empirical studies "did not
+report negative results or address validity issues" (p. 15), which the paper's
+method and threats answer. Limits: the search closed mid-2021, before the AI
+Act and LLM-based RE, so the gap claim is paired with 2023 to 2026 work; AI is
+taken as one field; one coder, a quarter checked by a second. Staged in
+thesis refs/triage-re4ai-mapping/ on 2026-11-03 and approved by Jose the
+same day ("i approve").
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
