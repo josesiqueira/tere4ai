@@ -47,7 +47,7 @@ because the shared asset (the legal knowledge graph) is not tenant data.
 - Strictly isolated tenant data: everything a tenant sends or generates at
   runtime is tenant-scoped and never visible to another tenant:
   - evidence text and system descriptions submitted to /api/classify,
-    /api/evidence, /api/backlog (treated as untrusted input per Section 8);
+    /api/evidence, /api/tailored-requirements (treated as untrusted input per Section 8);
   - runtime logs, judge verdicts, and audit trails for that tenant's calls;
   - metering counters and key metadata.
   Isolation is enforced in the key store and log partitioning (per-tenant
@@ -71,7 +71,7 @@ Six scopes, matching Section 8's "per-consumer keys are revocable and scoped"
 | read_graph | read the published graph: structure, norms, alignments, spans | free, deterministic |
 | classify | run the deterministic classifier | free, deterministic |
 | evidence_paid | evidence evaluation (OpenAI generator plus Anthropic judge) | paid model calls |
-| backlog_paid | control-backlog generation (paid model calls) | paid model calls |
+| tailored_requirements_paid | tailored requirements generation (paid model calls) | paid model calls |
 | elicit_paid | fact elicitation from a system description (OpenAI generator, no judge) | paid model calls |
 | admin | key management, metering readout, tenant administration | platform-internal |
 
@@ -88,17 +88,17 @@ Mapping of every existing endpoint and MCP tool to a scope:
 | GET /api/span/{span_id} | source_trace | read_graph |
 | (build-time report) | coverage_report | read_graph |
 | POST /api/evidence | evaluate_project_evidence | evidence_paid |
-| POST /api/backlog | generate_control_backlog | backlog_paid |
+| POST /api/tailored-requirements | generate_tailored_requirements | tailored_requirements_paid |
 | POST /api/elicit | elicit_features | elicit_paid |
 | (new in Phase 2) | (none) | admin: create/revoke keys, read metering aggregates |
 
 Notes:
 - The paid split follows the facade contract as implemented: /api/evidence,
-  /api/backlog and /api/elicit are the only endpoints that perform paid model
+  /api/tailored-requirements and /api/elicit are the only endpoints that perform paid model
   calls, and they mark responses with the X-TERE4AI-Paid-Call header
   (src/tere4ai/http_facade/app.py). The scope boundary reuses that boundary.
 - elicit_paid is a scope of its own (B10): the elicitor is paid like
-  evidence_paid and backlog_paid and is neither, and putting it under classify
+  evidence_paid and tailored_requirements_paid and is neither, and putting it under classify
   would let a free-scope key spend money.
 - read_graph and classify are separate scopes even though both are free and
   deterministic, because classify accepts tenant system descriptions (untrusted
@@ -132,7 +132,7 @@ project text. Proposed design:
 - Per-key counters, incremented in the auth middleware and the paid-call path:
   - calls per endpoint (all scopes);
   - paid model tokens (prompt and completion, per model) for evidence_paid and
-    backlog_paid calls. The X-TERE4AI-Paid-Call header already marks exactly
+    tailored_requirements_paid calls. The X-TERE4AI-Paid-Call header already marks exactly
     the responses that must carry token accounting, so the metering hook keys
     off the same code path that sets that header.
 - Daily aggregation: raw per-request counter events are rolled up into daily
@@ -177,7 +177,7 @@ project text. Proposed design:
 Restating Section 9 so hosted-tenant expectations are honest:
 
 - Tier 1: hosted graph plus cloud LLM. This is Mode A. Tenant evidence text
-  sent to /api/evidence and /api/backlog reaches the cloud inference backends
+  sent to /api/evidence and /api/tailored-requirements reaches the cloud inference backends
   (OpenAI generator, Anthropic judge, Section 7), which are not EU-controlled.
   EU hosting of the graph and facade does NOT make the paid endpoints
   EU-contained, and the platform must say so in its discovery metadata.
@@ -271,7 +271,7 @@ Not tests that exist; the acceptance bar the implementation must meet:
 - A request without a key reaches only /api/health, /llms.txt, and
   /.well-known/tere4ai.json.
 - A key with read_graph only gets 403 on /api/classify, /api/evidence,
-  /api/backlog.
+  /api/tailored-requirements.
 - A revoked key fails on the next request.
 - A paid call increments the token counters for exactly that key, and the
   stored record contains no request body text.

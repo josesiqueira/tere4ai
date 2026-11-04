@@ -19,6 +19,15 @@ default, request logging, revocable per-consumer keys) and Section 13
 Enforcement lives in ScopedKeyMiddleware, attached by server.main() for
 the HTTP transport (or when TERE4AI_MCP_REQUIRE_KEY=1). Local stdio use
 stays keyless: it is the Mode B trusted-workstation path.
+
+Scopes: read_graph, classify, evidence_paid, tailored_requirements_paid
+(the generation of tailored requirements), elicit_paid, admin.
+
+@implements: DEC-30
+A store written before B181 holds the scope value backlog_paid; load_store
+reads it as tailored_requirements_paid through renamed_scopes (ruling R3),
+the file is not rewritten by the read, and the key manager refuses the old
+value at issue.
 """
 
 from __future__ import annotations
@@ -41,8 +50,22 @@ DEFAULT_KEYS_PATH = _PROJECT_ROOT / "data" / "keys" / "mcp_keys.json"
 DEFAULT_USAGE_PATH = _PROJECT_ROOT / "data" / "keys" / "mcp_usage.jsonl"
 
 SCOPES = frozenset(
-    {"read_graph", "classify", "evidence_paid", "backlog_paid", "elicit_paid", "admin"}
+    {"read_graph", "classify", "evidence_paid", "tailored_requirements_paid", "elicit_paid", "admin"}
 )
+
+# DEC-30 (R3): the one place the old scope value is named.
+SCOPE_RENAMES: dict[str, str] = {"backlog_paid": "tailored_requirements_paid"}
+
+
+def renamed_scopes(scopes: list[str]) -> list[str]:
+    """Each old scope value replaced by its new one, order kept, no duplicates."""
+    out: list[str] = []
+    for scope in scopes:
+        scope = SCOPE_RENAMES.get(scope, scope)
+        if scope not in out:
+            out.append(scope)
+    return out
+
 
 # docs/PHASE2_DESIGN.md Section 3: every MCP tool maps to exactly one scope.
 TOOL_SCOPES: dict[str, str] = {
@@ -58,7 +81,7 @@ TOOL_SCOPES: dict[str, str] = {
     "classify_ai_system": "classify",
     "evaluate_project_evidence": "evidence_paid",
     "evaluate_project_evidence_batch": "evidence_paid",
-    "generate_tailored_requirements": "backlog_paid",
+    "generate_tailored_requirements": "tailored_requirements_paid",
     # B10: the paid elicitor has its own scope, so a free classify key
     # cannot spend money on it.
     "elicit_features": "elicit_paid",
@@ -85,7 +108,10 @@ def load_store(path: Path | None = None) -> dict[str, Any]:
     path = path or keys_path()
     if not path.is_file():
         return {"keys": []}
-    return json.loads(path.read_text(encoding="utf-8"))
+    store = json.loads(path.read_text(encoding="utf-8"))
+    for record in store.get("keys", []):
+        record["scopes"] = renamed_scopes(record.get("scopes", []))
+    return store
 
 
 def _write_store(store: dict[str, Any], path: Path) -> None:

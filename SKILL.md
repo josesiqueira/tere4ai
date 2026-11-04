@@ -16,8 +16,8 @@ Remote MCP (streamable HTTP; revisions in the README): set `TERE4AI_MCP_TRANSPOR
 default 8765); endpoint is `/mcp`. HTTP tool calls require a scoped API key
 sent as a Bearer token; mint one with
 `python scripts/manage_mcp_keys.py create --tenant <name> --scopes read_graph classify`
-(scopes: read_graph, classify, evidence_paid, backlog_paid, elicit_paid,
-admin; usage is metered per key, body-free).
+(scopes: read_graph, classify, evidence_paid, tailored_requirements_paid,
+elicit_paid, admin; usage is metered per key, body-free).
 HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008`.
 
 ## Tools, in the order a build journey uses them

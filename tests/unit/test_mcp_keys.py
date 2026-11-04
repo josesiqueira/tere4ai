@@ -98,8 +98,9 @@ def test_admin_scope_covers_everything(store_path, usage_file):
 
 
 def test_elicit_features_has_its_own_paid_scope(store_path, usage_file):
-    # B10, ruling R11: the paid elicitor is neither evidence nor backlog,
-    # and a free classify key must not spend money on it.
+    # B10, ruling R11: the paid elicitor is neither evidence nor the
+    # generation of tailored requirements, and a free classify key must not
+    # spend money on it.
     assert keys.TOOL_SCOPES["elicit_features"] == "elicit_paid"
     assert "elicit_paid" in keys.SCOPES
     classify_key, _ = keys.create_key("t", ["classify"], store_path)
@@ -122,6 +123,72 @@ def test_the_key_manager_offers_the_elicit_scope(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("TERE4AI_MCP_KEYS", str(tmp_path / "keys.json"))
     assert manager.main(["create", "--tenant", "t", "--scopes", "elicit_paid"]) == 0
     assert "scopes: elicit_paid" in capsys.readouterr().out
+
+
+def test_a_stored_key_with_the_old_scope_is_read_as_the_new_scope(store_path, usage_file):
+    # DEC-30 (R3): a store written before B181 holds the old scope value.
+    secret = "s3cret"
+    salt = "ab"
+    store_path.write_text(
+        json.dumps(
+            {
+                "keys": [
+                    {
+                        "key_id": "k1",
+                        "tenant": "t",
+                        "scopes": ["backlog_paid"],
+                        "salt": salt,
+                        "secret_hash": keys._hash_secret(secret, salt),
+                        "created_at": "2026-01-01T00:00:00+00:00",
+                        "revoked_at": None,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    before = store_path.read_text(encoding="utf-8")
+    assert keys.load_store(store_path)["keys"][0]["scopes"] == ["tailored_requirements_paid"]
+    assert store_path.read_text(encoding="utf-8") == before
+    mw = keys.ScopedKeyMiddleware(keys_file=store_path, usage_file=usage_file)
+    assert _call(mw, "generate_tailored_requirements", f"t4a_k1_{secret}") == "TOOL RAN"
+    summary = keys.usage_summary(usage_file)
+    assert summary["k1"]["tools"]["generate_tailored_requirements"]["allowed"] == 1
+    event = json.loads(usage_file.read_text(encoding="utf-8").splitlines()[0])
+    assert event["scope"] == "tailored_requirements_paid"
+    assert keys.renamed_scopes(["classify", "backlog_paid", "tailored_requirements_paid"]) == [
+        "classify",
+        "tailored_requirements_paid",
+    ]
+    assert keys.SCOPE_RENAMES == {"backlog_paid": "tailored_requirements_paid"}
+
+
+def test_the_old_scope_is_refused_at_issue(store_path, tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match="unknown scopes"):
+        keys.create_key("t", ["backlog_paid"], store_path)
+    manager = _key_manager()
+    monkeypatch.setenv("TERE4AI_MCP_KEYS", str(tmp_path / "keys.json"))
+    with pytest.raises(SystemExit):
+        manager.main(["create", "--tenant", "t", "--scopes", "backlog_paid"])
+
+
+def test_the_key_manager_offers_the_new_scope(tmp_path, monkeypatch, capsys):
+    manager = _key_manager()
+    monkeypatch.setenv("TERE4AI_MCP_KEYS", str(tmp_path / "keys.json"))
+    assert manager.main(["create", "--tenant", "t", "--scopes", "tailored_requirements_paid"]) == 0
+    assert "scopes: tailored_requirements_paid" in capsys.readouterr().out
+
+
+def _key_manager():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "manage_mcp_keys",
+        Path(__file__).resolve().parents[2] / "scripts" / "manage_mcp_keys.py",
+    )
+    manager = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(manager)
+    return manager
 
 
 def test_usage_events_are_body_free(store_path, usage_file):
