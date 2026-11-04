@@ -2134,8 +2134,8 @@ way round.
   the word "backlog" leaves everything a person or a model reads, and
   "control", "item" and "backlog item" never name the tailored
   requirement again (added 2026-11-04; thesis task B181, brief
-  sdd/2026-11-04-B181-three-names/brief.md revision 2 and its rulings R1
-  to R14 in progress.md in the private research repository; spec G
+  sdd/2026-11-04-B181-three-names/brief.md revision 3 and its rulings R1
+  to R15 in progress.md in the private research repository; spec G
   D-G90, spec F D-F42, spec W D-W38; the owner's words, 2026-11-04: "we
   can keep applicable requirements, sounds ok"; "ok the name control is
   bad, and item, such a confusion. lets normalise for tialroed
@@ -2169,7 +2169,13 @@ way round.
   docstring) reads "applicable requirements"; "requirement group" stays
   where it is a schema field or a function name (norms.schema.json,
   requirements.py _is_requirement_group) and reads "the Article's
-  applicable requirements" in prose.
+  applicable requirements" in prose about what a system is served; a
+  norm is still a norm where the sentence is about Layer 2 or the build
+  ("the served norms", as above and in spec G D-G90 (2)). The reading
+  rule of spec G D-G90 (6) applies to this file's earlier sections too:
+  Sections 3 and 11 keep their prose of their day, read as "the
+  Article's applicable requirements", the way the dated notes under
+  DEC-19 and DEC-24 are read.
   The rule that sorts every occurrence (ruling R11 as Jose decided it,
   brief Q3, option (b): "b but you do carefully : so there is no risk
   :)"): every word changes, the live answer's keys, the tool's name, the
@@ -2181,7 +2187,10 @@ way round.
   kept files rewritten by one script that maps the keys and values and
   proves its result equal to its input apart from the renamed keys and
   values, the files being under git so the change is reviewable and
-  revertible. In this repository the kept file is the sibling
+  revertible; a rewritten record's digest (the dashboard's frozen
+  snapshot digests and event fingerprints) is recomputed by the app's
+  own functions and printed before and after, and a published build's
+  digests never change. In this repository the kept file is the sibling
   demo-systems file tests/unit/test_report.py reads (the demo sessions
   under tests/fixtures/demo_sessions and demo/mcp_demo/sessions hold no
   generate call, so nothing in them is rewritten); the clients' stored
