@@ -18,10 +18,14 @@ between input and result is not one of those renames. For each file the run
 prints the file, the sha256 of its bytes before, each difference and the
 sha256 of its bytes after. The result keeps the input's form: its indent (1
 when the second line starts with ' "', else 2), its \\u escapes when the
-input is all ASCII, its final newline when it had one, so a diff shows only
-the renamed lines. A file outside any git repository (no .git directory
-above it, R16) has its original bytes copied first to <stem>.pre-B181<suffix>
-beside it, and is refused when that copy already exists.
+input is all ASCII, its final newline when it had one, and its file mode,
+so a diff shows only the renamed lines. The escape rule assumes one form per
+file: every non-ASCII character written as a \\u escape, or every one written
+raw; a file mixing the two would come back in one of them. A file outside any
+git repository (no .git directory above it, R16) also gets its original
+bytes, with its mode, in <stem>.pre-B181<suffix> beside it, written after
+the file itself; the run is refused, nothing written, when that copy already
+exists, and a copy that cannot be written puts the original bytes back.
 
 Usage: .venv/bin/python scripts/rename_tailored_requirement_keys.py <file>... [--keep-original | --no-keep-original]
 """
@@ -32,6 +36,7 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -76,6 +81,20 @@ def _renames(before: dict[str, Any], after: dict[str, Any], diffs: list[str], pr
     return [line for d in diffs if (line := allowed[d]) is not None]
 
 
+def _write_replacing(path: Path, data: bytes, mode: int) -> None:
+    """Write data to path through a temp file in the same folder and
+    os.replace, the file taking the given mode."""
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 def rewrite(path: Path, *, keep_original: bool) -> dict:
     """Rewrite one kept file; returns what was done. Raises Refused."""
     raw = path.read_bytes()
@@ -101,16 +120,14 @@ def rewrite(path: Path, *, keep_original: bool) -> dict:
     body = json.dumps(result, indent=_indent_of(text), ensure_ascii=raw.isascii())
     if text.endswith("\n"):
         body += "\n"
+    mode = stat.S_IMODE(path.stat().st_mode)
+    _write_replacing(path, body.encode("utf-8"), mode)
     if keep_original:
-        copy.write_bytes(raw)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".json.tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(body)
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+        try:
+            _write_replacing(copy, raw, mode)
+        except OSError:
+            _write_replacing(path, raw, mode)
+            raise
     return {
         "path": str(path),
         "sha256_before": hashlib.sha256(raw).hexdigest(),
@@ -134,14 +151,13 @@ def main(argv: list[str] | None = None) -> int:
     for path in args.files:
         keep = args.keep_original if args.keep_original is not None else not _under_git(path)
         try:
-            before_digest = hashlib.sha256(path.read_bytes()).hexdigest()
             done = rewrite(path, keep_original=keep)
         except (Refused, OSError, ValueError) as exc:
             print(f"refused {path}: {exc}", file=sys.stderr)
             status = 2
             continue
         print(path)
-        print(f"sha256 before: {before_digest}")
+        print(f"sha256 before: {done['sha256_before']}")
         for line in done["differences"]:
             print(f"difference: {line}")
         if done["original_copy"]:

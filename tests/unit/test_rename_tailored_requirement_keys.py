@@ -5,6 +5,7 @@ Mock data in tmp_path only; the script is run as the command line runs it.
 
 import hashlib
 import json
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -127,3 +128,29 @@ def test_a_second_run_is_refused(tmp_path):
     assert done.returncode == 2
     assert "nothing to rename" in done.stderr
     assert path.read_bytes() == rewritten
+
+
+def test_an_existing_copy_of_the_original_refuses_the_run_and_nothing_is_written(tmp_path):
+    path = tmp_path / "kept.json"
+    path.write_text(json.dumps(_kept_envelope(), indent=2) + "\n", encoding="utf-8")
+    copy = tmp_path / "kept.pre-B181.json"
+    copy.write_bytes(b"an earlier copy")
+    before = path.read_bytes()
+
+    done = _run(path)
+
+    assert done.returncode == 2
+    assert "kept.pre-B181.json already exists" in done.stderr
+    assert path.read_bytes() == before
+    assert copy.read_bytes() == b"an earlier copy"
+
+
+def test_the_rewritten_file_and_its_copy_keep_the_input_files_mode(tmp_path):
+    path = tmp_path / "kept.json"
+    path.write_text(json.dumps(_kept_envelope(), indent=2) + "\n", encoding="utf-8")
+    path.chmod(0o664)
+
+    assert _run(path).returncode == 0
+
+    assert stat.S_IMODE(path.stat().st_mode) == 0o664
+    assert stat.S_IMODE((tmp_path / "kept.pre-B181.json").stat().st_mode) == 0o664

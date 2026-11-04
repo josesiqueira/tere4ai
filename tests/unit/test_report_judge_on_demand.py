@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from tere4ai.mcp_server.backlog import OLD_TOOL_NAME, TOOL_NAME
 from tere4ai.report import ingest_inputs, render_report_from_paths
 
 SHOPBOT = Path(__file__).parent.parent / "fixtures" / "demo_sessions" / "shopbot-transparency.jsonl"
@@ -26,8 +27,8 @@ def _envelope(classify: dict, **over) -> dict:
     return {**{k: v for k, v in classify["envelope"].items() if k != "answer"}, **over}
 
 
-TOOL = "generate_tailored_requirements"
-OLD_TOOL = TOOL
+TOOL = TOOL_NAME
+OLD_TOOL = OLD_TOOL_NAME
 
 
 def _record(gid: str, fmt: str = "tere4ai.signed_answer.v2") -> dict:
