@@ -59,7 +59,7 @@ at that absolute path becomes worth doing.
 Keys are optional. `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` unlock the paid
 evidence-evaluation call (Article 9(1) style checks against pasted project
 text), the elicit mode (free-text description to structured facts), and the
-third paid call, Generate backlog. For the backlog beat a saved run lives at
+third paid call, Generate tailored requirements. For that beat a saved run lives at
 `../demo-systems/_fallbacks/highrisk-backlog-article9.md`,
 so a dead network does not cost that beat.
 Coverage, classification, requirements, the evidence subgraph, and the
@@ -257,7 +257,7 @@ Every live step above, with the fallback if it cannot run.
 | Requirements board, live evidence call | `docs/screenshots/demo-assess-board.png`, `docs/screenshots/m3-demo-evidence-verdict.png` |
 | Elicit mode on an audience description | `docs/screenshots/demo-assess-credscore.png` (preset form as the closest static stand-in) |
 | Live agent mode over MCP stdio | `/agent` session replay, narrated |
-| Backlog generation (paid) | `../demo-systems/_fallbacks/highrisk-backlog-article9.md` (plus `.json`) |
+| Tailored requirements generation (paid) | `../demo-systems/_fallbacks/highrisk-backlog-article9.md` (plus `.json`) |
 | Trace matrix (`trace_implementation`) | `../demo-systems/_fallbacks/shopbot-trace-matrix.md` (plus `.json`) |
 
 ## Questions to expect

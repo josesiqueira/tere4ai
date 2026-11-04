@@ -43,7 +43,7 @@ MUTED = "#9aa4ad"
 FAINT = "#6e7681"
 ARROW = "#8b98a5"
 
-DIAGRAM_DATE = "2026-10-08"
+DIAGRAM_DATE = "2026-11-05"
 OUT_PATH = (
     Path(__file__).resolve().parents[1]
     / f"tere4ai_v2_architecture_{DIAGRAM_DATE}.svg"
@@ -165,7 +165,7 @@ def build() -> str:
          "(designed 2026-09-17, not built)",
          "Evaluate: calibration campaigns, judge runs, specialists (campaigns and judge runner",
          "built; the view is designed, not built)",
-         "Use: projects, classification, requirements, backlog, traces (the product, built)",
+         "Use: projects, classification, requirements, tailored requirements, traces (the product, built)",
          "Research (owner only): campaigns, verdicts, exports (built); lineage across phases",
          "(designed)"],
         "#4493f8", "#0f1a2b", line_size=12,

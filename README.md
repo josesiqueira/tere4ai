@@ -8,12 +8,12 @@ TERE4AI is an open-source MCP server for teams building AI systems under
 Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744 (the
 Digital Omnibus), the AI Act in force. A coding agent describes the system it is
 building, from the project it works in, and gets back a deterministic risk
-classification, engineering requirements traced to byte-exact legal text,
+classification, applicable requirements traced to byte-exact legal text,
 judged alignments to the AI HLEG Trustworthy AI principles, and
 requirement-to-code traceability.
 The rule ladder alone decides the level. A model's proposal is served only
 after a check: an independent judge for norms, alignments, evidence and
-backlog items, and for the elicitor's proposed facts a code check of their
+tailored requirements, and for the elicitor's proposed facts a code check of their
 quotes and the person who confirms them.
 
 ![Recorded MCP sessions, one per risk level, answers exactly as the server returned them](https://raw.githubusercontent.com/josesiqueira/tere4ai/main/docs/screenshots/readme-mcp-demo.png)
@@ -258,7 +258,7 @@ cd web && npm install && npm run build && npx next start
 
 ## Demo flow (MILESTONE3)
 
-The full demo flow (classify, requirements, evidence evaluation, backlog)
+The full demo flow (classify, requirements, evidence evaluation, tailored requirements)
 runs against the thin HTTP facade, which calls the same pure functions the
 MCP server exposes. The UI never touches the database or model APIs
 directly.
@@ -272,15 +272,15 @@ cd web && npm run build && npx next start -p 3111
 ```
 
 /api/classify and /api/requirements are deterministic and free.
-/api/evidence and /api/backlog perform PAID model calls (OpenAI generator
+/api/evidence and /api/tailored-requirements perform PAID model calls (OpenAI generator
 plus Anthropic runtime grounding judge; keys in .env, see .env.example), and
 /api/elicit a PAID generator call (fact elicitation, no judge); all three
 mark their responses with the X-TERE4AI-Paid-Call header. For the
-dashboard's demonstration on pasted repositories (DEC-24), /api/backlog also
-takes judge "on_demand": the generator alone, a backlog "not_checked" with a
-record the facade signs (TERE4AI_ANSWER_SIGNING_KEY); /api/backlog/judge then
+dashboard's demonstration on pasted repositories (DEC-24), /api/tailored-requirements also
+takes judge "on_demand": the generator alone, tailored requirements "not_checked" with a
+record the facade signs (TERE4AI_ANSWER_SIGNING_KEY); /api/tailored-requirements/judge then
 runs a demo judge of the generator's own family (TERE4AI_DEMO_JUDGE_MODEL,
-gpt-6-sol) on that signed backlog, each a PAID call, every judged backlog
+gpt-6-sol) on that signed answer, each a PAID call, every judged answer
 labelled "judged by <model>, the generator's own family (demo setting)". The
 MCP tools and the inline mode keep DEC-07's independent judge.
 
@@ -577,7 +577,7 @@ and docs/traceability.md, which is generated from code tags):
 - MILESTONE3: runtime tools. Deterministic classify_ai_system (rules over real
   Article 5 and Annex III nodes, never an LLM) and
   get_applicable_requirements; judged evaluate_project_evidence and
-  generate_control_backlog gated by the runtime grounding judge; every
+  generate_tailored_requirements gated by the runtime grounding judge; every
   tool on the MCP server; HTTP facade plus the /assess demo flow,
   the recorded-session /mcp-demo page and the agent replay.
 - MILESTONE4: evaluation harness with the six-condition ablation ladder, Section 12

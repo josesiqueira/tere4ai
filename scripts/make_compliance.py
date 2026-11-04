@@ -235,7 +235,7 @@ def render(classify: dict[str, Any], requirements: dict[str, Any]) -> str:
         )
     add("")
 
-    add("## Scope of the backlog")
+    add("## Scope of the tailored requirements")
     add("")
     add(f"- judge-accepted requirements in scope: **{summary.get('total_accepted_in_scope')}**")
     add(f"- returned in this fetch: {summary.get('returned')}")

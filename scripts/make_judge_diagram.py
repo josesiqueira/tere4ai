@@ -36,7 +36,7 @@ HUMAN = "#d2649a"    # human review
 OK = "#3fb950"       # accepted
 BAD = "#f85149"      # rejected / degraded
 
-DIAGRAM_DATE = "2026-10-12"
+DIAGRAM_DATE = "2026-11-05"
 OUT_PATH = Path(__file__).resolve().parents[1] / f"judge_diagram_{DIAGRAM_DATE}.svg"
 
 _parts: list[str] = []
@@ -170,16 +170,16 @@ def build() -> str:
         HUMAN, "#231018", title_size=13)
 
     # Lane 3: runtime judge
-    lane_label(722, "RUNTIME - EVIDENCE EVALUATION AND BACKLOG, PAID PATHS  (mcp_server/evidence.py, backlog.py)")
+    lane_label(722, "RUNTIME - EVIDENCE EVALUATION AND TAILORED REQUIREMENTS, PAID PATHS  (mcp_server/evidence.py, backlog.py)")
     y = 742
     box(40, y, 240, 140, "Project artifact",
         ["UNTRUSTED text, fenced as", "data-never-instructions;", "refusal gate: a non-accepted", "norm is refused BEFORE any", "model call"],
         FAINT, "#11151c")
     box(330, y, 250, 140, "Generator (OpenAI)",
-        ["assessment with quotes,", "gaps, rationale; backlog", "items citing norm ids"],
+        ["assessment with quotes,", "gaps, rationale; tailored", "requirements citing norm ids"],
         GEN, "#1d1704")
     box(630, y, 250, 140, "Mechanical checks",
-        ["quotes: verbatim substring or", "dropped; zero surviving quotes", "downgrades to cannot_assess;", "backlog citation allow-list:", "unknown norm ids dropped"],
+        ["quotes: verbatim substring or", "dropped; zero surviving quotes", "downgrades to cannot_assess;", "tailored requirement citation", "allow-list: unknown norm ids dropped"],
         MECH, "#141920")
     box(930, y, 270, 140, "Runtime grounding judge",
         ["prompts/runtime_grounding/v1.md", "7 checks: citations support claim,", "closed citation set, sources kept", "apart, uncertainty marked, no", "compliance claim, injection detected"],

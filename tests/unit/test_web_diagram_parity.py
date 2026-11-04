@@ -13,10 +13,10 @@ ROOT = Path(__file__).parent.parent.parent
 # the current architecture diagram and the current judge diagram.
 PAIRS = [
     (
-        "tere4ai_v2_architecture_2026-10-08.svg",
-        "web/public/tere4ai_v2_architecture_2026-10-08.svg",
+        "tere4ai_v2_architecture_2026-11-05.svg",
+        "web/public/tere4ai_v2_architecture_2026-11-05.svg",
     ),
-    ("judge_diagram_2026-10-12.svg", "web/public/judge_diagram_2026-10-12.svg"),
+    ("judge_diagram_2026-11-05.svg", "web/public/judge_diagram_2026-11-05.svg"),
 ]
 
 

@@ -59,7 +59,7 @@ SYSTEMS: list[dict[str, str]] = [
         "label": "High risk",
         "blurb": (
             "A creditworthiness scorer. Annex III point 5, the Article 27 "
-            "impact assessment duty attaches, and the backlog is larger than "
+            "impact assessment duty attaches, and the tailored requirements outgrow "
             "the sprint anyone had planned."
         ),
     },

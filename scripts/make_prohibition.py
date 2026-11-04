@@ -3,8 +3,8 @@
 
 Written 2026-08-26. Produced demo-systems/unacceptablerisk_for_audience/COMPLIANCE.md.
 
-A prohibited system receives zero engineering requirements, so this renders NO
-backlog and NO obligation matrix at all: an empty table would invite a reader to
+A prohibited system receives zero applicable requirements, so this renders NO
+tailored requirements and NO obligation matrix at all: an empty table would invite a reader to
 fill it in. It records the prohibition, its verbatim source text, and the
 exception that was checked and ruled out. Two classification rounds are kept on
 purpose so the missing-facts round trip is visible.
@@ -212,10 +212,10 @@ def render(
     add(f"- risk category: **{a2.get('risk_category')}**")
     add(f"- unacceptable risk: **{_unacceptable_risk_text(a2.get('unacceptable_risk'))}**")
     add(f"- envelope status: `{round_2.get('status')}`, confidence {round_2.get('confidence')}")
-    add(f"- engineering requirements returned: **{returned}**")
+    add(f"- applicable requirements returned: **{returned}**")
     add("")
     add(
-        "There is no requirement backlog in this document, and its absence is the finding. "
+        "There are no tailored requirements in this document, and their absence is the finding. "
         "Placing on the market, putting into service, and use are banned, so no engineering "
         "work can make this system permissible. An empty obligations table would invite "
         "someone to fill it in."

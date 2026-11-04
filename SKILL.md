@@ -1,8 +1,8 @@
 # TERE4AI skill for coding agents
 
-Use TERE4AI when a project needs EU AI Act engineering requirements: risk
-classification, applicable obligations with legal citations, evidence
-evaluation, or a compliance-support backlog. TERE4AI provides engineering and
+Use TERE4AI when a project needs EU AI Act requirements: risk
+classification, applicable requirements with legal citations, evidence
+evaluation, or tailored requirements. TERE4AI provides engineering and
 documentation support. It does not certify EU AI Act compliance and does not
 replace legal review, conformity assessment, or competent-authority
 interpretation.

@@ -146,7 +146,7 @@ merit, this document says so explicitly instead of inventing a citation.
 
 ### 9. Citation allow-lists (cite only what exists)
 - Grounding: ADD-18, ADD-19, REF-16.
-- Implementation: src/tere4ai/mcp_server/backlog.py:179-188 (items citing
+- Implementation: src/tere4ai/mcp_server/backlog.py:179-188 (tailored requirements citing
   unknown norm ids dropped and counted); requirements.py:163-190 (only nodes
   present in the graph are cited; missing ones surface in missing_facts);
   classify.py:280-294 (unresolvable node ids withheld, never emitted).
@@ -269,7 +269,7 @@ merit, this document says so explicitly instead of inventing a citation.
   evidence.py:75-83 (the constants: judge_verdict not_run, and judge_error
   for a judge that sent a request and raised, are distinct from a real
   verdict); backlog.py:358-370 (the one emitter of judge_error: the
-  backlog's grounding judge raised after it sent a request); facade 503
+  generation's grounding judge raised after it sent a request); facade 503
   paths.
 - Tests: tests/unit/test_http_facade.py:260, :280; tests/unit/test_backlog.py
   (test_a_judge_failure_is_labelled_judge_error_not_not_run,

@@ -15,7 +15,7 @@ requirements traced to byte-exact source spans, judged HLEG ethics
 alignments, requirement-to-code traceability, and generated audit-grade
 reports. The rule ladder alone decides the level. A model's proposal is
 served only after a check: an independent judge for norms, alignments,
-evidence and backlog items, and for the elicitor's proposed facts a code
+evidence and tailored requirements, and for the elicitor's proposed facts a code
 check of their quotes and the person who confirms them.
 
 ## Register and platform
