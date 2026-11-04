@@ -19,9 +19,11 @@ SHOPBOT = SESSIONS_DIR / "shopbot-transparency.jsonl"
 MOODWATCH = SESSIONS_DIR / "moodwatch-prohibited.jsonl"
 CREDSCORE = SESSIONS_DIR / "credscore-highrisk.jsonl"
 
-# Loose Section 8 envelope artifact recorded from the live server. It lives
-# in the sibling demo-systems checkout, not in this repository.
-BACKLOG_ENVELOPE = (
+# Loose Section 8 envelope recorded from the live server. It lives in the
+# sibling demo-systems checkout, not in this repository; B181 (DEC-30, R11)
+# rewrote its keys to the new names once, by
+# scripts/rename_tailored_requirement_keys.py.
+TAILORED_REQUIREMENTS_ENVELOPE = (
     Path(__file__).resolve().parents[2].parent
     / "demo-systems"
     / "_fallbacks"
@@ -50,7 +52,7 @@ def test_shopbot_renders_rows_and_placeholders() -> None:
     # Unrecorded tools still get their fixed sections, as placeholders.
     for tool in (
         "trace_implementation",
-        "generate_control_backlog",
+        "generate_tailored_requirements",
         "evaluate_project_evidence",
     ):
         assert f"{tool}: not recorded in this session" in html
@@ -59,7 +61,7 @@ def test_shopbot_renders_rows_and_placeholders() -> None:
         "classification",
         "requirements",
         "trace_matrix",
-        "backlog",
+        "tailored_requirements",
         "alignment",
         "evidence",
         "provenance",
@@ -106,25 +108,25 @@ def test_missing_keys_line_is_problem_card(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(
-    not BACKLOG_ENVELOPE.is_file(),
-    reason="demo-systems backlog artifact not checked out alongside this repo",
+    not TAILORED_REQUIREMENTS_ENVELOPE.is_file(),
+    reason="the demo-systems file of tailored requirements is not checked out alongside this repo",
 )
-def test_loose_backlog_envelope_fingerprints_and_renders() -> None:
-    result = ingest_inputs([CREDSCORE], [BACKLOG_ENVELOPE])
-    backlog = [e for e in result.exchanges if e.tool == "generate_control_backlog"]
-    assert len(backlog) == 1
-    assert backlog[0].origin == "loose"
-    assert backlog[0].seq == 3  # appended after the session max seq
-    assert backlog[0].request is None
-    html = render_report_from_paths([CREDSCORE], [BACKLOG_ENVELOPE])
-    backlog_body = _section_body(html, "backlog")
-    assert backlog_body.count("<li>") == 6
-    assert "judge-record" in backlog_body
+def test_loose_tailored_requirements_envelope_fingerprints_and_renders() -> None:
+    result = ingest_inputs([CREDSCORE], [TAILORED_REQUIREMENTS_ENVELOPE])
+    generation = [e for e in result.exchanges if e.tool == "generate_tailored_requirements"]
+    assert len(generation) == 1
+    assert generation[0].origin == "loose"
+    assert generation[0].seq == 3  # appended after the session max seq
+    assert generation[0].request is None
+    html = render_report_from_paths([CREDSCORE], [TAILORED_REQUIREMENTS_ENVELOPE])
+    body = _section_body(html, "tailored_requirements")
+    assert body.count("<li>") == 6
+    assert "judge-record" in body
     # Integrity counters are printed even at zero, from the envelope values.
-    assert 'data-envelope-field="dropped_items"' in backlog_body
-    assert 'data-envelope-field="merged_items"' in backlog_body
-    assert "items dropped" in backlog_body and "merged" in backlog_body
-    assert "truncated" not in backlog_body
+    assert 'data-envelope-field="dropped_tailored_requirements"' in body
+    assert 'data-envelope-field="merged_tailored_requirements"' in body
+    assert "tailored requirements dropped" in body and "merged" in body
+    assert "truncated" not in body
 
 
 def test_mixed_graph_versions_banner(tmp_path: Path) -> None:
@@ -355,21 +357,24 @@ def test_the_explain_record_shows_the_requirement_type(tmp_path: Path) -> None:
     assert 'requirement type <span class="field" data-envelope-field="requirement_type">functional<' in record
 
 
-def test_backlog_items_show_their_type_and_the_judges_view(tmp_path: Path) -> None:
-    """DEC-19: a control's type ("no type" for null, ruling 21) and the
-    runtime judge's recorded view of it, when the answer records them."""
-    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
-    classify = next(x for x in lines if x["tool"] == "classify_ai_system")
-    backlog = {
-        "seq": 3, "ts": classify["ts"], "tool": "generate_control_backlog", "repo_ref": classify["repo_ref"],
+NEW_KEYS = ("tailored_requirements", "dropped_tailored_requirements", "merged_tailored_requirements")
+OLD_KEYS = ("items", "dropped_items", "merged_items")
+
+
+def _generation_line(classify: dict, *, tool: str, keys: tuple[str, str, str]) -> dict:
+    """A recorded generation of two tailored requirements, written under the
+    tool name and the three answer keys given (mock data)."""
+    entries_key, dropped_key, merged_key = keys
+    return {
+        "seq": 3, "ts": classify["ts"], "tool": tool, "repo_ref": classify["repo_ref"],
         "request": {"norm_ids": ["norm:a:n1"], "system_context": "A shop assistant."},
         "envelope": {
             **{k: v for k, v in classify["envelope"].items() if k != "answer"},
             "judge_verdict": "accepted",
             "status": "applicable_missing_evidence",
             "answer": {
-                "tool": "generate_control_backlog",
-                "items": [
+                "tool": tool,
+                entries_key: [
                     {"title": "Disclose the chatbot", "description": "Show a notice.", "norm_ids": ["norm:a:n1"],
                      "suggested_evidence": [], "priority": "must", "requirement_type": "functional"},
                     {"title": "Keep a record", "description": "Log the notices.", "norm_ids": ["norm:a:n1"],
@@ -379,19 +384,91 @@ def test_backlog_items_show_their_type_and_the_judges_view(tmp_path: Path) -> No
                     {"judge_type_agrees": False, "judge_requirement_type": "process"},
                     {"judge_type_agrees": None, "judge_requirement_type": None},
                 ],
-                "dropped_items": 0, "merged_items": 0, "notes": [],
+                dropped_key: 1, merged_key: 0, "notes": [],
                 "judge_model": "m", "judge_effort": "xhigh",
             },
         },
     }
-    path = tmp_path / "with_backlog.jsonl"
-    path.write_text("".join(json.dumps(x) + "\n" for x in [*lines, backlog]), encoding="utf-8")
-    html = _section_body(render_report_from_paths([path]), "backlog")
+
+
+def _session_with(tmp_path: Path, line: dict) -> Path:
+    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
+    path = tmp_path / "with_generation.jsonl"
+    path.write_text("".join(json.dumps(x) + "\n" for x in [*lines, line]), encoding="utf-8")
+    return path
+
+
+def _shopbot_classify() -> dict:
+    lines = [json.loads(x) for x in SHOPBOT.read_text(encoding="utf-8").splitlines() if x.strip()]
+    return next(x for x in lines if x["tool"] == "classify_ai_system")
+
+
+def test_tailored_requirements_show_their_type_and_the_judges_view(tmp_path: Path) -> None:
+    """DEC-19: a tailored requirement's type ("no type" for null, ruling 21)
+    and the runtime judge's recorded view of it, when the answer records them."""
+    line = _generation_line(_shopbot_classify(), tool="generate_tailored_requirements", keys=NEW_KEYS)
+    html = _section_body(render_report_from_paths([_session_with(tmp_path, line)]), "tailored_requirements")
     assert html.count('requirement type</span> <span class="token"><span class="field" data-envelope-field="requirement_type">functional<') == 1
     assert html.count("no type") == 1
     assert 'judge gives the requirement type</span> <span class="field" data-envelope-field="judge_requirement_type">process<' in html
     # B84 item 1: the judge record names the judge's effort beside its model
     assert ' · effort <span class="field" data-envelope-field="judge_effort">xhigh<' in html
+
+
+def test_a_recorded_session_with_the_old_tool_name_and_keys_renders_under_the_new_name(tmp_path: Path) -> None:
+    """DEC-30 (R6): a session recorded under generate_control_backlog with
+    items, dropped_items and merged_items is read through the one reader:
+    the exchange is keyed by generate_tailored_requirements and its answer
+    carries the three new keys and none of the old."""
+    line = _generation_line(_shopbot_classify(), tool="generate_control_backlog", keys=OLD_KEYS)
+    path = _session_with(tmp_path, line)
+    generation = [e for e in ingest_inputs([path]).exchanges if e.tool == "generate_tailored_requirements"]
+    assert len(generation) == 1
+    answer = generation[0].envelope["answer"]
+    assert answer["tool"] == "generate_tailored_requirements"
+    assert all(key in answer for key in NEW_KEYS)
+    assert not any(key in answer for key in OLD_KEYS)
+    assert not any(e.tool == "generate_control_backlog" for e in ingest_inputs([path]).exchanges)
+    body = _section_body(render_report_from_paths([path]), "tailored_requirements")
+    assert body.count("<li><p><strong>") == 2
+    assert 'data-envelope-field="dropped_tailored_requirements">1<' in body
+    assert 'data-envelope-field="merged_tailored_requirements">0<' in body
+    assert "tailored requirements dropped" in body
+
+
+def test_a_loose_envelope_with_the_old_keys_renders_through_the_reader(tmp_path: Path) -> None:
+    """DEC-30 (R6): a loose envelope with no tool key and the old answer keys
+    is mapped by the reader before it is fingerprinted, so it is keyed by
+    generate_tailored_requirements and renders with its counts."""
+    envelope = _generation_line(_shopbot_classify(), tool="generate_control_backlog", keys=OLD_KEYS)["envelope"]
+    del envelope["answer"]["tool"]
+    envelope["answer"]["judge_rationale"] = "Within the cited norms."
+    loose = tmp_path / "loose.json"
+    loose.write_text(json.dumps(envelope, indent=2), encoding="utf-8")
+    generation = [e for e in ingest_inputs([SHOPBOT], [loose]).exchanges if e.origin == "loose"]
+    assert [e.tool for e in generation] == ["generate_tailored_requirements"]
+    assert not any(key in generation[0].envelope["answer"] for key in OLD_KEYS)
+    body = _section_body(render_report_from_paths([SHOPBOT], [loose]), "tailored_requirements")
+    assert body.count("<li><p><strong>") == 2
+    assert 'data-envelope-field="dropped_tailored_requirements">1<' in body
+    assert 'data-envelope-field="merged_tailored_requirements">0<' in body
+
+
+def test_the_reader_copies_and_keeps_the_new_key_when_both_are_present() -> None:
+    """DEC-30 (R6): the reader never mutates its input, and an answer that
+    carries an old key beside its new one keeps the new one."""
+    from tere4ai.report.ingest import tailored_requirements_of_record
+
+    answer = {"tool": "generate_control_backlog", "items": [{"title": "a"}],
+              "tailored_requirements": [{"title": "b"}], "dropped_items": 2, "notes": ["n"]}
+    before = json.dumps(answer, sort_keys=True)
+    result = tailored_requirements_of_record(answer)
+    assert result["tailored_requirements"] == [{"title": "b"}]
+    assert "items" not in result
+    assert result["dropped_tailored_requirements"] == 2 and "dropped_items" not in result
+    assert result["tool"] == "generate_tailored_requirements" and result["notes"] == ["n"]
+    assert json.dumps(answer, sort_keys=True) == before
+    assert result is not answer
 
 
 def test_the_alignment_judge_run_line_shows_the_judge_effort(tmp_path: Path) -> None:

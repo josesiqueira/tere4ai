@@ -3,7 +3,7 @@
 @implements: DEC-08, DEC-15
 @grounded_by: ADD-14, ADD-15
 
-Renders an audit-grade EU AI Act engineering requirements report from a
+Renders an audit-grade EU AI Act requirements report from a
 recorded MCP session (JSONL of request/envelope exchanges) plus optional
 loose Section 8 envelopes. Runs CLIENT-SIDE, like tere4ai.trace_scan: it is
 stdlib-only, calls no model, opens no network connection, and touches no

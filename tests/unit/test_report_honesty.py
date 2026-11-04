@@ -495,18 +495,18 @@ def test_no_aggregate_scores_percentages_or_grades():
 
 
 # ---------------------------------------------------------------------------
-# Gate 7: framing. The document presents engineering requirements, nothing
-# resembling a certification or legal instrument.
+# Gate 7: framing. The document is a requirements report, nothing
+# resembling a certification or legal instrument (B181, R19).
 # ---------------------------------------------------------------------------
 
 
-def test_title_engineering_requirements_and_no_certification_framing():
-    """Guardrail: the title says engineering requirements and no non-verbatim text frames the document as a compliance/certification/legal artifact."""
+def test_title_requirements_report_and_no_certification_framing():
+    """Guardrail: the title says TERE4AI requirements report and no non-verbatim text frames the document as a compliance/certification/legal artifact."""
     for fixture in ALL_FIXTURES:
         scan = _scan(fixture)
-        assert "engineering requirements" in scan.title_text.lower(), (
-            f"{fixture}: <title> {scan.title_text!r} lacks 'engineering "
-            "requirements'"
+        assert "tere4ai requirements report" in scan.title_text.lower(), (
+            f"{fixture}: <title> {scan.title_text!r} lacks 'TERE4AI "
+            "requirements report'"
         )
         text = _masked_nonverbatim(scan)
         for pattern in FRAMING_RES:
@@ -590,7 +590,7 @@ def test_report_source_files_free_of_banned_terms_and_dashes():
 
 
 # ---------------------------------------------------------------------------
-# Gate 12: prohibited tier. No backlog, no traces, no principle grading.
+# Gate 12: prohibited tier. No tailored requirements, no traces, no principle grading.
 # ---------------------------------------------------------------------------
 
 
@@ -604,3 +604,28 @@ def test_prohibited_tier_report_offers_no_backlog_and_no_trace_rows():
         "prohibited report must not speak of 'violated principles'"
     )
     assert not scan.trace_rows, "prohibited report renders data-trace-row elements"
+
+
+def test_a_prohibited_session_from_the_live_message_states_no_tailored_requirement_can_permit_it(tmp_path):
+    """Guardrail (B181, R20): a prohibited-practice session whose
+    get_applicable_requirements answer carries the live PROHIBITED_MESSAGE
+    states that no tailored requirement can make the system permissible and
+    says nothing of a requirement backlog. The recorded MoodWatch session
+    keeps its sentence of its day (the test above)."""
+    from tere4ai.mcp_server.requirements import PROHIBITED_MESSAGE
+    from tere4ai.report import render_report_from_paths
+
+    lines = [
+        json.loads(x)
+        for x in (FIXTURE_DIR / "moodwatch-prohibited.jsonl").read_text(encoding="utf-8").splitlines()
+        if x.strip()
+    ]
+    requirements = next(x for x in lines if x["tool"] == "get_applicable_requirements")
+    requirements["envelope"]["answer"]["message"] = PROHIBITED_MESSAGE
+    session = tmp_path / "moodwatch-live-message.jsonl"
+    session.write_text("".join(json.dumps(x) + "\n" for x in lines), encoding="utf-8")
+    scan = ReportScan()
+    scan.feed(render_report_from_paths([session]))
+    scan.close()
+    assert _flex("no tailored requirement can make the system permissible").search(scan.doc_text)
+    assert not _flex("no requirement backlog").search(scan.doc_text)

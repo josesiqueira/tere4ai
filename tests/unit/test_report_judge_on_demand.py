@@ -1,8 +1,9 @@
 """DEC-24 (spec G D-G74 (8), rulings S79, S81): the report takes a demo
 judge's part as a session line of its own (tool judge_on_demand), attaches
 it to the generation its generation id names and shows it beside the
-unchanged generator backlog with its label (B138 builds phase 5; evidence
-answers keyed by generation id are B140's). Offline, mock data."""
+unchanged tailored requirements of the generation with its label (B138
+builds phase 5; evidence answers keyed by generation id are B140's; B181,
+DEC-30, the tool generate_tailored_requirements). Offline, mock data."""
 
 from __future__ import annotations
 
@@ -25,18 +26,35 @@ def _envelope(classify: dict, **over) -> dict:
     return {**{k: v for k, v in classify["envelope"].items() if k != "answer"}, **over}
 
 
-def _record(gid: str) -> dict:
-    return {"generation_id": gid, "format": "tere4ai.signed_answer.v2"}
+TOOL = "generate_tailored_requirements"
+OLD_TOOL = TOOL
 
 
-def _backlog_line(classify: dict, seq: int, gid: str) -> dict:
-    return {"seq": seq, "ts": classify["ts"], "tool": "generate_control_backlog", "repo_ref": None,
+def _record(gid: str, fmt: str = "tere4ai.signed_answer.v2") -> dict:
+    return {"generation_id": gid, "format": fmt}
+
+
+def _generation_line(classify: dict, seq: int, gid: str) -> dict:
+    return {"seq": seq, "ts": classify["ts"], "tool": TOOL, "repo_ref": None,
             "request": {"norm_ids": ["norm:a:n1"], "system_context": "A door."},
             "envelope": _envelope(classify, judge_verdict="not_checked", status="requires_human_review", answer={
-                "tool": "generate_control_backlog", "dropped_items": 0, "merged_items": 0, "notes": [],
-                "items": [{"title": "Keep a log", "description": "Record events.", "norm_ids": ["norm:a:n1"], "suggested_evidence": [],
-                           "priority": "must", "requirement_type": "functional"}],
+                "tool": TOOL, "dropped_tailored_requirements": 0, "merged_tailored_requirements": 0, "notes": [],
+                "tailored_requirements": [{"title": "Keep a log", "description": "Record events.", "norm_ids": ["norm:a:n1"],
+                                           "suggested_evidence": [], "priority": "must", "requirement_type": "functional"}],
                 "signed_record": _record(gid), "signature": "f" * 64})}
+
+
+def _old_generation_line(classify: dict, seq: int, gid: str) -> dict:
+    """The same generation as recorded before B181: the old tool name, the
+    old answer keys and a signed record of format v1 (DEC-30 exception (i))."""
+    line = _generation_line(classify, seq, gid)
+    answer = line["envelope"]["answer"]
+    line["tool"] = answer["tool"] = OLD_TOOL
+    answer["items"] = answer.pop("tailored_requirements")
+    answer["dropped_items"] = answer.pop("dropped_tailored_requirements")
+    answer["merged_items"] = answer.pop("merged_tailored_requirements")
+    answer["signed_record"] = _record(gid, "tere4ai.signed_answer.v1")
+    return line
 
 
 def _judge_line(classify: dict, seq: int, gid: str, tool: str, verdict: str = "accepted", status: str = "applicable_missing_evidence") -> dict:
@@ -58,18 +76,18 @@ def _section(html: str, name: str) -> str:
     return html.split(f'data-section="{name}"', 1)[1].split("</section>", 1)[0]
 
 
-def test_a_backlog_not_judged_reads_not_checked_by_the_judge(tmp_path):
+def test_a_generation_not_judged_reads_not_checked_by_the_judge(tmp_path):
     _, classify = _base()
-    html = _section(render_report_from_paths([_write(tmp_path, _backlog_line(classify, 50, "g-1"))]), "backlog")
+    html = _section(render_report_from_paths([_write(tmp_path, _generation_line(classify, 50, "g-1"))]), "tailored_requirements")
     assert "not checked by the judge" in html and "judge setting" not in html
 
 
-def test_the_latest_judge_part_of_a_generation_is_shown_beside_it_with_its_label_and_item_views(tmp_path):
+def test_the_latest_judge_part_of_a_generation_is_shown_beside_it_with_its_label_and_type_views(tmp_path):
     _, classify = _base()
-    path = _write(tmp_path, _backlog_line(classify, 50, "g-1"),
-                  _judge_line(classify, 51, "g-1", "generate_control_backlog", "rejected", "requires_human_review"),
-                  _judge_line(classify, 52, "g-1", "generate_control_backlog"))
-    html = _section(render_report_from_paths([path]), "backlog")
+    path = _write(tmp_path, _generation_line(classify, 50, "g-1"),
+                  _judge_line(classify, 51, "g-1", TOOL, "rejected", "requires_human_review"),
+                  _judge_line(classify, 52, "g-1", TOOL))
+    html = _section(render_report_from_paths([path]), "tailored_requirements")
     assert LABEL in html and 'judge setting <span class="field" data-envelope-field="judge_setting">demo<' in html
     assert html.count("judge record") == 1 and ">accepted<" in html and ">rejected<" not in html
     assert 'judge gives the requirement type</span> <span class="field" data-envelope-field="judge_requirement_type">process<' in html
@@ -78,7 +96,7 @@ def test_the_latest_judge_part_of_a_generation_is_shown_beside_it_with_its_label
 
 def test_a_judge_part_without_its_generation_is_shown_apart_and_named(tmp_path):
     _, classify = _base()
-    path = _write(tmp_path, _judge_line(classify, 70, "g-missing", "generate_control_backlog"))
+    path = _write(tmp_path, _judge_line(classify, 70, "g-missing", TOOL))
     result = ingest_inputs([path])
     assert [ex.seq for ex in result.unattached_judge_parts] == [70]
     html = _section(render_report_from_paths([path]), "judge-parts-apart")
@@ -95,27 +113,28 @@ def _judge_error_line(classify: dict, seq: int, gid: str, tool: str) -> dict:
 
 def test_a_judge_error_part_is_captioned_as_an_error_never_as_judged(tmp_path):
     """Ruling R77: a judge request that failed after it was sent is shown
-    as an error; the generator's backlog is not shown as judged."""
+    as an error; the generator's tailored requirements are not shown as
+    judged."""
     _, classify = _base()
-    path = _write(tmp_path, _backlog_line(classify, 50, "g-1"),
-                  _judge_error_line(classify, 51, "g-1", "generate_control_backlog"))
-    html = _section(render_report_from_paths([path]), "backlog")
+    path = _write(tmp_path, _generation_line(classify, 50, "g-1"),
+                  _judge_error_line(classify, 51, "g-1", TOOL))
+    html = _section(render_report_from_paths([path]), "tailored_requirements")
     assert "the judge failed after its request was sent: the judge&#x27;s reply was cut; not judged (demo setting, gpt-6-sol)" in html
     assert LABEL not in html and "status after the judge" not in html
 
 
 def test_a_later_judged_part_stands_over_an_earlier_judge_error(tmp_path):
     _, classify = _base()
-    path = _write(tmp_path, _backlog_line(classify, 50, "g-1"),
-                  _judge_error_line(classify, 51, "g-1", "generate_control_backlog"),
-                  _judge_line(classify, 52, "g-1", "generate_control_backlog"))
-    html = _section(render_report_from_paths([path]), "backlog")
+    path = _write(tmp_path, _generation_line(classify, 50, "g-1"),
+                  _judge_error_line(classify, 51, "g-1", TOOL),
+                  _judge_line(classify, 52, "g-1", TOOL))
+    html = _section(render_report_from_paths([path]), "tailored_requirements")
     assert LABEL in html and ">accepted<" in html and "the judge failed" not in html
 
 
 def test_a_judge_error_part_apart_is_named_as_an_error(tmp_path):
     _, classify = _base()
-    path = _write(tmp_path, _judge_error_line(classify, 70, "g-missing", "generate_control_backlog"))
+    path = _write(tmp_path, _judge_error_line(classify, 70, "g-missing", TOOL))
     html = _section(render_report_from_paths([path]), "judge-parts-apart")
     assert "the judge failed after its request was sent" in html and LABEL not in html
 
@@ -126,13 +145,13 @@ def test_a_judge_error_part_apart_is_named_as_an_error(tmp_path):
 # provenance table.
 def test_every_judge_part_of_a_superseded_generation_is_shown_with_its_label_and_setting(tmp_path):
     _, classify = _base()
-    path = _write(tmp_path, _backlog_line(classify, 50, "g-1"),
-                  _judge_line(classify, 51, "g-1", "generate_control_backlog", "rejected", "requires_human_review"),
-                  _judge_error_line(classify, 52, "g-1", "generate_control_backlog"),
-                  _backlog_line(classify, 60, "g-2"))
+    path = _write(tmp_path, _generation_line(classify, 50, "g-1"),
+                  _judge_line(classify, 51, "g-1", TOOL, "rejected", "requires_human_review"),
+                  _judge_error_line(classify, 52, "g-1", TOOL),
+                  _generation_line(classify, 60, "g-2"))
     html = render_report_from_paths([path])
-    backlog = _section(html, "backlog")
-    assert "not checked by the judge" in backlog and LABEL not in backlog
+    generation = _section(html, "tailored_requirements")
+    assert "not checked by the judge" in generation and LABEL not in generation
     superseded = _section(html, "judge-parts-superseded")
     assert "g-1" in superseded and "g-2" not in superseded
     assert superseded.count('class="judge-record"') == 2
@@ -144,5 +163,21 @@ def test_every_judge_part_of_a_superseded_generation_is_shown_with_its_label_and
 
 def test_no_superseded_judge_section_when_every_part_is_shown(tmp_path):
     _, classify = _base()
-    path = _write(tmp_path, _backlog_line(classify, 50, "g-1"), _judge_line(classify, 51, "g-1", "generate_control_backlog"))
+    path = _write(tmp_path, _generation_line(classify, 50, "g-1"), _judge_line(classify, 51, "g-1", TOOL))
     assert 'data-section="judge-parts-superseded"' not in render_report_from_paths([path])
+
+
+def test_a_judge_part_naming_the_old_tool_attaches_to_its_generation(tmp_path):
+    """DEC-30 (R6): a generation recorded under generate_control_backlog with
+    the old keys and a v1 signed record, and a judge part whose answer names
+    the old tool, are read through the one reader: the part attaches by
+    generation id and is shown beside the generation with its label."""
+    _, classify = _base()
+    path = _write(tmp_path, _old_generation_line(classify, 50, "g-1"), _judge_line(classify, 51, "g-1", OLD_TOOL))
+    result = ingest_inputs([path])
+    assert result.unattached_judge_parts == []
+    generation = next(ex for ex in result.exchanges if ex.tool == TOOL)
+    assert [part.envelope["answer"]["tool"] for part in generation.judge_parts] == [TOOL]
+    html = _section(render_report_from_paths([path]), "tailored_requirements")
+    assert LABEL in html and ">accepted<" in html and "not checked by the judge" not in html
+    assert 'judge gives the requirement type</span> <span class="field" data-envelope-field="judge_requirement_type">process<' in html

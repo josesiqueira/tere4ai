@@ -2,6 +2,7 @@
 
 @implements: DEC-08, DEC-15
 @implements: DEC-24
+@implements: DEC-30
 @grounded_by: ADD-14, ADD-15
 
 Session JSONL contract (verified against the live server): one JSON object
@@ -20,6 +21,15 @@ DEC-24 (spec G D-G74 (8), rulings S81, S82): a session line of tool
 tool and the generation id); it is attached to the exchange whose signed
 record (answer.signed_record) holds the same generation id, in seq order,
 and a line with no such exchange stays unattached, to be shown apart.
+
+DEC-30 (B181, ruling R6): a session line or a loose envelope recorded before
+the rename names the tool generate_control_backlog and carries the answer
+keys items, dropped_items and merged_items. tailored_requirements_of_record
+is the one reader of those old words in the report: it maps them to
+generate_tailored_requirements, tailored_requirements,
+dropped_tailored_requirements and merged_tailored_requirements on a copy,
+before the envelope is checked or fingerprinted, never changes its input and
+keeps the new key when an answer carries both.
 """
 
 from __future__ import annotations
@@ -29,6 +39,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from tere4ai.mcp_server.backlog import OLD_TOOL_NAME, TOOL_NAME
 from tere4ai.mcp_server.tools import SECTION_8_ENVELOPE_FIELDS, STATUS_VOCABULARY
 
 _REQUIRED_LINE_KEYS = ("seq", "ts", "tool", "request", "envelope")
@@ -77,6 +88,84 @@ class IngestResult:
 
 JUDGE_ON_DEMAND = "judge_on_demand"
 
+# DEC-30 (R6): the answer keys of a generation recorded before B181, each with
+# its new name.
+TAILORED_REQUIREMENT_KEYS_OF_RECORD: dict[str, str] = {
+    "items": "tailored_requirements",
+    "dropped_items": "dropped_tailored_requirements",
+    "merged_items": "merged_tailored_requirements",
+}
+
+
+def tool_of_record(tool: str) -> str:
+    """DEC-30 (R6): the tool name a record carries, the old name of the
+    generation read as generate_tailored_requirements; any other unchanged."""
+    return TOOL_NAME if tool == OLD_TOOL_NAME else tool
+
+
+def tailored_requirements_of_record(answer: Any) -> Any:
+    """DEC-30 (R6): a copy of a recorded answer under the new words.
+
+    Each old key moves to its new name in its own place when the new key is
+    absent; an old key beside its new one is dropped and the new one kept;
+    answer.tool reads generate_tailored_requirements when it is the old
+    name; every other key is as it is. The input is never changed, and an
+    answer that is not an object is returned as it is.
+    """
+    if not isinstance(answer, dict):
+        return answer
+    out: dict[str, Any] = {}
+    for key, value in answer.items():
+        new_key = TAILORED_REQUIREMENT_KEYS_OF_RECORD.get(key)
+        if new_key is None:
+            out[key] = tool_of_record(value) if key == "tool" and isinstance(value, str) else value
+        elif new_key not in answer:
+            out[new_key] = value
+    return out
+
+
+def _short(value: Any) -> str:
+    text = repr(value)
+    return text if len(text) <= 80 else text[:77] + "..."
+
+
+def differences(before: Any, after: Any, path: str = "answer") -> list[str]:
+    """Every path where two JSON trees differ: a key present on one side
+    only, a value that differs, a list of another length. The rewrite script
+    for kept files (R11) uses it to prove its result equal to its input
+    apart from the renamed keys and values."""
+
+    def child(key: Any) -> str:
+        return f"{path}.{key}" if path else str(key)
+
+    if isinstance(before, dict) and isinstance(after, dict):
+        found: list[str] = []
+        for key in before:
+            if key not in after:
+                found.append(f"{child(key)}: before only")
+            else:
+                found.extend(differences(before[key], after[key], child(key)))
+        found.extend(f"{child(key)}: after only" for key in after if key not in before)
+        return found
+    if isinstance(before, list) and isinstance(after, list):
+        if len(before) != len(after):
+            return [f"{path}: a list of {len(before)} entries before, {len(after)} after"]
+        found = []
+        for position, (old, new) in enumerate(zip(before, after)):
+            found.extend(differences(old, new, f"{path}[{position}]"))
+        return found
+    if type(before) is not type(after) or before != after:
+        return [f"{path} from {_short(before)} to {_short(after)}"]
+    return []
+
+
+def _envelope_of_record(envelope: Any) -> Any:
+    """DEC-30 (R6): a copy of an envelope whose answer went through
+    tailored_requirements_of_record; anything else as it is."""
+    if isinstance(envelope, dict) and isinstance(envelope.get("answer"), dict):
+        return {**envelope, "answer": tailored_requirements_of_record(envelope["answer"])}
+    return envelope
+
 
 def generation_id_of(ex: Exchange) -> str | None:
     """DEC-24: the generation id a judge part names, or the one an exchange's
@@ -117,7 +206,7 @@ _FINGERPRINTS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("assertions",), "trace_alignment"),
     (("deontic",), "explain_requirement"),
     (("matrix", "tag_convention"), "trace_implementation"),
-    (("items", "judge_rationale"), "generate_control_backlog"),
+    (("tailored_requirements", "judge_rationale"), TOOL_NAME),
     (("assessment", "quotes"), "evaluate_project_evidence"),
     (("span_id", "text"), "resolve_span"),
 )
@@ -229,12 +318,18 @@ def _ingest_session_line(
             raw_excerpt=_excerpt(raw),
         )
     repo_ref = obj.get("repo_ref")
+    # DEC-30 (R6): a generation or a judge part recorded under the old words
+    # is read through the one reader; the recorded line is not changed.
+    tool = tool_of_record(obj["tool"])
+    envelope = obj["envelope"]
+    if obj["tool"] in (OLD_TOOL_NAME, TOOL_NAME, JUDGE_ON_DEMAND):
+        envelope = _envelope_of_record(envelope)
     return Exchange(
         seq=obj["seq"],
         ts=obj["ts"],
-        tool=obj["tool"],
+        tool=tool,
         request=obj["request"],
-        envelope=obj["envelope"],
+        envelope=envelope,
         source=name,
         repo_ref=repo_ref if isinstance(repo_ref, str) else None,
         origin="session",
@@ -314,6 +409,9 @@ def ingest_inputs(
                 )
             )
             continue
+        # DEC-30 (R6): the old answer keys are mapped before the envelope is
+        # checked and fingerprinted.
+        envelope = _envelope_of_record(envelope)
         renderable, fatal, flags = check_envelope(envelope)
         if not renderable:
             problems.append(

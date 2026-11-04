@@ -4,6 +4,7 @@
 @implements: DEC-19
 @implements: DEC-20
 @implements: DEC-24
+@implements: DEC-30
 @grounded_by: ADD-14, ADD-15
 
 Pure function of the ingested exchanges: no clock, no randomness, no model,
@@ -21,14 +22,19 @@ Markup contract (the honesty tests code against it):
 - DEC-24 (spec G D-G74 (8), rulings S79, S81, S82): a generator-only answer
   reads "not checked by the judge" until a judge part is attached to it;
   the latest attached part is shown beside the unchanged generator answer
-  (for a backlog, each item's view beside its item), its judge_setting
+  (for the tailored requirements, each one's view beside it), its judge_setting
   printed and the label "judged by <model>, the generator's own family
   (demo setting)". A judge part whose generation is not in the input is
   shown apart, named. Every judge part of a generation the report does not
-  show (a superseded backlog or evidence answer) is shown as a labelled
+  show (a superseded generation or evidence answer) is shown as a labelled
   judge record of its own, so a demo verdict never reads as a plain one
-  (B138 fix wave W5). (B138 builds phase 5's backlog judge; keying evidence
-  answers by generation id is B140's.)
+  (B138 fix wave W5). (B138 builds phase 5's judge of the generation; keying
+  evidence answers by generation id is B140's.)
+- DEC-30 (B181): the generation is keyed by generate_tailored_requirements
+  and shown under "Tailored requirements"; a session recorded under the old
+  tool name and answer keys reaches this module through the one reader in
+  report/ingest.py (tailored_requirements_of_record, ruling R6), so nothing
+  here reads the old words.
 """
 
 from __future__ import annotations
@@ -60,7 +66,7 @@ from tere4ai.report.ingest import (
 FIXED_TRACE_SENTENCE = "A trace is a developer claim, not evidence."
 
 # Mandated header copy.
-_KICKER = "TERE4AI ENGINEERING REQUIREMENTS REPORT"
+_KICKER = "TERE4AI REQUIREMENTS REPORT"
 _SUBKICKER = "Machine-generated working record"
 
 _LEGEND_SENTENCE = (
@@ -84,7 +90,7 @@ _HOMED_TOOLS = frozenset(
         "classify_ai_system",
         "get_applicable_requirements",
         "trace_implementation",
-        "generate_control_backlog",
+        "generate_tailored_requirements",
         "trace_alignment",
         "evaluate_project_evidence",
         "explain_requirement",
@@ -666,7 +672,7 @@ def _render_summary_band(
     tier: str,
     requirements_ex: Exchange | None,
     matrix_ex: Exchange | None,
-    backlog_ex: Exchange | None,
+    tailored_requirements_ex: Exchange | None,
     evidence_exs: list[Exchange],
     unknown_level: str | None = None,
 ) -> str:
@@ -757,10 +763,13 @@ def _render_summary_band(
                 "a trace is a claim, not evidence",
             )
         )
-    backlog_items = _answer(backlog_ex).get("items")
-    if isinstance(backlog_items, list):
+    tailored_requirements = _answer(tailored_requirements_ex).get("tailored_requirements")
+    if isinstance(tailored_requirements, list):
         figures.append(
-            figure("backlog items", emit_field("items", len(backlog_items)))
+            figure(
+                "tailored requirements",
+                emit_field("tailored_requirements", len(tailored_requirements)),
+            )
         )
     if evidence_exs:
         counts: dict[str, int] = {}
@@ -968,7 +977,7 @@ def _render_requirements(
 
     if tier == "prohibited":
         out.append(
-            '<p class="placeholder">no engineering requirements are recorded'
+            '<p class="placeholder">no applicable requirements are recorded'
             " for a prohibited system; the recorded message renders in the"
             " banner on page one</p>"
         )
@@ -1424,13 +1433,13 @@ def _judge_record_html(source: dict[str, Any], envelope: dict[str, Any]) -> str:
     return "".join(parts)
 
 
-def _control_type_html(item: dict[str, Any], view: Any) -> str:
-    """DEC-19: a control's recorded requirement type ("no type" for null:
-    every control must have one, ruling 21) and the runtime judge's recorded
-    view of it, when the answer carries them."""
-    if "requirement_type" not in item:
+def _tailored_requirement_type_html(tailored_requirement: dict[str, Any], view: Any) -> str:
+    """DEC-19: a tailored requirement's recorded requirement type ("no type"
+    for null: every tailored requirement must have one, ruling 21) and the
+    runtime judge's recorded view of it, when the answer carries them."""
+    if "requirement_type" not in tailored_requirement:
         return ""
-    value = item.get("requirement_type")
+    value = tailored_requirement.get("requirement_type")
     html = ' <span class="microlabel">requirement type</span> ' + (
         _token("requirement_type", value) if value is not None
         else f'<span class="token muted">{NO_TYPE}</span>'
@@ -1446,41 +1455,44 @@ def _control_type_html(item: dict[str, Any], view: Any) -> str:
     return html
 
 
-def _render_backlog(
-    backlog_ex: Exchange | None, mixed: bool, superseded: list[Exchange]
+def _render_tailored_requirements(
+    tailored_requirements_ex: Exchange | None, mixed: bool, superseded: list[Exchange]
 ) -> str:
-    out = ['<section data-section="backlog"><h2>Control backlog</h2>']
-    if backlog_ex is None:
+    out = ['<section data-section="tailored_requirements"><h2>Tailored requirements</h2>']
+    if tailored_requirements_ex is None:
         out.append(
-            '<p class="placeholder">generate_control_backlog: not recorded in'
-            " this session. Backlog generation is the paid model-generation"
-            " step; run it against the recorded classification to draft"
-            " control items.</p></section>"
+            '<p class="placeholder">generate_tailored_requirements: not recorded'
+            " in this session. The generation is the paid model step; run it"
+            " against the recorded classification to draft the tailored"
+            " requirements.</p></section>"
         )
         return "".join(out)
-    ans = _answer(backlog_ex)
-    items = [i for i in (ans.get("items") or []) if isinstance(i, dict)]
-    # DEC-24: a demo judge part's views of the signed items, in item order
-    judged_part = _latest_judged(backlog_ex)
+    ans = _answer(tailored_requirements_ex)
+    tailored_requirements = [
+        t for t in (ans.get("tailored_requirements") or []) if isinstance(t, dict)
+    ]
+    # DEC-24: a demo judge part's views of the signed tailored requirements,
+    # in their order
+    judged_part = _latest_judged(tailored_requirements_ex)
     views = _answer(judged_part).get("judge_type_views") if judged_part is not None else ans.get("judge_type_views")
-    views = views if isinstance(views, list) and len(views) == len(items) else None
+    views = views if isinstance(views, list) and len(views) == len(tailored_requirements) else None
     out.append("<ol>")
-    for position, item in enumerate(items):
+    for position, tailored_requirement in enumerate(tailored_requirements):
         norm_chips = " ".join(
-            _chip("norm_ids", n) for n in (item.get("norm_ids") or [])
+            _chip("norm_ids", n) for n in (tailored_requirement.get("norm_ids") or [])
         )
         evidence_tokens = " ".join(
             _token("suggested_evidence", s)
-            for s in (item.get("suggested_evidence") or [])
+            for s in (tailored_requirement.get("suggested_evidence") or [])
         )
         out.append(
             "<li><p><strong>"
-            + emit_field("title", item.get("title"))
+            + emit_field("title", tailored_requirement.get("title"))
             + "</strong> "
-            + _token("priority", item.get("priority"))
-            + _control_type_html(item, views[position] if views else None)
+            + _token("priority", tailored_requirement.get("priority"))
+            + _tailored_requirement_type_html(tailored_requirement, views[position] if views else None)
             + "</p><p>"
-            + emit_field("description", item.get("description"))
+            + emit_field("description", tailored_requirement.get("description"))
             + f"</p><p>{norm_chips}</p>"
             + (
                 f'<p><span class="microlabel">suggested evidence</span> {evidence_tokens}</p>'
@@ -1490,24 +1502,24 @@ def _render_backlog(
             + "</li>"
         )
     out.append("</ol>")
-    dropped = ans.get("dropped_items")
-    merged = ans.get("merged_items")
+    dropped = ans.get("dropped_tailored_requirements")
+    merged = ans.get("merged_tailored_requirements")
     dropped_n = len(dropped) if isinstance(dropped, list) else dropped
     merged_n = len(merged) if isinstance(merged, list) else merged
     out.append(
         '<p class="caption">integrity: '
-        + emit_field("dropped_items", dropped_n)
-        + " items dropped, "
-        + emit_field("merged_items", merged_n)
+        + emit_field("dropped_tailored_requirements", dropped_n)
+        + " tailored requirements dropped, "
+        + emit_field("merged_tailored_requirements", merged_n)
         + " merged (no norm cap, no truncation, B71)"
         + "</p>"
     )
     notes = ans.get("notes")
     if isinstance(notes, list) and notes:
         out.append("<ul>" + _list_items("notes", notes) + "</ul>")
-    out.append(_judge_record_for(backlog_ex))
-    out.append(_legal_notes_html(backlog_ex))
-    out.append(_record_line(backlog_ex, mixed, superseded))
+    out.append(_judge_record_for(tailored_requirements_ex))
+    out.append(_legal_notes_html(tailored_requirements_ex))
+    out.append(_record_line(tailored_requirements_ex, mixed, superseded))
     out.append("</section>")
     return "".join(out)
 
@@ -2024,7 +2036,7 @@ def render_report(
             classify_ex = None
     requirements_ex = single("get_applicable_requirements")
     matrix_ex = single("trace_implementation")
-    backlog_ex = single("generate_control_backlog")
+    tailored_requirements_ex = single("generate_tailored_requirements")
     alignment_exs = _latest_for_tool(latest, "trace_alignment")
     evidence_exs = _latest_for_tool(latest, "evaluate_project_evidence")
     explain_exs = _latest_for_tool(latest, "explain_requirement")
@@ -2077,7 +2089,7 @@ def render_report(
             tier=tier,
             requirements_ex=requirements_ex,
             matrix_ex=matrix_ex,
-            backlog_ex=backlog_ex,
+            tailored_requirements_ex=tailored_requirements_ex,
             evidence_exs=evidence_exs,
             unknown_level=unknown_level,
         )
@@ -2117,10 +2129,14 @@ def render_report(
                 matrix_ex, requirements_ex, tier, mixed, superseded_for(matrix_ex)
             )
         )
-    body.append(_render_backlog(backlog_ex, mixed, superseded_for(backlog_ex)))
+    body.append(
+        _render_tailored_requirements(
+            tailored_requirements_ex, mixed, superseded_for(tailored_requirements_ex)
+        )
+    )
     body.append(_render_hleg(matrix_ex, alignment_exs, mixed, history))
     body.append(_render_evidence(evidence_exs, mixed, history))
-    body.append(_render_judge_parts_superseded(exchanges, [backlog_ex, *evidence_exs]))
+    body.append(_render_judge_parts_superseded(exchanges, [tailored_requirements_ex, *evidence_exs]))
     body.append(_render_judge_parts_apart(exchanges))
     body.append(_render_provenance(exchanges, resolve_exs, unhomed_exs, mixed))
     body.append(_render_problems(problems))
@@ -2144,7 +2160,7 @@ def render_report(
         "</footer>"
     )
 
-    title = "TERE4AI engineering requirements report"
+    title = "TERE4AI requirements report"
     return (
         "<!doctype html>\n"
         '<html lang="en"><head><meta charset="utf-8">'
