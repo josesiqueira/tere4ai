@@ -312,6 +312,12 @@ Three judges, kept separate:
   hallucinated and no compliance is asserted. Since runtime_grounding v2
   (2026-10-01, DEC-19) it records its view of each generated control's
   requirement type, which never changes the backlog's verdict.
+  Added 2026-11-04 (B181, DEC-30): the tool it gates is
+  generate_tailored_requirements and the thing it judges is a tailored
+  requirement; "backlog item" and "generated control" in this bullet are
+  that thing under the names of its day, and the versions of record are
+  runtime_grounding v4 with generate_backlog v4 (the paragraph of
+  2026-10-15 below names v3, the version of its day).
 
 Why the judge matters, and the claim discipline: sibling systems ground legal
 references correctly only around 50 to 68 percent of the time without gating
@@ -374,6 +380,9 @@ grounded_by: REF-31, REF-32
 - Required tools: classify_ai_system, get_applicable_requirements,
   explain_requirement, evaluate_project_evidence, trace_alignment,
   generate_control_backlog, coverage_report, source_trace.
+  Added 2026-11-04 (B181, DEC-30): generate_control_backlog is named
+  generate_tailored_requirements since that day; the list above keeps the
+  name of its day.
   (classify_ai_system: the FLI rule-based checker, REF-30, is a
   classification-logic source and a baseline to beat, not a grounding for a
   MUST.)
@@ -1262,6 +1271,16 @@ way round.
   src/tere4ai/judge/runtime_grounding.py; tests/unit/test_extract_norms.py,
   test_get_requirements.py, test_backlog.py, test_runtime_grounding.py
   and test_review_queue.py; CHANGELOG.md names the contract change.
+  Added 2026-11-04 (B181, DEC-30): "generated control", "control" and
+  "backlog" in this decision are the tailored requirement and the
+  generation under the names of their day; since that day the tool is
+  generate_tailored_requirements, its answer field is
+  tailored_requirements (before items), judge_type_views keeps its name
+  with one view per tailored requirement, and the runtime judge's view of
+  the type is read under runtime_grounding v4 with generate_backlog v4
+  (the prompt directories keep their names as record keys). The field
+  requirement_type keeps its name on the norm and on the tailored
+  requirement; the three types and the rules above do not change.
 
 - DEC-20: the classifier's levels and its yes or no field are named as the
   Commission's risk pyramid names them, one name everywhere (added
@@ -1673,6 +1692,18 @@ way round.
   report, an unexpected build refused,
   model_called false on every refusal before a request, demo lines left
   out of the estimate.
+  Added 2026-11-04 (B181, DEC-30): the routes POST /api/backlog and POST
+  /api/backlog/judge of this decision are POST /api/tailored-requirements
+  and POST /api/tailored-requirements/judge since that day (the names
+  confirmed by Jose, 2026-11-04, brief Q2: "yes"); "items" in the signed
+  core is
+  tailored_requirements, "one entry per signed item" one entry per signed
+  tailored requirement, and the format version is
+  "tere4ai.signed_answer.v2" for both routes, the evidence record's core
+  unchanged; a v1 record presented to a judge route is refused by name
+  before any model call, and a stored v1 record is still read for display
+  by the clients with its bytes kept. The mode, the demo judge, the
+  refusals and DEC-07's standing do not change.
 
 - DEC-25: Layer 3 reads the Ethics Guidelines for Trustworthy AI (ADD-01)
   from a text derived from their official PDF by a committed command and
@@ -2097,6 +2128,200 @@ way round.
   served_build.py _judged_independently; tests/unit/test_served_build.py
   (a newer build judged by an OpenAI model not served, a self-judging
   build not served, a build recording no judge still a candidate).
+- DEC-30: three names for the three served things and no other, an
+  applicable requirement, a tailored requirement and the generation: the
+  tool generate_control_backlog becomes generate_tailored_requirements,
+  the word "backlog" leaves everything a person or a model reads, and
+  "control", "item" and "backlog item" never name the tailored
+  requirement again (added 2026-11-04; thesis task B181, brief
+  sdd/2026-11-04-B181-three-names/brief.md revision 2 and its rulings R1
+  to R14 in progress.md in the private research repository; spec G
+  D-G90, spec F D-F42, spec W D-W38; the owner's words, 2026-11-04: "we
+  can keep applicable requirements, sounds ok"; "ok the name control is
+  bad, and item, such a confusion. lets normalise for tialroed
+  requirement because thats what ive been calling it, can you change
+  everywhere"; "it hurts me to see 'items'"; "ultimately, we are going
+  to drop the word backlog, because it causes confusion, so we will only
+  have applicable requirement and tailored requirement"; on the tool's
+  name: "i want this, but can become a card to be done soon", then "do
+  this card now"; on the brief's questions, the same day: Q1, the
+  dashboard's page and count, "Tailored Requirements generations"; Q2,
+  the routes, "yes"; Q3, the stored keys and values, "b but you do
+  carefully : so there is no risk :)"). Engineering decision (one name per thing, the rule
+  DEC-28 applied to the alignment words carried to the runtime tool;
+  traceability, Section 13); it needs no literature grounding
+  (AGENTS.md grounding bar).
+  The three names. An applicable requirement is a judge-accepted norm
+  served by get_applicable_requirements for the system's level and role,
+  grouped by Article (the answer field requirements_by_article): one
+  norm, nothing else; around it the selection's bookkeeping (the Article
+  group, the application dates, the party it is served for). A tailored
+  requirement is one entry the generator writes from the norms it was
+  sent and the system's context (title, description, priority,
+  requirement_type, norm_ids, suggested_evidence), judged by the runtime
+  grounding judge. The generation is one call of the tool with its
+  answer (the tailored requirements, the judge's verdict, the notes); the
+  server takes any list of norm ids, and both clients send one Article's
+  norms per call. "Backlog" named the generation, the list, the phase,
+  the routes and the prompt family, and leaves every label, docstring,
+  description, generated page and model-facing prompt; "engineering
+  requirements" for the served norms (the public docs, the tool's
+  docstring) reads "applicable requirements"; "requirement group" stays
+  where it is a schema field or a function name (norms.schema.json,
+  requirements.py _is_requirement_group) and reads "the Article's
+  applicable requirements" in prose.
+  The rule that sorts every occurrence (ruling R11 as Jose decided it,
+  brief Q3, option (b): "b but you do carefully : so there is no risk
+  :)"): every word changes, the live answer's keys, the tool's name, the
+  routes and the index keys, the scope value, the prompts' model-facing
+  words, every word a person reads, and a key or a value inside a stored
+  row or a kept file, which is migrated to the new word, carefully: a
+  database backup taken before the first migration, one migration per
+  value, the row counts before and after printed and recorded, and the
+  kept files rewritten by one script that maps the keys and values and
+  proves its result equal to its input apart from the renamed keys and
+  values, the files being under git so the change is reviewable and
+  revertible. In this repository the kept file is the sibling
+  demo-systems file tests/unit/test_report.py reads (the demo sessions
+  under tests/fixtures/demo_sessions and demo/mcp_demo/sessions hold no
+  generate call, so nothing in them is rewritten); the clients' stored
+  rows and kept files are spec G D-G90 (5) and spec W D-W38. Two
+  exceptions, each with its reason: (i) the signed records of DEC-24
+  keep their v1 bytes, because a signature is over those bytes and the
+  facade cannot re-sign a past record; they are read for display through
+  the reader and refused by name on a new judge request (ruling R4
+  stands); (ii) the published builds' files and chain records, the
+  prompt directory names generate_backlog and runtime_grounding,
+  judge_kind and the usage log lines already written stay, because a
+  build's files are frozen under digests the chain record verifies
+  (DEC-16, DEC-29) and the prompt name with its version is the record
+  key of every build, run and evaluation record (DEC-28). The one reader
+  per repository (ruling R6) stays for files a migration cannot reach (a
+  stored v1 signed record; a file restored from a backup) and never
+  mutates its input.
+  The tool (ruling R1): registered and described as
+  generate_tailored_requirements ("Generate judged tailored requirements
+  from judge-accepted norms"); the key scope row of keys.py TOOL_SCOPES
+  names it, and the scope value backlog_paid becomes
+  tailored_requirements_paid (ruling R3: the issue command writes and
+  accepts the new value only, the keys store maps the old value to the
+  new one on load through one function so a key issued before keeps
+  working, the usage log writes the new names from then on, and
+  docs/PHASE2_DESIGN.md's scope table follows); the replay window names
+  the new tool; the report's ingest keys the exchange by the new tool
+  name, and its render heads the section "Tailored requirements" (before
+  "Control backlog") and counts the figure "tailored requirements"
+  (before "backlog items").
+  The routes (ruling R5; confirmed by Jose, 2026-11-04, brief Q2: "yes"):
+  POST /api/backlog and POST /api/backlog/judge become POST
+  /api/tailored-requirements and
+  POST /api/tailored-requirements/judge; the old paths are removed, not
+  redirected, and both clients change in the same run (the B160 rule, no
+  alias on the live input). The facade's index answer and
+  /.well-known/tere4ai.json carry the keys tailored_requirements and
+  tailored_requirements_judge in place of backlog and backlog_judge, and
+  the llms.txt text names the route and the tool by their new names.
+  The answer keys (ruling R2): items, dropped_items and merged_items
+  become tailored_requirements, dropped_tailored_requirements and
+  merged_tailored_requirements; judge_type_views keeps its name, one view
+  per tailored requirement (DEC-19). A live answer never carries the old
+  keys. A kept file that carries them is rewritten once by the script
+  above; a file a migration cannot reach is read through one function
+  per repository (ruling R6, the B160 pattern of features_of_record)
+  that maps the three keys before any schema validation, copies and
+  never mutates its input and keeps the new key when both are present
+  (here: the report's ingest of a recorded session, and
+  test_report.py's loose-envelope case, which reads the rewritten
+  sibling file and asserts the new names). The missing_facts sentence "backlog items define
+  required work; no project evidence has been evaluated against these
+  norms yet" reads "tailored requirements define required work; no
+  project evidence has been evaluated against these norms yet".
+  The signed record (DEC-24, ruling R4): its bytes hold the route and
+  the answer's core keys, so the format version becomes
+  "tere4ai.signed_answer.v2" for both routes (signed.py's one constant;
+  the evidence record takes v2 with its core unchanged). A v1 record
+  presented to a judge route is refused by name before any model call,
+  check_record before verify, since verify swallows RecordError and
+  would answer "the signature does not verify"; a stored v1 record is
+  still read for display by the clients, its bytes kept. The test
+  vectors shared with the dashboard are regenerated.
+  The prompts (rulings R1 and R12): generate_backlog v4 and
+  runtime_grounding v4, a wording change only: "control", "item" and
+  "backlog" leave the model-facing text, "tailored requirement" and "the
+  tailored requirements" enter, the generator's output key follows the
+  answer keys, and the checks, the rules and the worked examples'
+  content do not change; v4 is the default and the version of record
+  (eval/config_evaluated.yaml), and the evidence tool's judge reads
+  runtime_grounding v4 too, its text changing only where it names the
+  backlog. The prompt directories keep their names, as DEC-28 kept
+  mapping_run_id: a prompt's name with its version is a record key in
+  every build, run and evaluation record. v1 to v3 stay runnable with
+  their input and their reply handling (DEC-28's rule), which needs the
+  runtime judge's input rendered by prompt version: v1 to v3 receive
+  {"tool": "generate_control_backlog", "items": [...]} and their
+  type_views are parsed on the position key item, as today (backlog.py
+  builds one input for every version at present, and v3's type_views
+  rule fires only on the old tool name and the items key); v4 receives
+  {"tool": "generate_tailored_requirements", "tailored_requirements":
+  [...]} and its type_views are parsed on the position key
+  tailored_requirement. docs/benchmark_cost_estimate.md is regenerated,
+  since the prompts' lengths change.
+  The cap sentence (ruling R7): the tool's docstring "capped at 10; any
+  truncation is noted in the answer, never silent" and its copy in the
+  generated docs/server/tools.md are removed, with a CHANGELOG line, and
+  no cap is added: backlog.py has said "No caps: every norm given
+  reaches the generator" since B71 (2026-09-08) and the tool body has
+  none, so the sentence was stale text, not a behaviour.
+  The old demo UI (web/, Next.js, last changed 2026-10-12, built by the
+  CI) calls the facade's route and groups by Article; it follows the
+  route and the keys, with its labels reworded ("4. Control backlog"
+  becomes "4. Tailored requirements"; "3. Applicable requirements" is
+  kept), and the /mcp-demo page is rebuilt from the kept sessions
+  (steps 2 and 3 of its pipeline, no server call); the sessions hold no
+  generate call, so nothing is re-recorded.
+  Defense: a thing with five names is read five ways ("item" was the
+  tailored requirement, a served norm, a benchmark case and a review
+  item in the clients), and a name that survives only in signed bytes,
+  frozen builds and prompt versions of their day is history a reader can
+  date; a route removed rather than aliased keeps one live contract both
+  clients follow; a record refused by its version before any model call
+  tells the caller what it sent; a stored value migrated with a backup,
+  counted rows and a reviewable rewrite keeps the data and the words one
+  thing, and a reader for what a migration cannot reach keeps every
+  recorded answer readable without touching what was signed.
+  Cost if wrong: before B74, the tool name, two routes, three index
+  keys, one scope value with its mapping, three answer keys, one version
+  string with its refusal branch, two prompt files, one reader and the
+  labels back, with no model call; the migrated rows back from the
+  backup and the rewritten files back from git.
+  verify: src/tere4ai/mcp_server/server.py (the registration, the
+  description, the docstring without the cap sentence), keys.py
+  (TOOL_SCOPES, the scope value, the mapping on load, the issue
+  command's choices), replay.py (the tool name), backlog.py (the answer
+  keys, the missing_facts sentence, the judge input rendered by prompt
+  version, the type_views parsed by version);
+  src/tere4ai/judge/runtime_grounding.py; src/tere4ai/http_facade/app.py
+  (the routes, the index answer, /.well-known/tere4ai.json, llms.txt)
+  and signed.py (FORMAT v2, check_record before verify);
+  src/tere4ai/report/ingest.py and render.py (the exchange keyed by tool
+  name, the one reader, the section and figure names);
+  prompts/generate_backlog/v4.md, prompts/runtime_grounding/v4.md;
+  eval/config_evaluated.yaml; scripts/estimate_benchmark_cost.py;
+  docs/server/index.md and tools.md, README.md, SKILL.md and
+  docs/PHASE2_DESIGN.md (regenerated by gen_server_docs or reworded by
+  hand, the mkdocs site built strictly as the CI builds it);
+  web/src/app/(demo)/assess/page.tsx and the /mcp-demo page;
+  tests/unit/test_backlog.py, test_backlog_on_demand.py,
+  test_http_facade.py, test_http_facade_judge_routes.py,
+  test_http_facade_on_demand.py, test_signed_answer.py (the regenerated
+  vectors, a v1 record refused by name before any request),
+  test_mcp_keys.py (the old scope mapped on load, refused at issue),
+  test_mcp_replay.py, test_report.py (the loose envelope read through
+  the reader), test_report_judge_on_demand.py, test_runtime_grounding.py
+  (the v3 and the v4 input and type_views), test_server_docs.py and
+  test_server_docs_prose.py; tests/fixtures/inline_answers_golden.json
+  regenerated; docs/benchmark_cost_estimate.md regenerated with v4;
+  CHANGELOG.md names the contract change.
 
 ## 17. Implementation-traceability convention
 
