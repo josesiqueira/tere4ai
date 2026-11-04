@@ -2,7 +2,7 @@
 
 COSTS REAL API MONEY: it calls the configured OpenAI generator and the
 Anthropic judge twice each (one evaluate_project_evidence call and one
-generate_control_backlog call, each of which is one generator call plus one
+generate_tailored_requirements call, each of which is one generator call plus one
 runtime-grounding judge call). It is skipped unless the environment
 variable TERE4AI_LIVE_TESTS is set to "1", and it requires a fully
 configured .env (TERE4AI_GENERATOR_MODEL, TERE4AI_JUDGE_MODEL,
@@ -134,15 +134,15 @@ def test_live_evaluate_project_evidence_on_one_accepted_norm():
         )
 
 
-def test_live_generate_control_backlog_cites_only_input_norms():
-    from tere4ai.mcp_server.backlog import generate_control_backlog
+def test_live_generate_tailored_requirements_cites_only_input_norms():
+    from tere4ai.mcp_server.backlog import generate_tailored_requirements
 
     accepted, payload = _load_accepted_norms()
     norms = accepted[:3]
-    assert len(norms) == 3, "need three accepted norms for the backlog smoke"
+    assert len(norms) == 3, "need three accepted norms for the tailored requirements smoke"
     cfg, generator, judge = _clients()
 
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         norms,
         "A high-risk AI system that triages emergency-room patients in an EU hospital.",
         generator,
@@ -158,10 +158,10 @@ def test_live_generate_control_backlog_cites_only_input_norms():
     else:
         assert envelope["status"] == "applicable_missing_evidence"
     answer = envelope["answer"]
-    assert answer["items"], f"no backlog items survived; notes: {answer['notes']}"
+    assert answer["tailored_requirements"], f"no tailored requirements survived; notes: {answer['notes']}"
     assert answer["judge_model"] == cfg.judge_model
     assert "claude" in answer["judge_model"].lower()
     allowed_ids = {n["norm_id"] for n in norms}
-    for item in answer["items"]:
-        assert set(item["norm_ids"]) <= allowed_ids
-        assert item["priority"] in ("must", "should")
+    for tailored_requirement in answer["tailored_requirements"]:
+        assert set(tailored_requirement["norm_ids"]) <= allowed_ids
+        assert tailored_requirement["priority"] in ("must", "should")

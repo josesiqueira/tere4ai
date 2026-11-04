@@ -74,7 +74,7 @@
     },
     "untrusted_sha256": "de8781a0d40b80413f952a34a337736755984656e48c321d9f0d0d1bacb73f9c",
     "core": {
-     "items": [
+     "tailored_requirements": [
       {
        "title": "Keep an audit log",
        "description": "Record every door event.",
@@ -101,8 +101,8 @@
      ]
     }
    },
-   "bytes": "{\"caller\":{\"document\":null,\"project\":\"22222222-2222-4222-8222-222222222222\",\"repository_run\":\"11111111-1111-4111-8111-111111111111\"},\"core\":{\"items\":[{\"description\":\"Record every door event.\",\"norm_ids\":[\"norm:a\"],\"priority\":\"must\",\"requirement_type\":\"functional\",\"suggested_evidence\":[\"log retention policy\"],\"title\":\"Keep an audit log\"},{\"description\":\"Review who may open.\",\"norm_ids\":[\"norm:a\",\"norm:b\"],\"priority\":\"should\",\"requirement_type\":null,\"suggested_evidence\":[],\"title\":\"Review access\"}]},\"format\":\"tere4ai.signed_answer.v1\",\"generation_id\":\"0d9c8b7a-6f5e-4d3c-8b2a-1f0e9d8c7b6a\",\"generator_model\":\"gpt-6-astra\",\"generator_prompt\":{\"name\":\"generate_backlog\",\"version\":\"v2\"},\"graph_version\":\"build-3b753e5e9297\",\"judge_prompt\":{\"name\":\"runtime_grounding\",\"version\":\"v2\"},\"norm_ids\":[\"norm:a\",\"norm:b\"],\"norms_build\":\"build-3b753e5e9297\",\"route\":\"/api/backlog\",\"untrusted_sha256\":\"de8781a0d40b80413f952a34a337736755984656e48c321d9f0d0d1bacb73f9c\"}",
-   "signature": "69ce289e586a8fa502e14afcaeeec6e42d55ae90613df7f50c4b5fc06da4f481"
+   "bytes": "{\"caller\":{\"document\":null,\"project\":\"22222222-2222-4222-8222-222222222222\",\"repository_run\":\"11111111-1111-4111-8111-111111111111\"},\"core\":{\"tailored_requirements\":[{\"description\":\"Record every door event.\",\"norm_ids\":[\"norm:a\"],\"priority\":\"must\",\"requirement_type\":\"functional\",\"suggested_evidence\":[\"log retention policy\"],\"title\":\"Keep an audit log\"},{\"description\":\"Review who may open.\",\"norm_ids\":[\"norm:a\",\"norm:b\"],\"priority\":\"should\",\"requirement_type\":null,\"suggested_evidence\":[],\"title\":\"Review access\"}]},\"format\":\"tere4ai.signed_answer.v1\",\"generation_id\":\"0d9c8b7a-6f5e-4d3c-8b2a-1f0e9d8c7b6a\",\"generator_model\":\"gpt-6-astra\",\"generator_prompt\":{\"name\":\"generate_backlog\",\"version\":\"v2\"},\"graph_version\":\"build-3b753e5e9297\",\"judge_prompt\":{\"name\":\"runtime_grounding\",\"version\":\"v2\"},\"norm_ids\":[\"norm:a\",\"norm:b\"],\"norms_build\":\"build-3b753e5e9297\",\"route\":\"/api/backlog\",\"untrusted_sha256\":\"de8781a0d40b80413f952a34a337736755984656e48c321d9f0d0d1bacb73f9c\"}",
+   "signature": "57fc66521fdecc65ec556fe4d40efe78341e8dc6d60d9634fc68f12073615d67"
   },
   {
    "name": "evidence with nulls",

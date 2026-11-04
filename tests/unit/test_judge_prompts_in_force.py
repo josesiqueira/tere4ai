@@ -8,7 +8,10 @@ v3, generate_backlog v3) are byte-identical to their predecessors apart from
 the heading's version line. The new versions are the defaults and the
 versions of record; the evidence tool's judge moves to runtime_grounding v3:
 on an evidence answer it reads v1's message, its verdict is handled as under
-v1, and the answer records no type view.
+v1, and the answer records no type view. B181 (2026-11-04, DEC-30):
+generate_backlog v4 and runtime_grounding v4, v3 with the words changed, are
+the defaults and the versions of record, and the evidence tool's judge reads
+v4 the same way.
 Scripted models (FakeClient) only: no network, no keys.
 """
 
@@ -100,12 +103,12 @@ def test_the_paragraph_is_one_text():
 def test_the_defaults_are_the_new_versions():
     assert extract_pipeline.DEFAULT_PROMPT_VERSION == "v7"
     assert align_pipeline.DEFAULT_PROMPT_VERSION == "v3"
-    assert backlog.DEFAULT_PROMPT_VERSION == "v3"
-    assert evidence.JUDGE_PROMPT_VERSION == "v3"
+    assert backlog.DEFAULT_PROMPT_VERSION == "v4"
+    assert evidence.JUDGE_PROMPT_VERSION == "v4"
     assert evidence.GENERATOR_PROMPT_VERSION == "v1"
     record = (ROOT / "eval" / "config_evaluated.yaml").read_text(encoding="utf-8")
     for line in ("extract_norms: v7", "judge_norms: v7", "align_hleg: v3", "judge_alignment: v3",
-                 "evaluate_evidence: v1", "generate_backlog: v3", "runtime_grounding: v3"):
+                 "evaluate_evidence: v1", "generate_backlog: v4", "runtime_grounding: v4"):
         assert f"  {line}\n" in record, line
     # v7 is read as v6 by every version table, v3 as v2 (each gate below).
     assert extract_pipeline.writes_addressee("v7")
@@ -181,12 +184,13 @@ GENERATOR_REPLY = json.dumps({"assessment": "satisfied",
                               "gaps": [], "rationale": "The plan names the system."})
 
 
-# The replies a v3 judge sends: v2's instructions ask for "type_views": [] on
-# any answer that is not a backlog; a judge may still send views.
+# The replies a v4 judge sends: v2's instructions ask for "type_views": [] on
+# any answer that is not the tailored requirements of a system; a judge may
+# still send views.
 ACCEPT_NO_VIEWS = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded in the cited norm.",
                               "type_views": []})
 ACCEPT_WITH_VIEWS = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded in the cited norm.",
-                                "type_views": [{"item": 1, "requirement_type_agrees": False,
+                                "type_views": [{"tailored_requirement": 1, "requirement_type_agrees": False,
                                                 "requirement_type": "process"}]})
 
 
@@ -204,22 +208,22 @@ def _comparable(envelope):
 
 
 @pytest.mark.parametrize("reply", [ACCEPT_NO_VIEWS, ACCEPT_WITH_VIEWS], ids=["empty views", "views sent"])
-def test_the_evidence_judge_under_v3_records_no_type_view(tmp_path, reply):
-    v3, v3_judge = _evidence_run(tmp_path, reply)  # the default is v3
+def test_the_evidence_judge_under_v4_records_no_type_view(tmp_path, reply):
+    v4, v4_judge = _evidence_run(tmp_path, reply)  # the default is v4
     v1, v1_judge = _evidence_run(tmp_path, reply, judge_prompt_version="v1")
-    assert PARAGRAPH in v3_judge.calls[0][0] and PARAGRAPH not in v1_judge.calls[0][0]
-    assert v3_judge.calls[0][1] == v1_judge.calls[0][1]  # the judge reads the same message
-    assert v3["judge_verdict"] == "accepted" and v3["status"] == "satisfied_with_evidence"
-    assert _comparable(v3) == _comparable(v1)
-    assert "judge_type_views" not in v3["answer"]
+    assert PARAGRAPH in v4_judge.calls[0][0] and PARAGRAPH not in v1_judge.calls[0][0]
+    assert v4_judge.calls[0][1] == v1_judge.calls[0][1]  # the judge reads the same message
+    assert v4["judge_verdict"] == "accepted" and v4["status"] == "satisfied_with_evidence"
+    assert _comparable(v4) == _comparable(v1)
+    assert "judge_type_views" not in v4["answer"]
     log = [json.loads(line) for line in (tmp_path / "runtime_log.jsonl").read_text(encoding="utf-8").splitlines()]
-    assert [e["prompt_version"] for e in log if e.get("direction") == "judge"] == ["v3", "v1"]
+    assert [e["prompt_version"] for e in log if e.get("direction") == "judge"] == ["v4", "v1"]
     # ground_check hands the raw views back; the evidence answer never records them
     judge = FakeClient({EVIDENCE_NORM["norm_id"]: reply}, model="fake-judge")
-    check = ground_check(GENERATOR_REPLY, [EVIDENCE_NORM], EVIDENCE["content"], judge, prompt_version="v3",
+    check = ground_check(GENERATOR_REPLY, [EVIDENCE_NORM], EVIDENCE["content"], judge, prompt_version="v4",
                          log_path=tmp_path / "ground.jsonl")
     assert check["verdict"] == "accepted" and check["type_views"] == json.loads(reply)["type_views"]
-    assert not any("type_view" in key for key in v3["answer"])
+    assert not any("type_view" in key for key in v4["answer"])
 
 
 @pytest.mark.skipif(not LAYER1.is_file(), reason="the tracked layer1.json is absent")

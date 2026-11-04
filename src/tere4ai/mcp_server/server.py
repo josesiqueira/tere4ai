@@ -10,7 +10,7 @@ is required. If a dump has not been built, the tools return a
 degraded envelope instead of failing silently (Section 13).
 
 evaluate_project_evidence, evaluate_project_evidence_batch and
-generate_control_backlog perform PAID model calls (OpenAI generator plus
+generate_tailored_requirements perform PAID model calls (OpenAI generator plus
 Anthropic runtime grounding judge), and elicit_features one PAID generator
 call (fact elicitation, no judge); their descriptions say so, and a missing
 model configuration surfaces as a clean degraded envelope, never a
@@ -29,6 +29,7 @@ TERE4AI_MCP_REQUIRE_KEY=1. Every tool call is metered body-free.
 @implements: DEC-08, DEC-10
 @implements: DEC-23
 @implements: DEC-25
+@implements: DEC-30
 @grounded_by: REF-16, REF-17, REF-15, REF-31
 """
 
@@ -56,7 +57,7 @@ from tere4ai.graph_store.publication import (
 )
 from tere4ai.graph_store.served_build import resolve_served
 from tere4ai.judge.config import ModelConfigError, load_model_config
-from tere4ai.mcp_server import backlog as backlog_rules
+from tere4ai.mcp_server import backlog as tailored_requirements_rules
 from tere4ai.mcp_server import classify as classify_rules
 from tere4ai.mcp_server import elicit as elicit_rules
 from tere4ai.mcp_server import evidence as evidence_rules
@@ -86,12 +87,12 @@ mcp = FastMCP(
         "(explain_requirement, trace_alignment, resolve_span) plus "
         "runtime tools (classify_ai_system, get_applicable_requirements, "
         "trace_implementation, evaluate_project_evidence, "
-        "evaluate_project_evidence_batch, generate_control_backlog) plus "
+        "evaluate_project_evidence_batch, generate_tailored_requirements) plus "
         "elicit_features, which proposes the facts classify_ai_system reads "
         "from a text description the coding agent writes from the project it "
         "works in; TERE4AI never reads the repository. "
         "Read-only; evaluate_project_evidence, evaluate_project_evidence_batch, "
-        "generate_control_backlog and elicit_features perform paid model calls. "
+        "generate_tailored_requirements and elicit_features perform paid model calls. "
         + tools.NON_LEGAL_ADVICE_NOTICE
     ),
 )
@@ -494,8 +495,7 @@ def trace_implementation(
 def get_applicable_requirements(
     classification: dict[str, Any], addressee: str | None = None, actor: str | None = None
 ) -> dict[str, Any]:
-    """Judge-accepted engineering requirements applicable to a classified
-    system, grouped by source article.
+    """Judge-accepted applicable requirements of a classified system, grouped by source article.
 
     classification is the classify_ai_system envelope (or its bare answer).
     Only judge-ACCEPTED NormativeStatements are returned; unacceptable-risk systems
@@ -676,17 +676,16 @@ def evaluate_project_evidence_batch(
 
 
 @mcp.tool(annotations=_READ_ONLY_PAID)
-def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[str, Any]:
-    """Generate a judged engineering control backlog from judge-accepted
-    norms.
+def generate_tailored_requirements(norm_ids: list[str], system_context: str) -> dict[str, Any]:
+    """Generate judged tailored requirements from judge-accepted norms.
 
     PAID: this tool performs paid model calls (one OpenAI generator call
     plus one Anthropic runtime grounding judge call) on every invocation.
 
-    norm_ids are NormativeStatement ids from get_applicable_requirements
-    (capped at 10; any truncation is noted in the answer, never silent).
-    Every backlog item cites only input norm ids; items citing anything else
-    are dropped and counted. The judge verdict gates the whole backlog."""
+    norm_ids are NormativeStatement ids from get_applicable_requirements;
+    every norm given reaches the generator (no cap). Every tailored
+    requirement cites only input norm ids; one citing anything else is
+    dropped and counted. The judge verdict gates the whole answer."""
     loaded = _active()
     dump = loaded.dump
     if dump is None:
@@ -713,7 +712,7 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
     if not isinstance(system_context, str) or not system_context.strip():
         return _invalid_input_envelope(
             "'system_context' must be a non-empty string describing the "
-            f"system; got {type(system_context).__name__}; no backlog was "
+            f"system; got {type(system_context).__name__}; no tailored requirements were "
             "generated and no model call was made",
             dump,
         )
@@ -732,25 +731,25 @@ def generate_control_backlog(norm_ids: list[str], system_context: str) -> dict[s
             ],
         )
     norms = [_norm_by_id(norms_payload, norm_id) for norm_id in norm_ids]
-    refusals = backlog_rules.deleted_source_refusals(norms, dump)
+    refusals = tailored_requirements_rules.deleted_source_refusals(norms, dump)
     if refusals:
         return tools.make_envelope(
             answer={"refused_norm_ids": list(refusals)},
             status="not_applicable",
             graph_version=_graph_version(dump),
             confidence=0.0,
-            missing_facts=[*refusals.values(), "no backlog was generated and no model call was made"],
+            missing_facts=[*refusals.values(), "no tailored requirements were generated and no model call was made"],
         )
     _attach_source_text(norms, dump)
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
     return _REPLAY.run(
-        tool="generate_control_backlog",
+        tool="generate_tailored_requirements",
         arguments={"norm_ids": norm_ids, "system_context": system_context},
         build=_graph_version(dump),
         model_parameters_sha256=clients.model_parameters_sha256,
-        compute=lambda: backlog_rules.generate_control_backlog(
+        compute=lambda: tailored_requirements_rules.generate_tailored_requirements(
             norms,
             system_context,
             clients.generator,

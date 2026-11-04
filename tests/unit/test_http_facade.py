@@ -308,7 +308,7 @@ def test_evidence_known_norm_passes_envelope_through_with_paid_header(client, fa
 def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
     gen_response = json.dumps(
         {
-            "items": [
+            "tailored_requirements": [
                 {
                     "title": "Establish the risk management system",
                     "description": "Stand up a documented, maintained risk process.",
@@ -317,7 +317,7 @@ def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
                     "priority": "must",
                 },
                 {
-                    "title": "Hallucinated item",
+                    "title": "Hallucinated tailored requirement",
                     "description": "Cites a norm outside the input set.",
                     "norm_ids": ["norm:eu-ai-act:article-999:n1"],
                     "suggested_evidence": [],
@@ -328,7 +328,7 @@ def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
     )
     fake_models(
         {"UNTRUSTED PROJECT CONTEXT": gen_response},
-        {"generate_control_backlog": JUDGE_ACCEPT},
+        {"generate_tailored_requirements": JUDGE_ACCEPT},
     )
     response = client.post(
         "/api/backlog",
@@ -341,11 +341,11 @@ def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
     assert response.headers[facade.PAID_HEADER] == "true"
     envelope = response.json()
     input_ids = {ACCEPTED_NORM_ID, ACCEPTED_NORM_ID_2}
-    assert envelope["answer"]["items"], "at least one item must survive"
-    for item in envelope["answer"]["items"]:
-        assert set(item["norm_ids"]) <= input_ids
+    assert envelope["answer"]["tailored_requirements"], "at least one tailored requirement must survive"
+    for tailored_requirement in envelope["answer"]["tailored_requirements"]:
+        assert set(tailored_requirement["norm_ids"]) <= input_ids
     # The hallucinated citation never surfaces; it is dropped and counted.
-    assert envelope["answer"]["dropped_items"] == 1
+    assert envelope["answer"]["dropped_tailored_requirements"] == 1
     assert envelope["status"] == "applicable_missing_evidence"
     assert envelope["judge_verdict"] == "accepted"
 

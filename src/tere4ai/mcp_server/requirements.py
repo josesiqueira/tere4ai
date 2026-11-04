@@ -16,6 +16,7 @@ judged data.
 @implements: DEC-20
 @implements: DEC-23
 @implements: DEC-27
+@implements: DEC-30
 @grounded_by: REF-17, REF-16
 """
 
@@ -57,7 +58,7 @@ ACTOR_RETIRED = (
 TRANSPARENCY_GROUP = "article-50"
 
 # Source groups that state a classification rule or a prohibition, not an
-# engineering requirement, so they are never served as applicable
+# applicable requirement, so they are never served as applicable
 # requirements for a (non-prohibited) high-risk system (audit 2026-07-20 W3).
 # A high-risk system is by definition not prohibited, so Article 5 norms are
 # never its requirements; Articles 6 to 7 and the Annex lists are the
@@ -75,10 +76,24 @@ def _is_requirement_group(group: str) -> bool:
 
 PROHIBITED_MESSAGE = (
     "This system falls under an Article 5 prohibited AI practice. Prohibited "
+    "systems receive no applicable requirements: placing on the market, "
+    "putting into service, and use are banned, so no tailored requirement can "
+    "make the system permissible. Seek legal review."
+)
+# B181 (DEC-30): a session recorded before the rename keeps its sentence; the
+# parity test reads it through this function.
+PROHIBITED_MESSAGE_BEFORE_B181 = (
+    "This system falls under an Article 5 prohibited AI practice. Prohibited "
     "systems receive no engineering requirements: placing on the market, "
     "putting into service, and use are banned, so no requirement backlog can "
     "make the system permissible. Seek legal review."
 )
+
+
+def prohibited_message_of_record(text: str) -> str:
+    """The live PROHIBITED_MESSAGE for the sentence a session recorded before
+    B181 holds; any other text unchanged."""
+    return PROHIBITED_MESSAGE if text == PROHIBITED_MESSAGE_BEFORE_B181 else text
 MINIMAL_MESSAGE = (
     "No Annex III high-risk category, Article 5 prohibition, or Article 50 "
     "transparency obligation matched the provided facts, so no requirements "
@@ -247,7 +262,7 @@ def get_applicable_requirements(
     *,
     actor: str | None = None,
 ) -> dict[str, Any]:
-    """Judge-accepted engineering requirements applicable to a classified system.
+    """Judge-accepted applicable requirements of a classified system, grouped by source article.
 
     Deterministic selection over the judged norms build artifact: high_risk
     returns all accepted norms grouped by source article; limited_risk

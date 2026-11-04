@@ -5,11 +5,11 @@
 @implements: DEC-28 (partial: the alignment lines read the default prompt version, align_hleg and judge_alignment v3 since B174)
 @grounded_by: REF-15
 
-The sequence is Layer 2 extraction, Layer 3 alignment, the control backlog,
+The sequence is Layer 2 extraction, Layer 3 alignment, the tailored requirements,
 the benchmark elicitation and the E6 ablation (spec G Section 10.4 and D-G84);
 campaigns cost nothing and the calibration judge runs are not in
 it. Every step runs the REAL pipeline code (extract_norms, align_norms,
-generate_control_backlog, the ablation strategies) with counting stand-in
+generate_tailored_requirements, the ablation strategies) with counting stand-in
 clients, so every prompt is the exact prompt a live run would send; no model
 is called and no network is touched. The full REF-15 benchmark (339
 scenarios + 137 QA pairs, frozen under data/snapshots/benchmark/ with the
@@ -101,7 +101,7 @@ from tere4ai.judge.config import (  # noqa: E402
     load_model_prices,
     model_developer_of,
 )
-from tere4ai.mcp_server.backlog import generate_control_backlog  # noqa: E402
+from tere4ai.mcp_server.backlog import generate_tailored_requirements  # noqa: E402
 
 BENCH_DIR = ROOT / "data" / "snapshots" / "benchmark"
 SAMPLE_PATH = ROOT / "eval" / "gold" / "benchmark_sample.json"
@@ -231,17 +231,17 @@ RATIOS: dict[str, dict[str, Any]] = {
         "value": 0.90,
         "source": "declared: reasoning ten times the visible output",
     },
-    "backlog_generator_billed_tokens": {
+    "tailored_requirements_generator_billed_tokens": {
         "value": 1510.0,
         "source": (
-            "the one measured xhigh backlog call of the declared generator (dashboard project_events 111209, "
+            "the one measured xhigh tailored requirements call of the declared generator (dashboard project_events 111209, "
             "2026-09-27, Article 8): 1,510 billed output tokens, reasoning not separable; read as "
             "carrying the central reasoning share"
         ),
     },
-    "backlog_generator_measured_norms": {
+    "tailored_requirements_generator_measured_norms": {
         "value": 2.0,
-        "source": "the norms that one measured backlog call sent (dashboard project_events 111209, 2026-09-27, Article 8)",
+        "source": "the norms that one measured tailored requirements call sent (dashboard project_events 111209, 2026-09-27, Article 8)",
     },
     "runtime_judge_reply_chars": {
         "value": 636.6847826086956,
@@ -257,8 +257,8 @@ B74_NORMS = ROOT / "data" / "graph_dumps" / "norms_core.b74.json"
 JULY_NORMS = ROOT / "data" / "graph_dumps" / "norms_core.json"
 JULY_ALIGNMENTS = ROOT / "data" / "graph_dumps" / "alignments_core.json"
 CORE_NODES = ROOT / "data" / "graph_dumps" / "core_nodes.txt"
-# Mock data for the backlog step, copied from tere4ai-dashboard scripts/seed.ts
-# (the CredScore demo project, line 114): the description a real backlog call
+# Mock data for the tailored requirements step, copied from tere4ai-dashboard scripts/seed.ts
+# (the CredScore demo project, line 114): the description a real tailored requirements call
 # for Article 25 would send as the system context.
 CREDSCORE_DESCRIPTION = (
     "CredScore is a machine learning service that evaluates the creditworthiness of natural "
@@ -267,7 +267,7 @@ CREDSCORE_DESCRIPTION = (
     "deployed by a private company under EU jurisdiction as a private entity providing an "
     "essential private service (consumer credit)."
 )
-BACKLOG_ARTICLE = "eu-ai-act:article-25"
+TAILORED_REQUIREMENTS_ARTICLE = "eu-ai-act:article-25"
 
 
 def ratio(name: str) -> float:
@@ -408,13 +408,13 @@ def alignment_lines(
     }
 
 
-def backlog_lines(
+def tailored_requirements_lines(
     norms: list[dict[str, Any]],
     system_context: str,
     tmp_dir: Path,
     judge_reply_chars: float | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Backlog dry run: generate_control_backlog() with counting clients over
+    """Tailored requirements dry run: generate_tailored_requirements() with counting clients over
     the accepted norms and the system description. One generator call and one
     runtime-judge call. The generator's output is the one measured call's
     billed tokens scaled by the norms sent over the norms that call sent (a
@@ -423,16 +423,17 @@ def backlog_lines(
     at every share from that). The judge's output is the runtime judge's
     frozen mean reply size unless judge_reply_chars is given."""
     norm_ids = [norm["norm_id"] for norm in norms]
-    item = {"title": "Dry-run control", "description": "Dry-run stub.", "norm_ids": norm_ids,
-            "suggested_evidence": ["dry-run evidence"], "priority": "must", "requirement_type": None}
-    gen = CountingClient("generator", {"items": [item]})
+    entry = {"title": "Dry-run tailored requirement", "description": "Dry-run stub.", "norm_ids": norm_ids,
+             "suggested_evidence": ["dry-run evidence"], "priority": "must", "requirement_type": None}
+    # the reply key of the default prompt version (v4, DEC-30)
+    gen = CountingClient("generator", {"tailored_requirements": [entry]})
     judge = CountingClient("judge", {"verdict": "accepted", "scores": {}, "rationale": "dry-run stub"})
-    generate_control_backlog(norms, system_context, gen, judge, log_path=tmp_dir / "backlog_log.jsonl")
+    generate_tailored_requirements(norms, system_context, gen, judge, log_path=tmp_dir / "tailored_requirements_log.jsonl")
     # B133: this turns one historical billed figure into visible characters and
     # keeps the central share on purpose; a measured share (--measured-usage)
     # applies to the priced steps only
-    visible_tokens = (ratio("backlog_generator_billed_tokens")
-                      * len(norm_ids) / ratio("backlog_generator_measured_norms")
+    visible_tokens = (ratio("tailored_requirements_generator_billed_tokens")
+                      * len(norm_ids) / ratio("tailored_requirements_generator_measured_norms")
                       * (1 - ratio("reasoning_share_central")))
     return {
         "generator": {"calls": gen.calls, "in_chars": gen.prompt_chars,
@@ -445,7 +446,7 @@ def backlog_lines(
     }
 
 
-def every_role_backlog_norms(b74_norms: list[dict[str, Any]], dump: dict[str, Any]) -> list[dict[str, Any]]:
+def every_role_tailored_requirements_norms(b74_norms: list[dict[str, Any]], dump: dict[str, Any]) -> list[dict[str, Any]]:
     """Spec G D-G82 (1), (12): Article 25's accepted norms of the aborted B74
     extraction that one click sends: served to one of the six AI Act roles
     (act_parties.serves) or with an addressee not settled. The facade's click
@@ -454,7 +455,7 @@ def every_role_backlog_norms(b74_norms: list[dict[str, Any]], dump: dict[str, An
     roles = act_parties.ai_act_roles()
     out = []
     for norm in b74_norms:
-        if norm.get("judge_verdict") != "accepted" or not norm["source_node_id"].startswith(BACKLOG_ARTICLE + ":"):
+        if norm.get("judge_verdict") != "accepted" or not norm["source_node_id"].startswith(TAILORED_REQUIREMENTS_ARTICLE + ":"):
             continue
         value = act_parties.addressee_of(norm).value
         if value == act_parties.UNSPECIFIED or any(act_parties.serves(value, role) for role in roles):
@@ -865,8 +866,8 @@ def compute(
         "judge": dict(alignment["judge"],
                       in_chars=alignment["judge"]["in_chars"] - proxy["judge_in_chars"]),
     }
-    backlog = backlog_lines(inputs["backlog_norms"], CREDSCORE_DESCRIPTION, tmp_dir,
-                            judge_reply_chars=inputs["judge_reply_chars"])
+    tailored_requirements = tailored_requirements_lines(inputs["tailored_requirements_norms"], CREDSCORE_DESCRIPTION,
+                                                        tmp_dir, judge_reply_chars=inputs["judge_reply_chars"])
     elicitation = elicitation_line(inputs["ablation_items"], inputs["elicit_system_chars"],
                                    inputs["elicit_out_chars"])
     per_strategy, proxied = ablation_dry_run(
@@ -880,7 +881,7 @@ def compute(
     build_rows = (
         price("Layer 2 extraction", extraction)
         + price("Layer 3 alignment", alignment)
-        + price("Control backlog", backlog)
+        + price("Tailored requirements", tailored_requirements)
         + price("E6 elicitation", {"generator": elicitation}, ("generator",))
     )
     reps = inputs["repetitions"]
@@ -913,7 +914,7 @@ def compute(
     result: dict[str, Any] = {
         "declared": declared, "rows": rows, "bands": bands, "measured": inputs.get("measured") or {}, "n": cap,
         "pilot_n": pilot_n,
-        "candidates": candidates, "accepted": accepted, "backlog_norms": len(inputs["backlog_norms"]),
+        "candidates": candidates, "accepted": accepted, "tailored_requirements_norms": len(inputs["tailored_requirements_norms"]),
         "build_rows": build_rows, "first_rep": first, "later_rep": later, "main_rows": main_rows,
         "pilot_rows": pilot_rows, "dev_elicit_rows": dev_elicit_rows, "development": development,
         "pilot_note": pilot_note,
@@ -957,15 +958,16 @@ def _step_row(row: dict[str, Any]) -> str:
             f"| {_usd(row['cost']['low'])} | {_usd(row['cost']['central'])} | {_usd(row['cost']['high'])} |")
 
 
-def _backlog_judge_input_line(res: dict[str, Any]) -> str:
-    """The backlog judge's input is counted over the dry run's one-control
-    reply, so it leaves out the controls the generator writes, about the
-    generator's visible output; the line says how much, the rows do not add it."""
-    gen = next(r for r in res["build_rows"] if r["step"] == "Control backlog" and r["component"] == "generator")
+def _tailored_requirements_judge_input_line(res: dict[str, Any]) -> str:
+    """The tailored requirements judge's input is counted over the dry run's
+    one-entry reply, so it leaves out the tailored requirements the generator
+    writes, about the generator's visible output; the line says how much, the
+    rows do not add it."""
+    gen = next(r for r in res["build_rows"] if r["step"] == "Tailored requirements" and r["component"] == "generator")
     left_out = gen["visible_tokens"] * ratio("chars_per_token_openai") / ratio("chars_per_token_anthropic")
     usd = left_out * res["rows"]["judge"]["input"] / 1e6
-    return (f"The backlog judge's input is counted over the dry run's one-control reply, not the controls the "
-            f"generator writes, so it leaves out about {round(left_out):,} input tokens (the generator's visible "
+    return (f"The tailored requirements judge's input is counted over the dry run's one-entry reply, not the "
+            f"tailored requirements the generator writes, so it leaves out about {round(left_out):,} input tokens (the generator's visible "
             f"output), about {_usd(usd)} USD at the judge's input price, which the rows above do not add.")
 
 
@@ -992,7 +994,7 @@ def _reasoning_share_lines(res: dict[str, Any], low_sources: dict[str, str]) -> 
 
 
 def _effort_reading_lines(res: dict[str, Any]) -> list[str]:
-    """B167: the central share and the backlog generator's one measured call
+    """B167: the central share and the tailored requirements generator's one measured call
     were measured at effort xhigh. A model component on the declared band
     whose declared effort is below xhigh gets one line saying the shares
     are an upper reading at its effort, stated, not measured."""
@@ -1001,8 +1003,8 @@ def _effort_reading_lines(res: dict[str, Any]) -> list[str]:
     for component in ("generator", "judge"):
         effort = res["declared"][component].effort
         if effort in below and not res.get("measured", {}).get(component):
-            measured_at_xhigh = ("the central share and the backlog generator's one measured call "
-                                 "(backlog_generator_billed_tokens) were" if component == "generator"
+            measured_at_xhigh = ("the central share and the tailored requirements generator's one measured call "
+                                 "(tailored_requirements_generator_billed_tokens) were" if component == "generator"
                                  else "the central share was")
             lines.append(f"- {component}: {measured_at_xhigh} measured at effort xhigh; nothing is measured at "
                          f"effort {effort}, the {component}'s declared effort (spec F D-F22 as amended 2026-10-12, "
@@ -1056,8 +1058,9 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
     lines += _reasoning_share_lines(res, low_sources)
     lines += _effort_reading_lines(res)
     lines += [
-        "- The backlog generator's central output is the one measured call scaled by the norms sent over the "
-        "norms that call sent, see backlog_generator_billed_tokens and backlog_generator_measured_norms "
+        "- The tailored requirements generator's central output is the one measured call scaled by the norms "
+        "sent over the norms that call sent, see tailored_requirements_generator_billed_tokens and "
+        "tailored_requirements_generator_measured_norms "
         "(a planning assumption, no source).",
         "",
         "## Steps, with the main run at N = " + str(n) + " and the pilot run",
@@ -1075,11 +1078,12 @@ def render_report(res: dict[str, Any], low_sources: dict[str, str]) -> str:
            f"from the {next(r['calls'] for r in res['build_rows'] if r['step'] == 'E6 elicitation')} scenarios "
            "\"E6 elicitation\" prices (the frozen sample's); the two rows nearly match because every call sends the "
            "same system prompt and is priced at the same mean reply size.", ""] if res["dev_elicit_rows"] else []),
-        "The control backlog prices one click on CredScore Article 25 sending every AI Act role's norms and "
-        f"the norms whose addressee is not settled: {res['backlog_norms']} of the article's accepted norms in "
+        "The tailored requirements step prices one click on CredScore Article 25 sending every AI Act role's "
+        f"norms and the norms whose addressee is not settled: {res['tailored_requirements_norms']} of the "
+        "article's accepted norms in "
         "the aborted B74 extraction (spec G D-G82 (1)); the facade's real click also applies applicability "
         "by classification and target system category, which this offline selection does not.",
-        _backlog_judge_input_line(res),
+        _tailored_requirements_judge_input_line(res),
         "",
         "Campaigns: 0 USD. Creating and pinning the two campaigns makes no model call.",
         "",
@@ -1236,7 +1240,7 @@ def load_inputs() -> dict[str, Any]:
         "elicit_system_chars": len(elicit_system_prompt()),
         "elicit_out_chars": elicit_out,
         "elicit_note": elicit_note,
-        "backlog_norms": every_role_backlog_norms(b74["norms"], dump),
+        "tailored_requirements_norms": every_role_tailored_requirements_norms(b74["norms"], dump),
     }
 
 

@@ -1,4 +1,4 @@
-"""The requirement type of a norm or a control: one closed slot, three values.
+"""The requirement type of a norm or a tailored requirement: one closed slot, three values.
 
 @implements: DEC-19
 @implements: DEC-27
@@ -18,8 +18,8 @@ The definitions, the reading rules and the scope have one source each,
 prompts/requirement_type/definitions.md and scope.md, read here into
 DEFINITIONS_TEXT and SCOPE_TEXT. The v2 and v3 prompts that name the type
 carry those bytes (tests check it), so each prompt's hash covers what the model
-read, and the extractor, the extraction judge, the backlog generator and the
-runtime judge read the same words; the dashboard pins its copy for the
+read, and the extractor, the extraction judge, the tailored requirements
+generator and the runtime judge read the same words; the dashboard pins its copy for the
 specialists, the judge template and the annotation guideline against the
 same file.
 
@@ -46,7 +46,7 @@ REQUIREMENT_TYPES = ("functional", "quality", "process")
 NOT_AN_OPERATOR_REQUIREMENT = "not an operator requirement"
 NO_TYPE = "no type"
 
-# The judge's recorded view on a norm, a judge run or a backlog item. A
+# The judge's recorded view on a norm, a judge run or a tailored requirement. A
 # record from a build before DEC-19 carries none of the type fields, and no
 # reader invents null for it.
 JUDGE_VIEW_FIELDS = ("judge_type_agrees", "judge_requirement_type")

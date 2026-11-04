@@ -94,7 +94,7 @@ def test_middleware_gates_by_scope_and_meters(store_path, usage_file):
 def test_admin_scope_covers_everything(store_path, usage_file):
     plaintext, _ = keys.create_key("ops", ["admin"], store_path)
     mw = keys.ScopedKeyMiddleware(keys_file=store_path, usage_file=usage_file)
-    assert _call(mw, "generate_control_backlog", plaintext) == "TOOL RAN"
+    assert _call(mw, "generate_tailored_requirements", plaintext) == "TOOL RAN"
 
 
 def test_elicit_features_has_its_own_paid_scope(store_path, usage_file):

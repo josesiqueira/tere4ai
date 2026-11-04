@@ -249,7 +249,7 @@ def test_every_hand_kept_norm_field_list_carries_the_type():
 
 
 def test_the_generation_and_ablation_digests_leave_the_norms_types_out():
-    """B65 ruling 10 and ruling 40: the backlog generator and the runtime
+    """B65 ruling 10 and ruling 40: the tailored requirements generator and the runtime
     judge never see a norm's type; ruling 52 (review I4): the ablation's
     graph conditions keep their inputs, so E6 measures what it measured."""
     assert "requirement_type" not in backlog._NORM_PROMPT_FIELDS

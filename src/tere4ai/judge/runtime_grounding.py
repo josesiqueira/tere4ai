@@ -3,9 +3,10 @@
 @implements: DEC-06 (partial: runtime grounding judge)
 @implements: DEC-19
 @implements: DEC-24
+@implements: DEC-30
 @grounded_by: REF-16, REF-24, REF-31, ADD-16, ADD-18
 
-Architecture.md Section 7: on every generated requirement, backlog item, or
+Architecture.md Section 7: on every generated requirement, tailored requirement, or
 evidence evaluation, the runtime grounding judge (independent Claude family,
 never the generator's own family) checks that cited nodes support the claim,
 that law, ethics guideline, guidance, and inferred engineering practice are
@@ -63,10 +64,10 @@ UNTRUSTED_END = "UNTRUSTED PROJECT TEXT END"
 # legal wording when the caller resolved it (the evidence generator gets
 # it, so the judge gating that output must hold the same text; without it
 # paraphrase drift from the statute is invisible to the judge).
-# DEC-19: the norms' requirement_type is left out on purpose: a control's
-# type is its own, so the judge's view of it must not be read off the norms
-# (B65 ruling 10), and the evidence judge (runtime_grounding v1, v3 since B174) keeps the
-# input it had.
+# DEC-19: the norms' requirement_type is left out on purpose: a tailored
+# requirement's type is its own, so the judge's view of it must not be read off the norms
+# (B65 ruling 10), and the evidence judge (runtime_grounding v1, v3 since B174, v4 since
+# B181) keeps the input it had.
 _NORM_DIGEST_FIELDS = (
     "norm_id",
     "source_node_id",
@@ -128,7 +129,7 @@ def ground_check(
     treat any verdict other than "accepted" as a degradation to
     requires_human_review; this function never suppresses or upgrades a
     verdict. type_views is the judge's raw "type_views" value (DEC-19,
-    runtime_grounding v2 on a control backlog), None when absent; the
+    runtime_grounding v2 on the tailored requirements of a system), None when absent; the
     caller cleans it, and it never touches the verdict. judge_setting
     (DEC-24): "demo" for the facade's demo judge, written on the log line
     and the judge run; None leaves both as they were. prompt_version is

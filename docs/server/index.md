@@ -150,8 +150,8 @@ so in its description (PAID) and in its annotations (openWorldHint).
 | `evaluate_project_evidence` | Evaluate ONE untrusted project evidence artifact against ONE judge-accepted norm from the graph. | paid |
 | `evaluate_project_evidence_batch` | Evaluate ONE untrusted evidence artifact against EVERY judge-accepted norm of one article, in a single envelope with per-norm results. | paid |
 | `explain_requirement` | Explain one judged requirement (a normative statement) in depth. | free |
-| `generate_control_backlog` | Generate a judged engineering control backlog from judge-accepted norms. | paid |
-| `get_applicable_requirements` | Judge-accepted engineering requirements applicable to a classified system, grouped by source article. | free |
+| `generate_tailored_requirements` | Generate judged tailored requirements from judge-accepted norms. | paid |
+| `get_applicable_requirements` | Judge-accepted applicable requirements of a classified system, grouped by source article. | free |
 | `resolve_span` | The exact source text behind a span id, checked against the snapshot's checksum: snapshot file, sha256, start, end, and the text. | free |
 | `source_trace` | Trace a graph node to its frozen source snapshot: file, sha256, span start/end, HTML anchor, and a text excerpt. | free |
 | `trace_alignment` | Every EU-to-HLEG alignment for a norm or an HLEG requirement, with its judge verdict and evidence. | free |
@@ -276,7 +276,7 @@ A client receives this text when it connects:
 
 <!-- generated: instructions -->
 ```text
-TERE4AI v2 tools over the EU AI Act graph: structural tools (coverage_report, source_trace) plus explanation and trace tools (explain_requirement, trace_alignment, resolve_span) plus runtime tools (classify_ai_system, get_applicable_requirements, trace_implementation, evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog) plus elicit_features, which proposes the facts classify_ai_system reads from a text description the coding agent writes from the project it works in; TERE4AI never reads the repository. Read-only; evaluate_project_evidence, evaluate_project_evidence_batch, generate_control_backlog and elicit_features perform paid model calls. TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.
+TERE4AI v2 tools over the EU AI Act graph: structural tools (coverage_report, source_trace) plus explanation and trace tools (explain_requirement, trace_alignment, resolve_span) plus runtime tools (classify_ai_system, get_applicable_requirements, trace_implementation, evaluate_project_evidence, evaluate_project_evidence_batch, generate_tailored_requirements) plus elicit_features, which proposes the facts classify_ai_system reads from a text description the coding agent writes from the project it works in; TERE4AI never reads the repository. Read-only; evaluate_project_evidence, evaluate_project_evidence_batch, generate_tailored_requirements and elicit_features perform paid model calls. TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation.
 ```
 <!-- end generated: instructions -->
 

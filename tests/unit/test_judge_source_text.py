@@ -37,9 +37,10 @@ CALLER = {"project": "22222222-2222-4222-8222-222222222222", "repository_run": "
 CONTEXT = "Opens the office door for staff and keeps a log of each event."
 SCORES = {"semantic_similarity": 0.9, "normative_relevance": 0.85, "operational_utility": 0.8, "evidence_strength": 0.75, "judge_confidence": 0.9}
 ACCEPT = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded in the cited norms.",
-                     "type_views": [{"item": 1, "requirement_type_agrees": True, "requirement_type": "process"}]})
-ITEMS = json.dumps({"items": [{"title": "Establish the system", "description": "Do it.", "norm_ids": [NORM_ID],
-                               "suggested_evidence": ["a plan"], "priority": "must", "requirement_type": "process"}]})
+                     "type_views": [{"tailored_requirement": 1, "requirement_type_agrees": True, "requirement_type": "process"}]})
+TAILORED_REQUIREMENTS = json.dumps({"tailored_requirements": [{"title": "Establish the system", "description": "Do it.", "norm_ids": [NORM_ID],
+                                                       "suggested_evidence": ["a plan"], "priority": "must",
+                                                       "requirement_type": "process"}]})
 QUOTE = "We maintain a documented risk management system"
 EVIDENCE = json.dumps({"assessment": "satisfied", "quotes": [QUOTE], "gaps": [], "rationale": "Documented."})
 
@@ -70,7 +71,7 @@ def clients(monkeypatch, tmp_path):
     monkeypatch.setattr(facade, "load_signing_key", lambda env=None: KEY)
     monkeypatch.setattr(facade, "load_generator_config", lambda env=None: None)
     monkeypatch.setattr(facade, "load_demo_judge_config", lambda env=None: SimpleNamespace(model="gpt-judge"))
-    generator = FakeClient({"UNTRUSTED PROJECT CONTEXT": ITEMS, NORM_ID: EVIDENCE}, model="gpt-gen")
+    generator = FakeClient({"UNTRUSTED PROJECT CONTEXT": TAILORED_REQUIREMENTS, NORM_ID: EVIDENCE}, model="gpt-gen")
     judge = FakeClient({"": ACCEPT}, model="gpt-judge")
     monkeypatch.setattr(facade, "_build_paid_clients", lambda: (generator, judge))
     monkeypatch.setattr(facade, "OpenAIGenerator", lambda cfg: generator)

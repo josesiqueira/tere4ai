@@ -5,8 +5,9 @@ raise unhandled exceptions (surfacing as raw ToolError) instead of degrading:
 get_applicable_requirements crashed on a non-dict classification
 (AttributeError in requirements._unwrap_classification) and
 evaluate_project_evidence_batch crashed on a non-string article_node_id
-(TypeError in evidence.accepted_norms_for_article); generate_control_backlog
-crashed on a non-iterable norm_ids. These tests pin the boundary contract:
+(TypeError in evidence.accepted_norms_for_article); generate_tailored_requirements
+(generate_control_backlog until B181) crashed on a non-iterable norm_ids.
+These tests pin the boundary contract:
 unusable input comes back as a full Section 8 envelope with a degraded
 status, the invalid argument named in missing_facts, confidence 0.0, and the
 non-legal-advice notice, never an exception. Paid tools must degrade before
@@ -107,33 +108,33 @@ def test_evaluate_evidence_batch_blank_article_id_degrades(offline_server):
         _assert_degraded_envelope(envelope, "article_node_id")
 
 
-def test_generate_control_backlog_non_list_norm_ids_degrades(offline_server):
+def test_generate_tailored_requirements_non_list_norm_ids_degrades(offline_server):
     """Audit crasher 3: norm_ids=123 raised TypeError (not iterable);
     norm_ids='abc' was silently iterated as characters. Non-list must degrade."""
     for bad in (123, "abc", {"norm:a9-1": True}):
-        envelope = offline_server.generate_control_backlog(
+        envelope = offline_server.generate_tailored_requirements(
             norm_ids=bad, system_context="a credit scoring service"
         )
         _assert_degraded_envelope(envelope, "norm_ids")
 
 
-def test_generate_control_backlog_empty_norm_ids_still_clean(offline_server):
+def test_generate_tailored_requirements_empty_norm_ids_still_clean(offline_server):
     """Regression pin: falsy norm_ids (None, []) keep the pre-existing clean
     not_applicable degrade and never raise."""
     for empty in (None, []):
-        envelope = offline_server.generate_control_backlog(
+        envelope = offline_server.generate_tailored_requirements(
             norm_ids=empty, system_context="a credit scoring service"
         )
         assert envelope["status"] == "not_applicable"
         assert "norm_ids" in " ".join(envelope["missing_facts"])
 
 
-def test_generate_control_backlog_null_system_context_degrades(offline_server):
+def test_generate_tailored_requirements_null_system_context_degrades(offline_server):
     """system_context None/blank/non-string with valid norm_ids previously
-    flowed toward the paid path (backlog raises ValueError pre-model). It must
+    flowed toward the paid path (backlog.py raises ValueError pre-model). It must
     degrade at the boundary, before any client is constructed."""
     for bad in (None, "", "   ", 123):
-        envelope = offline_server.generate_control_backlog(
+        envelope = offline_server.generate_tailored_requirements(
             norm_ids=["norm:a9-1"], system_context=bad
         )
         _assert_degraded_envelope(envelope, "system_context")

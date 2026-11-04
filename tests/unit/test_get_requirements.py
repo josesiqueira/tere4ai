@@ -95,7 +95,7 @@ def test_prohibited_returns_zero_requirements(dump, norms_payload, node_ids):
     answer = envelope["answer"]
     assert answer["requirements_by_article"] == {}
     assert answer["summary"]["returned"] == 0
-    assert "no engineering requirements" in answer["message"]
+    assert "no applicable requirements" in answer["message"]
     # Cites the prohibition node carried over from the classification.
     assert "eu-ai-act:article-5:paragraph-1:point-a" in envelope["source_nodes"]
     assert any("Article 5" in note for note in envelope["legal_status_notes"])
@@ -748,3 +748,20 @@ def test_an_unknown_section_with_an_annex_iii_match_names_no_section_fact(dump, 
     alone = get_applicable_requirements(classify_ai_system(_annex_i(None), dump), norms_payload, dump)
     assert any("Article 2(2)" in n for n in alone["legal_status_notes"])
     assert classify_module.ANNEX_I_SECTION_UNKNOWN_FACT in alone["missing_facts"]
+
+
+def test_the_prohibited_sentence_of_a_session_recorded_before_b181_reads_as_the_live_one():
+    """B181 (DEC-30): a recorded session keeps its sentence; the reader maps
+    exactly that sentence to the live PROHIBITED_MESSAGE and leaves any other
+    text as it is."""
+    from tere4ai.mcp_server.requirements import (
+        PROHIBITED_MESSAGE,
+        PROHIBITED_MESSAGE_BEFORE_B181,
+        prohibited_message_of_record,
+    )
+
+    assert "no requirement backlog can" in PROHIBITED_MESSAGE_BEFORE_B181
+    assert prohibited_message_of_record(PROHIBITED_MESSAGE_BEFORE_B181) == PROHIBITED_MESSAGE
+    other = "Minimal risk: no requirements are served."
+    assert prohibited_message_of_record(other) == other
+    assert prohibited_message_of_record(PROHIBITED_MESSAGE) == PROHIBITED_MESSAGE

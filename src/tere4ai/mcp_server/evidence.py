@@ -53,15 +53,18 @@ from tere4ai.mcp_server.tools import make_envelope
 TOOL_NAME = "evaluate_project_evidence"
 
 # DEC-19: the evidence path's generator keeps evaluate_evidence v1, which is
-# not the backlog's generator prompt (generate_backlog).
+# not the tailored requirements' generator prompt (generate_backlog).
 # 2026-10-15 (B174): the evidence tool's judge moves to runtime_grounding v3,
 # v2 plus a paragraph stating that the legal text is the Act in force, the
-# version the backlog's judge runs too, so the judge's version is shared
-# again. The judge's message and the handling of its verdict are those of
-# v1; v2's type view is asked for and recorded on a control backlog only, so
-# an evidence answer records none. evaluate_evidence stays at v1.
+# version the tailored requirements' judge runs too, so the judge's version
+# is shared again. The judge's message and the handling of its verdict are
+# those of v1; v2's type view is asked for and recorded on tailored
+# requirements only, so an evidence answer records none. evaluate_evidence
+# stays at v1.
+# 2026-11-04 (B181): v4, the words changed; the evidence judge's message and
+# reply handling are v1's as before.
 GENERATOR_PROMPT_VERSION = "v1"
-JUDGE_PROMPT_VERSION = "v3"
+JUDGE_PROMPT_VERSION = "v4"
 
 # Closed generator assessment vocabulary (prompts/evaluate_evidence/v1.md).
 GENERATOR_ASSESSMENTS = (
@@ -98,7 +101,7 @@ JUDGE_ERROR = "judge_error"
 
 # DEC-24: the envelope judge_verdict of a generator-only answer, which no
 # judge has checked yet; the status is then requires_human_review. Here
-# beside the tool's other verdict words; the backlog tool's on-demand mode
+# beside the tool's other verdict words; the tailored requirements tool's on-demand mode
 # reads them (B138 phase 5 plan ruling P3).
 NOT_CHECKED = "not_checked"
 NOT_CHECKED_NOTE = (

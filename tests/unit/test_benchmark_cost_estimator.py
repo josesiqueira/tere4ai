@@ -357,10 +357,10 @@ def test_the_alignment_dry_run_calls_the_generator_once_per_accepted_norm(tmp_pa
     assert lines["judge"]["in_chars"] > 0 and lines["judge"]["out_chars"] > 0
 
 
-def test_the_backlog_dry_run_makes_one_call_per_component(tmp_path):
+def test_the_tailored_requirements_dry_run_makes_one_call_per_component(tmp_path):
     norms = [_mock_norm("eu-ai-act:article-25:paragraph-1")]
     norms[0]["norm_id"] = "norm:eu-ai-act:article-25:paragraph-1:n1"
-    lines = est.backlog_lines(norms, "Mock system description.", tmp_path)
+    lines = est.tailored_requirements_lines(norms, "Mock system description.", tmp_path)
     assert lines["generator"]["calls"] == 1 and lines["judge"]["calls"] == 1
     assert lines["generator"]["in_chars"] > 0 and lines["judge"]["in_chars"] > 0
 
@@ -376,19 +376,19 @@ def test_the_judge_reply_size_is_a_frozen_ratio_with_its_source():
     assert not hasattr(est, "RUNTIME_LOG") and not hasattr(est, "observed_judge_reply_chars")
 
 
-def test_the_backlog_generator_output_scales_with_the_norms_sent(tmp_path):
+def test_the_tailored_requirements_generator_output_scales_with_the_norms_sent(tmp_path):
     base = _mock_norm("eu-ai-act:article-25:paragraph-1")
     norms = [dict(base, norm_id=f"norm:eu-ai-act:article-25:paragraph-1:n{i}") for i in range(1, 5)]
-    two = est.backlog_lines(norms[:2], "Mock system description.", tmp_path, judge_reply_chars=600.0)
-    four = est.backlog_lines(norms, "Mock system description.", tmp_path, judge_reply_chars=600.0)
+    two = est.tailored_requirements_lines(norms[:2], "Mock system description.", tmp_path, judge_reply_chars=600.0)
+    four = est.tailored_requirements_lines(norms, "Mock system description.", tmp_path, judge_reply_chars=600.0)
     assert four["generator"]["out_chars"] == pytest.approx(2 * two["generator"]["out_chars"])
-    assert est.RATIOS["backlog_generator_measured_norms"]["value"] == 2.0
+    assert est.RATIOS["tailored_requirements_generator_measured_norms"]["value"] == 2.0
 
 
-def test_the_backlog_step_sends_every_ai_act_roles_norms_and_the_unsettled_ones():
+def test_the_tailored_requirements_step_sends_every_ai_act_roles_norms_and_the_unsettled_ones():
     b74 = json.loads(B74_NORMS.read_text(encoding="utf-8"))
     dump = json.loads(est.ELICIT_DUMP.read_text(encoding="utf-8"))
-    norms = est.every_role_backlog_norms(b74["norms"], dump)
+    norms = est.every_role_tailored_requirements_norms(b74["norms"], dump)
     ids = {n["norm_id"].split("article-25:")[1] for n in norms}
     assert len(norms) == 18
     assert "paragraph-1:n7" in ids and "paragraph-4:n8" in ids          # addressee not settled
@@ -481,8 +481,8 @@ def _mock_inputs():
         "elicit_system_chars": 20000,
         "elicit_out_chars": 300.0,
         "elicit_note": None,
-        "backlog_norms": [dict(_mock_norm("eu-ai-act:article-25:paragraph-1"),
-                               norm_id="norm:eu-ai-act:article-25:paragraph-1:n1")],
+        "tailored_requirements_norms": [dict(_mock_norm("eu-ai-act:article-25:paragraph-1"),
+                                             norm_id="norm:eu-ai-act:article-25:paragraph-1:n1")],
     }
 
 
@@ -510,26 +510,26 @@ def test_the_report_names_both_models_with_effort_and_each_price_with_its_page_a
 
 def test_the_report_says_the_xhigh_shares_are_an_upper_reading_at_the_declared_high(mock_report):
     # B167: both models declare high since 2026-10-12; the central share and the
-    # backlog call were measured at xhigh, and nothing at high
+    # tailored requirements call were measured at xhigh, and nothing at high
     for component in ("generator", "judge"):
         line = next(x for x in mock_report.splitlines()
                     if x.startswith(f"- {component}: the central share") and "upper reading" in x)
         assert "measured at effort xhigh; nothing is measured at effort high" in line
         assert "an upper reading at high, stated, not measured" in line
-    assert ("- generator: the central share and the backlog generator's one measured call "
-            "(backlog_generator_billed_tokens) were measured at effort xhigh") in mock_report
+    assert ("- generator: the central share and the tailored requirements generator's one measured call "
+            "(tailored_requirements_generator_billed_tokens) were measured at effort xhigh") in mock_report
 
 
 def test_no_upper_reading_line_at_xhigh_or_for_a_measured_component():
     pair = {"generator": declared_row("gen-x", "openai", effort="xhigh"),
             "judge": declared_row("judge-y", "anthropic", effort="high")}
     lines = est._effort_reading_lines({"declared": pair})
-    assert len(lines) == 1 and lines[0].startswith("- judge:") and "backlog" not in lines[0]
+    assert len(lines) == 1 and lines[0].startswith("- judge:") and "tailored requirements" not in lines[0]
     assert est._effort_reading_lines({"declared": pair, "measured": {"judge": {"share": 0.5}}}) == []
 
 
 def test_the_report_has_one_row_per_step_and_component(mock_report):
-    for step in ("Layer 2 extraction", "Layer 3 alignment", "Control backlog",
+    for step in ("Layer 2 extraction", "Layer 3 alignment", "Tailored requirements",
                  "E6 elicitation", "E6 ablation, first run",
                  "E6 ablation, each repetition after the first", "E6 main run, N = 11",
                  "E6 pilot run, 5 repetitions", "E6 development set elicitation"):
@@ -602,7 +602,7 @@ def test_the_report_states_the_campaigns_cost_nothing_and_excludes_the_calibrati
     assert "D-F17" in mock_report and "B68" in mock_report
 
 
-def test_the_report_says_how_it_regenerates_and_what_one_backlog_click_sends(mock_report):
+def test_the_report_says_how_it_regenerates_and_what_one_tailored_requirements_click_sends(mock_report):
     # B147 final fix wave (task 2 review, Minor 1; final review seat two, P3 1 and 7)
     flat = " ".join(mock_report.split())
     assert ("Regenerate with TERE4AI_GENERATOR_MODEL=gpt-6-astra and TERE4AI_JUDGE_MODEL=claude-opus-5-5 "
@@ -610,6 +610,11 @@ def test_the_report_says_how_it_regenerates_and_what_one_backlog_click_sends(moc
     assert "the repository's .env, when present, is loaded" in flat
     assert "an exported variable wins over the file, and no other variable it may set reaches a figure" in flat
     assert "1 of the article's accepted norms in the aborted B74 extraction" in flat
+    assert "The tailored requirements step prices one click on CredScore Article 25" in flat
+    assert "The tailored requirements judge's input is counted over the dry run's one-entry reply" in flat
+    assert ("- The tailored requirements generator's central output is the one measured call scaled by the norms "
+            "sent over the norms that call sent, see tailored_requirements_generator_billed_tokens and "
+            "tailored_requirements_generator_measured_norms (a planning assumption, no source).") in flat
     assert re.search(r"leaves out about [\d,]+ input tokens \(the generator's visible output\), "
                      r"about [\d.]+ USD at the judge's input price", flat)
 

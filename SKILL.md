@@ -24,7 +24,7 @@ HTTP facade (for UIs and curl): `uvicorn tere4ai.http_facade.app:app --port 8008
 
 <!-- generated from the served tool list by scripts/gen_server_docs.py -->
 <!-- generated: cost -->
-Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence`, `evaluate_project_evidence_batch`, `generate_control_backlog`. Every other tool is free and calls no model.
+Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence`, `evaluate_project_evidence_batch`, `generate_tailored_requirements`. Every other tool is free and calls no model.
 <!-- end generated: cost -->
 
 1. `elicit_features(description)`: proposes the facts
@@ -64,8 +64,8 @@ Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence
 6. `evaluate_project_evidence(norm_id, artifact_type, content)`: assesses
    one artifact against one norm; quotes are mechanically verified against
    your text; a runtime grounding judge gates every answer.
-7. `generate_control_backlog(norm_ids, system_context)`: engineering
-   backlog items citing only the provided norms.
+7. `generate_tailored_requirements(norm_ids, system_context)`: tailored
+   requirements citing only the provided norms.
 8. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`:
    one artifact against every judge-accepted norm of one article, in a
    single envelope with per-norm results and worst-case aggregation.

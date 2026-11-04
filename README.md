@@ -151,8 +151,8 @@ so in its description (PAID) and in its annotations (openWorldHint).
 | `evaluate_project_evidence` | Evaluate ONE untrusted project evidence artifact against ONE judge-accepted norm from the graph. | paid |
 | `evaluate_project_evidence_batch` | Evaluate ONE untrusted evidence artifact against EVERY judge-accepted norm of one article, in a single envelope with per-norm results. | paid |
 | `explain_requirement` | Explain one judged requirement (a normative statement) in depth. | free |
-| `generate_control_backlog` | Generate a judged engineering control backlog from judge-accepted norms. | paid |
-| `get_applicable_requirements` | Judge-accepted engineering requirements applicable to a classified system, grouped by source article. | free |
+| `generate_tailored_requirements` | Generate judged tailored requirements from judge-accepted norms. | paid |
+| `get_applicable_requirements` | Judge-accepted applicable requirements of a classified system, grouped by source article. | free |
 | `resolve_span` | The exact source text behind a span id, checked against the snapshot's checksum: snapshot file, sha256, start, end, and the text. | free |
 | `source_trace` | Trace a graph node to its frozen source snapshot: file, sha256, span start/end, HTML anchor, and a text excerpt. | free |
 | `trace_alignment` | Every EU-to-HLEG alignment for a norm or an HLEG requirement, with its judge verdict and evidence. | free |

@@ -1,7 +1,7 @@
 """Resolve each norm's verbatim source_text from its Layer 1 source node.
 
 One helper for every path that hands norms to the runtime grounding judge
-or to the evidence and backlog generators: the MCP tools, the HTTP facade
+or to the evidence and tailored requirements generators: the MCP tools, the HTTP facade
 and the evaluation harness's graph strategies (B165). runtime_grounding v2's
 check 0 compares the answer with each cited norm's exact legal wording, but
 the served norms payload does not carry source_text, so it is resolved from

@@ -21,7 +21,7 @@ import pytest
 
 from tere4ai.extract_norms.model_clients import USAGE_KEYS
 from tere4ai.graph_store.publication import LoadedBuild
-from tere4ai.mcp_server import backlog as backlog_rules
+from tere4ai.mcp_server import backlog as tailored_requirements_rules
 from tere4ai.mcp_server import elicit as elicit_rules
 from tere4ai.mcp_server import evidence as evidence_rules
 from tere4ai.mcp_server import keys, replay, server
@@ -60,7 +60,7 @@ SCORES = {
 }
 JUDGE_REPLY = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded."})
 # C3: the note names the zeroed usage counts only when the answer carries
-# usage (final review fix; today only the backlog's answer does).
+# usage (final review fix; today only the tailored requirements' answer does).
 NOTE_RE = re.compile(
     r"^this answer repeats the answer to an identical call made at "
     r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ); no new model call was made"
@@ -388,13 +388,13 @@ def _usage(calls, input_tokens, output_tokens):
     return usage
 
 
-def _backlog_like_envelope():
-    """The shape generate_control_backlog's answer carries (backlog.py spend()):
+def _tailored_requirements_like_envelope():
+    """The shape generate_tailored_requirements' answer carries (backlog.py spend()):
     answer.usage holds one usage record per model component, or None for a client
     without one; a batch result carries its own answer.usage the same way."""
     return {
         "answer": {
-            "tool": "generate_control_backlog",
+            "tool": "generate_tailored_requirements",
             "generator_model": "fake-generator",
             "usage": {"generator": _usage(2, 1200, 340), "judge": _usage(1, 900, 80),
                       "stub": None},
@@ -413,8 +413,8 @@ def test_a_repeated_answer_reports_zero_usage_and_the_first_keeps_its_own():
     store = replay.ReplayStore(window_seconds=600)
 
     def run():
-        return store.run(tool="generate_control_backlog", arguments={"a": 1}, build="b",
-                         model_parameters_sha256="p", compute=_backlog_like_envelope)
+        return store.run(tool="generate_tailored_requirements", arguments={"a": 1}, build="b",
+                         model_parameters_sha256="p", compute=_tailored_requirements_like_envelope)
 
     first = run()
     second = run()
@@ -450,8 +450,8 @@ def test_the_note_names_zeroed_usage_only_when_the_answer_carries_usage():
     no_usage = [n for n in run("evaluate_project_evidence", plain)["legal_status_notes"]
                 if NOTE_RE.match(n)]
     assert len(no_usage) == 1 and "usage" not in no_usage[0]
-    run("generate_control_backlog", _backlog_like_envelope)
-    with_usage = [n for n in run("generate_control_backlog", _backlog_like_envelope)[
+    run("generate_tailored_requirements", _tailored_requirements_like_envelope)
+    with_usage = [n for n in run("generate_tailored_requirements", _tailored_requirements_like_envelope)[
         "legal_status_notes"] if NOTE_RE.match(n)]
     assert len(with_usage) == 1 and "so its usage counts are 0" in with_usage[0]
 
@@ -519,8 +519,8 @@ def test_the_key_hashes_canonical_arguments_and_never_carries_them():
             id="evidence-degraded",
         ),
         pytest.param(
-            backlog_rules._degraded_envelope("judge failed", "b", judge_verdict="judge_error"),
-            id="backlog-judge-error",
+            tailored_requirements_rules._degraded_envelope("judge failed", "b", judge_verdict="judge_error"),
+            id="tailored-requirements-judge-error",
         ),
         pytest.param(
             {"answer": None, "judge_verdict": elicit_rules.ELICITATION_JUDGE_VERDICT},
@@ -569,8 +569,8 @@ def _paid_tool_calls():
          lambda: server.evaluate_project_evidence(NORM_ID, "plan", CONTENT)),
         ("evaluate_project_evidence_batch", evidence_rules, "evaluate_evidence_batch",
          lambda: server.evaluate_project_evidence_batch("eu-ai-act:article-9", "plan", CONTENT)),
-        ("generate_control_backlog", backlog_rules, "generate_control_backlog",
-         lambda: server.generate_control_backlog([NORM_ID], "A hiring screening service.")),
+        ("generate_tailored_requirements", tailored_requirements_rules, "generate_tailored_requirements",
+         lambda: server.generate_tailored_requirements([NORM_ID], "A hiring screening service.")),
         ("elicit_features", elicit_rules, "elicit_envelope",
          lambda: server.elicit_features("A hiring screening service that ranks applicants.")),
     ]

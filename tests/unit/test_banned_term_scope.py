@@ -5,9 +5,10 @@
 
 DEC-08 bans the terms compliant, certified, and legally approved from every
 SYSTEM-GENERATED text field of every envelope (status, composed answer text,
-legal_status_notes, missing_facts, summaries, messages, and both backlog
-titles and descriptions: a backlog title is model-generated, so it is IN
-scope, see test_model_generated_backlog_title_with_banned_term_is_scanned).
+legal_status_notes, missing_facts, summaries, messages, and both the
+titles and the descriptions of tailored requirements: a tailored
+requirement's title is model-generated, so it is IN scope, see
+test_model_generated_tailored_requirement_title_with_banned_term_is_scanned).
 The exempt fields carry regulatory content, not a TERE4AI verdict, and fall in
 two categories with only the first byte-exact:
 (a) byte-exact quotes-of-record: frozen EU AI Act source span text and
@@ -59,7 +60,7 @@ SYSTEM_GENERATED_FIELDS = (
     "needs_human_review_note",
     "gaps",
     "description",
-    # A backlog item's title is model-generated (backlog.py), so it is
+    # A tailored requirement's title is model-generated (backlog.py), so it is
     # system-composed text and must be scanned, never exempted (finding C2).
     "title",
 )
@@ -164,12 +165,12 @@ def test_exempt_deontic_object_may_carry_regulator_vocabulary_and_is_served_unal
     assert_no_banned_terms(envelope)
 
 
-# C2: a model-generated backlog title is NOT exempt --------------------------
+# C2: a model-generated tailored requirement title is NOT exempt -------------
 
 
-def test_model_generated_backlog_title_with_banned_term_is_scanned():
-    """Finding C2: a backlog item's title is model-generated (backlog.py, the
-    _clean_items title field), so a banned term in it must be CAUGHT by the
+def test_model_generated_tailored_requirement_title_with_banned_term_is_scanned():
+    """Finding C2: a tailored requirement's title is model-generated (backlog.py,
+    the _clean_tailored_requirements title field), so a banned term in it must be CAUGHT by the
     scoped scan. Before the fix "title" sat in VERBATIM_QUOTE_FIELDS, so
     strip_verbatim_quote_fields dropped the generated title and the term
     survived; the scan then wrongly passed. Fail-before / pass-after: with
@@ -179,7 +180,7 @@ def test_model_generated_backlog_title_with_banned_term_is_scanned():
     assert "title" not in VERBATIM_QUOTE_FIELDS
     envelope = {
         "answer": {
-            "items": [
+            "tailored_requirements": [
                 {
                     "title": "Achieve compliant status for Article 9",
                     "description": "ok",
@@ -192,7 +193,7 @@ def test_model_generated_backlog_title_with_banned_term_is_scanned():
         assert_no_banned_terms(envelope)
 
 
-def test_strip_keeps_a_model_generated_backlog_title():
+def test_strip_keeps_a_model_generated_tailored_requirement_title():
     """The scrub must not drop a generated title: it has to remain in the
     system-generated payload that the banned-term scan sees."""
     scrubbed = strip_verbatim_quote_fields(

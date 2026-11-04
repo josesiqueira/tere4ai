@@ -166,21 +166,20 @@ Deterministic and free.
 | `earlier_version` | boolean | no |
 | `norm_id` | string | yes |
 
-## `generate_control_backlog`
+## `generate_tailored_requirements`
 
 Paid. Annotations: destructiveHint false, openWorldHint true, readOnlyHint true.
 
 ```text
-Generate a judged engineering control backlog from judge-accepted
-norms.
+Generate judged tailored requirements from judge-accepted norms.
 
 PAID: this tool performs paid model calls (one OpenAI generator call
 plus one Anthropic runtime grounding judge call) on every invocation.
 
-norm_ids are NormativeStatement ids from get_applicable_requirements
-(capped at 10; any truncation is noted in the answer, never silent).
-Every backlog item cites only input norm ids; items citing anything else
-are dropped and counted. The judge verdict gates the whole backlog.
+norm_ids are NormativeStatement ids from get_applicable_requirements;
+every norm given reaches the generator (no cap). Every tailored
+requirement cites only input norm ids; one citing anything else is
+dropped and counted. The judge verdict gates the whole answer.
 ```
 
 | Input | Type | Required |
@@ -193,8 +192,7 @@ are dropped and counted. The judge verdict gates the whole backlog.
 Free. Annotations: destructiveHint false, openWorldHint false, readOnlyHint true.
 
 ```text
-Judge-accepted engineering requirements applicable to a classified
-system, grouped by source article.
+Judge-accepted applicable requirements of a classified system, grouped by source article.
 
 classification is the classify_ai_system envelope (or its bare answer).
 Only judge-ACCEPTED NormativeStatements are returned; unacceptable-risk systems

@@ -8,7 +8,7 @@ keys.py; it implements no DEC of its own, so it carries no @implements
 tag. Why (C3 ruling R3): the 2026-07-28 MCP revision removed SSE redelivery,
 so a client whose stream drops sends the same request again, and each of
 the four paid tools (evaluate_project_evidence,
-evaluate_project_evidence_batch, generate_control_backlog,
+evaluate_project_evidence_batch, generate_tailored_requirements,
 elicit_features) would pay its model calls twice. Failure mechanics are
 the coordinator's to decide; this module is that decision.
 
@@ -88,7 +88,8 @@ NOTE = (
     "this answer repeats the answer to an identical call made at {time}; "
     "no new model call was made"
 )
-# Appended only when the answer carries usage counts (today the backlog's).
+# Appended only when the answer carries usage counts (today the tailored
+# requirements').
 USAGE_CLAUSE = (
     ", so its usage counts are 0; "
     "the first call's usage is in the answer it returned"

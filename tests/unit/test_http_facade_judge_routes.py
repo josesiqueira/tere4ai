@@ -34,7 +34,7 @@ CONTEXT = "Opens a door."
 CALLER = {"project": "p-1", "repository_run": "r-1", "document": None}
 SCORES = {"semantic_similarity": 0.9, "normative_relevance": 0.85, "operational_utility": 0.8, "evidence_strength": 0.75, "judge_confidence": 0.9}
 ACCEPT = json.dumps({"verdict": "accepted", "scores": SCORES, "rationale": "Grounded in the cited norm.",
-                     "type_views": [{"item": 1, "requirement_type_agrees": True, "requirement_type": "process"}]})
+                     "type_views": [{"tailored_requirement": 1, "requirement_type_agrees": True, "requirement_type": "process"}]})
 
 
 @pytest.fixture()
@@ -52,9 +52,10 @@ def models(monkeypatch, tmp_path):
     monkeypatch.setattr(facade, "load_demo_judge_config", lambda env=None: SimpleNamespace(model="gpt-judge"))
     judge = FakeClient({"Generated runtime answer": ACCEPT}, model="gpt-judge")
     monkeypatch.setattr(facade, "OpenAIDemoJudge", lambda cfg: judge)
-    items = [{"title": "Establish the system", "description": "Do it.", "norm_ids": [NORM_ID], "suggested_evidence": ["a plan"],
-              "priority": "must", "requirement_type": "process"}]
-    generator = FakeClient({"UNTRUSTED PROJECT CONTEXT": json.dumps({"items": items})}, model="gpt-gen")
+    tailored_requirements = [{"title": "Establish the system", "description": "Do it.", "norm_ids": [NORM_ID],
+                              "suggested_evidence": ["a plan"], "priority": "must", "requirement_type": "process"}]
+    generator = FakeClient({"UNTRUSTED PROJECT CONTEXT": json.dumps({"tailored_requirements": tailored_requirements})},
+                           model="gpt-gen")
     monkeypatch.setattr(facade, "OpenAIGenerator", lambda cfg: generator)
     return SimpleNamespace(judge=judge, generator=generator)
 
@@ -82,7 +83,7 @@ def test_a_signed_backlog_is_judged_and_the_route_returns_the_judge_part_only(cl
     assert (part["judge_verdict"], part["status"], part["judge_setting"], part["model_called"]) == ("accepted", "applicable_missing_evidence", "demo", True)
     assert part["generation_id"] == answer["signed_record"]["generation_id"] and part["judge_model"] == "gpt-judge"
     assert part["judge_type_views"] == [{"judge_type_agrees": True, "judge_requirement_type": "process"}]
-    assert "items" not in part
+    assert "tailored_requirements" not in part
     assert len(models.judge.calls) == 1
 
 
@@ -100,7 +101,7 @@ def test_a_field_that_differs_from_the_record_is_refused_naming_it_before_any_mo
 def test_a_forged_or_edited_record_does_not_verify(client, models):
     answer = _answer(client)
     edited = copy.deepcopy(answer["signed_record"])
-    edited["core"]["items"][0]["title"] = "edited"
+    edited["core"]["tailored_requirements"][0]["title"] = "edited"
     for record, signature in ((answer["signed_record"], "0" * 64), (edited, answer["signature"]), (edited, sign(edited, bytes(32)))):
         response = _judge(client, answer, signed_record=record, signature=signature)
         assert (response.status_code, response.json()["field"], response.json()["model_called"]) == (422, "signature", False)
@@ -175,8 +176,8 @@ def test_a_record_of_the_wrong_kinds_does_not_verify_before_any_model_call(clien
 
 def test_a_lone_surrogate_in_a_record_is_refused_by_the_request_check_before_any_model_call(client, models):
     answer = _answer(client)
-    items = [{**answer["signed_record"]["core"]["items"][0], "description": "\ud800"}]
-    body = _body(answer, signed_record={**answer["signed_record"], "core": {"items": items}})
+    tailored_requirements = [{**answer["signed_record"]["core"]["tailored_requirements"][0], "description": "\ud800"}]
+    body = _body(answer, signed_record={**answer["signed_record"], "core": {"tailored_requirements": tailored_requirements}})
     # Sent as JSON text with escapes, as any client may: a lone surrogate
     # arrives as \ud800 and is decoded by the server.
     response = client.post("/api/backlog/judge", content=json.dumps(body), headers={"content-type": "application/json"})

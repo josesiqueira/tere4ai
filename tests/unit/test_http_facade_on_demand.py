@@ -31,7 +31,8 @@ ACCEPTED_NORM_ID = "norm:eu-ai-act:article-9:paragraph-1:n1"
 ACCEPTED_NORM_ID_2 = "norm:eu-ai-act:article-9:paragraph-2:n2"
 CONTEXT = "Opens the office door for staff and keeps a log of each event."
 CALLER = {"project": "22222222-2222-4222-8222-222222222222", "repository_run": "11111111-1111-4111-8111-111111111111", "document": None}
-ITEMS = [{"title": "Establish the system", "description": "Do it.", "norm_ids": [ACCEPTED_NORM_ID], "suggested_evidence": ["a plan"],
+# the generator's entries, sent under the default prompt version's reply key (v4, DEC-30)
+TAILORED_REQUIREMENTS = [{"title": "Establish the system", "description": "Do it.", "norm_ids": [ACCEPTED_NORM_ID], "suggested_evidence": ["a plan"],
           "priority": "must", "requirement_type": "process"}]
 
 
@@ -75,7 +76,7 @@ def _backlog(client, **over):
 
 
 def test_an_on_demand_backlog_is_not_checked_and_signs_its_items_for_its_caller(client, generator_only):
-    generator_only({ACCEPTED_NORM_ID: json.dumps({"items": ITEMS})})
+    generator_only({ACCEPTED_NORM_ID: json.dumps({"tailored_requirements": TAILORED_REQUIREMENTS})})
     response = _backlog(client)
     assert response.status_code == 200 and response.headers[facade.PAID_HEADER] == "true"
     envelope = response.json()
@@ -83,7 +84,7 @@ def test_an_on_demand_backlog_is_not_checked_and_signs_its_items_for_its_caller(
     record = envelope["answer"]["signed_record"]
     assert verify(record, envelope["answer"]["signature"], KEY)
     assert (record["route"], record["caller"]) == ("/api/backlog", CALLER)
-    assert record["norm_ids"] == sorted([ACCEPTED_NORM_ID, ACCEPTED_NORM_ID_2]) and record["core"] == {"items": envelope["answer"]["items"]}
+    assert record["norm_ids"] == sorted([ACCEPTED_NORM_ID, ACCEPTED_NORM_ID_2]) and record["core"] == {"tailored_requirements": envelope["answer"]["tailored_requirements"]}
     assert record["norms_build"] == _build(client) and record["graph_version"] == envelope["graph_version"]
     assert record["untrusted_sha256"] == hashlib.sha256(CONTEXT.encode("utf-8")).hexdigest()
     assert record["generator_model"] == "gpt-gen" and record["judge_prompt"]["name"] == "runtime_grounding"
@@ -164,11 +165,11 @@ def test_a_generator_failure_is_billed_and_a_deleted_source_or_another_build_is_
         raise RuntimeError("upstream overloaded")
 
     generator = generator_only({})
-    real = facade.backlog_tool.generate_control_backlog_on_demand
-    monkeypatch.setattr(facade.backlog_tool, "generate_control_backlog_on_demand", broken)
+    real = facade.backlog_tool.generate_tailored_requirements_on_demand
+    monkeypatch.setattr(facade.backlog_tool, "generate_tailored_requirements_on_demand", broken)
     response = _backlog(client)
     assert (response.status_code, response.json()["model_called"]) == (502, True)
-    monkeypatch.setattr(facade.backlog_tool, "generate_control_backlog_on_demand", real)
+    monkeypatch.setattr(facade.backlog_tool, "generate_tailored_requirements_on_demand", real)
     norms = client.app.state.served.norms
     norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
     moved = {**norm, "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n9", "source_node_id": "eu-ai-act:article-10:paragraph-5"}
@@ -186,7 +187,7 @@ def test_a_generator_failure_is_billed_and_a_deleted_source_or_another_build_is_
 def test_an_answer_the_facade_cannot_sign_is_returned_unsigned_with_its_reason(client, generator_only, monkeypatch):
     from tere4ai.http_facade.signed import RecordError
 
-    generator_only({ACCEPTED_NORM_ID: json.dumps({"items": ITEMS})})
+    generator_only({ACCEPTED_NORM_ID: json.dumps({"tailored_requirements": TAILORED_REQUIREMENTS})})
 
     def unsignable(**kwargs):
         raise RecordError("the record's core holds a character UTF-8 cannot write (a lone surrogate)")
@@ -225,7 +226,7 @@ def test_a_value_error_after_the_generator_is_reached_is_a_paid_failure(client, 
     def late(*args, **kwargs):
         raise ValueError("a check after the generator's request")
 
-    monkeypatch.setattr(facade.backlog_tool, "generate_control_backlog_on_demand", late)
+    monkeypatch.setattr(facade.backlog_tool, "generate_tailored_requirements_on_demand", late)
     response = _backlog(client)
     assert (response.status_code, response.json()["model_called"]) == (502, True)
 
@@ -234,14 +235,14 @@ def test_a_value_error_after_the_generator_is_reached_is_a_paid_failure(client, 
 # signed with U+FFFD in its place, said in the answer's notes, so the
 # dashboard can store the paid answer in jsonb.
 def test_a_generated_nul_is_replaced_before_signing_and_said_in_the_notes(client, generator_only):
-    items = [{**ITEMS[0], "title": "Keep\u0000 a log", "suggested_evidence": ["a\u0000plan"]}]
-    generator_only({ACCEPTED_NORM_ID: json.dumps({"items": items})})
+    tailored_requirements = [{**TAILORED_REQUIREMENTS[0], "title": "Keep\u0000 a log", "suggested_evidence": ["a\u0000plan"]}]
+    generator_only({ACCEPTED_NORM_ID: json.dumps({"tailored_requirements": tailored_requirements})})
     response = _backlog(client)
     assert response.status_code == 200
     text = response.text
     assert "\\u0000" not in text and "\u0000" not in text
     answer = response.json()["answer"]
-    assert answer["items"][0]["title"] == "Keep� a log" and answer["items"][0]["suggested_evidence"] == ["a�plan"]
-    assert answer["signed_record"]["core"] == {"items": answer["items"]}
+    assert answer["tailored_requirements"][0]["title"] == "Keep� a log" and answer["tailored_requirements"][0]["suggested_evidence"] == ["a�plan"]
+    assert answer["signed_record"]["core"] == {"tailored_requirements": answer["tailored_requirements"]}
     assert verify(answer["signed_record"], answer["signature"], KEY)
     assert any("U+0000" in note and "U+FFFD" in note and "2" in note for note in answer["notes"])

@@ -40,8 +40,8 @@ PROMPT_FIELDS: tuple[str, ...] = ("name", "version")
 EVIDENCE_CORE_FIELDS: tuple[str, ...] = (
     "tool", "norm_id", "artifact_type", "artifact_id", "assessment", "quotes", "gaps", "rationale",
 )
-BACKLOG_CORE_FIELDS: tuple[str, ...] = ("items",)
-ROUTES: dict[str, tuple[str, ...]] = {"/api/evidence": EVIDENCE_CORE_FIELDS, "/api/backlog": BACKLOG_CORE_FIELDS}
+TAILORED_REQUIREMENTS_CORE_FIELDS: tuple[str, ...] = ("tailored_requirements",)
+ROUTES: dict[str, tuple[str, ...]] = {"/api/evidence": EVIDENCE_CORE_FIELDS, "/api/backlog": TAILORED_REQUIREMENTS_CORE_FIELDS}
 _SIGNATURE = re.compile(r"[0-9a-f]{64}", re.ASCII)
 
 

@@ -213,7 +213,7 @@ def test_evidence_response_is_a_calibrated_envelope(client, fake_models):
 def test_backlog_response_is_a_calibrated_envelope(client, fake_models):
     gen_response = json.dumps(
         {
-            "items": [
+            "tailored_requirements": [
                 {
                     "title": "Establish the risk management system",
                     "description": "Stand up a documented, maintained risk process.",
@@ -224,7 +224,7 @@ def test_backlog_response_is_a_calibrated_envelope(client, fake_models):
             ]
         }
     )
-    fake_models({"UNTRUSTED PROJECT CONTEXT": gen_response}, {"generate_control_backlog": JUDGE_ACCEPT})
+    fake_models({"UNTRUSTED PROJECT CONTEXT": gen_response}, {"generate_tailored_requirements": JUDGE_ACCEPT})
     env = client.post(
         "/api/backlog",
         json={

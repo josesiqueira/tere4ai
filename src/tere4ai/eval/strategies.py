@@ -68,10 +68,14 @@ STRATEGY_NAMES = (
 _RUNTIME_JUDGE_STRATEGIES = frozenset({"graph_full", "graph_runtime_judge"})
 # The runtime grounding judge's prompt version for a condition named without
 # a "@vN" suffix. 2026-10-15 (B174 ruling R6): v1 to v3, the version that
-# states the legal text is the Act in force, as for the backlog and the
-# evidence tool (Jose: "standard for any model we eventually use as judge");
-# a condition named with a version keeps that version.
-RUNTIME_JUDGE_PROMPT_VERSION = "v3"
+# states the legal text is the Act in force, as for the tailored requirements
+# and the evidence tool (Jose: "standard for any model we eventually use as
+# judge"); a condition named with a version keeps that version.
+# 2026-11-04 (B181, R18): v4, with the tailored requirements' and the evidence
+# tool's, so eval/config_evaluated.yaml keeps one runtime_grounding version of
+# record; v4 changes only the tailored requirements section, which an E6
+# classification answer never triggers.
+RUNTIME_JUDGE_PROMPT_VERSION = "v4"
 
 
 def uses_runtime_judge(name: str) -> bool:

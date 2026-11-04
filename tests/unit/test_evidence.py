@@ -265,8 +265,8 @@ def test_runtime_log_written_with_no_key_material(tmp_path):
     lines = [json.loads(line) for line in log_path.read_text().splitlines()]
     directions = [line["direction"] for line in lines]
     assert directions == ["generator", "judge"]
-    # the generator runs evaluate_evidence v1; the judge, runtime_grounding v3 (B174)
-    assert [line["prompt_version"] for line in lines] == ["v1", "v3"]
+    # the generator runs evaluate_evidence v1; the judge, runtime_grounding v4 (B174, B181)
+    assert [line["prompt_version"] for line in lines] == ["v1", "v4"]
     for line in lines:
         assert len(line["input_sha256"]) == 64
         assert line["effort"] == "not configured"  # FakeClient declares no effort
@@ -301,15 +301,15 @@ def test_malformed_evidence_raises_value_error(tmp_path):
         )
 
 
-def test_evidence_keeps_evaluate_evidence_v1_and_its_judge_is_runtime_grounding_v3(tmp_path):
+def test_evidence_keeps_evaluate_evidence_v1_and_its_judge_is_runtime_grounding_v4(tmp_path):
     """DEC-19 (B65 ruling 16): evaluate_project_evidence keeps
-    evaluate_evidence v1, not the backlog's generator prompt. B174
-    (2026-10-15): its judge moved from runtime_grounding v1 to v3, the
-    version the backlog's judge runs too, so the judge's version is shared
-    again."""
+    evaluate_evidence v1, not the tailored requirements' generator prompt.
+    B174 (2026-10-15): its judge moved from runtime_grounding v1 to v3, the
+    version the tailored requirements' judge runs too, so the judge's version
+    is shared again; B181 (2026-11-04): both read v4."""
     generator = FakeClient({NORM["norm_id"]: gen_answer("satisfied", [REAL_QUOTE])}, model="fake-generator")
     judge = FakeClient({NORM["norm_id"]: JUDGE_ACCEPT}, model="fake-judge")
     envelope = evaluate_project_evidence(NORM, EVIDENCE, generator, judge, log_path=tmp_path / "log.jsonl")
     assert envelope["judge_verdict"] == "accepted"
     assert generator.calls[0][0].startswith("# evaluate_evidence system prompt, version v1")
-    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v3")
+    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v4")

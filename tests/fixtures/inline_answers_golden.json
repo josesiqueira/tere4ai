@@ -319,10 +319,10 @@
   "graph_version": "build-test",
   "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
  },
- "backlog accepted typed": {
+ "tailored requirements accepted typed": {
   "answer": {
-   "tool": "generate_control_backlog",
-   "items": [
+   "tool": "generate_tailored_requirements",
+   "tailored_requirements": [
     {
      "title": "Keep a log",
      "description": "Do Keep a log.",
@@ -360,12 +360,12 @@
      "requirement_type": "functional"
     }
    ],
-   "dropped_items": 1,
-   "merged_items": 0,
+   "dropped_tailored_requirements": 1,
+   "merged_tailored_requirements": 0,
    "notes": [
-    "item 2 ('Log access') has no valid requirement_type ('bogus'); kept with null",
-    "item 3 ('Ask') had invalid priority 'maybe'; recomputed mechanically from deontic types to 'should'",
-    "item 4 ('Ghost') dropped: cites norm_ids outside the input set: ['norm:nowhere']"
+    "tailored requirement 2 ('Log access') has no valid requirement_type ('bogus'); kept with null",
+    "tailored requirement 3 ('Ask') had invalid priority 'maybe'; recomputed mechanically from deontic types to 'should'",
+    "tailored requirement 4 ('Ghost') dropped: cites norm_ids outside the input set: ['norm:nowhere']"
    ],
    "judge_rationale": "Fine.",
    "judge_model": "fake-judge",
@@ -426,16 +426,16 @@
   },
   "legal_status_notes": [],
   "missing_facts": [
-   "backlog items define required work; no project evidence has been evaluated against these norms yet"
+   "tailored requirements define required work; no project evidence has been evaluated against these norms yet"
   ],
   "judge_verdict": "accepted",
   "graph_version": "build-test",
   "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
  },
- "backlog rejected v1": {
+ "tailored requirements rejected v1": {
   "answer": {
-   "tool": "generate_control_backlog",
-   "items": [
+   "tool": "generate_tailored_requirements",
+   "tailored_requirements": [
     {
      "title": "Keep a log",
      "description": "Do Keep a log.",
@@ -448,10 +448,10 @@
      "priority": "should"
     }
    ],
-   "dropped_items": 0,
-   "merged_items": 0,
+   "dropped_tailored_requirements": 0,
+   "merged_tailored_requirements": 0,
    "notes": [
-    "item 1 ('Keep a log') had invalid priority 'soon'; recomputed mechanically from deontic types to 'should'"
+    "tailored requirement 1 ('Keep a log') had invalid priority 'soon'; recomputed mechanically from deontic types to 'should'"
    ],
    "judge_rationale": "Not supported.",
    "judge_model": "fake-judge",
@@ -498,18 +498,18 @@
   },
   "legal_status_notes": [],
   "missing_facts": [
-   "backlog items define required work; no project evidence has been evaluated against these norms yet",
-   "runtime grounding judge verdict 'rejected': the generated backlog is not surfaced as-is and requires human review"
+   "tailored requirements define required work; no project evidence has been evaluated against these norms yet",
+   "runtime grounding judge verdict 'rejected': the generated tailored requirements are not surfaced as is and require human review"
   ],
   "judge_verdict": "rejected",
   "graph_version": "build-test",
   "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
  },
- "backlog nothing survives": {
+ "tailored requirements nothing survives": {
   "answer": {
-   "tool": "generate_control_backlog",
+   "tool": "generate_tailored_requirements",
    "refused": true,
-   "message": "no backlog items survived the mechanical citation check (1 dropped); nothing trustworthy to return",
+   "message": "no tailored requirements survived the mechanical citation check (1 dropped); nothing trustworthy to return",
    "generator_model": "fake-generator",
    "generator_effort": "not configured",
    "generator_temperature": "not configured",
@@ -534,17 +534,17 @@
   "graph_evidence_subgraph": {},
   "legal_status_notes": [],
   "missing_facts": [
-   "no backlog items survived the mechanical citation check (1 dropped); nothing trustworthy to return"
+   "no tailored requirements survived the mechanical citation check (1 dropped); nothing trustworthy to return"
   ],
   "judge_verdict": "not_run",
   "graph_version": "build-test",
   "non_legal_advice_notice": "TERE4AI provides engineering and documentation support. It does not certify EU AI Act compliance and does not replace legal review, conformity assessment, or competent-authority interpretation."
  },
- "backlog unparsable": {
+ "tailored requirements unparsable": {
   "answer": {
-   "tool": "generate_control_backlog",
+   "tool": "generate_tailored_requirements",
    "refused": true,
-   "message": "generator output unusable, no backlog produced: generator JSON lacks an 'items' list",
+   "message": "generator output unusable, no tailored requirements produced: generator JSON lacks an 'items' list",
    "generator_model": "fake-generator",
    "generator_effort": "not configured",
    "generator_temperature": "not configured",
@@ -569,7 +569,7 @@
   "graph_evidence_subgraph": {},
   "legal_status_notes": [],
   "missing_facts": [
-   "generator output unusable, no backlog produced: generator JSON lacks an 'items' list"
+   "generator output unusable, no tailored requirements produced: generator JSON lacks an 'items' list"
   ],
   "judge_verdict": "not_run",
   "graph_version": "build-test",

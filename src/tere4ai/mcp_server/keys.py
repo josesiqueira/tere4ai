@@ -58,7 +58,7 @@ TOOL_SCOPES: dict[str, str] = {
     "classify_ai_system": "classify",
     "evaluate_project_evidence": "evidence_paid",
     "evaluate_project_evidence_batch": "evidence_paid",
-    "generate_control_backlog": "backlog_paid",
+    "generate_tailored_requirements": "backlog_paid",
     # B10: the paid elicitor has its own scope, so a free classify key
     # cannot spend money on it.
     "elicit_features": "elicit_paid",

@@ -20,7 +20,10 @@ import pytest
 
 from tere4ai.elicit_features.elicitor import features_of_record
 from tere4ai.mcp_server.classify import classify_ai_system
-from tere4ai.mcp_server.requirements import get_applicable_requirements
+from tere4ai.mcp_server.requirements import (
+    get_applicable_requirements,
+    prohibited_message_of_record,
+)
 
 SESSIONS_DIR = Path(__file__).parent.parent / "fixtures" / "demo_sessions"
 FIXTURE = SESSIONS_DIR / "spamguard-classify.jsonl"
@@ -47,6 +50,16 @@ def _mask(envelope):
     masked = dict(envelope)
     masked["generated_at"] = "MASKED"
     return masked
+
+
+def _of_record(envelope):
+    """B181 (DEC-30): a session recorded before the rename keeps its
+    prohibited sentence; it is read through prohibited_message_of_record, a
+    copy, never the recorded line itself."""
+    answer = envelope.get("answer")
+    if not (isinstance(answer, dict) and isinstance(answer.get("message"), str)):
+        return envelope
+    return {**envelope, "answer": {**answer, "message": prohibited_message_of_record(answer["message"])}}
 
 
 def test_recorded_spamguard_session_replays_identically(dump):
@@ -99,7 +112,7 @@ def test_every_recorded_session_replays_identically(session_path, dump, norms):
                 "guard does not cover; extend the guard rather than shipping an "
                 "unverified recording to the demo page"
             )
-        assert _mask(live) == _mask(line["envelope"]), (
+        assert _mask(live) == _mask(_of_record(line["envelope"])), (
             f"{session_path.name} seq {line['seq']} ({tool}) no longer replays to "
             "the recorded envelope; re-record it or fix the drift"
         )

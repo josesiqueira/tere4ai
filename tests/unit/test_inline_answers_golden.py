@@ -1,17 +1,21 @@
 """DEC-24 (spec G D-G74 (12)): the tool functions evaluate_project_evidence,
 evaluate_evidence_batch (behind evaluate_project_evidence_batch) and
-generate_control_backlog answer byte for byte as they did before the
-backlog tool was split into a generator part and a judge part. The MCP
+generate_tailored_requirements answer byte for byte as they did before the
+tailored requirements tool was split into a generator part and a judge part. The MCP
 tools and the facade's inline mode call these functions; this test calls
 the functions, not the routes, whose inline path the existing facade tests
 hold (B138 phase 5 plan ruling P24). The answers were recorded from the code
 before the split (tests/fixtures/inline_answers_golden.json); only the time
 of the answer and the judge run's random id are left out of the comparison.
-B159 (2026-10-12) re-recorded one scenario, "backlog accepted typed": the
-merge keys on the norm set and the requirement type together, so its
-null-typed "Log access" is no longer merged into the functional "Keep a log"
-and stays a control of its own; every other scenario is as recorded before
-the split. FakeClient only: no network, no key."""
+B159 (2026-10-12) re-recorded one scenario, "tailored requirements accepted
+typed": the merge keys on the norm set and the requirement type together, so
+its null-typed "Log access" is no longer merged into the functional "Keep a
+log" and stays a tailored requirement of its own; every other scenario is as
+recorded before the split. B181 (2026-11-05) re-recorded every scenario with
+the renamed answer keys (tailored_requirements, dropped_tailored_requirements,
+merged_tailored_requirements), the tool name and the messages of DEC-30; the
+generator replies and the judge views of the v1 and v2 scenarios keep their
+keys of those versions. FakeClient only: no network, no key."""
 
 from __future__ import annotations
 
@@ -22,7 +26,7 @@ from typing import Any
 import pytest
 
 from tere4ai.extract_norms.model_clients import FakeClient
-from tere4ai.mcp_server.backlog import generate_control_backlog
+from tere4ai.mcp_server.backlog import generate_tailored_requirements
 from tere4ai.mcp_server.evidence import evaluate_evidence_batch, evaluate_project_evidence
 
 GOLDEN = Path(__file__).resolve().parents[1] / "fixtures" / "inline_answers_golden.json"
@@ -90,11 +94,12 @@ def _batch(tmp: Path) -> dict[str, Any]:
                                    graph_version="build-test", log_path=tmp / "log.jsonl")
 
 
-def _backlog(tmp: Path, gen: str, judge: str, version: str = "v2") -> dict[str, Any]:
+def _tailored_requirements(tmp: Path, gen: str, judge: str, version: str = "v2") -> dict[str, Any]:
     norms = [_norm(12), _norm(12, 2, deontic_type="permission"), _norm(14, conditions=["where needed"])]
-    return generate_control_backlog(norms, "Opens the office door for staff.", FakeClient({"UNTRUSTED PROJECT CONTEXT": gen}, "fake-generator"),
-                                    FakeClient({"Generated runtime answer": judge}, "fake-judge"), prompt_version=version,
-                                    graph_version="build-test", log_path=tmp / "log.jsonl")
+    return generate_tailored_requirements(norms, "Opens the office door for staff.",
+                                          FakeClient({"UNTRUSTED PROJECT CONTEXT": gen}, "fake-generator"),
+                                          FakeClient({"Generated runtime answer": judge}, "fake-judge"), prompt_version=version,
+                                          graph_version="build-test", log_path=tmp / "log.jsonl")
 
 
 def scenarios(tmp: Path) -> dict[str, dict[str, Any]]:
@@ -109,11 +114,13 @@ def scenarios(tmp: Path) -> dict[str, dict[str, Any]]:
         "evidence unparsable": _evidence(tmp, "not json", ACCEPT),
         "evidence norm not accepted": _evidence(tmp, _gen("satisfied", []), ACCEPT, _norm(12, judge_verdict="rejected")),
         "evidence batch": _batch(tmp),
-        "backlog accepted typed": _backlog(tmp, _items(_item("Keep a log", [ids[0]]), _item("Log access", [ids[0]], requirement_type="bogus"),
-                                                       _item("Ask", [ids[1]], priority="maybe"), _item("Ghost", ["norm:nowhere"])), typed_views),
-        "backlog rejected v1": _backlog(tmp, _items(_item("Keep a log", [ids[2]], priority="soon")), REJECT, "v1"),
-        "backlog nothing survives": _backlog(tmp, _items(_item("Ghost", ["norm:nowhere"])), ACCEPT),
-        "backlog unparsable": _backlog(tmp, "{\"no\": \"items\"}", ACCEPT),
+        "tailored requirements accepted typed": _tailored_requirements(
+            tmp, _items(_item("Keep a log", [ids[0]]), _item("Log access", [ids[0]], requirement_type="bogus"),
+                        _item("Ask", [ids[1]], priority="maybe"), _item("Ghost", ["norm:nowhere"])), typed_views),
+        "tailored requirements rejected v1": _tailored_requirements(
+            tmp, _items(_item("Keep a log", [ids[2]], priority="soon")), REJECT, "v1"),
+        "tailored requirements nothing survives": _tailored_requirements(tmp, _items(_item("Ghost", ["norm:nowhere"])), ACCEPT),
+        "tailored requirements unparsable": _tailored_requirements(tmp, "{\"no\": \"items\"}", ACCEPT),
     }
 
 
@@ -125,7 +132,7 @@ def test_the_inline_answers_are_those_recorded_before_the_split(tmp_path):
         assert json.dumps(current[name], sort_keys=True) == json.dumps(golden[name], sort_keys=True), name
 
 
-@pytest.mark.parametrize("name", ["evidence accepted", "backlog accepted typed"])
+@pytest.mark.parametrize("name", ["evidence accepted", "tailored requirements accepted typed"])
 def test_the_inline_answers_keep_their_key_order(tmp_path, name):
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
     assert list(_normalised(scenarios(tmp_path)[name])["answer"]) == list(golden[name]["answer"])

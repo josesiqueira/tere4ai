@@ -1,12 +1,17 @@
-"""Offline tests for generate_control_backlog (DEC-06 partial, DEC-08).
+"""Offline tests for generate_tailored_requirements (DEC-06 partial, DEC-08, DEC-30).
 
 Uses FakeClient only: no network, no keys, no graph dumps. Verifies the
-behavioral safeguards: items citing unknown norm_ids are mechanically
-dropped and counted, every norm given reaches the generator with no cap
-and no truncation (B71, decided 2026-09-08), the obligation/prohibition to
-"must" mapping is honored, non-accepted norms are refused, a
-judge-rejected backlog degrades to requires_human_review with the
-rationale attached, and the runtime log carries no key material.
+behavioral safeguards: tailored requirements citing unknown norm_ids are
+mechanically dropped and counted, every norm given reaches the generator
+with no cap and no truncation (B71, decided 2026-09-08), the
+obligation/prohibition to "must" mapping is honored, non-accepted norms are
+refused, a judge-rejected generation degrades to requires_human_review with
+the rationale attached, and the runtime log carries no key material. The
+answer keys are tailored_requirements, dropped_tailored_requirements and
+merged_tailored_requirements under every prompt version; the generator's
+reply key, the judge's input and the type_views position key follow the
+version (R12: items and item under v1 to v3, tailored_requirements and
+tailored_requirement under v4).
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ from tere4ai.extract_norms.model_clients import FakeClient, _new_usage
 from tere4ai.extract_norms.pipeline import load_prompt
 from tere4ai.extract_norms.requirement_type import DEFINITIONS_TEXT, SCOPE_TEXT
 from tere4ai.judge import runtime_grounding
-from tere4ai.mcp_server.backlog import DEFAULT_PROMPT_VERSION, generate_control_backlog
+from tere4ai.mcp_server.backlog import DEFAULT_PROMPT_VERSION, generate_tailored_requirements
 from tere4ai.mcp_server.tools import STATUS_VOCABULARY
 
 
@@ -64,18 +69,18 @@ SCORES = {
     "judge_confidence": 0.9,
 }
 JUDGE_ACCEPT = json.dumps(
-    {"verdict": "accepted", "scores": SCORES, "rationale": "Items stay within the cited norms."}
+    {"verdict": "accepted", "scores": SCORES, "rationale": "The tailored requirements stay within the cited norms."}
 )
 JUDGE_REJECT = json.dumps(
     {
         "verdict": "rejected",
         "scores": {**SCORES, "evidence_strength": 0.1},
-        "rationale": "An item asserts more than the cited norms support.",
+        "rationale": "A tailored requirement asserts more than the cited norms support.",
     }
 )
 
 
-def item(title, norm_ids, priority="must", suggested=("documentation",)):
+def tailored_requirement(title, norm_ids, priority="must", suggested=("documentation",)):
     return {
         "title": title,
         "description": f"Do the engineering work for {title}.",
@@ -85,11 +90,14 @@ def item(title, norm_ids, priority="must", suggested=("documentation",)):
     }
 
 
-def gen_items(*items_):
-    return json.dumps({"items": list(items_)})
+def gen_reply(key, *entries):
+    """The generator's reply: the list under the key its prompt version asks
+    for ("items" under v1 to v3, "tailored_requirements" under v4, R12)."""
+    return json.dumps({key: list(entries)})
 
 
-ONE_ITEM = gen_items(item("Risk management", [NORM_A["norm_id"]]))  # one item citing one norm
+# one tailored requirement citing one norm, under the v1 reply key
+ONE_TAILORED_REQUIREMENT = gen_reply("items", tailored_requirement("Risk management", [NORM_A["norm_id"]]))
 
 
 def run_tool(gen_response, judge_response, tmp_path, norms=None, **kwargs):
@@ -97,7 +105,7 @@ def run_tool(gen_response, judge_response, tmp_path, norms=None, **kwargs):
     generator = FakeClient({KEY: gen_response}, model="fake-generator")
     judge = FakeClient({KEY: judge_response}, model="fake-judge")
     log_path = tmp_path / "runtime_log.jsonl"
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         norms,
         "A high-risk AI triage system for a hospital.",
         generator,
@@ -110,27 +118,42 @@ def run_tool(gen_response, judge_response, tmp_path, norms=None, **kwargs):
     return envelope, generator, judge, log_path
 
 
-def test_happy_path_status_and_items(tmp_path):
+def run_v4(gen_response, judge_response, tmp_path, norms=None):
+    """The tool under its default prompts, generate_backlog v4 and
+    runtime_grounding v4 (DEC-30): the generator replies under
+    tailored_requirements."""
+    norms = norms if norms is not None else [NORM_A, NORM_B, NORM_C]
+    generator = FakeClient({KEY: gen_response}, model="fake-generator")
+    judge = FakeClient({KEY: judge_response}, model="fake-judge")
+    log_path = tmp_path / "runtime_log.jsonl"
+    envelope = generate_tailored_requirements(
+        norms, "A high-risk AI triage system for a hospital.", generator, judge,
+        graph_version="build-test", log_path=log_path,
+    )
+    return envelope, generator, judge, log_path
+
+
+def test_happy_path_status_and_tailored_requirements(tmp_path):
     envelope, _, judge, _ = run_tool(
-        gen_items(
-            item("Risk management process", [NORM_A["norm_id"]]),
-            item("Data governance and prohibition guardrails", [NORM_B["norm_id"], NORM_C["norm_id"]]),
+        gen_reply("items",
+            tailored_requirement("Risk management process", [NORM_A["norm_id"]]),
+            tailored_requirement("Data governance and prohibition guardrails", [NORM_B["norm_id"], NORM_C["norm_id"]]),
         ),
         JUDGE_ACCEPT,
         tmp_path,
     )
-    # A backlog defines work; nothing is satisfied yet (DEC-08).
+    # Tailored requirements define work; nothing is satisfied yet (DEC-08).
     assert envelope["status"] == "applicable_missing_evidence"
     assert envelope["judge_verdict"] == "accepted"
     answer = envelope["answer"]
-    assert len(answer["items"]) == 2
-    assert answer["dropped_items"] == 0
+    assert len(answer["tailored_requirements"]) == 2
+    assert answer["dropped_tailored_requirements"] == 0
     assert "truncated" not in answer
-    assert answer["judge_rationale"] == "Items stay within the cited norms."
+    assert answer["judge_rationale"] == "The tailored requirements stay within the cited norms."
     assert answer["judge_model"] == "fake-judge"
     assert answer["judge_effort"] == "not configured"  # FakeClient declares no effort; a real client carries its declared one
     assert answer["judge_temperature"] == "not configured"
-    cited = {norm_id for it in answer["items"] for norm_id in it["norm_ids"]}
+    cited = {norm_id for it in answer["tailored_requirements"] for norm_id in it["norm_ids"]}
     assert cited <= {NORM_A["norm_id"], NORM_B["norm_id"], NORM_C["norm_id"]}
     assert set(envelope["source_nodes"]) == {
         NORM_A["source_node_id"],
@@ -140,25 +163,25 @@ def test_happy_path_status_and_items(tmp_path):
     assert len(judge.calls) == 1
 
 
-def test_items_citing_unknown_norm_ids_are_dropped_and_counted(tmp_path):
+def test_tailored_requirements_citing_unknown_norm_ids_are_dropped_and_counted(tmp_path):
     envelope, _, _, _ = run_tool(
-        gen_items(
-            item("Grounded item", [NORM_A["norm_id"]]),
-            item("Hallucinated item", ["norm:eu-ai-act:article-999:paragraph-1:n1"]),
+        gen_reply("items",
+            tailored_requirement("Grounded tailored requirement", [NORM_A["norm_id"]]),
+            tailored_requirement("Hallucinated tailored requirement", ["norm:eu-ai-act:article-999:paragraph-1:n1"]),
         ),
         JUDGE_ACCEPT,
         tmp_path,
     )
     answer = envelope["answer"]
-    assert len(answer["items"]) == 1
-    assert answer["items"][0]["title"] == "Grounded item"
-    assert answer["dropped_items"] == 1
+    assert len(answer["tailored_requirements"]) == 1
+    assert answer["tailored_requirements"][0]["title"] == "Grounded tailored requirement"
+    assert answer["dropped_tailored_requirements"] == 1
     assert any("outside" in note and "article-999" in note for note in answer["notes"])
 
 
-def test_all_items_dropped_degrades_without_judge_call(tmp_path):
+def test_all_tailored_requirements_dropped_degrades_without_judge_call(tmp_path):
     envelope, _, judge, _ = run_tool(
-        gen_items(item("Hallucinated item", ["norm:eu-ai-act:article-999:paragraph-1:n1"])),
+        gen_reply("items", tailored_requirement("Hallucinated tailored requirement", ["norm:eu-ai-act:article-999:paragraph-1:n1"])),
         JUDGE_ACCEPT,
         tmp_path,
     )
@@ -170,7 +193,7 @@ def test_all_items_dropped_degrades_without_judge_call(tmp_path):
 
 def test_all_given_norms_reach_the_generator_no_cap_no_truncation(tmp_path):
     """B71 (decided 2026-09-08): no norm cap, no truncation, anywhere on the
-    backlog path. The tool takes every norm it is given; a call the model
+    tailored requirements path. The tool takes every norm it is given; a call the model
     cannot serve fails loudly, it is never served with fewer norms."""
     norms = [make_norm(article, 1) for article in range(1, 61)]
     received_ids: list[str] = []
@@ -182,10 +205,10 @@ def test_all_given_norms_reach_the_generator_no_cap_no_truncation(tmp_path):
             received_ids.extend(
                 norm["norm_id"] for norm in norms if norm["norm_id"] in user
             )
-            return gen_items(item("Full backlog", [norms[0]["norm_id"]]))
+            return gen_reply("items", tailored_requirement("Full set of norms", [norms[0]["norm_id"]]))
 
     judge = FakeClient({"": JUDGE_ACCEPT}, model="fake-judge")
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         norms,
         "A high-risk AI triage system for a hospital.",
         RecordingGenerator(),
@@ -201,25 +224,25 @@ def test_all_given_norms_reach_the_generator_no_cap_no_truncation(tmp_path):
 
 def test_obligation_and_prohibition_map_to_must_in_the_fake_path(tmp_path):
     envelope, _, _, _ = run_tool(
-        gen_items(
-            item("Obligation control", [NORM_A["norm_id"]], priority="must"),
-            item("Prohibition guardrail", [NORM_C["norm_id"]], priority="must"),
+        gen_reply("items",
+            tailored_requirement("Obligation tailored requirement", [NORM_A["norm_id"]], priority="must"),
+            tailored_requirement("Prohibition guardrail", [NORM_C["norm_id"]], priority="must"),
         ),
         JUDGE_ACCEPT,
         tmp_path,
     )
-    priorities = {it["title"]: it["priority"] for it in envelope["answer"]["items"]}
-    assert priorities == {"Obligation control": "must", "Prohibition guardrail": "must"}
+    priorities = {it["title"]: it["priority"] for it in envelope["answer"]["tailored_requirements"]}
+    assert priorities == {"Obligation tailored requirement": "must", "Prohibition guardrail": "must"}
 
 
 def test_invalid_priority_is_recomputed_from_deontic_types(tmp_path):
     envelope, _, _, _ = run_tool(
-        gen_items(item("Obligation control", [NORM_A["norm_id"]], priority="urgent")),
+        gen_reply("items", tailored_requirement("Obligation tailored requirement", [NORM_A["norm_id"]], priority="urgent")),
         JUDGE_ACCEPT,
         tmp_path,
     )
     answer = envelope["answer"]
-    assert answer["items"][0]["priority"] == "must"  # obligation forces must
+    assert answer["tailored_requirements"][0]["priority"] == "must"  # obligation forces must
     assert any("recomputed mechanically" in note for note in answer["notes"])
 
 
@@ -227,7 +250,7 @@ def test_non_accepted_norm_refuses_the_whole_call(tmp_path):
     rejected = make_norm(11, 1, judge_verdict="rejected", review_status="rejected")
     generator = FakeClient({}, model="fake-generator")
     judge = FakeClient({}, model="fake-judge")
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         [NORM_A, rejected],
         "context",
         generator,
@@ -243,9 +266,9 @@ def test_non_accepted_norm_refuses_the_whole_call(tmp_path):
     assert judge.calls == []
 
 
-def test_judge_rejected_backlog_degrades_with_rationale(tmp_path):
+def test_judge_rejected_generation_degrades_with_rationale(tmp_path):
     envelope, _, _, _ = run_tool(
-        gen_items(item("Risk management process", [NORM_A["norm_id"]])),
+        gen_reply("items", tailored_requirement("Risk management process", [NORM_A["norm_id"]])),
         JUDGE_REJECT,
         tmp_path,
     )
@@ -254,9 +277,9 @@ def test_judge_rejected_backlog_degrades_with_rationale(tmp_path):
     assert envelope["judge_verdict"] == "rejected"
     assert envelope["confidence"] == 0.0
     answer = envelope["answer"]
-    assert answer["items"]  # visible for the human reviewer, never as accepted output
-    assert answer["judge_rationale"] == "An item asserts more than the cited norms support."
-    assert any("requires human review" in fact for fact in envelope["missing_facts"])
+    assert answer["tailored_requirements"]  # visible for the human reviewer, never as accepted output
+    assert answer["judge_rationale"] == "A tailored requirement asserts more than the cited norms support."
+    assert any("require human review" in fact for fact in envelope["missing_facts"])
 
 
 def test_generator_parse_failure_degrades_without_judge_call(tmp_path):
@@ -271,7 +294,7 @@ def test_generator_parse_failure_degrades_without_judge_call(tmp_path):
 
 def test_empty_norms_list_raises(tmp_path):
     with pytest.raises(ValueError, match="at least one"):
-        generate_control_backlog(
+        generate_tailored_requirements(
             [],
             "context",
             FakeClient({}, model="g"),
@@ -282,7 +305,7 @@ def test_empty_norms_list_raises(tmp_path):
 
 def test_envelope_carries_notice_and_no_compliance_claims(tmp_path):
     envelope, _, _, _ = run_tool(
-        gen_items(item("Risk management process", [NORM_A["norm_id"]])),
+        gen_reply("items", tailored_requirement("Risk management process", [NORM_A["norm_id"]])),
         JUDGE_ACCEPT,
         tmp_path,
     )
@@ -295,8 +318,9 @@ def test_envelope_carries_notice_and_no_compliance_claims(tmp_path):
 
 
 def test_runtime_log_written_with_no_key_material(tmp_path):
-    _, _, _, log_path = run_tool(
-        gen_items(item("Risk management process", [NORM_A["norm_id"]])),
+    # M2: under the default v4, so the prompt guarded against is the one the default sends
+    _, _, _, log_path = run_v4(
+        gen_reply("tailored_requirements", tailored_requirement("Risk management process", [NORM_A["norm_id"]])),
         JUDGE_ACCEPT,
         tmp_path,
     )
@@ -312,15 +336,15 @@ def test_runtime_log_written_with_no_key_material(tmp_path):
     for secret_marker in ("sk-", "api_key", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
         assert secret_marker not in raw
     # No full prompts and no full untrusted context in the log.
-    assert "control-backlog generator" not in raw
+    assert "tailored requirements generator" not in raw
 
 
 # Grouping + condition-aware priority (#35) -------------------------------------
 
 
-def test_items_citing_identical_norm_set_are_merged(tmp_path):
+def test_tailored_requirements_citing_identical_norm_set_are_merged(tmp_path):
     norm = make_norm(9, 1)
-    two_items = json.dumps(
+    two_tailored_requirements = json.dumps(
         {
             "items": [
                 {
@@ -332,7 +356,7 @@ def test_items_citing_identical_norm_set_are_merged(tmp_path):
                 },
                 {
                     "title": "Create a register of risks",
-                    "description": "Duplicate control expressed differently.",
+                    "description": "Duplicate tailored requirement expressed differently.",
                     "norm_ids": [norm["norm_id"]],
                     "suggested_evidence": ["risk policy"],
                     "priority": "must",
@@ -340,25 +364,25 @@ def test_items_citing_identical_norm_set_are_merged(tmp_path):
             ]
         }
     )
-    envelope, _, _, _ = run_tool(two_items, JUDGE_ACCEPT, tmp_path, norms=[norm])
+    envelope, _, _, _ = run_tool(two_tailored_requirements, JUDGE_ACCEPT, tmp_path, norms=[norm])
     answer = envelope["answer"]
-    assert len(answer["items"]) == 1
-    assert answer["merged_items"] == 1
-    item = answer["items"][0]
-    assert item["title"] == "Establish the risk register"
-    assert item["suggested_evidence"] == ["risk register", "risk policy"]
+    assert len(answer["tailored_requirements"]) == 1
+    assert answer["merged_tailored_requirements"] == 1
+    merged = answer["tailored_requirements"][0]
+    assert merged["title"] == "Establish the risk register"
+    assert merged["suggested_evidence"] == ["risk register", "risk policy"]
     # Strictest priority survives the merge.
-    assert item["priority"] == "must"
+    assert merged["priority"] == "must"
     assert any("merged into" in note for note in answer["notes"])
 
 
 def test_mechanical_priority_downgrades_conditional_obligations(tmp_path):
     conditional = make_norm(9, 1, conditions=["where the system is high-risk"])
-    item = json.dumps(
+    reply = json.dumps(
         {
             "items": [
                 {
-                    "title": "Conditional control",
+                    "title": "Conditional tailored requirement",
                     "description": "Applies only under the stated condition.",
                     "norm_ids": [conditional["norm_id"]],
                     "suggested_evidence": [],
@@ -367,17 +391,17 @@ def test_mechanical_priority_downgrades_conditional_obligations(tmp_path):
             ]
         }
     )
-    envelope, _, _, _ = run_tool(item, JUDGE_ACCEPT, tmp_path, norms=[conditional])
-    assert envelope["answer"]["items"][0]["priority"] == "should"
+    envelope, _, _, _ = run_tool(reply, JUDGE_ACCEPT, tmp_path, norms=[conditional])
+    assert envelope["answer"]["tailored_requirements"][0]["priority"] == "should"
 
 
 def test_mechanical_priority_keeps_unconditional_obligations_must(tmp_path):
     unconditional = make_norm(9, 1, conditions=[])
-    item = json.dumps(
+    reply = json.dumps(
         {
             "items": [
                 {
-                    "title": "Unconditional control",
+                    "title": "Unconditional tailored requirement",
                     "description": "Always applies.",
                     "norm_ids": [unconditional["norm_id"]],
                     "suggested_evidence": [],
@@ -386,8 +410,8 @@ def test_mechanical_priority_keeps_unconditional_obligations_must(tmp_path):
             ]
         }
     )
-    envelope, _, _, _ = run_tool(item, JUDGE_ACCEPT, tmp_path, norms=[unconditional])
-    assert envelope["answer"]["items"][0]["priority"] == "must"
+    envelope, _, _, _ = run_tool(reply, JUDGE_ACCEPT, tmp_path, norms=[unconditional])
+    assert envelope["answer"]["tailored_requirements"][0]["priority"] == "must"
 
 
 # Generator model id, effort, and both model components' usage (B91, spec F D-F26 (g)) ----
@@ -416,15 +440,15 @@ class CountingClient(FakeClient):
 def _counted_run(tmp_path, gen_response, judge_response, generator=None):
     generator = generator or CountingClient({KEY: gen_response}, model="fake-generator")
     judge = CountingClient({KEY: judge_response}, model="fake-judge", tokens=(40, 8))
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
         prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
     )
     return envelope, generator, judge
 
 
-def test_backlog_answer_names_the_generator_and_both_components_usage(tmp_path):
-    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
+def test_the_answer_names_the_generator_and_both_components_usage(tmp_path):
+    envelope, _, _ = _counted_run(tmp_path, ONE_TAILORED_REQUIREMENT, JUDGE_ACCEPT)
     answer = envelope["answer"]
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "xhigh"
     assert answer["judge_model"] == "fake-judge" and answer["judge_effort"] == "xhigh"
@@ -441,16 +465,16 @@ def test_backlog_answer_names_the_generator_and_both_components_usage(tmp_path):
     }
 
 
-def test_backlog_usage_is_the_spend_of_this_call_only(tmp_path):
-    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
+def test_the_usage_is_the_spend_of_this_call_only(tmp_path):
+    generator = CountingClient({KEY: ONE_TAILORED_REQUIREMENT}, model="fake-generator")
     generator.usage.update({"calls": 5, "input_tokens": 999, "requests_sent": 6, "replies_with_usage": 5})
     envelope, _, _ = _counted_run(tmp_path, None, JUDGE_ACCEPT, generator=generator)
     assert envelope["answer"]["usage"]["generator"]["calls"] == 1
     assert envelope["answer"]["usage"]["generator"]["input_tokens"] == 100
 
 
-def test_backlog_usage_of_a_client_without_a_usage_record_is_none(tmp_path):
-    envelope, _, _, _ = run_tool(ONE_ITEM, JUDGE_ACCEPT, tmp_path)
+def test_the_usage_of_a_client_without_a_usage_record_is_none(tmp_path):
+    envelope, _, _, _ = run_tool(ONE_TAILORED_REQUIREMENT, JUDGE_ACCEPT, tmp_path)
     answer = envelope["answer"]
     assert answer["usage"] == {"generator": None, "judge": None}
     assert answer["generator_model"] == "fake-generator" and answer["generator_effort"] == "not configured"
@@ -469,7 +493,7 @@ def test_the_refusal_before_any_request_carries_no_spend(tmp_path):
     rejected = dict(NORM_A, judge_verdict="rejected")
     generator = CountingClient({KEY: "{}"}, model="fake-generator")
     judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
-    envelope = generate_control_backlog([rejected], "ctx", generator, judge, log_path=tmp_path / "l.jsonl")
+    envelope = generate_tailored_requirements([rejected], "ctx", generator, judge, log_path=tmp_path / "l.jsonl")
     assert "usage" not in envelope["answer"] and "generator_model" not in envelope["answer"]
     # spec F D-F35 (1): nor the prompts, which travel with the spend
     assert not set(envelope["answer"]) & {"generator_prompt", "generator_prompt_version", "generator_prompt_sha256",
@@ -485,9 +509,9 @@ def test_a_judge_failure_after_the_generator_answered_returns_a_degraded_answer_
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge inference backend unreachable")
 
-    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_TAILORED_REQUIREMENT}, model="fake-generator")
     judge = FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge")
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
         prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
     )
@@ -508,8 +532,8 @@ def test_a_judge_failure_is_labelled_judge_error_not_not_run(tmp_path):
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge inference backend unreachable")
 
-    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
-    envelope = generate_control_backlog(
+    generator = CountingClient({KEY: ONE_TAILORED_REQUIREMENT}, model="fake-generator")
+    envelope = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator,
         FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge"),
         prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
@@ -534,9 +558,9 @@ def test_a_judge_error_answer_names_the_judge_model_and_effort_so_its_tokens_can
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge inference backend unreachable")
 
-    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_TAILORED_REQUIREMENT}, model="fake-generator")
     judge = HalfFailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge", effort="high")
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
         prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
     )
@@ -557,14 +581,14 @@ def test_a_generator_that_raises_after_its_retries_answers_degraded_with_its_spe
     generator = FailingGenerator({KEY: "{}"}, model="fake-generator")
     judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
     log_path = tmp_path / "runtime_log.jsonl"
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
         prompt_version="v1", graph_version="build-test", log_path=log_path,
     )
     answer = envelope["answer"]
     assert answer["refused"] is True and envelope["status"] == "requires_human_review"
     assert envelope["judge_verdict"] == "not_run" and judge.calls == []
-    assert answer["message"] == ("generator request failed, no backlog produced: "
+    assert answer["message"] == ("generator request failed, no tailored requirements produced: "
                                  "RuntimeError: 503 upstream overloaded")
     assert answer["usage"]["generator"]["requests_sent"] == 3 and answer["usage"]["generator"]["calls"] == 0
     assert answer["usage"]["generator"]["requests_rejected_before_processing"] == 1
@@ -580,7 +604,7 @@ def test_an_interrupt_during_the_generator_request_still_propagates(tmp_path):
             raise KeyboardInterrupt
 
     with pytest.raises(KeyboardInterrupt):
-        generate_control_backlog(
+        generate_tailored_requirements(
             [NORM_A], "ctx", InterruptedGenerator({KEY: "{}"}, model="fake-generator"),
             CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge"), log_path=tmp_path / "l.jsonl",
         )
@@ -598,7 +622,7 @@ def test_a_judge_step_that_raises_before_any_request_reads_not_run(tmp_path, mon
         return real_load(kind, version)
 
     monkeypatch.setattr(rg, "load_prompt", missing_prompt)
-    envelope, _, judge = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
+    envelope, _, judge = _counted_run(tmp_path, ONE_TAILORED_REQUIREMENT, JUDGE_ACCEPT)
     assert judge.calls == [] and envelope["answer"]["usage"]["judge"]["requests_sent"] == 0
     assert envelope["judge_verdict"] == "not_run" and envelope["answer"]["refused"] is True
 
@@ -628,7 +652,7 @@ def _fields_of(answer):
 
 
 def test_a_judged_answer_names_both_prompts_with_version_and_hash(tmp_path):
-    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
+    envelope, _, _ = _counted_run(tmp_path, ONE_TAILORED_REQUIREMENT, JUDGE_ACCEPT)
     answer = envelope["answer"]
     assert _fields_of(answer) == _prompt_fields()
     # the judge's hash is the one the judge run and the audit log record
@@ -642,7 +666,7 @@ def test_a_judged_answer_names_both_prompts_with_version_and_hash(tmp_path):
 def test_each_log_event_names_the_effort_of_its_client(tmp_path):
     """B84 item 1: the generator event and the runtime judge event each carry
     the declared effort of the client that answered it."""
-    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator", effort="low")
+    generator = CountingClient({KEY: ONE_TAILORED_REQUIREMENT}, model="fake-generator", effort="low")
     _counted_run(tmp_path, None, JUDGE_ACCEPT, generator=generator)
     events = [json.loads(line) for line in (tmp_path / "runtime_log.jsonl").read_text().splitlines()]
     assert {e["direction"]: e["effort"] for e in events} == {"generator": "low", "judge": "xhigh"}
@@ -650,7 +674,7 @@ def test_each_log_event_names_the_effort_of_its_client(tmp_path):
 
 @pytest.mark.parametrize("gen_response", [
     "not json at all",  # generator output unusable
-    gen_items(item("Risk management", ["norm:unknown"])),  # no item survives the citation check
+    gen_reply("items", tailored_requirement("Risk management", ["norm:unknown"])),  # none survives the citation check
 ])
 def test_a_degraded_answer_with_the_spend_names_both_prompts(tmp_path, gen_response):
     envelope, _, _ = _counted_run(tmp_path, gen_response, JUDGE_ACCEPT)
@@ -673,8 +697,8 @@ def test_a_failed_generator_request_or_judge_names_both_prompts(tmp_path):
             self.usage["requests_sent"] += 1
             raise RuntimeError("judge inference backend unreachable")
 
-    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
-    envelope = generate_control_backlog(
+    generator = CountingClient({KEY: ONE_TAILORED_REQUIREMENT}, model="fake-generator")
+    envelope = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator,
         FailingJudge({KEY: JUDGE_ACCEPT}, model="fake-judge"),
         prompt_version="v1", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
@@ -694,7 +718,7 @@ def test_an_unreadable_judge_prompt_is_named_with_no_hash(tmp_path, monkeypatch)
         return real_load(kind, version)
 
     monkeypatch.setattr(rg, "load_prompt", missing_prompt)
-    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
+    envelope, _, _ = _counted_run(tmp_path, ONE_TAILORED_REQUIREMENT, JUDGE_ACCEPT)
     assert envelope["judge_verdict"] == "not_run"
     assert _fields_of(envelope["answer"]) == _prompt_fields(judge_sha256=None)
 
@@ -709,9 +733,9 @@ def test_the_prompt_version_reaches_both_components(tmp_path, monkeypatch):
         text = (pipeline.PROMPTS_DIR / kind / "v1.md").read_text(encoding="utf-8")
         (prompts / kind / "v2.md").write_text(text + "\n", encoding="utf-8")
     monkeypatch.setattr(pipeline, "PROMPTS_DIR", prompts)
-    generator = CountingClient({KEY: ONE_ITEM}, model="fake-generator")
+    generator = CountingClient({KEY: ONE_TAILORED_REQUIREMENT}, model="fake-generator")
     judge = CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "ctx", generator, judge, prompt_version="v2",
         graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
     )
@@ -723,7 +747,7 @@ def test_the_prompt_version_reaches_both_components(tmp_path, monkeypatch):
     assert answer["judge_prompt_sha256"] == v2_hashes["runtime_grounding"]
     # a degraded answer, which takes the judge's hash from the read before the
     # generator call, names v2 too
-    degraded = generate_control_backlog(
+    degraded = generate_tailored_requirements(
         [NORM_A, NORM_B, NORM_C], "ctx", CountingClient({KEY: "not json"}, model="fake-generator"),
         CountingClient({KEY: JUDGE_ACCEPT}, model="fake-judge"), prompt_version="v2",
         graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
@@ -748,29 +772,30 @@ def test_a_judged_answer_takes_the_judge_hash_from_its_judge_run(tmp_path, monke
         return real_load(kind, version)
 
     monkeypatch.setattr(rg, "load_prompt", first_read_fails)
-    envelope, _, _ = _counted_run(tmp_path, ONE_ITEM, JUDGE_ACCEPT)
+    envelope, _, _ = _counted_run(tmp_path, ONE_TAILORED_REQUIREMENT, JUDGE_ACCEPT)
     assert len(reads) == 2 and envelope["answer"]["judge_prompt_sha256"] == _prompt_fields()["judge_prompt_sha256"]
 
 
-# DEC-19, B65: each control carries its own requirement type; the runtime
-# judge records its view of it without changing the backlog's verdict.
+# DEC-19, B65: each tailored requirement carries its own requirement type; the
+# runtime judge records its view of it without changing the verdict.
 
 
 def run_v2(gen_response, judge_response, tmp_path, norms=None):
-    """The backlog under its default prompts, generate_backlog v2 and
-    runtime_grounding v2 (run_tool pins v1)."""
+    """The tool under generate_backlog v2 and runtime_grounding v2, whose
+    reply key is items and whose type_views position key is item (run_tool
+    pins v1, run_v4 runs the default)."""
     norms = norms if norms is not None else [NORM_A, NORM_B, NORM_C]
     generator = FakeClient({KEY: gen_response}, model="fake-generator")
     judge = FakeClient({KEY: judge_response}, model="fake-judge")
-    envelope = generate_control_backlog(
+    envelope = generate_tailored_requirements(
         norms, "A high-risk AI triage system for a hospital.", generator, judge,
         prompt_version="v2", graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
     )
     return envelope, generator, judge
 
 
-def typed_item(title, norm_ids, requirement_type, **extra):
-    return {**item(title, norm_ids), "requirement_type": requirement_type, **extra}
+def typed_tailored_requirement(title, norm_ids, requirement_type, **extra):
+    return {**tailored_requirement(title, norm_ids), "requirement_type": requirement_type, **extra}
 
 
 def judge_with_views(verdict_json, views):
@@ -779,86 +804,88 @@ def judge_with_views(verdict_json, views):
     return json.dumps(reply)
 
 
-def test_the_typed_backlog_prompts_carry_the_definitions_and_v3_is_the_default(tmp_path):
-    """DEC-19: v2 carries the definitions; B174 (2026-10-15): v3, the default,
-    is v2 plus the judge's paragraph on the Act in force."""
-    assert DEFAULT_PROMPT_VERSION == "v3"
-    for version in ("v2", "v3"):
+def test_the_typed_prompts_carry_the_definitions_and_v4_is_the_default(tmp_path):
+    """DEC-19: v2 carries the definitions; B174 (2026-10-15): v3 is v2 plus the
+    judge's paragraph on the Act in force; B181 (2026-11-04, DEC-30): v4, the
+    default, is v3 with the words changed."""
+    assert DEFAULT_PROMPT_VERSION == "v4"
+    for version in ("v2", "v3", "v4"):
         generate = load_prompt("generate_backlog", version)
         grounding = load_prompt("runtime_grounding", version)
         for prompt in (generate, grounding):
             assert DEFINITIONS_TEXT in prompt
-            assert SCOPE_TEXT not in prompt  # every control is typed; the scope is the norms'
+            assert SCOPE_TEXT not in prompt  # every tailored requirement is typed; the scope is the norms'
         assert '"requirement_type": "process"' in generate
         assert '"type_views"' in grounding and "never a reason" in grounding
         assert '"requirement_type_agrees": false' not in grounding  # the example shows agreement
-    generator = FakeClient({KEY: gen_items(typed_item("Risk process", [KEY], "process"))}, model="fake-generator")
+    generator = FakeClient({KEY: gen_reply("tailored_requirements", typed_tailored_requirement("Risk process", [KEY], "process"))},
+                           model="fake-generator")
     judge = FakeClient({KEY: JUDGE_ACCEPT}, model="fake-judge")
-    envelope = generate_control_backlog([NORM_A], "A triage system.", generator, judge,
-                                        log_path=tmp_path / "runtime_log.jsonl")
-    assert generator.calls[0][0].startswith("# generate_backlog system prompt, version v3")
-    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v3")
-    assert envelope["answer"]["generator_prompt_version"] == "v3"
-    assert envelope["answer"]["judge_prompt_version"] == "v3"
+    envelope = generate_tailored_requirements([NORM_A], "A triage system.", generator, judge,
+                                              log_path=tmp_path / "runtime_log.jsonl")
+    assert generator.calls[0][0].startswith("# generate_backlog system prompt, version v4")
+    assert judge.calls[0][0].startswith("# runtime_grounding system prompt, version v4")
+    assert envelope["answer"]["generator_prompt_version"] == "v4"
+    assert envelope["answer"]["judge_prompt_version"] == "v4"
 
 
-def test_each_control_keeps_its_own_type(tmp_path):
+def test_each_tailored_requirement_keeps_its_own_type(tmp_path):
     envelope, _, _ = run_v2(
-        gen_items(typed_item("Retain logs for six months", [KEY], "functional"),
-                  typed_item("Tamper-evident log storage", [NORM_B["norm_id"]], "quality")),
+        gen_reply("items", typed_tailored_requirement("Retain logs for six months", [KEY], "functional"),
+                  typed_tailored_requirement("Tamper-evident log storage", [NORM_B["norm_id"]], "quality")),
         JUDGE_ACCEPT, tmp_path,
     )
-    assert [i["requirement_type"] for i in envelope["answer"]["items"]] == ["functional", "quality"]
+    assert [i["requirement_type"] for i in envelope["answer"]["tailored_requirements"]] == ["functional", "quality"]
 
 
 @pytest.mark.parametrize("bad", [None, "non-functional", "", 7])
-def test_a_control_without_a_valid_type_is_kept_with_null_and_a_note(tmp_path, bad):
-    raw = item("Risk process", [KEY]) if bad is None else typed_item("Risk process", [KEY], bad)
-    envelope, _, _ = run_v2(gen_items(raw), JUDGE_ACCEPT, tmp_path)
+def test_a_tailored_requirement_without_a_valid_type_is_kept_with_null_and_a_note(tmp_path, bad):
+    raw = tailored_requirement("Risk process", [KEY]) if bad is None else typed_tailored_requirement("Risk process", [KEY], bad)
+    envelope, _, _ = run_v2(gen_reply("items", raw), JUDGE_ACCEPT, tmp_path)
     answer = envelope["answer"]
-    assert answer["dropped_items"] == 0
-    assert answer["items"][0]["requirement_type"] is None
+    assert answer["dropped_tailored_requirements"] == 0
+    assert answer["tailored_requirements"][0]["requirement_type"] is None
     assert any("no valid requirement_type" in note for note in answer["notes"])
 
 
 def test_the_generator_and_the_judge_never_see_the_norms_types(tmp_path):
     """B65 ruling 10: the norms' types are left out of both digests, so a
-    control's type and the judge's view of it are their own."""
+    tailored requirement's type and the judge's view of it are their own."""
     typed_norms = [{**n, "requirement_type": "process"} for n in (NORM_A, NORM_B, NORM_C)]
     _, generator, judge = run_v2(
-        gen_items(typed_item("Retain logs", [KEY], "functional")), JUDGE_ACCEPT, tmp_path, norms=typed_norms
+        gen_reply("items", typed_tailored_requirement("Retain logs", [KEY], "functional")), JUDGE_ACCEPT, tmp_path, norms=typed_norms
     )
     assert "requirement_type" not in generator.calls[0][1]
     assert "requirement_type" not in runtime_grounding._norm_digest(typed_norms[0])
-    # the judge sees the control's own type, in the answer under review
+    # the judge sees the tailored requirement's own type, in the answer under review
     assert '"requirement_type": "functional"' in judge.calls[0][1]
 
 
 # B159: the merge keys on the norm set and the requirement type together, so
-# rule 8 of generate_backlog v2 (two controls from one norm, one functional
-# and one quality) reaches E4 as two controls, each with its own type.
+# rule 8 of generate_backlog v2 (two tailored requirements from one norm, one
+# functional and one quality) reaches E4 as two, each with its own type.
 ARTICLE_19 = make_norm(19, 1, action="keep", object="the logs automatically generated by the high-risk AI system")
 
 
-def test_rule_8s_example_gives_two_controls(tmp_path):
+def test_rule_8s_example_gives_two_tailored_requirements(tmp_path):
     """generate_backlog v2 rule 8's own example: from Article 19's process
-    obligation (the provider keeps the logs) come a functional control and a
-    quality control, both citing the same norm; neither is merged away."""
+    obligation (the provider keeps the logs) come a functional and a quality
+    tailored requirement, both citing the same norm; neither is merged away."""
     views = [
         {"item": 1, "requirement_type_agrees": True, "requirement_type": None},
         {"item": 2, "requirement_type_agrees": False, "requirement_type": "process"},
     ]
     envelope, _, judge = run_v2(
-        gen_items(typed_item("The logging subsystem retains records for six months", [ARTICLE_19["norm_id"]], "functional"),
-                  typed_item("Retained records resist tampering", [ARTICLE_19["norm_id"]], "quality")),
+        gen_reply("items", typed_tailored_requirement("The logging subsystem retains records for six months", [ARTICLE_19["norm_id"]], "functional"),
+                  typed_tailored_requirement("Retained records resist tampering", [ARTICLE_19["norm_id"]], "quality")),
         judge_with_views(JUDGE_ACCEPT, views), tmp_path, norms=[NORM_A, ARTICLE_19],
     )
     answer = envelope["answer"]
-    assert answer["merged_items"] == 0
-    assert [i["requirement_type"] for i in answer["items"]] == ["functional", "quality"]
-    assert [i["norm_ids"] for i in answer["items"]] == [[ARTICLE_19["norm_id"]]] * 2
+    assert answer["merged_tailored_requirements"] == 0
+    assert [i["requirement_type"] for i in answer["tailored_requirements"]] == ["functional", "quality"]
+    assert [i["norm_ids"] for i in answer["tailored_requirements"]] == [[ARTICLE_19["norm_id"]]] * 2
     assert not any("merged into" in note for note in answer["notes"])
-    # the judge reads both controls, and its view of each stays beside its own
+    # the judge reads both tailored requirements, and its view of each stays beside its own
     assert '"requirement_type": "quality"' in judge.calls[0][1]
     assert answer["judge_type_views"] == [
         {"judge_type_agrees": True, "judge_requirement_type": "functional"},
@@ -866,87 +893,90 @@ def test_rule_8s_example_gives_two_controls(tmp_path):
     ]
 
 
-def test_two_controls_of_one_type_on_the_same_norms_still_merge(tmp_path):
-    first = {**typed_item("Retain logs", [KEY, NORM_B["norm_id"]], "functional"),
+def test_two_tailored_requirements_of_one_type_on_the_same_norms_still_merge(tmp_path):
+    first = {**typed_tailored_requirement("Retain logs", [KEY, NORM_B["norm_id"]], "functional"),
              "priority": "should", "suggested_evidence": ["retention policy"]}
-    second = {**typed_item("Keep the logs", [NORM_B["norm_id"], KEY], "functional"),
+    second = {**typed_tailored_requirement("Keep the logs", [NORM_B["norm_id"], KEY], "functional"),
               "priority": "must", "suggested_evidence": ["retention policy", "log store"]}
-    envelope, _, _ = run_v2(gen_items(first, second), JUDGE_ACCEPT, tmp_path)
+    envelope, _, _ = run_v2(gen_reply("items", first, second), JUDGE_ACCEPT, tmp_path)
     answer = envelope["answer"]
-    assert answer["merged_items"] == 1
-    assert len(answer["items"]) == 1
-    merged = answer["items"][0]
+    assert answer["merged_tailored_requirements"] == 1
+    assert len(answer["tailored_requirements"]) == 1
+    merged = answer["tailored_requirements"][0]
     assert (merged["title"], merged["description"]) == (first["title"], first["description"])
     assert merged["requirement_type"] == "functional"
     assert merged["suggested_evidence"] == ["retention policy", "log store"]
     assert merged["priority"] == "must"
     assert any(
-        "item 'Keep the logs' merged into 'Retain logs'" in note and "same requirement_type 'functional'" in note
+        "tailored requirement 'Keep the logs' merged into 'Retain logs'" in note
+        and "same requirement_type 'functional'" in note
         for note in answer["notes"])
 
 
-def test_a_null_typed_control_merges_only_with_another_null_typed_one(tmp_path):
-    """_clean_items keeps a control without a valid type with null and a
-    note; on the same norms it merges with another null-typed control and
-    never with a typed one."""
+def test_a_null_typed_tailored_requirement_merges_only_with_another_null_typed_one(tmp_path):
+    """_clean_tailored_requirements keeps a tailored requirement without a
+    valid type with null and a note; on the same norms it merges with another
+    null-typed one and never with a typed one."""
     envelope, _, _ = run_v2(
-        gen_items(typed_item("Retain logs", [KEY], "functional"),
-                  typed_item("Log access", [KEY], "bogus"),
-                  item("Log review", [KEY]),
-                  typed_item("Keep the logs", [KEY], "functional")),
+        gen_reply("items", typed_tailored_requirement("Retain logs", [KEY], "functional"),
+                  typed_tailored_requirement("Log access", [KEY], "bogus"),
+                  tailored_requirement("Log review", [KEY]),
+                  typed_tailored_requirement("Keep the logs", [KEY], "functional")),
         JUDGE_ACCEPT, tmp_path,
     )
     answer = envelope["answer"]
-    assert [(i["title"], i["requirement_type"]) for i in answer["items"]] == [
+    assert [(i["title"], i["requirement_type"]) for i in answer["tailored_requirements"]] == [
         ("Retain logs", "functional"), ("Log access", None)]
-    assert answer["merged_items"] == 2
-    assert any("item 'Log review' merged into 'Log access'" in note and "with no valid requirement_type (one control" in note
+    assert answer["merged_tailored_requirements"] == 2
+    assert any("tailored requirement 'Log review' merged into 'Log access'" in note
+               and "with no valid requirement_type (one tailored requirement" in note
                for note in answer["notes"])
-    assert any("item 'Keep the logs' merged into 'Retain logs'" in note for note in answer["notes"])
+    assert any("tailored requirement 'Keep the logs' merged into 'Retain logs'" in note for note in answer["notes"])
     assert len(answer["judge_type_views"]) == 2
 
 
-def test_a_null_typed_control_and_a_typed_one_on_the_same_norms_stay_two(tmp_path):
+def test_a_null_typed_tailored_requirement_and_a_typed_one_on_the_same_norms_stay_two(tmp_path):
     envelope, _, _ = run_v2(
-        gen_items(item("Log review", [KEY]), typed_item("Retain logs", [KEY], "functional")),
+        gen_reply("items", tailored_requirement("Log review", [KEY]), typed_tailored_requirement("Retain logs", [KEY], "functional")),
         JUDGE_ACCEPT, tmp_path,
     )
     answer = envelope["answer"]
-    assert answer["merged_items"] == 0
-    assert [i["requirement_type"] for i in answer["items"]] == [None, "functional"]
+    assert answer["merged_tailored_requirements"] == 0
+    assert [i["requirement_type"] for i in answer["tailored_requirements"]] == [None, "functional"]
 
 
-def test_an_untyped_v1_backlog_merges_by_norm_set_as_before(tmp_path):
+def test_untyped_v1_tailored_requirements_merge_by_norm_set_as_before(tmp_path):
     """generate_backlog v1 carries no type: the key's type is absent for
-    every item, so the merge is the norm set's alone and its note unchanged."""
+    every tailored requirement, so the merge is the norm set's alone."""
     envelope, _, _, _ = run_tool(
-        gen_items(item("Retain logs", [KEY]), item("Keep the logs", [KEY])), JUDGE_ACCEPT, tmp_path)
+        gen_reply("items", tailored_requirement("Retain logs", [KEY]), tailored_requirement("Keep the logs", [KEY])), JUDGE_ACCEPT, tmp_path)
     answer = envelope["answer"]
-    assert answer["merged_items"] == 1
-    assert "item 'Keep the logs' merged into 'Retain logs': both cite the identical norm set (one control per norm set)" in answer["notes"]
+    assert answer["merged_tailored_requirements"] == 1
+    assert ("tailored requirement 'Keep the logs' merged into 'Retain logs': both cite the identical norm set "
+            "(one tailored requirement per norm set)") in answer["notes"]
 
 
 def test_the_judges_type_views_are_recorded_and_never_change_the_verdict(tmp_path):
     """Jose, 2026-10-01: "Record, do not gate (Recommended)"."""
-    items_json = gen_items(
-        typed_item("Retain logs", [KEY], "functional"),
-        typed_item("Tamper-evident storage", [NORM_B["norm_id"]], "quality"),
-        item("Untyped control", [NORM_C["norm_id"]]),
+    reply = gen_reply("items",
+        typed_tailored_requirement("Retain logs", [KEY], "functional"),
+        typed_tailored_requirement("Tamper-evident storage", [NORM_B["norm_id"]], "quality"),
+        tailored_requirement("Untyped tailored requirement", [NORM_C["norm_id"]]),
     )
     views = [
         {"item": 1, "requirement_type_agrees": True, "requirement_type": None},
         {"item": 2, "requirement_type_agrees": False, "requirement_type": "process"},
         {"item": 3, "requirement_type_agrees": True, "requirement_type": None},
     ]
-    accepted, _, _ = run_v2(items_json, judge_with_views(JUDGE_ACCEPT, views), tmp_path)
+    accepted, _, _ = run_v2(reply, judge_with_views(JUDGE_ACCEPT, views), tmp_path)
     assert accepted["judge_verdict"] == "accepted"
     assert accepted["status"] == "applicable_missing_evidence"
     assert accepted["answer"]["judge_type_views"] == [
         {"judge_type_agrees": True, "judge_requirement_type": "functional"},
         {"judge_type_agrees": False, "judge_requirement_type": "process"},
-        {"judge_type_agrees": None, "judge_requirement_type": None},  # a null-typed control records nothing
+        {"judge_type_agrees": None, "judge_requirement_type": None},  # a null-typed tailored requirement records nothing
     ]
-    rejected, _, _ = run_v2(items_json, judge_with_views(JUDGE_REJECT, views), tmp_path)
+    rejected, _, _ = run_v2(reply, judge_with_views(JUDGE_REJECT, views), tmp_path)
     assert rejected["judge_verdict"] == "rejected"
     assert rejected["answer"]["judge_type_views"] == accepted["answer"]["judge_type_views"]
 
@@ -957,25 +987,97 @@ def test_the_judges_type_views_are_recorded_and_never_change_the_verdict(tmp_pat
 )
 def test_unusable_type_views_record_null_and_keep_the_verdict(tmp_path, raw_views):
     reply = JUDGE_ACCEPT if raw_views is None else judge_with_views(JUDGE_ACCEPT, raw_views)
-    envelope, _, _ = run_v2(gen_items(typed_item("Retain logs", [KEY], "functional")), reply, tmp_path)
+    envelope, _, _ = run_v2(gen_reply("items", typed_tailored_requirement("Retain logs", [KEY], "functional")), reply, tmp_path)
     assert envelope["judge_verdict"] == "accepted"
     assert envelope["answer"]["judge_type_views"] == [{"judge_type_agrees": None, "judge_requirement_type": None}]
 
 
-def test_a_v1_backlog_keeps_its_old_input_and_output(tmp_path):
+def test_a_v1_run_keeps_its_old_input_and_output(tmp_path):
     """Review I1 (ruling 49): under generate_backlog v1 and runtime_grounding
-    v1 a control gains no type field, the judge's input carries none, and
+    v1 a tailored requirement gains no type field, the judge's input carries none, and
     the answer has no judge_type_views."""
     envelope, _, judge, _ = run_tool(
-        gen_items(typed_item("Retain logs", [KEY], "functional")),
+        gen_reply("items", typed_tailored_requirement("Retain logs", [KEY], "functional")),
         judge_with_views(JUDGE_ACCEPT, [{"item": 1, "requirement_type_agrees": True}]),
         tmp_path,
     )
     answer = envelope["answer"]
-    assert "requirement_type" not in answer["items"][0]
+    assert "requirement_type" not in answer["tailored_requirements"][0]
     assert "judge_type_views" not in answer
     assert not any("requirement_type" in note for note in answer["notes"])
     assert "requirement_type" not in judge.calls[0][1]
+
+
+# DEC-30, R12: what a model writes or reads follows the prompt version; the
+# answer's keys are the new ones whatever the version.
+
+
+def _run_at(version, gen_response, judge_response, tmp_path):
+    generator = FakeClient({KEY: gen_response}, model="fake-generator")
+    judge = FakeClient({KEY: judge_response}, model="fake-judge")
+    envelope = generate_tailored_requirements(
+        [NORM_A, NORM_B, NORM_C], "A high-risk AI triage system for a hospital.", generator, judge,
+        prompt_version=version, graph_version="build-test", log_path=tmp_path / "runtime_log.jsonl",
+    )
+    return envelope, generator, judge
+
+
+def test_a_v3_run_keeps_its_input_and_reply_keys(tmp_path):
+    """Under v3 the generator's reply is read from items, the judge receives
+    {"tool": "generate_control_backlog", "items": [...]} and its type_views
+    are read on the position key item."""
+    views = [{"item": 1, "requirement_type_agrees": False, "requirement_type": "process"}]
+    envelope, _, judge = _run_at(
+        "v3", gen_reply("items", typed_tailored_requirement("Retain logs", [KEY], "functional")),
+        judge_with_views(JUDGE_ACCEPT, views), tmp_path)
+    answer = envelope["answer"]
+    assert envelope["judge_verdict"] == "accepted"
+    assert [t["title"] for t in answer["tailored_requirements"]] == ["Retain logs"]
+    assert '"tool": "generate_control_backlog"' in judge.calls[0][1]
+    assert '"items"' in judge.calls[0][1]
+    assert '"tailored_requirements"' not in judge.calls[0][1]
+    assert answer["judge_type_views"] == [{"judge_type_agrees": False, "judge_requirement_type": "process"}]
+
+
+def test_a_v4_run_reads_tailored_requirements_and_sends_the_new_tool_name(tmp_path):
+    """Under v4, the default, the generator's reply is read from
+    tailored_requirements, the judge receives {"tool":
+    "generate_tailored_requirements", "tailored_requirements": [...]} and its
+    type_views are read on the position key tailored_requirement."""
+    views = [{"tailored_requirement": 1, "requirement_type_agrees": False, "requirement_type": "process"}]
+    envelope, _, judge, _ = run_v4(
+        gen_reply("tailored_requirements", typed_tailored_requirement("Retain logs", [KEY], "functional")),
+        judge_with_views(JUDGE_ACCEPT, views), tmp_path)
+    answer = envelope["answer"]
+    assert envelope["judge_verdict"] == "accepted"
+    assert [t["title"] for t in answer["tailored_requirements"]] == ["Retain logs"]
+    assert '"tool": "generate_tailored_requirements"' in judge.calls[0][1]
+    assert '"tailored_requirements"' in judge.calls[0][1]
+    assert '"items"' not in judge.calls[0][1]
+    assert answer["judge_type_views"] == [{"judge_type_agrees": False, "judge_requirement_type": "process"}]
+
+
+def test_v4_type_views_on_the_old_position_key_record_null(tmp_path):
+    """A v4 judge reply that still numbers its views on item records null
+    views and keeps its verdict."""
+    views = [{"item": 1, "requirement_type_agrees": False, "requirement_type": "process"}]
+    envelope, _, _, _ = run_v4(
+        gen_reply("tailored_requirements", typed_tailored_requirement("Retain logs", [KEY], "functional")),
+        judge_with_views(JUDGE_ACCEPT, views), tmp_path)
+    assert envelope["judge_verdict"] == "accepted"
+    assert envelope["answer"]["judge_type_views"] == [{"judge_type_agrees": None, "judge_requirement_type": None}]
+
+
+def test_the_answer_keys_are_the_new_ones_under_every_version(tmp_path):
+    for version in ("v1", "v2", "v3", "v4"):
+        reply_key = "tailored_requirements" if version == "v4" else "items"
+        envelope, _, _ = _run_at(
+            version, gen_reply(reply_key, typed_tailored_requirement("Retain logs", [KEY], "functional")),
+            JUDGE_ACCEPT, tmp_path)
+        answer = envelope["answer"]
+        assert envelope["judge_verdict"] == "accepted", version
+        assert {"tailored_requirements", "dropped_tailored_requirements", "merged_tailored_requirements"} <= set(answer)
+        assert not {"items", "dropped_items", "merged_items"} & set(answer), version
 
 
 def test_deleted_source_refusals_name_each_norm_on_a_deleted_unit():
@@ -993,7 +1095,7 @@ def test_deleted_source_refusals_name_each_norm_on_a_deleted_unit():
     assert "Deleted by Regulation (EU) 2026/1744, Article 1, point (9)" in refusals["norm:eu-ai-act:article-10:paragraph-5:n1"]
 
 
-def test_the_mcp_backlog_refuses_a_norm_on_a_deleted_unit_before_any_client(monkeypatch):
+def test_the_mcp_tool_refuses_a_norm_on_a_deleted_unit_before_any_client(monkeypatch):
     """B132 (D-G68 (3)), final review M9: the MCP tool answers not_applicable
     with refused_norm_ids for a norm on a unit the Omnibus deleted, and no
     paid client is built."""
@@ -1016,10 +1118,10 @@ def test_the_mcp_backlog_refuses_a_norm_on_a_deleted_unit_before_any_client(monk
         raise AssertionError("a paid client was built")
 
     monkeypatch.setattr(server, "_paid_clients_or_envelope", no_paid_clients)
-    envelope = server.generate_control_backlog([NORM_A["norm_id"], moved["norm_id"]], "A triage system.")
+    envelope = server.generate_tailored_requirements([NORM_A["norm_id"], moved["norm_id"]], "A triage system.")
     assert envelope["status"] == "not_applicable"
     assert envelope["answer"] == {"refused_norm_ids": [moved["norm_id"]]}
     assert envelope["confidence"] == 0.0
     assert any("eu-ai-act:article-10:paragraph-5" in m and "Deleted by Regulation (EU) 2026/1744" in m
                for m in envelope["missing_facts"])
-    assert "no backlog was generated and no model call was made" in envelope["missing_facts"]
+    assert "no tailored requirements were generated and no model call was made" in envelope["missing_facts"]

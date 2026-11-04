@@ -1128,13 +1128,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         if refused is not None:
             return refused
         try:
-            envelope = backlog_tool.generate_control_backlog_on_demand(
+            envelope = backlog_tool.generate_tailored_requirements_on_demand(
                 norms, body.system_context, generator, graph_version=_graph_version(request))
         except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
             return JSONResponse(status_code=502, content={"error": f"model call failed: {exc}", "model_called": True})
         assert body.caller is not None  # the request model requires it on demand
         envelope = _signed(request, envelope, route="/api/backlog", caller=body.caller, norm_ids=list(body.norm_ids),
-                           untrusted_text=body.system_context, core={"items": envelope["answer"].get("items")}, key=key)
+                           untrusted_text=body.system_context, core={"tailored_requirements": envelope["answer"].get("tailored_requirements")}, key=key)
         return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
 
     def _judge_refusal(request: Request, body: _Signed, route: str, sent: dict[str, Any]) -> tuple[JSONResponse | None, Any]:
@@ -1198,8 +1198,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         record = body.signed_record
         # B165: the judge receives each norm's verbatim source text, as the MCP tool's does
         cited = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], _served(request).dump)
-        return _judge_part_response(record, lambda: backlog_tool.judge_backlog_on_demand(
-            cited, record["core"]["items"], body.system_context, judge,
+        return _judge_part_response(record, lambda: backlog_tool.judge_tailored_requirements_on_demand(
+            cited, record["core"]["tailored_requirements"], body.system_context, judge,
             prompt_version=record["judge_prompt"]["version"]))
 
     @app.post("/api/evidence")
@@ -1280,7 +1280,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         except ModelConfigError as exc:
             return JSONResponse(status_code=503, content={"error": str(exc)})
         try:
-            envelope = backlog_tool.generate_control_backlog(
+            envelope = backlog_tool.generate_tailored_requirements(
                 norms,
                 body.system_context,
                 generator,

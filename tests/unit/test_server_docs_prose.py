@@ -106,8 +106,8 @@ def test_a_module_path_is_not_a_name():
 
 
 def test_a_call_gives_its_name_and_its_arguments():
-    names = prose.code_names("Call `generate_control_backlog(norm_ids, system_context)`.")
-    assert names == {"generate_control_backlog", "norm_ids", "system_context"}
+    names = prose.code_names("Call `generate_tailored_requirements(norm_ids, system_context)`.")
+    assert names == {"generate_tailored_requirements", "norm_ids", "system_context"}
 
 
 def test_a_bare_identifier_is_a_name_and_other_spans_are_skipped():
