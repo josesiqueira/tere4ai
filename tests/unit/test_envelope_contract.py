@@ -226,7 +226,7 @@ def test_backlog_response_is_a_calibrated_envelope(client, fake_models):
     )
     fake_models({"UNTRUSTED PROJECT CONTEXT": gen_response}, {"generate_tailored_requirements": JUDGE_ACCEPT})
     env = client.post(
-        "/api/backlog",
+        "/api/tailored-requirements",
         json={
             "norm_ids": [ACCEPTED_NORM_ID, ACCEPTED_NORM_ID_2],
             "system_context": "Hospital triage support system, advisory only.",

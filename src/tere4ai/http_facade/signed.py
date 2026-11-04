@@ -1,6 +1,7 @@
 """The signed record of a generator-only answer (DEC-24).
 
 @implements: DEC-24
+@implements: DEC-30
 
 DEC-24 is an engineering decision for the dashboard's demonstration; it needs
 no literature grounding (AGENTS.md's grounding bar), so no @grounded_by.
@@ -30,7 +31,7 @@ import re
 import uuid
 from typing import Any
 
-FORMAT = "tere4ai.signed_answer.v1"
+FORMAT = "tere4ai.signed_answer.v2"
 RECORD_FIELDS: tuple[str, ...] = (
     "format", "route", "generation_id", "caller", "norm_ids", "graph_version", "norms_build",
     "generator_model", "generator_prompt", "judge_prompt", "untrusted_sha256", "core",
@@ -41,7 +42,7 @@ EVIDENCE_CORE_FIELDS: tuple[str, ...] = (
     "tool", "norm_id", "artifact_type", "artifact_id", "assessment", "quotes", "gaps", "rationale",
 )
 TAILORED_REQUIREMENTS_CORE_FIELDS: tuple[str, ...] = ("tailored_requirements",)
-ROUTES: dict[str, tuple[str, ...]] = {"/api/evidence": EVIDENCE_CORE_FIELDS, "/api/backlog": TAILORED_REQUIREMENTS_CORE_FIELDS}
+ROUTES: dict[str, tuple[str, ...]] = {"/api/evidence": EVIDENCE_CORE_FIELDS, "/api/tailored-requirements": TAILORED_REQUIREMENTS_CORE_FIELDS}
 _SIGNATURE = re.compile(r"[0-9a-f]{64}", re.ASCII)
 
 

@@ -6,13 +6,14 @@
 @implements: DEC-23
 @implements: DEC-24
 @implements: DEC-25
+@implements: DEC-30
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
 the database or model APIs directly. This facade calls the same pure
 functions the MCP server exposes (classify_ai_system,
 get_applicable_requirements, evaluate_project_evidence,
-generate_control_backlog, elicit_features) over the versioned offline graph dumps.
+generate_tailored_requirements, elicit_features) over the versioned offline graph dumps.
 
 Behavioral contract:
 - The Layer 0+1 dump (layer1.json) and the judged norms payload
@@ -50,23 +51,23 @@ Behavioral contract:
 - POST /api/report is a pure, stateless render: session JSONL in, the
   self-contained audit-grade HTML report out (422 on empty or oversized
   input).
-- /api/evidence and /api/backlog perform PAID model calls (OpenAI generator
+- /api/evidence and /api/tailored-requirements perform PAID model calls (OpenAI generator
   plus Anthropic runtime grounding judge). /api/elicit performs a PAID
   generator call (fact elicitation, no judge). Model clients are built lazily
   per request; a missing key surfaces the ModelConfigError message as a
   clean JSON error. Paid responses carry the header X-TERE4AI-Paid-Call.
 - GET /api/demo/sessions and /api/demo/sessions/{name}: read-only demo replay
   data, enabled only when TERE4AI_DEMO_SESSIONS_DIR is set.
-- The backlog endpoint passes every norm through; there is no cap
+- The tailored requirements route passes every norm through; there is no cap
   (2026-09-08, B71).
-- DEC-24: POST /api/backlog/judge (PAID: one demo judge call) takes the
+- DEC-24: POST /api/tailored-requirements/judge (PAID: one demo judge call) takes the
   request's fields with a signed record and its signature; it verifies the
   signature, refuses a demo judge equal to the record's generator, a loaded
   build other than the signed one and any field that differs from the
   record (409 or 422, model_called false), then runs the runtime grounding
   judge as the inline path would on the verified core and returns the
   judge's part only, judge_setting "demo".
-- DEC-24: /api/backlog takes judge "inline" (the default,
+- DEC-24: /api/tailored-requirements takes judge "inline" (the default,
   the answer above byte for byte) or "on_demand": the generator and the
   tool's mechanical checks run, no judge request is made, and the answer
   (status requires_human_review, judge_verdict "not_checked") carries a
@@ -133,7 +134,14 @@ from tere4ai.http_facade.served_state import (
     health_fields,
     load_served_state,
 )
-from tere4ai.http_facade.signed import RecordError, build_record, sha256_text, sign, verify
+from tere4ai.http_facade.signed import (
+    RecordError,
+    build_record,
+    check_record,
+    sha256_text,
+    sign,
+    verify,
+)
 from tere4ai.judge.config import (
     ModelConfigError,
     load_demo_judge_config,
@@ -298,7 +306,7 @@ class EvidenceRequest(_Utf8GuardedModel):
     artifact_id: str | None = None
 
 
-class BacklogRequest(_JudgeMode):
+class TailoredRequirementsRequest(_JudgeMode):
     norm_ids: list[str] = Field(min_length=1)
     system_context: str
 
@@ -310,7 +318,7 @@ class _Signed(_Utf8GuardedModel):
     signature: str = Field(max_length=200)
 
 
-class BacklogJudgeRequest(_Signed):
+class TailoredRequirementsJudgeRequest(_Signed):
     norm_ids: list[str] = Field(min_length=1)
     system_context: str
 
@@ -618,10 +626,10 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             "/api/coverage, /api/alignments, /api/schema/system_features, "
             "/api/demo/sessions, /api/demo/sessions/{name} "
             "(free, deterministic); "
-            "POST /api/evidence, /api/backlog, /api/elicit (paid model calls, marked with "
+            "POST /api/evidence, /api/tailored-requirements, /api/elicit (paid model calls, marked with "
             "X-TERE4AI-Paid-Call); GET /api/health.\n"
-            "POST /api/backlog with judge on_demand: the generator alone, a signed answer; "
-            "POST /api/backlog/judge: a demo judge of the generator's family on that signed "
+            "POST /api/tailored-requirements with judge on_demand: the generator alone, a signed answer; "
+            "POST /api/tailored-requirements/judge: a demo judge of the generator's family on that signed "
             "answer (paid, DEC-24)\n"
             "GET /api/builds, GET /api/builds/{ref}: the build records, free, read per request\n"
             "GET /api/evaluations, GET /api/evaluations/{ref}: the evaluation records (E1, E6), "
@@ -682,8 +690,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                     "evaluation": {"method": "GET", "path": "/api/evaluations/{ref}", "paid": False},
                     "report": {"method": "POST", "path": "/api/report", "paid": False},
                     "evidence": {"method": "POST", "path": "/api/evidence", "paid": True},
-                    "backlog": {"method": "POST", "path": "/api/backlog", "paid": True},
-                    "backlog_judge": {"method": "POST", "path": "/api/backlog/judge", "paid": True},
+                    "tailored_requirements": {"method": "POST", "path": "/api/tailored-requirements", "paid": True},
+                    "tailored_requirements_judge": {"method": "POST", "path": "/api/tailored-requirements/judge", "paid": True},
                     "elicit": {"method": "POST", "path": "/api/elicit", "paid": True},
                     "health": {"method": "GET", "path": "/api/health", "paid": False},
                 },
@@ -1116,7 +1124,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         )
         return JSONResponse(content={**envelope, **resolved})
 
-    def _backlog_on_demand(request: Request, body: BacklogRequest, norms: list[dict[str, Any]]) -> JSONResponse:
+    def _tailored_requirements_on_demand(request: Request, body: TailoredRequirementsRequest, norms: list[dict[str, Any]]) -> JSONResponse:
         # PAID: one generator call, no judge (DEC-24). B138 fix wave W4, W8:
         # the refusals before any model call are asked first and answered
         # with model_called false and no paid header; once the generator is
@@ -1133,14 +1141,14 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         except Exception as exc:  # noqa: BLE001 - clean payload, never a traceback
             return JSONResponse(status_code=502, content={"error": f"model call failed: {exc}", "model_called": True})
         assert body.caller is not None  # the request model requires it on demand
-        envelope = _signed(request, envelope, route="/api/backlog", caller=body.caller, norm_ids=list(body.norm_ids),
+        envelope = _signed(request, envelope, route="/api/tailored-requirements", caller=body.caller, norm_ids=list(body.norm_ids),
                            untrusted_text=body.system_context, core={"tailored_requirements": envelope["answer"].get("tailored_requirements")}, key=key)
         return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
 
     def _judge_refusal(request: Request, body: _Signed, route: str, sent: dict[str, Any]) -> tuple[JSONResponse | None, Any]:
         """The judge route's checks, all before any model call (spec G D-G74
         (3), (4), rulings S52, S69, S84): the demo judge's configuration and
-        the signing key, the signature, a judge other than the record's
+        the signing key, the record's shape and format (check_record), the signature, a judge other than the record's
         generator, the loaded build, then every field sent apart from the
         record against it. The demo judge client when all hold."""
         try:
@@ -1149,6 +1157,10 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         except ModelConfigError as exc:
             return _before_any_model_call(503, {"error": str(exc)}), None
         record = body.signed_record
+        try:
+            check_record(record)
+        except RecordError as exc:
+            return _before_any_model_call(422, {"error": str(exc), "field": "signed_record"}), None
         if not verify(record, body.signature, key):
             return _before_any_model_call(422, {"error": "the answer's signature does not verify", "field": "signature"}), None
         if judge_cfg.model.strip().lower() == str(record["generator_model"]).strip().lower():
@@ -1181,13 +1193,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         return JSONResponse(content={**part, "generation_id": record["generation_id"], "model_called": True},
                             headers={PAID_HEADER: "true"})
 
-    @app.post("/api/backlog/judge")
-    def backlog_judge(request: Request, body: BacklogJudgeRequest) -> JSONResponse:
-        # PAID: one demo judge call on a signed generator-only backlog (DEC-24).
+    @app.post("/api/tailored-requirements/judge")
+    def tailored_requirements_judge(request: Request, body: TailoredRequirementsJudgeRequest) -> JSONResponse:
+        # PAID: one demo judge call on a signed generator-only generation (DEC-24).
         unavailable = _unavailable(request)
         if unavailable is not None:
             return _before_any_model_call(503, json.loads(unavailable.body))
-        refused, judge = _judge_refusal(request, body, "/api/backlog", {
+        refused, judge = _judge_refusal(request, body, "/api/tailored-requirements", {
             "untrusted_sha256": sha256_text(body.system_context), "norm_ids": sorted(body.norm_ids)})
         if refused is not None:
             return refused
@@ -1242,8 +1254,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             )
         return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
 
-    @app.post("/api/backlog")
-    def backlog(request: Request, body: BacklogRequest) -> JSONResponse:
+    @app.post("/api/tailored-requirements")
+    def tailored_requirements(request: Request, body: TailoredRequirementsRequest) -> JSONResponse:
         # PAID: one generator call plus one runtime grounding judge call.
         unavailable = _unavailable(request)
         if unavailable is not None:
@@ -1268,13 +1280,13 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
         norms = with_source_text([norms_by_id[norm_id] for norm_id in body.norm_ids], _served(request).dump)
         refusals = backlog_tool.deleted_source_refusals(norms, _served(request).dump)
         if refusals:
-            # B132: never a backlog from wording the Omnibus deleted; no model call.
+            # B132: never a tailored requirement from wording the Omnibus deleted; no model call.
             content = {"error": "; ".join(refusals.values()), "refused_norm_ids": list(refusals)}
             if body.judge == "on_demand":
                 return _before_any_model_call(422, content)
             return JSONResponse(status_code=422, content=content)
         if body.judge == "on_demand":
-            return _backlog_on_demand(request, body, norms)
+            return _tailored_requirements_on_demand(request, body, norms)
         try:
             generator, judge = _build_paid_clients()
         except ModelConfigError as exc:

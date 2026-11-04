@@ -1,5 +1,5 @@
 """DEC-24 (spec G D-G74 (3), (4), rulings S52, S53, S69, S73, S84): the judge
-route /api/backlog/judge judges a signed generator-only backlog and nothing
+route /api/tailored-requirements/judge judges a signed generator-only backlog and nothing
 else (B138 builds phase 5; /api/evidence/judge is B140's). Every check comes
 before any model call; every field sent apart from the record is compared
 with it. FakeClient only: no model API is called."""
@@ -62,7 +62,7 @@ def models(monkeypatch, tmp_path):
 
 def _answer(client) -> dict:
     build = client.get("/api/health").json()["norms_build"]
-    return client.post("/api/backlog", json={"norm_ids": [NORM_ID], "system_context": CONTEXT, "judge": "on_demand",
+    return client.post("/api/tailored-requirements", json={"norm_ids": [NORM_ID], "system_context": CONTEXT, "judge": "on_demand",
                                              "expected_norms_build": build, "caller": CALLER}).json()["answer"]
 
 
@@ -71,7 +71,7 @@ def _body(answer, **over):
 
 
 def _judge(client, answer, **over):
-    return client.post("/api/backlog/judge", json=_body(answer, **over))
+    return client.post("/api/tailored-requirements/judge", json=_body(answer, **over))
 
 
 def test_a_signed_backlog_is_judged_and_the_route_returns_the_judge_part_only(client, models):
@@ -162,15 +162,35 @@ def test_an_unknown_norm_is_refused_before_any_model_call(client, models):
 # UTF-8 cannot write, does not verify: 422 before any model call, never a 500.
 @pytest.mark.parametrize("change", [
     lambda r: {**r, "norm_ids": [1, NORM_ID]},
-    lambda r: {**r, "route": ["/api/backlog"]},
+    lambda r: {**r, "route": ["/api/tailored-requirements"]},
     lambda r: {**r, "caller": {**r["caller"], "project": 5}},
     lambda r: {**r, "generator_prompt": {"name": None, "version": "v1"}},
 ])
 def test_a_record_of_the_wrong_kinds_does_not_verify_before_any_model_call(client, models, change):
     answer = _answer(client)
     body = _body(answer, signed_record=change(answer["signed_record"]))
-    response = client.post("/api/backlog/judge", content=json.dumps(body), headers={"content-type": "application/json"})
-    assert (response.status_code, response.json()["field"], response.json()["model_called"]) == (422, "signature", False)
+    response = client.post("/api/tailored-requirements/judge", content=json.dumps(body), headers={"content-type": "application/json"})
+    assert (response.status_code, response.json()["field"], response.json()["model_called"]) == (422, "signed_record", False)
+    assert models.judge.calls == []
+
+
+def test_a_v1_record_is_refused_by_name_before_any_model_call(client, models):
+    answer = _answer(client)
+    old = {**answer["signed_record"], "format": "tere4ai.signed_answer.v1"}
+    response = _judge(client, answer, signed_record=old)
+    body = response.json()
+    assert (response.status_code, body["field"], body["model_called"]) == (422, "signed_record", False)
+    assert "tere4ai.signed_answer.v1" in body["error"] and "tere4ai.signed_answer.v2" in body["error"]
+    assert models.judge.calls == []
+
+
+def test_a_record_naming_the_old_route_is_refused_by_name(client, models):
+    answer = _answer(client)
+    old = {**answer["signed_record"], "route": "/api/backlog"}
+    response = _judge(client, answer, signed_record=old)
+    body = response.json()
+    assert (response.status_code, body["field"], body["model_called"]) == (422, "signed_record", False)
+    assert "/api/backlog" in body["error"] and "not a route that signs" in body["error"]
     assert models.judge.calls == []
 
 
@@ -180,7 +200,7 @@ def test_a_lone_surrogate_in_a_record_is_refused_by_the_request_check_before_any
     body = _body(answer, signed_record={**answer["signed_record"], "core": {"tailored_requirements": tailored_requirements}})
     # Sent as JSON text with escapes, as any client may: a lone surrogate
     # arrives as \ud800 and is decoded by the server.
-    response = client.post("/api/backlog/judge", content=json.dumps(body), headers={"content-type": "application/json"})
+    response = client.post("/api/tailored-requirements/judge", content=json.dumps(body), headers={"content-type": "application/json"})
     assert response.status_code == 422
     assert models.judge.calls == []
 
@@ -237,7 +257,7 @@ def test_a_deeply_nested_record_is_refused_with_422_before_any_model_call(client
     deep = "[" * depth + "]" * depth
     body = json.dumps({"norm_ids": [NORM_ID], "system_context": "x", "signature": "0" * 64}).rstrip("}")
     body += ',"signed_record":{"core":' + deep + "}}"
-    response = client.post("/api/backlog/judge", content=body, headers={"content-type": "application/json"})
+    response = client.post("/api/tailored-requirements/judge", content=body, headers={"content-type": "application/json"})
     assert response.status_code == 422
     assert models.judge.calls == []
     assert answer["signed_record"]

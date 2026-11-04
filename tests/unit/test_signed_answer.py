@@ -88,7 +88,7 @@ def test_a_record_not_of_this_format_is_refused_and_never_verifies(change, messa
 
 
 def test_a_built_record_draws_a_version_4_generation_id_and_sorts_the_norm_ids():
-    record = build_record(route="/api/backlog", caller={"project": "p", "repository_run": "r"}, norm_ids=["b", "a"],
+    record = build_record(route="/api/tailored-requirements", caller={"project": "p", "repository_run": "r"}, norm_ids=["b", "a"],
                           graph_version="g", norms_build="n", generator_model="m", generator_prompt={"name": "generate_backlog", "version": "v2"},
                           judge_prompt={"name": "runtime_grounding", "version": "v2"}, untrusted_text="ctx", core={"tailored_requirements": []})
     assert record["format"] == FORMAT and record["norm_ids"] == ["a", "b"] and record["caller"]["document"] is None

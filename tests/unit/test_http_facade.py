@@ -331,7 +331,7 @@ def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
         {"generate_tailored_requirements": JUDGE_ACCEPT},
     )
     response = client.post(
-        "/api/backlog",
+        "/api/tailored-requirements",
         json={
             "norm_ids": [ACCEPTED_NORM_ID, ACCEPTED_NORM_ID_2],
             "system_context": "Hospital triage support system, advisory only.",
@@ -353,7 +353,7 @@ def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
 def test_backlog_unknown_norm_ids_return_clean_404(client, fake_models):
     fake_models({}, {})
     response = client.post(
-        "/api/backlog",
+        "/api/tailored-requirements",
         json={"norm_ids": ["norm:nope:n1"], "system_context": "ctx"},
     )
     assert response.status_code == 404
@@ -971,12 +971,12 @@ LONE_SURROGATE_ATTACK_BODIES = [
         id="evidence-content",
     ),
     pytest.param(
-        "/api/backlog",
+        "/api/tailored-requirements",
         '{"norm_ids": [' + LONE_SURROGATE + '], "system_context": "c"}',
         id="backlog-nested-list",
     ),
     pytest.param(
-        "/api/backlog",
+        "/api/tailored-requirements",
         '{"norm_ids": ["n"], "system_context": ' + LONE_SURROGATE + "}",
         id="backlog-system-context",
     ),
@@ -1114,7 +1114,15 @@ def test_backlog_refuses_a_norm_on_a_deleted_unit_before_any_model_call(client, 
     moved = {**norm, "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n9",
              "source_node_id": "eu-ai-act:article-10:paragraph-5"}
     monkeypatch.setitem(norms, "norms", [*norms["norms"], moved])
-    response = client.post("/api/backlog", json={"norm_ids": [moved["norm_id"]], "system_context": "ctx"})
+    response = client.post("/api/tailored-requirements", json={"norm_ids": [moved["norm_id"]], "system_context": "ctx"})
     assert response.status_code == 422
     assert response.json()["refused_norm_ids"] == [moved["norm_id"]]
     assert "Deleted by Regulation (EU) 2026/1744" in response.json()["error"]
+
+
+def test_the_old_routes_are_gone(client):
+    assert client.post("/api/backlog", json={"norm_ids": ["x"], "system_context": "c"}).status_code == 404
+    assert client.post("/api/backlog/judge", json={"norm_ids": ["x"], "system_context": "c"}).status_code == 404
+    endpoints = client.get("/.well-known/tere4ai.json").json()["endpoints"]
+    assert "tailored_requirements" in endpoints and "tailored_requirements_judge" in endpoints
+    assert "backlog" not in endpoints and "backlog_judge" not in endpoints

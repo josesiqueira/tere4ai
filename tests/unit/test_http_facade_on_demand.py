@@ -1,5 +1,5 @@
 """DEC-24 (spec G D-G74 (2), (3)): the facade's generator-only mode on
-/api/backlog, its signed record, its refusals before any model call, and
+/api/tailored-requirements, its signed record, its refusals before any model call, and
 /api/health's readiness of each route (B138 builds phase 5; /api/evidence's
 on-demand mode is B140's). FakeClient only: no model API is called; the
 runtime log goes to tmp_path."""
@@ -72,7 +72,7 @@ def _backlog(client, **over):
     body = {"norm_ids": [ACCEPTED_NORM_ID_2, ACCEPTED_NORM_ID], "system_context": CONTEXT, "judge": "on_demand", "caller": CALLER, **over}
     if "expected_norms_build" not in over:
         body["expected_norms_build"] = _build(client)
-    return client.post("/api/backlog", json=body)
+    return client.post("/api/tailored-requirements", json=body)
 
 
 def test_an_on_demand_backlog_is_not_checked_and_signs_its_items_for_its_caller(client, generator_only):
@@ -83,7 +83,7 @@ def test_an_on_demand_backlog_is_not_checked_and_signs_its_items_for_its_caller(
     assert (envelope["status"], envelope["judge_verdict"]) == ("requires_human_review", "not_checked")
     record = envelope["answer"]["signed_record"]
     assert verify(record, envelope["answer"]["signature"], KEY)
-    assert (record["route"], record["caller"]) == ("/api/backlog", CALLER)
+    assert (record["route"], record["caller"]) == ("/api/tailored-requirements", CALLER)
     assert record["norm_ids"] == sorted([ACCEPTED_NORM_ID, ACCEPTED_NORM_ID_2]) and record["core"] == {"tailored_requirements": envelope["answer"]["tailored_requirements"]}
     assert record["norms_build"] == _build(client) and record["graph_version"] == envelope["graph_version"]
     assert record["untrusted_sha256"] == hashlib.sha256(CONTEXT.encode("utf-8")).hexdigest()
@@ -125,7 +125,7 @@ def test_an_unloaded_graph_on_demand_says_no_model_was_called(client, generator_
     build = _build(client)
     client.app.state.served = replace(client.app.state.served, load_error="graph dumps unavailable: mock")
     on_demand = _backlog(client, expected_norms_build=build)
-    inline = client.post("/api/backlog", json={"norm_ids": [ACCEPTED_NORM_ID], "system_context": CONTEXT})
+    inline = client.post("/api/tailored-requirements", json={"norm_ids": [ACCEPTED_NORM_ID], "system_context": CONTEXT})
     assert (on_demand.status_code, on_demand.json()["model_called"]) == (503, False)
     assert inline.status_code == 503 and "model_called" not in inline.json()
     assert generator.calls == []

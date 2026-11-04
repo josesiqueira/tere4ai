@@ -2,8 +2,8 @@
 verbatim source_text on every path, as the MCP tools do and as
 runtime_grounding v2's check 0 requires.
 
-Paths: the facade's POST /api/evidence (inline), POST /api/backlog (inline,
-and on demand where the generator alone runs), POST /api/backlog/judge, and
+Paths: the facade's POST /api/evidence (inline), POST /api/tailored-requirements (inline,
+and on demand where the generator alone runs), POST /api/tailored-requirements/judge, and
 E6's GraphStrategy (conditions 5 and 6) with a runtime judge. The facade
 tests read the node text from the served dump, E6's from the mock dump
 written here. FakeClient only: no model API, no network.
@@ -103,7 +103,7 @@ def test_facade_evidence_inline_judge_and_generator_hold_the_source_text(client,
 @needs_dumps
 def test_facade_backlog_inline_judge_and_generator_hold_the_source_text(client, clients):
     texts = [_source_text(client.app, n) for n in (NORM_ID, NORM_ID_2)]
-    response = client.post("/api/backlog", json={"norm_ids": [NORM_ID, NORM_ID_2], "system_context": CONTEXT})
+    response = client.post("/api/tailored-requirements", json={"norm_ids": [NORM_ID, NORM_ID_2], "system_context": CONTEXT})
     assert response.status_code == 200
     for text in texts:
         assert _escaped(text) in clients.judge.calls[-1][1]
@@ -114,7 +114,7 @@ def _on_demand(client):
     build = client.get("/api/health").json()["norms_build"]
     body = {"norm_ids": [NORM_ID], "system_context": CONTEXT, "judge": "on_demand",
             "expected_norms_build": build, "caller": CALLER}
-    return client.post("/api/backlog", json=body)
+    return client.post("/api/tailored-requirements", json=body)
 
 
 @needs_dumps
@@ -132,7 +132,7 @@ def test_facade_backlog_judge_route_judge_holds_the_source_text(client, clients)
     answer = _on_demand(client).json()["answer"]
     body = {"norm_ids": [NORM_ID], "system_context": CONTEXT, "signed_record": answer["signed_record"],
             "signature": answer["signature"]}
-    response = client.post("/api/backlog/judge", json=body)
+    response = client.post("/api/tailored-requirements/judge", json=body)
     assert response.status_code == 200 and response.json()["judge_verdict"] == "accepted"
     assert _escaped(text) in clients.judge.calls[-1][1]
 
@@ -140,7 +140,7 @@ def test_facade_backlog_judge_route_judge_holds_the_source_text(client, clients)
 @needs_dumps
 def test_facade_does_not_mutate_its_loaded_norms_payload(client, clients):
     before = json.dumps(client.app.state.served.norms, sort_keys=True)
-    assert client.post("/api/backlog", json={"norm_ids": [NORM_ID], "system_context": CONTEXT}).status_code == 200
+    assert client.post("/api/tailored-requirements", json={"norm_ids": [NORM_ID], "system_context": CONTEXT}).status_code == 200
     assert client.post("/api/evidence", json={"norm_id": NORM_ID, "artifact_type": "plan",
                                               "content": QUOTE + " reviewed quarterly."}).status_code == 200
     assert _on_demand(client).status_code == 200

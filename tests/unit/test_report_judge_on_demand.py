@@ -26,7 +26,7 @@ def _envelope(classify: dict, **over) -> dict:
 
 
 def _record(gid: str) -> dict:
-    return {"generation_id": gid, "format": "tere4ai.signed_answer.v1"}
+    return {"generation_id": gid, "format": "tere4ai.signed_answer.v2"}
 
 
 def _backlog_line(classify: dict, seq: int, gid: str) -> dict:
