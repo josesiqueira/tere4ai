@@ -6,7 +6,7 @@ get_applicable_requirements crashed on a non-dict classification
 (AttributeError in requirements._unwrap_classification) and
 evaluate_project_evidence_batch crashed on a non-string article_node_id
 (TypeError in evidence.accepted_norms_for_article); generate_tailored_requirements
-(generate_control_backlog until B181) crashed on a non-iterable norm_ids.
+(named differently until B181) crashed on a non-iterable norm_ids.
 These tests pin the boundary contract:
 unusable input comes back as a full Section 8 envelope with a degraded
 status, the invalid argument named in missing_facts, confidence 0.0, and the
