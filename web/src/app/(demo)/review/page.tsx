@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /* Read-only review-queue page (docs/architecture.md Sections 9 and 13).
-   Renders the human-review backlog from public/ui_data.json: norms whose
+   Renders the human-review queue from public/ui_data.json: norms whose
    extraction judge said needs_human_review, plus pending cross-reference and
    alignment counts. Items shown here carry status requires_human_review and
    are never served as requirements; this page only makes the queue visible,

@@ -100,7 +100,7 @@ export default function LandingPage() {
             teams building AI systems under Regulation (EU) 2024/1689. A coding agent asks
             what the law requires of the system it is building, and gets back a{" "}
             <strong className="font-medium text-foreground">deterministic risk classification</strong>,
-            engineering requirements traced to{" "}
+            applicable requirements traced to{" "}
             <strong className="font-medium text-foreground">byte-exact legal text</strong>, judged ethics
             alignments, and{" "}
             <strong className="font-medium text-foreground">requirement-to-code traceability</strong>.
@@ -217,7 +217,7 @@ export default function LandingPage() {
               assessment trigger, decided by rule.
             </TierCard>
             <TierCard pill="Unacceptable risk" n="0" what="requirements, by design" href="/assess">
-              No backlog can make a prohibited practice permissible. The answer is the Article
+              No tailored requirement can make a prohibited practice permissible. The answer is the Article
               5 citation and a full stop.
             </TierCard>
             <TierCard pill="requires_human_review" n="0.5" what="confidence, on purpose" dashed href="/assess">

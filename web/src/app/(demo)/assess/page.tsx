@@ -2,7 +2,7 @@
 
 /* MILESTONE3 demo flow (docs/architecture.md Sections 8, 9, 14): describe a system,
    see the deterministic classification, load judge-accepted requirements
-   with citations, evaluate evidence, generate a backlog. The UI never
+   with citations, evaluate evidence, generate tailored requirements. The UI never
    touches the database or model APIs: every call goes to the thin HTTP
    facade, which calls the same pure functions the MCP server exposes.
    Every result card renders source citations (node ids and span ids), the
@@ -20,7 +20,7 @@ import { VOCAB_SUBTITLES } from "@/lib/vocab";
 import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
 import { EvidenceGraph, mergeSubgraphs, type GraphEvidenceSubgraph } from "./evidence-graph";
 
-const MAX_BACKLOG_NORMS = 10;
+const MAX_TAILORED_REQUIREMENTS_NORMS = 10;
 
 type Span = Record<string, unknown>;
 
@@ -188,16 +188,15 @@ type EvidenceAnswer = {
   message?: string;
 };
 
-type BacklogAnswer = {
-  items: {
+type TailoredRequirementsAnswer = {
+  tailored_requirements: {
     title: string;
     description: string;
     norm_ids: string[];
     suggested_evidence: string[];
     priority: string;
   }[];
-  dropped_items: number;
-  truncated: boolean;
+  dropped_tailored_requirements: number;
   notes: string[];
   judge_rationale: string;
   refused?: boolean;
@@ -831,8 +830,8 @@ function DownloadEnvelopeButton({
   );
 }
 
-/* Backlog polish (#40): priority is the closed must/should vocabulary from
-   the backlog tool (an invalid priority is recomputed mechanically there). */
+/* Tailored requirement polish (#40): priority is the closed must/should vocabulary from
+   the tailored requirements tool (an invalid priority is recomputed mechanically there). */
 function PriorityBadge({ priority }: { priority: string }) {
   const must = priority === "must";
   return (
@@ -846,22 +845,22 @@ function PriorityBadge({ priority }: { priority: string }) {
   );
 }
 
-type BacklogItem = BacklogAnswer["items"][number];
+type TailoredRequirement = TailoredRequirementsAnswer["tailored_requirements"][number];
 
-function backlogArticleGroup(item: BacklogItem): string {
-  for (const id of item.norm_ids) {
+function articleGroupOfTailoredRequirement(tailoredRequirement: TailoredRequirement): string {
+  for (const id of tailoredRequirement.norm_ids) {
     const group = articleGroupOf(id);
     if (group) return group;
   }
   return "other sources";
 }
 
-function groupBacklogByArticle(items: BacklogItem[]): [string, BacklogItem[]][] {
-  const groups = new Map<string, BacklogItem[]>();
-  for (const item of items) {
-    const group = backlogArticleGroup(item);
+function groupTailoredRequirementsByArticle(tailoredRequirementList: TailoredRequirement[]): [string, TailoredRequirement[]][] {
+  const groups = new Map<string, TailoredRequirement[]>();
+  for (const tailoredRequirement of tailoredRequirementList) {
+    const group = articleGroupOfTailoredRequirement(tailoredRequirement);
     const list = groups.get(group) ?? [];
-    list.push(item);
+    list.push(tailoredRequirement);
     groups.set(group, list);
   }
   return Array.from(groups.entries()).sort(([a], [b]) => compareArticleGroups(a, b));
@@ -994,10 +993,10 @@ export default function AssessPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [evidenceUi, setEvidenceUi] = useState<Record<string, EvidenceUiState>>({});
 
-  const [backlogLoading, setBacklogLoading] = useState(false);
-  const [backlogError, setBacklogError] = useState<string | null>(null);
-  const [backlogUsedIds, setBacklogUsedIds] = useState<string[]>([]);
-  const [backlog, setBacklog] = useState<Envelope<BacklogAnswer> | null>(null);
+  const [tailoredRequirementsLoading, setTailoredRequirementsLoading] = useState(false);
+  const [tailoredRequirementsError, setTailoredRequirementsError] = useState<string | null>(null);
+  const [tailoredRequirementsUsedIds, setTailoredRequirementsUsedIds] = useState<string[]>([]);
+  const [tailoredRequirements, setTailoredRequirements] = useState<Envelope<TailoredRequirementsAnswer> | null>(null);
 
   const [permalink, setPermalink] = useState<string | null>(null);
   const [permalinkCopied, setPermalinkCopied] = useState(false);
@@ -1067,7 +1066,7 @@ export default function AssessPage() {
     setRequirements(null);
     setAlignments(null);
     setAlignmentsError(null);
-    setBacklog(null);
+    setTailoredRequirements(null);
     setSelected({});
     setEvidenceUi({});
     setPermalinkCopied(false);
@@ -1266,8 +1265,8 @@ export default function AssessPage() {
     setReqError(null);
     setAlignments(null);
     setAlignmentsError(null);
-    setBacklog(null);
-    setBacklogError(null);
+    setTailoredRequirements(null);
+    setTailoredRequirementsError(null);
     setSelected({});
     setEvidenceUi({});
     setPermalink(null);
@@ -1281,7 +1280,7 @@ export default function AssessPage() {
     const token = ++requirementsTokenRef.current;
     setReqLoading(true);
     setReqError(null);
-    setBacklog(null);
+    setTailoredRequirements(null);
     setAlignments(null);
     setAlignmentsError(null);
     try {
@@ -1380,27 +1379,27 @@ export default function AssessPage() {
   const selectedIds = allNorms
     .map((n) => n.norm_id)
     .filter((id) => selected[id]);
-  const backlogIds = (selectedIds.length > 0 ? selectedIds : allNorms.map((n) => n.norm_id)).slice(
+  const tailoredRequirementsIds = (selectedIds.length > 0 ? selectedIds : allNorms.map((n) => n.norm_id)).slice(
     0,
-    MAX_BACKLOG_NORMS
+    MAX_TAILORED_REQUIREMENTS_NORMS
   );
 
-  async function generateBacklog() {
-    if (backlogIds.length === 0) return;
-    setBacklogLoading(true);
-    setBacklogError(null);
-    setBacklogUsedIds(backlogIds);
+  async function generateTailoredRequirements() {
+    if (tailoredRequirementsIds.length === 0) return;
+    setTailoredRequirementsLoading(true);
+    setTailoredRequirementsError(null);
+    setTailoredRequirementsUsedIds(tailoredRequirementsIds);
     try {
-      const envelope = await postJson<Envelope<BacklogAnswer>>("/api/backlog", {
-        norm_ids: backlogIds,
+      const envelope = await postJson<Envelope<TailoredRequirementsAnswer>>("/api/tailored-requirements", {
+        norm_ids: tailoredRequirementsIds,
         system_context: description,
       });
-      setBacklog(envelope);
+      setTailoredRequirements(envelope);
     } catch (err) {
-      setBacklog(null);
-      setBacklogError(err instanceof Error ? err.message : String(err));
+      setTailoredRequirements(null);
+      setTailoredRequirementsError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBacklogLoading(false);
+      setTailoredRequirementsLoading(false);
     }
   }
 
@@ -1413,7 +1412,7 @@ export default function AssessPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Assess an AI system</h1>
           <p className="text-sm text-muted-foreground">
             MILESTONE3 demo flow: deterministic classification, judge-accepted requirements with
-            citations, evidence evaluation, and a control backlog. All calls go through the
+            citations, evidence evaluation, and tailored requirements. All calls go through the
             local facade at <code className="font-mono">{FACADE_URL}</code>.
           </p>
         </div>
@@ -1671,7 +1670,7 @@ export default function AssessPage() {
               </div>
               {risk === "unacceptable_risk" && (
                 <p className="text-sm text-destructive">
-                  Prohibited AI practice under Article 5: no engineering requirement can make
+                  Prohibited AI practice under Article 5: no applicable requirement can make
                   this system permissible. Seek legal review.
                 </p>
               )}
@@ -1796,7 +1795,7 @@ export default function AssessPage() {
                               <input
                                 type="checkbox"
                                 className="mt-1"
-                                aria-label={`select ${norm.norm_id} for the backlog`}
+                                aria-label={`select ${norm.norm_id} for the tailored requirements`}
                                 checked={!!selected[norm.norm_id]}
                                 onChange={(e) =>
                                   setSelected((prev) => ({
@@ -1962,68 +1961,68 @@ export default function AssessPage() {
         )}
 
         {requirements && allNorms.length > 0 && (
-          <Card title="4. Control backlog">
+          <Card title="4. Tailored requirements">
             <div className="space-y-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <button
                   className={BUTTON_PRIMARY}
-                  onClick={generateBacklog}
-                  disabled={backlogLoading || backlogIds.length === 0}
+                  onClick={generateTailoredRequirements}
+                  disabled={tailoredRequirementsLoading || tailoredRequirementsIds.length === 0}
                 >
-                  {backlogLoading ? "Generating..." : "Generate backlog"}
+                  {tailoredRequirementsLoading ? "Generating..." : "Generate tailored requirements"}
                 </button>
                 <span className="text-xs text-muted-foreground">
                   Paid model call: OpenAI generator plus Anthropic grounding judge. Uses{" "}
                   {selectedIds.length > 0
-                    ? `the ${backlogIds.length} selected norms`
-                    : `the first ${backlogIds.length} accepted norms`}{" "}
-                  (max {MAX_BACKLOG_NORMS}).
+                    ? `the ${tailoredRequirementsIds.length} selected norms`
+                    : `the first ${tailoredRequirementsIds.length} accepted norms`}{" "}
+                  (max {MAX_TAILORED_REQUIREMENTS_NORMS}).
                 </span>
               </div>
-              {backlogError && <p className="text-sm text-destructive">{backlogError}</p>}
-              {backlog && (
+              {tailoredRequirementsError && <p className="text-sm text-destructive">{tailoredRequirementsError}</p>}
+              {tailoredRequirements && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <StatusBadge status={backlog.status} />
+                    <StatusBadge status={tailoredRequirements.status} />
                     <span className="text-xs text-muted-foreground">
-                      generated from {backlogUsedIds.length} norms
-                      {backlog.answer.dropped_items > 0
-                        ? `, ${backlog.answer.dropped_items} item(s) dropped by the mechanical citation check`
+                      generated from {tailoredRequirementsUsedIds.length} norms
+                      {tailoredRequirements.answer.dropped_tailored_requirements > 0
+                        ? `, ${tailoredRequirements.answer.dropped_tailored_requirements} tailored requirement${tailoredRequirements.answer.dropped_tailored_requirements === 1 ? "" : "s"} dropped by the mechanical citation check`
                         : ""}
                     </span>
                   </div>
-                  {backlog.answer.message && (
-                    <p className="text-sm">{backlog.answer.message}</p>
+                  {tailoredRequirements.answer.message && (
+                    <p className="text-sm">{tailoredRequirements.answer.message}</p>
                   )}
                   <div className="space-y-4">
-                    {groupBacklogByArticle(backlog.answer.items ?? []).map(
-                      ([group, items]) => (
+                    {groupTailoredRequirementsByArticle(tailoredRequirements.answer.tailored_requirements ?? []).map(
+                      ([group, list]) => (
                         <div key={group} className="space-y-2">
                           <h3 className="text-sm font-semibold">
                             <code className="font-mono">{group}</code>{" "}
                             <span className="font-normal text-muted-foreground">
-                              ({items.length} backlog item{items.length === 1 ? "" : "s"})
+                              ({list.length} tailored requirement{list.length === 1 ? "" : "s"})
                             </span>
                           </h3>
                           <div className="space-y-3">
-                            {items.map((item) => (
+                            {list.map((tailoredRequirement) => (
                               <div
-                                key={item.title}
+                                key={tailoredRequirement.title}
                                 className="rounded-lg border border-border bg-card shadow-sm p-4 space-y-2"
                               >
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-sm font-semibold">{item.title}</span>
-                                  <PriorityBadge priority={item.priority} />
+                                  <span className="text-sm font-semibold">{tailoredRequirement.title}</span>
+                                  <PriorityBadge priority={tailoredRequirement.priority} />
                                 </div>
-                                <p className="text-sm">{item.description}</p>
+                                <p className="text-sm">{tailoredRequirement.description}</p>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {item.norm_ids.map((id) => (
+                                  {tailoredRequirement.norm_ids.map((id) => (
                                     <Chip key={id}>{id}</Chip>
                                   ))}
                                 </div>
-                                {item.suggested_evidence.length > 0 && (
+                                {tailoredRequirement.suggested_evidence.length > 0 && (
                                   <p className="text-xs text-muted-foreground">
-                                    Suggested evidence: {item.suggested_evidence.join(", ")}
+                                    Suggested evidence: {tailoredRequirement.suggested_evidence.join(", ")}
                                   </p>
                                 )}
                               </div>
@@ -2033,19 +2032,19 @@ export default function AssessPage() {
                       )
                     )}
                   </div>
-                  {backlog.answer.judge_rationale && (
+                  {tailoredRequirements.answer.judge_rationale && (
                     <p className="text-sm">
                       <span className="font-semibold">Judge verdict:</span>{" "}
-                      <code className="font-mono text-xs">{backlog.judge_verdict}</code>{" "}
+                      <code className="font-mono text-xs">{tailoredRequirements.judge_verdict}</code>{" "}
                       <span className="text-muted-foreground">
-                        {backlog.answer.judge_rationale}
+                        {tailoredRequirements.answer.judge_rationale}
                       </span>
                     </p>
                   )}
-                  <EnvelopeMeta envelope={backlog} />
+                  <EnvelopeMeta envelope={tailoredRequirements} />
                   <DownloadEnvelopeButton
-                    envelope={backlog}
-                    filename="tere4ai-backlog-envelope.json"
+                    envelope={tailoredRequirements}
+                    filename="tere4ai-tailored-requirements-envelope.json"
                   />
                 </div>
               )}

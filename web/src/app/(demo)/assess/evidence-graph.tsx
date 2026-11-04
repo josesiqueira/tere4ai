@@ -56,7 +56,7 @@ export type GraphEvidenceEdge = {
 /* The full envelope.graph_evidence_subgraph field is a union: the empty
    object (classify, requirements, and any degraded answer), the nodes and
    edges shape above (trace_alignment, explain_requirement, evidence,
-   backlog, source_trace), or coverage_report's own node/edge COUNT shape
+   tailored requirements, source_trace), or coverage_report's own node/edge COUNT shape
    (node_counts_by_type / edge_counts_by_type), which is an aggregate, not
    a graph, and is never passed to this component. Only the nodes/edges
    shape renders here; anything else is treated as empty. */

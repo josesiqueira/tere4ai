@@ -1,4 +1,4 @@
-"""The demo assess page groups backlog items by Article in the Act's order (B132).
+"""The demo assess page groups tailored requirements by Article in the Act's order (B132).
 
 web/src/lib/articleGroups.ts is run under Node with its type annotations
 stripped (Node 22's --experimental-strip-types), so the page's own

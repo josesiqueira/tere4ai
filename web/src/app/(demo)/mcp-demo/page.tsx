@@ -204,8 +204,8 @@ export default function McpDemoPage() {
               missing_facts rather than assumed.
             </li>
             <li>
-              A prohibited system receives zero engineering requirements. No
-              backlog can make a banned practice permissible, so the answer
+              A prohibited system receives zero applicable requirements. No
+              tailored requirement can make a banned practice permissible, so the answer
               carries the prohibition citation and nothing else.
             </li>
             <li>

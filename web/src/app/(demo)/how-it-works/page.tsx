@@ -56,7 +56,7 @@ export default function HowItWorksPage() {
             into a knowledge graph; language models only propose norms,
             alignments, and facts; a model&apos;s proposal is served only after
             a check, an independent judge for norms, alignments, evidence and
-            backlog items, and for the elicitor&apos;s proposed facts a code
+            tailored requirements, and for the elicitor&apos;s proposed facts a code
             check of their quotes and the person who confirms them; and a
             fixed rule ladder alone decides risk classification. No model
             ever overrides the rules.
