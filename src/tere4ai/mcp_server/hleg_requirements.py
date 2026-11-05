@@ -3,7 +3,11 @@
 A deterministic join over the judged alignments payload, added to the
 finished envelope of generate_tailored_requirements after the judge ran. The
 join reads accepted alignment assertions only (review_status "accepted") of
-the relation types partially_operationalizes and supports. The HLEG content
+the relation types partially_operationalizes and supports. The two stored
+kinds are shown as one relation, supports, in whole or in part: each entry
+carries "relation": "supports" and the alignments no longer carry the stored
+type (explain_requirement and trace_alignment stay the audit view of it).
+The HLEG content
 never enters a prompt, the text the judge reads, the grounding check, the
 status, the verdict or the confidence: with_hleg_requirements takes the
 finished envelope and returns a copy that differs only by the keys it adds.
@@ -25,6 +29,7 @@ from typing import Any
 from tere4ai.align_hleg.hleg_nodes import CANONICAL
 from tere4ai.mcp_server.explain import HLEG_MAPPING_CAVEAT
 
+SHOWN_RELATION = "supports"
 USE_TIME_RELATIONS = ("partially_operationalizes", "supports")
 
 UNAVAILABLE_REASON = (
@@ -58,11 +63,11 @@ def hleg_requirements_of(norm_ids: list[str], alignments_payload: dict[str, Any]
             {
                 "hleg_id": hleg_id,
                 "name": name,
+                "relation": SHOWN_RELATION,
                 "alignments": [
                     {
                         "alignment_id": a.get("id"),
                         "norm_id": a["source_norm_id"],
-                        "relation_type": a["relation_type"],
                         "final_score": a.get("final_score"),
                     }
                     for a in reached

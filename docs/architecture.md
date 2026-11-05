@@ -2373,6 +2373,12 @@ way round.
   the answer of POST /api/tailored-requirements with judge on_demand and
   its signed record do not carry the keys, so the signed bytes and the
   judge routes do not change.
+  As of 2026-11-05 (B183 follow-up, the owner's decision: the tool shows
+  one relation type): each entry carries "relation": "supports", meaning in
+  whole or in part, and the alignments carry alignment id, norm id and
+  final score, no longer the stored relation type; the join still reads the
+  two stored kinds, nothing stored changes, and explain_requirement and
+  trace_alignment stay the audit view of the stored type.
   The route: POST /api/hleg-requirements, free and deterministic (no model
   client is built), takes {"norm_id_groups": [[norm id, ...], ...]} (1 to
   500 groups of at most 200 ids, 422 beyond that) and answers {"groups",

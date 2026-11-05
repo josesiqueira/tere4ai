@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B183 follow-up: one relation shown, supports (2026-11-05)
+- Contract change (DEC-31): each entry of `hleg_requirements` (MCP tool, inline facade answer and POST /api/hleg-requirements) carries `"relation": "supports"` (in whole or in part) and its alignments no longer carry `relation_type`. The join is unchanged (accepted `partially_operationalizes` and `supports`); stored data, `explain_requirement` and `trace_alignment` are unchanged.
+
 ### B183: the HLEG requirements at use time (2026-11-05)
 - Contract change (DEC-31): the answer of `generate_tailored_requirements` (MCP tool and the facade's inline POST /api/tailored-requirements) carries `hleg_requirements` on each tailored requirement and `hleg_caveat` on the answer, a deterministic join over accepted `partially_operationalizes` and `supports` alignments, added after the judge; the judge never sees it and no status, verdict or confidence changes. The on-demand answer and its signed record are unchanged. New free route POST /api/hleg-requirements takes `norm_id_groups` and answers one list per group, with the caveat.
 

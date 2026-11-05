@@ -183,8 +183,10 @@ dropped and counted. The judge verdict gates the whole answer.
 
 After the judge, each tailored requirement carries hleg_requirements:
 the HLEG requirements its cited norms are aligned to, from accepted
-partially_operationalizes and supports alignments only, each with the
-alignment id, the norm id, the relation type and the final score; the
+partially_operationalizes and supports alignments only, shown as one
+relation, supports (in whole or in part): each entry has hleg_id, name,
+relation and alignments, each with the alignment id, the norm id and
+the final score; the
 answer carries hleg_caveat (the alignments are LLM-generated and not
 expert-validated). A deterministic join: the generator and the judge
 never see it, and it changes no status, verdict or confidence.

@@ -72,8 +72,9 @@ def test_only_the_two_relations_and_accepted_assertions_are_joined():
     names = {e["hleg_id"] for e in hr.hleg_requirements_of([N1, N2], PAYLOAD)}
     assert names == {ROBUSTNESS, ACCOUNTABILITY}
     for entry in hr.hleg_requirements_of([N1, N2], PAYLOAD):
+        assert entry["relation"] == "supports"
         for a in entry["alignments"]:
-            assert a["relation_type"] in ("partially_operationalizes", "supports")
+            assert "relation_type" not in a
 
 
 def test_order_is_canonical_then_norm_ids_then_id():
@@ -82,7 +83,7 @@ def test_order_is_canonical_then_norm_ids_then_id():
     assert [h for h, _ in CANONICAL].index(ROBUSTNESS) < [h for h, _ in CANONICAL].index(ACCOUNTABILITY)
     assert entries[0]["name"] == "Technical robustness and safety"
     assert [a["norm_id"] for a in entries[0]["alignments"]] == [N2, N1]
-    assert set(entries[0]["alignments"][0]) == {"alignment_id", "norm_id", "relation_type", "final_score"}
+    assert set(entries[0]["alignments"][0]) == {"alignment_id", "norm_id", "final_score"}
     assert [a["norm_id"] for a in hr.hleg_requirements_of([N1, N2], PAYLOAD)[0]["alignments"]] == [N1, N2]
 
 
