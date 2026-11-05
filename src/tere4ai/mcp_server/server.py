@@ -62,7 +62,7 @@ from tere4ai.mcp_server import classify as classify_rules
 from tere4ai.mcp_server import elicit as elicit_rules
 from tere4ai.mcp_server import evidence as evidence_rules
 from tere4ai.mcp_server import explain as explain_rules
-from tere4ai.mcp_server import replay, tools
+from tere4ai.mcp_server import hleg_requirements, replay, tools
 from tere4ai.mcp_server import requirements as requirements_rules
 from tere4ai.mcp_server import spans as spans_rules
 from tere4ai.mcp_server import trace as trace_rules
@@ -744,7 +744,7 @@ def generate_tailored_requirements(norm_ids: list[str], system_context: str) -> 
     clients = _paid_clients_or_envelope()
     if isinstance(clients, dict):
         return clients
-    return _REPLAY.run(
+    answer = _REPLAY.run(
         tool="generate_tailored_requirements",
         arguments={"norm_ids": norm_ids, "system_context": system_context},
         build=_graph_version(dump),
@@ -757,6 +757,8 @@ def generate_tailored_requirements(norm_ids: list[str], system_context: str) -> 
             graph_version=_graph_version(dump),
         ),
     )
+    # DEC-31: the HLEG requirements join the finished answer, replayed or not.
+    return hleg_requirements.with_hleg_requirements(answer, loaded.alignments)
 
 
 @mcp.tool(annotations=_READ_ONLY_PAID)

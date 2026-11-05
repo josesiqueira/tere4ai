@@ -157,6 +157,7 @@ from tere4ai.mcp_server import classify as classify_tool
 from tere4ai.mcp_server import elicit as elicit_tool
 from tere4ai.mcp_server import evidence as evidence_tool
 from tere4ai.mcp_server import explain as explain_tool
+from tere4ai.mcp_server import hleg_requirements as hleg_requirements_tool
 from tere4ai.mcp_server import requirements as requirements_tool
 from tere4ai.mcp_server import trace as trace_tool
 from tere4ai.mcp_server.source_text import with_source_text
@@ -1305,6 +1306,8 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             return JSONResponse(
                 status_code=502, content={"error": f"model call failed: {exc}"}
             )
+        # DEC-31: the HLEG requirements join the finished inline answer.
+        envelope = hleg_requirements_tool.with_hleg_requirements(envelope, _served(request).alignments)
         return JSONResponse(content=envelope, headers={PAID_HEADER: "true"})
 
     @app.post("/api/elicit")
