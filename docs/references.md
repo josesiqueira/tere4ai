@@ -1926,6 +1926,28 @@ taken as one field; one coder, a quarter checked by a second. Staged in
 thesis refs/triage-re4ai-mapping/ on 2026-11-03 and approved by Jose the
 same day ("i approve").
 
+**[ADD-137]** PEER. "From issue titles to requirements: an empirical study of
+large language models and prompt engineering strategies", Paiva, Canedo, Rocha
+Filho, Requirements Engineering 31:7, 2026, DOI 10.1007/s00766-026-00462-z
+(1 citations on Crossref, 2026-11-05; passes the bar by peer review). The
+publisher's typeset article, held as
+../thesis/refs/ADD-137_PaivaIssueTitlesLLMJudge.pdf (23 PDF pages, printed page
+= PDF page), supplied by Jose on 2026-11-05. VERIFIED 2026-11-05 (title,
+authors, journal, article number and DOI from the first page). SUPPORTING.
+Grounds: the precedent in RE for comparing conditions with an LLM judge checked
+against people, for a possible ablation in the REFSQ 2027 paper: two models and
+three prompt styles scored by one evaluator LLM, with "A targeted human
+validation study with five evaluators on a stratified sample of 50 requirements
+assesses the reliability of the automated judge" (abstract, p. 1); and a reading
+of low agreement among people, "requirement quality assessment is inherently
+subjective" (p. 19). Limits: it judges language quality only, and states that
+"evaluating domain adequacy or contextual appropriateness would require human
+experts or domain tuned evaluators" (p. 20), so it does not cover a judge
+scoring correctness against the Act; it compares models and prompts and removes
+no stage, so it is not an ablation. Canedo is a co-author of the owner on the
+REFSQ 2027 draft. Staged in thesis refs/triage-llm-judge-comparison/ and
+approved by Jose on 2026-11-05 ("approve this paper as source").
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
