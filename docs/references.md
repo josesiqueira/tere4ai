@@ -405,6 +405,14 @@ Derivation and Explanation Pipeline", Nair and Anish (TCS), arXiv:2607.04448v1
 system-agnostic requirements from the full GDPR and EU AI Act clause sets
 (F1 0.82/0.78) with a traceability matrix; its outputs never reach a codebase.
 
+Added 2026-11-05: ADD-30 is now PEER. Published as Nair and Anish, in the 2026
+IEEE 34th International Requirements Engineering Conference (RE), IEEE, DOI
+10.1109/RE68928.2026.00038, held as
+../thesis/refs/ADD-30_RegulationToRequirements.pdf (11 PDF pages), supplied by
+Jose on 2026-11-05. Its research questions and the passages the REFSQ 2027
+work quotes are word for word those of the preprint above; the PRE label above
+is kept as written on its date, and the published version is the one to cite.
+
 **[ADD-31]** PEER. "Addressing Legal Requirements in Requirements Engineering",
 Otto and Anton, 15th IEEE RE Conference (RE 2007), pp. 5-14, DOI
 10.1109/RE.2007.65. VERIFIED (read in full 2026-09-02; author copy). CORE.
