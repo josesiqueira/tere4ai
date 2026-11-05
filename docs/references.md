@@ -581,6 +581,14 @@ published; none found 2026-09-26]. VERIFIED. SUPPORTING. Grounds: a pilot
 study to estimate the variability of repeated LLM runs before the study
 proper (v5 p. 37).
 
+Added 2026-11-05: ADD-52 is now PEER. Published as Baltes et al., Empirical
+Software Engineering (2027) 32:64, DOI 10.1007/s10664-026-10922-3, accepted
+29 June 2026, held as ../thesis/refs/ADD-52_LLMGuidelinesSE.pdf (71 pages),
+supplied by Jose on 2026-11-05, who chose it for the REFSQ 2027 paper ("this is
+good because has paul ralph inside, let suse this"). The published version is
+the one to cite; the PRE label and the [VERIFY] above are kept as written on
+their date, and this entry closes that [VERIFY].
+
 **[ADD-53]** PEER. "Trust or Escalate: LLM Judges with Provable Guarantees
 for Human Agreement", Jung, Brahman, Choi, ICLR 2025 (official proceedings
 PDF). VERIFIED. SUPPORTING. Grounds: in LLM-as-a-judge work a "calibration
