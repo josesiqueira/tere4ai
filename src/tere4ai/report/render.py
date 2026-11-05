@@ -66,7 +66,7 @@ from tere4ai.report.ingest import (
 FIXED_TRACE_SENTENCE = "A trace is a developer claim, not evidence."
 
 # Mandated header copy.
-_KICKER = "TERE4AI REQUIREMENTS REPORT"
+_KICKER = "TERE4AI APPLICABLE AND TAILORED REQUIREMENTS REPORT"
 _SUBKICKER = "Machine-generated working record"
 
 _LEGEND_SENTENCE = (
@@ -2160,7 +2160,7 @@ def render_report(
         "</footer>"
     )
 
-    title = "TERE4AI requirements report"
+    title = "TERE4AI applicable and tailored requirements report"
     return (
         "<!doctype html>\n"
         '<html lang="en"><head><meta charset="utf-8">'

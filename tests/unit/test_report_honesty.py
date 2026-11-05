@@ -501,12 +501,12 @@ def test_no_aggregate_scores_percentages_or_grades():
 
 
 def test_title_requirements_report_and_no_certification_framing():
-    """Guardrail: the title says TERE4AI requirements report and no non-verbatim text frames the document as a compliance/certification/legal artifact."""
+    """Guardrail: the title says TERE4AI applicable and tailored requirements report and no non-verbatim text frames the document as a compliance/certification/legal artifact."""
     for fixture in ALL_FIXTURES:
         scan = _scan(fixture)
-        assert "tere4ai requirements report" in scan.title_text.lower(), (
+        assert "tere4ai applicable and tailored requirements report" in scan.title_text.lower(), (
             f"{fixture}: <title> {scan.title_text!r} lacks 'TERE4AI "
-            "requirements report'"
+            "applicable and tailored requirements report'"
         )
         text = _masked_nonverbatim(scan)
         for pattern in FRAMING_RES:

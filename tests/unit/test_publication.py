@@ -234,6 +234,13 @@ def test_activate_build_cli_refuses_an_unknown_or_drifted_chain_and_activates_a_
     cli = _activate_cli()
     files = _dumps(tmp_path)
     chain_id = _publish_fixture(tmp_path, files)
+    # B182: a directory without core_nodes.txt is refused before any check
+    # of the chain, since the served build's /api/units would answer 503.
+    assert cli.main([chain_id, "--dump-dir", str(tmp_path)]) == 1
+    err = capsys.readouterr().err
+    assert "not activated" in err and "core_nodes.txt is missing" in err and "/api/units" in err
+    assert not (tmp_path / ACTIVE_POINTER).exists()
+    (tmp_path / "core_nodes.txt").write_text("eu-ai-act:article-9,eu-ai-act:article-10", encoding="utf-8")
     assert cli.main(["000000000000", "--dump-dir", str(tmp_path)]) == 1
     err = capsys.readouterr().err
     assert "not activated" in err and "no publication" in err

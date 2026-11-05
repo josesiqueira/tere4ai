@@ -2128,6 +2128,16 @@ way round.
   served_build.py _judged_independently; tests/unit/test_served_build.py
   (a newer build judged by an OpenAI model not served, a self-judging
   build not served, a build recording no judge still a candidate).
+  Note 2026-11-05 (B182): a published build's directory must also carry
+  core_nodes.txt, the one-line list of the core ids that /api/units
+  serves (http_facade/served_state.py reads it from the served directory
+  and the route answers 503 without it); the four builds published before
+  this note were assembled without the file and answered 503 from the day
+  this decision made them the served directory, which the dashboard's
+  campaign builder and review item sources read. The file is copied
+  beside each build's published files and scripts/activate_build.py
+  refuses a directory that lacks it. verify: tests/unit/test_publication.py
+  (the CLI refuses a directory without core_nodes.txt).
 - DEC-30: three names for the three served things and no other, an
   applicable requirement, a tailored requirement and the generation: the
   tool generate_control_backlog becomes generate_tailored_requirements,

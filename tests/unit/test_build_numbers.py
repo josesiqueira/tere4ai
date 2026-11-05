@@ -321,6 +321,7 @@ def test_activate_prints_the_number_beside_the_full_id(tmp_path, monkeypatch, ca
     activate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(activate)
     capsys.readouterr()
+    (tmp_path / "core_nodes.txt").write_text("eu-ai-act:article-9", encoding="utf-8")  # B182: the CLI refuses a folder without it
     assert activate.main([chain_id, "--dump-dir", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert out.startswith("activated Build 1 (build-b+chain-") and out.rstrip().endswith("; restart the facade to serve it")

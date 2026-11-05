@@ -69,6 +69,7 @@ def test_the_missing_manifest_and_pointer_are_written_from_the_chain_record(tmp_
     assert (store.dir / "numbering.json").read_bytes() == counter_before
     # the operator's next line works
     monkeypatch.delitem(sys.modules, "neo4j")
+    (tmp_path / "core_nodes.txt").write_text("eu-ai-act:article-9", encoding="utf-8")  # B182: the CLI refuses a folder without it
     assert _script("activate_build").main([chain_id, "--dump-dir", str(tmp_path)]) == 0
 
 
