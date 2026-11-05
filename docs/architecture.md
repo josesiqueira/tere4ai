@@ -715,7 +715,7 @@ an engineering MUST (determinism, reproducibility, security, performance,
 serving, naming) is labelled "Engineering MUST" or "engineering decision",
 claims no literature grounding, and may name sources that bear on it as
 "corroborated by" without claiming they ground it (DEC-01, DEC-02, DEC-13 to
-DEC-18, DEC-20 to DEC-25, DEC-28, DEC-29). The thesis presents the first kind
+DEC-18, DEC-20 to DEC-25, DEC-28 to DEC-31). The thesis presents the first kind
 as grounded design and the second as engineering practice, never the other
 way round.
 

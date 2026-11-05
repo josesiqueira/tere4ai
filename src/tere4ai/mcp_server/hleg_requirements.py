@@ -14,7 +14,6 @@ When no alignments payload is loaded the answer says so
 The caveat is the one explain_requirement shows beside every alignment.
 
 @implements: DEC-31
-@implements: DEC-30
 @grounded_by: REF-24
 """
 

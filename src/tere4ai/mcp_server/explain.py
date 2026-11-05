@@ -43,11 +43,11 @@ from tere4ai.parse_legal_structure.amendments import deleted_note, is_deleted, v
 
 ARTICLE_3_PREFIX = "eu-ai-act:article-3:"
 
-# The EU-to-HLEG mappings are LLM-generated and judged, not expert-validated;
+# The EU-to-HLEG alignments are LLM-generated and judged, not expert-validated;
 # this caveat must surface whenever they are presented (@USER.md guardrail).
 HLEG_MAPPING_CAVEAT = (
     "EU AI Act to HLEG alignments are LLM-generated and LLM-judged, not "
-    "expert-validated; treat them as auditable claims, not settled mappings."
+    "expert-validated; treat them as auditable claims, not settled alignments."
 )
 
 _QUOTE_CHARS = "'\"‘’“”"
