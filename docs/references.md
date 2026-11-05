@@ -1987,3 +1987,13 @@ reintroduced.
 - ADD-33 (Hasan 2016, IJSSOE systematic classification of regulatory-compliance approaches): dropped 2026-10-08 by Jose as out of date and never obtained; ADD-29 (Kosenkov et al. 2025) covers the ground.
 - ADD-102 (Zapf, Castell, Morawietz and Karch 2016, BMC Medical Research Methodology 16:93, which coefficient and which interval for nominal data): withdrawn 2026-10-12 by Jose as clinical literature ("if this is clinical we dont use it"); its entry stays above, marked WITHDRAWN; ADD-93 (Hayes and Krippendorff 2007) remains the registered source for a bootstrap interval of alpha.
 - ADD-103 (Norman 2010, Advances in Health Sciences Education 15, the robustness of parametric statistics on Likert data) and ADD-104 (Jamieson 2004, Medical Education 38(12), Likert categories as ordinal): withdrawn 2026-10-12 by Jose under the same rule as ADD-102 ("Out, same rule (Recommended)"); their entries stay above, marked WITHDRAWN; the ordinal choice of spec F D-F20 and D-F21 rests on ADD-95 (Krippendorff 2004), with ADD-106 and ADD-105.
+
+**[ADD-138]** PEER. "Z-Inspection: A Process to Assess Trustworthy AI", Zicari
+et al., IEEE Transactions on Technology and Society 2(2), 2021, pp. 83-97, DOI
+10.1109/TTS.2021.3066209 (passes the bar by peer review). The publisher's
+typeset article, held as ../thesis/refs/ADD-138_ZicariZInspection.pdf (15 PDF
+pages, printed page = PDF page + 82). VERIFIED 2026-11-05 (title, authors,
+journal, volume, issue and pages from the first page). SUPPORTING. Grounds:
+related work for the REFSQ 2027 paper, approved by Jose on 2026-11-05 ("i want
+z-inspection to be cited as related work"): "We then ask the experts to map the ethical issues and flags to the seven requirements established by the EU High-Level Experts Guidelines for Trustworthy AI (HLEG)" (p. 88). Limits: it starts
+from an assessment by people, not from the Act, and generates no requirements.
