@@ -65,7 +65,10 @@ Paid, each call makes model calls: `elicit_features`, `evaluate_project_evidence
    one artifact against one norm; quotes are mechanically verified against
    your text; a runtime grounding judge gates every answer.
 7. `generate_tailored_requirements(norm_ids, system_context)`: tailored
-   requirements citing only the provided norms.
+   requirements citing only the provided norms; each carries
+   `hleg_requirements` (the HLEG requirements its norms are aligned to, from
+   accepted alignments), and the answer carries the caveat that the
+   alignments are LLM-generated and not expert-validated.
 8. `evaluate_project_evidence_batch(article_node_id, artifact_type, content)`:
    one artifact against every judge-accepted norm of one article, in a
    single envelope with per-norm results and worst-case aggregation.

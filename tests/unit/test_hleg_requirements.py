@@ -258,3 +258,71 @@ def test_the_on_demand_answer_does_not(facade_client, monkeypatch):
     answer = response.json()["answer"]
     assert "hleg_caveat" not in answer and "hleg_requirements_unavailable" not in answer
     assert all("hleg_requirements" not in t for t in answer["tailored_requirements"])
+
+
+# POST /api/hleg-requirements: free, deterministic, any groups of norm ids.
+
+import dataclasses  # noqa: E402
+
+
+@pytest.fixture()
+def route_client(monkeypatch):
+    def boom(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise AssertionError("the free route touched a model client")
+
+    monkeypatch.setattr(facade, "OpenAIGenerator", boom)
+    monkeypatch.setattr(facade, "AnthropicJudge", boom)
+    with TestClient(facade.create_app()) as client:
+        client.app.state.served = dataclasses.replace(client.app.state.served, alignments=PAYLOAD)
+        yield client
+
+
+@needs_dumps
+def test_the_route_answers_one_group_per_group_in_order(route_client):
+    response = route_client.post("/api/hleg-requirements", json={"norm_id_groups": [[N2], [N1, N2], ["norm:unknown"], []]})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["caveat"] == HLEG_MAPPING_CAVEAT
+    assert body["graph_version"] and body["norms_build"]
+    groups = body["groups"]
+    assert len(groups) == 4
+    assert groups[0] == hr.hleg_requirements_of([N2], PAYLOAD)
+    assert groups[1] == hr.hleg_requirements_of([N1, N2], PAYLOAD)
+    assert groups[2] == [] and groups[3] == []
+    assert response.headers.get("X-TERE4AI-Paid-Call") is None
+
+
+@needs_dumps
+def test_the_route_is_deterministic(route_client):
+    body = {"norm_id_groups": [[N1, N2]]}
+    assert route_client.post("/api/hleg-requirements", json=body).json() == \
+        route_client.post("/api/hleg-requirements", json=body).json()
+
+
+@needs_dumps
+def test_the_route_refuses_beyond_the_limits_with_422(route_client):
+    assert route_client.post("/api/hleg-requirements", json={"norm_id_groups": [[N1]] * 501}).status_code == 422
+    assert route_client.post("/api/hleg-requirements", json={"norm_id_groups": [["n"] * 201]}).status_code == 422
+    assert route_client.post("/api/hleg-requirements", json={"norm_id_groups": [[N1]] * 500}).status_code == 200
+    assert route_client.post("/api/hleg-requirements", json={"norm_id_groups": [["n"] * 200]}).status_code == 200
+    assert route_client.post("/api/hleg-requirements", json={"norm_id_groups": []}).status_code == 422
+
+
+@needs_dumps
+def test_the_route_answers_the_clean_503_without_alignments(route_client):
+    route_client.app.state.served = dataclasses.replace(route_client.app.state.served, alignments=None)
+    response = route_client.post("/api/hleg-requirements", json={"norm_id_groups": [[N1]]})
+    assert response.status_code == 503
+    assert "alignments payload unavailable" in response.json()["error"]
+
+
+@needs_dumps
+def test_the_route_is_listed_as_free_in_discovery(route_client):
+    entry = route_client.get("/.well-known/tere4ai.json").json()["endpoints"]["hleg_requirements"]
+    assert entry == {"method": "POST", "path": "/api/hleg-requirements", "paid": False}
+    assert "/api/hleg-requirements" in route_client.get("/llms.txt").text
+
+
+def test_the_tool_docstring_names_the_hleg_fields():
+    doc = server.generate_tailored_requirements.__doc__ or ""
+    assert "hleg_requirements" in doc and "hleg_caveat" in doc

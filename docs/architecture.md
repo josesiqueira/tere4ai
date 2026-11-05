@@ -2342,6 +2342,60 @@ way round.
   regenerated; docs/benchmark_cost_estimate.md regenerated with v4;
   CHANGELOG.md names the contract change.
 
+- DEC-31: each tailored requirement carries the HLEG requirements its
+  cited norms are aligned to, joined at use time from the judged
+  alignments, and a free facade route serves the same join for any groups
+  of norm ids (added 2026-11-05; thesis task B183; the owner's words,
+  2026-11-05: "HLEG requirements at use time is a most , again it is one
+  of the top reasons of why TERE4AI exists"). Engineering decision (a
+  deterministic read of data already judged and published, traceability,
+  Section 13); it needs no literature grounding (AGENTS.md grounding bar).
+  What is joined, and when: after the runtime grounding judge has given its
+  verdict, generate_tailored_requirements adds to each tailored
+  requirement the key hleg_requirements, one entry per HLEG requirement
+  (in the order of the seven, hleg_id and name) holding the alignments of
+  the norms the tailored requirement cites to it (alignment id, norm id,
+  relation type, final score), and adds to the answer hleg_caveat, the
+  caveat explain_requirement shows beside every alignment: the alignments
+  are LLM-generated and not expert-validated. The join reads accepted
+  alignment assertions (review_status accepted) of two relation types
+  only, partially_operationalizes and supports; directly_operationalizes
+  never reaches it as a use-time claim here, and related_to,
+  conflicts_with, no_clear_relation and any assertion not accepted are
+  left out. When the alignments payload is not loaded the answer carries
+  hleg_requirements_unavailable with the reason and keeps everything the
+  paid call produced.
+  The judge never sees it: the HLEG content enters no prompt, no text the
+  judge or the grounding check reads, and changes no status, verdict,
+  confidence or note; the join takes the finished envelope and returns a
+  copy that differs only by the keys it adds, on the MCP tool (replayed
+  answers too) and on the facade's inline route. On demand is untouched:
+  the answer of POST /api/tailored-requirements with judge on_demand and
+  its signed record do not carry the keys, so the signed bytes and the
+  judge routes do not change.
+  The route: POST /api/hleg-requirements, free and deterministic (no model
+  client is built), takes {"norm_id_groups": [[norm id, ...], ...]} (1 to
+  500 groups of at most 200 ids, 422 beyond that) and answers {"groups",
+  "caveat", "graph_version", "norms_build"}, one group per group sent, in
+  order, each group the list of entries above; an unknown norm id gives an
+  empty group, never an error; 503 with the payload of the alignments
+  check when alignments_core.json is missing. A client with the tailored
+  requirements of a judged-on-demand generation asks this route for their
+  HLEG requirements.
+  Defense: an HLEG requirement is one of the reasons TERE4AI exists, so a
+  tailored requirement shows it where the developer reads it, from the
+  alignments the build already judged, with the caveat beside it and
+  without letting an unjudged text reach the judge. Cost if wrong: one
+  module, two call sites and one route; no data and no model call.
+  verify: src/tere4ai/mcp_server/hleg_requirements.py (hleg_requirements_of,
+  with_hleg_requirements); src/tere4ai/mcp_server/server.py
+  (generate_tailored_requirements); src/tere4ai/http_facade/app.py (the
+  inline route, hleg_requirements_route); tests/unit/test_hleg_requirements.py
+  (the two relation types only, accepted only, the judge's input free of
+  every HLEG word, status and verdict equal without alignments, replay,
+  on demand without the keys, the route's groups, limits, 503, no model
+  client); CHANGELOG.md names the contract change.
+
 ## 17. Implementation-traceability convention
 
 - Every requirement or decision carries grounded_by (REF ids in references.md)

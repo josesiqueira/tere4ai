@@ -180,6 +180,14 @@ norm_ids are NormativeStatement ids from get_applicable_requirements;
 every norm given reaches the generator (no cap). Every tailored
 requirement cites only input norm ids; one citing anything else is
 dropped and counted. The judge verdict gates the whole answer.
+
+After the judge, each tailored requirement carries hleg_requirements:
+the HLEG requirements its cited norms are aligned to, from accepted
+partially_operationalizes and supports alignments only, each with the
+alignment id, the norm id, the relation type and the final score; the
+answer carries hleg_caveat (the alignments are LLM-generated and not
+expert-validated). A deterministic join: the generator and the judge
+never see it, and it changes no status, verdict or confidence.
 ```
 
 | Input | Type | Required |

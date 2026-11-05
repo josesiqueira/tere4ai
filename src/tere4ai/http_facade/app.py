@@ -7,6 +7,7 @@
 @implements: DEC-24
 @implements: DEC-25
 @implements: DEC-30
+@implements: DEC-31
 @grounded_by: REF-31
 
 Loopback-only intent (architecture.md Section 9): the demo UI never touches
@@ -32,6 +33,11 @@ Behavioral contract:
   /api/explain and the trace endpoints additionally need
   alignments_core.json (503 with a clean payload when it is missing);
   /api/span verifies the snapshot checksum before slicing.
+- POST /api/hleg-requirements (DEC-31) is deterministic and free: for each
+  group of norm ids sent (at most 500 groups of at most 200 ids, 422 beyond
+  that) the HLEG requirements the norms are aligned to, from accepted
+  partially_operationalizes and supports alignments only, with the caveat;
+  503 with a clean payload when alignments_core.json is missing.
 - /api/trace/batch is a thin bulk wrapper for the demo UI: one
   trace_alignment envelope per unique requested id, passed through
   unmodified, so the assess page can render HLEG alignment chips for all
@@ -98,7 +104,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from tere4ai.eval.evaluation_record import RECORD_FILE_STEM as _EVAL_REF_RE
 from tere4ai.eval.evaluation_record import EvaluationRecordStore, reduce_paths
@@ -160,6 +166,7 @@ from tere4ai.mcp_server import explain as explain_tool
 from tere4ai.mcp_server import hleg_requirements as hleg_requirements_tool
 from tere4ai.mcp_server import requirements as requirements_tool
 from tere4ai.mcp_server import trace as trace_tool
+from tere4ai.mcp_server.explain import HLEG_MAPPING_CAVEAT
 from tere4ai.mcp_server.source_text import with_source_text
 from tere4ai.mcp_server.spans import (
     SpanIntegrityError,
@@ -336,6 +343,21 @@ class TraceRequest(_Utf8GuardedModel):
 
 class TraceBatchRequest(_Utf8GuardedModel):
     ids: list[str] = Field(min_length=1, max_length=MAX_TRACE_BATCH_IDS)
+
+
+MAX_HLEG_GROUPS = 500
+MAX_HLEG_GROUP_IDS = 200
+
+
+class HlegRequirementsRequest(_Utf8GuardedModel):
+    norm_id_groups: list[list[str]] = Field(min_length=1, max_length=MAX_HLEG_GROUPS)
+
+    @field_validator("norm_id_groups")
+    @classmethod
+    def _each_group_is_short(cls, groups: list[list[str]]) -> list[list[str]]:
+        if any(len(group) > MAX_HLEG_GROUP_IDS for group in groups):
+            raise ValueError(f"each group holds at most {MAX_HLEG_GROUP_IDS} norm ids")
+        return groups
 
 
 class ReportRequest(_Utf8GuardedModel):
@@ -623,7 +645,7 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
             + NON_LEGAL_ADVICE_NOTICE
             + "\n\n"
             "Endpoints: POST /api/classify, /api/requirements, /api/explain, "
-            "/api/trace, /api/trace/batch, /api/report and GET /api/span/{span_id}, "
+            "/api/trace, /api/trace/batch, /api/hleg-requirements, /api/report and GET /api/span/{span_id}, "
             "/api/coverage, /api/alignments, /api/schema/system_features, "
             "/api/demo/sessions, /api/demo/sessions/{name} "
             "(free, deterministic); "
@@ -657,6 +679,11 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                     },
                     "explain": {"method": "POST", "path": "/api/explain", "paid": False},
                     "trace": {"method": "POST", "path": "/api/trace", "paid": False},
+                    "hleg_requirements": {
+                        "method": "POST",
+                        "path": "/api/hleg-requirements",
+                        "paid": False,
+                    },
                     "trace_batch": {
                         "method": "POST",
                         "path": "/api/trace/batch",
@@ -1079,6 +1106,28 @@ def create_app(dump_dir: Path | str | None = None, eval_root: Path | str | None 
                 "envelopes": envelopes,
                 "graph_version": _graph_version(request),
                 "non_legal_advice_notice": NON_LEGAL_ADVICE_NOTICE,
+            }
+        )
+
+    @app.post("/api/hleg-requirements")
+    def hleg_requirements_route(request: Request, body: HlegRequirementsRequest) -> JSONResponse:
+        # DEC-31: free and deterministic, no model client. One list of HLEG
+        # requirements per group of norm ids sent, in order; an unknown norm
+        # id gives an empty group. Accepted alignments of the relation types
+        # partially_operationalizes and supports only.
+        unavailable = _unavailable(request) or _alignments_unavailable(request)
+        if unavailable is not None:
+            return unavailable
+        alignments_payload = _served(request).alignments
+        return JSONResponse(
+            content={
+                "groups": [
+                    hleg_requirements_tool.hleg_requirements_of(group, alignments_payload)
+                    for group in body.norm_id_groups
+                ],
+                "caveat": HLEG_MAPPING_CAVEAT,
+                "graph_version": _graph_version(request),
+                "norms_build": _norms_build(request),
             }
         )
 

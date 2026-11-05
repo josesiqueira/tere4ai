@@ -5,6 +5,9 @@ versions are git tags. Dates are build dates (Europe/Helsinki).
 
 ## [Unreleased]
 
+### B183: the HLEG requirements at use time (2026-11-05)
+- Contract change (DEC-31): the answer of `generate_tailored_requirements` (MCP tool and the facade's inline POST /api/tailored-requirements) carries `hleg_requirements` on each tailored requirement and `hleg_caveat` on the answer, a deterministic join over accepted `partially_operationalizes` and `supports` alignments, added after the judge; the judge never sees it and no status, verdict or confidence changes. The on-demand answer and its signed record are unchanged. New free route POST /api/hleg-requirements takes `norm_id_groups` and answers one list per group, with the caveat.
+
 ### B182: every published build carries core_nodes.txt (2026-11-05)
 - The facade's `/api/units` reads the core ids from `core_nodes.txt` in the served directory and answered 503 "core node list unavailable" on every published build since B177, because the builds under the thesis's builds folder were assembled without the file (it lives in `data/graph_dumps/core_nodes.txt`); the dashboard's campaign builder and review item sources read that route. The file is now copied beside the published files of the four builds (thesis repository), and `scripts/activate_build.py` refuses to activate a directory without it, naming the cause. The report's title and kicker read "TERE4AI applicable and tailored requirements report" (Jose, 2026-11-05, closing B181's ruling R19).
 

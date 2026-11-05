@@ -271,7 +271,9 @@ directly.
 cd web && npm run build && npx next start -p 3111
 ```
 
-/api/classify and /api/requirements are deterministic and free.
+/api/classify and /api/requirements are deterministic and free, and so is
+/api/hleg-requirements (DEC-31), which takes groups of norm ids and answers the HLEG
+requirements each group is aligned to, with the caveat.
 /api/evidence and /api/tailored-requirements perform PAID model calls (OpenAI generator
 plus Anthropic runtime grounding judge; keys in .env, see .env.example), and
 /api/elicit a PAID generator call (fact elicitation, no judge); all three
