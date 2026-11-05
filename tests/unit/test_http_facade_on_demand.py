@@ -68,16 +68,16 @@ def _build(client) -> str:
     return client.get("/api/health").json()["norms_build"]
 
 
-def _backlog(client, **over):
+def _tailored_requirements(client, **over):
     body = {"norm_ids": [ACCEPTED_NORM_ID_2, ACCEPTED_NORM_ID], "system_context": CONTEXT, "judge": "on_demand", "caller": CALLER, **over}
     if "expected_norms_build" not in over:
         body["expected_norms_build"] = _build(client)
     return client.post("/api/tailored-requirements", json=body)
 
 
-def test_an_on_demand_backlog_is_not_checked_and_signs_its_items_for_its_caller(client, generator_only):
+def test_on_demand_tailored_requirements_are_not_checked_and_signed_for_their_caller(client, generator_only):
     generator_only({ACCEPTED_NORM_ID: json.dumps({"tailored_requirements": TAILORED_REQUIREMENTS})})
-    response = _backlog(client)
+    response = _tailored_requirements(client)
     assert response.status_code == 200 and response.headers[facade.PAID_HEADER] == "true"
     envelope = response.json()
     assert (envelope["status"], envelope["judge_verdict"]) == ("requires_human_review", "not_checked")
@@ -92,7 +92,7 @@ def test_an_on_demand_backlog_is_not_checked_and_signs_its_items_for_its_caller(
 
 def test_another_loaded_norms_build_is_refused_before_any_model_call(client, generator_only):
     generator = generator_only({})
-    response = _backlog(client, expected_norms_build="build-elsewhere")
+    response = _tailored_requirements(client, expected_norms_build="build-elsewhere")
     assert response.status_code == 409
     body = response.json()
     assert body["model_called"] is False and body["expected_norms_build"] == "build-elsewhere"
@@ -106,7 +106,7 @@ def test_a_missing_signing_key_or_generator_setting_is_refused_before_any_model_
         raise ModelConfigError("configuration error: TERE4AI_ANSWER_SIGNING_KEY is not set")
 
     monkeypatch.setattr(facade, "load_signing_key", missing)
-    response = _backlog(client)
+    response = _tailored_requirements(client)
     assert (response.status_code, response.json()["model_called"]) == (503, False)
     assert "TERE4AI_ANSWER_SIGNING_KEY" in response.json()["error"]
     monkeypatch.setattr(facade, "load_signing_key", lambda env=None: KEY)
@@ -115,7 +115,7 @@ def test_a_missing_signing_key_or_generator_setting_is_refused_before_any_model_
         raise ModelConfigError("missing model configuration for the generator: OPENAI_API_KEY")
 
     monkeypatch.setattr(facade, "load_generator_config", no_generator)
-    response = _backlog(client)
+    response = _tailored_requirements(client)
     assert (response.status_code, response.json()["model_called"]) == (503, False)
     assert generator.calls == []
 
@@ -124,7 +124,7 @@ def test_an_unloaded_graph_on_demand_says_no_model_was_called(client, generator_
     generator = generator_only({})
     build = _build(client)
     client.app.state.served = replace(client.app.state.served, load_error="graph dumps unavailable: mock")
-    on_demand = _backlog(client, expected_norms_build=build)
+    on_demand = _tailored_requirements(client, expected_norms_build=build)
     inline = client.post("/api/tailored-requirements", json={"norm_ids": [ACCEPTED_NORM_ID], "system_context": CONTEXT})
     assert (on_demand.status_code, on_demand.json()["model_called"]) == (503, False)
     assert inline.status_code == 503 and "model_called" not in inline.json()
@@ -133,19 +133,19 @@ def test_an_unloaded_graph_on_demand_says_no_model_was_called(client, generator_
 
 def test_an_on_demand_request_names_its_build_and_its_caller(client, generator_only):
     generator_only({})
-    assert _backlog(client, caller=None).status_code == 422
-    assert _backlog(client, expected_norms_build=None).status_code == 422
+    assert _tailored_requirements(client, caller=None).status_code == 422
+    assert _tailored_requirements(client, expected_norms_build=None).status_code == 422
 
 
 def test_an_unknown_norm_on_demand_says_no_model_was_called(client, generator_only):
     generator_only({})
-    response = _backlog(client, norm_ids=["norm:eu-ai-act:article-999:n1"])
+    response = _tailored_requirements(client, norm_ids=["norm:eu-ai-act:article-999:n1"])
     assert (response.status_code, response.json()["model_called"]) == (404, False)
 
 
 def test_a_degraded_on_demand_answer_is_not_signed(client, generator_only):
     generator_only({ACCEPTED_NORM_ID: "not json"})
-    envelope = _backlog(client).json()
+    envelope = _tailored_requirements(client).json()
     assert envelope["judge_verdict"] != "not_checked" and "signed_record" not in envelope["answer"]
 
 
@@ -167,16 +167,16 @@ def test_a_generator_failure_is_billed_and_a_deleted_source_or_another_build_is_
     generator = generator_only({})
     real = facade.backlog_tool.generate_tailored_requirements_on_demand
     monkeypatch.setattr(facade.backlog_tool, "generate_tailored_requirements_on_demand", broken)
-    response = _backlog(client)
+    response = _tailored_requirements(client)
     assert (response.status_code, response.json()["model_called"]) == (502, True)
     monkeypatch.setattr(facade.backlog_tool, "generate_tailored_requirements_on_demand", real)
     norms = client.app.state.served.norms
     norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
     moved = {**norm, "norm_id": "norm:eu-ai-act:article-10:paragraph-5:n9", "source_node_id": "eu-ai-act:article-10:paragraph-5"}
     monkeypatch.setitem(norms, "norms", [*norms["norms"], moved])
-    deleted = _backlog(client, norm_ids=[moved["norm_id"]])
+    deleted = _tailored_requirements(client, norm_ids=[moved["norm_id"]])
     assert (deleted.status_code, deleted.json()["model_called"]) == (422, False)
-    unknown = _backlog(client, norm_ids=["norm:eu-ai-act:article-999:n1"], expected_norms_build="build-elsewhere")
+    unknown = _tailored_requirements(client, norm_ids=["norm:eu-ai-act:article-999:n1"], expected_norms_build="build-elsewhere")
     assert (unknown.status_code, unknown.json()["model_called"]) == (409, False)
     assert generator.calls == []
 
@@ -193,7 +193,7 @@ def test_an_answer_the_facade_cannot_sign_is_returned_unsigned_with_its_reason(c
         raise RecordError("the record's core holds a character UTF-8 cannot write (a lone surrogate)")
 
     monkeypatch.setattr(facade, "build_record", unsignable)
-    response = _backlog(client)
+    response = _tailored_requirements(client)
     assert response.status_code == 200 and response.headers[facade.PAID_HEADER] == "true"
     answer = response.json()["answer"]
     assert "signed_record" not in answer and "signature" not in answer
@@ -210,7 +210,7 @@ def test_a_norm_not_accepted_on_demand_is_refused_before_any_model_call_and_not_
     norm = next(n for n in norms["norms"] if n.get("judge_verdict") == "accepted")
     rejected = {**norm, "norm_id": "norm:eu-ai-act:article-9:paragraph-1:n99", "judge_verdict": "rejected"}
     monkeypatch.setitem(norms, "norms", [*norms["norms"], rejected])
-    response = _backlog(client, norm_ids=[rejected["norm_id"]])
+    response = _tailored_requirements(client, norm_ids=[rejected["norm_id"]])
     assert (response.status_code, response.json()["model_called"]) == (422, False)
     assert facade.PAID_HEADER not in response.headers
     assert "judge-accepted" in response.json()["error"] and rejected["norm_id"] in response.json()["error"]
@@ -227,7 +227,7 @@ def test_a_value_error_after_the_generator_is_reached_is_a_paid_failure(client, 
         raise ValueError("a check after the generator's request")
 
     monkeypatch.setattr(facade.backlog_tool, "generate_tailored_requirements_on_demand", late)
-    response = _backlog(client)
+    response = _tailored_requirements(client)
     assert (response.status_code, response.json()["model_called"]) == (502, True)
 
 
@@ -237,7 +237,7 @@ def test_a_value_error_after_the_generator_is_reached_is_a_paid_failure(client, 
 def test_a_generated_nul_is_replaced_before_signing_and_said_in_the_notes(client, generator_only):
     tailored_requirements = [{**TAILORED_REQUIREMENTS[0], "title": "Keep\u0000 a log", "suggested_evidence": ["a\u0000plan"]}]
     generator_only({ACCEPTED_NORM_ID: json.dumps({"tailored_requirements": tailored_requirements})})
-    response = _backlog(client)
+    response = _tailored_requirements(client)
     assert response.status_code == 200
     text = response.text
     assert "\\u0000" not in text and "\u0000" not in text

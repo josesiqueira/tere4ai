@@ -594,7 +594,7 @@ def test_report_source_files_free_of_banned_terms_and_dashes():
 # ---------------------------------------------------------------------------
 
 
-def test_prohibited_tier_report_offers_no_backlog_and_no_trace_rows():
+def test_prohibited_tier_report_offers_no_tailored_requirements_and_no_trace_rows():
     """Guardrail: a prohibited-practice session states that no requirement backlog can make the system permissible, lists no violated-principles grading, and renders zero trace rows."""
     scan = _scan("moodwatch-prohibited")
     assert _flex("no requirement backlog can make the system permissible").search(

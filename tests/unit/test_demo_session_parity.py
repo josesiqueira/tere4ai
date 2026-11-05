@@ -19,10 +19,11 @@ from pathlib import Path
 import pytest
 
 from tere4ai.elicit_features.elicitor import features_of_record
-from tere4ai.mcp_server.classify import classify_ai_system
+from tere4ai.mcp_server.classify import classify_ai_system, prohibited_practice_note_of_record
 from tere4ai.mcp_server.requirements import (
     get_applicable_requirements,
     prohibited_message_of_record,
+    prohibited_note_of_record,
 )
 
 SESSIONS_DIR = Path(__file__).parent.parent / "fixtures" / "demo_sessions"
@@ -54,12 +55,20 @@ def _mask(envelope):
 
 def _of_record(envelope):
     """B181 (DEC-30): a session recorded before the rename keeps its
-    prohibited sentence; it is read through prohibited_message_of_record, a
-    copy, never the recorded line itself."""
+    prohibited sentences (the requirements message, the requirements note
+    and the classification note); each is read through its of-record
+    function, a copy, never the recorded line itself."""
+    out = dict(envelope)
     answer = envelope.get("answer")
-    if not (isinstance(answer, dict) and isinstance(answer.get("message"), str)):
-        return envelope
-    return {**envelope, "answer": {**answer, "message": prohibited_message_of_record(answer["message"])}}
+    if isinstance(answer, dict) and isinstance(answer.get("message"), str):
+        out["answer"] = {**answer, "message": prohibited_message_of_record(answer["message"])}
+    notes = envelope.get("legal_status_notes")
+    if isinstance(notes, list):
+        out["legal_status_notes"] = [
+            prohibited_practice_note_of_record(prohibited_note_of_record(n)) if isinstance(n, str) else n
+            for n in notes
+        ]
+    return out
 
 
 def test_recorded_spamguard_session_replays_identically(dump):
@@ -71,7 +80,7 @@ def test_recorded_spamguard_session_replays_identically(dump):
             continue
         # B160 ruling R6: the recorded request names the fact as it was named then
         live = classify_ai_system(features_of_record(line["request"]["features"]), dump)
-        assert _mask(live) == _mask(line["envelope"])
+        assert _mask(live) == _mask(_of_record(line["envelope"]))
 
 
 @pytest.mark.skipif(not NORMS_PATH.is_file(), reason="norms_core.json dump not built")

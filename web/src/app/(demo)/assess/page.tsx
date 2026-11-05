@@ -1670,7 +1670,7 @@ export default function AssessPage() {
               </div>
               {risk === "unacceptable_risk" && (
                 <p className="text-sm text-destructive">
-                  Prohibited AI practice under Article 5: no applicable requirement can make
+                  Prohibited AI practice under Article 5: no tailored requirement can make
                   this system permissible. Seek legal review.
                 </p>
               )}

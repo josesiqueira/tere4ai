@@ -210,7 +210,7 @@ def test_evidence_response_is_a_calibrated_envelope(client, fake_models):
     assert_section8_envelope(env)
 
 
-def test_backlog_response_is_a_calibrated_envelope(client, fake_models):
+def test_tailored_requirements_response_is_a_calibrated_envelope(client, fake_models):
     gen_response = json.dumps(
         {
             "tailored_requirements": [

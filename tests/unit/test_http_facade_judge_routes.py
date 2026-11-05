@@ -1,6 +1,6 @@
 """DEC-24 (spec G D-G74 (3), (4), rulings S52, S53, S69, S73, S84): the judge
-route /api/tailored-requirements/judge judges a signed generator-only backlog and nothing
-else (B138 builds phase 5; /api/evidence/judge is B140's). Every check comes
+route /api/tailored-requirements/judge judges signed generator-only tailored requirements and
+nothing else (B138 builds phase 5; /api/evidence/judge is B140's). Every check comes
 before any model call; every field sent apart from the record is compared
 with it. FakeClient only: no model API is called."""
 
@@ -74,7 +74,7 @@ def _judge(client, answer, **over):
     return client.post("/api/tailored-requirements/judge", json=_body(answer, **over))
 
 
-def test_a_signed_backlog_is_judged_and_the_route_returns_the_judge_part_only(client, models):
+def test_signed_tailored_requirements_are_judged_and_the_route_returns_the_judge_part_only(client, models):
     answer = _answer(client)
     reordered = json.loads(json.dumps(answer["signed_record"], sort_keys=True))  # a jsonb copy's order
     response = _judge(client, answer, signed_record=reordered)

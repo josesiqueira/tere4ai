@@ -1738,3 +1738,35 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
         assert full["answer"].pop("annex_i_section") is None
     core["generated_at"] = full["generated_at"] = "MASKED"
     assert full == core
+
+
+def test_the_prohibited_practice_note_names_a_tailored_requirement_and_reads_a_recorded_one_as_live(dump):
+    """B181 (DEC-30): each Article 5 hit's note says no tailored requirement
+    can make the system permissible; the line a session recorded before B181
+    keeps is read as the live one, any other text unchanged."""
+    from tere4ai.mcp_server.classify import (
+        PROHIBITED_PRACTICE_NOTE_END,
+        PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181,
+        prohibited_practice_note_of_record,
+    )
+
+    envelope = classify_ai_system(
+        {
+            "description": "Deepfake intimate content generator used for coercion.",
+            "flags": {
+                "social_scoring": False,
+                "subliminal_or_manipulative": True,
+                "causes_significant_harm": True,
+            },
+        },
+        dump,
+    )
+    assert envelope["answer"]["risk_category"] == "unacceptable_risk"
+    notes = [n for n in envelope["legal_status_notes"] if n.endswith(PROHIBITED_PRACTICE_NOTE_END)]
+    assert notes
+    assert "no tailored requirement can make the system permissible" in PROHIBITED_PRACTICE_NOTE_END
+    assert not any(PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181 in n for n in envelope["legal_status_notes"])
+    recorded = notes[0][: -len(PROHIBITED_PRACTICE_NOTE_END)] + PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181
+    assert prohibited_practice_note_of_record(recorded) == notes[0]
+    other = "eu-ai-act:article-50: a note of another kind"
+    assert prohibited_practice_note_of_record(other) == other

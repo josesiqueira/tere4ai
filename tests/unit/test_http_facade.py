@@ -305,7 +305,7 @@ def test_evidence_known_norm_passes_envelope_through_with_paid_header(client, fa
     assert envelope["source_spans"] == [{"span_id": "span:009.001"}]
 
 
-def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
+def test_tailored_requirements_cite_only_input_norm_ids(client, fake_models):
     gen_response = json.dumps(
         {
             "tailored_requirements": [
@@ -350,7 +350,7 @@ def test_backlog_items_cite_only_input_norm_ids(client, fake_models):
     assert envelope["judge_verdict"] == "accepted"
 
 
-def test_backlog_unknown_norm_ids_return_clean_404(client, fake_models):
+def test_tailored_requirements_unknown_norm_ids_return_clean_404(client, fake_models):
     fake_models({}, {})
     response = client.post(
         "/api/tailored-requirements",
@@ -1102,7 +1102,7 @@ def test_units_503_without_a_core_node_list(tmp_path):
     assert response.json() == {"error": "core node list unavailable"}
 
 
-def test_backlog_refuses_a_norm_on_a_deleted_unit_before_any_model_call(client, monkeypatch):
+def test_tailored_requirements_refuse_a_norm_on_a_deleted_unit_before_any_model_call(client, monkeypatch):
     """B132 (D-G68 (3)): never a backlog from wording the Omnibus deleted; the
     refusal comes before the paid clients are built."""
     def no_paid_clients():

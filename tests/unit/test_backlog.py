@@ -1057,6 +1057,18 @@ def test_a_v4_run_reads_tailored_requirements_and_sends_the_new_tool_name(tmp_pa
     assert answer["judge_type_views"] == [{"judge_type_agrees": False, "judge_requirement_type": "process"}]
 
 
+def test_a_v4_reply_under_the_old_key_items_degrades_by_name(tmp_path):
+    """A v4 generator reply that still lists under items is unusable: the
+    answer degrades, names the missing tailored_requirements list, and no
+    judge request is made."""
+    envelope, _, judge, _ = run_v4(
+        gen_reply("items", typed_tailored_requirement("Retain logs", [KEY], "functional")),
+        JUDGE_ACCEPT, tmp_path)
+    assert envelope["status"] == "requires_human_review"
+    assert "generator JSON lacks a 'tailored_requirements' list" in json.dumps(envelope)
+    assert judge.calls == []
+
+
 def test_v4_type_views_on_the_old_position_key_record_null(tmp_path):
     """A v4 judge reply that still numbers its views on item records null
     views and keeps its verdict."""

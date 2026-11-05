@@ -10,7 +10,7 @@
 TERE4AI v2: an open-source MCP server that puts the EU AI Act (Regulation
 2024/1689) inside a coding agent's tool loop as a judge-gated knowledge
 graph. An agent building an AI system asks what the law requires of it and
-gets back a deterministic risk classification, scoped engineering
+gets back a deterministic risk classification, scoped applicable
 requirements traced to byte-exact source spans, judged HLEG ethics
 alignments, requirement-to-code traceability, and generated audit-grade
 reports. The rule ladder alone decides the level. A model's proposal is

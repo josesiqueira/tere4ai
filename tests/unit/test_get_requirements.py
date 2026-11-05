@@ -765,3 +765,25 @@ def test_the_prohibited_sentence_of_a_session_recorded_before_b181_reads_as_the_
     other = "Minimal risk: no requirements are served."
     assert prohibited_message_of_record(other) == other
     assert prohibited_message_of_record(PROHIBITED_MESSAGE) == PROHIBITED_MESSAGE
+
+
+def test_the_prohibited_note_names_applicable_requirements_and_reads_a_recorded_one_as_live(dump, norms_payload):
+    """B181 (DEC-30): the legal_status_notes line of a prohibited answer says
+    no applicable requirements are served; the line a session recorded before
+    B181 keeps is read as the live one, any other text unchanged."""
+    from tere4ai.mcp_server.requirements import (
+        PROHIBITED_NOTE,
+        PROHIBITED_NOTE_BEFORE_B181,
+        prohibited_note_of_record,
+    )
+
+    envelope = get_applicable_requirements(
+        {"risk_category": "unacceptable_risk"}, norms_payload, dump
+    )
+    assert envelope["legal_status_notes"] == [f"eu-ai-act:article-5: {PROHIBITED_NOTE}"]
+    assert "no applicable requirements are served for prohibited systems" in PROHIBITED_NOTE
+    assert "engineering" not in PROHIBITED_NOTE
+    recorded = f"eu-ai-act:article-5: {PROHIBITED_NOTE_BEFORE_B181}"
+    assert prohibited_note_of_record(recorded) == envelope["legal_status_notes"][0]
+    other = "eu-ai-act:article-50: a note of another kind"
+    assert prohibited_note_of_record(other) == other

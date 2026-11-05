@@ -23,6 +23,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 @implements: DEC-08, DEC-10 (partial: runtime classification)
 @implements: DEC-18
 @implements: DEC-23
+@implements: DEC-30 (the unacceptable_risk note names a tailored requirement; the sentence of record)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -472,6 +473,28 @@ HIGH_RISK_ROUTE_ARTICLE_6_2 = "article_6_2"
 # R39: the words that mark an unknown Annex III fact among the missing facts,
 # which get_applicable_requirements reads for a Section B system.
 ANNEX_III_UNKNOWN_TAG = "(Annex III high-risk relevant, Article 6(2))"
+# The end of the legal_status_notes line each Article 5 hit of an
+# unacceptable_risk answer gives.
+PROHIBITED_PRACTICE_NOTE_END = (
+    "placing on the market, putting into service, and use are banned, so no "
+    "tailored requirement can make the system permissible"
+)
+# B181 (DEC-30): the end a session recorded before the rename keeps; the
+# parity test reads it through prohibited_practice_note_of_record.
+PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181 = (
+    "placing on the market, putting into service, and use are banned, so no "
+    "engineering requirement can make the system permissible"
+)
+
+
+def prohibited_practice_note_of_record(text: str) -> str:
+    """The live line for a line a session recorded before B181 holds (its end
+    PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181); any other text unchanged."""
+    if text.endswith("; " + PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181):
+        return text[: -len(PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181)] + PROHIBITED_PRACTICE_NOTE_END
+    return text
+
+
 # R26: a Section B product whose facts also match an Annex III category.
 SECTION_B_ALSO_ANNEX_III_NOTE = (
     f"{ARTICLE_2_PARAGRAPH_2}: the product's legislation is listed in Annex I Section B, so the system is "
@@ -905,9 +928,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 )
             legal_status_notes.append(
                 f"{node_id}: this practice is a prohibited AI practice under "
-                f"Article 5(1) ({fragment}); placing on the market, putting "
-                "into service, and use are banned, so no engineering "
-                "requirement can make the system permissible"
+                f"Article 5(1) ({fragment}); {PROHIBITED_PRACTICE_NOTE_END}"
             )
         missing_facts.extend(citations.unresolved)
         return make_envelope(

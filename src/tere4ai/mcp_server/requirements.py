@@ -94,6 +94,27 @@ def prohibited_message_of_record(text: str) -> str:
     """The live PROHIBITED_MESSAGE for the sentence a session recorded before
     B181 holds; any other text unchanged."""
     return PROHIBITED_MESSAGE if text == PROHIBITED_MESSAGE_BEFORE_B181 else text
+
+
+# The legal_status_notes line of a prohibited answer, after "<node id>: ".
+PROHIBITED_NOTE = (
+    "prohibited AI practice under Article 5; no applicable requirements are "
+    "served for prohibited systems"
+)
+# B181 (DEC-30): the line a session recorded before the rename keeps; the
+# parity test reads it through prohibited_note_of_record.
+PROHIBITED_NOTE_BEFORE_B181 = (
+    "prohibited AI practice under Article 5; no engineering requirements are "
+    "generated for prohibited systems"
+)
+
+
+def prohibited_note_of_record(text: str) -> str:
+    """The live "<node id>: PROHIBITED_NOTE" for the line a session recorded
+    before B181 holds; any other text unchanged."""
+    if text.endswith(": " + PROHIBITED_NOTE_BEFORE_B181):
+        return text[: -len(PROHIBITED_NOTE_BEFORE_B181)] + PROHIBITED_NOTE
+    return text
 MINIMAL_MESSAGE = (
     "No Annex III high-risk category, Article 5 prohibition, or Article 50 "
     "transparency obligation matched the provided facts, so no requirements "
@@ -338,8 +359,7 @@ def get_applicable_requirements(
             source_nodes=cited,
             source_spans=spans,
             legal_status_notes=[
-                f"{n}: prohibited AI practice under Article 5; no engineering "
-                "requirements are generated for prohibited systems"
+                f"{n}: {PROHIBITED_NOTE}"
                 for n in cited
             ],
             missing_facts=[

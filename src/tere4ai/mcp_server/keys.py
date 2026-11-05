@@ -24,10 +24,11 @@ Scopes: read_graph, classify, evidence_paid, tailored_requirements_paid
 (the generation of tailored requirements), elicit_paid, admin.
 
 @implements: DEC-30
-A store written before B181 holds the scope value backlog_paid; load_store
-reads it as tailored_requirements_paid through renamed_scopes (ruling R3),
-the file is not rewritten by the read, and the key manager refuses the old
-value at issue.
+A store written before B181 holds the old scope value; load_store reads it
+as tailored_requirements_paid through renamed_scopes (ruling R3), the file
+is not rewritten by the read, a later create_key or revoke_key writes the
+store back with the mapped values (the migration of that file), and the key
+manager refuses the old value at issue.
 """
 
 from __future__ import annotations
@@ -105,6 +106,10 @@ def usage_path() -> Path:
 
 
 def load_store(path: Path | None = None) -> dict[str, Any]:
+    """The key store with every old scope value mapped (SCOPE_RENAMES). The
+    read does not rewrite the file; a later create_key or revoke_key writes
+    the store back with the mapped values, which is the migration of that
+    file."""
     path = path or keys_path()
     if not path.is_file():
         return {"keys": []}

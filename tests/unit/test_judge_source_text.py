@@ -101,7 +101,7 @@ def test_facade_evidence_inline_judge_and_generator_hold_the_source_text(client,
 
 
 @needs_dumps
-def test_facade_backlog_inline_judge_and_generator_hold_the_source_text(client, clients):
+def test_facade_tailored_requirements_inline_judge_and_generator_hold_the_source_text(client, clients):
     texts = [_source_text(client.app, n) for n in (NORM_ID, NORM_ID_2)]
     response = client.post("/api/tailored-requirements", json={"norm_ids": [NORM_ID, NORM_ID_2], "system_context": CONTEXT})
     assert response.status_code == 200
@@ -118,7 +118,7 @@ def _on_demand(client):
 
 
 @needs_dumps
-def test_facade_backlog_on_demand_generator_holds_the_source_text(client, clients, monkeypatch):
+def test_facade_tailored_requirements_on_demand_generator_holds_the_source_text(client, clients, monkeypatch):
     monkeypatch.setattr(facade, "_build_paid_clients", lambda: (_ for _ in ()).throw(AssertionError("inline clients built")))
     text = _source_text(client.app, NORM_ID)
     assert _on_demand(client).status_code == 200
@@ -127,7 +127,7 @@ def test_facade_backlog_on_demand_generator_holds_the_source_text(client, client
 
 
 @needs_dumps
-def test_facade_backlog_judge_route_judge_holds_the_source_text(client, clients):
+def test_facade_tailored_requirements_judge_route_judge_holds_the_source_text(client, clients):
     text = _source_text(client.app, NORM_ID)
     answer = _on_demand(client).json()["answer"]
     body = {"norm_ids": [NORM_ID], "system_context": CONTEXT, "signed_record": answer["signed_record"],
