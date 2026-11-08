@@ -58,6 +58,11 @@ venue found; treat as preprint.
 Act Compliant Requirements", Siqueira de Cerqueira et al., REFSQ 2026 Posters
 and Tools, CEUR-WS Vol. 4208 (pt-short4). CORE.
 
+Identifier added 2026-11-08 for the paper references check: URL
+https://ceur-ws.org/Vol-4208/pt-short4.pdf, the paper's file as linked from
+the table of contents of CEUR-WS Vol-4208 (entry pt-short4), looked up on
+2026-11-08; the held text prints no DOI.
+
 **[SELF-05]** PEER. "Can We Trust AI Agents? A Case Study of an LLM-Based
 Multi-Agent System for Ethical AI", Siqueira de Cerqueira, Agbese, Rousi, Xi,
 Hamari, Abrahamsson, 8th Conference on Technology Ethics (TETHICS 2025),
@@ -93,6 +98,16 @@ intelligence (Artificial Intelligence Act), Official Journal of the EU, 2024.
 CELEX 32024R1689, ELI http://data.europa.eu/eli/reg/2024/1689/oj. VERIFIED. CORE.
 Grounds: authoritative legal source; Layer 0/1 primary input.
 
+Title added 2026-11-08 for the paper references check, as printed in the
+Official Journal header of the held text (../thesis/refs/REF-01_AIAct.txt,
+made from the EUR-Lex snapshot of 2026-07-08; OJ L series, 2024/1689,
+12.7.2024); the title above leaves out the list of amended acts: Regulation
+(EU) 2024/1689 of the European Parliament and of the Council of 13 June 2024
+laying down harmonised rules on artificial intelligence and amending
+Regulations (EC) No 300/2008, (EU) No 167/2013, (EU) No 168/2013, (EU)
+2018/858, (EU) 2018/1139 and (EU) 2019/2144 and Directives 2014/90/EU, (EU)
+2016/797 and (EU) 2020/1828 (Artificial Intelligence Act).
+
 **[REF-02]** OFF. Digital Omnibus on AI, Regulation (EU) 2026/1744 of the
 European Parliament and of the Council of 8 July 2026, amending Regulations
 (EU) 2024/1689, (EU) 2018/1139 and (EU) 2023/1230, OJ L, 2026/1744, 24.7.2026,
@@ -101,6 +116,15 @@ CELEX 32026R1744 (adopted from proposal COM(2025) 836 final, procedure
 versioning and amending instrument (OVR-3). Note: it amends Regulation (EU)
 2024/1689 (definitions, prohibitions, delayed high-risk application dates), so
 any Act corpus extracted before 24.7.2026 predates these amendments.
+
+Title added 2026-11-08 for the paper references check, as printed in the
+Official Journal header of the held text
+(../thesis/refs/REF-02_DigitalOmnibusAI.txt, made from the EUR-Lex snapshot
+of 2026-09-02): Regulation (EU) 2026/1744 of the European Parliament and of
+the Council of 8 July 2026 amending Regulations (EU) 2024/1689, (EU)
+2018/1139 and (EU) 2023/1230 as regards the simplification of the
+implementation of harmonised rules on artificial intelligence (Digital
+Omnibus on AI).
 
 **[REF-03]** STD. Akoma Ntoso Version 1.0 (LegalDocML), OASIS Standard, 2018.
 VERIFIED. CORE. Grounds: legal document hierarchy; Layer 1 structure model.
@@ -136,16 +160,29 @@ Hernandez et al., AI and Ethics (Springer), 2025, DOI
 10.1007/s43681-025-00708-6 (preprint arXiv:2408.11925). VERIFIED. CORE. Grounds:
 AI Act to standards mapping; Layer 3; standards mapping deferred (OPEN-6).
 
-**[REF-11]** PEER. "Approaching the AI Act with AI: LLMs and knowledge graphs to
+**[REF-11]** PEER. "Approaching the AI Act... with AI: LLMs and knowledge graphs to
 extract and analyse obligations", Galli et al., Computer Law and Security Review,
 2026, DOI 10.1016/j.clsr.2025.106230. VERIFIED. CORE. Grounds: 4-stage deontic
 obligation-extraction pipeline; NormativeStatement as first-class; extraction
 judge.
 
-**[REF-12]** PEER. "Lost in EU Regulation? Don't Worry, AI Found the Obligation",
+Corrected 2026-11-08 for the paper references check: the title above read
+"Approaching the AI Act with AI"; the first page of the held text
+(../thesis/refs/REF-11_ApproachingAIAct.txt) and the Crossref record of the DOI
+(looked up 2026-11-08) print "Approaching the AI Act... with AI".
+
+**[REF-12]** PEER. "Lost in EU Regulation? Don't Worry, AI Found the Obligation: Extracting and Representing Legal Obligations in the GDPR the DSA and the AI Act",
 Raulino Dal Pont et al., ICAIL 2025 (ACM), DOI 10.1145/3769126.3769260.
 VERIFIED. CORE. Grounds: deontic obligation KG; actor clustering; cross-reference
 and conflict detection; Layer 2 and canonicalisation.
+
+Corrected 2026-11-08 for the paper references check: the title above gave
+the main title only (as the Crossref record of the DOI does, looked up
+2026-11-08); the subtitle is added as the held text prints it in its ACM
+Reference Format line (../thesis/refs/REF-12_LostInEURegulation.txt, page
+129): "Lost in EU Regulation? Don't Worry, AI Found the Obligation":
+Extracting and Representing Legal Obligations in the GDPR the DSA and the AI
+Act. The first author is printed as Thiago Dal Pont.
 
 **[REF-13]** PRE. "EURO-5K: When Does Domain Pretraining Matter? Benchmarking
 Transformers for EU Reporting Obligation Extraction", Koniaris et al.,
@@ -268,6 +305,12 @@ Grounds: the ethics layer (Layer 3). Redistribution needs a license check.
 on AI, European Commission, 2019. VERIFIED. CORE. Grounds: the seven
 requirements and four ethical principles; ethics-layer source. Held in
 data/snapshots/.
+
+Identifier added 2026-11-08 for the paper references check: DOI
+10.2759/346720, printed for the PDF edition (ISBN 978-92-76-11998-2) in the
+imprint on PDF page 2 of the held text (../thesis/refs/ADD-01_HLEGEthicsGuidelines.txt,
+made from data/snapshots/hleg_ethics_guidelines_2019_en.pdf); the same imprint
+gives DOI 10.2759/177365 for the print edition.
 
 **[ADD-02]** PEER. "Trust in Automation: Designing for Appropriate Reliance",
 Lee and See, Human Factors 46(1), 2004, DOI 10.1518/hfes.46.1.50_30392.
@@ -473,11 +516,15 @@ once published]. VERIFIED. CORE. Grounds: generic requirement-to-code tracing
 is occupied; the last-mile claim cedes it and keeps the legal-origin chain.
 
 **[ADD-39]** PEER. "From Law to Gherkin: A Human-Centred Quasi-Experiment on
-the Quality of LLM-Generated Behavioural Specifications from Food-Safety
+the Quality of LLM-Generated Behavioral Specifications from Food-Safety
 Regulations", Hassani, Sabetzadeh, Amyot, Information and Software Technology
 195 (2026) 108122, DOI 10.1016/j.infsof.2026.108122 (open access). VERIFIED.
 CORE. Grounds: closest evaluated regulation-to-specification endpoint short
 of code; bounds the last-mile claim from above.
+
+Corrected 2026-11-08 for the paper references check: the title above read
+"Behavioural"; the first page of the held text
+(../thesis/refs/ADD-39_LawToGherkin.txt) prints "behavioral".
 
 **[ADD-40]** PEER. "Classifier or Prompt: A Case Study on Legal Requirements
 Traceability", Etezadi, Abualhaija, Arora, Briand, Empirical Software
@@ -712,6 +759,10 @@ body. VERIFIED 2026-10-02. CORE. Grounds: "IRR/IRA broken down by property
 or wave of analysis" as a desirable attribute, and "Calculating multiple
 IRR/IRA measures and reporting only the most favourable (p-hacking)" as an
 antipattern (D-G40).
+
+Identifier added 2026-11-08 for the paper references check (the file at the
+commit above, checked to resolve on 2026-11-08), URL
+https://github.com/acmsigsoft/EmpiricalStandards/blob/554118c/docs/supplements/InterRaterReliabilityAndAgreement.md
 
 **[ADD-68]** STD. ACM SIGSOFT Empirical Standards, Questionnaire Surveys,
 Ralph et al., github.com/acmsigsoft/EmpiricalStandards,
