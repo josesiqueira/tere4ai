@@ -398,7 +398,7 @@ Technology 178 (2025) 107622. VERIFIED (read in full 2026-09-01). CORE.
 Grounds: the field map (280 studies to 2023-12-31, so pre-LLM); abstractness
 of regulations 96/255; tool support gap 28/249 vs methodology 173/249.
 
-**[ADD-30]** PRE. "From Regulation to Requirements: An Automated Requirement
+**[ADD-30]** PEER. "From Regulation to Requirements: An Automated Requirement
 Derivation and Explanation Pipeline", Nair and Anish (TCS), arXiv:2607.04448v1
 [cs.SE], 5 Jul 2026, no version of record yet. VERIFIED (read in full
 2026-09-02). CORE. Grounds: closest overlap; GPT-5 pipeline deriving
@@ -412,6 +412,7 @@ IEEE 34th International Requirements Engineering Conference (RE), IEEE, DOI
 Jose on 2026-11-05. Its research questions and the passages the REFSQ 2027
 work quotes are word for word those of the preprint above; the PRE label above
 is kept as written on its date, and the published version is the one to cite.
+Leading tag set to PEER 2026-11-08 (the published version is held; the check reads the leading tag).
 
 **[ADD-31]** PEER. "Addressing Legal Requirements in Requirements Engineering",
 Otto and Anton, 15th IEEE RE Conference (RE 2007), pp. 5-14, DOI
@@ -573,7 +574,7 @@ access; 2896 citations on Crossref, 2026-09-26). VERIFIED. SUPPORTING.
 Grounds: a study protocol kept under version control (p. 141), the original
 of the sentence ADD-46 reuses.
 
-**[ADD-52]** PRE. "Guidelines for Empirical Studies in Software Engineering
+**[ADD-52]** PEER. "Guidelines for Empirical Studies in Software Engineering
 involving Large Language Models", Baltes, Angermeir, Arora, et al. (22
 authors), arXiv:2508.15503, held as version 5 (2026-05-10); the arXiv record
 says accepted in Empirical Software Engineering [VERIFY: journal DOI once
@@ -588,6 +589,7 @@ supplied by Jose on 2026-11-05, who chose it for the REFSQ 2027 paper ("this is
 good because has paul ralph inside, let suse this"). The published version is
 the one to cite; the PRE label and the [VERIFY] above are kept as written on
 their date, and this entry closes that [VERIFY].
+Leading tag set to PEER 2026-11-08 (the published version is held; the check reads the leading tag).
 
 **[ADD-53]** PEER. "Trust or Escalate: LLM Judges with Provable Guarantees
 for Human Agreement", Jung, Brahman, Choi, ICLR 2025 (official proceedings
@@ -1964,6 +1966,34 @@ no stage, so it is not an ablation. Canedo is a co-author of the owner on the
 REFSQ 2027 draft. Staged in thesis refs/triage-llm-judge-comparison/ and
 approved by Jose on 2026-11-05 ("approve this paper as source").
 
+**[ADD-138]** PEER. "Z-Inspection: A Process to Assess Trustworthy AI", Zicari
+et al., IEEE Transactions on Technology and Society 2(2), 2021, pp. 83-97, DOI
+10.1109/TTS.2021.3066209 (passes the bar by peer review). The publisher's
+typeset article, held as ../thesis/refs/ADD-138_ZicariZInspection.pdf (15 PDF
+pages, printed page = PDF page + 82). VERIFIED 2026-11-05 (title, authors,
+journal, volume, issue and pages from the first page). SUPPORTING. Grounds:
+related work for the REFSQ 2027 paper, approved by Jose on 2026-11-05 ("i want
+z-inspection to be cited as related work"): "We then ask the experts to map the ethical issues and flags to the seven requirements established by the EU High-Level Experts Guidelines for Trustworthy AI (HLEG)" (p. 88). Limits: it starts
+from an assessment by people, not from the Act, and generates no requirements.
+Moved 2026-11-08 out of the Dropped heading, where it had been appended by mistake; Jose: "we keep z-inspiection".
+
+**[ADD-139]** PEER. "Simplifying software compliance: AI technologies in drafting
+technical documentation for the AI Act", Sovrano, Hine, Anzolut, Bacchelli,
+Empirical Software Engineering 30(4), article 91, 2025, DOI
+10.1007/s10664-025-10645-x (20 citations on Crossref and 26 on OpenAlex,
+2026-11-08; passes the bar by peer review). The publisher's typeset article
+(open access, Springer, accepted 21 March 2025, published online 2 April
+2025), held as ../thesis/refs/ADD-139_SovranoTechDocAIAct.pdf (36 PDF pages,
+printed page = PDF page), fetched 2026-11-08 from the PubMed Central open
+access copy of the published article (PMC11965209), not the submitted
+versions. VERIFIED 2026-11-08 (title, authors, journal, volume, article number,
+DOI, acceptance and publication dates from the first page). SUPPORTING.
+Grounds: related work for the REFSQ 2027 paper, cited in its Background and
+Study Design; AI Act outputs evaluated against legal experts. Jose, 2026-11-08:
+"sovrano is cited in REFSQ and has no register entry, so I need to give you
+the paper right?" (the SEIS paper had not added it, 2026-10-15; this paper
+cites it twice). Note not yet written.
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
@@ -1987,13 +2017,3 @@ reintroduced.
 - ADD-33 (Hasan 2016, IJSSOE systematic classification of regulatory-compliance approaches): dropped 2026-10-08 by Jose as out of date and never obtained; ADD-29 (Kosenkov et al. 2025) covers the ground.
 - ADD-102 (Zapf, Castell, Morawietz and Karch 2016, BMC Medical Research Methodology 16:93, which coefficient and which interval for nominal data): withdrawn 2026-10-12 by Jose as clinical literature ("if this is clinical we dont use it"); its entry stays above, marked WITHDRAWN; ADD-93 (Hayes and Krippendorff 2007) remains the registered source for a bootstrap interval of alpha.
 - ADD-103 (Norman 2010, Advances in Health Sciences Education 15, the robustness of parametric statistics on Likert data) and ADD-104 (Jamieson 2004, Medical Education 38(12), Likert categories as ordinal): withdrawn 2026-10-12 by Jose under the same rule as ADD-102 ("Out, same rule (Recommended)"); their entries stay above, marked WITHDRAWN; the ordinal choice of spec F D-F20 and D-F21 rests on ADD-95 (Krippendorff 2004), with ADD-106 and ADD-105.
-
-**[ADD-138]** PEER. "Z-Inspection: A Process to Assess Trustworthy AI", Zicari
-et al., IEEE Transactions on Technology and Society 2(2), 2021, pp. 83-97, DOI
-10.1109/TTS.2021.3066209 (passes the bar by peer review). The publisher's
-typeset article, held as ../thesis/refs/ADD-138_ZicariZInspection.pdf (15 PDF
-pages, printed page = PDF page + 82). VERIFIED 2026-11-05 (title, authors,
-journal, volume, issue and pages from the first page). SUPPORTING. Grounds:
-related work for the REFSQ 2027 paper, approved by Jose on 2026-11-05 ("i want
-z-inspection to be cited as related work"): "We then ask the experts to map the ethical issues and flags to the seven requirements established by the EU High-Level Experts Guidelines for Trustworthy AI (HLEG)" (p. 88). Limits: it starts
-from an assessment by people, not from the Act, and generates no requirements.
