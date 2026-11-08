@@ -2043,7 +2043,13 @@ Grounds: related work for the REFSQ 2027 paper, cited in its Background and
 Study Design; AI Act outputs evaluated against legal experts. Jose, 2026-11-08:
 "sovrano is cited in REFSQ and has no register entry, so I need to give you
 the paper right?" (the SEIS paper had not added it, 2026-10-15; this paper
-cites it twice). Note not yet written.
+cites it twice). Note written 2026-11-08 (../thesis/refs/notes/ADD-139.md);
+the sentence "Note not yet written" that stood here was true until then.
+Issue added 2026-11-08: the first page prints "Empirical Software Engineering
+(2025) 30:91", without the issue; the issue (4) is from the Crossref record
+(volume 30, issue 4, article number 91, issue published in print July 2025)
+and the OpenAlex record W4409169101 (volume 30, issue 4), both looked up
+2026-11-08.
 
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
