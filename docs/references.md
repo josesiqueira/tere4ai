@@ -1124,6 +1124,12 @@ adopts, the share of draws below a reference value: "The probability, q, of
 failing to achieve amin is displayed for five values of amin ... if this
 research problem demands that reliability must not be below amin = 0.800,
 our reliability data would suggest serious trouble" (manuscript p. 7).
+PUBLISHED TEXT HELD 2026-11-08: Jose obtained the Taylor and Francis
+version through the university; its cover page prints the DOI
+10.1080/19312450709336664 and "Communication Methods and Measures, 1:1,
+77-89". The thesis note now anchors to it (thesis refs/notes/ADD-93.md),
+and the pages above are, in the journal, p. 77 (the abstract) and p. 87
+(the bootstrap reading).
 
 **[ADD-94]** PEER. "The Measurement of Observer Agreement for Categorical
 Data", Landis, Koch, Biometrics 33(1):159-174, March 1977 (the JSTOR scan of
