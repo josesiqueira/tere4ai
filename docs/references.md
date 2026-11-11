@@ -2057,6 +2057,17 @@ Issue added 2026-11-08: the first page prints "Empirical Software Engineering
 and the OpenAlex record W4409169101 (volume 30, issue 4), both looked up
 2026-11-08.
 
+**[ADD-140]** PEER. "Rethinking Legal Compliance Automation: Opportunities with
+Large Language Models", Hassani, Sabetzadeh, Amyot, 2024 IEEE 32nd International
+Requirements Engineering Conference (RE), pp. 432 to 440, 2024, DOI
+10.1109/RE59067.2024.00051 (venue, authors and DOI from the first page of the held
+PDF; pages from the Zotero record). Held as
+../thesis/refs/ADD-140_RethinkingLegalComplianceAutomation.pdf (9 PDF pages),
+supplied by Jose on 2026-11-11 from his Zotero. SUPPORTING. Grounds: background
+for the REFSQ 2027 paper, compliance analysis with language models over a broader
+context than sentences, with explanation and justification. Jose, 2026-11-11: "my hassani has no gherkin ... i just put the file here", then "drop the gherkin paper. register hassani 2024".
+Note written 2026-11-11 (../thesis/refs/notes/ADD-140.md).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
