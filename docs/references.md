@@ -437,7 +437,7 @@ classification guidance (OVR-1).
 **[ADD-29]** PEER. "Systematic mapping study on requirements engineering for
 regulatory compliance of software systems", Kosenkov, Elahidoost, Gorschek,
 Fischbach, Mendez, Unterkalmsteiner, Fucci, Mohanani, Information and Software
-Technology 178 (2025) 107622. VERIFIED (read in full 2026-09-01). CORE.
+Technology 178 (2025) 107622, DOI 10.1016/j.infsof.2024.107622 (added 2026-11-11 from the held text). VERIFIED (read in full 2026-09-01). CORE.
 Grounds: the field map (280 studies to 2023-12-31, so pre-LLM); abstractness
 of regulations 96/255; tool support gap 28/249 vs methodology 173/249.
 
