@@ -279,7 +279,9 @@ artificialintelligenceact.eu. VERIFIED. SUPPORTING. Grounds: a baseline and a
 classification-logic source for classify_ai_system. Not the European Commission.
 
 **[REF-31]** STD. Model Context Protocol specification (revision 2026-07-28;
-the spec versions by date and has no semantic version), modelcontextprotocol.io.
+the spec versions by date and has no semantic version), modelcontextprotocol.io,
+https://modelcontextprotocol.io/specification/2026-07-28 (URL added 2026-11-11,
+when the overview page was fetched and held as ../thesis/refs/REF-31_MCPSpecification.txt).
 VERIFIED (revision confirmed current 2026-09-01). SUPPORTING. Grounds: MCP
 security and consent (SEC rules, ACC tools); the core security and trust
 principles (user consent, data privacy, tool safety with tool descriptions
