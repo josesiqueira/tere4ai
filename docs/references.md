@@ -66,8 +66,9 @@ the table of contents of CEUR-WS Vol-4208 (entry pt-short4), looked up on
 **[SELF-05]** PEER. "Can We Trust AI Agents? A Case Study of an LLM-Based
 Multi-Agent System for Ethical AI", Siqueira de Cerqueira, Agbese, Rousi, Xi,
 Hamari, Abrahamsson, 8th Conference on Technology Ethics (TETHICS 2025),
-Vaasa, Finland, 11 to 12 November 2025, CEUR-WS (CC BY 4.0). SUPPORTING.
-[VERIFY] CEUR-WS volume and page numbers against the published proceedings.
+Vaasa, Finland, 11 to 12 November 2025, CEUR Workshop Proceedings Vol. 4237,
+pp. 68 to 82, https://ceur-ws.org/Vol-4237/paper6.pdf (CC BY 4.0; volume,
+pages and file read on the volume page 2026-11-18). SUPPORTING.
 The author's first PhD paper: identifies four trustworthiness-enhancing
 techniques for LLM-based systems from the literature (multi-agent
 collaboration, specialised roles, structured communication, multiple rounds
