@@ -970,6 +970,12 @@ that the causal explanation resists straightforward confounders" (abstract,
 p. 1), and the authors' reading for model-judged benchmarks, "a model's
 rating can be inflated simply because it is similar to the evaluator model"
 (Section 5.1, p. 8); spec F HYPOTHESIS2 tests this on the project's data.
+Identifier confirmed 2026-11-18 (the proceedings page, read that day): DOI
+10.52202/079017-2197, URL
+https://papers.nips.cc/paper_files/paper/2024/hash/7f1f0218e45f5414c79c0679633e47bc-Abstract-Conference.html
+(title, the three authors and "Advances in Neural Information Processing
+Systems 37 (NeurIPS 2024) Main Conference Track" as printed there); this
+answers the NEEDS-CHECK of 2026-10-08.
 
 **[ADD-85]** PEER. "Justice or Prejudice? Quantifying Biases in
 LLM-as-a-Judge", Ye, Wang, Huang, Chen, Zhang, Moniz, Gao, Geyer, Huang,
