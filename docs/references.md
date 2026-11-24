@@ -2077,6 +2077,22 @@ for the REFSQ 2027 paper, compliance analysis with language models over a broade
 context than sentences, with explanation and justification. Jose, 2026-11-11: "my hassani has no gherkin ... i just put the file here", then "drop the gherkin paper. register hassani 2024".
 Note written 2026-11-11 (../thesis/refs/notes/ADD-140.md).
 
+**[ADD-141]** PEER. "On the Need to Rethink Trust in AI Assistants for Software
+Development: A Critical Review", Baltes, Speith, Chiteri, Mohsenimofidi,
+Chakraborty, Buschek, IEEE Transactions on Software Engineering, vol. 52, no. 4,
+pp. 1265 to 1281, April 2026, DOI 10.1109/TSE.2026.3659804 (journal, volume,
+issue, first page, authors and DOI from the first page of the held PDF; last page
+from the PDF's 17 pages). Held as
+../thesis/refs/ADD-141_RethinkTrustAIAssistants.pdf, the published IEEE version,
+supplied by Jose on 2026-11-24. SUPPORTING. Grounds: no paper yet; held for the
+thesis front on trust and trustworthiness (SE research rarely defines trust or
+embeds it in an established trust model; trust is an attitude, not the acceptance
+of generated content; the distinction between trust and trustworthiness;
+calibrated, justified and plausible trust). Jose, 2026-11-24: "take it and put it
+in the thesis papers and register it, take some notes if you want however we are
+not exactly using this now in any paper". Note written 2026-11-24
+(../thesis/refs/notes/ADD-141.md).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
