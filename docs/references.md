@@ -2093,6 +2093,22 @@ in the thesis papers and register it, take some notes if you want however we are
 not exactly using this now in any paper". Note written 2026-11-24
 (../thesis/refs/notes/ADD-141.md).
 
+**[ADD-142]** PEER. "End-to-End Regulatory Compliance Evolution Pipeline: From
+Legal Requirements to Developer Tests" (the workflow RELAI), Brandt and
+Abualhaija, Proceedings of the 41st IEEE/ACM International Conference on
+Automated Software Engineering (ASE '26), Munich, pp. 4532 to 4537, 2026, DOI
+10.1145/3832783.3834541 (title, authors, venue and DOI from the held PDF's ACM
+Reference Format and Crossref, checked 2026-11-25; pages printed in the PDF).
+A vision paper: no implementation and no evaluation. Held as
+../thesis/refs/ADD-142_RELAI.pdf, the published ACM version under CC BY 4.0.
+SUPPORTING. Grounds: no paper yet; held as related work closest in design to
+TERE4AI (requirements derived from the AI Act for a specific organisation and
+system, refined with legal experts, traced to tests), found by the tool
+landscape check of 2026-11-25 (../thesis/research/2026-11-25-tool-landscape/).
+Jose, 2026-11-25: "take that paper and admit in our thesis, doesnt necessarily
+mean we will use it". Note written 2026-11-25
+(../thesis/refs/notes/ADD-142.md).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
