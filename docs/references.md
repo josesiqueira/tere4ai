@@ -2109,6 +2109,24 @@ Jose, 2026-11-25: "take that paper and admit in our thesis, doesnt necessarily
 mean we will use it". Note written 2026-11-25
 (../thesis/refs/notes/ADD-142.md).
 
+**[ADD-143]** PEER. "Lessons Learned from Assessing Trustworthy AI in
+Practice", Vetter, Amann, Bruneault, Coffee, Düdder, Gallucci, Gilbert,
+Hagendorff, van Halem, Hickman, Hildt, Holm, Kararigas, Kringen, Madai,
+Wiinblad Mathez, Tithi, Westerlund, Wurth, Zicari and the Z-Inspection
+initiative, Digital Society 2(3), article 35, 2023, 25 pages, DOI
+10.1007/s44206-023-00063-1 (title and DOI from the held PDF's first page;
+authors, volume and issue from Crossref, checked 2026-11-25). A reflection on
+the Z-Inspection process (ADD-138) by its developers and users, with no
+measurement of agreement. Held as ../thesis/refs/ADD-143_ZInspectionLessons.pdf,
+the published Springer version under CC BY 4.0. SUPPORTING. Grounds: no paper
+yet; held for the reason the developers give for assigning issues to the seven
+HLEG requirements and not to the sub-requirements (page 15), which answers the
+question of ../thesis/paper/threats_limitations_and_future_work.md row 2.12;
+found by the tool landscape check of 2026-11-25
+(../thesis/research/2026-11-25-tool-landscape/one-by-one/07-z-inspection.md).
+Jose, 2026-11-25: "cool, take note of this", then "you can do it now". Note
+written 2026-11-25 (../thesis/refs/notes/ADD-143.md).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
