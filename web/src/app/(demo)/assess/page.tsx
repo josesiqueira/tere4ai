@@ -1100,7 +1100,7 @@ export default function AssessPage() {
           {group.heading}
           {answered > 0 && (
             <span className="ml-2 font-normal text-muted-foreground">
-              ({answered} answered)
+              {" "}({answered} answered)
             </span>
           )}
         </summary>
