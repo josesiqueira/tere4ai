@@ -18,6 +18,7 @@ judged data.
 @implements: DEC-27
 @implements: DEC-30
 @implements: DEC-32 (the point (h) message of a prohibited answer; a classification marked by a fact conflict keeps its mark)
+@implements: DEC-33 (a classification marked by an area conflict keeps its mark)
 @grounded_by: REF-17, REF-16
 """
 
@@ -43,6 +44,7 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_2_PARAGRAPH_2,
     ARTICLE_5_POINT_H,
     PROHIBITED_RULE_LINE,
+    PROHIBITION_AREA_CONFLICT_CLAUSE,
     PROHIBITION_FACT_CONFLICT_CLAUSE,
     route_of,
 )
@@ -354,11 +356,22 @@ def get_applicable_requirements(
         if isinstance(entry, dict) and isinstance(entry.get("note"), str)
     ]
     conflict_marked = bool(conflict_notes)
-    conflict_only = conflict_marked and answer_in.get("unacceptable_risk") is not None
+    # B185 (DEC-33, ruling P26): the classification's own area_conflicts mark
+    # it for review on any level, the bare answer form included, as
+    # fact_conflicts do.
+    area_conflicts = answer_in.get("area_conflicts")
+    area_notes = [
+        entry["note"]
+        for entry in (area_conflicts if isinstance(area_conflicts, list) else [])
+        if isinstance(entry, dict) and isinstance(entry.get("note"), str)
+    ]
+    area_marked = bool(area_notes)
+    conflict_only = conflict_marked and not area_marked and answer_in.get("unacceptable_risk") is not None
     unsettled = (
         upstream_status == "requires_human_review"
         or risk_category == "undetermined"
         or conflict_marked
+        or area_marked
     )
 
     refusal = None
@@ -426,6 +439,10 @@ def get_applicable_requirements(
                     # B184 (final review, M3): a prohibition resting on facts that
                     # contradict a definition of the Act stands for review.
                     " " + PROHIBITION_FACT_CONFLICT_CLAUSE if conflict_marked else ""
+                ) + (
+                    # B185 (ruling P26): and one resting on a listed use that is
+                    # true while domain is none_of_these_areas, after it.
+                    " " + PROHIBITION_AREA_CONFLICT_CLAUSE if area_marked else ""
                 ),
                 "legal_text": text,
             },
@@ -447,7 +464,7 @@ def get_applicable_requirements(
             # facts decide the level); the bare answer form brings only its
             # conflict lines. A settled prohibited classification carries none.
             missing_facts=list(dict.fromkeys([
-                *((*upstream_missing, *conflict_notes) if prohibited_marked else ()),
+                *((*upstream_missing, *conflict_notes, *area_notes) if prohibited_marked else ()),
                 *(
                     f"prohibition node '{n}' from the classification is not present in the graph dump"
                     for n in prohibition_nodes
@@ -694,8 +711,8 @@ def get_applicable_requirements(
             m for m in missing_facts if m not in upstream_missing
         ]
         # The bare answer form carries no missing facts: its conflict lines
-        # are added from fact_conflicts (B184).
-        missing_facts += [note for note in conflict_notes if note not in missing_facts]
+        # are added from fact_conflicts (B184) and area_conflicts (B185).
+        missing_facts += [note for note in (*conflict_notes, *area_notes) if note not in missing_facts]
         if not missing_facts:
             missing_facts = [
                 "the upstream classification is unsettled and flagged for human "

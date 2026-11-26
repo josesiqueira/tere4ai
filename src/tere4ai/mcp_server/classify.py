@@ -25,7 +25,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 @implements: DEC-23
 @implements: DEC-30 (the unacceptable_risk note names a tailored requirement; the sentence of record)
 @implements: DEC-32 (the Annex III rule table over the 25 listed uses; annex_iii_listed_uses; the facts corrected by the Act's definitions, fact_conflicts)
-@implements: DEC-33 (domain is one of the nine values of the schema, read as given; a refused input returns before any lookup by domain, with the refusal of a domain outside the schema; one Annex III reading, read_annex_iii, in which a true listed use decides the point and a level that rests on the area alone is said, named in annex_iii_area_unconfirmed and marked for human review)
+@implements: DEC-33 (domain is one of the nine values of the schema, read as given; a refused input returns before any lookup by domain, with the refusal of a domain outside the schema; one Annex III reading, read_annex_iii, in which a true listed use decides the point and a level that rests on the area alone is said, named in annex_iii_area_unconfirmed and marked for human review; area_conflicts, a listed use that is true while domain is none_of_these_areas, marked for human review on every exit)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -53,7 +53,7 @@ from tere4ai.mcp_server.levels import (  # noqa: F401
     RISK_CATEGORIES,
     level_name,
 )
-from tere4ai.mcp_server.removed_facts import (  # noqa: F401 (DOMAIN_NONE_OF_THESE_AREAS is re-exported)
+from tere4ai.mcp_server.removed_facts import (
     DOMAIN_NONE_OF_THESE_AREAS,
     REMOVED_FACT_REPLACEMENTS,
     domain_is_a_value,
@@ -478,9 +478,11 @@ def _every_listed_use_false(rule: dict[str, Any], flags: dict[str, Any]) -> bool
 # a point that rests on the area. {number} is the point's number, {heading} its
 # heading in the schema (annex_iii_area_headings), {facts} its listed uses
 # still unknown, joined by ", ". The first two go into legal_status_notes, the
-# last two into the rationale. The rule line deliberately avoids the grammar
-# "rule high_risk: domain ... matches", which scripts/elicitation_error_report.py
-# parses as the classification trigger.
+# last two into the rationale. The rule line has a rule name of its own,
+# high_risk_area_alone, apart from the grammar "rule high_risk: domain ...
+# matches" of the runs before B185 (TRIGGER_DOMAIN_RE); scripts/
+# elicitation_error_report.py reads it as the domain's trigger through
+# TRIGGER_AREA_RE, so its words change only together with that pattern.
 ANNEX_III_AREA_ALONE_LINE = (
     "{node}: the level rests on the area alone: domain '{domain}' places the system in Annex III point "
     "{number} ({heading}), and no listed use of the point is confirmed; the listed uses still unknown: {facts}"
@@ -658,6 +660,39 @@ def fact_conflict_line(narrower: str, wider: str, provision: str) -> str:
     @implements: DEC-32
     """
     return FACT_CONFLICT_LINE.format(narrower=narrower, wider=wider, provision=provision)
+
+
+# B185 (spec G D-G92 (4) and (iii), DEC-33): the note of each entry of
+# area_conflicts, the spec's words, which also joins the missing facts, and
+# the rationale's status line of an answer it marks (Task 6 of B185 keeps it as
+# this cause's line).
+AREA_CONFLICT_NOTE = "domain is none_of_these_areas while flags.{fact} is true; the fact keeps its effect"
+AREA_CONFLICT_STATUS_LINE = (
+    "status lowered to requires_human_review: a listed use is true while domain is none_of_these_areas: "
+    "see area_conflicts"
+)
+
+
+def area_conflicts(flags: dict[str, Any], domain: str | None) -> list[dict[str, str]]:
+    """One entry per listed use of Annex III that is true while domain is
+    none_of_these_areas, in point order (spec G D-G92 (4) and (iii)).
+
+    flags are the facts as classify_ai_system corrects them (apply_entailments),
+    so a listed use that follows from a definition of the Act counts as one
+    answered true. Each entry is {"domain", "fact", "note"}. Any other domain,
+    unknown included, gives no entry, and a listed use that is false or
+    unknown never gives one: none_of_these_areas is never a reason to read a
+    listed use as no, and the true fact keeps its effect.
+
+    @implements: DEC-33
+    """
+    if domain != DOMAIN_NONE_OF_THESE_AREAS or not isinstance(flags, dict):
+        return []
+    return [
+        {"domain": DOMAIN_NONE_OF_THESE_AREAS, "fact": fact, "note": AREA_CONFLICT_NOTE.format(fact=fact)}
+        for fact in ANNEX_III_LISTED_USE_FACTS
+        if flags.get(fact) is True
+    ]
 
 
 def apply_entailments(
@@ -839,6 +874,14 @@ PROHIBITION_FACT_CONFLICT_CLAUSE = (
     "This rests on the facts as read: answers contradict a definition of the Act (fact_conflicts), so it "
     "stands for human review."
 )
+# B185 (DEC-33, ruling P26): the clause a prohibited answer marked by an area
+# conflict adds to each of its prohibited-practice notes, after the fact
+# conflict's clause when both hold, and the applicable requirements to their
+# message.
+PROHIBITION_AREA_CONFLICT_CLAUSE = (
+    "This rests on the facts as read: a listed use is true while domain is none_of_these_areas "
+    "(area_conflicts), so it stands for human review."
+)
 # The rationale line of each Article 5 hit ("rule unacceptable_risk: flag X
 # matches <node> (...)"); the applicable requirements read the point from it
 # when they are given the bare answer, which carries no cited provisions.
@@ -973,8 +1016,9 @@ ARTICLE_50_TRIGGERED_NOTE = (
 
 @lru_cache(maxsize=1)
 def _features_validator() -> Draft202012Validator:
-    schema = json.loads(FEATURES_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return Draft202012Validator(schema)
+    # One read of the schema file (_features_schema), shared with the area
+    # headings and values.
+    return Draft202012Validator(_features_schema())
 
 
 def _graph_version(dump: dict[str, Any]) -> str:
@@ -1377,6 +1421,11 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 # no listed use confirms; the answer rests on Article 6(1)
                 # alone and is cited and dated as on that route.
                 legal_status_notes.append(annex_iii_area_line(ANNEX_III_SCOPE_UNCONFIRMED_LINE, reading, domain))
+            elif reading.area_ruled_out:
+                # B185 (spec G D-G92 (3)): every listed use of the domain's area
+                # is known false, so the area stops counting, and the answer
+                # says so in the same line as the Annex III branch below.
+                rationale.append(annex_iii_area_line(ANNEX_III_AREA_RULED_OUT_LINE, reading, domain))
             missing_facts.extend(citations.unresolved)
             status = "potentially_applicable"
             confidence = 1.0
@@ -1791,27 +1840,22 @@ def _cite_listed_uses(
         # is cited or added to the rationale for them.
         return
     named_fact = reading.trigger_fact if answer.get("annex_iii_category") else None
-    citations = _Citations(_node_index(dump))
-    citations.node_ids = list(envelope.get("source_nodes") or [])
-    citations.spans = list(envelope.get("source_spans") or [])
-    rationale = answer.setdefault("rationale", [])
-    for fact in ANNEX_III_LISTED_USE_FACTS:
-        if flags.get(fact) is not True:
-            continue
-        unit = ANNEX_III_UNIT_OF_FACT[fact]
-        citations.cite(unit)
-        if fact != named_fact:
-            rationale.append(ANNEX_III_LISTED_USE_LINE.format(fact=fact, unit=unit))
-    envelope["source_nodes"] = citations.node_ids
-    envelope["source_spans"] = citations.spans
-    if citations.unresolved:
-        envelope["missing_facts"] = [*(envelope.get("missing_facts") or []), *citations.unresolved]
+    true_facts = [fact for fact in ANNEX_III_LISTED_USE_FACTS if flags.get(fact) is True]
+    answer.setdefault("rationale", []).extend(
+        ANNEX_III_LISTED_USE_LINE.format(fact=fact, unit=ANNEX_III_UNIT_OF_FACT[fact])
+        for fact in true_facts
+        if fact != named_fact
+    )
+    _cite_more(envelope, [ANNEX_III_UNIT_OF_FACT[fact] for fact in true_facts], dump)
 
 
 def _cite_more(envelope: dict[str, Any], node_ids: list[str], dump: dict[str, Any]) -> None:
     """Cite further nodes on a built envelope, resolved against the dump as
     _Citations resolves them, an unresolved one named among the missing facts.
+    The one place the wrapper adds citations after the core (the listed uses,
+    Article 6(2) on both routes).
 
+    @implements: DEC-32
     @implements: DEC-33
     """
     citations = _Citations(_node_index(dump))
@@ -1843,6 +1887,8 @@ def _rejected_answer(
     """
     answer = envelope["answer"]
     answer["fact_conflicts"] = []
+    # B185 (Task 3): no rule ran, so no fact is read beside the domain.
+    answer["area_conflicts"] = []
     # B185 (ruling P6): no rule ran, so no point rests on an area.
     answer["annex_iii_area_unconfirmed"] = None
     missing = list(envelope.get("missing_facts") or [])
@@ -1911,6 +1957,16 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     a system on both routes cites Article 6(2) beside Article 6(1); and a
     level that rests on the area is dated as an Annex III system.
 
+    B185 (spec G D-G92 (4), (iii), DEC-33, ruling P26):
+    answer["area_conflicts"] is on every answer (empty on the rejected
+    input): one entry per listed use that is true, on the corrected facts,
+    while domain is none_of_these_areas. An entry marks the answer as an
+    entry of fact_conflicts does, on every exit, unacceptable_risk included:
+    its note joins the missing facts, the status is requires_human_review with
+    confidence 0.5 before the Article 27 block is computed, the level is
+    unchanged, and on unacceptable_risk each prohibited-practice note gains
+    PROHIBITION_AREA_CONFLICT_CLAUSE.
+
     @implements: DEC-32
     @implements: DEC-33
     """
@@ -1925,24 +1981,6 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         return envelope
     if envelope.get("status") == "rejected_as_unsupported":
         return _rejected_answer(envelope, features, dump)
-    answer["fact_conflicts"] = conflicts
-    rationale = answer.setdefault("rationale", [])
-    rationale.extend(unknown_lines)
-    if conflicts:
-        envelope["missing_facts"] = [
-            *(envelope.get("missing_facts") or []),
-            *(entry["note"] for entry in conflicts),
-        ]
-        envelope["status"] = "requires_human_review"
-        envelope["confidence"] = 0.5
-        rationale.append(FACT_CONFLICT_STATUS_LINE)
-        if answer.get("risk_category") == "unacceptable_risk":
-            # B184 (final review, M3): each prohibited-practice note says
-            # the prohibition rests on facts that contradict a definition.
-            envelope["legal_status_notes"] = [
-                f"{note}. {PROHIBITION_FACT_CONFLICT_CLAUSE}" if PROHIBITED_PRACTICE_NOTE_MARK in note else note
-                for note in envelope.get("legal_status_notes") or []
-            ]
     flags = features.get("flags") if isinstance(features, dict) else None
     if not isinstance(flags, dict):
         flags = {}
@@ -1952,6 +1990,39 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     # B185 (DEC-33): a rejected input returned above, so the domain here is a
     # value of the schema or unknown, read as given.
     domain = features.get("domain") if isinstance(features, dict) else None
+    answer["fact_conflicts"] = conflicts
+    # B185 (spec G D-G92 (4), (iii), DEC-33): read on the corrected facts, so a
+    # listed use that follows from a definition counts as one answered true.
+    areas = area_conflicts(flags, domain)
+    answer["area_conflicts"] = areas
+    rationale = answer.setdefault("rationale", [])
+    rationale.extend(unknown_lines)
+    # B184 (ruling P11) and B185 (the rule added after the plan's review of
+    # D-G92): each mark lowers the status on every exit, unacceptable_risk
+    # included, the level unchanged, before the Article 27 block is computed.
+    clauses: list[str] = []
+    for entries, status_line, clause in (
+        (conflicts, FACT_CONFLICT_STATUS_LINE, PROHIBITION_FACT_CONFLICT_CLAUSE),
+        (areas, AREA_CONFLICT_STATUS_LINE, PROHIBITION_AREA_CONFLICT_CLAUSE),
+    ):
+        if not entries:
+            continue
+        envelope["missing_facts"] = [
+            *(envelope.get("missing_facts") or []),
+            *(entry["note"] for entry in entries),
+        ]
+        envelope["status"] = "requires_human_review"
+        envelope["confidence"] = 0.5
+        rationale.append(status_line)
+        clauses.append(clause)
+    if clauses and answer.get("risk_category") == "unacceptable_risk":
+        # B184 (final review, M3) and B185 (ruling P26): each prohibited-
+        # practice note says what the prohibition rests on, the fact conflict
+        # first when both hold.
+        envelope["legal_status_notes"] = [
+            f"{note}. {' '.join(clauses)}" if PROHIBITED_PRACTICE_NOTE_MARK in note else note
+            for note in envelope.get("legal_status_notes") or []
+        ]
     # B185 (ruling P4): the same one reading of Annex III the core made.
     reading = read_annex_iii(flags, domain)
     # B185 (spec G D-G92 (3), (5), ruling P6): the point that rests on the
@@ -1993,6 +2064,9 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         # tell the FRIA rule that the review mark comes from a fact conflict.
         fact_conflicts=answer.get("fact_conflicts"),
         unacceptable_risk=answer.get("unacceptable_risk"),
+        # B185 (ruling P26): an area conflict marks the block as a fact
+        # conflict does on the unacceptable_risk exit.
+        area_conflicts=areas,
     )
     # B132 (spec G D-G68 (6)): the Annex I section on every answer (null off
     # the Article 6(1) route), the high-risk routes that hold (R37: computed

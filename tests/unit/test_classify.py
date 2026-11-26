@@ -1752,7 +1752,7 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     the ladder's lines (fact_conflicts joins in Task 4). The last case shows
     the listed-use additions; they are checked here, then set aside. B185
     (spec G D-G92 (9)): on both routes Article 6(2) is cited after them, and
-    annex_iii_area_unconfirmed is the wrapper's field."""
+    annex_iii_area_unconfirmed and area_conflicts are the wrapper's fields."""
     import copy
 
     core = classify_module._classify_core(copy.deepcopy(features), dump)
@@ -1765,6 +1765,9 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     # ladder's own items, never in place of them.
     units = full["answer"].pop("annex_iii_listed_uses")
     full["answer"].pop("fact_conflicts", None)
+    # B185 (Task 3): area_conflicts is the wrapper's field; no case here has
+    # domain none_of_these_areas, so it is empty and nothing else changes.
+    assert full["answer"].pop("area_conflicts") == []
     added = [u for u in units if u not in core["source_nodes"]]
     both_routes = [
         node for node in [classify_module.ARTICLE_6_PARAGRAPH_2]

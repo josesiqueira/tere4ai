@@ -180,6 +180,10 @@ def test_classify_every_tier_is_a_calibrated_envelope(client, features):
     # on every answer, null where no point rests on it.
     assert "annex_iii_area_unconfirmed" in env["answer"]
     assert env["answer"]["annex_iii_area_unconfirmed"] in (None, *(f"eu-ai-act:annex-iii:point-{n}" for n in range(1, 9)))
+    # B185 (DEC-33, Task 3): area_conflicts is on every answer, a list of
+    # entries with the domain, the fact and the note.
+    assert isinstance(env["answer"]["area_conflicts"], list)
+    assert all(set(entry) == {"domain", "fact", "note"} for entry in env["answer"]["area_conflicts"])
 
 
 def test_requirements_response_is_a_calibrated_envelope(client):

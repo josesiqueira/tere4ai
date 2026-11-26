@@ -39,6 +39,7 @@ legal categories. Only the structured deployer facts decide.
 @implements: DEC-20
 @implements: DEC-23
 @implements: DEC-32 (a classification marked by a fact conflict keeps the block unknown)
+@implements: DEC-33 (a prohibited classification marked by an area conflict keeps the block unknown)
 @grounded_by: REF-01, REF-30
 """
 
@@ -120,6 +121,13 @@ FACT_CONFLICT_REASON = (
     "answers contradict a definition of the Act (fact_conflicts) and one answer of each pair is "
     "wrong, so the classification could change once they are corrected"
 )
+# B185 (DEC-33, ruling P26): the reason a classification marked by an area
+# conflict is not settled, the text of REVIEW_CAUSE_REASONS["area_conflict"]
+# (Task 6 of B185 moves it into review_causes.py).
+AREA_CONFLICT_REASON = (
+    "a listed use of Annex III is true while the domain says none of these areas (area_conflicts), so one "
+    "of the two answers is wrong"
+)
 
 _UNKNOWN_ANNEX_III_NONE_CAN = (
     "no unknown Annex III fact can make Article 27(1) apply: each is in "
@@ -184,6 +192,7 @@ def assess_fria_applicability(
     unknown_annex_iii_facts: dict[str, str] | None = None,
     fact_conflicts: list[Any] | None = None,
     unacceptable_risk: bool | None = None,
+    area_conflicts: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Decide whether the Article 27(1) FRIA obligation applies.
 
@@ -228,8 +237,14 @@ def assess_fria_applicability(
     answer marked by a conflict alone (no Article 5 fact unknown, so
     unacceptable_risk is not null) the reason names the conflict instead of a
     change to Unacceptable risk. Every other cause keeps its sentence.
+
+    area_conflicts is the classification's own field too (B185, DEC-33,
+    ruling P26): on an unacceptable_risk answer an area conflict leaves the
+    block unknown as a fact conflict does, the sentence naming the reason of
+    each mark that holds, the fact conflict first.
     """
     conflict_marked = bool(fact_conflicts)
+    area_marked = bool(area_conflicts)
     rationale: list[str] = []
     basis = [ARTICLE_27_PARAGRAPH_1]
     missing: list[str] = []
@@ -242,10 +257,15 @@ def assess_fria_applicability(
         )
         return _block("unknown", rationale, basis, missing)
 
-    if risk_category == "unacceptable_risk" and conflict_marked:
+    if risk_category == "unacceptable_risk" and (conflict_marked or area_marked):
+        reasons = [
+            reason
+            for marked, reason in ((conflict_marked, FACT_CONFLICT_REASON), (area_marked, AREA_CONFLICT_REASON))
+            if marked
+        ]
         rationale.append(
             "the system falls under an Article 5 prohibited practice on the facts as read, but "
-            + FACT_CONFLICT_REASON
+            + "; ".join(reasons)
             + "; FRIA applicability stays unknown until the classification is confirmed"
         )
         return _block("unknown", rationale, basis, missing)
