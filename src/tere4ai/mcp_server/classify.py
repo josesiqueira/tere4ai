@@ -1062,8 +1062,8 @@ ARTICLE_50_TRIGGER_FLAGS: tuple[str, ...] = tuple(
     dict.fromkeys(flag for flag, _node_id, _note in ARTICLE_50_RULES)
 )
 
-# DEC-18: a listed paragraph is triggered by a fact that is true, never
-# proven. B185 (spec G D-G92 (7), (8), (x)): the two facts of 50(4) answer
+# DEC-18: a listed paragraph or subparagraph is triggered by a fact that is
+# true, never proven. B185 (spec G D-G92 (7), (8), (x)): the two facts of 50(4) answer
 # no where its exceptions apply, so paragraph 4 is decided by its facts;
 # paragraph 5 stays outside the rules; for a deep fake in an evidently
 # artistic, creative, satirical, fictional or analogous work the duty stays

@@ -139,7 +139,7 @@ def test_v4_prompt_carries_the_article_5_exculpating_facts():
         assert flag in prompt, f"v4 prompt omits the fact {flag}"
 
 
-def test_default_prompt_version_is_v9():
+def test_default_prompt_version_is_v10():
     """DEC-18: the elicitor and the facade share one default."""
     import inspect
 
@@ -151,12 +151,13 @@ def test_default_prompt_version_is_v9():
     # which follows the Act as amended.
     # B160: to v8 (deployer_kind).
     # B184: to v9 (the 54 facts of the schema; DEC-32).
-    assert DEFAULT_PROMPT_VERSION == "v9"
+    # B185: to v10 (the eight areas, the 56 facts of the schema; DEC-33).
+    assert DEFAULT_PROMPT_VERSION == "v10"
     # B10: the elicit_features wrapper is deleted (Task 5); render_prompt,
     # which the benchmark script calls, shares the default.
     for function in (elicit, render_prompt, elicit_envelope):
         signature = inspect.signature(function)
-        assert signature.parameters["prompt_version"].default == "v9"
+        assert signature.parameters["prompt_version"].default == "v10"
 
 
 # DEC-18, B36.2: the three biometric facts and the point (d) and (g)
@@ -352,7 +353,8 @@ DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
 # B160: to v8 (deployer_kind).
 # B184: to v9, the default prompt these tests render (DEC-32).
-V9_PATH = ROOT / "prompts" / "elicit_features" / "v9.md"
+# B185: to v10 (DEC-33).
+V10_PATH = ROOT / "prompts" / "elicit_features" / "v10.md"
 BANK = (
     "A chatbot on our bank's website answers customers' questions about opening "
     "hours and card fees. It does not make or support any decision about credit."
@@ -551,11 +553,11 @@ def test_prompt_record_names_the_template_the_render_and_the_build(dump):
     result, gen = _run(
         {"features": {}, "quotes": {}}, dump,
     )
-    template = V9_PATH.read_bytes()
+    template = V10_PATH.read_bytes()
     ids = list(dict.fromkeys(PLACEHOLDER_RE.findall(template.decode("utf-8"))))
     assert result.prompt == {
         "prompt": "elicit_features",
-        "version": "v9",
+        "version": "v10",
         "template_sha256": hashlib.sha256(template).hexdigest(),
         "rendered_sha256": hashlib.sha256(gen.systems[0].encode("utf-8")).hexdigest(),
         "provisions": ids,
@@ -566,7 +568,7 @@ def test_prompt_record_names_the_template_the_render_and_the_build(dump):
 
 def test_provision_failure_makes_no_generator_call(dump):
     broken = copy.deepcopy(dump)
-    first = PLACEHOLDER_RE.findall(V9_PATH.read_text(encoding="utf-8"))[0]
+    first = PLACEHOLDER_RE.findall(V10_PATH.read_text(encoding="utf-8"))[0]
     broken["nodes"] = [n for n in broken["nodes"] if n.get("id") != first]
     gen = Scripted({"features": {}, "quotes": {}})
     result, gen = _run(gen, broken)
@@ -631,7 +633,7 @@ def test_render_prompt_is_the_system_prompt_elicit_sends_and_its_record(dump):
     )
     assert gen.systems == [system]
     assert prompt == result.prompt
-    assert prompt["version"] == "v9" and prompt["graph_version"] == dump["build"]["build_id"]
+    assert prompt["version"] == "v10" and prompt["graph_version"] == dump["build"]["build_id"]
 
 
 def test_render_prompt_raises_when_a_provision_does_not_resolve(dump):

@@ -425,10 +425,11 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     need are missing. The answer's unacceptable_risk field is true (an Article 5
     prohibition is proven), false (every Article 5 path is ruled out) or null
     (unknown: an Article 5 fact is missing). transparency_duties lists the
-    Article 50 paragraphs triggered by a fact that is true, as answered or as
-    it follows from a definition of the Act, on a high-risk answer too
-    (Article 50(6)); a listed paragraph is triggered, not proven, and an empty
-    list means none is triggered by such a fact. annex_iii_listed_uses names
+    Article 50 paragraphs or subparagraphs triggered by a fact that is true,
+    as answered or as it follows from a definition of the Act, on a high-risk
+    answer too (Article 50(6)); a listed paragraph or subparagraph is
+    triggered, not proven, and an empty list means none is triggered by such
+    a fact. annex_iii_listed_uses names
     the legal unit of every Annex III listed use that is true, as answered or
     as it follows from another fact by a definition of the Act, in point
     order, and each is cited, except on an unacceptable_risk answer, which
@@ -436,6 +437,16 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     without their point. annex_iii_category is the first matching point when
     Annex III decided the level, and is null when the Article 6(1) route or a
     prohibition decided it, even if annex_iii_listed_uses names a listed use.
+    annex_iii_category is also null when the point rests on the area:
+    annex_iii_area_unconfirmed then names it. domain is one of biometrics,
+    critical_infrastructure, education, employment, essential_services,
+    law_enforcement, migration, justice, none_of_these_areas, or unknown; any
+    other value is refused with a message, and no value of domain reads a
+    listed use as false. area_conflicts names each listed use that is true
+    while domain is none_of_these_areas; the answer then requires human
+    review. article_6_3_exception_candidate describes the Annex III part of
+    the answer: true, false, or null when an Article 6(3) condition is
+    unknown and none is true. A refused input carries no fria block (null).
     annex_iii_area_unconfirmed names the Annex III point the domain gives when
     no listed use of any point is true and a listed use of that point is
     unknown: the level is then high_risk on the area alone and the answer

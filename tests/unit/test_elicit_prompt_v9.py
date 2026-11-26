@@ -1,4 +1,4 @@
-"""Prompt v9 of elicit_features, the prompt of record (B184 Task 7, DEC-32).
+"""Prompt v9 of elicit_features, B184's prompt of record (B184 Task 7, DEC-32).
 
 v9 asks the 54 facts of the schema: the 25 Annex III listed uses under eight
 headings, one per point, each with its own legal unit; law_enforcement_purpose
@@ -11,11 +11,12 @@ B185 (ruling P27): v9 is the prompt of B184's record; from B185 Task 5 on the
 schema has two more facts (the duties of Article 50(4)), so the tests that
 compare v9 with the facts read FLAGS_OF_V9 and ARTICLE_50_RULES_OF_V9 of
 tests/unit/flags_of_record.py, frozen at 09472d6, never the live schema or
-ARTICLE_50_RULES. Task 8 makes v10 the prompt of record.
+ARTICLE_50_RULES. Task 8 made v10 the prompt of record.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -101,12 +102,18 @@ def _example() -> tuple[str, dict]:
     return description.group(1), json.loads(reply.group(1))
 
 
-def test_v9_is_the_prompt_of_record():
-    assert DEFAULT_PROMPT_VERSION == "v9"
+# B185 Task 8: v10 is the prompt of record; v9 is kept byte for byte as the
+# prompt of B184's record (the sha256 of the file at 0e45ac1).
+V9_SHA256 = "7d902c912b29b1e3af3f948b8f185bc834a854db03d5501bf93737758c170d02"
+
+
+def test_v9_is_kept_and_v10_is_the_prompt_of_record():
+    assert hashlib.sha256((PROMPTS / "v9.md").read_bytes()).hexdigest() == V9_SHA256
+    assert DEFAULT_PROMPT_VERSION == "v10"
     assert (PROMPTS / "v8.md").is_file()
 
 
-# v9 is the prompt of B184's record; Task 8 makes v10 the prompt of record
+# v9 is the prompt of B184's record; Task 8 made v10 the prompt of record
 # (B185, ruling P27): the tests below read the facts v9 was written for.
 def test_v9_names_every_schema_flag_and_only_those():
     listed = set(re.findall(r"flags\.([a-z0-9_]+)", V9))
@@ -272,7 +279,8 @@ def test_v9_elicitation_with_a_fake_client_keeps_a_listed_use_fact(dump):
     reply = {"features": {"flags": {"annex_iii_4b_work_relationships": True}},
              "quotes": {"flags.annex_iii_4b_work_relationships": "scores each office worker's productivity"}}
     fake = FakeClient({DESCRIPTION[:30]: json.dumps(reply)})
-    result = elicit(DESCRIPTION, fake, dump=dump, snapshots_dir=SNAPSHOTS_DIR)
+    # B185 Task 8: v9 is no longer the default, so it is named.
+    result = elicit(DESCRIPTION, fake, dump=dump, snapshots_dir=SNAPSHOTS_DIR, prompt_version="v9")
     assert result.features["flags"] == {"annex_iii_4b_work_relationships": True}
     assert result.prompt["version"] == "v9"
 
@@ -332,7 +340,9 @@ SCHEMA_QUOTE_EXCEPTIONS: dict[tuple[str, str], str] = {
 LISTED_USE_UNIT = {fact: unit for rule in ANNEX_III_RULES for fact, unit in rule["uses"]}
 
 
-def _schema_quote_gaps(text: str, dump: dict) -> tuple[list[tuple[str, str, str]], set[tuple[str, str]]]:
+def _schema_quote_gaps(
+    text: str, dump: dict, facts: tuple[str, ...] | list[str] = FLAGS_OF_V9
+) -> tuple[list[tuple[str, str, str]], set[tuple[str, str]]]:
     """The gaps between a prompt template and the schema descriptions, and the
     exceptions used.
 
@@ -346,6 +356,8 @@ def _schema_quote_gaps(text: str, dump: dict) -> tuple[list[tuple[str, str, str]
     unit and that unit must be attached to the fact; a parent point never
     counts for it. A passage opening with the words of an exception is excused
     for that fact only. A gap is (fact, the reason, the passage's first words).
+    facts names the facts checked: FLAGS_OF_V9 for v9, the live schema's for
+    v10.
     """
     from tests.unit.test_features_schema_descriptions import QUOTE, QUOTED, _normalised
 
@@ -355,9 +367,10 @@ def _schema_quote_gaps(text: str, dump: dict) -> tuple[list[tuple[str, str, str]
     gaps: list[tuple[str, str, str]] = []
     used: set[tuple[str, str]] = set()
     for fact, spec in SCHEMA["properties"]["flags"]["properties"].items():
-        if fact not in FLAGS_OF_V9:
+        if fact not in facts:
             # B185 (ruling P27): a fact the schema gained after v9 was written
-            # (the two Article 50(4) facts) is not one v9 asks.
+            # (the two Article 50(4) facts) is not one v9 asks; the tests of
+            # v10 (B185 Task 8) pass the live schema's facts.
             continue
         attached = set(table.get(f"flags.{fact}", []))
         use_quote = None

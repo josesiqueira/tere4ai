@@ -75,7 +75,12 @@ PROMPT_NAME = "elicit_features"
 # Annex III listed uses under one heading per point, law_enforcement_purpose
 # under Article 5(1)(h), and the Article 6(3) points (a) and (d) as two
 # facts; v8 stays as the prompt of tag v2.0.0-beta.1.
-DEFAULT_PROMPT_VERSION = "v9"
+# B185 (spec G D-G92 (10), (xi), DEC-33): v10 offers the eight Annex III
+# areas as the values of domain, never none_of_these_areas, proposed only
+# from the description's own words; asks the 56 facts of the schema, the
+# two Article 50(4) facts under their own heading; v9 stays as the prompt of
+# B184's record.
+DEFAULT_PROMPT_VERSION = "v10"
 MIN_QUOTE_WORDS = 3
 # B184 fix round 1: the note for a field or flag outside the schema.
 OUTSIDE_SCHEMA_NOTE = "{path} was proposed but is not a fact of the schema; it was not kept"

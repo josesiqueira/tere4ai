@@ -64,6 +64,7 @@ from tere4ai.mcp_server.requirements import (
     PROVISIONAL_NOTE_TEMPLATE,
     SECTION_B_ANNEX_III_UNKNOWN_MESSAGE,
     SECTION_B_DEROGATION_NOTE,
+    SECTION_B_LISTED_USE_UNKNOWN_FACT,
     SECTION_B_MESSAGE,
     UNSETTLED_FALLBACK_FACT,
     get_applicable_requirements,
@@ -751,9 +752,13 @@ def test_an_envelope_and_its_bare_answer_read_alike(answered, served):
         classification_missing = env["missing_facts"]
         # Set apart too: the line a bare Section B answer gives for a point
         # that rests on the area, in place of the classification's lines that
-        # name its unknown listed uses (B185 Task 7 follow-up).
+        # name its unknown listed uses (B185 Task 7 follow-up), and the line
+        # it gives with no area set for an unknown listed use read from its
+        # status line (B185 Task 8).
         def kept(m: str) -> bool:
-            return (m not in classification_missing and m not in (UNSETTLED_FALLBACK_FACT, UNDETERMINED_FALLBACK_FACT)
+            return (m not in classification_missing
+                    and m not in (UNSETTLED_FALLBACK_FACT, UNDETERMINED_FALLBACK_FACT,
+                                  SECTION_B_LISTED_USE_UNKNOWN_FACT)
                     and not m.startswith(AREA_UNCONFIRMED_FACT_START))
 
         added_envelope = [m for m in from_envelope["missing_facts"] if kept(m)]

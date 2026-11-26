@@ -36,7 +36,7 @@ ITEMS = [{"id": "bench:1", "kind": "classification", "system_text": "a scoring s
 
 
 DUMP = {"build": {"build_id": "build-x"}, "nodes": []}
-PROMPT = {"prompt": "elicit_features", "version": "v9", "template_sha256": "a" * 64,
+PROMPT = {"prompt": "elicit_features", "version": "v10", "template_sha256": "a" * 64,
           "rendered_sha256": "b" * 64, "provisions": ["eu-ai-act:definition:profiling"],
           "graph_version": "build-x"}
 QUOTES = {"flags.flag": {"text": "a scoring system", "start": 0, "end": 16}}
@@ -167,8 +167,9 @@ def test_the_default_prompt_version_is_the_elicitors(tmp_path, monkeypatch):
     # B132: to v7 (the Act as amended).
     # B160: to v8 (deployer_kind).
     # B184: to v9 (DEC-32).
-    assert DEFAULT_PROMPT_VERSION == "v9"
-    assert json.loads(out.read_text())["prompt_version"] == "v9"
+    # B185: to v10 (DEC-33).
+    assert DEFAULT_PROMPT_VERSION == "v10"
+    assert json.loads(out.read_text())["prompt_version"] == "v10"
 
 
 def test_the_entries_and_the_output_carry_quotes_dropped_facts_and_the_prompt(tmp_path, monkeypatch):
@@ -274,7 +275,8 @@ def test_the_prompt_record_is_the_rendered_v6_over_the_repositorys_build(tmp_pat
     prompt = json.loads(out.read_text())["prompt"]
     # B160: to v8 (deployer_kind).
     # B184: to v9 (DEC-32).
-    v9 = (ROOT / "prompts" / "elicit_features" / "v9.md").read_bytes()
-    assert prompt["version"] == "v9" and prompt["template_sha256"] == hashlib.sha256(v9).hexdigest()
+    # B185: to v10 (DEC-33).
+    v10 = (ROOT / "prompts" / "elicit_features" / "v10.md").read_bytes()
+    assert prompt["version"] == "v10" and prompt["template_sha256"] == hashlib.sha256(v10).hexdigest()
     assert prompt["graph_version"] == mod.load_active(mod.DUMP_DIR).build_id
     assert len(prompt["rendered_sha256"]) == 64 and prompt["provisions"]

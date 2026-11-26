@@ -141,13 +141,16 @@ def _elicited(item_id: str, version: str | None) -> dict:
 
 def test_facts_elicited_by_an_earlier_prompt_are_refused_even_when_they_fit_the_schema(runner):  # noqa: F811
     from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
+    # B185 Task 8: facts elicited by v9, B184's prompt of record, are refused
+    # too once v10 is the prompt of record.
     items = [VALID, _elicited("bench:scenario:1", "v8"), _elicited("bench:scenario:2", "v7"),
-             _elicited("bench:scenario:3", DEFAULT_PROMPT_VERSION)]
+             _elicited("bench:scenario:4", "v9"), _elicited("bench:scenario:3", DEFAULT_PROMPT_VERSION)]
     message = runner.stored_facts_refusal(items, SCHEMA)
     assert message is not None
-    assert "2 item(s)" in message and "bench:scenario:1" in message and "bench:scenario:2" in message
+    assert "3 item(s)" in message and "bench:scenario:1" in message and "bench:scenario:2" in message
+    assert "bench:scenario:4" in message
     assert "bench:scenario:3" not in message and "gold:cls-x" not in message
-    assert "v7, v8" in message and f"the prompt of record, {DEFAULT_PROMPT_VERSION}" in message
+    assert "v7, v8, v9" in message and "the prompt of record, v10" in message
 
 
 def test_facts_elicited_by_the_prompt_of_record_and_hand_made_items_pass(runner):  # noqa: F811

@@ -40,9 +40,12 @@ from tere4ai.mcp_server.requirements import (
     PROVISIONAL_NOTE_TEMPLATE,
     SECTION_B_ANNEX_III_UNKNOWN_MESSAGE,
     SECTION_B_DEROGATION_NOTE,
+    SECTION_B_LISTED_USE_UNKNOWN_FACT,
+    UNSETTLED_FALLBACK_FACT,
     get_applicable_requirements,
 )
 from tere4ai.mcp_server.review_causes import (
+    ANNEX_III_UNKNOWN_TAG,
     REVIEW_CAUSE_REASONS,
     review_causes_of_answer,
     review_reason,
@@ -268,6 +271,34 @@ def test_a_section_b_product_with_a_listed_use_unknown_reads_the_same_bare(dump,
         assert given["status"] == "requires_human_review"
         assert given["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE
     assert _view(env) == _view(bare)
+
+
+def test_a_bare_section_b_answer_with_a_listed_use_unknown_names_it_among_its_missing_facts(dump, norms):
+    # B185 Task 8, item (b) of the coordinator (from Task 7's re-review): the
+    # bare answer carries no missing facts, and with no area set its only
+    # missing fact was the fallback line. It now says, from what the bare
+    # answer carries (its status line), that a fact of the Annex III route is
+    # unknown and that the classification's missing facts name which; the
+    # envelope, which names the facts, does not gain the line.
+    features = _features(absent=("annex_iii_4a_recruitment",), domain=None, **P61,
+                         annex_i_section_b_legislation=True)
+    cls, env, bare = _both(features, dump, norms)
+    assert SECTION_B_LISTED_USE_UNKNOWN_FACT not in env["missing_facts"]
+    assert any(ANNEX_III_UNKNOWN_TAG in m for m in env["missing_facts"])
+    assert bare["missing_facts"] == [SECTION_B_LISTED_USE_UNKNOWN_FACT]
+    assert UNSETTLED_FALLBACK_FACT not in bare["missing_facts"]
+    assert _view(env) == _view(bare)
+    # With an area set, the line of the area is given instead, as before.
+    cls, env, bare = _both({**features, "domain": "employment"}, dump, norms)
+    assert cls["answer"]["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-4"
+    assert SECTION_B_LISTED_USE_UNKNOWN_FACT not in bare["missing_facts"]
+    assert SECTION_B_LISTED_USE_UNKNOWN_FACT not in env["missing_facts"]
+
+
+def test_the_listed_use_line_is_worded_once():
+    assert SECTION_B_LISTED_USE_UNKNOWN_FACT == (
+        "a listed use of Annex III, or real_time_remote_biometric_public, which also gives Annex III point 1, "
+        "is unknown, as the answer's status line says; the classification's missing facts name which")
 
 
 def test_the_causes_of_a_bare_answer_read_the_two_that_need_missing_facts_from_its_status_lines():
