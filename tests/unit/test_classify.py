@@ -1736,14 +1736,25 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
             ),
             "deployer": {"body_governed_by_public_law": True},
         },
+        {
+            "description": "Safety component of a machine that also screens job applicants.",
+            "flags": all_false_flags(annex_i_covered_product=True, third_party_conformity_assessment_required=True,
+                                     annex_iii_4a_recruitment=True, annex_iii_4b_work_relationships=True),
+            "deployer": {"body_governed_by_public_law": True},
+        },
     ],
-    ids=["chatbot_annex_iii_absent", "rtrb_and_law_enforcement_absent", "lift_door", "point_2_only"],
+    ids=["chatbot_annex_iii_absent", "rtrb_and_law_enforcement_absent", "lift_door", "point_2_only",
+         "article_6_1_with_listed_uses"],
 )
 def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, dump):
     """The level, the status, the confidence and the envelope's missing_facts
-    are the ladder's: classify_ai_system only adds answer["fria"], the
-    high-risk routes, the application dates and the legal text (B132), and a
-    null Annex I section where the ladder left none."""
+    are the ladder's. classify_ai_system adds answer["fria"], the high-risk
+    routes, the application dates and the legal text (B132), a null Annex I
+    section where the ladder left none, and since B184 annex_iii_listed_uses
+    with each listed-use unit the ladder did not cite appended to the cited
+    provisions (its span to source_spans) and one rationale line each after
+    the ladder's lines (fact_conflicts joins in Task 4). The last case shows
+    the listed-use additions; they are checked here, then set aside."""
     import copy
 
     core = classify_module._classify_core(copy.deepcopy(features), dump)
@@ -1751,10 +1762,19 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     assert "fria" in full["answer"]
     for key in ("fria", "high_risk_routes", "application_dates", "legal_text"):
         full["answer"].pop(key)
-    # B184: annex_iii_listed_uses (and fact_conflicts from Task 4) are added by
-    # the wrapper on every answer.
-    for key in ("annex_iii_listed_uses", "fact_conflicts"):
-        full["answer"].pop(key, None)
+    # B184: the listed uses and what the wrapper adds for them, after the
+    # ladder's own items, never in place of them.
+    units = full["answer"].pop("annex_iii_listed_uses")
+    full["answer"].pop("fact_conflicts", None)
+    added = [u for u in units if u not in core["source_nodes"]]
+    assert full["source_nodes"] == core["source_nodes"] + added
+    assert full["source_spans"][: len(core["source_spans"])] == core["source_spans"]
+    assert len(full["source_spans"]) == len(core["source_spans"]) + len(added)
+    lines = full["answer"]["rationale"][len(core["answer"]["rationale"]):]
+    assert full["answer"]["rationale"][: len(core["answer"]["rationale"])] == core["answer"]["rationale"]
+    assert len(lines) == len(added) and all(line.startswith("Annex III listed use answered yes") for line in lines)
+    full["source_nodes"], full["source_spans"] = core["source_nodes"], core["source_spans"]
+    full["answer"]["rationale"] = core["answer"]["rationale"]
     if "annex_i_section" not in core["answer"]:
         assert full["answer"].pop("annex_i_section") is None
     core["generated_at"] = full["generated_at"] = "MASKED"

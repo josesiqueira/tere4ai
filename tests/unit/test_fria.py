@@ -442,6 +442,9 @@ def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
     assert envelope["answer"]["risk_category"] == "high_risk"
     assert envelope["answer"]["annex_iii_category"] == POINT_5
     assert envelope["answer"]["annex_iii_listed_uses"] == []
+    # Ruling R10: a domain-only match keeps today's status until card B185.
+    assert envelope["status"] == "potentially_applicable"
+    assert envelope["confidence"] == 1.0
     assert any(
         "creditworthiness_evaluation" in f for f in envelope["missing_facts"]
     )

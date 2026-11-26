@@ -429,13 +429,13 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     too (Article 50(6)); a listed paragraph is triggered, not proven, and an
     empty list means none is triggered by a known fact. annex_iii_listed_uses
     names the legal unit of every Annex III listed use answered yes, in point
-    order, and each is cited; annex_iii_category is the first matching point.
-    A fixed rule ladder
-    decides, never a model; unknown facts that could make the system
-    unacceptable risk or high-risk (Article 5, the Article 6(1) route, Annex III)
-    surface in missing_facts; where they could change the level the status
-    is requires_human_review, and with no rule firing the level is
-    undetermined, never minimal_risk. The answer also carries a fria block:
+    order, and each is cited, except on an unacceptable_risk answer, which
+    cites only Article 5; annex_iii_category is the first matching point. A
+    fixed rule ladder decides, never a model; unknown facts that could make
+    the system unacceptable risk or high-risk (Article 5, the Article 6(1)
+    route, Annex III) surface in missing_facts; where they could change the
+    level the status is requires_human_review, and with no rule firing the
+    level is undetermined, never minimal_risk. The answer also carries a fria block:
     whether the Article 27(1) fundamental rights impact assessment
     obligation applies to the deployer (applies, does_not_apply, unknown),
     decided by the same deterministic rules from the flags and the optional

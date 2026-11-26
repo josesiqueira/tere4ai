@@ -210,7 +210,13 @@ ANALYSIS: dict[str, dict[str, Any]] = {
             "degradation path."
         ),
         "counterfactual": {
-            "change": "add flags.education_scoring_or_access = false (explicit rule-out)",
+            # B184 (DEC-32): recorded as "add flags.education_scoring_or_access
+            # = false (explicit rule-out)" (eval/results/ELICITATION_ERRORS.md).
+            "change": (
+                "set the four point 3 listed uses false (flags.annex_iii_3a_admission "
+                "to flags.annex_iii_3d_test_monitoring; explicit rule-out; the fact "
+                "education_scoring_or_access left the schema, DEC-32)"
+            ),
             "expected_category": "limited_risk",
             "note": (
                 "RESOLVED 2026-07-09: the original finding was that the "
@@ -291,10 +297,10 @@ def apply_counterfactual(features: dict[str, Any], change: str) -> dict[str, Any
         edited["flags"].pop(change.removeprefix("drop flags."), None)
     elif change.startswith("set domain to "):
         edited["domain"] = change.split("'")[1]
-    elif change.startswith("add flags.education_scoring_or_access = false"):
+    elif change.startswith("set the four point 3 listed uses false"):
         # B184 (DEC-32, ruling R11): the broad point 3 fact left the schema,
         # and a removed fact answered false is false on every listed use of
-        # its point; the change keeps the words of the record.
+        # its point.
         for fact in (
             "annex_iii_3a_admission",
             "annex_iii_3b_learning_outcomes",

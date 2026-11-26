@@ -4,7 +4,8 @@ A point matches when one of its listed-use facts is true (point 1 also on
 real_time_remote_biometric_public); the domain counts until every listed use
 of the point is known false; every listed use answered yes is named in
 annex_iii_listed_uses, in point order, and cited on every exit but the
-rejected input; the five removed broad facts are refused by name. Offline:
+rejected input and the unacceptable_risk answer, which cites only Article 5
+(ruling R14); the five removed broad facts are refused by name. Offline:
 the published Layer 1 dump on disk, skipped when it is absent.
 
 @implements: DEC-32
