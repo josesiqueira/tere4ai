@@ -52,9 +52,11 @@ FRIA_UNSETTLED_ARTICLE_5_AND_CONFLICT = (
     "Unacceptable risk; answers contradict a definition of the Act (fact_conflicts) and one answer of each pair is "
     "wrong, so the classification could change once they are corrected; FRIA applicability stays unknown until "
     "the classification is confirmed")
-PROVISIONAL_NOTE_OLD = ("These requirements are provisional pending the human-review determination of the "
-                        "classification. The risk category is tentative and could change, for example to "
-                        "Unacceptable risk, which yields zero requirements.")
+# B185 Task 7 (spec G D-G92 (8)): the requirements' note names every cause of
+# review that holds, in order; the sentence that named a change to Unacceptable
+# risk on every unsettled answer is gone.
+NOTE_PREFIX = "These requirements are provisional pending the human-review determination of the classification: "
+ARTICLE_5_REASON = "an unknown Article 5 fact could change the level to Unacceptable risk"
 CONFLICT_REASON = ("answers contradict a definition of the Act (fact_conflicts) and one answer of each pair is "
                    "wrong, so the classification could change once they are corrected")
 POINT_1A = "eu-ai-act:annex-iii:point-1:a"
@@ -340,23 +342,24 @@ def test_a_conflict_alone_gives_its_own_reason_in_both_sentences(dump, norms):  
     assert not any("Unacceptable risk" in line for line in fria["rationale"])
     req = get_applicable_requirements(cls, norms, dump)
     assert req["answer"]["provisional"] is True and req["status"] == "requires_human_review"
-    assert CONFLICT_REASON in req["answer"]["provisional_note"]
+    assert req["answer"]["provisional_note"] == NOTE_PREFIX + CONFLICT_REASON + "."
     assert "Unacceptable risk" not in req["answer"]["provisional_note"]
 
 
 @pytest.mark.parametrize("conflict", [True, False])
-def test_an_unknown_article_5_fact_is_named_first_and_the_note_keeps_its_sentence(dump, norms, conflict):  # review I2
+def test_an_unknown_article_5_fact_is_named_first_in_the_block_and_the_note(dump, norms, conflict):  # review I2
     flags = {k: v for k, v in all_false(**HIGH_RISK_MARKED).items() if k != "facial_image_scraping"}
     if not conflict:
         flags["emotion_recognition"] = True
     cls = classify_ai_system(_case(flags, deployer={"body_governed_by_public_law": True,
                                                     "private_entity_providing_public_services": False}), dump)
     assert cls["answer"]["unacceptable_risk"] is None and bool(cls["answer"]["fact_conflicts"]) is conflict
-    # B185 Task 6: the block names the causes that hold, in order (D-G92 (8));
-    # the requirements' note is Task 7's.
+    # B185 Tasks 6 and 7: the block and the requirements' note name the causes
+    # that hold, in order (D-G92 (8)).
     expected = FRIA_UNSETTLED_ARTICLE_5_AND_CONFLICT if conflict else FRIA_UNSETTLED_ARTICLE_5
     assert cls["answer"]["fria"]["rationale"] == [expected]
-    assert get_applicable_requirements(cls, norms, dump)["answer"]["provisional_note"] == PROVISIONAL_NOTE_OLD
+    note = NOTE_PREFIX + ARTICLE_5_REASON + (f"; {CONFLICT_REASON}" if conflict else "") + "."
+    assert get_applicable_requirements(cls, norms, dump)["answer"]["provisional_note"] == note
 
 
 def _docstring(path: Path, name: str) -> str:

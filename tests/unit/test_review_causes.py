@@ -6,9 +6,14 @@ requires_human_review exactly when a cause holds or the level is
 undetermined (rulings P11, P12, P32, R5); the Article 27(1) block never
 counts a point that rests on the area as a confirmed area and names every
 cause, the area first (D-G92 (5), (v), the rules added after the plan's
-review, ruling P13); a refused input carries no block (D-G92 (9), P14). The
-cases are the table of area cases (tests/unit/area_cases.py) and a fixed set
-of 6,000 generated mock inputs. Offline: the published Layer 1 dump on disk,
+review, ruling P13); a refused input carries no block (D-G92 (9), P14). B185
+Task 7: the applicable requirements read the causes from the answer itself,
+so an envelope and its bare answer read alike, and their note names the
+causes too (D-G92 (8), (i)); the causes are also recomputed in this file from
+the answer's fields and the input facts by the spec's words, without
+review_causes, and every place that prints them must agree. The cases are the
+table of area cases (tests/unit/area_cases.py) and a fixed set of 6,000
+generated mock inputs. Offline: the published Layer 1 and norms dumps on disk,
 skipped when absent.
 
 @implements: DEC-33
@@ -32,9 +37,12 @@ from tests.unit.area_cases import (
 from tests.unit.b184_cases import _flag_names, all_false, case
 
 from tere4ai.mcp_server import fria
+from tere4ai.mcp_server import requirements as requirements_module
 from tere4ai.mcp_server.classify import (
     ANNEX_I_SECTION_UNKNOWN_FACT,
+    ANNEX_III_LISTED_USE_FACTS,
     ARTICLE_6_3_CONDITIONS,
+    apply_entailments,
     article_6_3_candidate,
     classify_ai_system,
 )
@@ -45,6 +53,12 @@ from tere4ai.mcp_server.fria import (
     FRIA_AREA_UNKNOWN_USE_LINE,
     FRIA_OTHER_CAUSES_TEMPLATE,
     FRIA_UNSETTLED_TEMPLATE,
+)
+from tere4ai.mcp_server.requirements import (
+    PROVISIONAL_NOTE_TEMPLATE,
+    SECTION_B_DEROGATION_NOTE,
+    UNSETTLED_FALLBACK_FACT,
+    get_applicable_requirements,
 )
 from tere4ai.mcp_server.review_causes import (
     FACT_CONFLICT_REASON,
@@ -58,6 +72,7 @@ from tere4ai.mcp_server.review_causes import (
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
+NORMS_PATH = ROOT / "data" / "graph_dumps" / "norms_core.json"
 
 ARTICLE_6_4 = "eu-ai-act:article-6:paragraph-4"
 CANDIDACY_SENTENCE = (
@@ -126,6 +141,37 @@ def answered(dump) -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
     named = [(cid, c["features"]) for cid, c in AREA_CASES.items()]
     named += [(f"G{i}", features) for i, features in enumerate(generated_inputs())]
     return [(name, features, classify_ai_system(features, dump)) for name, features in named]
+
+
+@pytest.fixture(scope="module")
+def norms() -> dict:
+    if not NORMS_PATH.is_file():
+        pytest.skip("norms_core.json not built")
+    return json.loads(NORMS_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def served(answered, dump, norms) -> dict[str, tuple[dict[str, Any], dict[str, Any]]]:
+    """name -> (the requirements from the envelope, the requirements from the
+    bare answer), for every table case and generated input (B185 Task 7). The
+    application dates of a provision depend only on the provision, the route
+    and the dump, so they are computed once per pair here to keep the run
+    short; the function that computes them is the one the tool calls."""
+    computed: dict[tuple[str, str | None], Any] = {}
+    original = requirements_module.provision_dates
+
+    def dates_once(node_id: str, dump_in: dict, route: str | None) -> Any:
+        if (node_id, route) not in computed:
+            computed[(node_id, route)] = original(node_id, dump_in, route)
+        return computed[(node_id, route)]
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(requirements_module, "provision_dates", dates_once)
+        return {
+            name: (get_applicable_requirements(env, norms, dump),
+                   get_applicable_requirements(env["answer"], norms, dump))
+            for name, _features_in, env in answered
+        }
 
 
 def _status_lines(answer: dict[str, Any]) -> list[str]:
@@ -480,14 +526,20 @@ def test_the_block_names_every_cause_when_it_answers_unknown(answered):
     assert broken == []
 
 
-def test_no_sentence_names_unacceptable_risk_unless_it_is_unknown(answered):
-    # The note of the applicable requirements is Task 7's and is not read here.
+def test_no_sentence_names_unacceptable_risk_unless_it_is_unknown(answered, served):
+    # B185 Task 7: the applicable requirements' note, message, notes and
+    # missing facts are read too, from the envelope and from the bare answer
+    # (at 5d5bc14 the note named a change to Unacceptable risk on every
+    # unsettled answer, unacceptable_risk false included).
     broken = []
     for name, _features_in, env in answered:
         a = env["answer"]
         if a["unacceptable_risk"] is None or a["fria"] is None:
             continue
         texts = [*a["rationale"], *env["legal_status_notes"], *a["fria"]["rationale"], *a["fria"]["missing_facts"]]
+        for req in served[name]:
+            texts += [req["answer"].get("provisional_note") or "", req["answer"].get("message") or "",
+                      *req["legal_status_notes"], *req["missing_facts"]]
         if any("Unacceptable risk" in text for text in texts):
             broken.append(name)
     assert broken == []
@@ -524,4 +576,176 @@ def test_the_candidate_lines_follow_the_returned_value(answered):
             cites_6_4 = ARTICLE_6_4 in env["source_nodes"]
             if cites_6_4 != (a["article_6_3_exception_candidate"] is True):
                 broken.append(name)
+    assert broken == []
+
+
+# The causes recomputed by the spec's words (B185 Task 7, the coordinator's
+# check (c)) and the envelope against the bare answer (check (d)) ----------
+
+def _causes_by_the_spec(answer: dict[str, Any], features_in: dict[str, Any]) -> list[str]:
+    """The causes of review that hold, recomputed here from the answer's
+    fields and the input facts (corrected by the Act's definitions, as the
+    classifier reads them), by the spec's words, in the order of D-G92 (8),
+    without review_causes:
+    - an unknown Article 5 fact: unacceptable_risk null on a high_risk or
+      limited_risk answer (DEC-18);
+    - facts that contradict a definition: fact_conflicts not empty (DEC-32);
+    - a listed use true beside none_of_these_areas: area_conflicts not empty,
+      on every exit (D-G92 (iii) and the rule added after the plan's review);
+    - the area alone: a point in annex_iii_area_unconfirmed and no route
+      (D-G92 (3), (i));
+    - an Article 6(3) candidate where Annex III decides what is served: the
+      field true, and Article 6(1) not a route, or Article 6(2) a route and
+      the Annex I section B or unknown (passage (k), ruling R5 corrected);
+    - an open Article 6(1) route on a limited_risk answer: neither fact known
+      false and not both true (B123);
+    - an unknown listed use, on a limited_risk answer or a Section B product
+      on the Article 6(1) route alone: one of the 25 listed uses absent, or
+      real_time_remote_biometric_public absent, which by D-G92 (2) also
+      gives point 1 (R39)."""
+    flags = apply_entailments(features_in["flags"])[0]
+    level = answer["risk_category"]
+    routes = answer["high_risk_routes"]
+    section = answer["annex_i_section"]
+    holds = []
+    if level in ("high_risk", "limited_risk") and answer["unacceptable_risk"] is None:
+        holds.append("article_5_unknown")
+    if answer["fact_conflicts"]:
+        holds.append("fact_conflict")
+    if answer["area_conflicts"]:
+        holds.append("area_conflict")
+    if level == "high_risk" and answer["annex_iii_area_unconfirmed"] and routes == []:
+        holds.append("area_alone")
+    if answer["article_6_3_exception_candidate"] is True and (
+        "article_6_1" not in routes or ("article_6_2" in routes and section in ("B", "unknown"))
+    ):
+        holds.append("article_6_3_candidate")
+    covered, third_party = flags.get("annex_i_covered_product"), flags.get("third_party_conformity_assessment_required")
+    if level == "limited_risk" and covered is not False and third_party is not False and not (
+        covered is True and third_party is True
+    ):
+        holds.append("article_6_1_open")
+    section_b_alone = level == "high_risk" and section == "B" and routes == ["article_6_1"]
+    annex_iii_facts = (*ANNEX_III_LISTED_USE_FACTS, "real_time_remote_biometric_public")
+    if (level == "limited_risk" or section_b_alone) and any(fact not in flags for fact in annex_iii_facts):
+        holds.append("listed_use_unknown")
+    return holds
+
+
+def _named_once_as_article_5(answer: dict[str, Any], features_in: dict[str, Any], causes: list[str]) -> bool:
+    """The one place where the classifier and the spec's words part, left as
+    the classifier has it and reported to the coordinator (B185 Task 7): when
+    real_time_remote_biometric_public is the only unknown Annex III fact and
+    its Article 5 path is still open, the classifier names it once, as
+    prohibition-relevant (the ladder's rule of audit 2026-07-20 D1), so the
+    cause listed_use_unknown does not hold although D-G92 (2) makes the fact
+    give point 1; the status is review anyway, by the unknown Article 5
+    fact. Task 7 changes no classification answer."""
+    flags = apply_entailments(features_in["flags"])[0]
+    # Point (h) is ruled out when the purpose is known false or the
+    # strict-necessity carve-out known true (DEC-18 as amended by DEC-32).
+    point_h_open = not (
+        flags.get("law_enforcement_purpose") is False or flags.get("rtrb_strictly_necessary_authorised") is True
+    )
+    return (
+        "listed_use_unknown" in causes
+        and "article_5_unknown" in causes
+        and "real_time_remote_biometric_public" not in flags
+        and point_h_open
+        and all(fact in flags for fact in ANNEX_III_LISTED_USE_FACTS)
+    )
+
+
+def test_every_place_agrees_with_the_causes_recomputed_by_the_spec(answered, served):
+    words = {**REVIEW_CAUSE_REASONS, "area_alone": "the level rests on the area alone"}
+    broken, named_once = [], []
+    for name, features_in, env in answered:
+        a = env["answer"]
+        if env["status"] == "rejected_as_unsupported" or a["risk_category"] == "undetermined":
+            continue
+        causes = _causes_by_the_spec(a, features_in)
+        if _named_once_as_article_5(a, features_in, causes):
+            named_once.append(name)
+            causes = [cause for cause in causes if cause != "listed_use_unknown"]
+        # The classification's status, confidence and status lines.
+        ok = (env["status"] == "requires_human_review") == bool(causes)
+        ok = ok and env["confidence"] == (0.5 if causes else 1.0)
+        ok = ok and _status_lines(a) == [review_status_line(cause, a) for cause in causes]
+        # The Article 27(1) block, where it answers unknown on a high_risk or
+        # unacceptable_risk answer: each cause named, no other one.
+        if a["risk_category"] in ("high_risk", "unacceptable_risk") and a["fria"]["applicability"] == "unknown":
+            text = " ".join(a["fria"]["rationale"])
+            for cause in REVIEW_CAUSES:
+                if cause == "article_6_3_candidate":
+                    named = CANDIDACY_SENTENCE in text or words[cause] in text
+                    ok = ok and (named or cause not in causes)
+                else:
+                    ok = ok and (words[cause] in text) == (cause in causes)
+        # The applicable requirements, from the envelope and the bare answer.
+        section_b_alone = a.get("annex_i_section") == "B" and a["high_risk_routes"] == ["article_6_1"]
+        for req in served[name]:
+            ra = req["answer"]
+            if a["risk_category"] in ("unacceptable_risk", "minimal_risk") or section_b_alone:
+                ok = ok and "provisional_note" not in ra
+                if a["risk_category"] != "minimal_risk":
+                    ok = ok and (req["status"] == "requires_human_review") == bool(causes)
+                continue
+            if causes:
+                note = PROVISIONAL_NOTE_TEMPLATE.format(reasons="; ".join(REVIEW_CAUSE_REASONS[c] for c in causes))
+                if a.get("annex_i_section") == "B" and a.get("annex_iii_category"):
+                    note += SECTION_B_DEROGATION_NOTE
+                ok = ok and req["status"] == "requires_human_review" and ra.get("provisional_note") == note
+            else:
+                ok = ok and "provisional_note" not in ra
+        if not ok:
+            broken.append(name)
+    assert broken == []
+    # The exception stays rare in the set (1 of 6,023 on 2026-11-26).
+    assert len(named_once) <= 5, named_once
+
+
+def _read_alike(req: dict[str, Any]) -> dict[str, Any]:
+    ra = req["answer"] or {}
+    return {
+        "status": req["status"],
+        "confidence": req["confidence"],
+        "provisional": ra.get("provisional"),
+        "provisional_note": ra.get("provisional_note"),
+        "message": ra.get("message"),
+        "groups": {g: [n["norm_id"] for n in v] for g, v in (ra.get("requirements_by_article") or {}).items()},
+        "application_dates": ra.get("application_dates"),
+        "annex_i_section": ra.get("annex_i_section"),
+    }
+
+
+# The lines the requirements give when the classification names no missing
+# fact: an undetermined one, and an unsettled one.
+UNDETERMINED_FALLBACK_FACT = (
+    "the classification is Undetermined: facts missing; requirements cannot be determined until the "
+    "classification is settled"
+)
+
+
+def test_an_envelope_and_its_bare_answer_read_alike(answered, served):
+    # The status, confidence, provisional flag, note, message, requirements
+    # served and dates are the same. The missing facts differ only by the
+    # classification's own, which the bare answer does not carry: what the
+    # requirements add is the same in both forms, the lines kept for a
+    # classification that names no missing fact apart. (The cited Article 5
+    # nodes of a prohibited answer also differ, as before B185: the bare
+    # answer carries no cited provisions and its rationale names the point
+    # only, B184 final review I1.)
+    broken = []
+    for name, _features_in, env in answered:
+        from_envelope, from_bare = served[name]
+        if _read_alike(from_envelope) != _read_alike(from_bare):
+            broken.append(name)
+            continue
+        classification_missing = env["missing_facts"]
+        fallback = (UNSETTLED_FALLBACK_FACT, UNDETERMINED_FALLBACK_FACT)
+        added_envelope = [m for m in from_envelope["missing_facts"]
+                          if m not in classification_missing and m not in fallback]
+        added_bare = [m for m in from_bare["missing_facts"] if m not in classification_missing and m not in fallback]
+        if added_envelope != added_bare:
+            broken.append(name)
     assert broken == []

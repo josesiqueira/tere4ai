@@ -18,7 +18,9 @@ judged data.
 @implements: DEC-27
 @implements: DEC-30
 @implements: DEC-32 (the point (h) message of a prohibited answer; a classification marked by a fact conflict keeps its mark)
-@implements: DEC-33 (a classification marked by an area conflict keeps its mark)
+@implements: DEC-33 (a classification marked by an area conflict keeps its mark; whether the classification is
+settled and which causes of review hold are read from the answer itself, through review_causes.py, and the
+provisional note names every cause that holds)
 @grounded_by: REF-17, REF-16
 """
 
@@ -48,7 +50,7 @@ from tere4ai.mcp_server.classify import (
     PROHIBITION_FACT_CONFLICT_CLAUSE,
     route_of,
 )
-from tere4ai.mcp_server.fria import FACT_CONFLICT_REASON
+from tere4ai.mcp_server.review_causes import review_causes_of_answer, review_reason
 from tere4ai.mcp_server.tools import make_envelope
 from tere4ai.parse_legal_structure.amendments import is_deleted
 from tere4ai.parse_legal_structure.labels import LABEL_PATTERN, sort_key
@@ -147,18 +149,26 @@ MINIMAL_MESSAGE = (
     "from the v2 high-risk core apply. General provisions such as AI literacy "
     "(Article 4) are outside this deterministic check."
 )
+# B185 Task 7 (spec G D-G92 (8), ruling P11): the provisional note names every
+# cause of review that holds, their reasons joined by "; " in the order of
+# review_causes.REVIEW_CAUSES (review_reason); the plain note is for a
+# classification marked for review in which no cause is found (an envelope
+# whose status says so over an answer with no field that marks it). It
+# replaces B184's note for a fact conflict alone and the sentence that named a
+# change to Unacceptable risk on every unsettled answer, which D-G92 (8)
+# forbids while unacceptable_risk is false.
+PROVISIONAL_NOTE_TEMPLATE = (
+    "These requirements are provisional pending the human-review determination of the classification: {reasons}."
+)
+PROVISIONAL_NOTE_PLAIN = (
+    "These requirements are provisional pending the human-review determination of the classification."
+)
+
 # DEC-18: the message follows why the classification is undetermined, read from
 # the classifier's unacceptable_risk field: null means an Article 5 fact is
 # missing; false means every Article 5 path is ruled out and the missing
 # facts decide whether the system is high-risk. A bare answer without the
 # field gets the Article 5 message, the conservative one.
-# B184 (DEC-32; review of Task 4, I2): the provisional note when the
-# classification is marked for review by a fact conflict alone.
-PROVISIONAL_NOTE_FACT_CONFLICT = (
-    "These requirements are provisional pending the human-review determination of the "
-    "classification: " + FACT_CONFLICT_REASON + "."
-)
-
 UNCERTAIN_MESSAGE = (
     "The classification is Undetermined: facts missing. Facts that decide "
     "whether an Article 5 prohibition applies are unknown (see the missing facts). No requirements "
@@ -309,6 +319,42 @@ def _requirement_entry(norm: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
+# The missing fact of an unsettled classification that names no fact of its
+# own (the bare answer form carries no missing facts).
+UNSETTLED_FALLBACK_FACT = (
+    "the upstream classification is unsettled and flagged for human "
+    "review; requirements are provisional until it is settled"
+)
+
+
+def _entry_notes(entries: Any) -> list[str]:
+    """The note of each entry of fact_conflicts or area_conflicts."""
+    return [
+        entry["note"]
+        for entry in (entries if isinstance(entries, list) else [])
+        if isinstance(entry, dict) and isinstance(entry.get("note"), str)
+    ]
+
+
+def _section_b_missing_facts(
+    classification_missing: list[str], mark_notes: list[str], section_b_missing: list[str], marked: bool
+) -> list[str]:
+    """The missing facts of the Article 2(2) answer (R39; B185 ruling P25).
+
+    The classification's missing facts as before; from the bare answer form,
+    which carries none, the notes of its fact and area conflicts, and when
+    the answer stands for review with no fact named, the fallback line.
+
+    @implements: DEC-33
+    """
+    missing = list(classification_missing)
+    if marked:
+        missing += [note for note in mark_notes if note not in missing]
+        if not missing:
+            missing = [UNSETTLED_FALLBACK_FACT]
+    return missing + section_b_missing
+
+
 def get_applicable_requirements(
     classification_answer: dict[str, Any],
     norms_payload: dict[str, Any],
@@ -345,33 +391,27 @@ def get_applicable_requirements(
     upstream_status = upstream.get("status")
     upstream_confidence = upstream.get("confidence")
     upstream_missing = list(upstream.get("missing_facts") or [])
-    # B184 (DEC-32; review of Task 4, I1 and I2): the classification's own
-    # fact_conflicts mark it for review, the bare answer form included, and
-    # with unacceptable_risk not null (no Article 5 fact unknown) the conflict
-    # is the only reason the classification is not settled.
-    fact_conflicts = answer_in.get("fact_conflicts")
-    conflict_notes = [
-        entry["note"]
-        for entry in (fact_conflicts if isinstance(fact_conflicts, list) else [])
-        if isinstance(entry, dict) and isinstance(entry.get("note"), str)
-    ]
+    # B184 (DEC-32) and B185 (DEC-33, ruling P26): the notes of the
+    # classification's own fact_conflicts and area_conflicts join the missing
+    # facts of the bare answer form, which carries no missing facts.
+    conflict_notes = _entry_notes(answer_in.get("fact_conflicts"))
+    area_notes = _entry_notes(answer_in.get("area_conflicts"))
     conflict_marked = bool(conflict_notes)
-    # B185 (DEC-33, ruling P26): the classification's own area_conflicts mark
-    # it for review on any level, the bare answer form included, as
-    # fact_conflicts do.
-    area_conflicts = answer_in.get("area_conflicts")
-    area_notes = [
-        entry["note"]
-        for entry in (area_conflicts if isinstance(area_conflicts, list) else [])
-        if isinstance(entry, dict) and isinstance(entry.get("note"), str)
-    ]
     area_marked = bool(area_notes)
-    conflict_only = conflict_marked and not area_marked and answer_in.get("unacceptable_risk") is not None
+    # B185 Task 7 (spec G D-G92 (i), (8), rulings P11, P12, P25, R5): the
+    # causes of review are read from the answer itself, through the one
+    # module review_causes.py, so the bare answer form is unsettled exactly
+    # when its envelope is: an area alone, a fact or area conflict, an
+    # Article 6(3) candidate where Annex III decides what is served, an
+    # unknown Article 5 fact, and (from the envelope's missing facts, or the
+    # bare answer's own status lines) an open Article 6(1) route or an
+    # unknown listed use. The classification's own status still counts
+    # (DEC-08): an envelope marked for review is never served as settled.
+    causes = review_causes_of_answer(answer_in, upstream_missing if upstream else None)
     unsettled = (
         upstream_status == "requires_human_review"
         or risk_category == "undetermined"
-        or conflict_marked
-        or area_marked
+        or bool(causes)
     )
 
     refusal = None
@@ -533,7 +573,16 @@ def get_applicable_requirements(
         cited = [n for n in (ARTICLE_2_PARAGRAPH_2, *provisions) if n in node_index]
         # R39: the classifier names unknown Annex III facts among its missing facts.
         annex_iii_unknown = [m for m in upstream_missing if ANNEX_III_UNKNOWN_TAG in m]
-        section_b_message = SECTION_B_ANNEX_III_UNKNOWN_MESSAGE if annex_iii_unknown else SECTION_B_MESSAGE
+        # B185 (ruling P25, spec G D-G92 (5), (i)): a point that rests on the
+        # area, or an unknown listed use read from the answer's own status
+        # line, keeps the Annex III route open from the bare answer too.
+        annex_iii_open = bool(
+            annex_iii_unknown
+            or "listed_use_unknown" in causes
+            or answer_in.get("annex_iii_area_unconfirmed")
+        )
+        section_b_message = SECTION_B_ANNEX_III_UNKNOWN_MESSAGE if annex_iii_open else SECTION_B_MESSAGE
+        section_b_marked = unsettled or annex_iii_open
         section_b_missing = [f"provision '{n}' named by Article 2(2) is not present in the graph dump"
                              for n in provisions if n not in node_index]
         return make_envelope(
@@ -554,15 +603,20 @@ def get_applicable_requirements(
                 "application_dates": {n: provision_dates(n, dump, route) for n in provisions},
                 "legal_text": text,
             },
-            status="requires_human_review" if unsettled or annex_iii_unknown else "potentially_applicable",
+            status="requires_human_review" if section_b_marked else "potentially_applicable",
             graph_version=graph_version,
             confidence=(upstream_confidence if upstream_confidence is not None else 0.5)
-            if unsettled or annex_iii_unknown else 1.0,
+            if section_b_marked else 1.0,
             source_nodes=cited,
             source_spans=[node_index[n]["source_span"] for n in cited
                           if isinstance(node_index[n].get("source_span"), dict)],
             legal_status_notes=[section_b_message],
-            missing_facts=(upstream_missing if unsettled else annex_iii_unknown) + section_b_missing,
+            missing_facts=_section_b_missing_facts(
+                upstream_missing if unsettled else annex_iii_unknown,
+                [*conflict_notes, *area_notes],
+                section_b_missing,
+                section_b_marked,
+            ),
         )
 
     norms = norms_payload.get("norms")
@@ -703,8 +757,8 @@ def get_applicable_requirements(
         # The upstream classification is not settled, so this envelope must
         # not upgrade its certainty (DEC-08). Keep the provisional requirements
         # for the tentative risk_category so the answer stays useful, but carry
-        # the upstream abstention verbatim: the classification could still
-        # change (for example to unacceptable_risk, which yields zero requirements).
+        # the upstream abstention verbatim, and name in the note the causes of
+        # review that hold (B185 Task 7, spec G D-G92 (8)).
         status = "requires_human_review"
         confidence = upstream_confidence if upstream_confidence is not None else 0.5
         missing_facts = list(upstream_missing) + [
@@ -714,17 +768,10 @@ def get_applicable_requirements(
         # are added from fact_conflicts (B184) and area_conflicts (B185).
         missing_facts += [note for note in (*conflict_notes, *area_notes) if note not in missing_facts]
         if not missing_facts:
-            missing_facts = [
-                "the upstream classification is unsettled and flagged for human "
-                "review; requirements are provisional until it is settled"
-            ]
+            missing_facts = [UNSETTLED_FALLBACK_FACT]
         answer_out["provisional"] = True
         answer_out["provisional_note"] = (
-            PROVISIONAL_NOTE_FACT_CONFLICT if conflict_only else
-            "These requirements are provisional pending the human-review "
-            "determination of the classification. The risk category is "
-            "tentative and could change, for example to Unacceptable risk, "
-            "which yields zero requirements."
+            PROVISIONAL_NOTE_TEMPLATE.format(reasons=review_reason(causes)) if causes else PROVISIONAL_NOTE_PLAIN
         )
         if section == "B" and answer_in.get("annex_iii_category"):
             answer_out["provisional_note"] += SECTION_B_DEROGATION_NOTE

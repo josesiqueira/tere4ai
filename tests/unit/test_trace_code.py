@@ -15,7 +15,9 @@ import json
 from pathlib import Path
 
 import pytest
+from tests.unit.area_cases import AREA_CASES
 
+from tere4ai.mcp_server.classify import classify_ai_system
 from tere4ai.mcp_server.requirements import get_applicable_requirements
 from tere4ai.mcp_server.trace_code import trace_implementation
 from tere4ai.trace_scan import scan_tags
@@ -267,6 +269,23 @@ def test_traces_never_raise_the_evidence_status(
         "envelope status the requirements engine assigns"
     )
     assert "not evidence" in env["answer"]["trace_note"]
+
+
+def test_trace_implementation_on_a_bare_area_alone_answer_is_unsettled(dump, norms, alignments):
+    """B185 Task 7 (spec G D-G92 (i)): a classification whose level rests on
+    the area alone (table case C1) is unsettled for trace_implementation
+    whether the envelope or the bare answer is passed, as for the applicable
+    requirements it reads; trace_implementation needs no change of its own."""
+    cls = classify_ai_system(AREA_CASES["C1"]["features"], dump)
+    for given in (cls, cls["answer"]):
+        req = get_applicable_requirements(given, norms, dump)
+        traced = trace_implementation(given, [], norms, alignments, dump)
+        assert (traced["status"], traced["confidence"]) == ("requires_human_review", 0.5)
+        assert (traced["status"], traced["confidence"]) == (req["status"], req["confidence"])
+        assert traced["missing_facts"] == req["missing_facts"]
+        assert traced["answer"]["summary"]["applicable_norms"] == sum(
+            len(v) for v in req["answer"]["requirements_by_article"].values())
+        assert traced["answer"]["summary"]["applicable_norms"] > 0
 
 
 def test_hleg_alignments_ride_on_matrix_rows(

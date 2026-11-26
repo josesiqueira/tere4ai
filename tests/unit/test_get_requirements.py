@@ -22,6 +22,7 @@ from tere4ai.mcp_server.requirements import (
     UNCERTAIN_MESSAGE,
     get_applicable_requirements,
 )
+from tere4ai.mcp_server.review_causes import REVIEW_CAUSE_REASONS
 from tere4ai.mcp_server.tools import (
     NON_LEGAL_ADVICE_NOTICE,
     STATUS_VOCABULARY,
@@ -726,18 +727,23 @@ def test_a_section_b_system_with_unknown_annex_iii_facts_is_not_settled(dump, no
 
 def test_a_section_b_derogation_candidate_on_the_annex_iii_route_says_what_can_change(dump, norms_payload):
     """The re-check's note on the provisional note: an Article 6(3) derogation
-    candidate on the R26 path could take the answer back to Article 2(2)."""
+    candidate on the R26 path could take the answer back to Article 2(2).
+    B185 Task 7 (spec G D-G92 (8)): the note is the template with the
+    candidate's reason, then SECTION_B_DEROGATION_NOTE."""
     features = _annex_i(True, annex_iii_4a_recruitment=True, improves_previous_human_activity=True)
     classification = classify_ai_system(features, dump)
     assert classification["answer"]["article_6_3_exception_candidate"] is True
     answer = get_applicable_requirements(classification, norms_payload, dump)["answer"]
     assert answer["provisional"] is True
+    candidate_note = requirements_module.PROVISIONAL_NOTE_TEMPLATE.format(
+        reasons=REVIEW_CAUSE_REASONS["article_6_3_candidate"])
+    assert answer["provisional_note"] == candidate_note + requirements_module.SECTION_B_DEROGATION_NOTE
     assert "the answer would become the Article 2(2) one" in answer["provisional_note"]
     annex_iii_only = {**_annex_i(None, annex_iii_4a_recruitment=True, improves_previous_human_activity=True)}
     annex_iii_only["flags"]["annex_i_covered_product"] = False
     plain = get_applicable_requirements(classify_ai_system(annex_iii_only, dump), norms_payload, dump)
     assert plain["answer"]["provisional"] is True
-    assert "Article 2(2)" not in plain["answer"]["provisional_note"]
+    assert plain["answer"]["provisional_note"] == candidate_note
 
 
 def test_an_unknown_section_with_an_annex_iii_match_names_no_section_fact(dump, norms_payload):

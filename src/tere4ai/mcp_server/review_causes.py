@@ -10,7 +10,10 @@ decides what is served; an open Article 6(1) route; an unknown listed use.
 This module decides from an answer's own fields which causes hold (ruling
 P12, with ruling R5 for an unknown Annex I section) and gives the sentences
 the three places print (ruling P11). It reads no model and imports neither
-classify nor fria, so both can import it.
+classify nor fria, so both can import it. The applicable requirements and
+trace_implementation read the causes through review_causes_of_answer, which
+gives the same causes for an envelope and for its bare answer (D-G92 (i),
+B185 Task 7).
 
 Rules of each cause (P12, R5), read from the answer's fields; the last two
 only when the envelope's missing facts are given:
@@ -180,6 +183,40 @@ def review_causes(
             missing_facts
         ):
             holds.add("listed_use_unknown")
+    return [cause for cause in REVIEW_CAUSES if cause in holds]
+
+
+def review_causes_of_answer(answer: dict[str, Any], missing_facts: list[str] | None = None) -> list[str]:
+    """The causes of review as a reader of the classification finds them,
+    whether the envelope or the bare answer is passed (spec G D-G92 (i),
+    B185 Task 7): get_applicable_requirements and, through it,
+    trace_implementation read them here.
+
+    With the envelope's missing facts this is review_causes. A bare answer
+    carries no missing facts, so review_causes reads the first five causes
+    from its fields and not article_6_1_open or listed_use_unknown; those
+    two are then read from the answer's own status lines, which the
+    classifier writes for exactly the causes review_causes found
+    (review_status_line), and only on the answers where the rule of each can
+    hold (a limited_risk answer, or for listed_use_unknown also a Section B
+    answer on the Article 6(1) route alone). So an envelope and its bare
+    answer give the same causes, in the order of REVIEW_CAUSES.
+
+    @implements: DEC-33
+    """
+    causes = review_causes(answer, missing_facts)
+    if missing_facts is not None or not isinstance(answer, dict):
+        return causes
+    rationale = answer.get("rationale")
+    lines = {line for line in rationale if isinstance(line, str)} if isinstance(rationale, list) else set()
+    level = answer.get("risk_category")
+    holds = set(causes)
+    if level == "limited_risk" and review_status_line("article_6_1_open", answer) in lines:
+        holds.add("article_6_1_open")
+    if (level == "limited_risk" or _section_b_on_article_6_1_alone(answer)) and review_status_line(
+        "listed_use_unknown", answer
+    ) in lines:
+        holds.add("listed_use_unknown")
     return [cause for cause in REVIEW_CAUSES if cause in holds]
 
 
