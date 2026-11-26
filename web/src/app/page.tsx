@@ -208,11 +208,11 @@ export default function LandingPage() {
               A citable, rule-traced permission to not build a compliance program. Delete one
               known fact and the system refuses to say it.
             </TierCard>
-            <TierCard pill="Limited risk" n="13" what="requirements, Article 50" href="/assess">
+            <TierCard pill="Limited risk" n="21" what="requirements, Article 50" href="/assess">
               The disclosure and marking duties, each traced to its sentence of the Act, ready
               to close in code and tag.
             </TierCard>
-            <TierCard pill="High risk" n="277" what="requirements, 23 articles" href="/assess">
+            <TierCard pill="High risk" n="336" what="requirements, 24 articles" href="/assess">
               The full obligation regime plus the Article 27 fundamental rights impact
               assessment trigger, decided by rule.
             </TierCard>

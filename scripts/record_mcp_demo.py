@@ -79,12 +79,6 @@ SYSTEMS: list[dict[str, Any]] = [
                     "predictive_policing_profiling": False,
                     "facial_image_scraping": False,
                     "real_time_remote_biometric_public": False,
-                    "law_enforcement_use": False,
-                    "migration_asylum_border_use": False,
-                    "justice_democratic_use": False,
-                    "education_scoring_or_access": False,
-                    "employment_decisions": False,
-                    "essential_services_access": False,
                     "creditworthiness_evaluation": False,
                     "life_health_insurance_risk_pricing": False,
                     "critical_infrastructure_safety": False,
@@ -92,6 +86,9 @@ SYSTEMS: list[dict[str, Any]] = [
                     "annex_i_covered_product": False,
                     "interacts_with_natural_persons": False,
                     "generates_synthetic_content": False,
+                    # Sorting mail into folders and flagging links is a narrow
+                    # procedural task (Article 6(3)(a); the plan's table).
+                    "narrow_procedural_task": True,
                 },
                 "affected_persons": ["employees of the deploying company"],
                 "deployer_kind": "private_company",
@@ -137,12 +134,6 @@ SYSTEMS: list[dict[str, Any]] = [
                     "predictive_policing_profiling": False,
                     "facial_image_scraping": False,
                     "real_time_remote_biometric_public": False,
-                    "law_enforcement_use": False,
-                    "migration_asylum_border_use": False,
-                    "justice_democratic_use": False,
-                    "education_scoring_or_access": False,
-                    "employment_decisions": False,
-                    "essential_services_access": False,
                     "creditworthiness_evaluation": False,
                     "life_health_insurance_risk_pricing": False,
                     "critical_infrastructure_safety": False,
@@ -186,7 +177,6 @@ SYSTEMS: list[dict[str, Any]] = [
                 "flags": {
                     "creditworthiness_evaluation": True,
                     "profiling_of_natural_persons": True,
-                    "essential_services_access": True,
                     "biometric_identification": False,
                     "biometric_categorisation": False,
                     "emotion_recognition": False,
@@ -197,11 +187,6 @@ SYSTEMS: list[dict[str, Any]] = [
                     "predictive_policing_profiling": False,
                     "facial_image_scraping": False,
                     "real_time_remote_biometric_public": False,
-                    "law_enforcement_use": False,
-                    "migration_asylum_border_use": False,
-                    "justice_democratic_use": False,
-                    "education_scoring_or_access": False,
-                    "employment_decisions": False,
                     "life_health_insurance_risk_pricing": False,
                     "critical_infrastructure_safety": False,
                     "medical_or_safety_component": False,
@@ -295,14 +280,12 @@ SYSTEMS: list[dict[str, Any]] = [
                     "real_time_remote_biometric_public": False,
                     "biometric_identification": False,
                     "critical_infrastructure_safety": False,
-                    "education_scoring_or_access": False,
-                    "employment_decisions": False,
-                    "essential_services_access": False,
                     "creditworthiness_evaluation": False,
                     "life_health_insurance_risk_pricing": False,
-                    "law_enforcement_use": False,
-                    "migration_asylum_border_use": False,
-                    "justice_democratic_use": False,
+                    # The description states monitoring of workers during work
+                    # hours (Annex III point 4(b)); no recruitment (point 4(a)).
+                    "annex_iii_4a_recruitment": False,
+                    "annex_iii_4b_work_relationships": True,
                 },
                 "affected_persons": ["employees of the deploying company"],
                 "deployer_kind": "private_company",
@@ -361,8 +344,12 @@ SYSTEMS: list[dict[str, Any]] = [
 # never gave. Each titled system states every fact its description does not
 # contradict as false, the way gold:cls-03 to cls-05 do, so that its session
 # answers the level its key names. A fact a system sets itself is kept. The
-# abstention session is left alone (it must keep abstaining), and so is the
-# first round of unacceptablerisk (the superseded answer that asks for facts).
+# first round of unacceptablerisk is left alone (the superseded answer that
+# asks for facts).
+# B184 (DEC-32): the seven removed facts are replaced by the 19 new listed uses
+# of Annex III and the two Article 6(3) facts. law_enforcement_purpose is not
+# completed: by the plan's table it stays absent unless a system sets
+# real_time_remote_biometric_public true, and none does.
 EVERY_FACT: tuple[str, ...] = (
     "biometric_identification",
     "biometric_categorisation",
@@ -378,36 +365,90 @@ EVERY_FACT: tuple[str, ...] = (
     "exploits_vulnerabilities",
     "predictive_policing_profiling",
     "facial_image_scraping",
-    "law_enforcement_use",
-    "migration_asylum_border_use",
-    "justice_democratic_use",
-    "education_scoring_or_access",
-    "employment_decisions",
-    "essential_services_access",
+    "critical_infrastructure_safety",
+    "annex_iii_3a_admission",
+    "annex_iii_3b_learning_outcomes",
+    "annex_iii_3c_education_level",
+    "annex_iii_3d_test_monitoring",
+    "annex_iii_4a_recruitment",
+    "annex_iii_4b_work_relationships",
+    "annex_iii_5a_public_benefits",
     "creditworthiness_evaluation",
     "life_health_insurance_risk_pricing",
-    "critical_infrastructure_safety",
+    "annex_iii_5d_emergency_calls",
+    "annex_iii_6a_victim_risk",
+    "annex_iii_6b_polygraphs",
+    "annex_iii_6c_evidence_reliability",
+    "annex_iii_6d_offending_risk",
+    "annex_iii_6e_profiling",
+    "annex_iii_7a_polygraphs",
+    "annex_iii_7b_entry_risk",
+    "annex_iii_7c_applications",
+    "annex_iii_7d_identification",
+    "annex_iii_8a_judicial",
+    "annex_iii_8b_elections",
     "medical_or_safety_component",
     "interacts_with_natural_persons",
     "generates_synthetic_content",
     "profiling_of_natural_persons",
-    "preparatory_or_narrow_procedural_task",
+    "narrow_procedural_task",
+    "preparatory_task",
     "improves_previous_human_activity",
     "detects_patterns_without_replacing_human_assessment",
     "annex_i_covered_product",
     "third_party_conformity_assessment_required",
 )
 
+# The abstention system must keep abstaining, so it is not completed with
+# EVERY_FACT: it is given only the facts the plan's table says its description
+# settles (point 4(a) and every listed use of points 3, 5, 6, 7 and 8 false,
+# both Article 6(3) facts false). Point 4(b) is left absent: the description
+# does not settle whether driver state is monitored as worker behaviour.
+COMPLETION: dict[str, tuple[str, ...]] = {
+    "abstention": (
+        "annex_iii_3a_admission",
+        "annex_iii_3b_learning_outcomes",
+        "annex_iii_3c_education_level",
+        "annex_iii_3d_test_monitoring",
+        "annex_iii_4a_recruitment",
+        "annex_iii_5a_public_benefits",
+        "creditworthiness_evaluation",
+        "life_health_insurance_risk_pricing",
+        "annex_iii_5d_emergency_calls",
+        "annex_iii_6a_victim_risk",
+        "annex_iii_6b_polygraphs",
+        "annex_iii_6c_evidence_reliability",
+        "annex_iii_6d_offending_risk",
+        "annex_iii_6e_profiling",
+        "annex_iii_7a_polygraphs",
+        "annex_iii_7b_entry_risk",
+        "annex_iii_7c_applications",
+        "annex_iii_7d_identification",
+        "annex_iii_8a_judicial",
+        "annex_iii_8b_elections",
+        "narrow_procedural_task",
+        "preparatory_task",
+    ),
+}
+LEFT_ABSENT: dict[str, tuple[str, ...]] = {
+    "abstention": ("annex_iii_4b_work_relationships",),
+}
+
 
 def _give_every_fact() -> None:
+    """Set false every completion fact a system's last round leaves absent,
+    never a fact the system's table row leaves absent."""
     for system in SYSTEMS:
-        if system["key"] == "abstention":
-            continue
-        rounds = system["features_rounds"]
-        for features in rounds[-1:]:
+        key = system["key"]
+        left_absent = LEFT_ABSENT.get(key, ())
+        for features in system["features_rounds"][-1:]:
             flags = features["flags"]
-            for fact in EVERY_FACT:
-                flags.setdefault(fact, False)
+            given = [fact for fact in left_absent if fact in flags]
+            if given:
+                raise SystemExit(f"{key} sets {given}, which its table row leaves absent")
+            for fact in COMPLETION.get(key, EVERY_FACT):
+                if fact not in left_absent:
+                    flags.setdefault(fact, False)
 
 
 _give_every_fact()

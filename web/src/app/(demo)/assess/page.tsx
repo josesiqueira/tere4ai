@@ -234,92 +234,59 @@ const HLEG_LABELS: Record<string, string> = {
 const HLEG_CAVEAT_SHORT =
   "EU-to-HLEG mappings are LLM-generated, not expert-validated.";
 
-const PROHIBITION_FLAGS: [string, string][] = [
-  ["subliminal_or_manipulative", "Subliminal or manipulative techniques"],
-  ["exploits_vulnerabilities", "Exploits vulnerabilities (age, disability, situation)"],
-  ["causes_significant_harm", "Causes significant harm (Art. 5(1)(a)/(b) qualifier)"],
-  ["social_scoring", "Social scoring"],
-  [
-    "social_score_detrimental_treatment",
-    "Social score leads to detrimental treatment (Art. 5(1)(c) qualifier)",
-  ],
-  ["predictive_policing_profiling", "Predictive policing by profiling"],
-  [
-    "supports_human_assessment_on_verifiable_facts",
-    "Supports a human assessment based on facts directly linked to a criminal activity (Art. 5(1)(d) exception)",
-  ],
-  ["facial_image_scraping", "Untargeted facial image scraping"],
-  ["emotion_recognition_workplace_or_education", "Emotion recognition at work / education"],
-  [
-    "emotion_recognition_medical_or_safety",
-    "Emotion recognition for medical or safety reasons (Art. 5(1)(f) exception)",
-  ],
-  [
-    "biometric_categorisation",
-    "Biometric categorisation inferring race, political opinions, trade union membership, religious or philosophical beliefs, sex life or sexual orientation (Art. 5(1)(g))",
-  ],
-  [
-    "biometric_categorisation_lawful_or_law_enforcement",
-    "Labelling or filtering lawfully acquired biometric datasets, or categorising biometric data in law enforcement (Art. 5(1)(g) exception)",
-  ],
-  ["real_time_remote_biometric_public", "Real-time remote biometric ID in public"],
-  [
-    "rtrb_strictly_necessary_authorised",
-    "RTRB strictly necessary and authorised (Art. 5(1)(h) carve-out)",
-  ],
-  ["law_enforcement_use", "Law enforcement use"],
-  [
-    "generates_nonconsensual_intimate_material",
-    "Generates non-consensual intimate imagery (Art. 5(1)(ba), Omnibus, from 2 Dec 2026)",
-  ],
-  ["generates_csam", "Generates CSAM (Art. 5(1)(bb), Omnibus, from 2 Dec 2026)"],
-];
+/* B184 (rulings P1, P4, P14, P18): the facts come from the facade's served
+   features schema, GET /api/schema/system_features, read once at mount; the
+   page keeps no list of facts and no words of its own about any fact. Each
+   fact is shown by its schema name with the schema's description under it as
+   text. The facts that carry x-annex-iii-area stand under the heading that
+   the schema's x-annex-iii-areas gives their area, opened at the first fact
+   of the area in schema order. */
+type SchemaFlag = { name: string; description: string; area: number | null };
 
-const CATEGORY_FLAGS: [string, string][] = [
-  ["biometric_identification", "Biometric identification"],
-  [
-    "biometric_categorisation_sensitive_or_protected_attributes",
-    "Biometric categorisation by sensitive or protected attributes (Annex III point 1(b))",
-  ],
-  ["emotion_recognition", "Emotion recognition"],
-  ["critical_infrastructure_safety", "Critical infrastructure safety component"],
-  ["education_scoring_or_access", "Education scoring or access"],
-  ["employment_decisions", "Employment decisions"],
-  ["essential_services_access", "Essential services access (incl. healthcare)"],
-  ["creditworthiness_evaluation", "Creditworthiness evaluation (Annex III point 5(b))"],
-  [
-    "life_health_insurance_risk_pricing",
-    "Life / health insurance risk pricing (Annex III point 5(c))",
-  ],
-  ["migration_asylum_border_use", "Migration, asylum, border control use"],
-  ["justice_democratic_use", "Justice or democratic processes"],
-  ["medical_or_safety_component", "Medical or product safety component"],
-  ["preparatory_or_narrow_procedural_task", "Preparatory or narrow procedural task"],
-  [
-    "improves_previous_human_activity",
-    "Improves a previously completed human activity (Art. 6(3)(b))",
-  ],
-  [
-    "detects_patterns_without_replacing_human_assessment",
-    "Detects patterns without replacing human assessment (Art. 6(3)(c))",
-  ],
-  ["interacts_with_natural_persons", "Interacts with natural persons"],
-  [
-    "biometric_categorisation_system",
-    "Biometric categorisation system (Art. 3(40), Art. 50(3) duty)",
-  ],
-  ["generates_synthetic_content", "Generates synthetic content"],
-  ["profiling_of_natural_persons", "Profiling of natural persons"],
-  ["annex_i_covered_product", "Annex I covered product / safety component"],
-  [
-    "third_party_conformity_assessment_required",
-    "Third-party conformity assessment required",
-  ],
-  [
-    "annex_i_section_b_legislation",
-    "Product legislation listed in Annex I Section B (Art. 2(2): no Chapter III requirements unless an Annex III point applies)",
-  ],
-];
+type FlagGroup = { area: number | null; heading: string | null; flags: SchemaFlag[] };
+
+type FlagSchemaState =
+  | { kind: "loading" }
+  | { kind: "unavailable" }
+  | { kind: "ready"; groups: FlagGroup[] };
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+/* Reads the served schema's flags in the file's order. Returns null (the
+   schema is unavailable) when the flags cannot be read or an area has no
+   heading, so a partly read schema is never shown as the whole one. */
+function readFlagGroups(payload: unknown): FlagGroup[] | null {
+  const schema = asRecord(asRecord(payload)?.schema);
+  const flagsNode = asRecord(asRecord(schema?.properties)?.flags);
+  const properties = asRecord(flagsNode?.properties);
+  if (!flagsNode || !properties) return null;
+  const areaHeadings = asRecord(flagsNode["x-annex-iii-areas"]) ?? {};
+  const groups: FlagGroup[] = [];
+  for (const [name, definition] of Object.entries(properties)) {
+    const def = asRecord(definition) ?? {};
+    const description = typeof def.description === "string" ? def.description : "";
+    const areaValue = def["x-annex-iii-area"];
+    const area = typeof areaValue === "number" ? areaValue : null;
+    const flag: SchemaFlag = { name, description, area };
+    const last = groups[groups.length - 1];
+    if (last && last.area === area) {
+      last.flags.push(flag);
+      continue;
+    }
+    let heading: string | null = null;
+    if (area !== null) {
+      const text = areaHeadings[String(area)];
+      if (typeof text !== "string") return null;
+      heading = text;
+    }
+    groups.push({ area, heading, flags: [flag] });
+  }
+  return groups.length > 0 ? groups : null;
+}
 
 const DOMAINS = [
   "healthcare",
@@ -964,6 +931,7 @@ export default function AssessPage() {
   const [domain, setDomain] = useState("");
   const [autonomy, setAutonomy] = useState("");
   const [flags, setFlags] = useState<Record<string, string>>({});
+  const [flagSchema, setFlagSchema] = useState<FlagSchemaState>({ kind: "loading" });
 
   /* Fact elicitation (Task 3, DEC-13): a proposal only. elicitedFields marks
      which controls the last elicitation filled; editing a control after
@@ -1102,6 +1070,32 @@ export default function AssessPage() {
     }
   }
 
+  /* One fact of the served schema: its name as the label, the schema's
+     description under it as text (ruling P18). */
+  function renderFlagRow(flag: SchemaFlag) {
+    return (
+      <div key={flag.name} className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 font-mono text-xs leading-tight break-all">
+            {flag.name}
+            {elicitedFields[flag.name] && <ElicitedChip />}
+          </span>
+          <TriStateSelect
+            label={flag.name}
+            value={flags[flag.name] ?? "unknown"}
+            onChange={(v) => {
+              updateFlag(flag.name, v);
+              clearElicited(flag.name);
+            }}
+          />
+        </div>
+        {flag.description && (
+          <p className="text-sm leading-snug text-muted-foreground">{flag.description}</p>
+        )}
+      </div>
+    );
+  }
+
   function runClassify() {
     void classifyWith({ description, domain, autonomy, flags });
   }
@@ -1204,6 +1198,26 @@ export default function AssessPage() {
      decodes to a description too short to classify, is cleared outright
      rather than left dangling, so no auto-classification ever fires from
      unusable or stale hash contents. */
+  /* The facts of the form: the served features schema, read once at mount
+     (ruling P14). A failed read leaves the facts unsettable; the
+     description alone can still be classified. */
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${FACADE_URL}/api/schema/system_features`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: unknown) => {
+        if (cancelled) return;
+        const groups = payload ? readFlagGroups(payload) : null;
+        setFlagSchema(groups ? { kind: "ready", groups } : { kind: "unavailable" });
+      })
+      .catch(() => {
+        if (!cancelled) setFlagSchema({ kind: "unavailable" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash.startsWith(PERMALINK_PREFIX)) return;
@@ -1571,51 +1585,40 @@ export default function AssessPage() {
                 </select>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-sm font-medium leading-none">
-                Prohibition-relevant facts (Article 5). Unknown is never treated as false.
+                Facts, as the facade&apos;s features schema defines them. Unknown is never
+                treated as false.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {PROHIBITION_FLAGS.map(([key, label]) => (
-                  <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-1.5 leading-tight">
-                      {label}
-                      {elicitedFields[key] && <ElicitedChip />}
-                    </span>
-                    <TriStateSelect
-                      label={label}
-                      value={flags[key] ?? "unknown"}
-                      onChange={(v) => {
-                        updateFlag(key, v);
-                        clearElicited(key);
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium leading-none">
-                High-risk and transparency facts (Article 6 + Annex III, Article 50)
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {CATEGORY_FLAGS.map(([key, label]) => (
-                  <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-1.5 leading-tight">
-                      {label}
-                      {elicitedFields[key] && <ElicitedChip />}
-                    </span>
-                    <TriStateSelect
-                      label={label}
-                      value={flags[key] ?? "unknown"}
-                      onChange={(v) => {
-                        updateFlag(key, v);
-                        clearElicited(key);
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
+              {flagSchema.kind === "loading" && (
+                <p className="text-sm text-muted-foreground">Reading the features schema.</p>
+              )}
+              {flagSchema.kind === "unavailable" && (
+                <p className="text-sm text-destructive">
+                  features schema unavailable; the facts cannot be set
+                </p>
+              )}
+              {flagSchema.kind === "ready" &&
+                flagSchema.groups.map((group, index) =>
+                  group.heading === null ? (
+                    <div
+                      key={`facts-${index}`}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                    >
+                      {group.flags.map(renderFlagRow)}
+                    </div>
+                  ) : (
+                    <div
+                      key={`area-${index}`}
+                      className="space-y-2 rounded-md border border-border p-3"
+                    >
+                      <p className="text-sm font-medium leading-tight">{group.heading}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {group.flags.map(renderFlagRow)}
+                      </div>
+                    </div>
+                  )
+                )}
             </div>
             <div className="flex items-center gap-3">
               <button

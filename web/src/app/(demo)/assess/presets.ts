@@ -4,7 +4,7 @@
    safety-exception variant), so the demo, the example READMEs, and the
    archived fixtures tell the same story:
    - spamguard: minimal_risk (no prohibition or Annex III flag applies);
-     flags reused verbatim from the recorded request fixture
+     the facts set true are those of the recorded request fixture
      tests/fixtures/demo_sessions/spamguard-classify.jsonl, which produced
      the archived confident-minimal envelope.
    - shopbot: limited_risk via Article 50 (interacts with natural
@@ -41,14 +41,33 @@ export type ScenarioPreset = {
   flags: Record<string, TriState>;
 };
 
-/* All 39 flags defined in schema/json_schemas/system_features.schema.json,
+/* All 54 flags defined in schema/json_schemas/system_features.schema.json,
    matching schema_flag_names() in src/tere4ai/elicit_features/elicitor.py
-   (alphabetically sorted; the drift gate in
-   tests/unit/test_web_copy_honesty.py::test_presets_cover_every_schema_flag
+   (sorted; the drift gate in
+   tests/unit/test_web_copy_honesty.py::test_presets_name_every_schema_flag
    fails if this list falls behind the schema). */
 const ALL_FLAG_KEYS = [
   "annex_i_covered_product",
   "annex_i_section_b_legislation",
+  "annex_iii_3a_admission",
+  "annex_iii_3b_learning_outcomes",
+  "annex_iii_3c_education_level",
+  "annex_iii_3d_test_monitoring",
+  "annex_iii_4a_recruitment",
+  "annex_iii_4b_work_relationships",
+  "annex_iii_5a_public_benefits",
+  "annex_iii_5d_emergency_calls",
+  "annex_iii_6a_victim_risk",
+  "annex_iii_6b_polygraphs",
+  "annex_iii_6c_evidence_reliability",
+  "annex_iii_6d_offending_risk",
+  "annex_iii_6e_profiling",
+  "annex_iii_7a_polygraphs",
+  "annex_iii_7b_entry_risk",
+  "annex_iii_7c_applications",
+  "annex_iii_7d_identification",
+  "annex_iii_8a_judicial",
+  "annex_iii_8b_elections",
   "biometric_categorisation",
   "biometric_categorisation_lawful_or_law_enforcement",
   "biometric_categorisation_sensitive_or_protected_attributes",
@@ -58,12 +77,9 @@ const ALL_FLAG_KEYS = [
   "creditworthiness_evaluation",
   "critical_infrastructure_safety",
   "detects_patterns_without_replacing_human_assessment",
-  "education_scoring_or_access",
   "emotion_recognition",
   "emotion_recognition_medical_or_safety",
   "emotion_recognition_workplace_or_education",
-  "employment_decisions",
-  "essential_services_access",
   "exploits_vulnerabilities",
   "facial_image_scraping",
   "generates_csam",
@@ -71,13 +87,12 @@ const ALL_FLAG_KEYS = [
   "generates_synthetic_content",
   "improves_previous_human_activity",
   "interacts_with_natural_persons",
-  "justice_democratic_use",
-  "law_enforcement_use",
+  "law_enforcement_purpose",
   "life_health_insurance_risk_pricing",
   "medical_or_safety_component",
-  "migration_asylum_border_use",
+  "narrow_procedural_task",
   "predictive_policing_profiling",
-  "preparatory_or_narrow_procedural_task",
+  "preparatory_task",
   "profiling_of_natural_persons",
   "real_time_remote_biometric_public",
   "rtrb_strictly_necessary_authorised",
@@ -88,9 +103,13 @@ const ALL_FLAG_KEYS = [
   "third_party_conformity_assessment_required",
 ] as const;
 
+/* law_enforcement_purpose stays unknown in every preset: by the plan of
+   B184 it is set only where real_time_remote_biometric_public is true, and
+   no preset sets that fact true. */
 function allFalse(overrides: Record<string, TriState> = {}): Record<string, TriState> {
   const flags: Record<string, TriState> = {};
   for (const key of ALL_FLAG_KEYS) flags[key] = "false";
+  flags.law_enforcement_purpose = "unknown";
   return { ...flags, ...overrides };
 }
 
@@ -103,13 +122,18 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
       "SpamGuard is a machine learning email filter deployed by a 20 person company for its own shared inboxes. It classifies incoming mail as ham, spam, or phishing using message text and metadata, moves likely spam to a retrievable quarantine folder, and never blocks, deletes, or answers mail on its own. It does not profile or score people and is not used in employment, credit, education, law enforcement, migration, or any other Annex III context.",
     domain: "email security",
     autonomy: "partial",
-    /* Verbatim from tests/fixtures/demo_sessions/spamguard-classify.jsonl
-       (the recorded request that produced the archived confident-minimal
-       envelope): every flag false except the two narrow-task Article 6(3)
-       flags, which are true but never reached since no Annex III category
-       matches in the first place. */
+    /* The facts set true are those of
+       tests/fixtures/demo_sessions/spamguard-classify.jsonl (the recorded
+       request that produced the archived confident-minimal envelope), in
+       the facts of B184: every flag false (law_enforcement_purpose unknown,
+       see allFalse) except two Article 6(3) facts, narrow_procedural_task (sorting mail into folders and
+       flagging links is a narrow procedural task) and
+       detects_patterns_without_replacing_human_assessment, which are true
+       but never reached since no Annex III use matches in the first place;
+       preparatory_task is false (no assessment of an Annex III use
+       follows). */
     flags: allFalse({
-      preparatory_or_narrow_procedural_task: "true",
+      narrow_procedural_task: "true",
       detects_patterns_without_replacing_human_assessment: "true",
     }),
   },
@@ -134,11 +158,17 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
       "CredScore is a machine learning service that evaluates the creditworthiness of natural persons applying for consumer loans, producing a score and a recommendation that loan officers use in their decisions and can override. It is not a fraud detection tool, and is deployed by a private company under EU jurisdiction as a private entity providing an essential private service (consumer credit).",
     domain: "banking",
     autonomy: "advisory",
-    /* interacts_with_natural_persons and the three Article 6(3) narrow-task
-       flags are left unknown: the README does not settle them, and none of
-       the four affects this outcome (Annex III point 5(b) already matches
-       via creditworthiness_evaluation, and profiling_of_natural_persons
-       being true would cancel any accidental derogation candidacy anyway).
+    /* interacts_with_natural_persons and two Article 6(3) facts
+       (improves_previous_human_activity,
+       detects_patterns_without_replacing_human_assessment) are left unknown:
+       the README does not settle them, and none of the three affects this
+       outcome (Annex III point 5(b) already matches via
+       creditworthiness_evaluation, and profiling_of_natural_persons being
+       true would cancel any accidental derogation candidacy anyway).
+       narrow_procedural_task and preparatory_task are false: scoring an
+       application is the assessment itself (scripts/make_compliance.py
+       records the same reading). The other listed uses of Annex III,
+       point 5(a) public benefits included, are false.
        The two deployer booleans (body_governed_by_public_law,
        private_entity_providing_public_services) are not sent at all: the
        form does not model them (see the task report). That does not change
@@ -148,10 +178,8 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
        branch. */
     flags: allFalse({
       creditworthiness_evaluation: "true",
-      essential_services_access: "true",
       profiling_of_natural_persons: "true",
       interacts_with_natural_persons: "unknown",
-      preparatory_or_narrow_procedural_task: "unknown",
       improves_previous_human_activity: "unknown",
       detects_patterns_without_replacing_human_assessment: "unknown",
     }),
@@ -167,6 +195,9 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     flags: allFalse({
       emotion_recognition: "true",
       emotion_recognition_workplace_or_education: "true",
+      /* The description states monitoring of employees during work hours
+         (Annex III point 4(b)); no recruitment (point 4(a) stays false). */
+      annex_iii_4b_work_relationships: "true",
       /* emotion_recognition_medical_or_safety stays false (default): the
          README explicitly rules the exception out ("is not deployed for
          safety reasons"), so Article 5(1)(f) fires with no exception to
@@ -190,6 +221,10 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
          then declines to confidently prohibit or confidently clear the
          system, and reports requires_human_review instead. */
       emotion_recognition_medical_or_safety: "unknown",
+      /* The description does not settle whether driver state is monitored
+         as worker behaviour (Annex III point 4(b)), so that fact is left
+         unknown, not false. */
+      annex_iii_4b_work_relationships: "unknown",
     }),
   },
 ];

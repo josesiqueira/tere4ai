@@ -156,30 +156,28 @@ def test_evidence_graph_svg_scales_to_its_frame():
     )
 
 
-def test_presets_cover_every_schema_flag():
+def schema_flag_names():
     import sys
 
     sys.path.insert(0, str(ROOT / "src"))
-    # B184 Task 8 rewrites this test over the live schema; until then the demo
-    # site lists the facts of tag v2.0.0-beta.1 (ruling P15).
-    from tests.unit.flags_of_record import FLAGS_OF_V8
+    from tere4ai.elicit_features.elicitor import schema_flag_names as names
 
+    return names()
+
+
+def test_presets_name_every_schema_flag():
+    # B184 Task 8: the presets list the live schema's facts, 54 at this card.
     presets_text = (WEB_SRC / "app" / "(demo)" / "assess" / "presets.ts").read_text()
-    missing = [f for f in FLAGS_OF_V8 if f'"{f}"' not in presets_text]
-    assert missing == [], f"presets.ts missing schema flags: {missing}"
+    assert [f for f in schema_flag_names() if f'"{f}"' not in presets_text] == []
 
 
-def test_flag_panel_covers_every_schema_flag():
-    import sys
-
-    sys.path.insert(0, str(ROOT / "src"))
-    # B184 Task 8 rewrites this test over the live schema; until then the demo
-    # site lists the facts of tag v2.0.0-beta.1 (ruling P15).
-    from tests.unit.flags_of_record import FLAGS_OF_V8
-
+def test_assess_page_reads_the_facts_from_the_schema_and_keeps_no_list():
+    # B184 Task 8 (ruling P14): the assess page reads the facts from the
+    # facade's schema route and keeps no list of its own.
     page_text = (WEB_SRC / "app" / "(demo)" / "assess" / "page.tsx").read_text()
-    missing = [f for f in FLAGS_OF_V8 if f'"{f}"' not in page_text]
-    assert missing == [], f"page.tsx flag panel missing schema flags: {missing}"
+    assert "/api/schema/system_features" in page_text and "x-annex-iii-area" in page_text
+    assert "PROHIBITION_FLAGS" not in page_text and "CATEGORY_FLAGS" not in page_text
+    assert [f for f in schema_flag_names() if f'"{f}"' in page_text] == []
 
 
 # --- fresh-clone demo blocker guards ---------------------------------------
