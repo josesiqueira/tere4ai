@@ -92,7 +92,7 @@ def test_real_time_identification_quotes_article_3_42_and_3_44_whole():
     assert ("publicly accessible space means any publicly or privately owned physical place accessible to an undetermined "
             "number of natural persons, regardless of whether certain conditions for access may apply, and regardless of the "
             "potential capacity restrictions") in d
-    assert "law_enforcement_purpose" in d and "True entails biometric_identification" in d
+    assert "True entails biometric_identification (Annex III point 1(a))" in d
 
 
 def test_the_point_2_fact_quotes_article_6_1a_and_6_1b():
@@ -107,3 +107,29 @@ def test_autonomy_description_says_no_classification_rule_reads_it():
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     d = schema["properties"]["autonomy"]["description"]
     assert "no classification rule reads it" in d
+
+
+# (legal unit, the fact whose description must quote it whole), B184 task 6.
+WHOLE_QUOTATIONS = (
+    ("eu-ai-act:article-3:paragraph-1:point-42", "real_time_remote_biometric_public"),
+    ("eu-ai-act:article-3:paragraph-1:point-44", "real_time_remote_biometric_public"),
+    ("eu-ai-act:article-3:paragraph-1:point-39", "emotion_recognition_workplace_or_education"),
+    ("eu-ai-act:article-6:paragraph-1a", "critical_infrastructure_safety"),
+    ("eu-ai-act:article-6:paragraph-1b", "critical_infrastructure_safety"),
+)
+
+
+def _whole_unit_text(unit: str) -> str:
+    """The node's text as a description quotes it: normalised, without the
+    paragraph number of Article 6(1a) and 6(1b), without the final ';' or '.'."""
+    dump = json.loads(LAYER1_PATH.read_text(encoding="utf-8"))
+    node = next(n for n in dump["nodes"] if n["id"] == unit and n.get("type") != "UnitVersion")
+    text = _normalised(node.get("text") or "")
+    text = re.sub(r"^1[ab]\. ", "", text)
+    return text.rstrip(";.")
+
+
+@pytest.mark.skipif(not LAYER1_PATH.is_file(), reason="layer1.json dump not built")
+@pytest.mark.parametrize("unit,fact", WHOLE_QUOTATIONS)
+def test_the_completed_descriptions_quote_their_unit_whole(unit, fact):
+    assert _whole_unit_text(unit) in _normalised(_flags()[fact]["description"])
