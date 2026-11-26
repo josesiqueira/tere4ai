@@ -2437,7 +2437,7 @@ way round.
   only when every listed use of the point is known false; an unknown
   listed-use fact is named among the missing facts and blocks
   minimal_risk. The answer gains annex_iii_listed_uses, the legal units
-  of every listed use answered yes, and cites each of them beside the
+  of every listed use that is true, and cites each of them beside the
   matched point. A match by the domain alone keeps the status it has
   today until B185.
   The purpose of law enforcement (D-G91 (3), (4)). Article 5(1)(h) reads

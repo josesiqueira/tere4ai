@@ -107,7 +107,7 @@ def test_schema_flag_names_lists_every_flag():
     keys = list(schema["properties"]["flags"]["properties"])
     names = schema_flag_names()
     assert names == sorted(keys)
-    assert len(names) == len(keys) == 53
+    assert len(names) == len(keys) == 54
     assert names == sorted(names)
     assert "social_scoring" in names
     assert "creditworthiness_evaluation" in names

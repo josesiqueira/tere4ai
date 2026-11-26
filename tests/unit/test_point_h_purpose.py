@@ -61,7 +61,7 @@ def norms() -> dict:
 
 def test_finding_7_police_live_facial_recognition_is_prohibited_by_the_purpose_fact(dump):
     """Ruling R14: the prohibited answer cites only Article 5; the field still
-    names the listed use answered yes (biometric_identification, point 1(a))."""
+    names the listed use that is true (biometric_identification, point 1(a))."""
     env = classify_ai_system(_case(all_false(**POLICE_LFR), domain="law_enforcement"), dump)
     a = env["answer"]
     assert a["risk_category"] == "unacceptable_risk" and a["unacceptable_risk"] is True

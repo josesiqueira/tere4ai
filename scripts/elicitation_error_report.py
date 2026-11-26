@@ -68,20 +68,28 @@ STRATEGY = "graph_build_judge"
 # Item 76 is used "by police to assess the risk of a person becoming a victim
 # of violent crime", the use Annex III point 6(a) lists: "to assess the risk
 # of a natural person becoming the victim of criminal offences".
-FACTS_READ_TODAY: dict[str, dict[str, str]] = {
+# B184 Task 5 (DEC-32): the combined Article 6(3) fact of item 161 is split
+# into points (a) and (d). The item's description ("AI assistant that helps
+# students practice language skills through interactive exercises") states
+# neither a narrow procedural task nor a preparatory task to an assessment,
+# so, by the same rule, the fact is left absent (None), not set on a point.
+FACTS_READ_TODAY: dict[str, dict[str, str | None]] = {
     "bench:scenario:76": {"law_enforcement_use": "annex_iii_6a_victim_risk"},
+    "bench:scenario:161": {"preparatory_or_narrow_procedural_task": None},
 }
 
 
 def facts_read_today(item_id: str, features: dict[str, Any]) -> dict[str, Any]:
     """A copy of the recorded features with each removed fact of
-    FACTS_READ_TODAY replaced by its listed use, the value kept. The input is
-    never changed."""
+    FACTS_READ_TODAY replaced by its listed use, the value kept, or left
+    absent where it names none. The input is never changed."""
     renamed = FACTS_READ_TODAY.get(item_id, {})
     flags = dict(features.get("flags") or {})
     for removed, listed_use in renamed.items():
         if removed in flags:
-            flags[listed_use] = flags.pop(removed)
+            value = flags.pop(removed)
+            if listed_use is not None:
+                flags[listed_use] = value
     return {**features, "flags": flags}
 
 # The two real over-classification patterns from RUN2_ANALYSIS.md, in our
@@ -232,9 +240,11 @@ ANALYSIS: dict[str, dict[str, Any]] = {
             "from the text alone; nothing states an access, admission, "
             "grading, or proctoring function. Note the elicitor also set "
             "preparatory_or_narrow_procedural_task = true with autonomy "
-            "advisory, which correctly raised the Article 6(3) derogation "
-            "candidate and routed the item to human review, the designed "
-            "degradation path."
+            "advisory, which in the run of its day correctly raised the "
+            "Article 6(3) derogation candidate and routed the item to human "
+            "review, the designed degradation path. Since B184 (DEC-32) that "
+            "fact is split into points (a) and (d), and the offline re-run "
+            "above leaves it unknown, since the description states neither."
         ),
         "counterfactual": {
             # B184 (DEC-32): recorded as "add flags.education_scoring_or_access

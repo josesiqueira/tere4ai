@@ -189,6 +189,21 @@ def test_the_routes_and_the_article_27_block_read_the_corrected_facts(dump):  # 
     assert a["fria"]["missing_facts"] == []
 
 
+def test_a_listed_use_true_by_a_definition_is_not_said_to_be_answered_yes(dump):  # Task 4 review, Task 5
+    """biometric_identification was answered no and is read as true by Article
+    3(42); on the Article 6(1) exit no "rule high_risk" line names it, so its
+    unit gets the listed-use line, which must not say it was answered yes."""
+    flags = all_false(annex_i_covered_product=True, third_party_conformity_assessment_required=True,
+                      real_time_remote_biometric_public=True)
+    env = classify_ai_system(_case(flags), dump)
+    a = env["answer"]
+    assert a["fact_conflicts"][0]["wider"] == "biometric_identification"
+    assert a["annex_iii_listed_uses"] == [POINT_1A] and POINT_1A in env["source_nodes"]
+    assert ("Annex III listed use true: flag biometric_identification is true for eu-ai-act:annex-iii:point-1:a; "
+            "cited with the answer") in a["rationale"]
+    assert not any("answered yes" in line for line in a["rationale"])
+
+
 def test_answering_no_never_settles_more_than_unknown(dump):
     base = all_false(real_time_remote_biometric_public=True, law_enforcement_purpose=False)
     unknown = {k: v for k, v in base.items() if k != "biometric_identification"}

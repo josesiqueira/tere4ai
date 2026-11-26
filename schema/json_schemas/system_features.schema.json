@@ -280,9 +280,9 @@
           "type": "boolean",
           "description": "Article 6(3) third subparagraph, the Act's words: 'an AI system referred to in Annex III shall always be considered to be high-risk where the AI system performs profiling of natural persons'. Article 3(52) defines the term, the Act's words: 'profiling means profiling as defined in Article 4, point (4), of Regulation (EU) 2016/679'. True keeps an Annex III system high-risk even when an Article 6(3) condition holds; while it is unknown and a condition holds, the classifier names it as missing."
         },
-        "preparatory_or_narrow_procedural_task": {
+        "narrow_procedural_task": {
           "type": "boolean",
-          "description": "Article 6(3) points (a) and (d), the Act's words: 'the AI system is intended to perform a narrow procedural task' and 'the AI system is intended to perform a preparatory task to an assessment relevant for the purposes of the use cases listed in Annex III'. True, with autonomy advisory, marks an Annex III system as an Article 6(3) exception candidate; the derogation is never applied by the classifier, the system stays high-risk."
+          "description": "Article 6(3) point (a), the Act's words: 'the AI system is intended to perform a narrow procedural task'. True marks an Annex III system as an Article 6(3) exception candidate whatever its autonomy; the derogation is never applied by the classifier, the system stays high-risk."
         },
         "improves_previous_human_activity": {
           "type": "boolean",
@@ -291,6 +291,10 @@
         "detects_patterns_without_replacing_human_assessment": {
           "type": "boolean",
           "description": "Article 6(3) point (c), the Act's words: 'the AI system is intended to detect decision-making patterns or deviations from prior decision-making patterns and is not meant to replace or influence the previously completed human assessment, without proper human review'. True marks an Annex III system as an Article 6(3) exception candidate; the derogation is never applied by the classifier, the system stays high-risk."
+        },
+        "preparatory_task": {
+          "type": "boolean",
+          "description": "Article 6(3) point (d), the Act's words: 'the AI system is intended to perform a preparatory task to an assessment relevant for the purposes of the use cases listed in Annex III'. True marks an Annex III system as an Article 6(3) exception candidate whatever its autonomy; the derogation is never applied by the classifier, the system stays high-risk."
         },
         "annex_i_covered_product": {
           "type": "boolean",

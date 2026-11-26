@@ -408,11 +408,13 @@ ANNEX_III_RELEVANT_FLAGS: tuple[str, ...] = tuple(
     )
 )
 
-# B184 (ruling P7): the rationale line of each further listed use answered
-# yes. Deliberately not the "rule X: flag Y matches Z" grammar, which
-# scripts/elicitation_error_report.py parses as the classification trigger.
+# B184 (ruling P7): the rationale line of each further listed use that is
+# true, as answered or as it follows from another fact by a definition of the
+# Act (Task 4), so the line never says "answered yes". Deliberately not the
+# "rule X: flag Y matches Z" grammar, which scripts/elicitation_error_report.py
+# parses as the classification trigger.
 ANNEX_III_LISTED_USE_LINE = (
-    "Annex III listed use answered yes: flag {fact} is true for {unit}; cited with the answer"
+    "Annex III listed use true: flag {fact} is true for {unit}; cited with the answer"
 )
 
 
@@ -734,18 +736,15 @@ def _unresolved_article_6_1_facts(flags: dict[str, Any]) -> list[str]:
         return [third_party]
     return []
 
-# Article 6(3) second-subparagraph conditions: flag -> the real Point nodes.
-# The legacy combined flag covers point (a) "narrow procedural task" and
-# point (d) "preparatory task to an assessment"; the two newer flags map to
-# points (b) and (c) one-to-one.
+# Article 6(3) second-subparagraph conditions: flag -> the real Point node, in
+# point order a, b, c, d, one fact per point (B184, D-G91 (7), ruling R5: the
+# combined fact of points (a) and (d) is split, and no condition depends on
+# the system's autonomy).
 ARTICLE_6_3_CONDITIONS: tuple[tuple[str, tuple[str, ...], str], ...] = (
     (
-        "preparatory_or_narrow_procedural_task",
-        (
-            "eu-ai-act:article-6:paragraph-3:point-a",
-            "eu-ai-act:article-6:paragraph-3:point-d",
-        ),
-        "narrow procedural task (point a) or preparatory task (point d)",
+        "narrow_procedural_task",
+        ("eu-ai-act:article-6:paragraph-3:point-a",),
+        "narrow procedural task (point a)",
     ),
     (
         "improves_previous_human_activity",
@@ -756,6 +755,12 @@ ARTICLE_6_3_CONDITIONS: tuple[tuple[str, tuple[str, ...], str], ...] = (
         "detects_patterns_without_replacing_human_assessment",
         ("eu-ai-act:article-6:paragraph-3:point-c",),
         "detects decision-making patterns without replacing human assessment (point c)",
+    ),
+    (
+        "preparatory_task",
+        ("eu-ai-act:article-6:paragraph-3:point-d",),
+        "preparatory task to an assessment relevant for the purposes of the use cases "
+        "listed in Annex III (point d)",
     ),
 )
 
@@ -911,22 +916,18 @@ def _unknown_annex_iii_facts(flags: dict[str, Any]) -> dict[str, str]:
     return unknown
 
 
-def _article_6_3_candidate(flags: dict[str, Any], autonomy: Any) -> bool:
+def _article_6_3_candidate(flags: dict[str, Any]) -> bool:
     """Whether an Article 6(3) derogation candidacy is flagged for this system.
 
     The boolean half of the ladder's 6(3) logic, extracted so the FRIA rule
     can apply it to the 6(2) side of a dual 6(1)+6(2) route system (audit
-    2026-07-20 D7). A matched second-subparagraph condition (with the
-    advisory-autonomy guard on the legacy combined flag) raises candidacy,
-    which the third-subparagraph profiling override then cancels.
+    2026-07-20 D7). A matched second-subparagraph condition raises
+    candidacy, whatever the system's autonomy (B184, D-G91 (7)), which the
+    third-subparagraph profiling override then cancels.
+
+    @implements: DEC-32
     """
-    matched = False
-    for flag, _points, _label in ARTICLE_6_3_CONDITIONS:
-        if flags.get(flag) is not True:
-            continue
-        if flag == "preparatory_or_narrow_procedural_task" and autonomy != "advisory":
-            continue
-        matched = True
+    matched = any(flags.get(flag) is True for flag, _points, _label in ARTICLE_6_3_CONDITIONS)
     if matched and flags.get("profiling_of_natural_persons") is True:
         return False
     return matched
@@ -1016,7 +1017,6 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
 
     flags = features.get("flags") or {}
     domain = _normalize_domain(features.get("domain"))
-    autonomy = features.get("autonomy")
 
     node_index = _node_index(dump)
     citations = _Citations(node_index)
@@ -1358,16 +1358,13 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
 
         # Rule 3: Article 6(3) derogation candidacy over the real second-
         # subparagraph conditions. The derogation needs human legal judgment;
-        # it is flagged, never auto-applied. The legacy combined flag keeps
-        # its conservative advisory-autonomy guard; the point (b) and (c)
-        # flags are specific enough to flag candidacy on their own.
-        matched_conditions: list[tuple[str, tuple[str, ...], str]] = []
-        for flag, point_nodes, label in ARTICLE_6_3_CONDITIONS:
-            if flags.get(flag) is not True:
-                continue
-            if flag == "preparatory_or_narrow_procedural_task" and autonomy != "advisory":
-                continue
-            matched_conditions.append((flag, point_nodes, label))
+        # it is flagged, never auto-applied. Each point (a) to (d) has its own
+        # fact and none depends on the system's autonomy (B184, D-G91 (7)).
+        matched_conditions = [
+            (flag, point_nodes, label)
+            for flag, point_nodes, label in ARTICLE_6_3_CONDITIONS
+            if flags.get(flag) is True
+        ]
         if matched_conditions and flags.get("profiling_of_natural_persons") is True:
             # Article 6(3) third subparagraph: profiling systems are always
             # high-risk, so candidacy is cancelled, not merely flagged.
@@ -1634,7 +1631,7 @@ def _cite_listed_uses(
     """Set annex_iii_listed_uses and cite each of its units (B184, ruling R14).
 
     The rejected input gets an empty list and no citation (no rule ran).
-    Otherwise every legal unit of a listed use answered yes is named in point
+    Otherwise every legal unit of a listed use that is true is named in point
     order; on the unacceptable_risk exit nothing more is done (ruling R14:
     only the Article 5 provisions are cited there); on every other exit each
     unit is cited (its node into source_nodes, its span into source_spans,
@@ -1759,9 +1756,8 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     # Recompute Article 6(3) candidacy for the 6(2) side even when the ladder
     # returned via the 6(1) route (its answer flag is False there): a
     # dual-route system's 6(2) derogation candidacy still blocks FRIA (D7).
-    autonomy = features.get("autonomy") if isinstance(features, dict) else None
     candidate = answer.get("article_6_3_exception_candidate") is True or (
-        bool(annex_points) and _article_6_3_candidate(flags, autonomy)
+        bool(annex_points) and _article_6_3_candidate(flags)
     )
     answer["fria"] = assess_fria_applicability(
         answer.get("risk_category"),

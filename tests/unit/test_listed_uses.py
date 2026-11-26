@@ -2,7 +2,7 @@
 
 A point matches when one of its listed-use facts is true (point 1 also on
 real_time_remote_biometric_public); the domain counts until every listed use
-of the point is known false; every listed use answered yes is named in
+of the point is known false; every listed use that is true is named in
 annex_iii_listed_uses, in point order, and cited on every exit but the
 rejected input and the unacceptable_risk answer, which cites only Article 5
 (ruling R14); the six removed broad facts are refused by name
@@ -57,7 +57,7 @@ def test_every_listed_use_answered_yes_is_cited_and_the_first_point_decides(dump
     assert a["annex_iii_category"] == "eu-ai-act:annex-iii:point-4"
     assert a["annex_iii_listed_uses"] == ["eu-ai-act:annex-iii:point-4:a", "eu-ai-act:annex-iii:point-5:b"]
     first = next(i for i, line in enumerate(a["rationale"]) if line.startswith("rule high_risk:"))
-    assert a["rationale"].index("Annex III listed use answered yes: flag creditworthiness_evaluation is true for "
+    assert a["rationale"].index("Annex III listed use true: flag creditworthiness_evaluation is true for "
                                 "eu-ai-act:annex-iii:point-5:b; cited with the answer") > first
     assert not any("flag annex_iii_4a_recruitment is true for" in line for line in a["rationale"])
     assert {"eu-ai-act:annex-iii:point-4:a", "eu-ai-act:annex-iii:point-5:b"} <= set(env["source_nodes"])
@@ -93,7 +93,8 @@ def test_an_unknown_listed_use_is_named_and_blocks_minimal(dump):
 
 
 @pytest.mark.parametrize("removed", ["education_scoring_or_access", "employment_decisions", "essential_services_access",
-                                     "migration_asylum_border_use", "justice_democratic_use", "law_enforcement_use"])
+                                     "migration_asylum_border_use", "justice_democratic_use", "law_enforcement_use",
+                                     "preparatory_or_narrow_procedural_task"])
 def test_each_removed_fact_is_refused_by_name(dump, removed):
     env = classify_ai_system(_case({removed: False}), dump)
     assert env["status"] == "rejected_as_unsupported"
@@ -104,7 +105,7 @@ def test_each_removed_fact_is_refused_by_name(dump, removed):
 def test_a_prohibited_answer_names_its_listed_uses_and_cites_only_article_5(dump):
     """Coordinator ruling R14 (USER.md: prohibited systems get only the Article
     5 prohibition citation and a message): on the unacceptable_risk exit the
-    field still names the listed uses answered yes, but no Annex III unit is
+    field still names the listed uses that are true, but no Annex III unit is
     cited and no further-listed-use line is added."""
     flags = all_false(emotion_recognition_workplace_or_education=True, emotion_recognition=True,
                       annex_iii_4b_work_relationships=True)
@@ -113,5 +114,5 @@ def test_a_prohibited_answer_names_its_listed_uses_and_cites_only_article_5(dump
     assert a["risk_category"] == "unacceptable_risk"
     assert a["annex_iii_listed_uses"] == ["eu-ai-act:annex-iii:point-1:c", "eu-ai-act:annex-iii:point-4:b"]
     assert env["source_nodes"] and all(":article-5:" in n for n in env["source_nodes"])
-    assert not any(line.startswith("Annex III listed use answered yes") for line in a["rationale"])
+    assert not any(line.startswith("Annex III listed use true") for line in a["rationale"])
     assert all(":article-5:" in e["provision"] for e in a["application_dates"])

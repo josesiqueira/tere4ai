@@ -71,9 +71,10 @@ ALL_FLAGS = (
     "interacts_with_natural_persons",
     "generates_synthetic_content",
     "profiling_of_natural_persons",
-    "preparatory_or_narrow_procedural_task",
+    "narrow_procedural_task",
     "improves_previous_human_activity",
     "detects_patterns_without_replacing_human_assessment",
+    "preparatory_task",
     "annex_i_covered_product",
     "third_party_conformity_assessment_required",
     "annex_i_section_b_legislation",
@@ -346,7 +347,7 @@ def test_article_6_3_candidate_requires_human_review_never_downgrades(dump, node
         "domain": "education",
         "autonomy": "advisory",
         "flags": all_false_flags(
-            annex_iii_3a_admission=True, preparatory_or_narrow_procedural_task=True
+            annex_iii_3a_admission=True, narrow_procedural_task=True
         ),
     }
     envelope = classify_ai_system(features, dump)
@@ -357,20 +358,24 @@ def test_article_6_3_candidate_requires_human_review_never_downgrades(dump, node
     assert answer["article_6_3_exception_candidate"] is True
     assert envelope["status"] == "requires_human_review"
     assert "eu-ai-act:article-6:paragraph-3" in envelope["source_nodes"]
+    assert "eu-ai-act:article-6:paragraph-3:point-a" in envelope["source_nodes"]
 
 
-def test_no_exception_candidate_without_advisory_autonomy(dump, node_ids):
+def test_exception_candidate_whatever_the_autonomy(dump, node_ids):
+    """B184, D-G91 (7): no Article 6(3) condition depends on autonomy; until
+    Task 5 the combined fact needed autonomy advisory, and this case (autonomy
+    full) gave no candidacy and potentially_applicable."""
     features = {
         "description": "Automated tool that pre-sorts student admission paperwork.",
         "domain": "education",
         "autonomy": "full",
         "flags": all_false_flags(
-            annex_iii_3a_admission=True, preparatory_or_narrow_procedural_task=True
+            annex_iii_3a_admission=True, narrow_procedural_task=True
         ),
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["article_6_3_exception_candidate"] is False
-    assert envelope["status"] == "potentially_applicable"
+    assert envelope["answer"]["article_6_3_exception_candidate"] is True
+    assert envelope["status"] == "requires_human_review"
 
 
 def test_point_b_condition_flags_candidacy_and_cites_the_point(dump, node_ids):
@@ -398,7 +403,7 @@ def test_profiling_cancels_derogation_candidacy(dump, node_ids):
         "autonomy": "advisory",
         "flags": all_false_flags(
             annex_iii_3a_admission=True,
-            preparatory_or_narrow_procedural_task=True,
+            preparatory_task=True,
             profiling_of_natural_persons=True,
         ),
     }
@@ -422,7 +427,8 @@ def test_annex_i_route_is_high_risk_without_derogation(dump, node_ids):
         "flags": all_false_flags(
             annex_i_covered_product=True,
             third_party_conformity_assessment_required=True,
-            preparatory_or_narrow_procedural_task=True,
+            narrow_procedural_task=True,
+            preparatory_task=True,
         ),
     }
     envelope = classify_ai_system(features, dump)
@@ -1776,7 +1782,7 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     assert len(full["source_spans"]) == len(core["source_spans"]) + len(added)
     lines = full["answer"]["rationale"][len(core["answer"]["rationale"]):]
     assert full["answer"]["rationale"][: len(core["answer"]["rationale"])] == core["answer"]["rationale"]
-    assert len(lines) == len(added) and all(line.startswith("Annex III listed use answered yes") for line in lines)
+    assert len(lines) == len(added) and all(line.startswith("Annex III listed use true: flag ") for line in lines)
     full["source_nodes"], full["source_spans"] = core["source_nodes"], core["source_spans"]
     full["answer"]["rationale"] = core["answer"]["rationale"]
     if "annex_i_section" not in core["answer"]:

@@ -436,14 +436,14 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     fact_conflicts names each pair of facts where a fact that a definition of
     the Act makes follow was answered false; that fact is read as true and the
     answer requires human review. The list is empty when there is no such
-    pair, and on a rejected input; a fact left unknown that a definition makes follow is read as true
-    as well, with a line in the rationale and no entry. A fixed rule ladder
-    decides, never a model; unknown facts that could make
+    pair, and on a rejected input; a fact left unknown that a definition makes
+    follow is read as true as well, with a line in the rationale and no entry.
+    A fixed rule ladder decides, never a model; unknown facts that could make
     the system unacceptable risk or high-risk (Article 5, the Article 6(1)
     route, Annex III) surface in missing_facts; where they could change the
     level the status is requires_human_review, and with no rule firing the
-    level is undetermined, never minimal_risk. The answer also carries a fria block:
-    whether the Article 27(1) fundamental rights impact assessment
+    level is undetermined, never minimal_risk. The answer also carries a fria
+    block: whether the Article 27(1) fundamental rights impact assessment
     obligation applies to the deployer (applies, does_not_apply, unknown),
     decided by the same deterministic rules from the flags and the optional
     deployer facts (deployer.body_governed_by_public_law,
