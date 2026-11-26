@@ -17,7 +17,7 @@ judged data.
 @implements: DEC-23
 @implements: DEC-27
 @implements: DEC-30
-@implements: DEC-32 (the point (h) message of a prohibited answer)
+@implements: DEC-32 (the point (h) message of a prohibited answer; a classification marked by a fact conflict keeps its mark)
 @grounded_by: REF-17, REF-16
 """
 
@@ -44,6 +44,7 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_5_POINT_H,
     route_of,
 )
+from tere4ai.mcp_server.fria import FACT_CONFLICT_REASON
 from tere4ai.mcp_server.tools import make_envelope
 from tere4ai.parse_legal_structure.amendments import is_deleted
 from tere4ai.parse_legal_structure.labels import LABEL_PATTERN, sort_key
@@ -139,6 +140,13 @@ MINIMAL_MESSAGE = (
 # missing; false means every Article 5 path is ruled out and the missing
 # facts decide whether the system is high-risk. A bare answer without the
 # field gets the Article 5 message, the conservative one.
+# B184 (DEC-32; review of Task 4, I2): the provisional note when the
+# classification is marked for review by a fact conflict alone.
+PROVISIONAL_NOTE_FACT_CONFLICT = (
+    "These requirements are provisional pending the human-review determination of the "
+    "classification: " + FACT_CONFLICT_REASON + "."
+)
+
 UNCERTAIN_MESSAGE = (
     "The classification is Undetermined: facts missing. Facts that decide "
     "whether an Article 5 prohibition applies are unknown (see the missing facts). No requirements "
@@ -324,9 +332,22 @@ def get_applicable_requirements(
     upstream_status = upstream.get("status")
     upstream_confidence = upstream.get("confidence")
     upstream_missing = list(upstream.get("missing_facts") or [])
+    # B184 (DEC-32; review of Task 4, I1 and I2): the classification's own
+    # fact_conflicts mark it for review, the bare answer form included, and
+    # with unacceptable_risk not null (no Article 5 fact unknown) the conflict
+    # is the only reason the classification is not settled.
+    fact_conflicts = answer_in.get("fact_conflicts")
+    conflict_notes = [
+        entry["note"]
+        for entry in (fact_conflicts if isinstance(fact_conflicts, list) else [])
+        if isinstance(entry, dict) and isinstance(entry.get("note"), str)
+    ]
+    conflict_marked = bool(conflict_notes)
+    conflict_only = conflict_marked and answer_in.get("unacceptable_risk") is not None
     unsettled = (
         upstream_status == "requires_human_review"
         or risk_category == "undetermined"
+        or conflict_marked
     )
 
     refusal = None
@@ -360,6 +381,10 @@ def get_applicable_requirements(
             for n in cited
             if isinstance(node_index[n].get("source_span"), dict)
         ]
+        # B184 (review of Task 4, I1): a prohibited classification marked for
+        # review by a fact conflict keeps its status, its confidence and its
+        # conflict lines here (DEC-08); still no requirement is served.
+        prohibited_marked = unsettled
         return make_envelope(
             answer={
                 "risk_category": "unacceptable_risk",
@@ -372,9 +397,12 @@ def get_applicable_requirements(
                 ),
                 "legal_text": text,
             },
-            status="not_applicable",
+            status="requires_human_review" if prohibited_marked else "not_applicable",
             graph_version=graph_version,
-            confidence=1.0,
+            confidence=(
+                (upstream_confidence if upstream_confidence is not None else 0.5)
+                if prohibited_marked else 1.0
+            ),
             source_nodes=cited,
             source_spans=spans,
             legal_status_notes=[
@@ -382,9 +410,12 @@ def get_applicable_requirements(
                 for n in cited
             ],
             missing_facts=[
-                f"prohibition node '{n}' from the classification is not present in the graph dump"
-                for n in prohibition_nodes
-                if n not in node_index
+                *(conflict_notes if prohibited_marked else []),
+                *(
+                    f"prohibition node '{n}' from the classification is not present in the graph dump"
+                    for n in prohibition_nodes
+                    if n not in node_index
+                ),
             ],
         )
 
@@ -625,6 +656,9 @@ def get_applicable_requirements(
         missing_facts = list(upstream_missing) + [
             m for m in missing_facts if m not in upstream_missing
         ]
+        # The bare answer form carries no missing facts: its conflict lines
+        # are added from fact_conflicts (B184).
+        missing_facts += [note for note in conflict_notes if note not in missing_facts]
         if not missing_facts:
             missing_facts = [
                 "the upstream classification is unsettled and flagged for human "
@@ -632,6 +666,7 @@ def get_applicable_requirements(
             ]
         answer_out["provisional"] = True
         answer_out["provisional_note"] = (
+            PROVISIONAL_NOTE_FACT_CONFLICT if conflict_only else
             "These requirements are provisional pending the human-review "
             "determination of the classification. The risk category is "
             "tentative and could change, for example to Unacceptable risk, "

@@ -502,7 +502,7 @@ FACT_ENTAILED_FROM_UNKNOWN_LINE = (
     "first follow from the second, so it is read as true"
 )
 FACT_CONFLICT_STATUS_LINE = (
-    "status lowered to requires_human_review: two facts contradict a definition of the Act (fact_conflicts)"
+    "status lowered to requires_human_review: answers contradict a definition of the Act: see fact_conflicts"
 )
 
 
@@ -980,7 +980,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     offline Layer 0+1 dump. Returns the mandatory response envelope with
     answer fields: risk_category, unacceptable_risk, annex_iii_category,
     article_6_3_exception_candidate, transparency_duties (DEC-18: the Article
-    50 paragraphs triggered by a known fact), rationale. Schema-invalid input returns
+    50 paragraphs triggered by a fact that is true, as answered or as it
+    follows from a definition of the Act, since classify_ai_system corrects
+    the facts before this function reads them), rationale. Schema-invalid input returns
     status rejected_as_unsupported (never an exception) with the validation
     errors in missing_facts: the input was refused, not assessed, so it must
     not borrow not_applicable, which is a substantive in-scope verdict ("this
@@ -1775,6 +1777,10 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         # make Article 27(1) apply (B125); only the fria block reads it,
         # never the level or status.
         unknown_annex_iii_facts=_unknown_annex_iii_facts(flags),
+        # B184 (review of Task 4, I1 and I2): the classification's own fields
+        # tell the FRIA rule that the review mark comes from a fact conflict.
+        fact_conflicts=answer.get("fact_conflicts"),
+        unacceptable_risk=answer.get("unacceptable_risk"),
     )
     # B132 (spec G D-G68 (6)): the Annex I section on every answer (null off
     # the Article 6(1) route), the high-risk routes that hold (R37: computed

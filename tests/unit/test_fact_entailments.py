@@ -17,6 +17,7 @@ Offline: the published Layer 1 dump on disk, skipped when it is absent.
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -32,13 +33,26 @@ from tere4ai.mcp_server.classify import (
     classify_ai_system,
     fact_conflict_line,
 )
+from tere4ai.mcp_server.requirements import PROHIBITED_MESSAGE, get_applicable_requirements
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
+NORMS_PATH = ROOT / "data" / "graph_dumps" / "norms_core.json"
+SERVER_PATH = ROOT / "src" / "tere4ai" / "mcp_server" / "server.py"
+CLASSIFY_PATH = ROOT / "src" / "tere4ai" / "mcp_server" / "classify.py"
+# The sentences kept for every cause of review other than a fact conflict alone.
+FRIA_UNSETTLED_OLD = ("the risk classification is high-risk but not settled (see the classification's own missing "
+                      "facts); FRIA applicability stays unknown until the classification is confirmed, because a "
+                      "change to Unacceptable risk would remove the obligation")
+PROVISIONAL_NOTE_OLD = ("These requirements are provisional pending the human-review determination of the "
+                        "classification. The risk category is tentative and could change, for example to "
+                        "Unacceptable risk, which yields zero requirements.")
+CONFLICT_REASON = ("answers contradict a definition of the Act (fact_conflicts) and one answer of each pair is "
+                   "wrong, so the classification could change once they are corrected")
 POINT_1A = "eu-ai-act:annex-iii:point-1:a"
 POINT_1B = "eu-ai-act:annex-iii:point-1:b"
 POINT_G = "eu-ai-act:article-5:paragraph-1:point-g"
-STATUS_LINE = "status lowered to requires_human_review: two facts contradict a definition of the Act (fact_conflicts)"
+STATUS_LINE = "status lowered to requires_human_review: answers contradict a definition of the Act: see fact_conflicts"
 
 pytestmark = pytest.mark.skipif(not DUMP_PATH.is_file(), reason="layer1.json dump not built")
 
@@ -49,6 +63,11 @@ POLICE_LFR = dict(real_time_remote_biometric_public=True, law_enforcement_purpos
 @pytest.fixture(scope="module")
 def dump() -> dict:
     return json.loads(DUMP_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def norms() -> dict:
+    return json.loads(NORMS_PATH.read_text(encoding="utf-8"))
 
 
 def test_the_entailments_are_the_four_pairs_of_the_acts_definitions():
@@ -221,3 +240,85 @@ def test_a_rejected_input_with_a_contradiction_keeps_its_rejection(dump):
 def test_a_marked_answer_holds_the_article_27_block_open(dump):  # P11
     env = classify_ai_system(_case(all_false(emotion_recognition_workplace_or_education=True, emotion_recognition_medical_or_safety=True)), dump)
     assert env["answer"]["fria"]["applicability"] == "unknown"
+
+
+# Fix round 1 of the Task 4 review: the mark reaches the applicable
+# requirements and the Article 27 block, and each states its true reason.
+
+PROHIBITED_MARKED = dict(biometric_categorisation=True, biometric_categorisation_lawful_or_law_enforcement=False)
+HIGH_RISK_MARKED = dict(emotion_recognition_workplace_or_education=True, emotion_recognition_medical_or_safety=True)
+
+
+def test_requirements_of_a_marked_prohibited_answer_keep_the_mark(dump, norms):  # review I1 (a)
+    cls = classify_ai_system(_case(all_false(**PROHIBITED_MARKED)), dump)
+    notes = [c["note"] for c in cls["answer"]["fact_conflicts"]]
+    assert len(notes) == 2
+    for given in (cls, cls["answer"]):  # the envelope and the bare answer
+        req = get_applicable_requirements(given, norms, dump)
+        assert req["status"] == "requires_human_review" and req["confidence"] == 0.5
+        assert all(note in req["missing_facts"] for note in notes)
+        assert req["answer"]["requirements_by_article"] == {} and req["answer"]["summary"] == {"returned": 0}
+        assert req["answer"]["message"] == PROHIBITED_MESSAGE
+    assert get_applicable_requirements(cls, norms, dump)["source_nodes"] == [POINT_G]  # ruling R14
+
+
+def test_requirements_of_an_unmarked_prohibited_answer_stay_settled(dump, norms):
+    cls = classify_ai_system(_case(all_false(**PROHIBITED_MARKED, biometric_categorisation_system=True,
+                                             biometric_categorisation_sensitive_or_protected_attributes=True)), dump)
+    req = get_applicable_requirements(cls, norms, dump)
+    assert req["status"] == "not_applicable" and req["confidence"] == 1.0 and req["missing_facts"] == []
+
+
+def test_the_article_27_block_of_a_marked_prohibited_answer_is_unknown(dump):  # review I1 (b)
+    fria = classify_ai_system(_case(all_false(**PROHIBITED_MARKED)), dump)["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert any(CONFLICT_REASON in line for line in fria["rationale"])
+    unmarked = classify_ai_system(_case(all_false(**PROHIBITED_MARKED, biometric_categorisation_system=True,
+                                                  biometric_categorisation_sensitive_or_protected_attributes=True)), dump)
+    assert unmarked["answer"]["fria"]["applicability"] == "does_not_apply"
+
+
+def test_a_conflict_alone_gives_its_own_reason_in_both_sentences(dump, norms):  # review I2
+    cls = classify_ai_system(_case(all_false(**HIGH_RISK_MARKED),
+                                   deployer={"body_governed_by_public_law": True,
+                                             "private_entity_providing_public_services": False}), dump)
+    assert cls["answer"]["unacceptable_risk"] is False and cls["answer"]["fact_conflicts"]
+    fria = cls["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert any(CONFLICT_REASON in line for line in fria["rationale"])
+    assert not any("Unacceptable risk" in line for line in fria["rationale"])
+    req = get_applicable_requirements(cls, norms, dump)
+    assert req["answer"]["provisional"] is True and req["status"] == "requires_human_review"
+    assert CONFLICT_REASON in req["answer"]["provisional_note"]
+    assert "Unacceptable risk" not in req["answer"]["provisional_note"]
+
+
+@pytest.mark.parametrize("conflict", [True, False])
+def test_an_unknown_article_5_fact_keeps_the_existing_sentences(dump, norms, conflict):  # review I2
+    flags = {k: v for k, v in all_false(**HIGH_RISK_MARKED).items() if k != "facial_image_scraping"}
+    if not conflict:
+        flags["emotion_recognition"] = True
+    cls = classify_ai_system(_case(flags, deployer={"body_governed_by_public_law": True,
+                                                    "private_entity_providing_public_services": False}), dump)
+    assert cls["answer"]["unacceptable_risk"] is None and bool(cls["answer"]["fact_conflicts"]) is conflict
+    assert FRIA_UNSETTLED_OLD in cls["answer"]["fria"]["rationale"]
+    assert get_applicable_requirements(cls, norms, dump)["answer"]["provisional_note"] == PROVISIONAL_NOTE_OLD
+
+
+def _docstring(path: Path, name: str) -> str:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    node = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == name)
+    return " ".join((ast.get_docstring(node) or "").split())
+
+
+def test_the_served_description_says_a_fact_is_true_as_answered_or_by_a_definition():  # review I3, M1
+    served = _docstring(SERVER_PATH, "classify_ai_system")
+    assert "listed use answered yes" not in served
+    assert "triggered by a known fact" not in served
+    assert ("annex_iii_listed_uses names the legal unit of every Annex III listed use that is true, as answered "
+            "or as it follows from another fact by a definition of the Act") in served
+    assert "triggered by a fact that is true, as answered or as it follows from a definition of the Act" in served
+    assert "The list is empty when there is no such pair, and on a rejected input" in served
+    core = _docstring(CLASSIFY_PATH, "_classify_core")
+    assert "triggered by a known fact" not in core
+    assert "triggered by a fact that is true, as answered or as it follows from a definition of the Act" in core

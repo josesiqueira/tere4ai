@@ -38,6 +38,7 @@ legal categories. Only the structured deployer facts decide.
 @implements: DEC-14
 @implements: DEC-20
 @implements: DEC-23
+@implements: DEC-32 (a classification marked by a fact conflict keeps the block unknown)
 @grounded_by: REF-01, REF-30
 """
 
@@ -112,6 +113,14 @@ def _block(
     }
 
 
+# B184 (DEC-32; review of Task 4, I1 and I2): the reason a classification
+# marked by a fact conflict is not settled. Count-neutral, since one narrower
+# fact can contradict two definitions.
+FACT_CONFLICT_REASON = (
+    "answers contradict a definition of the Act (fact_conflicts) and one answer of each pair is "
+    "wrong, so the classification could change once they are corrected"
+)
+
 _UNKNOWN_ANNEX_III_NONE_CAN = (
     "no unknown Annex III fact can make Article 27(1) apply: each is in "
 )
@@ -173,6 +182,8 @@ def assess_fria_applicability(
     annex_points: list[str] | None = None,
     classification_unsettled: bool = False,
     unknown_annex_iii_facts: dict[str, str] | None = None,
+    fact_conflicts: list[Any] | None = None,
+    unacceptable_risk: bool | None = None,
 ) -> dict[str, Any]:
     """Decide whether the Article 27(1) FRIA obligation applies.
 
@@ -209,7 +220,16 @@ def assess_fria_applicability(
     area except points 5(b) and 5(c), which trigger for any deployer; the
     does_not_apply rationale then says which of these two reasons holds.
     None or empty keeps the plain does_not_apply.
+
+    fact_conflicts and unacceptable_risk are the classification's own fields
+    (B184, DEC-32; review of Task 4, I1 and I2). A classification marked for
+    review by a fact conflict leaves the block unknown on an unacceptable_risk
+    answer too (ruling P11), with a reason naming the conflict; on a high-risk
+    answer marked by a conflict alone (no Article 5 fact unknown, so
+    unacceptable_risk is not null) the reason names the conflict instead of a
+    change to Unacceptable risk. Every other cause keeps its sentence.
     """
+    conflict_marked = bool(fact_conflicts)
     rationale: list[str] = []
     basis = [ARTICLE_27_PARAGRAPH_1]
     missing: list[str] = []
@@ -219,6 +239,14 @@ def assess_fria_applicability(
             "the risk classification is not settled; Article 27(1) applies "
             "only to high-risk AI systems referred to in Article 6(2), so "
             "FRIA applicability cannot be decided yet"
+        )
+        return _block("unknown", rationale, basis, missing)
+
+    if risk_category == "unacceptable_risk" and conflict_marked:
+        rationale.append(
+            "the system falls under an Article 5 prohibited practice on the facts as read, but "
+            + FACT_CONFLICT_REASON
+            + "; FRIA applicability stays unknown until the classification is confirmed"
         )
         return _block("unknown", rationale, basis, missing)
 
@@ -334,6 +362,16 @@ def assess_fria_applicability(
             "the classification flags Article 6(3) derogation candidacy; "
             "FRIA applicability stays unknown until a human reviewer "
             "settles whether the system remains high-risk under Article 6(2)"
+        )
+        return _block("unknown", rationale, basis, missing)
+
+    if classification_unsettled and conflict_marked and unacceptable_risk is not None:
+        # B184 (review of Task 4, I2): the mark comes from a fact conflict
+        # alone, so a change to Unacceptable risk is not the reason.
+        rationale.append(
+            "the risk classification is high-risk but not settled: "
+            + FACT_CONFLICT_REASON
+            + "; FRIA applicability stays unknown until the classification is confirmed"
         )
         return _block("unknown", rationale, basis, missing)
 

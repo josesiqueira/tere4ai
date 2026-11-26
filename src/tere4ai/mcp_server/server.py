@@ -425,16 +425,18 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     need are missing. The answer's unacceptable_risk field is true (an Article 5
     prohibition is proven), false (every Article 5 path is ruled out) or null
     (unknown: an Article 5 fact is missing). transparency_duties lists the
-    Article 50 paragraphs triggered by a known fact, on a high-risk answer
-    too (Article 50(6)); a listed paragraph is triggered, not proven, and an
-    empty list means none is triggered by a known fact. annex_iii_listed_uses
-    names the legal unit of every Annex III listed use answered yes, in point
+    Article 50 paragraphs triggered by a fact that is true, as answered or as
+    it follows from a definition of the Act, on a high-risk answer too
+    (Article 50(6)); a listed paragraph is triggered, not proven, and an empty
+    list means none is triggered by such a fact. annex_iii_listed_uses names
+    the legal unit of every Annex III listed use that is true, as answered or
+    as it follows from another fact by a definition of the Act, in point
     order, and each is cited, except on an unacceptable_risk answer, which
     cites only Article 5; annex_iii_category is the first matching point.
     fact_conflicts names each pair of facts where a fact that a definition of
     the Act makes follow was answered false; that fact is read as true and the
     answer requires human review. The list is empty when there is no such
-    pair; a fact left unknown that a definition makes follow is read as true
+    pair, and on a rejected input; a fact left unknown that a definition makes follow is read as true
     as well, with a line in the rationale and no entry. A fixed rule ladder
     decides, never a model; unknown facts that could make
     the system unacceptable risk or high-risk (Article 5, the Article 6(1)
