@@ -224,8 +224,9 @@ def _unwrap_classification(
     """Accept either the classify_ai_system envelope or its bare answer dict.
 
     Returns (answer, cited_source_nodes, upstream). The bare answer carries no
-    node citations, so the caller falls back to the Article 5 node for the
-    prohibited message. When the full envelope form is passed, upstream carries
+    node citations, so for a prohibited answer the caller reads the point
+    that fired from the answer's own rationale, and falls back to the Article
+    5 node only when the rationale names no point. When the full envelope form is passed, upstream carries
     the classification's own status, confidence, and missing_facts so the
     requirements envelope can never claim more certainty than the
     classification it rests on (DEC-08). The bare-answer form carries none of

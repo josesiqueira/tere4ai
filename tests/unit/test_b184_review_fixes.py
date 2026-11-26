@@ -127,7 +127,7 @@ def test_the_point_h_sentences_are_the_words_of_ruling_p8():
     assert PROHIBITED_MESSAGE_POINT_H == P8_MESSAGE
 
 
-@pytest.mark.parametrize("sentence", [P8_NOTE_END, P8_MESSAGE])
+@pytest.mark.parametrize("sentence", [POINT_H_PRACTICE_NOTE_END, PROHIBITED_MESSAGE_POINT_H])
 def test_each_point_h_sentence_says_the_three_things_of_d_g91_4(sentence):
     assert "use" in sentence and "for the purposes of law enforcement" in sentence
     assert "publicly accessible spaces" in sentence
