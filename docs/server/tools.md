@@ -25,8 +25,13 @@ too (Article 50(6)); a listed paragraph is triggered, not proven, and an
 empty list means none is triggered by a known fact. annex_iii_listed_uses
 names the legal unit of every Annex III listed use answered yes, in point
 order, and each is cited, except on an unacceptable_risk answer, which
-cites only Article 5; annex_iii_category is the first matching point. A
-fixed rule ladder decides, never a model; unknown facts that could make
+cites only Article 5; annex_iii_category is the first matching point.
+fact_conflicts names each pair of facts where a fact that a definition of
+the Act makes follow was answered false; that fact is read as true and the
+answer requires human review. The list is empty when there is no such
+pair; a fact left unknown that a definition makes follow is read as true
+as well, with a line in the rationale and no entry. A fixed rule ladder
+decides, never a model; unknown facts that could make
 the system unacceptable risk or high-risk (Article 5, the Article 6(1)
 route, Annex III) surface in missing_facts; where they could change the
 level the status is requires_human_review, and with no rule firing the

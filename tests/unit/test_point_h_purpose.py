@@ -140,3 +140,13 @@ def test_requirements_point_h_beside_point_a_keeps_the_general_message(dump, nor
 def test_requirements_for_another_point_alone_keep_the_general_message(dump, norms):
     cls = classify_ai_system(_case(all_false(subliminal_or_manipulative=True, causes_significant_harm=True)), dump)
     assert get_applicable_requirements(cls, norms, dump)["answer"]["message"] == PROHIBITED_MESSAGE
+
+
+def test_point_h_beside_point_ba_gives_the_general_sentence_and_the_general_message(dump, norms):  # Task 3 review (c)
+    cls = classify_ai_system(_case(all_false(**POLICE_LFR, generates_nonconsensual_intimate_material=True)), dump)
+    article_5_notes = [n for n in cls["legal_status_notes"] if "prohibited AI practice under Article 5(1)" in n]
+    assert len(article_5_notes) == 2
+    assert all(n.endswith(PROHIBITED_PRACTICE_NOTE_END) for n in article_5_notes)
+    assert not any(POINT_H_PRACTICE_NOTE_END in n for n in cls["legal_status_notes"])
+    assert all(":article-5:" in node for node in cls["source_nodes"])  # ruling R14
+    assert get_applicable_requirements(cls, norms, dump)["answer"]["message"] == PROHIBITED_MESSAGE

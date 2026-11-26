@@ -24,7 +24,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 @implements: DEC-18
 @implements: DEC-23
 @implements: DEC-30 (the unacceptable_risk note names a tailored requirement; the sentence of record)
-@implements: DEC-32 (the Annex III rule table over the 25 listed uses; annex_iii_listed_uses)
+@implements: DEC-32 (the Annex III rule table over the 25 listed uses; annex_iii_listed_uses; the facts corrected by the Act's definitions, fact_conflicts)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -466,6 +466,92 @@ ARTICLE_5_CLEARS_ABSENT_FLAG: frozenset[str] = frozenset(
         "emotion_recognition_workplace_or_education",
     }
 )
+
+# B184 (spec G D-G91 (6) and (10), DEC-32, rulings R4, R6, R7, P9): the facts
+# that follow from the Act's definitions, as (narrower, wider, provision), the
+# provision being the legal unit of the definition. Article 3(40) defines a
+# biometric categorisation system as "an AI system for the purpose of
+# assigning natural persons to specific categories on the basis of their
+# biometric data"; Annex III point 1(b) lists "AI systems intended to be used
+# for biometric categorisation, according to sensitive or protected
+# attributes or characteristics", which hold the traits point (g) names;
+# Article 3(42) defines a real-time remote biometric identification system as
+# "a remote biometric identification system, whereby the capturing of
+# biometric data, the comparison and the identification all occur without a
+# significant delay"; Article 3(39) defines an emotion recognition system as
+# "an AI system for the purpose of identifying or inferring emotions or
+# intentions of natural persons on the basis of their biometric data". An
+# exception answered yes while its practice is answered no is not a
+# contradiction, so no exception fact is in this table.
+FACT_ENTAILMENTS: tuple[tuple[str, str, str], ...] = (
+    ("biometric_categorisation", "biometric_categorisation_system", "eu-ai-act:article-3:paragraph-1:point-40"),
+    ("biometric_categorisation", "biometric_categorisation_sensitive_or_protected_attributes", "eu-ai-act:annex-iii:point-1:b"),
+    ("real_time_remote_biometric_public", "biometric_identification", "eu-ai-act:article-3:paragraph-1:point-42"),
+    ("emotion_recognition_workplace_or_education", "emotion_recognition", "eu-ai-act:article-3:paragraph-1:point-39"),
+)
+
+# The line among the missing facts for a pair answered against its definition
+# (the spec's sentence, D-G91 (10)), the rationale line for a wider fact read
+# true from unknown, and the status line of a marked answer (ruling P10).
+FACT_CONFLICT_LINE = (
+    "flags.{wider} was answered false while flags.{narrower} is true; {provision} makes the "
+    "first follow from the second, so it is read as true; one of the two answers is wrong"
+)
+FACT_ENTAILED_FROM_UNKNOWN_LINE = (
+    "flags.{wider} is unknown while flags.{narrower} is true; {provision} makes the "
+    "first follow from the second, so it is read as true"
+)
+FACT_CONFLICT_STATUS_LINE = (
+    "status lowered to requires_human_review: two facts contradict a definition of the Act (fact_conflicts)"
+)
+
+
+def fact_conflict_line(narrower: str, wider: str, provision: str) -> str:
+    """The line among the missing facts for one pair of FACT_ENTAILMENTS
+    whose wider fact was answered false (D-G91 (10)).
+
+    @implements: DEC-32
+    """
+    return FACT_CONFLICT_LINE.format(narrower=narrower, wider=wider, provision=provision)
+
+
+def apply_entailments(
+    flags: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, str]], list[str]]:
+    """The flags corrected by FACT_ENTAILMENTS (B184, D-G91 (6) and (10)).
+
+    Returns a new flags dict (the input is never mutated), the conflict
+    entries {narrower, wider, provision, note} for each pair whose narrower
+    fact is true and whose wider fact was answered false, and the rationale
+    lines for each wider fact read true from unknown (absent). Only `is True`
+    and `is False` are read: a wider fact present with any other value is
+    left as it is, so the schema still refuses it, and the narrower fact is
+    never changed.
+
+    @implements: DEC-32
+    """
+    corrected = dict(flags)
+    conflicts: list[dict[str, str]] = []
+    unknown_lines: list[str] = []
+    for narrower, wider, provision in FACT_ENTAILMENTS:
+        if flags.get(narrower) is not True:
+            continue
+        if flags.get(wider) is False:
+            corrected[wider] = True
+            conflicts.append(
+                {
+                    "narrower": narrower,
+                    "wider": wider,
+                    "provision": provision,
+                    "note": fact_conflict_line(narrower, wider, provision),
+                }
+            )
+        elif wider not in flags:
+            corrected[wider] = True
+            unknown_lines.append(
+                FACT_ENTAILED_FROM_UNKNOWN_LINE.format(narrower=narrower, wider=wider, provision=provision)
+            )
+    return corrected, conflicts, unknown_lines
 
 
 def _unresolved_article_5_facts(flags: dict[str, Any]) -> list[str]:
@@ -1068,8 +1154,12 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "unacceptable_risk": True,
                 "annex_iii_category": None,
                 "article_6_3_exception_candidate": False,
-                # DEC-18: a prohibited system may not be placed on the market,
-                # so no Article 50 duty is listed.
+                # DEC-18: no Article 50 duty is listed on this exit: a
+                # prohibited answer gets only the Article 5 citation and a
+                # message (USER.md domain guardrail). When point (h) alone
+                # fired, the prohibited thing is the use for the purposes of
+                # law enforcement in publicly accessible spaces, not the
+                # placing on the market (DEC-32).
                 "transparency_duties": [],
                 "rationale": rationale,
             },
@@ -1608,11 +1698,44 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     area), and a fact of another area other than 5(b) and 5(c) is not
     once the deployer is known to be neither a body governed by public
     law nor a private entity providing public services.
+
+    B184 (spec G D-G91 (6) and (10), DEC-32): the facts are corrected once,
+    here, by FACT_ENTAILMENTS before any rule reads them, so the level, the
+    Article 50 duties, the FRIA block, high_risk_routes and
+    annex_iii_listed_uses read the same facts; the caller's input is never
+    changed. answer["fact_conflicts"] is on every answer (empty on the
+    rejected input, where no rule ran). A pair answered against its
+    definition is named there and among the missing facts, and the status is
+    lowered to requires_human_review with confidence 0.5 before the FRIA
+    block is computed (ruling P11), the level unchanged; a wider fact read
+    true from unknown adds a rationale line only (ruling R6).
+
+    @implements: DEC-32
     """
+    conflicts: list[dict[str, str]] = []
+    unknown_lines: list[str] = []
+    if isinstance(features, dict) and isinstance(features.get("flags"), dict):
+        corrected_flags, conflicts, unknown_lines = apply_entailments(features["flags"])
+        features = {**features, "flags": corrected_flags}
     envelope = _classify_core(features, dump)
     answer = envelope.get("answer")
     if not isinstance(answer, dict) or "risk_category" not in answer:
         return envelope
+    if envelope.get("status") == "rejected_as_unsupported":
+        # No rule ran, so nothing was read from the facts (Task 2's rejection).
+        answer["fact_conflicts"] = []
+    else:
+        answer["fact_conflicts"] = conflicts
+        rationale = answer.setdefault("rationale", [])
+        rationale.extend(unknown_lines)
+        if conflicts:
+            envelope["missing_facts"] = [
+                *(envelope.get("missing_facts") or []),
+                *(entry["note"] for entry in conflicts),
+            ]
+            envelope["status"] = "requires_human_review"
+            envelope["confidence"] = 0.5
+            rationale.append(FACT_CONFLICT_STATUS_LINE)
     flags = features.get("flags") if isinstance(features, dict) else None
     if not isinstance(flags, dict):
         flags = {}
