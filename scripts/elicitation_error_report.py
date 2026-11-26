@@ -31,6 +31,12 @@ The checkpoint was written before B118 (2026-10-02): pass --legacy-levels (or
 legacy_levels=True) to read its levels through the old-to-new table. Never
 inferred from the values found in the file; without the option a value is
 read as given.
+
+The kept facts file was elicited with law_enforcement_use, which the schema
+refuses since B184 (DEC-32). The two offline re-runs read the recorded facts
+through FACTS_READ_TODAY, the plan's one translation per system: a removed
+fact that was true becomes the listed use the system's description states.
+The report still prints the facts as recorded.
 """
 
 from __future__ import annotations
@@ -56,6 +62,27 @@ LAYER1_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 OUT_PATH = ROOT / "eval" / "results" / "ELICITATION_ERRORS.md"
 
 STRATEGY = "graph_build_judge"
+
+# B184 Task 3 (DEC-32): the recorded facts the schema refuses since B184, read
+# for the offline re-runs as the listed use the item's description states.
+# Item 76 is used "by police to assess the risk of a person becoming a victim
+# of violent crime", the use Annex III point 6(a) lists: "to assess the risk
+# of a natural person becoming the victim of criminal offences".
+FACTS_READ_TODAY: dict[str, dict[str, str]] = {
+    "bench:scenario:76": {"law_enforcement_use": "annex_iii_6a_victim_risk"},
+}
+
+
+def facts_read_today(item_id: str, features: dict[str, Any]) -> dict[str, Any]:
+    """A copy of the recorded features with each removed fact of
+    FACTS_READ_TODAY replaced by its listed use, the value kept. The input is
+    never changed."""
+    renamed = FACTS_READ_TODAY.get(item_id, {})
+    flags = dict(features.get("flags") or {})
+    for removed, listed_use in renamed.items():
+        if removed in flags:
+            flags[listed_use] = flags.pop(removed)
+    return {**features, "flags": flags}
 
 # The two real over-classification patterns from RUN2_ANALYSIS.md, in our
 # closed vocabulary (benchmark "limited" maps to limited_risk).
@@ -361,7 +388,7 @@ def build_report(
                              f"expected {analysis['expected_predicted']}")
 
         # Re-run the deterministic classifier offline and read the trace.
-        envelope = classify_ai_system(features, dump)
+        envelope = classify_ai_system(facts_read_today(item_id, features), dump)
         answer = envelope["answer"]
         resolved = analysis.get("resolved_in_classifier")
         triggers = rule_trace_triggers(answer["rationale"])
@@ -402,7 +429,9 @@ def build_report(
 
         # Counterfactual, still offline and deterministic.
         cf = analysis["counterfactual"]
-        cf_answer = classify_ai_system(apply_counterfactual(features, cf["change"]), dump)["answer"]
+        cf_answer = classify_ai_system(
+            apply_counterfactual(facts_read_today(item_id, features), cf["change"]), dump
+        )["answer"]
         if cf_answer["risk_category"] != cf["expected_category"]:
             raise ValueError(
                 f"{item_id}: counterfactual '{cf['change']}' returns "

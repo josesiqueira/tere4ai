@@ -5,8 +5,9 @@ real_time_remote_biometric_public); the domain counts until every listed use
 of the point is known false; every listed use answered yes is named in
 annex_iii_listed_uses, in point order, and cited on every exit but the
 rejected input and the unacceptable_risk answer, which cites only Article 5
-(ruling R14); the five removed broad facts are refused by name. Offline:
-the published Layer 1 dump on disk, skipped when it is absent.
+(ruling R14); the six removed broad facts are refused by name
+(law_enforcement_use since Task 3). Offline: the published Layer 1 dump on
+disk, skipped when it is absent.
 
 @implements: DEC-32
 @grounded_by: REF-01
@@ -92,7 +93,7 @@ def test_an_unknown_listed_use_is_named_and_blocks_minimal(dump):
 
 
 @pytest.mark.parametrize("removed", ["education_scoring_or_access", "employment_decisions", "essential_services_access",
-                                     "migration_asylum_border_use", "justice_democratic_use"])
+                                     "migration_asylum_border_use", "justice_democratic_use", "law_enforcement_use"])
 def test_each_removed_fact_is_refused_by_name(dump, removed):
     env = classify_ai_system(_case({removed: False}), dump)
     assert env["status"] == "rejected_as_unsupported"

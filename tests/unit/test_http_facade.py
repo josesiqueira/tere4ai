@@ -63,7 +63,11 @@ TRIAGE_FEATURES = {
         "emotion_recognition_workplace_or_education": False,
         "biometric_categorisation": False,
         "real_time_remote_biometric_public": False,
-        "law_enforcement_use": False,
+        "annex_iii_6a_victim_risk": False,
+        "annex_iii_6b_polygraphs": False,
+        "annex_iii_6c_evidence_reliability": False,
+        "annex_iii_6d_offending_risk": False,
+        "annex_iii_6e_profiling": False,
         "generates_nonconsensual_intimate_material": False,
         "generates_csam": False,
     },
@@ -416,7 +420,11 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
             "emotion_recognition_workplace_or_education": False,
             "biometric_categorisation": False,
             "real_time_remote_biometric_public": False,
-            "law_enforcement_use": False,
+            "annex_iii_6a_victim_risk": False,
+            "annex_iii_6b_polygraphs": False,
+            "annex_iii_6c_evidence_reliability": False,
+            "annex_iii_6d_offending_risk": False,
+            "annex_iii_6e_profiling": False,
         },
     }
     # B10: the default prompt is v6, whose reply carries "features" and a
@@ -674,7 +682,11 @@ def test_elicit_system_fields_have_no_banned_terms(client, fake_models):
             "emotion_recognition_workplace_or_education": False,
             "biometric_categorisation": False,
             "real_time_remote_biometric_public": False,
-            "law_enforcement_use": False,
+            "annex_iii_6a_victim_risk": False,
+            "annex_iii_6b_polygraphs": False,
+            "annex_iii_6c_evidence_reliability": False,
+            "annex_iii_6d_offending_risk": False,
+            "annex_iii_6e_profiling": False,
         },
     }
     # B10: the default prompt is v6, whose reply carries "features" and a

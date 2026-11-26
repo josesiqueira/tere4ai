@@ -17,6 +17,7 @@ judged data.
 @implements: DEC-23
 @implements: DEC-27
 @implements: DEC-30
+@implements: DEC-32 (the point (h) message of a prohibited answer)
 @grounded_by: REF-17, REF-16
 """
 
@@ -40,6 +41,7 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_2_2_PROVISIONS,
     ARTICLE_2_2_WORDING,
     ARTICLE_2_PARAGRAPH_2,
+    ARTICLE_5_POINT_H,
     route_of,
 )
 from tere4ai.mcp_server.tools import make_envelope
@@ -79,6 +81,17 @@ PROHIBITED_MESSAGE = (
     "systems receive no applicable requirements: placing on the market, "
     "putting into service, and use are banned, so no tailored requirement can "
     "make the system permissible. Seek legal review."
+)
+# B184 (spec G D-G91, DEC-32, rulings R2, R12, P8): the message when point (h)
+# is the only prohibition the classification cites; with another Article 5
+# point beside it the message is PROHIBITED_MESSAGE.
+PROHIBITED_MESSAGE_POINT_H = (
+    "This system falls under Article 5(1) point (h). The Act prohibits the use of "
+    "real-time remote biometric identification systems in publicly accessible spaces "
+    "for the purposes of law enforcement; point (h) does not prohibit placing such a "
+    "system on the market, and the system is listed in Annex III point 1(a). "
+    "Prohibited uses receive no applicable requirements, so no tailored requirement "
+    "can make that use permissible. Seek legal review."
 )
 # B181 (DEC-30): a session recorded before the rename keeps its sentence; the
 # parity test reads it through this function.
@@ -333,7 +346,9 @@ def get_applicable_requirements(
             missing_facts=[refusal],
         )
 
-    # Prohibited: zero requirements, only the prohibition citation.
+    # Prohibited: zero requirements, only the prohibition citation. B184
+    # (rulings R2, R12): which point fired is read from the classification's
+    # cited provisions; point (h) alone gets its own message.
     if risk_category == "unacceptable_risk":
         prohibition_nodes = [n for n in classification_nodes if ":article-5" in n]
         if not prohibition_nodes:
@@ -350,7 +365,11 @@ def get_applicable_requirements(
                 "risk_category": "unacceptable_risk",
                 "requirements_by_article": {},
                 "summary": {"returned": 0},
-                "message": PROHIBITED_MESSAGE,
+                "message": (
+                    PROHIBITED_MESSAGE_POINT_H
+                    if prohibition_nodes == [ARTICLE_5_POINT_H]
+                    else PROHIBITED_MESSAGE
+                ),
                 "legal_text": text,
             },
             status="not_applicable",

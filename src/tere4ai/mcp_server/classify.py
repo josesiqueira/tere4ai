@@ -157,8 +157,11 @@ ARTICLE_5_SCOPING_PARAGRAPHS: dict[str, tuple[str, ...]] = {
 
 # point (h): "the use of real-time remote biometric identification systems in
 # publicly accessible spaces for the purposes of law enforcement". This one
-# needs BOTH flags: the biometric flag and the law-enforcement-use context.
+# needs BOTH flags: the biometric flag and the purpose of law enforcement,
+# law_enforcement_purpose, which Article 3(46) defines (B184, DEC-32, as
+# amending DEC-18 for point (h)); no Annex III fact is read for it.
 ARTICLE_5_POINT_H = "eu-ai-act:article-5:paragraph-1:point-h"
+LAW_ENFORCEMENT_PURPOSE_FACT = "law_enforcement_purpose"
 ARTICLE_5_POINT_H_FRAGMENT = (
     "real-time remote biometric identification in publicly accessible spaces "
     "for the purposes of law enforcement"
@@ -329,7 +332,8 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
         # point 6: "Law enforcement, in so far as their use is permitted
         # under relevant Union or national law: (a) AI systems intended to be
         # used by or on behalf of law enforcement authorities ..." and (b) to
-        # (e). law_enforcement_use is read by Article 5(1)(h) only.
+        # (e). The purpose of law enforcement (law_enforcement_purpose,
+        # Article 3(46)) is an Article 5(1)(h) fact, not a point 6 fact.
         "node": "eu-ai-act:annex-iii:point-6",
         "label": "law enforcement",
         "uses": (
@@ -472,12 +476,14 @@ def _unresolved_article_5_facts(flags: dict[str, Any]) -> list[str]:
     ARTICLE_5_CLEARS_ABSENT_FLAG, and for point (h)). A path whose flag is
     true is resolved by the Article 5 rule itself (proven, exception met, or
     pending exception fact), so only absent flags are returned here. Point
-    (h) needs both real_time_remote_biometric_public and law_enforcement_use:
-    either known false, or the strict-necessity carve-out known true, rules
-    it out; the law-enforcement context is asked for by the Article 5 rule
-    when the biometric flag is true.
+    (h) needs both real_time_remote_biometric_public and
+    law_enforcement_purpose (Article 3(46)): either known false, or the
+    strict-necessity carve-out known true, rules it out (DEC-18 as amended
+    by DEC-32); the purpose is asked for by the Article 5 rule when the
+    biometric flag is true.
 
     @implements: DEC-18
+    @implements: DEC-32
     """
     missing: list[str] = []
     for flag in ARTICLE_5_POINT_BY_FLAG:
@@ -491,7 +497,7 @@ def _unresolved_article_5_facts(flags: dict[str, Any]) -> list[str]:
         missing.append(flag)
     point_h_ruled_out = (
         flags.get("real_time_remote_biometric_public") is False
-        or flags.get("law_enforcement_use") is False
+        or flags.get(LAW_ENFORCEMENT_PURPOSE_FACT) is False
         or flags.get(ARTICLE_5_POINT_H_EXCULPATING[0]) is ARTICLE_5_POINT_H_EXCULPATING[1]
     )
     if not point_h_ruled_out and "real_time_remote_biometric_public" not in flags:
@@ -583,6 +589,18 @@ PROHIBITED_PRACTICE_NOTE_END = (
     "placing on the market, putting into service, and use are banned, so no "
     "tailored requirement can make the system permissible"
 )
+# B184 (spec G D-G91, DEC-32, rulings R2, R12, P8): the end of that line when
+# point (h) is the only prohibition that fired. Point (h) prohibits "the use
+# of 'real-time' remote biometric identification systems in publicly
+# accessible spaces for the purposes of law enforcement", not the placing on
+# the market; the system is listed in Annex III point 1(a). With another
+# point beside it, every line keeps PROHIBITED_PRACTICE_NOTE_END.
+POINT_H_PRACTICE_NOTE_END = (
+    "point (h) prohibits the use for the purposes of law enforcement in publicly "
+    "accessible spaces and does not prohibit placing on the market; the system is "
+    "listed in Annex III point 1(a), and no tailored requirement can make the "
+    "prohibited use permissible"
+)
 # B181 (DEC-30): the end a session recorded before the rename keeps; the
 # parity test reads it through prohibited_practice_note_of_record.
 PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181 = (
@@ -616,7 +634,8 @@ def _unresolved_article_6_1_facts(flags: dict[str, Any]) -> list[str]:
     Empty when the route is proven or ruled out. The third-party
     assessment is returned only once the product is known to be covered
     by Annex I: before that it decides nothing (ruling R1, the way
-    law_enforcement_use is asked for only when the biometric flag is true).
+    law_enforcement_purpose is asked for only when the biometric flag is
+    true).
 
     @implements: DEC-18
     """
@@ -998,27 +1017,34 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             _resolve_prohibition(
                 flag, node_id, fragment, ARTICLE_5_EXCULPATING_FACT.get(flag)
             )
+    # B184 (DEC-32, amending DEC-18 for point (h)): point (h) reads the
+    # purpose of law enforcement (Article 3(46)) and no Annex III fact.
     if flags.get("real_time_remote_biometric_public") is True:
-        if flags.get("law_enforcement_use") is True:
+        if flags.get("law_enforcement_purpose") is True:
             _resolve_prohibition(
-                "real_time_remote_biometric_public + law_enforcement_use",
+                "real_time_remote_biometric_public + law_enforcement_purpose",
                 ARTICLE_5_POINT_H,
                 ARTICLE_5_POINT_H_FRAGMENT,
                 ARTICLE_5_POINT_H_EXCULPATING,
             )
         elif (
-            "law_enforcement_use" not in flags
+            LAW_ENFORCEMENT_PURPOSE_FACT not in flags
             and flags.get(ARTICLE_5_POINT_H_EXCULPATING[0]) is not ARTICLE_5_POINT_H_EXCULPATING[1]
         ):
-            # The unknown context could change the outcome to unacceptable_risk.
-            unknown_prohibition_flags.append("law_enforcement_use")
+            # The unknown purpose could change the outcome to unacceptable_risk.
+            unknown_prohibition_flags.append(LAW_ENFORCEMENT_PURPOSE_FACT)
             missing_facts.append(
-                "flags.law_enforcement_use is unknown while "
+                f"flags.{LAW_ENFORCEMENT_PURPOSE_FACT} is unknown while "
                 "flags.real_time_remote_biometric_public is true; Article 5(1) "
-                "point (h) applies only to law-enforcement use"
+                "point (h) applies only to use for the purposes of law enforcement "
+                "(Article 3(46))"
             )
 
     if prohibition_hits:
+        # B184 (rulings R2, R12): the point (h) sentence when point (h) is the
+        # only prohibition that fired; otherwise the general end on every line.
+        point_h_alone = len(prohibition_hits) == 1 and prohibition_hits[0][1] == ARTICLE_5_POINT_H
+        note_end = POINT_H_PRACTICE_NOTE_END if point_h_alone else PROHIBITED_PRACTICE_NOTE_END
         for flag, node_id, fragment in prohibition_hits:
             citations.cite(node_id)
             rationale.append(f"rule unacceptable_risk: flag {flag} matches {node_id} ({fragment})")
@@ -1033,7 +1059,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 )
             legal_status_notes.append(
                 f"{node_id}: this practice is a prohibited AI practice under "
-                f"Article 5(1) ({fragment}); {PROHIBITED_PRACTICE_NOTE_END}"
+                f"Article 5(1) ({fragment}); {note_end}"
             )
         missing_facts.extend(citations.unresolved)
         return make_envelope(

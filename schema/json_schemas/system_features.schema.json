@@ -82,9 +82,13 @@
           "type": "boolean",
           "description": "Article 5(1)(h) carve-out, the Act's words: 'unless and in so far as such use is strictly necessary for one of the following objectives'. The real-time remote biometric identification for law enforcement is strictly necessary for one of the objectives in (i) to (iii) and duly authorised. True means the practice is conditionally permitted, not prohibited; false or absent leaves the ban in place / unsettled."
         },
+        "law_enforcement_purpose": {
+          "type": "boolean",
+          "description": "Article 5(1)(h) names the purposes of law enforcement; Article 3(46) defines law enforcement, the Act's words: 'law enforcement means activities carried out by law enforcement authorities or on their behalf for the prevention, investigation, detection or prosecution of criminal offences or the execution of criminal penalties, including safeguarding against and preventing threats to public security'. True means the system is used for those purposes; with real_time_remote_biometric_public true it is the point (h) practice, unless rtrb_strictly_necessary_authorised is true. It is not an Annex III fact: the uses Annex III point 6 lists are separate facts. Absence leaves the point (h) ban unsettled while real_time_remote_biometric_public is true."
+        },
         "real_time_remote_biometric_public": {
           "type": "boolean",
-          "description": "Article 5(1)(h) practice, the Act's words: 'the use of real-time remote biometric identification systems in publicly accessible spaces for the purposes of law enforcement'. True means the system identifies persons in publicly accessible spaces as Article 3(42) defines it, the Act's words: 'real-time remote biometric identification system means a remote biometric identification system, whereby the capturing of biometric data, the comparison and the identification all occur without a significant delay'. With law_enforcement_use true it is the point (h) practice, unless rtrb_strictly_necessary_authorised is true; it also places the system in Annex III point 1. Absence leaves the ban unsettled."
+          "description": "Article 5(1)(h) practice, the Act's words: 'the use of real-time remote biometric identification systems in publicly accessible spaces for the purposes of law enforcement'. True means the system identifies persons in publicly accessible spaces as Article 3(42) defines it, the Act's words: 'real-time remote biometric identification system means a remote biometric identification system, whereby the capturing of biometric data, the comparison and the identification all occur without a significant delay'. With law_enforcement_purpose true it is the point (h) practice, unless rtrb_strictly_necessary_authorised is true; it also places the system in Annex III point 1. Absence leaves the ban unsettled."
         },
         "emotion_recognition_workplace_or_education": {
           "type": "boolean",
@@ -259,10 +263,6 @@
           "description": "Annex III point 8(b), the Act's words: 'AI systems intended to be used for influencing the outcome of an election or referendum or the voting behaviour of natural persons in the exercise of their vote in elections or referenda. This does not include AI systems to the output of which natural persons are not directly exposed, such as tools used to organise, optimise or structure political campaigns from an administrative or logistical point of view'. True places the system in Annex III point 8, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
           "x-annex-iii-area": 8,
           "x-annex-iii-use": "8(b)"
-        },
-        "law_enforcement_use": {
-          "type": "boolean",
-          "description": "Article 5(1)(h), the Act's words: 'the use of real-time remote biometric identification systems in publicly accessible spaces for the purposes of law enforcement'. True means the system is used for the purposes of law enforcement; it is read by point (h) only, and the uses Annex III point 6 lists are separate facts. Absence leaves the point (h) ban unsettled while real_time_remote_biometric_public is true."
         },
         "medical_or_safety_component": {
           "type": "boolean",

@@ -65,7 +65,11 @@ _PROHIBITION_FALSE = {
     "emotion_recognition_workplace_or_education": False,
     "biometric_categorisation": False,
     "real_time_remote_biometric_public": False,
-    "law_enforcement_use": False,
+    "annex_iii_6a_victim_risk": False,
+    "annex_iii_6b_polygraphs": False,
+    "annex_iii_6c_evidence_reliability": False,
+    "annex_iii_6d_offending_risk": False,
+    "annex_iii_6e_profiling": False,
 }
 
 # One payload per deterministic classification tier, so the contract is

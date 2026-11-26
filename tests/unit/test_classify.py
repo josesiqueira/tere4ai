@@ -44,7 +44,7 @@ ALL_FLAGS = (
     "exploits_vulnerabilities",
     "predictive_policing_profiling",
     "facial_image_scraping",
-    "law_enforcement_use",
+    "law_enforcement_purpose",
     "critical_infrastructure_safety",
     "annex_iii_3a_admission",
     "annex_iii_3b_learning_outcomes",
@@ -268,18 +268,22 @@ def test_rtrb_without_law_enforcement_context_asks_for_it(dump, node_ids):
         "description": "Real-time remote biometric identification in public spaces.",
         "flags": all_false_flags(real_time_remote_biometric_public=True),
     }
-    # law_enforcement_use is present (false), so point (h) does not fire and
-    # the biometric flag routes to Annex III point 1 instead.
+    # law_enforcement_purpose is present (false), so point (h) does not fire
+    # and the biometric flag routes to Annex III point 1 instead (B184, DEC-32).
     envelope = classify_ai_system(features, dump)
     assert_envelope_invariants(envelope, node_ids)
     assert envelope["answer"]["risk_category"] == "high_risk"
     assert envelope["answer"]["annex_iii_category"] == "eu-ai-act:annex-iii:point-1"
 
-    # With the context flag unknown, the missing fact is surfaced.
+    # With the purpose unknown, the missing fact is surfaced.
     flags = all_false_flags(real_time_remote_biometric_public=True)
-    del flags["law_enforcement_use"]
+    del flags["law_enforcement_purpose"]
     envelope = classify_ai_system({"description": features["description"], "flags": flags}, dump)
-    assert any("law_enforcement_use" in f for f in envelope["missing_facts"])
+    assert (
+        "flags.law_enforcement_purpose is unknown while flags.real_time_remote_biometric_public "
+        "is true; Article 5(1) point (h) applies only to use for the purposes of law "
+        "enforcement (Article 3(46))"
+    ) in envelope["missing_facts"]
 
 
 def test_rtrb_with_law_enforcement_is_prohibited_point_h(dump, node_ids):
@@ -287,7 +291,7 @@ def test_rtrb_with_law_enforcement_is_prohibited_point_h(dump, node_ids):
         "description": "Live facial recognition in public squares for police use.",
         "flags": all_false_flags(
             real_time_remote_biometric_public=True,
-            law_enforcement_use=True,
+            law_enforcement_purpose=True,
             # Not the strict-necessity/authorisation carve-out, so the point
             # (h) ban is settled (audit D2).
             rtrb_strictly_necessary_authorised=False,
@@ -1171,7 +1175,7 @@ def test_point_d_and_g_exceptions_never_clear_an_absent_flag(dump, node_ids):
 
 
 def test_rtrb_absent_with_le_false_is_uncertain_not_minimal(dump, node_ids):
-    """Point (h) is ruled out (no law-enforcement use), but the same flag is
+    """Point (h) is ruled out (the purpose of law enforcement is false), but the same flag is
     an Annex III point 1 fact, so a confident minimal is not allowed."""
     flags = _without(all_false_flags(), "real_time_remote_biometric_public")
     envelope = classify_ai_system({"description": "A camera system.", "flags": flags}, dump)
@@ -1185,13 +1189,13 @@ def test_rtrb_absent_with_le_false_is_uncertain_not_minimal(dump, node_ids):
 
 def test_rtrb_carve_out_known_true_does_not_ask_for_law_enforcement(dump, node_ids):
     """Codex finding 1, third example: with the point (h) carve-out known
-    true, the unknown law-enforcement context cannot make it prohibited."""
-    flags = _without(all_false_flags(real_time_remote_biometric_public=True), "law_enforcement_use")
+    true, the unknown purpose of law enforcement cannot make it prohibited."""
+    flags = _without(all_false_flags(real_time_remote_biometric_public=True), "law_enforcement_purpose")
     flags["rtrb_strictly_necessary_authorised"] = True
     envelope = classify_ai_system({"description": "Live identification.", "flags": flags}, dump)
     assert envelope["answer"]["risk_category"] == "high_risk"
     assert envelope["answer"]["unacceptable_risk"] is False
-    assert not any("point (h) applies only to law-enforcement use" in f for f in envelope["missing_facts"])
+    assert not any("flags.law_enforcement_purpose" in f for f in envelope["missing_facts"])
 
 
 def test_rejected_input_has_prohibited_null(dump):
@@ -1210,12 +1214,12 @@ def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
         )
         assert envelope["answer"]["unacceptable_risk"] is None, flag
         assert envelope["status"] == "requires_human_review", flag
-    # Point (h): the biometric flag and the law enforcement exception each unresolved.
+    # Point (h): the biometric flag and the purpose of law enforcement each unresolved.
     base = all_false_flags(annex_iii_4a_recruitment=True)
     scenarios = {
-        "both_missing": _without(base, "real_time_remote_biometric_public", "law_enforcement_use"),
-        "biometric_true_exception_missing": _without(
-            {**base, "real_time_remote_biometric_public": True}, "law_enforcement_use"
+        "both_missing": _without(base, "real_time_remote_biometric_public", "law_enforcement_purpose"),
+        "biometric_true_purpose_missing": _without(
+            {**base, "real_time_remote_biometric_public": True}, "law_enforcement_purpose"
         ),
     }
     for name, flags in scenarios.items():
@@ -1604,14 +1608,14 @@ def test_unknown_annex_iii_facts_helper_is_in_point_order_and_skips_known():
 def test_rtrb_absent_with_law_enforcement_unknown_is_named_by_the_fria_rule(
     dump, node_ids
 ):
-    """Final review M2: with law_enforcement_use absent the envelope names
+    """Final review M2: with law_enforcement_purpose absent the envelope names
     real_time_remote_biometric_public under Article 5 only, so a fria block
     that copied the ladder's Annex III list would miss it. The fria rule
     names it as an Annex III fact."""
     flags = _without(
         all_false_flags(interacts_with_natural_persons=True),
         "real_time_remote_biometric_public",
-        "law_enforcement_use",
+        "law_enforcement_purpose",
     )
     envelope = classify_ai_system(
         _chatbot(flags=flags, deployer={"body_governed_by_public_law": True}), dump
@@ -1722,7 +1726,7 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
             flags=_without(
                 all_false_flags(interacts_with_natural_persons=True),
                 "real_time_remote_biometric_public",
-                "law_enforcement_use",
+                "law_enforcement_purpose",
             ),
             deployer={"body_governed_by_public_law": True},
         ),
