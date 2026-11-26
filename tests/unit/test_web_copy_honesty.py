@@ -11,6 +11,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parent.parent.parent
 WEB_SRC = ROOT / "web" / "src"
 BANNED = re.compile(r"\b(compliant|certified|legally approved)\b", re.IGNORECASE)
@@ -165,19 +167,94 @@ def schema_flag_names():
     return names()
 
 
+ASSESS = WEB_SRC / "app" / "(demo)" / "assess"
+
+
+def preset_fact_names(text):
+    """Every name presets.ts uses as a fact: the strings of ALL_FLAG_KEYS, the
+    keys of the allFalse overrides (a tri-state value) and flags.<name>."""
+    keys_block = text[text.index("const ALL_FLAG_KEYS = ["):text.index("] as const;")]
+    names = set(re.findall(r'"([a-z0-9_]+)"', keys_block))
+    names |= set(re.findall(r'\b([a-z0-9_]+): "(?:true|false|unknown)"', text))
+    names |= set(re.findall(r"\bflags\.([a-z0-9_]+)\b", text))
+    return names
+
+
 def test_presets_name_every_schema_flag():
-    # B184 Task 8: the presets list the live schema's facts, 54 at this card.
-    presets_text = (WEB_SRC / "app" / "(demo)" / "assess" / "presets.ts").read_text()
+    # B184 Task 8: the presets list the live schema's facts, 54 at this card,
+    # and use no name as a fact that the schema does not define.
+    presets_text = (ASSESS / "presets.ts").read_text()
     assert [f for f in schema_flag_names() if f'"{f}"' not in presets_text] == []
+    assert sorted(preset_fact_names(presets_text) - set(schema_flag_names())) == []
+
+
+def fact_names_written_in(text):
+    """Schema fact names written anywhere in a file, quoted in any way or not."""
+    return [f for f in schema_flag_names() if re.search(rf"\b{f}\b", text)]
 
 
 def test_assess_page_reads_the_facts_from_the_schema_and_keeps_no_list():
     # B184 Task 8 (ruling P14): the assess page reads the facts from the
     # facade's schema route and keeps no list of its own.
-    page_text = (WEB_SRC / "app" / "(demo)" / "assess" / "page.tsx").read_text()
-    assert "/api/schema/system_features" in page_text and "x-annex-iii-area" in page_text
+    page_text = (ASSESS / "page.tsx").read_text()
+    facts_text = (ASSESS / "schemaFacts.ts").read_text()
+    assert "/api/schema/system_features" in page_text and 'from "./schemaFacts"' in page_text
+    assert "x-annex-iii-area" in facts_text and "x-annex-iii-areas" in facts_text
     assert "PROHIBITION_FLAGS" not in page_text and "CATEGORY_FLAGS" not in page_text
-    assert [f for f in schema_flag_names() if f'"{f}"' in page_text] == []
+    assert fact_names_written_in(page_text) == []
+    assert fact_names_written_in(facts_text) == []
+
+
+def test_assess_page_drops_restored_keys_the_schema_lacks_before_classifying():
+    # B184 Task 8, fix round 1 (I2): a permalink made before the card carries
+    # removed facts. Once the schema is read, the page keeps only the schema's
+    # facts (splitFlagsBySchema), names the others in one line, and only then
+    # classifies; the hash is written from the kept facts.
+    page_text = (ASSESS / "page.tsx").read_text()
+    assert "No longer a fact of the schema, not sent: " in page_text
+    restore = page_text[page_text.index("pendingPermalinkRef.current = null;"):]
+    restore = restore[: restore.index("classifyWith(") + len("classifyWith(")]
+    assert "splitFlagsBySchema(" in restore
+    preset = page_text[page_text.index("function applyPreset("):]
+    preset = preset[: preset.index("syncHashToForm(form);")]
+    assert "splitFlagsBySchema(" in preset
+
+
+def test_assess_page_says_how_many_facts_it_sends_without_the_schema():
+    # B184 Task 8, fix round 1 (M6): without the schema no row shows the facts
+    # a preset, a link or an elicitation set, so the page counts them.
+    page_text = (ASSESS / "page.tsx").read_text()
+    assert "sent with the description; no row shows them." in page_text
+
+
+def test_split_flags_by_schema_keeps_schema_facts_and_names_the_others(tmp_path):
+    # Runs the page's pure function under Node (type stripping, Node 22 or
+    # newer); skipped where no such Node is installed.
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    major = int(subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip().lstrip("v").split(".")[0])
+    if major < 22:
+        pytest.skip("node older than 22 cannot strip types")
+    module = (ASSESS / "schemaFacts.ts").resolve().as_uri()
+    script = (
+        f"import({json.dumps(module)}).then((m) => {{"
+        "const r = m.splitFlagsBySchema("
+        "{employment_decisions: 'true', emotion_recognition: 'false', annex_iii_4b_work_relationships: 'unknown'},"
+        "['emotion_recognition', 'annex_iii_4b_work_relationships']);"
+        "console.log(JSON.stringify(r)); })"
+    )
+    out = subprocess.run(
+        [node, "--experimental-strip-types", "--no-warnings", "-e", script],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    assert json.loads(out) == {
+        "kept": {"emotion_recognition": "false", "annex_iii_4b_work_relationships": "unknown"},
+        "dropped": ["employment_decisions"],
+    }
 
 
 # --- fresh-clone demo blocker guards ---------------------------------------

@@ -37,17 +37,16 @@ and prove the link from law to line of code.
 
 ## What should happen
 
-limited_risk (Limited risk) via Article 50, 13 judge-accepted requirements under one
+limited_risk (Limited risk) via Article 50, 21 judge-accepted requirements under one
 article. The agent should notice that chat.py never tells the visitor they are
 talking to a machine, fix that, and tag the fix.
 
-The subtlety is the design working in public: the Article 50(1) sentence
-everyone would cite for the disclosure duty is still in the human review queue
-(its extracted norm was judge-rejected), so get_applicable_requirements never
-serves it, and trace_implementation refuses a tag citing it, naming the reason
-in invalid_tags. The honest, accepted norms to tag are the Article 50(2)
-machine-readable marking of AI output and the Article 50(5) duty to provide
-the information at the first interaction. A good run ends with the matrix
-showing 13 applicable norms, at least 1 traced to a file and line with its
-judged HLEG alignment attached, the rest untraced, and the trace note saying a
-tag is a claim, not evidence.
+Every Article 50 norm the served build holds is judge-accepted, so
+get_applicable_requirements serves the Article 50(1) duty to ensure that the
+visitor is informed they are interacting with an AI system, and
+trace_implementation accepts a tag citing it. Beside it the agent can tag the
+Article 50(2) machine-readable marking of AI output and the Article 50(5) duty
+to provide the information to the persons concerned. A good run ends with the
+matrix showing 21 applicable norms, at least 1 traced to a file and line with
+its judged HLEG alignment attached, the rest untraced, no tag in invalid_tags,
+and the trace note saying a tag is a claim, not evidence.

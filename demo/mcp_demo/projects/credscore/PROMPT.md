@@ -15,7 +15,7 @@ give the article, the norm id, its source span id, and the calibrated status
 that came back. Group by article. At the end, list every fact you could not
 settle from the README, and say plainly that nothing here is legal advice.
 
-Do not implement anything yet. I want the obligations mapped first.
+Do not implement anything yet. I want the applicable requirements listed first.
 
 ---
 
@@ -23,5 +23,5 @@ Do not implement anything yet. I want the obligations mapped first.
 
 high_risk (High risk) via Annex III point 5, and the Article 27 fundamental rights impact
 assessment applies. 336 judge-accepted requirements across 24 articles, so the
-right output is a mapped backlog rather than an afternoon of coding. This is the
+right output is a list of applicable requirements rather than an afternoon of coding. This is the
 tier where the tool changes the size of the project you thought you had.

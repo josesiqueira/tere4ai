@@ -18,6 +18,13 @@ import { Loader2 } from "lucide-react";
 import { FACADE_URL } from "@/lib/facade";
 import { VOCAB_SUBTITLES } from "@/lib/vocab";
 import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
+import {
+  factNamesOf,
+  readFlagGroups,
+  splitFlagsBySchema,
+  type FlagGroup,
+  type SchemaFlag,
+} from "./schemaFacts";
 import { EvidenceGraph, mergeSubgraphs, type GraphEvidenceSubgraph } from "./evidence-graph";
 
 const MAX_TAILORED_REQUIREMENTS_NORMS = 10;
@@ -233,60 +240,6 @@ const HLEG_LABELS: Record<string, string> = {
    from the trace envelope itself (answer.caveat, server pass-through). */
 const HLEG_CAVEAT_SHORT =
   "EU-to-HLEG mappings are LLM-generated, not expert-validated.";
-
-/* B184 (rulings P1, P4, P14, P18): the facts come from the facade's served
-   features schema, GET /api/schema/system_features, read once at mount; the
-   page keeps no list of facts and no words of its own about any fact. Each
-   fact is shown by its schema name with the schema's description under it as
-   text. The facts that carry x-annex-iii-area stand under the heading that
-   the schema's x-annex-iii-areas gives their area, opened at the first fact
-   of the area in schema order. */
-type SchemaFlag = { name: string; description: string; area: number | null };
-
-type FlagGroup = { area: number | null; heading: string | null; flags: SchemaFlag[] };
-
-type FlagSchemaState =
-  | { kind: "loading" }
-  | { kind: "unavailable" }
-  | { kind: "ready"; groups: FlagGroup[] };
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-/* Reads the served schema's flags in the file's order. Returns null (the
-   schema is unavailable) when the flags cannot be read or an area has no
-   heading, so a partly read schema is never shown as the whole one. */
-function readFlagGroups(payload: unknown): FlagGroup[] | null {
-  const schema = asRecord(asRecord(payload)?.schema);
-  const flagsNode = asRecord(asRecord(schema?.properties)?.flags);
-  const properties = asRecord(flagsNode?.properties);
-  if (!flagsNode || !properties) return null;
-  const areaHeadings = asRecord(flagsNode["x-annex-iii-areas"]) ?? {};
-  const groups: FlagGroup[] = [];
-  for (const [name, definition] of Object.entries(properties)) {
-    const def = asRecord(definition) ?? {};
-    const description = typeof def.description === "string" ? def.description : "";
-    const areaValue = def["x-annex-iii-area"];
-    const area = typeof areaValue === "number" ? areaValue : null;
-    const flag: SchemaFlag = { name, description, area };
-    const last = groups[groups.length - 1];
-    if (last && last.area === area) {
-      last.flags.push(flag);
-      continue;
-    }
-    let heading: string | null = null;
-    if (area !== null) {
-      const text = areaHeadings[String(area)];
-      if (typeof text !== "string") return null;
-      heading = text;
-    }
-    groups.push({ area, heading, flags: [flag] });
-  }
-  return groups.length > 0 ? groups : null;
-}
 
 const DOMAINS = [
   "healthcare",
@@ -759,15 +712,18 @@ function TriStateSelect({
   label,
   value,
   onChange,
+  describedBy,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  describedBy?: string;
 }) {
   return (
     <select
       className={`${SELECT_CLS} h-8 px-1 text-xs`}
       aria-label={`${label}: fact value`}
+      aria-describedby={describedBy}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -926,12 +882,23 @@ function RequirementsBoard({
   );
 }
 
+type FlagSchemaState =
+  | { kind: "loading" }
+  | { kind: "unavailable" }
+  | { kind: "ready"; groups: FlagGroup[] };
+
 export default function AssessPage() {
   const [description, setDescription] = useState("");
   const [domain, setDomain] = useState("");
   const [autonomy, setAutonomy] = useState("");
   const [flags, setFlags] = useState<Record<string, string>>({});
   const [flagSchema, setFlagSchema] = useState<FlagSchemaState>({ kind: "loading" });
+  /* Fix round 1 (I2): keys of a restored link or a preset that the served
+     schema does not define; never sent, never written back into the link. */
+  const [droppedFacts, setDroppedFacts] = useState<string[]>([]);
+  /* A permalink waits here until the schema is read, so its keys can be
+     checked against the schema before any classify call. */
+  const pendingPermalinkRef = useRef<AssessForm | null>(null);
 
   /* Fact elicitation (Task 3, DEC-13): a proposal only. elicitedFields marks
      which controls the last elicitation filled; editing a control after
@@ -1073,6 +1040,7 @@ export default function AssessPage() {
   /* One fact of the served schema: its name as the label, the schema's
      description under it as text (ruling P18). */
   function renderFlagRow(flag: SchemaFlag) {
+    const descriptionId = `fact-description-${flag.name}`;
     return (
       <div key={flag.name} className="space-y-1">
         <div className="flex items-center justify-between gap-2">
@@ -1083,6 +1051,7 @@ export default function AssessPage() {
           <TriStateSelect
             label={flag.name}
             value={flags[flag.name] ?? "unknown"}
+            describedBy={flag.description ? descriptionId : undefined}
             onChange={(v) => {
               updateFlag(flag.name, v);
               clearElicited(flag.name);
@@ -1090,11 +1059,17 @@ export default function AssessPage() {
           />
         </div>
         {flag.description && (
-          <p className="text-sm leading-snug text-muted-foreground">{flag.description}</p>
+          <p id={descriptionId} className="text-sm leading-snug text-muted-foreground">
+            {flag.description}
+          </p>
         )}
       </div>
     );
   }
+
+  /* M6: facts the form sends (true or false); shown as a count when no row
+     can show them. */
+  const setFactCount = Object.values(flags).filter((v) => v === "true" || v === "false").length;
 
   function runClassify() {
     void classifyWith({ description, domain, autonomy, flags });
@@ -1226,14 +1201,37 @@ export default function AssessPage() {
       clearPermalinkHash();
       return;
     }
+    pendingPermalinkRef.current = form;
+    // Run once on mount only; the hash is the source of truth at load time.
+    // The form is restored and classified once the schema is read (below).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Fix round 1 (I2): restores the permalink's form once the schema read has
+     settled. With the schema, every key it does not define is dropped and
+     named before the classify call, which writes the hash from the kept
+     facts. Without the schema the form is restored and classified as linked,
+     and the page counts the facts it sends (M6). */
+  useEffect(() => {
+    if (flagSchema.kind === "loading") return;
+    const linked = pendingPermalinkRef.current;
+    if (!linked) return;
+    pendingPermalinkRef.current = null;
+    let form = linked;
+    if (flagSchema.kind === "ready") {
+      const { kept, dropped } = splitFlagsBySchema(linked.flags, factNamesOf(flagSchema.groups));
+      form = { ...linked, flags: kept };
+      setDroppedFacts(dropped);
+    }
     setDescription(form.description);
     setDomain(form.domain);
     setAutonomy(form.autonomy);
     setFlags(form.flags);
     void classifyWith(form);
-    // Run once on mount only; the hash is the source of truth at load time.
+    // classifyWith is a function of this render; the effect runs on the
+    // schema read only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [flagSchema]);
 
   async function copyPermalink() {
     if (!permalink) return;
@@ -1263,11 +1261,20 @@ export default function AssessPage() {
     requirementsTokenRef.current += 1;
     elicitTokenRef.current += 1;
     evidenceTokensRef.current = {};
+    let presetFlags: Record<string, string> = { ...preset.flags };
+    let dropped: string[] = [];
+    if (flagSchema.kind === "ready") {
+      ({ kept: presetFlags, dropped } = splitFlagsBySchema(
+        presetFlags,
+        factNamesOf(flagSchema.groups)
+      ));
+    }
+    setDroppedFacts(dropped);
     const form: AssessForm = {
       description: preset.description,
       domain: preset.domain,
       autonomy: preset.autonomy,
-      flags: { ...preset.flags },
+      flags: presetFlags,
     };
     setDescription(form.description);
     setDomain(form.domain);
@@ -1598,6 +1605,18 @@ export default function AssessPage() {
                   features schema unavailable; the facts cannot be set
                 </p>
               )}
+              {flagSchema.kind === "unavailable" && setFactCount > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {setFactCount} {setFactCount === 1 ? "fact" : "facts"} set by a preset, a
+                  link or an elicitation {setFactCount === 1 ? "is" : "are"}{" "}
+                  sent with the description; no row shows them.
+                </p>
+              )}
+              {droppedFacts.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No longer a fact of the schema, not sent: {droppedFacts.join(", ")}
+                </p>
+              )}
               {flagSchema.kind === "ready" &&
                 flagSchema.groups.map((group, index) =>
                   group.heading === null ? (
@@ -1608,15 +1627,17 @@ export default function AssessPage() {
                       {group.flags.map(renderFlagRow)}
                     </div>
                   ) : (
-                    <div
+                    <fieldset
                       key={`area-${index}`}
                       className="space-y-2 rounded-md border border-border p-3"
                     >
-                      <p className="text-sm font-medium leading-tight">{group.heading}</p>
+                      <legend className="px-1 text-sm font-medium leading-tight">
+                        {group.heading}
+                      </legend>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {group.flags.map(renderFlagRow)}
                       </div>
-                    </div>
+                    </fieldset>
                   )
                 )}
             </div>

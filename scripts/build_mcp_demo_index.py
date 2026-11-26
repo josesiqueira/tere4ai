@@ -49,8 +49,8 @@ SYSTEMS: list[dict[str, str]] = [
         "label": "Limited risk",
         "blurb": (
             "A webshop support assistant. Transparency duties under Article "
-            "50, one gap closed in code and tagged, one tag the server "
-            "refuses because the norm behind it is still in human review."
+            "50: the disclosure and the marking of AI output closed in code "
+            "and tagged, and the server accepts every tag."
         ),
     },
     {
@@ -59,8 +59,8 @@ SYSTEMS: list[dict[str, str]] = [
         "label": "High risk",
         "blurb": (
             "A creditworthiness scorer. Annex III point 5, the Article 27 "
-            "impact assessment duty attaches, and the tailored requirements outgrow "
-            "the sprint anyone had planned."
+            "impact assessment duty attaches, and the applicable requirements "
+            "outgrow the sprint anyone had planned."
         ),
     },
     {
@@ -78,8 +78,9 @@ SYSTEMS: list[dict[str, str]] = [
         "label": "Abstention",
         "blurb": (
             "The same engine with the medical or safety exception left "
-            "unknown. The ladder refuses to settle the tier and names the "
-            "single fact that would."
+            "unknown. The ladder answers high risk under human review, leaves "
+            "the prohibition unknown and names the facts it is missing, the "
+            "exception among them."
         ),
     },
 ]
