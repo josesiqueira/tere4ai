@@ -1750,22 +1750,29 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     with each listed-use unit the ladder did not cite appended to the cited
     provisions (its span to source_spans) and one rationale line each after
     the ladder's lines (fact_conflicts joins in Task 4). The last case shows
-    the listed-use additions; they are checked here, then set aside."""
+    the listed-use additions; they are checked here, then set aside. B185
+    (spec G D-G92 (9)): on both routes Article 6(2) is cited after them, and
+    annex_iii_area_unconfirmed is the wrapper's field."""
     import copy
 
     core = classify_module._classify_core(copy.deepcopy(features), dump)
     full = classify_ai_system(copy.deepcopy(features), dump)
     assert "fria" in full["answer"]
-    for key in ("fria", "high_risk_routes", "application_dates", "legal_text"):
+    routes = full["answer"]["high_risk_routes"]
+    for key in ("fria", "high_risk_routes", "application_dates", "legal_text", "annex_iii_area_unconfirmed"):
         full["answer"].pop(key)
     # B184: the listed uses and what the wrapper adds for them, after the
     # ladder's own items, never in place of them.
     units = full["answer"].pop("annex_iii_listed_uses")
     full["answer"].pop("fact_conflicts", None)
     added = [u for u in units if u not in core["source_nodes"]]
-    assert full["source_nodes"] == core["source_nodes"] + added
+    both_routes = [
+        node for node in [classify_module.ARTICLE_6_PARAGRAPH_2]
+        if routes == ["article_6_1", "article_6_2"] and node not in core["source_nodes"]
+    ]
+    assert full["source_nodes"] == core["source_nodes"] + added + both_routes
     assert full["source_spans"][: len(core["source_spans"])] == core["source_spans"]
-    assert len(full["source_spans"]) == len(core["source_spans"]) + len(added)
+    assert len(full["source_spans"]) == len(core["source_spans"]) + len(added) + len(both_routes)
     lines = full["answer"]["rationale"][len(core["answer"]["rationale"]):]
     assert full["answer"]["rationale"][: len(core["answer"]["rationale"])] == core["answer"]["rationale"]
     assert len(lines) == len(added) and all(line.startswith("Annex III listed use true: flag ") for line in lines)

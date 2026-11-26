@@ -56,6 +56,12 @@ REMOVED_FACT_REPLACEMENTS: dict[str, str] = {
 }
 
 
+# B185 (DEC-33, spec G D-G92 (4) and (iii)): the value of `domain` that names
+# none of the eight areas; it is never a reason to read a listed use as false.
+# Defined once here, read by the classifier and the elicitor.
+DOMAIN_NONE_OF_THESE_AREAS = "none_of_these_areas"
+
+
 @lru_cache(maxsize=1)
 def _domain_property() -> dict[str, Any]:
     """The schema's `domain` property, read once from the schema file."""
@@ -67,13 +73,14 @@ def domain_refusal(value: object) -> str:
     """The one wording of the refusal of a `domain` outside the schema (B185, ruling P30).
 
     The schema's x-refusal formatted with the value, a string as it is (no
-    trimming, no change of case) and any other type as its JSON text; for a
+    trimming, no change of case) and any other type as its JSON text (a value
+    JSON cannot encode, a set for one, as the JSON text of its str); for a
     word of x-removed-values, ": " and the message that names the value to use.
 
     @implements: DEC-33
     """
     domain = _domain_property()
-    shown = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    shown = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
     refusal = domain["x-refusal"].format(value=shown)
     message = domain["x-removed-values"].get(value) if isinstance(value, str) else None
     return f"{refusal}: {message}" if message else refusal

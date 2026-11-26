@@ -25,7 +25,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 @implements: DEC-23
 @implements: DEC-30 (the unacceptable_risk note names a tailored requirement; the sentence of record)
 @implements: DEC-32 (the Annex III rule table over the 25 listed uses; annex_iii_listed_uses; the facts corrected by the Act's definitions, fact_conflicts)
-@implements: DEC-33 (domain is one of the nine values of the schema, read as given; a refused input returns before any lookup by domain, with the refusal of a domain outside the schema)
+@implements: DEC-33 (domain is one of the nine values of the schema, read as given; a refused input returns before any lookup by domain, with the refusal of a domain outside the schema; one Annex III reading, read_annex_iii, in which a true listed use decides the point and a level that rests on the area alone is said, named in annex_iii_area_unconfirmed and marked for human review)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -52,7 +53,8 @@ from tere4ai.mcp_server.levels import (  # noqa: F401
     RISK_CATEGORIES,
     level_name,
 )
-from tere4ai.mcp_server.removed_facts import (
+from tere4ai.mcp_server.removed_facts import (  # noqa: F401 (DOMAIN_NONE_OF_THESE_AREAS is re-exported)
+    DOMAIN_NONE_OF_THESE_AREAS,
     REMOVED_FACT_REPLACEMENTS,
     domain_is_a_value,
     domain_refusal,
@@ -259,12 +261,11 @@ PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
 # x-annex-iii-area and x-annex-iii-use). A point matches when one of its
 # listed-use facts is true; point 1 also matches on
 # real_time_remote_biometric_public (also_matching), which reaches point 1(a)
-# and does not count for the domain rule (ruling P5). B185 (DEC-33, ruling
-# P2): each point has one value of `domain`, the schema's value of its area
-# (x-annex-iii-area-values); a point still matches on that value until every
-# listed use of the point is known false, point 1 on biometrics as well
-# (Task 2 of B185 replaces this rule with the reading of D-G92). Checked in
-# point order; the first match becomes annex_iii_category. The introductory
+# and does not count for the area (ruling P5). B185 (DEC-33, rulings P2 and
+# P4): each point has one value of `domain`, the schema's value of its area
+# (x-annex-iii-area-values); read_annex_iii reads the domain's point only when
+# no listed use of any point is true (spec G D-G92 (2) and (ii)). Checked in
+# point order; the first point with a true fact becomes annex_iii_category. The introductory
 # words of points 1, 6 and 7 ("in so far as their use is permitted under
 # relevant Union or national law") are printed by the schema and are not a
 # fact.
@@ -393,9 +394,9 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
 )
 
 # B185 (DEC-33, ruling P2): each value of `domain` that names an area, to the
-# node of its Annex III point; none_of_these_areas names no area.
+# node of its Annex III point; none_of_these_areas (DOMAIN_NONE_OF_THESE_AREAS,
+# defined once in removed_facts.py beside the refusal) names no area.
 ANNEX_III_POINT_OF_DOMAIN: dict[str, str] = {rule["domain"]: rule["node"] for rule in ANNEX_III_RULES}
-DOMAIN_NONE_OF_THESE_AREAS = "none_of_these_areas"
 
 # The 25 listed-use facts, in point order (B184, DEC-32).
 ANNEX_III_LISTED_USE_FACTS: tuple[str, ...] = tuple(
@@ -471,6 +472,128 @@ def _every_listed_use_false(rule: dict[str, Any], flags: dict[str, Any]) -> bool
     """Whether every listed use of a point is known false, so the domain no
     longer counts (ELICITATION_ERRORS.md, scenario 161; DEC-32)."""
     return bool(rule["uses"]) and all(flags.get(fact) is False for fact, _unit in rule["uses"])
+
+
+# B185 (spec G D-G92 (3), (5) and (ii), DEC-33, ruling P7): the fixed lines of
+# a point that rests on the area. {number} is the point's number, {heading} its
+# heading in the schema (annex_iii_area_headings), {facts} its listed uses
+# still unknown, joined by ", ". The first two go into legal_status_notes, the
+# last two into the rationale. The rule line deliberately avoids the grammar
+# "rule high_risk: domain ... matches", which scripts/elicitation_error_report.py
+# parses as the classification trigger.
+ANNEX_III_AREA_ALONE_LINE = (
+    "{node}: the level rests on the area alone: domain '{domain}' places the system in Annex III point "
+    "{number} ({heading}), and no listed use of the point is confirmed; the listed uses still unknown: {facts}"
+)
+ANNEX_III_SCOPE_UNCONFIRMED_LINE = (
+    "{node}: domain '{domain}' places the system in Annex III point {number} ({heading}), but no listed use "
+    "of the point is confirmed, so the Annex III scope is not confirmed and the answer rests on the Article "
+    "6(1) route; the listed uses still unknown: {facts}"
+)
+ANNEX_III_AREA_RULED_OUT_LINE = (
+    "domain '{domain}' names Annex III point {number} ({node}), but every listed use of the category is "
+    "answered false, so the area does not count (ELICITATION_ERRORS.md, scenario 161)"
+)
+ANNEX_III_AREA_ALONE_RULE_LINE = (
+    "rule high_risk_area_alone: domain '{domain}' names Annex III point {number} ({node}) and no listed use "
+    "of any point is true; high_risk on the area alone, for human review"
+)
+
+
+@lru_cache(maxsize=1)
+def _features_schema() -> dict[str, Any]:
+    return json.loads(FEATURES_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def annex_iii_area_headings() -> dict[str, str]:
+    """The Act's heading of each Annex III point, keyed by its number as a
+    string, read once from the schema (flags["x-annex-iii-areas"]).
+
+    @implements: DEC-33
+    """
+    return dict(_features_schema()["properties"]["flags"]["x-annex-iii-areas"])
+
+
+@dataclass(frozen=True)
+class AnnexIIIReading:
+    """One reading of Annex III for one input (B185, spec G D-G92, ruling P4).
+
+    confirmed: the point nodes with a true fact of their listed uses or of
+    also_matching, in point order. first_rule and trigger_fact: the rule of
+    confirmed[0] and its first true fact. area_point: the domain's point, set
+    only when confirmed is empty and not every listed use of that point is
+    false; area_unknown_uses: its listed uses absent from the flags, in point
+    order. area_ruled_out: confirmed is empty, the domain names an area and
+    every listed use of it is false.
+    """
+
+    confirmed: tuple[str, ...]
+    first_rule: dict[str, Any] | None
+    trigger_fact: str | None
+    area_point: str | None
+    area_unknown_uses: tuple[str, ...]
+    area_ruled_out: bool
+
+
+def read_annex_iii(flags: dict[str, Any], domain: str | None) -> AnnexIIIReading:
+    """Read Annex III once: a listed use that is true decides the point, and the
+    domain's point is read only when no listed use of any point is true.
+
+    Spec G D-G92 (2), (3) and (ii): the confirmed points are those with a true
+    fact (as answered or as it follows from a definition of the Act, since
+    classify_ai_system corrects the facts first); with none, a domain that
+    names an area gives the point that rests on the area while a listed use of
+    it is not known false, and the area stops counting when every listed use
+    of it is false (ELICITATION_ERRORS.md, scenario 161). A true listed use
+    anywhere means the domain is not read. Every reader of Annex III (the
+    exits, the Section B checks, the routes, the citations, the dates and,
+    until Task 6 of B185, the FRIA block) reads this one reading.
+
+    @implements: DEC-32
+    @implements: DEC-33
+    """
+    confirmed_rules = [rule for rule in ANNEX_III_RULES if _annex_iii_trigger_fact(rule, flags) is not None]
+    if confirmed_rules:
+        first = confirmed_rules[0]
+        return AnnexIIIReading(
+            confirmed=tuple(rule["node"] for rule in confirmed_rules),
+            first_rule=first,
+            trigger_fact=_annex_iii_trigger_fact(first, flags),
+            area_point=None,
+            area_unknown_uses=(),
+            area_ruled_out=False,
+        )
+    node = ANNEX_III_POINT_OF_DOMAIN.get(domain) if isinstance(domain, str) else None
+    rule = next((r for r in ANNEX_III_RULES if r["node"] == node), None)
+    if rule is None:
+        return AnnexIIIReading((), None, None, None, (), False)
+    if _every_listed_use_false(rule, flags):
+        return AnnexIIIReading((), None, None, None, (), True)
+    return AnnexIIIReading(
+        confirmed=(),
+        first_rule=None,
+        trigger_fact=None,
+        area_point=rule["node"],
+        area_unknown_uses=tuple(fact for fact, _unit in rule["uses"] if fact not in flags),
+        area_ruled_out=False,
+    )
+
+
+def annex_iii_area_line(template: str, reading: AnnexIIIReading, domain: str) -> str:
+    """One of the fixed area lines, filled for the domain's point (ruling P7).
+
+    @implements: DEC-33
+    """
+    node = ANNEX_III_POINT_OF_DOMAIN[domain]
+    number = _features_schema()["properties"]["domain"]["x-annex-iii-area-values"][domain]
+    return template.format(
+        node=node,
+        domain=domain,
+        number=number,
+        heading=annex_iii_area_headings()[str(number)],
+        facts=", ".join(reading.area_unknown_uses),
+    )
 
 
 # DEC-18: exculpating facts that settle their Article 5 point even when the
@@ -888,28 +1011,6 @@ class _Citations:
             self.spans.append(span)
 
 
-def _annex_iii_all_matches(flags: dict[str, Any], domain: str | None) -> list[str]:
-    """Every Annex III point node the facts match, in point order.
-
-    Unlike _annex_iii_scan (first match only), this returns the FULL set, so
-    the FRIA rule can tell a multi-area system apart from a single-area one:
-    the Article 27(1) point-2 exception is scoped to the point-2 AREA, not to
-    a system that also falls under another point (audit 2026-07-20 D5). Same
-    domain-yield semantics as the scan: a point matches on a true fact of its
-    listed uses or of also_matching, and on its domain until every listed use
-    is known false (DEC-32).
-
-    @implements: DEC-32
-    """
-    matches: list[str] = []
-    for rule in ANNEX_III_RULES:
-        matched_fact = _annex_iii_trigger_fact(rule, flags) is not None
-        matched_domain = domain == rule["domain"] and not _every_listed_use_false(rule, flags)
-        if matched_fact or matched_domain:
-            matches.append(rule["node"])
-    return matches
-
-
 def _unknown_annex_iii_facts(flags: dict[str, Any]) -> dict[str, str]:
     """Every Annex III fact absent from flags, mapped to its point node.
 
@@ -945,47 +1046,6 @@ def _article_6_3_candidate(flags: dict[str, Any]) -> bool:
     if matched and flags.get("profiling_of_natural_persons") is True:
         return False
     return matched
-
-
-def _annex_iii_scan(
-    flags: dict[str, Any], domain: str | None
-) -> tuple[dict[str, Any] | None, str | None, list[str]]:
-    """Scan the Annex III rules in point order; first match wins.
-
-    Returns (matched rule or None, trigger description or None, rationale
-    notes collected on the way, e.g. the domain-yield note). Pure function
-    of the structured facts, shared by the classification ladder and the
-    FRIA rule so the two can never disagree on Annex III membership. The
-    trigger is the first true fact of the point's listed uses, then of
-    also_matching, else the domain (DEC-32).
-
-    @implements: DEC-32
-    """
-    notes: list[str] = []
-    for rule in ANNEX_III_RULES:
-        matched_fact = _annex_iii_trigger_fact(rule, flags)
-        matched_domain = domain if domain == rule["domain"] else None
-        # Evidence-driven fix (eval/results/ELICITATION_ERRORS.md, scenario
-        # 161): a bare domain match must YIELD when every listed use of the
-        # category is known false. Annex III categories cover specific uses
-        # within a domain, not the domain itself; with the uses ruled out,
-        # domain alone is not a basis. An unknown listed use keeps the match
-        # (unknown is never treated as false). An also_matching fact does not
-        # count for this rule (ruling P5).
-        if matched_domain and matched_fact is None and _every_listed_use_false(rule, flags):
-            notes.append(
-                f"domain '{matched_domain}' matches Annex III category "
-                f"'{rule['label']}' but every listed use of the category is "
-                "answered false; domain alone does not gate high-risk "
-                "(ELICITATION_ERRORS.md, scenario 161)"
-            )
-            matched_domain = None
-        if matched_fact or matched_domain:
-            trigger = (
-                f"flag {matched_fact}" if matched_fact else f"domain '{matched_domain}'"
-            )
-            return rule, trigger, notes
-    return None, None, notes
 
 
 def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
@@ -1033,6 +1093,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # B185 (DEC-33): the domain as given; the schema check above refused any
     # value outside the list, so no trimming and no change of case.
     domain = features.get("domain")
+    # B185 (ruling P4): Annex III is read once; every check below reads this.
+    reading = read_annex_iii(flags, domain)
 
     node_index = _node_index(dump)
     citations = _Citations(node_index)
@@ -1267,7 +1329,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "third_party_conformity_assessment_required are both true; the "
             "system is high-risk under Article 6(1) via Annex I"
         )
-        if annex_i_section == "B" and _annex_iii_scan(flags, domain)[0] is not None:
+        # B185 (spec G D-G92 (vi)): the move to Annex III reads listed uses
+        # that are true, never the domain.
+        if annex_i_section == "B" and reading.confirmed:
             citations.cite(ARTICLE_2_PARAGRAPH_2)
             rationale.append(
                 f"Annex I section: {ANNEX_I_SECTION_FACT} is true and an Annex III "
@@ -1302,11 +1366,17 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 # R44: with an Annex III match Chapter III is served whatever
                 # the section, so the section fact matters on the Article 6(1)
                 # route alone.
-                if annex_i_section == "unknown" and _annex_iii_scan(flags, domain)[0] is None:
+                # B185 (D-G92 (vi)): read from listed uses that are true.
+                if annex_i_section == "unknown" and not reading.confirmed:
                     missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
                 _carry_transparency_duties()
                 _name_absent_article_50_facts()
                 duties = transparency_duties
+            if reading.area_point is not None:
+                # B185 (spec G D-G92 (5), (vii)): the area names a point that
+                # no listed use confirms; the answer rests on Article 6(1)
+                # alone and is cited and dated as on that route.
+                legal_status_notes.append(annex_iii_area_line(ANNEX_III_SCOPE_UNCONFIRMED_LINE, reading, domain))
             missing_facts.extend(citations.unresolved)
             status = "potentially_applicable"
             confidence = 1.0
@@ -1357,12 +1427,17 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "6(1) route does not fire; continuing down the ladder"
         )
 
-    # Rule 2b: Article 6(2) + Annex III high-risk categories.
-    annex_match, annex_trigger, annex_notes = _annex_iii_scan(flags, domain)
-    rationale.extend(annex_notes)
+    # Rule 2b: Article 6(2) + Annex III high-risk categories, from the one
+    # reading (B185, ruling P4): the first point with a true fact decides.
+    annex_match = reading.first_rule
+    if reading.area_ruled_out:
+        # Evidence-driven fix (eval/results/ELICITATION_ERRORS.md, scenario
+        # 161), kept by B185 (D-G92 (3)): with every listed use of the area
+        # known false the area does not count, and the answer says so.
+        rationale.append(annex_iii_area_line(ANNEX_III_AREA_RULED_OUT_LINE, reading, domain))
     if annex_match is not None:
         rationale.append(
-            f"rule high_risk: {annex_trigger} matches Annex III category "
+            f"rule high_risk: flag {reading.trigger_fact} matches Annex III category "
             f"'{annex_match['label']}' ({annex_match['node']}), high-risk "
             "under Article 6(2)"
         )
@@ -1450,6 +1525,43 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             status=status,
             graph_version=graph_version,
             confidence=confidence,
+            source_nodes=citations.node_ids,
+            source_spans=citations.spans,
+            legal_status_notes=legal_status_notes,
+            missing_facts=missing_facts,
+        )
+
+    # B185 (spec G D-G92 (3), (vii), ruling P5): no listed use of any point is
+    # true, the domain names an area with a listed use still unknown, and the
+    # Article 6(1) route is not proven (its exit returned above): high_risk on
+    # the area alone, for human review. It stands before the undetermined
+    # exit of an open Article 6(1) route, so an open route with an area gives
+    # high_risk here. No listed use is cited; Article 6(2) and the point are.
+    if reading.area_point is not None:
+        citations.cite(reading.area_point)
+        citations.cite(ARTICLE_6_PARAGRAPH_2)
+        rationale.append(annex_iii_area_line(ANNEX_III_AREA_ALONE_RULE_LINE, reading, domain))
+        legal_status_notes.append(annex_iii_area_line(ANNEX_III_AREA_ALONE_LINE, reading, domain))
+        if unknown_prohibition_flags:
+            rationale.append(
+                "status lowered to requires_human_review: unknown "
+                "prohibition-relevant flags could change the outcome to Unacceptable risk"
+            )
+        _carry_transparency_duties()
+        _name_absent_article_50_facts()
+        missing_facts.extend(citations.unresolved)
+        return make_envelope(
+            answer={
+                "risk_category": "high_risk",
+                "unacceptable_risk": unacceptable_risk_state,
+                "annex_iii_category": None,
+                "article_6_3_exception_candidate": False,
+                "transparency_duties": transparency_duties,
+                "rationale": rationale,
+            },
+            status="requires_human_review",
+            graph_version=graph_version,
+            confidence=0.5,
             source_nodes=citations.node_ids,
             source_spans=citations.spans,
             legal_status_notes=legal_status_notes,
@@ -1626,7 +1738,12 @@ def route_of(answer: dict[str, Any]) -> str | None:
     """Article 113(c)'s route for an answer's dates (R37): Annex III or Annex
     I when only that route holds, None (both points) when both hold or none
     does. An answer without high_risk_routes (a bare answer, or one stored
-    before B132) is read from its deciding route's fields."""
+    before B132) is read from its deciding route's fields. B185 (spec G D-G92
+    (vii)): a high_risk answer whose level rests on the area (no route, the
+    point in annex_iii_area_unconfirmed) is dated as an Annex III system.
+
+    @implements: DEC-33
+    """
     routes = answer.get("high_risk_routes")
     if not isinstance(routes, list):
         routes = (
@@ -1634,6 +1751,8 @@ def route_of(answer: dict[str, Any]) -> str | None:
             else [HIGH_RISK_ROUTE_ARTICLE_6_1] if answer.get("annex_i_section") is not None
             else []
         )
+    if not routes and answer.get("risk_category") == "high_risk" and answer.get("annex_iii_area_unconfirmed"):
+        return ROUTE_ANNEX_III
     if routes == [HIGH_RISK_ROUTE_ARTICLE_6_2]:
         return ROUTE_ANNEX_III
     if routes == [HIGH_RISK_ROUTE_ARTICLE_6_1]:
@@ -1642,7 +1761,7 @@ def route_of(answer: dict[str, Any]) -> str | None:
 
 
 def _cite_listed_uses(
-    envelope: dict[str, Any], flags: dict[str, Any], domain: str | None, dump: dict[str, Any]
+    envelope: dict[str, Any], flags: dict[str, Any], reading: AnnexIIIReading, dump: dict[str, Any]
 ) -> None:
     """Set annex_iii_listed_uses and cite each of its units (B184, ruling R14).
 
@@ -1653,9 +1772,11 @@ def _cite_listed_uses(
     unit is cited (its node into source_nodes, its span into source_spans,
     resolved against the dump as _Citations resolves them), with one rationale
     line each after the core's lines (rulings P7, P10), except for the unit of
-    the fact the Article 6(2) exit's "rule high_risk" line already names.
+    the fact the Article 6(2) exit's "rule high_risk" line already names
+    (reading.trigger_fact, B185 ruling P4).
 
     @implements: DEC-32
+    @implements: DEC-33
     """
     answer = envelope["answer"]
     if envelope.get("status") == "rejected_as_unsupported":
@@ -1669,11 +1790,7 @@ def _cite_listed_uses(
         # unacceptable_risk exit the field names the listed uses, and nothing
         # is cited or added to the rationale for them.
         return
-    named_fact = None
-    if answer.get("annex_iii_category"):
-        rule, _trigger, _notes = _annex_iii_scan(flags, domain)
-        if rule is not None:
-            named_fact = _annex_iii_trigger_fact(rule, flags)
+    named_fact = reading.trigger_fact if answer.get("annex_iii_category") else None
     citations = _Citations(_node_index(dump))
     citations.node_ids = list(envelope.get("source_nodes") or [])
     citations.spans = list(envelope.get("source_spans") or [])
@@ -1685,6 +1802,23 @@ def _cite_listed_uses(
         citations.cite(unit)
         if fact != named_fact:
             rationale.append(ANNEX_III_LISTED_USE_LINE.format(fact=fact, unit=unit))
+    envelope["source_nodes"] = citations.node_ids
+    envelope["source_spans"] = citations.spans
+    if citations.unresolved:
+        envelope["missing_facts"] = [*(envelope.get("missing_facts") or []), *citations.unresolved]
+
+
+def _cite_more(envelope: dict[str, Any], node_ids: list[str], dump: dict[str, Any]) -> None:
+    """Cite further nodes on a built envelope, resolved against the dump as
+    _Citations resolves them, an unresolved one named among the missing facts.
+
+    @implements: DEC-33
+    """
+    citations = _Citations(_node_index(dump))
+    citations.node_ids = list(envelope.get("source_nodes") or [])
+    citations.spans = list(envelope.get("source_spans") or [])
+    for node_id in node_ids:
+        citations.cite(node_id)
     envelope["source_nodes"] = citations.node_ids
     envelope["source_spans"] = citations.spans
     if citations.unresolved:
@@ -1709,6 +1843,8 @@ def _rejected_answer(
     """
     answer = envelope["answer"]
     answer["fact_conflicts"] = []
+    # B185 (ruling P6): no rule ran, so no point rests on an area.
+    answer["annex_iii_area_unconfirmed"] = None
     missing = list(envelope.get("missing_facts") or [])
     given = features.get("flags") if isinstance(features, dict) else None
     if isinstance(given, dict):
@@ -1737,7 +1873,7 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     Runs the rule ladder (_classify_core), then adds answer["fria"], the
     deterministic FRIA applicability block (fria.py, DEC-14): applies,
     does_not_apply, or unknown with the missing facts named. The FRIA rule
-    reuses the same Annex III scan as the ladder, so when the ladder took
+    reuses the same Annex III reading as the ladder, so when the ladder took
     the Article 6(1) embedded-product route the system's separate Article
     6(2) membership is still checked (both routes can hold at once, and
     Article 27(1) covers the 6(2) side). The fria block is self-contained:
@@ -1768,7 +1904,12 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     B185 (spec G D-G92 (1) and (viii), DEC-33): a refused input returns from
     _rejected_answer before any lookup by domain, and a domain outside the
     schema's list gets the schema's refusal among the missing facts; every
-    other answer reads the domain as given.
+    other answer reads the domain as given. B185 (D-G92 (3), (5), (vii),
+    ruling P6): answer["annex_iii_area_unconfirmed"] is the point that rests
+    on the area on a high_risk answer, null on every other answer;
+    high_risk_routes holds Article 6(2) only with a listed use that is true;
+    a system on both routes cites Article 6(2) beside Article 6(1); and a
+    level that rests on the area is dated as an Annex III system.
 
     @implements: DEC-32
     @implements: DEC-33
@@ -1811,11 +1952,21 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     # B185 (DEC-33): a rejected input returned above, so the domain here is a
     # value of the schema or unknown, read as given.
     domain = features.get("domain") if isinstance(features, dict) else None
+    # B185 (ruling P4): the same one reading of Annex III the core made.
+    reading = read_annex_iii(flags, domain)
+    # B185 (spec G D-G92 (3), (5), ruling P6): the point that rests on the
+    # area, on a high_risk answer only; null on every other answer.
+    answer["annex_iii_area_unconfirmed"] = (
+        reading.area_point if answer.get("risk_category") == "high_risk" else None
+    )
     annex_node = answer.get("annex_iii_category")
-    # The full set of matched Annex III points, so the FRIA rule can scope
-    # the point-2 exception to the area, not the whole system (audit D5).
-    # This also recovers the 6(2) side of a system that took the 6(1) route.
-    annex_points = _annex_iii_all_matches(flags, domain)
+    # The full set of Annex III points, so the FRIA rule can scope the point-2
+    # exception to the area, not the whole system (audit D5). This also
+    # recovers the 6(2) side of a system that took the 6(1) route. Until
+    # Task 6 of B185 rewrites the Article 27 block for a point that rests on
+    # the area, the block keeps today's inputs: the confirmed points, then the
+    # area's point when one is set.
+    annex_points = [*reading.confirmed, *([reading.area_point] if reading.area_point else [])]
     if annex_node is None and annex_points:
         annex_node = annex_points[0]
     # Recompute Article 6(3) candidacy for the 6(2) side even when the ladder
@@ -1855,15 +2006,21 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         flags.get("annex_i_covered_product") is True
         and flags.get("third_party_conformity_assessment_required") is True
     )
+    # B185 (spec G D-G92 (5)): a route holds on confirmed facts, never on the
+    # area, so Article 6(2) is a route only with a listed use that is true.
     answer["high_risk_routes"] = [
         name for name, holds in (
             (HIGH_RISK_ROUTE_ARTICLE_6_1, article_6_1_holds),
-            (HIGH_RISK_ROUTE_ARTICLE_6_2, bool(annex_points)),
+            (HIGH_RISK_ROUTE_ARTICLE_6_2, bool(reading.confirmed)),
         )
         if holds
     ] if answer.get("risk_category") == "high_risk" else []
     route = route_of(answer)
-    _cite_listed_uses(envelope, flags, domain, dump)
+    _cite_listed_uses(envelope, flags, reading, dump)
+    if answer["high_risk_routes"] == [HIGH_RISK_ROUTE_ARTICLE_6_1, HIGH_RISK_ROUTE_ARTICLE_6_2]:
+        # B185 (spec G D-G92 (9)): a system on both routes cites Article 6(1)
+        # and Article 6(2), before the dates are read from the citations.
+        _cite_more(envelope, [ARTICLE_6_PARAGRAPH_2], dump)
     cited = list(envelope.get("source_nodes") or [])
     if answer.get("annex_i_section") == "B" and HIGH_RISK_ROUTE_ARTICLE_6_2 in answer["high_risk_routes"]:
         # R45: Article 2(2) excludes Article 6(2), Article 6(3) and the rest

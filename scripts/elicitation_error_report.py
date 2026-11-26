@@ -104,6 +104,11 @@ OVER_CLASSIFICATION_PATTERNS = (
 
 TRIGGER_FLAG_RE = re.compile(r"rule \w+: flag ([\w+ ]+?) matches (\S+)")
 TRIGGER_DOMAIN_RE = re.compile(r"rule high_risk: domain '(\w+)' matches [^(]*\((\S+)\)")
+# B185 (DEC-33, ruling P7): since the domain is read only when no listed use
+# of any point is true, a level that rests on the area alone has its own rule
+# line (classify.py ANNEX_III_AREA_ALONE_RULE_LINE), read here as the domain's
+# trigger; the old grammar above stays for traces recorded before B185.
+TRIGGER_AREA_RE = re.compile(r"rule high_risk_area_alone: domain '(\w+)' names Annex III point ")
 
 # Analyst-authored analysis, verified against the artifacts at runtime.
 # Quotes must be verbatim substrings of the item's system_text; layer1
@@ -328,7 +333,7 @@ def rule_trace_triggers(rationale: list[str]) -> list[str]:
         m = TRIGGER_FLAG_RE.search(line)
         if m:
             triggers.append(f"flag:{m.group(1).strip()}")
-        m = TRIGGER_DOMAIN_RE.search(line)
+        m = TRIGGER_DOMAIN_RE.search(line) or TRIGGER_AREA_RE.search(line)
         if m:
             triggers.append(f"domain:{m.group(1)}")
     return triggers

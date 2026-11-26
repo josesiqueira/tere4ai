@@ -77,10 +77,16 @@ def test_domain_counts_until_every_listed_use_is_false(dump):
     point5_false = dict(annex_iii_5a_public_benefits=False, life_health_insurance_risk_pricing=False,
                         annex_iii_5d_emergency_calls=False)
     flags = {k: v for k, v in all_false(**point5_false).items() if k != "creditworthiness_evaluation"}
-    # B185: banking to essential_services; the test is about the domain rule
-    # of point 5 itself, which Task 2 of B185 rewrites.
-    a = classify_ai_system(_case(flags, domain="essential_services"), dump)["answer"]
-    assert a["risk_category"] == "high_risk" and a["annex_iii_category"] == "eu-ai-act:annex-iii:point-5"
+    # B185 (spec G D-G92 (3), case C1 of tests/unit/area_cases.py): with no
+    # listed use true and one of the area unknown, the level rests on the area
+    # alone: the point is in annex_iii_area_unconfirmed, annex_iii_category is
+    # null and the answer requires human review.
+    env = classify_ai_system(_case(flags, domain="essential_services"), dump)
+    a = env["answer"]
+    assert a["risk_category"] == "high_risk" and a["annex_iii_category"] is None
+    assert a["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-5"
+    assert a["high_risk_routes"] == []
+    assert (env["status"], env["confidence"]) == ("requires_human_review", 0.5)
     assert a["annex_iii_listed_uses"] == []
     a = classify_ai_system(_case(all_false(), domain="essential_services"), dump)["answer"]
     assert a["risk_category"] == "minimal_risk"

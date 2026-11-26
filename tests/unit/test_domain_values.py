@@ -118,15 +118,54 @@ def test_the_refusal_of_another_type_is_its_json_text():
     assert domain_refusal("consumer") == f"domain 'consumer' is not a value of the schema: {CONSUMER_MESSAGE}"
 
 
-def test_the_rejected_answer_carries_its_fields_and_reads_no_domain(dump):
+def test_the_refusal_of_a_value_json_cannot_encode_is_given_without_an_exception():
+    # B185 Task 2, item (b): a set has no JSON text, so its str is shown.
+    assert domain_refusal({"x"}) == "domain '\"{'x'}\"' is not a value of the schema"
+
+
+def test_a_set_as_domain_is_refused_without_an_exception(dump):
+    env = classify_ai_system({"description": "A test system for the refusal checks.", "domain": {"x"}, "flags": {}},
+                             dump)
+    assert env["status"] == "rejected_as_unsupported"
+    assert domain_refusal({"x"}) in env["missing_facts"]
+
+
+@pytest.mark.parametrize("word,message", [("banking", POINT_5_MESSAGE), ("consumer", CONSUMER_MESSAGE)])
+def test_the_refusal_comes_whole_beside_the_schema_line(dump, word, message):
+    """B185 Task 2, item (d): the schema's own line stays, and the refusal built
+    from the schema is a line of its own with its message intact, after it."""
+    missing = classify_ai_system(case(all_false(), domain=word), dump)["missing_facts"]
+    schema_lines = [i for i, line in enumerate(missing) if line.startswith("schema validation: domain: ")]
+    refusal = f"domain '{word}' is not a value of the schema: {message}"
+    assert len(schema_lines) == 1
+    assert missing.count(refusal) == 1
+    assert missing.index(refusal) > schema_lines[0]
+    assert missing[-1] == refusal
+
+
+def test_the_rejected_answer_carries_its_fields_and_reads_no_domain(dump, monkeypatch):
+    """B185 (the guard I10): a refused input returns before any lookup by
+    domain. The Annex III reading, the only function that reads the domain,
+    is made to raise: the refused input never reaches it, while a valid input
+    does."""
+    from tere4ai.mcp_server import classify as classify_module
+
+    def _no_lookup(*_args, **_kwargs):
+        raise AssertionError("a lookup by domain was made")
+
+    monkeypatch.setattr(classify_module, "read_annex_iii", _no_lookup)
+    monkeypatch.setattr(classify_module, "ANNEX_III_POINT_OF_DOMAIN", {})
     env = classify_ai_system(case(all_false(), domain="banking"), dump)
     a = env["answer"]
     assert a["risk_category"] is None
     assert a["fact_conflicts"] == [] and a["annex_iii_listed_uses"] == []
     assert a["high_risk_routes"] == [] and a["annex_i_section"] is None
+    assert a["annex_iii_area_unconfirmed"] is None
     assert a["application_dates"] == []
     assert a["legal_text"]
     assert env["source_nodes"] == []
+    with pytest.raises(AssertionError, match="a lookup by domain was made"):
+        classify_ai_system(case(all_false(), domain="education"), dump)
 
 
 def test_a_value_of_the_list_and_null_are_not_refused(dump):
@@ -201,3 +240,21 @@ def test_descriptions_say_what_no_rule_reads():
         assert d.endswith("The Act defines neither category.")
     assert p["domain"]["description"].startswith("The Annex III area the person places the system in")
     assert p["domain"]["description"].endswith("the answer requires human review (DEC-33).")
+
+
+def test_none_of_these_areas_is_defined_once():
+    """B185 Task 2, item (a): one definition, in removed_facts.py beside the
+    refusal, imported by the classifier and the elicitor."""
+    from tere4ai.elicit_features import elicitor
+    from tere4ai.mcp_server import classify as classify_module
+    from tere4ai.mcp_server import removed_facts
+
+    assert removed_facts.DOMAIN_NONE_OF_THESE_AREAS == "none_of_these_areas"
+    assert elicitor.DOMAIN_NONE_OF_THESE_AREAS is removed_facts.DOMAIN_NONE_OF_THESE_AREAS
+    assert classify_module.DOMAIN_NONE_OF_THESE_AREAS is removed_facts.DOMAIN_NONE_OF_THESE_AREAS
+    defining = [
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "src").rglob("*.py")
+        if "DOMAIN_NONE_OF_THESE_AREAS = " in path.read_text(encoding="utf-8")
+    ]
+    assert defining == ["src/tere4ai/mcp_server/removed_facts.py"]

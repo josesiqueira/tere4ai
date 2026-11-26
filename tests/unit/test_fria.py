@@ -434,10 +434,10 @@ def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
     """Audit D1: with the other listed uses of point 5 explicitly false but
     5(b) unknown, the system cannot be confidently cleared as minimal, and
     the unknown fact is named. B184 (D-G91, I8): the point 5 domain counts
-    until every listed use of point 5 is known false, so the answer is now
-    high_risk through point 5 by the domain alone (it was undetermined while
-    the false umbrella fact denied the whole area); the status of a match by
-    the domain alone is the one it had before (R10, until B185)."""
+    until every listed use of point 5 is known false. B185 (spec G D-G92 (3),
+    case C1 of tests/unit/area_cases.py): the level rests on the area alone,
+    so annex_iii_category is null, the point is in annex_iii_area_unconfirmed
+    and the answer requires human review (R10 ends with B185)."""
     flags = dict(_ALL_FLAGS_FALSE)
     del flags["creditworthiness_evaluation"]
     features = {
@@ -449,11 +449,11 @@ def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
     }
     envelope = classify_ai_system(features, dump)
     assert envelope["answer"]["risk_category"] == "high_risk"
-    assert envelope["answer"]["annex_iii_category"] == POINT_5
+    assert envelope["answer"]["annex_iii_category"] is None
+    assert envelope["answer"]["annex_iii_area_unconfirmed"] == POINT_5
     assert envelope["answer"]["annex_iii_listed_uses"] == []
-    # Ruling R10: a domain-only match keeps today's status until card B185.
-    assert envelope["status"] == "potentially_applicable"
-    assert envelope["confidence"] == 1.0
+    assert envelope["status"] == "requires_human_review"
+    assert envelope["confidence"] == 0.5
     assert any(
         "creditworthiness_evaluation" in f for f in envelope["missing_facts"]
     )

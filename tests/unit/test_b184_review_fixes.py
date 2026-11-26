@@ -199,11 +199,19 @@ def test_the_routes_read_the_domain_rule(dump):
     flags = all_false(annex_i_covered_product=True, third_party_conformity_assessment_required=True,
                       annex_i_section_b_legislation=False)
     assert all(flags[fact] is False for fact, _unit in point_5["uses"])
-    # B185: banking to essential_services; the test is about the domain rule
-    # of point 5 itself, which Task 2 of B185 rewrites.
+    # B185 (spec G D-G92 (5), case C10 of tests/unit/area_cases.py): a route
+    # holds on confirmed facts and never on the area. With every listed use of
+    # point 5 false the area does not count; with one unknown the point rests
+    # on the area, is named in annex_iii_area_unconfirmed, and Article 6(2) is
+    # not a route.
     env = classify_ai_system(_case(flags, domain="essential_services"), dump)
     assert env["answer"]["high_risk_routes"] == ["article_6_1"]
+    assert env["answer"]["annex_iii_area_unconfirmed"] is None
     flags.pop("annex_iii_5a_public_benefits")
+    env = classify_ai_system(_case(flags, domain="essential_services"), dump)
+    assert env["answer"]["high_risk_routes"] == ["article_6_1"]
+    assert env["answer"]["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-5"
+    flags["annex_iii_5a_public_benefits"] = True
     env = classify_ai_system(_case(flags, domain="essential_services"), dump)
     assert env["answer"]["high_risk_routes"] == ["article_6_1", "article_6_2"]
 

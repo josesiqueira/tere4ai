@@ -53,7 +53,11 @@ from tere4ai.elicit_features.provisions import (
     render_template,
 )
 from tere4ai.extract_norms.pipeline import prompt_sha256
-from tere4ai.mcp_server.removed_facts import domain_is_a_value, domain_refusal
+from tere4ai.mcp_server.removed_facts import (
+    DOMAIN_NONE_OF_THESE_AREAS,
+    domain_is_a_value,
+    domain_refusal,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "system_features.schema.json"
@@ -80,7 +84,6 @@ DOMAIN_DROP_NONE_REASON = (
     "none_of_these_areas is never taken from a proposal (DEC-33); the domain is left unknown"
 )
 DOMAIN_DROP_OUTSIDE_REASON = "{refusal}; the domain is left unknown"
-DOMAIN_NONE_OF_THESE_AREAS = "none_of_these_areas"
 # Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
 NESTED_FACT_FIELDS = ("flags", "deployer")
 

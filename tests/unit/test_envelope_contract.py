@@ -176,6 +176,10 @@ def test_classify_every_tier_is_a_calibrated_envelope(client, features):
         "does_not_apply",
         "unknown",
     )
+    # B185 (DEC-33, ruling P6): the field of a point that rests on the area is
+    # on every answer, null where no point rests on it.
+    assert "annex_iii_area_unconfirmed" in env["answer"]
+    assert env["answer"]["annex_iii_area_unconfirmed"] in (None, *(f"eu-ai-act:annex-iii:point-{n}" for n in range(1, 9)))
 
 
 def test_requirements_response_is_a_calibrated_envelope(client):

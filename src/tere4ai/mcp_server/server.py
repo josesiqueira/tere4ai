@@ -436,6 +436,12 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     without their point. annex_iii_category is the first matching point when
     Annex III decided the level, and is null when the Article 6(1) route or a
     prohibition decided it, even if annex_iii_listed_uses names a listed use.
+    annex_iii_area_unconfirmed names the Annex III point the domain gives when
+    no listed use of any point is true and a listed use of that point is
+    unknown: the level is then high_risk on the area alone and the answer
+    requires human review, or, beside a proven Article 6(1) route, the Annex
+    III scope is not confirmed; annex_iii_category is null in both cases, and
+    no listed use is cited for it.
     fact_conflicts names each pair of facts where a fact that a definition of
     the Act makes follow was answered false; that fact is read as true and the
     answer requires human review; an entry holds narrower, wider, provision
