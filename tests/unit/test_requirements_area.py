@@ -154,11 +154,14 @@ def test_section_b_with_an_area_is_served_as_section_b_and_unsettled(dump, norms
         assert a["application_dates"] == {n: provision_dates(n, dump, ROUTE_ANNEX_I) for n in provisions}
         assert "provisional_note" not in a
     assert any("Annex III high-risk relevant" in m for m in env["missing_facts"])
-    # The bare answer brings no missing facts; the line kept for an unsettled
-    # classification says why it stands for review.
+    # The bare answer brings no missing facts; the point that rests on the area
+    # is named from its own field, so the message's "see the missing facts"
+    # points at a line (Task 7 follow-up, item 3). The envelope already names
+    # the unknown listed uses and gains no such line.
     assert bare["missing_facts"] == [
-        "the upstream classification is unsettled and flagged for human review; requirements are provisional "
-        "until it is settled"]
+        "annex_iii_area_unconfirmed is eu-ai-act:annex-iii:point-3: the domain places the system in that Annex III "
+        "point, and the listed uses of the point are not confirmed"]
+    assert not any(m.startswith("annex_iii_area_unconfirmed is ") for m in env["missing_facts"])
 
 
 def test_section_b_candidate_note_names_the_candidacy_and_what_it_changes(dump, norms):  # C21 (I1)
@@ -290,3 +293,65 @@ def test_the_causes_of_a_bare_answer_read_the_two_that_need_missing_facts_from_i
     assert review_causes_of_answer({**section_b, "high_risk_routes": ["article_6_1", "article_6_2"],
                                     "rationale": [line_b]}) == []
     assert review_causes_of_answer({**section_b, "rationale": [line_6_1]}) == []
+
+
+# Task 7 follow-up, item 1: real_time_remote_biometric_public unknown with
+# Article 5(1)(h) open is named under both tags, as a prohibition fact and as
+# a fact of the Annex III route (D-G92 (2): it gives point 1), so the cause
+# "an unknown listed use" holds.
+
+PROHIBITION_LINE = (
+    "flags.real_time_remote_biometric_public is unknown (prohibition-relevant, Article 5); absence is not treated "
+    "as false")
+ANNEX_III_LINE = (
+    "flags.real_time_remote_biometric_public is unknown (Annex III high-risk relevant, Article 6(2)); absence is not "
+    "treated as false")
+ARTICLE_5_STATUS_LINE = (
+    "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to "
+    "Unacceptable risk")
+LISTED_USE_STATUS_LINE = (
+    "status lowered to requires_human_review: unknown Annex III high-risk flags could add high-risk obligations on "
+    "top of the Article 50 transparency duty")
+
+
+def _real_time_unknown(purpose_false: bool = False, **values: Any) -> dict[str, Any]:
+    gone = ("real_time_remote_biometric_public", "law_enforcement_purpose")
+    flags = {k: v for k, v in all_false(**values).items() if k not in gone}
+    if purpose_false:
+        flags["law_enforcement_purpose"] = False
+    return case(flags, deployer=dict(DEPLOYER))
+
+
+def test_case_a_real_time_fact_with_point_h_open_is_named_under_both_tags(dump, norms):
+    cls, env, bare = _both(_real_time_unknown(interacts_with_natural_persons=True), dump, norms)
+    a = cls["answer"]
+    assert a["risk_category"] == "limited_risk" and a["unacceptable_risk"] is None
+    assert PROHIBITION_LINE in cls["missing_facts"] and ANNEX_III_LINE in cls["missing_facts"]
+    assert cls["missing_facts"].index(PROHIBITION_LINE) < cls["missing_facts"].index(ANNEX_III_LINE)
+    assert [line for line in a["rationale"] if line.startswith("status lowered")] == [
+        ARTICLE_5_STATUS_LINE, LISTED_USE_STATUS_LINE]
+    for given in (env, bare):
+        assert given["answer"]["provisional_note"] == _note("article_5_unknown", "listed_use_unknown")
+    assert _view(env) == _view(bare)
+
+
+def test_case_b_section_b_product_with_the_real_time_fact_unknown_gets_the_unknown_message(dump, norms):
+    features = _real_time_unknown(**P61, annex_i_section_b_legislation=True)
+    cls, env, bare = _both(features, dump, norms)
+    assert cls["answer"]["high_risk_routes"] == ["article_6_1"] and cls["answer"]["annex_i_section"] == "B"
+    for given in (env, bare):
+        assert given["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE
+        assert given["status"] == "requires_human_review"
+    assert _view(env) == _view(bare)
+
+
+def test_the_real_time_fact_with_point_h_ruled_out_reads_as_before(dump, norms):
+    # law_enforcement_purpose false rules point (h) out: the fact is named only
+    # for the Annex III route, as at 74d6713.
+    cls, env, bare = _both(_real_time_unknown(purpose_false=True, interacts_with_natural_persons=True), dump, norms)
+    a = cls["answer"]
+    assert a["risk_category"] == "limited_risk" and a["unacceptable_risk"] is False
+    assert PROHIBITION_LINE not in cls["missing_facts"] and ANNEX_III_LINE in cls["missing_facts"]
+    assert [line for line in a["rationale"] if line.startswith("status lowered")] == [LISTED_USE_STATUS_LINE]
+    for given in (env, bare):
+        assert given["answer"]["provisional_note"] == _note("listed_use_unknown")

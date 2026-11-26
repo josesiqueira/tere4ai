@@ -19,6 +19,7 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_6_1_FLAGS,
     classify_ai_system,
 )
+from tere4ai.mcp_server.review_causes import review_causes, review_status_line
 from tere4ai.mcp_server.tools import NON_LEGAL_ADVICE_NOTICE, STATUS_VOCABULARY
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -1612,10 +1613,11 @@ def test_unknown_annex_iii_facts_helper_is_in_point_order_and_skips_known():
 def test_rtrb_absent_with_law_enforcement_unknown_is_named_by_the_fria_rule(
     dump, node_ids
 ):
-    """Final review M2: with law_enforcement_purpose absent the envelope names
+    """Final review M2: with law_enforcement_purpose absent the envelope named
     real_time_remote_biometric_public under Article 5 only, so a fria block
     that copied the ladder's Annex III list would miss it. The fria rule
-    names it as an Annex III fact."""
+    names it as an Annex III fact (and since B185 Task 7's follow-up the
+    envelope names it under both tags)."""
     flags = _without(
         all_false_flags(interacts_with_natural_persons=True),
         "real_time_remote_biometric_public",
@@ -1625,10 +1627,14 @@ def test_rtrb_absent_with_law_enforcement_unknown_is_named_by_the_fria_rule(
         _chatbot(flags=flags, deployer={"body_governed_by_public_law": True}), dump
     )
     assert_envelope_invariants(envelope, node_ids)
-    assert not any(
-        f.startswith("flags.real_time_remote_biometric_public is unknown (Annex III")
-        for f in envelope["missing_facts"]
-    ), "premise: the ladder names it under Article 5 here, not Annex III"
+    # B185 Task 7 follow-up (spec G D-G92 (2)): the ladder names it under both
+    # tags now; until then it named it under Article 5 only, the premise this
+    # test was written on, and the fria rule names it as an Annex III fact
+    # either way.
+    assert "flags.real_time_remote_biometric_public is unknown (prohibition-relevant, Article 5); absence is not " \
+        "treated as false" in envelope["missing_facts"]
+    assert "flags.real_time_remote_biometric_public is unknown (Annex III high-risk relevant, Article 6(2)); " \
+        "absence is not treated as false" in envelope["missing_facts"]
     fria = envelope["answer"]["fria"]
     assert fria["applicability"] == "unknown"
     assert (
@@ -1785,8 +1791,18 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     assert full["source_nodes"] == core["source_nodes"] + added + both_routes
     assert full["source_spans"][: len(core["source_spans"])] == core["source_spans"]
     assert len(full["source_spans"]) == len(core["source_spans"]) + len(added) + len(both_routes)
-    lines = full["answer"]["rationale"][len(core["answer"]["rationale"]):]
-    assert full["answer"]["rationale"][: len(core["answer"]["rationale"])] == core["answer"]["rationale"]
+    # B185 Task 6: the status lines are the wrapper's, one per cause of review
+    # (review_causes.py), in place of the ladder's; they are compared apart
+    # (Task 7 follow-up: the rtrb case now names two causes where the ladder's
+    # limited_risk exit prints only the Article 5 line).
+    prefix = "status lowered to requires_human_review: "
+    core_lines = [line for line in core["answer"]["rationale"] if not line.startswith(prefix)]
+    full_lines = [line for line in full["answer"]["rationale"] if not line.startswith(prefix)]
+    causes = review_causes(full["answer"], full["missing_facts"])
+    assert [line for line in full["answer"]["rationale"] if line.startswith(prefix)] == [
+        review_status_line(cause, full["answer"]) for cause in causes]
+    lines = full_lines[len(core_lines):]
+    assert full_lines[: len(core_lines)] == core_lines
     assert len(lines) == len(added) and all(line.startswith("Annex III listed use true: flag ") for line in lines)
     full["source_nodes"], full["source_spans"] = core["source_nodes"], core["source_spans"]
     full["answer"]["rationale"] = core["answer"]["rationale"]

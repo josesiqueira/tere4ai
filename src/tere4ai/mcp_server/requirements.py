@@ -211,6 +211,15 @@ SECTION_B_ANNEX_III_UNKNOWN_MESSAGE = (
     "whether one does are unknown (see the missing facts); the provisions are cited, without norms, "
     "until they are known."
 )
+# B185 Task 7 follow-up (ruling P25, spec G D-G92 (5)): the missing fact of the
+# Article 2(2) answer when the point rests on the area and the classification's
+# lines naming the unknown listed uses did not come with it (the bare answer
+# form), so the message's "see the missing facts" points at a line. Built from
+# the answer's own annex_iii_area_unconfirmed.
+SECTION_B_AREA_UNCONFIRMED_FACT = (
+    "annex_iii_area_unconfirmed is {point}: the domain places the system in that Annex III point, and the listed "
+    "uses of the point are not confirmed"
+)
 # R26 path: what an Article 6(3) derogation candidate can change for a
 # Section B product on the Annex III route.
 SECTION_B_DEROGATION_NOTE = (
@@ -337,19 +346,27 @@ def _entry_notes(entries: Any) -> list[str]:
 
 
 def _section_b_missing_facts(
-    classification_missing: list[str], mark_notes: list[str], section_b_missing: list[str], marked: bool
+    classification_missing: list[str],
+    mark_notes: list[str],
+    section_b_missing: list[str],
+    marked: bool,
+    area_point: Any = None,
 ) -> list[str]:
     """The missing facts of the Article 2(2) answer (R39; B185 ruling P25).
 
     The classification's missing facts as before; from the bare answer form,
-    which carries none, the notes of its fact and area conflicts, and when
-    the answer stands for review with no fact named, the fallback line.
+    which carries none, the notes of its fact and area conflicts, and the
+    point that rests on the area (SECTION_B_AREA_UNCONFIRMED_FACT) where no
+    line names an unknown listed use; and when the answer stands for review
+    with no fact named, the fallback line.
 
     @implements: DEC-33
     """
     missing = list(classification_missing)
     if marked:
         missing += [note for note in mark_notes if note not in missing]
+        if isinstance(area_point, str) and area_point and not any(ANNEX_III_UNKNOWN_TAG in m for m in missing):
+            missing.append(SECTION_B_AREA_UNCONFIRMED_FACT.format(point=area_point))
         if not missing:
             missing = [UNSETTLED_FALLBACK_FACT]
     return missing + section_b_missing
@@ -616,6 +633,7 @@ def get_applicable_requirements(
                 [*conflict_notes, *area_notes],
                 section_b_missing,
                 section_b_marked,
+                answer_in.get("annex_iii_area_unconfirmed"),
             ),
         )
 

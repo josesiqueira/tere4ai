@@ -41,7 +41,10 @@ from tere4ai.mcp_server import requirements as requirements_module
 from tere4ai.mcp_server.classify import (
     ANNEX_I_SECTION_UNKNOWN_FACT,
     ANNEX_III_LISTED_USE_FACTS,
+    ARTICLE_5_POINT_H,
     ARTICLE_6_3_CONDITIONS,
+    PROHIBITION_AREA_CONFLICT_CLAUSE,
+    PROHIBITION_FACT_CONFLICT_CLAUSE,
     apply_entailments,
     article_6_3_candidate,
     classify_ai_system,
@@ -55,8 +58,13 @@ from tere4ai.mcp_server.fria import (
     FRIA_UNSETTLED_TEMPLATE,
 )
 from tere4ai.mcp_server.requirements import (
+    MINIMAL_MESSAGE,
+    PROHIBITED_MESSAGE,
+    PROHIBITED_MESSAGE_POINT_H,
     PROVISIONAL_NOTE_TEMPLATE,
+    SECTION_B_ANNEX_III_UNKNOWN_MESSAGE,
     SECTION_B_DEROGATION_NOTE,
+    SECTION_B_MESSAGE,
     UNSETTLED_FALLBACK_FACT,
     get_applicable_requirements,
 )
@@ -632,41 +640,40 @@ def _causes_by_the_spec(answer: dict[str, Any], features_in: dict[str, Any]) -> 
     return holds
 
 
-def _named_once_as_article_5(answer: dict[str, Any], features_in: dict[str, Any], causes: list[str]) -> bool:
-    """The one place where the classifier and the spec's words part, left as
-    the classifier has it and reported to the coordinator (B185 Task 7): when
-    real_time_remote_biometric_public is the only unknown Annex III fact and
-    its Article 5 path is still open, the classifier names it once, as
-    prohibition-relevant (the ladder's rule of audit 2026-07-20 D1), so the
-    cause listed_use_unknown does not hold although D-G92 (2) makes the fact
-    give point 1; the status is review anyway, by the unknown Article 5
-    fact. Task 7 changes no classification answer."""
-    flags = apply_entailments(features_in["flags"])[0]
-    # Point (h) is ruled out when the purpose is known false or the
-    # strict-necessity carve-out known true (DEC-18 as amended by DEC-32).
-    point_h_open = not (
-        flags.get("law_enforcement_purpose") is False or flags.get("rtrb_strictly_necessary_authorised") is True
-    )
-    return (
-        "listed_use_unknown" in causes
-        and "article_5_unknown" in causes
-        and "real_time_remote_biometric_public" not in flags
-        and point_h_open
-        and all(fact in flags for fact in ANNEX_III_LISTED_USE_FACTS)
-    )
+def _expected_message(a: dict[str, Any], env: dict[str, Any], causes: list[str]) -> str | None:
+    """The requirements' message where the spec fixes it: minimal_risk gets
+    MINIMAL_MESSAGE; a Section B product on the Article 6(1) route alone gets
+    the Article 2(2) message, its unknown form when an unknown listed use is
+    a cause or a point rests on the area (R39, ruling P25); unacceptable_risk
+    gets the point (h) message when point (h) is the only point of Article
+    5(1) the classification cites, the general one otherwise (B184 rulings R2,
+    R12), then the fact conflict clause and the area conflict clause, each
+    when its cause holds (B184 M3, ruling P26). None elsewhere."""
+    level = a["risk_category"]
+    if level == "minimal_risk":
+        return MINIMAL_MESSAGE
+    if level == "high_risk" and a.get("annex_i_section") == "B" and a["high_risk_routes"] == ["article_6_1"]:
+        unknown = "listed_use_unknown" in causes or a.get("annex_iii_area_unconfirmed")
+        return SECTION_B_ANNEX_III_UNKNOWN_MESSAGE if unknown else SECTION_B_MESSAGE
+    if level == "unacceptable_risk":
+        points = sorted({n for n in env["source_nodes"] if n.startswith("eu-ai-act:article-5:paragraph-1:point-")})
+        message = PROHIBITED_MESSAGE_POINT_H if points == [ARTICLE_5_POINT_H] else PROHIBITED_MESSAGE
+        if "fact_conflict" in causes:
+            message += " " + PROHIBITION_FACT_CONFLICT_CLAUSE
+        if "area_conflict" in causes:
+            message += " " + PROHIBITION_AREA_CONFLICT_CLAUSE
+        return message
+    return None
 
 
 def test_every_place_agrees_with_the_causes_recomputed_by_the_spec(answered, served):
     words = {**REVIEW_CAUSE_REASONS, "area_alone": "the level rests on the area alone"}
-    broken, named_once = [], []
+    broken = []
     for name, features_in, env in answered:
         a = env["answer"]
         if env["status"] == "rejected_as_unsupported" or a["risk_category"] == "undetermined":
             continue
         causes = _causes_by_the_spec(a, features_in)
-        if _named_once_as_article_5(a, features_in, causes):
-            named_once.append(name)
-            causes = [cause for cause in causes if cause != "listed_use_unknown"]
         # The classification's status, confidence and status lines.
         ok = (env["status"] == "requires_human_review") == bool(causes)
         ok = ok and env["confidence"] == (0.5 if causes else 1.0)
@@ -687,6 +694,7 @@ def test_every_place_agrees_with_the_causes_recomputed_by_the_spec(answered, ser
             ra = req["answer"]
             if a["risk_category"] in ("unacceptable_risk", "minimal_risk") or section_b_alone:
                 ok = ok and "provisional_note" not in ra
+                ok = ok and ra.get("message") == _expected_message(a, env, causes)
                 if a["risk_category"] != "minimal_risk":
                     ok = ok and (req["status"] == "requires_human_review") == bool(causes)
                 continue
@@ -700,8 +708,6 @@ def test_every_place_agrees_with_the_causes_recomputed_by_the_spec(answered, ser
         if not ok:
             broken.append(name)
     assert broken == []
-    # The exception stays rare in the set (1 of 6,023 on 2026-11-26).
-    assert len(named_once) <= 5, named_once
 
 
 def _read_alike(req: dict[str, Any]) -> dict[str, Any]:
@@ -720,6 +726,7 @@ def _read_alike(req: dict[str, Any]) -> dict[str, Any]:
 
 # The lines the requirements give when the classification names no missing
 # fact: an undetermined one, and an unsettled one.
+AREA_UNCONFIRMED_FACT_START = "annex_iii_area_unconfirmed is "
 UNDETERMINED_FALLBACK_FACT = (
     "the classification is Undetermined: facts missing; requirements cannot be determined until the "
     "classification is settled"
@@ -742,10 +749,15 @@ def test_an_envelope_and_its_bare_answer_read_alike(answered, served):
             broken.append(name)
             continue
         classification_missing = env["missing_facts"]
-        fallback = (UNSETTLED_FALLBACK_FACT, UNDETERMINED_FALLBACK_FACT)
-        added_envelope = [m for m in from_envelope["missing_facts"]
-                          if m not in classification_missing and m not in fallback]
-        added_bare = [m for m in from_bare["missing_facts"] if m not in classification_missing and m not in fallback]
+        # Set apart too: the line a bare Section B answer gives for a point
+        # that rests on the area, in place of the classification's lines that
+        # name its unknown listed uses (B185 Task 7 follow-up).
+        def kept(m: str) -> bool:
+            return (m not in classification_missing and m not in (UNSETTLED_FALLBACK_FACT, UNDETERMINED_FALLBACK_FACT)
+                    and not m.startswith(AREA_UNCONFIRMED_FACT_START))
+
+        added_envelope = [m for m in from_envelope["missing_facts"] if kept(m)]
+        added_bare = [m for m in from_bare["missing_facts"] if kept(m)]
         if added_envelope != added_bare:
             broken.append(name)
     assert broken == []

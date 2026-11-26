@@ -424,8 +424,10 @@ ANNEX_III_UNIT_OF_FACT: dict[str, str] = {
 # (audit 2026-07-20 D1). Built from the rule table so it can never drift from
 # the categories. A flag that is also an Article 5 flag
 # (real_time_remote_biometric_public) stays in this list: its Article 5 path
-# can be ruled out while its Annex III one is not (DEC-18); the ladder skips
-# it here only when the Article 5 side already names it.
+# can be ruled out while its Annex III one is not (DEC-18). Since B185 Task 7's
+# follow-up the ladder names it under both tags when both sides are open
+# (spec G D-G92 (2)); until then it skipped the Annex III tag when the Article
+# 5 side already named it.
 ANNEX_III_RELEVANT_FLAGS: tuple[str, ...] = tuple(
     dict.fromkeys(
         (
@@ -1328,10 +1330,12 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # An absent Annex III fact could be the one that makes the system
     # high-risk, so it must not be silently read as false and cleared as
     # minimal. Surfaced here; the minimal and transparency exits consult it.
-    unknown_annex_flags = [
-        f for f in ANNEX_III_RELEVANT_FLAGS
-        if f not in flags and f not in unknown_prohibition_flags
-    ]
+    # B185 Task 7 follow-up (spec G D-G92 (2), (8)): a fact that is also an
+    # Article 5 fact (real_time_remote_biometric_public) is named under both
+    # tags while its Article 5 path is open, since it also gives Annex III
+    # point 1; until then it was named once, as prohibition-relevant, and the
+    # cause "an unknown listed use" was never named for it.
+    unknown_annex_flags = [f for f in ANNEX_III_RELEVANT_FLAGS if f not in flags]
     for flag in unknown_annex_flags:
         missing_facts.append(
             f"flags.{flag} is unknown {ANNEX_III_UNKNOWN_TAG}; absence is not treated as false"
