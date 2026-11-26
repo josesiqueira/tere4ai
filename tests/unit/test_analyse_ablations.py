@@ -131,7 +131,7 @@ def _mock_pilot_indexes(monkeypatch):
 
 
 def _files(tmp_path):
-    features = {"description": "mock", "flags": {}}
+    features = {"description": "a mock system", "flags": {}}  # the schema asks for 10 characters (R16 checks it)
     items = [{"id": i, "kind": "classification", "system_features": features,
               "gold": {"risk_category": LEVEL[i]}, "gold_citations": []} for i in ("gold:cls-1", "gold:cls-2", "gold:cls-3")]
     items += [{"id": "gold:ret-1", "kind": "retrieval", "question": "q", "gold": {}, "gold_citations": [KEY["gold:ret-1"]]}]

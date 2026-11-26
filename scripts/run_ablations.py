@@ -44,6 +44,20 @@ the other, so each unit's usage is still the clients' counts before and after
 it, and the unit's results are kept in the items' order; the record's config
 names the setting.
 
+B184 (DEC-32): the benchmark facts files it attaches (eval/gold/
+benchmark_features.json by default, benchmark_features_full.json for the full
+run) are records of tag v2.0.0-beta.1 and carry facts the schema refuses since
+B184: 12 of the 32 sample scenarios (92 of the 339) name one. classify_ai_system
+would refuse them (rejected_as_unsupported, no risk_category) and the summary
+would score each refusal as a wrong answer, so before the live gate and any
+model client the run checks the stored facts of every item it classifies from
+them against the features schema (stored_facts_refusal, ruling R16) and, if
+any fail, stops with exit code 2, naming the count, the first items, the facts
+not in the schema and what to do; no flag skips the check. The recorded runs
+were made on that tag with its facts. gold_seed.json carries the facts of B184
+(task 9) and passes the check; the model conditions print an item's facts as
+its known facts.
+
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
 (items x strategies) generator calls in the first run, plus question and
@@ -62,6 +76,8 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+
+from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -101,6 +117,7 @@ from tere4ai.extract_norms.model_clients import (  # noqa: E402
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
 from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
+from tere4ai.mcp_server.classify import FEATURES_SCHEMA_PATH  # noqa: E402
 from tere4ai.parallel_calls import run_in_flight  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
@@ -317,6 +334,41 @@ def _attach_features(bench: list[dict], features_path: Path) -> int:
             item["features_provenance"] = "llm_elicited"
             enriched += 1
     return enriched
+
+
+STORED_FACTS_ADVICE = ("these features were elicited with an earlier prompt; elicit them again with the prompt of "
+                       "record, or run the harness at tag v2.0.0-beta.1")
+
+
+def stored_facts_refusal(items: list[dict], schema: dict, shown: int = 5) -> str | None:
+    """B184 (coordinator's ruling R16, DEC-32): the refusal for items whose stored
+    facts the features schema does not accept, or None when every item passes.
+
+    Checked: each classification item classified from stored facts (its
+    system_features a dict: the hand-made items and the benchmark scenarios
+    with elicited facts attached). classify_ai_system would refuse such an
+    item (rejected_as_unsupported, no risk_category) and the summary would
+    score the refusal as a wrong answer, so the run stops instead. The message
+    gives the count, the first `shown` item ids, the flags the schema does not
+    define and what to do. Pure: no file, no model."""
+    validator = Draft202012Validator(schema)
+    known = set(((schema.get("properties") or {}).get("flags") or {}).get("properties") or {})
+    failing: list[str] = []
+    unknown: set[str] = set()
+    for item in items:
+        features = item.get("system_features")
+        if item.get("kind") != "classification" or not isinstance(features, dict):
+            continue
+        if next(validator.iter_errors(features), None) is None:
+            continue
+        failing.append(item["id"])
+        unknown |= set(features.get("flags") or {}) - known
+    if not failing:
+        return None
+    names = ", ".join(sorted(unknown)) or "none (another schema error; classify one item to see it)"
+    return (f"refusing to run: the stored features of {len(failing)} item(s) do not fit "
+            f"system_features.schema.json, so they would be refused and scored as wrong answers; first: "
+            f"{', '.join(failing[:shown])}; facts not in the schema: {names}; {STORED_FACTS_ADVICE}")
 
 
 def load_items(benchmark_path=None, features_path=None) -> list[dict]:
@@ -586,6 +638,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"refusing to run: {exception_reason(exc)}")
             return 2
     print(f"items: {len(items)} | strategies: {strategies.STRATEGY_NAMES}")
+
+    # B184 (R16): stored facts the schema refuses stop the run before the live gate and any client
+    refusal = stored_facts_refusal(items, json.loads(FEATURES_SCHEMA_PATH.read_text(encoding="utf-8")))
+    if refusal is not None:
+        print(refusal)
+        return 2
 
     # live gates up front, zero cost on refusal
     harness._require_live_gate()

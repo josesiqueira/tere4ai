@@ -12,6 +12,12 @@ classifier or from the extracted norms, because those are what the
 ablation scores and a label shown to an annotator anchors them. Every
 node a draft was drafted from is verified to exist in the published dump.
 
+B184 (DEC-32): the draft mode writes classification drafts in facts of tag
+v2.0.0-beta.1 and earlier (ALL_SCHEMA_FLAGS and CLASSIFICATION_VARIANTS),
+among them facts the schema refuses since B184; its output,
+eval/gold/draft_candidates.json, is a record of that tag. The agreement mode
+reads gold_seed.json's labels and no fact.
+
 Usage:
   .venv/bin/python scripts/draft_gold_candidates.py draft
       [--out eval/gold/draft_candidates.json]

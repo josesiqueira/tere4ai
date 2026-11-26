@@ -186,7 +186,7 @@ def test_a_development_run_without_every_scenarios_facts_is_refused(runner, tmp_
 @pytest.mark.parametrize("draw", [{**DRAW, "seed": 1}, None], ids=["another_seed", "no_draw"])
 def test_a_development_run_on_a_payload_drawn_otherwise_is_refused(runner, tmp_path, capsys, draw):  # noqa: F811
     dev = _dev_file(tmp_path, draw=draw)
-    feats = _feats(tmp_path, {"bench:scenario:200": {"description": "d", "flags": {}}})
+    feats = _feats(tmp_path, {"bench:scenario:200": {"description": "a mock scenario", "flags": {}}})
     code = runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),
                              "--features", str(feats)))
     assert code == 2 and "not the declaration's pilot sample" in capsys.readouterr().out
@@ -195,7 +195,7 @@ def test_a_development_run_on_a_payload_drawn_otherwise_is_refused(runner, tmp_p
 
 def test_a_development_run_reads_only_the_development_set(runner, tmp_path, mock_pilot_indexes):  # noqa: F811
     dev = _dev_file(tmp_path)
-    feats = _feats(tmp_path, {"bench:scenario:200": {"description": "d", "flags": {}}})
+    feats = _feats(tmp_path, {"bench:scenario:200": {"description": "a mock scenario", "flags": {}}})
     assert runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),
                              "--features", str(feats))) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
@@ -206,7 +206,7 @@ def test_a_development_run_reads_only_the_development_set(runner, tmp_path, mock
 
 def test_a_main_run_cannot_repeat_a_development_run(runner, tmp_path, capsys, mock_pilot_indexes):  # noqa: F811
     dev = _dev_file(tmp_path)
-    feats = _feats(tmp_path, {"bench:scenario:200": {"description": "d", "flags": {}}})
+    feats = _feats(tmp_path, {"bench:scenario:200": {"description": "a mock scenario", "flags": {}}})
     assert runner.main(_argv(tmp_path, "pilot", "--development-set", "--benchmark", str(dev),
                              "--features", str(feats))) == 0
     (first,) = EvaluationRecordStore(tmp_path, create=False).list_records()
