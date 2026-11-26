@@ -11,6 +11,14 @@ request takes the classification just recorded before it in the session
 tools call no model. Run from the repository root:
 
     .venv/bin/python scripts/rerecord_demo_sessions.py
+
+B184 (DEC-32): the requests of the sessions under tests/fixtures/demo_sessions
+were first translated into the facts of DEC-32 by the plan's rule for recorded
+systems (a one-off step, not this script), then their envelopes were recorded
+again with this script.
+
+@implements: DEC-32
+@grounded_by: REF-01
 """
 
 from __future__ import annotations

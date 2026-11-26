@@ -15,12 +15,16 @@ node a draft was drafted from is verified to exist in the published dump.
 B184 (DEC-32): the draft mode writes classification drafts in facts of tag
 v2.0.0-beta.1 and earlier (ALL_SCHEMA_FLAGS and CLASSIFICATION_VARIANTS),
 among them facts the schema refuses since B184; its output,
-eval/gold/draft_candidates.json, is a record of that tag. The agreement mode
-reads gold_seed.json's labels and no fact.
+eval/gold/draft_candidates.json, is a record of that tag. At this commit the
+draft mode stops with exit code 2 and writes nothing: it is run at that tag.
+draft_payload keeps the drafting as the tag ran it, so that the record's
+drafting can still be read and tested. The agreement mode reads
+gold_seed.json's labels and no fact.
 
 Usage:
   .venv/bin/python scripts/draft_gold_candidates.py draft
       [--out eval/gold/draft_candidates.json]
+      (at tag v2.0.0-beta.1 only; at this commit it refuses with exit code 2)
   .venv/bin/python scripts/draft_gold_candidates.py agreement
       [eval/gold/gold_seed.json] [--json OUT]
       (the two labellers' agreement by kind, as the protocol names it)
@@ -265,7 +269,17 @@ def draft_qa(dump: dict[str, Any], norms_payload: dict[str, Any], limit: int = 3
     return items
 
 
-def cmd_draft(args: argparse.Namespace) -> int:
+DRAFT_MODE_REFUSAL = (
+    "refusing: draft mode writes classification drafts in the facts of tag v2.0.0-beta.1, some of which "
+    "the features schema refuses since B184 (DEC-32); its output, eval/gold/draft_candidates.json, is a "
+    "record of that tag; run it at that tag (git checkout v2.0.0-beta.1)"
+)
+
+
+def draft_payload() -> dict[str, Any]:
+    """The drafts as tag v2.0.0-beta.1 wrote them, every node a draft was
+    drafted from checked against the dump; ValueError names the first node
+    that is not in it."""
     dump = json.loads(DUMP_PATH.read_text(encoding="utf-8"))
     norms_payload = json.loads(NORMS_PATH.read_text(encoding="utf-8"))
     node_ids = {n["id"] for n in dump["nodes"]}
@@ -282,12 +296,11 @@ def cmd_draft(args: argparse.Namespace) -> int:
         and item["drafted_from"]["node_id"] not in node_ids
     ]
     if unresolved:
-        for item_id, cited in unresolved:
-            print(f"refusing: {item_id} is drafted from {cited}, not in the dump", file=sys.stderr)
-        return 1
+        item_id, cited = unresolved[0]
+        raise ValueError(f"{item_id} is drafted from {cited}, not in the dump")
 
     counts = {k: sum(1 for i in items if i["kind"] == k) for k in ("classification", "retrieval", "qa")}
-    payload = {
+    return {
         "provenance": {
             "generated_by": "scripts/draft_gold_candidates.py",
             "build_id": dump["build"]["build_id"],
@@ -297,11 +310,12 @@ def cmd_draft(args: argparse.Namespace) -> int:
         },
         "items": items,
     }
-    out = Path(args.out)
-    out.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    shown = out.relative_to(ROOT) if out.is_relative_to(ROOT) else out
-    print(f"wrote {shown}: {len(items)} drafts ({counts}), none labelled")
-    return 0
+
+
+def cmd_draft(args: argparse.Namespace) -> int:
+    """B184 (DEC-32): refused at this commit, exit code 2, nothing written."""
+    print(DRAFT_MODE_REFUSAL, file=sys.stderr)
+    return 2
 
 
 def cmd_agreement(args: argparse.Namespace) -> int:

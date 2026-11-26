@@ -13,8 +13,8 @@ and prove the link from law to line of code.
    README supports; do not guess flags the README does not settle.
 2. Call get_applicable_requirements with the classification envelope and read
    what actually comes back. Requirements are served only when a judge
-   accepted them; some sentences of the law are still in the human review
-   queue and are deliberately absent.
+   accepted them; a sentence of the law that waits for human review, if
+   any, is deliberately absent.
 3. Find the code that fails the clearest transparency duty served in step 2
    and fix it, small and honest.
 4. Mark the fix in the code with a tag comment on its own line, exactly this

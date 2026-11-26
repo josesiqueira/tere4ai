@@ -19,6 +19,12 @@ sentence break.
   was verified to exist in `data/graph_dumps/layer1.json` before the file
   was written. Each item's `gold` is one annotator's label until two
   annotators have labelled it under the protocol (`labels` is empty).
+  As of 2026-11-26 (B184, DEC-32): the facts of the classification items
+  were rewritten in the facts of DEC-32 (the file's description lists each
+  change). The model conditions print an item's facts in the prompt as
+  "Known facts" (`_item_question` in `src/tere4ai/eval/strategies.py`), so a
+  run after this date is not comparable item for item with the runs
+  recorded before it.
 - `gold/ANNOTATION_PROTOCOL.md`: how the seed grows to the 60 to 80 item
   gold set, the two independent labels on every case and the adjudication
   of their disagreements (agreement statistic before adjudication), and

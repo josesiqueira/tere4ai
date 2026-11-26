@@ -5,6 +5,10 @@ elicitor's proposal read each flag's meaning from its description, so a
 flag without one has no meaning anywhere. Each description names its
 provision and quotes the Act; every quoted passage is checked word for
 word against the text of a node of the published Layer 1 dump.
+
+B184 (DEC-32): the descriptions completed in B184 (Article 3(39), 3(42),
+3(44), 6(1a) and 6(1b)) are checked to quote their unit whole, and no
+classification rule reads autonomy.
 """
 
 from __future__ import annotations

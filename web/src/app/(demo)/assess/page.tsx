@@ -1257,6 +1257,10 @@ export default function AssessPage() {
      reclassifying) restores this visible preset, never a stale prior
      system's hash. */
   function applyPreset(preset: ScenarioPreset) {
+    // A preset chosen while the schema is still loading wins over a
+    // permalink waiting for the schema read, which would otherwise
+    // overwrite the preset when it restores.
+    pendingPermalinkRef.current = null;
     classifyTokenRef.current += 1;
     requirementsTokenRef.current += 1;
     elicitTokenRef.current += 1;
@@ -1629,7 +1633,7 @@ export default function AssessPage() {
                   ) : (
                     <fieldset
                       key={`area-${index}`}
-                      className="space-y-2 rounded-md border border-border p-3"
+                      className="min-w-0 space-y-2 rounded-md border border-border p-3"
                     >
                       <legend className="px-1 text-sm font-medium leading-tight">
                         {group.heading}

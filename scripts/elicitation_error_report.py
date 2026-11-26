@@ -32,9 +32,10 @@ legacy_levels=True) to read its levels through the old-to-new table. Never
 inferred from the values found in the file; without the option a value is
 read as given.
 
-It reads records made with the facts of tag v2.0.0-beta.1: the kept facts
-file holds law_enforcement_use and preparatory_or_narrow_procedural_task,
-which the schema refuses since B184 (DEC-32). For its two offline re-runs it
+It reads records made with the facts of tag v2.0.0-beta.1: of the items it
+reads from the kept facts file, bench:scenario:76 holds law_enforcement_use
+and bench:scenario:161 holds preparatory_or_narrow_procedural_task, facts
+the schema refuses since B184 (DEC-32). For its two offline re-runs it
 translates those removed facts, each translation listed in FACTS_READ_TODAY
 (the plan's one translation per system: a removed fact that was true becomes
 the listed use the system's description states, or stays absent where the

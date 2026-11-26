@@ -270,7 +270,10 @@ def _last_answer(session: list[dict], tool: str) -> dict | None:
 
 
 def claims_the_recording_contradicts(text: str, session: list[dict]) -> list[str]:
-    """Checks a passage of demo copy against the session's own fields."""
+    """Checks a passage of demo copy against the session's own fields.
+
+    It matches keywords and phrases, so it catches the claims written in those words and does not catch every
+    paraphrase of them."""
     out: list[str] = []
     classify = _last_answer(session, "classify_ai_system") or {}
     requirements = (_last_answer(session, "get_applicable_requirements") or {}).get("answer") or {}

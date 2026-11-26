@@ -6,6 +6,10 @@ asserted on the full envelope with generated_at masked on both sides.
 Everything else must match exactly, or replay would be showing the
 audience something the live system did not say.
 
+B184 (DEC-32): the sessions were recorded again in the facts of DEC-32,
+and the rerecord script carries each classification it records into the
+next requirements request of the session (ruling P20).
+
 Note: classify_ai_system here takes (features, dump), not (features)
 alone, matching the module-level signature in tere4ai.mcp_server.classify
 (the MCP tool wrapper in tere4ai.mcp_server.server loads the dump

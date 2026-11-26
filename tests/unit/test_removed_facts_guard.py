@@ -33,7 +33,7 @@ _RECORD_OF_THE_TAG = "a record made with the facts of tag v2.0.0-beta.1 (R11: re
 
 # Records of tag v2.0.0-beta.1 and files that name a removed fact by design (DEC-32), each with its reason.
 ALLOWED: dict[str, str] = {
-    "CHANGELOG.md": "the release notes name the removed facts in B184's entry (Task 10) and keep earlier entries",
+    "CHANGELOG.md": "the release notes name the removed facts in B184's entry and keep earlier entries",
     "docs/architecture.md": "the decision record keeps the history of the facts (DEC-18, DEC-32 and earlier entries)",
     "eval/gold/benchmark_features.json": _RECORD_OF_THE_TAG + ": the benchmark sample's facts elicited by prompt v1",
     "eval/gold/benchmark_features_full.json": _RECORD_OF_THE_TAG + ": the full benchmark's facts elicited by prompt v2",
@@ -44,8 +44,9 @@ ALLOWED: dict[str, str] = {
     "eval/results/ablation_variance_checkpoint.jsonl": _RECORD_OF_THE_TAG + ": the checkpoint of the variance runs",
     **{f"prompts/elicit_features/v{n}.md": "a prompt of record before v9 (v8 is the prompt of the tag)"
        for n in range(1, 9)},
-    "scripts/draft_gold_candidates.py": "its draft mode writes drafts in the facts of the tag, the record "
-                                        "eval/gold/draft_candidates.json; it reads no facts file",
+    "scripts/draft_gold_candidates.py": "its candidate tables hold the facts of the tag, the drafting of the "
+                                        "record eval/gold/draft_candidates.json; its draft mode refuses at this "
+                                        "commit (exit code 2) and is run at the tag",
     "scripts/elicitation_error_report.py": "it reads records made with the facts of the tag and translates the "
                                            "removed facts for its offline re-runs, each translation listed in "
                                            "FACTS_READ_TODAY",
@@ -98,8 +99,14 @@ def test_no_tracked_file_outside_the_records_names_a_removed_fact():
 
 
 def test_every_allowed_file_exists():
-    """A misspelt path on the list would allow nothing and hide a stale entry."""
+    """A misspelt path on the list allows nothing; it says nothing about a file that no longer names a removed
+    fact, which the next test catches."""
     assert sorted(p for p in ALLOWED if not (ROOT / p).is_file()) == []
+
+
+def test_every_allowed_file_still_names_a_removed_fact():
+    """An allowance whose file no longer names any of the seven facts is stale: its reason is no longer true."""
+    assert sorted(p for p in ALLOWED if not _names_a_removed_fact(ROOT / p)) == []
 
 
 def test_the_guard_finds_a_removed_fact_as_a_whole_word_only(tmp_path):

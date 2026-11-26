@@ -53,7 +53,9 @@ would score each refusal as a wrong answer, so before the live gate and any
 model client the run checks the stored facts of every item it classifies from
 them against the features schema (stored_facts_refusal, ruling R16) and, if
 any fail, stops with exit code 2, naming the count, the first items, the facts
-not in the schema and what to do; no flag skips the check. The recorded runs
+not in the schema and what to do (elicit again or run at the tag), or, for any
+other schema error, the first error without that advice; no flag skips the
+check, on the main run and the pilot run (--development-set) alike. The recorded runs
 were made on that tag with its facts. gold_seed.json carries the facts of B184
 (task 9) and passes the check; the model conditions print an item's facts as
 its known facts.
@@ -349,26 +351,40 @@ def stored_facts_refusal(items: list[dict], schema: dict, shown: int = 5) -> str
     with elicited facts attached). classify_ai_system would refuse such an
     item (rejected_as_unsupported, no risk_category) and the summary would
     score the refusal as a wrong answer, so the run stops instead. The message
-    gives the count, the first `shown` item ids, the flags the schema does not
-    define and what to do. Pure: no file, no model."""
+    gives the count and the first `shown` item ids; when some item names a
+    flag the schema does not define, those flags and STORED_FACTS_ADVICE (a
+    fact outside the schema comes from an earlier prompt); when some item
+    fails for another reason, the first such item and its first schema error,
+    without that advice. Pure: no file, no model."""
     validator = Draft202012Validator(schema)
     known = set(((schema.get("properties") or {}).get("flags") or {}).get("properties") or {})
     failing: list[str] = []
     unknown: set[str] = set()
+    other: list[tuple[str, str]] = []
     for item in items:
         features = item.get("system_features")
         if item.get("kind") != "classification" or not isinstance(features, dict):
             continue
-        if next(validator.iter_errors(features), None) is None:
+        error = next(validator.iter_errors(features), None)
+        if error is None:
             continue
         failing.append(item["id"])
-        unknown |= set(features.get("flags") or {}) - known
+        outside = set(features.get("flags") or {}) - known
+        unknown |= outside
+        if not outside:
+            where = ".".join(str(part) for part in error.absolute_path) or "the features"
+            other.append((item["id"], f"{where}: {error.message}"))
     if not failing:
         return None
-    names = ", ".join(sorted(unknown)) or "none (another schema error; classify one item to see it)"
-    return (f"refusing to run: the stored features of {len(failing)} item(s) do not fit "
-            f"system_features.schema.json, so they would be refused and scored as wrong answers; first: "
-            f"{', '.join(failing[:shown])}; facts not in the schema: {names}; {STORED_FACTS_ADVICE}")
+    message = (f"refusing to run: the stored features of {len(failing)} item(s) do not fit "
+               f"system_features.schema.json, so they would be refused and scored as wrong answers; first: "
+               f"{', '.join(failing[:shown])}")
+    if unknown:
+        message += f"; facts not in the schema: {', '.join(sorted(unknown))}; {STORED_FACTS_ADVICE}"
+    if other:
+        item_id, what = other[0]
+        message += f"; another schema error in {len(other)} item(s), first {item_id}: {what}"
+    return message
 
 
 def load_items(benchmark_path=None, features_path=None) -> list[dict]:

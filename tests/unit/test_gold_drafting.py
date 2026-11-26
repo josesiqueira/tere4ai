@@ -22,11 +22,9 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(scope="module")
-def payload(tmp_path_factory):
-    out = tmp_path_factory.mktemp("gold") / "draft_candidates.json"
-    rc = draft_mod.main(["draft", "--out", str(out)])
-    assert rc == 0
-    return json.loads(out.read_text(encoding="utf-8"))
+def payload():
+    # B184: the draft mode refuses at this commit (last test); the drafting as the tag ran it stays testable
+    return draft_mod.draft_payload()
 
 
 def test_target_size_and_kind_mix(payload):
@@ -75,11 +73,8 @@ def test_drafting_never_calls_the_classifier():
     assert not hasattr(draft_mod, "classify_ai_system")
 
 
-def test_drafting_is_deterministic(tmp_path):
-    out_a, out_b = tmp_path / "a.json", tmp_path / "b.json"
-    assert draft_mod.main(["draft", "--out", str(out_a)]) == 0
-    assert draft_mod.main(["draft", "--out", str(out_b)]) == 0
-    assert out_a.read_text() == out_b.read_text()
+def test_drafting_is_deterministic():
+    assert json.dumps(draft_mod.draft_payload()) == json.dumps(draft_mod.draft_payload())
 
 
 def test_retrieval_drafts_come_from_leaf_items(payload):
@@ -88,3 +83,14 @@ def test_retrieval_drafts_come_from_leaf_items(payload):
         assert not any(
             other != node_id and other.startswith(node_id + ":") for other in ids
         ), f"{node_id} has a more precise child among the drafts"
+
+
+def test_draft_mode_refuses_at_this_commit_and_names_the_tag(tmp_path, capsys):
+    # B184 (DEC-32): the drafts are written in facts of tag v2.0.0-beta.1, some
+    # of which the features schema refuses since B184, so draft mode stops with
+    # exit code 2 and writes nothing; it is run at that tag
+    out = tmp_path / "draft_candidates.json"
+    assert draft_mod.main(["draft", "--out", str(out)]) == 2
+    err = capsys.readouterr().err
+    assert "v2.0.0-beta.1" in err and "run it at that tag" in err
+    assert not out.exists()

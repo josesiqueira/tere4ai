@@ -1089,6 +1089,18 @@ way round.
   tests/unit/test_classify.py (the six cases of the brief, the
   ruled-out-by-exculpating-fact cases and the B123 cases);
   CHANGELOG.md names the contract change.
+  Amended 2026-11-26 (B184, DEC-32): DEC-32 amends this decision for
+  point (h). Point (h) reads law_enforcement_purpose (Article 3(46)) in
+  place of law_enforcement_use, which left the schema: it is proven with
+  real_time_remote_biometric_public and law_enforcement_purpose both true
+  and the strict-necessity carve-out known false (unknown, it is pending
+  and named, as before), and ruled out when either fact is known false or
+  the carve-out is known true; with the
+  biometric fact true and the purpose unknown the answer is marked for
+  human review and names the purpose. When point (h) is the only
+  prohibition that fired, its legal_status_notes line and the applicable
+  requirements' message carry the point (h) sentence of DEC-32; the text
+  above, which names law_enforcement_use, is the reading of its day.
 
 - DEC-19: every operator obligation or prohibition among the norms, and
   every generated control, carries its requirement type, functional,
@@ -2499,6 +2511,151 @@ way round.
   v2.0.0-beta.1, which the tests of prompts v5 to v8 read);
   tests/unit/test_elicit_envelope.py (the flag count). Completed in task
   10 with the rule, the prompt and the answer's fields.
+  Completed 2026-11-26 (B184 task 10), as built; where this paragraph and
+  the text above differ, this paragraph describes the code.
+  The facts. The flags object of the schema holds 54 facts. Seven left
+  it: the six broad facts (education_scoring_or_access,
+  employment_decisions, essential_services_access, law_enforcement_use,
+  migration_asylum_border_use, justice_democratic_use) and
+  preparatory_or_narrow_procedural_task; 22 joined it: the nineteen new
+  listed uses, law_enforcement_purpose, narrow_procedural_task and
+  preparatory_task. The 25 listed uses stand together in point order, 1(a)
+  to 8(b), each with x-annex-iii-area and x-annex-iii-use, and the keys
+  "1" to "8" of x-annex-iii-areas hold each point's heading, the node
+  text before its first ": " (ruling P1). An input that carries a removed
+  fact is refused by the schema as rejected_as_unsupported, the fact
+  named and no rule run; that answer carries annex_iii_listed_uses and
+  fact_conflicts as empty lists. The twelve facts of points 1, 6 and 7
+  add the rule for the answer: "Answer for the use the system is intended
+  for; whether that use is permitted under Union or national law is not
+  part of this fact." (ruling R15). real_time_remote_biometric_public
+  quotes the whole of Article 3(42) and 3(44), the point 2 fact Article
+  6(1a) and 6(1b), and emotion_recognition_workplace_or_education is
+  defined on biometric data, as Article 3(39) defines an emotion
+  recognition system.
+  The rule. ANNEX_III_RULES (classify.py) holds for each of the eight
+  points its node, its listed uses as pairs of fact and legal unit,
+  also_matching (point 1 only: real_time_remote_biometric_public with
+  unit 1(a), which matches the point and does not count for the domain)
+  and its domain words. A point matches on a true listed use, on
+  also_matching, or on its domain until every listed use of the point is
+  known false; the first match in point order is annex_iii_category, and
+  its node is cited with Article 6(2) as before. annex_iii_listed_uses,
+  the function and the answer field, holds the legal units of every
+  listed use that is true after the entailments, of every point, in point
+  order; it is empty on a match by the domain alone. Each of those units
+  is cited, node and span, beside the matched point, with one rationale
+  line after the core's lines, "Annex III listed use true: flag <fact> is
+  true for <unit>; cited with the answer", for every unit but the one the
+  first "rule high_risk" line already names (rulings P7, P10). Two exits
+  cite none: the rejected input, where no rule ran, and the
+  unacceptable_risk exit, where only the Article 5 provisions are cited
+  and the field still names the listed uses (ruling R14; USER.md: a
+  prohibited system gets only the Article 5 prohibition citation and a
+  message; D-G91 (10) carries the dated correction). An unknown listed
+  use is named among the missing facts and keeps the answer from
+  minimal_risk.
+  Point (h). Article 5(1)(h) reads real_time_remote_biometric_public and
+  law_enforcement_purpose (Article 3(46)), as the dated amendment of
+  DEC-18 states. When the classification cites point (h) and no other
+  Article 5 point, its legal_status_notes line for point (h) ends with
+  POINT_H_PRACTICE_NOTE_END ("point (h) prohibits the use for the
+  purposes of law enforcement in publicly accessible spaces and does not
+  prohibit placing on the market; the system is listed in Annex III point
+  1(a), and no tailored requirement can make the prohibited use
+  permissible"), and get_applicable_requirements, which reads the point
+  that fired from the classification's cited provisions, answers
+  PROHIBITED_MESSAGE_POINT_H and serves no requirement. With another
+  point beside it every line and the message keep the general sentence.
+  The level is unacceptable_risk in both cases.
+  The entailments. FACT_ENTAILMENTS holds four pairs of narrower and
+  wider fact with the provision of the definition: biometric_categorisation
+  with biometric_categorisation_system (Article 3(40)) and with
+  biometric_categorisation_sensitive_or_protected_attributes (Annex III
+  point 1(b)), real_time_remote_biometric_public with
+  biometric_identification (Article 3(42)), and
+  emotion_recognition_workplace_or_education with emotion_recognition
+  (Article 3(39)) (ruling P9). classify_ai_system applies them once, by
+  apply_entailments, before any rule reads the facts, so the level, the
+  Article 50 duties, the Article 27 block, high_risk_routes and
+  annex_iii_listed_uses read the same facts; the caller's input is never
+  changed. A narrower fact true with its wider fact false reads the wider
+  as true and gives an entry in fact_conflicts (narrower, wider,
+  provision, note), the note among the missing facts, the status
+  requires_human_review and the confidence 0.5 on every exit, the
+  unacceptable_risk exit included, the level unchanged. The wider fact
+  absent reads as true with one rationale line and no entry, so a settled
+  prohibition stays settled. fact_conflicts is on every answer, an empty
+  list when there is none, and an exception answered yes beside its
+  practice answered no gives no entry. The mark reaches the Article 27
+  block, computed after it (ruling P11): the block is unknown and its
+  reason names the conflict, on the unacceptable_risk exit too. The
+  applicable requirements read fact_conflicts from the classification
+  they are given: a marked prohibited classification keeps the status
+  requires_human_review and its confidence and is still served no
+  requirement, and a marked high-risk one is served provisional
+  requirements with the conflict lines among the missing facts.
+  Article 6(3). ARTICLE_6_3_CONDITIONS holds one fact per point:
+  narrow_procedural_task (a), improves_previous_human_activity (b),
+  detects_patterns_without_replacing_human_assessment (c) and
+  preparatory_task (d). A true condition beside an Annex III match flags
+  the derogation candidate whatever the autonomy field says, and
+  profiling_of_natural_persons true cancels it (the third subparagraph).
+  The advisory condition of the earlier combined fact is gone: no
+  classification rule reads autonomy, and the schema's description of
+  autonomy says so (ruling R5). A candidacy holds the Article 27 block at
+  unknown as before, and the level never drops.
+  The prompt. elicit_features v9 is the default (elicitor.py
+  DEFAULT_PROMPT_VERSION) and the prompt of record: it asks the 54 facts,
+  the 25 listed uses under one heading per point with each use's legal
+  unit printed from the build, law_enforcement_purpose under Article
+  5(1)(h), the two Article 6(3) facts, and recital 18 as context under
+  the emotion recognition facts; the driver drowsiness example of v8 is
+  gone. v8 stays as the prompt of tag v2.0.0-beta.1. A field or flag the
+  reply proposes outside the schema is not kept and is named once in the
+  notes: "<path> was proposed but is not a fact of the schema; it was not
+  kept". Section 11 (5)'s "The elicitor prompt is v7" stays as written,
+  the version of its day.
+  The records. The demo sessions under tests/fixtures/demo_sessions and
+  demo/mcp_demo/sessions are recorded again in the new facts, each
+  request translated by the plan's rule for recorded systems; the demo
+  site's assess page reads the facts from GET /api/schema/system_features
+  and groups them under the area headings. eval/gold/gold_seed.json, an
+  input of the ablation, is rewritten in the new facts (its description
+  lists each change); the other files of eval/ stay records of the tag.
+  tests/unit/test_removed_facts_guard.py fails on a tracked file that
+  names a removed fact and is not on its allowed list, where each entry
+  carries its reason, and on an allowance whose file no longer names one.
+  scripts/run_ablations.py stops with exit code 2, before the live gate
+  and any model client, when the stored facts of an item it would
+  classify do not fit the schema, on the main run and the pilot run
+  alike, so no such item is scored as a wrong answer (ruling R16); its
+  advice to elicit again is given only when facts outside the schema were
+  found. scripts/draft_gold_candidates.py's draft mode writes facts of the
+  tag, so at this commit it refuses with exit code 2 and is run at the
+  tag.
+  Not done in this decision: the domain words and the certainty of an
+  answer matched by the domain alone are card B185, and until then such a
+  match keeps the status it had; no fact of the Act's scope (Article 2) is
+  added; the Article 50 exceptions stay undecided by the rules (DEC-18);
+  the pair of point 6(e) and profiling_of_natural_persons is left open;
+  the note for a fact conflict beside an Article 6(3) candidacy and the
+  words "known fact" of the Article 50 note are left to B185.
+  verify (task 10): src/tere4ai/mcp_server/classify.py (ANNEX_III_RULES,
+  annex_iii_listed_uses, _cite_listed_uses, apply_entailments,
+  FACT_ENTAILMENTS, POINT_H_PRACTICE_NOTE_END, ARTICLE_6_3_CONDITIONS,
+  classify_ai_system); src/tere4ai/mcp_server/requirements.py
+  (PROHIBITED_MESSAGE_POINT_H, the conflict mark); src/tere4ai/mcp_server/
+  fria.py (FACT_CONFLICT_REASON); prompts/elicit_features/v9.md;
+  src/tere4ai/elicit_features/elicitor.py (DEFAULT_PROMPT_VERSION,
+  OUTSIDE_SCHEMA_NOTE); scripts/rerecord_demo_sessions.py;
+  scripts/run_ablations.py (stored_facts_refusal);
+  scripts/draft_gold_candidates.py; tests/unit/test_annex_iii_facts.py,
+  test_listed_uses.py, test_point_h_purpose.py, test_fact_entailments.py,
+  test_article_6_3_split.py, test_features_schema_descriptions.py,
+  test_elicit_prompt_v9.py, test_removed_facts_guard.py,
+  test_demo_session_parity.py, test_run_ablations_stored_facts.py and
+  test_gold_drafting.py; CHANGELOG.md names the contract change.
 
 ## 17. Implementation-traceability convention
 
