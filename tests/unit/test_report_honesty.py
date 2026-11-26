@@ -595,11 +595,12 @@ def test_report_source_files_free_of_banned_terms_and_dashes():
 
 
 def test_prohibited_tier_report_offers_no_tailored_requirements_and_no_trace_rows():
-    """Guardrail: a prohibited-practice session states that no requirement backlog can make the system permissible, lists no violated-principles grading, and renders zero trace rows."""
+    """Guardrail: a prohibited-practice session states that no tailored requirement can make the system permissible, lists no violated-principles grading, and renders zero trace rows. B184: the MoodWatch session is recorded again (ruling P20), so it carries the live sentence, no longer the sentence of its day."""
     scan = _scan("moodwatch-prohibited")
-    assert _flex("no requirement backlog can make the system permissible").search(
+    assert _flex("no tailored requirement can make the system permissible").search(
         scan.doc_text
-    ), "prohibited report lacks the no-backlog-can-permit statement"
+    ), "prohibited report lacks the no-tailored-requirement-can-permit statement"
+    assert not _flex("no requirement backlog").search(scan.doc_text)
     assert not _flex("violated principles").search(scan.doc_text), (
         "prohibited report must not speak of 'violated principles'"
     )
@@ -610,8 +611,8 @@ def test_a_prohibited_session_from_the_live_message_states_no_tailored_requireme
     """Guardrail (B181, R20): a prohibited-practice session whose
     get_applicable_requirements answer carries the live PROHIBITED_MESSAGE
     states that no tailored requirement can make the system permissible and
-    says nothing of a requirement backlog. The recorded MoodWatch session
-    keeps its sentence of its day (the test above)."""
+    says nothing of a requirement backlog. Since B184 the recorded MoodWatch
+    session carries the live sentence too (the test above)."""
     from tere4ai.mcp_server.requirements import PROHIBITED_MESSAGE
     from tere4ai.report import render_report_from_paths
 

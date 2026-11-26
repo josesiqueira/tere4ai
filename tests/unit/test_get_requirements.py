@@ -336,7 +336,7 @@ def test_classify_envelope_feeds_requirements(dump, norms_payload, node_ids):
         {
             "description": "Hospital emergency department triage support system.",
             "domain": "healthcare",
-            "flags": {"essential_services_access": True},
+            "flags": {"annex_iii_5d_emergency_calls": True},
         },
         dump,
     )
@@ -487,7 +487,7 @@ def test_uncertain_message_follows_the_classification_state(dump, norms_payload)
         "medical_or_safety_component": False,
         "annex_i_covered_product": False,
     }
-    del all_false["employment_decisions"]
+    del all_false["annex_iii_4a_recruitment"]
     classification = classify_ai_system({"description": "A hiring helper.", "flags": all_false}, dump)
     assert classification["answer"]["risk_category"] == "undetermined"
     assert classification["answer"]["unacceptable_risk"] is False
@@ -516,7 +516,7 @@ def test_high_risk_keeps_the_whole_article_50_group_without_a_trigger(dump, norm
         **dict.fromkeys(classify_module.PROHIBITION_RELEVANT_FLAGS, False),
         **dict.fromkeys(classify_module.ANNEX_III_RELEVANT_FLAGS, False),
         **dict.fromkeys(classify_module.ARTICLE_50_TRIGGER_FLAGS, False),
-        "employment_decisions": True,
+        "annex_iii_4a_recruitment": True,
     }
     classification = classify_ai_system({"description": "CV screening for hiring.", "flags": flags}, dump)
     assert classification["answer"]["risk_category"] == "high_risk"
@@ -631,7 +631,7 @@ def test_each_served_group_carries_its_dates_by_route(dump, norms_payload):
     general date with Article 111(4) as a note."""
     annex_iii = classify_ai_system(
         {"description": "CV screening tool.",
-         "flags": {**{f: False for f in classify_module.PROHIBITION_RELEVANT_FLAGS}, "employment_decisions": True}},
+         "flags": {**{f: False for f in classify_module.PROHIBITION_RELEVANT_FLAGS}, "annex_iii_4a_recruitment": True}},
         dump,
     )
     dates = get_applicable_requirements(annex_iii, norms_payload, dump)["answer"]["application_dates"]
@@ -665,7 +665,7 @@ def test_a_section_b_system_matching_annex_iii_gets_one_consistent_answer(dump, 
     """R26 reversed (Codex plan review P1 3): with Section B legislation, an
     Annex III match and a public-law deployer, the classification, its FRIA
     block and the requirements all follow the Annex III route."""
-    features = {**_annex_i(True, employment_decisions=True), "deployer": {"body_governed_by_public_law": True}}
+    features = {**_annex_i(True, annex_iii_4a_recruitment=True), "deployer": {"body_governed_by_public_law": True}}
     classification = classify_ai_system(features, dump)
     assert classification["answer"]["annex_iii_category"] == "eu-ai-act:annex-iii:point-4"
     assert classification["answer"]["annex_i_section"] == "B"
@@ -691,7 +691,7 @@ def test_a_system_on_both_routes_dates_its_requirements_by_both_and_agrees_with_
     """R37, the opus re-check's reproduced case: Section A, an Annex III point
     and a public deployer. The FRIA applies from 2027-12-02, so article-27
     and article-9 carry that date as well as 2 August 2028."""
-    features = {**_annex_i(False, employment_decisions=True), "deployer": {"body_governed_by_public_law": True}}
+    features = {**_annex_i(False, annex_iii_4a_recruitment=True), "deployer": {"body_governed_by_public_law": True}}
     classification = classify_ai_system(features, dump)
     assert classification["answer"]["high_risk_routes"] == ["article_6_1", "article_6_2"]
     fria_date = classification["answer"]["fria"]["applies_from"]["date"]
@@ -716,20 +716,20 @@ def test_a_section_b_system_with_unknown_annex_iii_facts_is_not_settled(dump, no
     assert answer["requirements_by_article"] == {} and "article_2_2" in answer
     assert "do not apply unless an Annex III point applies" in answer["message"]
     assert envelope["status"] == "requires_human_review"
-    assert any(m.startswith("flags.employment_decisions is unknown (Annex III high-risk relevant")
+    assert any(m.startswith("flags.annex_iii_4a_recruitment is unknown (Annex III high-risk relevant")
                for m in envelope["missing_facts"])
 
 
 def test_a_section_b_derogation_candidate_on_the_annex_iii_route_says_what_can_change(dump, norms_payload):
     """The re-check's note on the provisional note: an Article 6(3) derogation
     candidate on the R26 path could take the answer back to Article 2(2)."""
-    features = _annex_i(True, employment_decisions=True, improves_previous_human_activity=True)
+    features = _annex_i(True, annex_iii_4a_recruitment=True, improves_previous_human_activity=True)
     classification = classify_ai_system(features, dump)
     assert classification["answer"]["article_6_3_exception_candidate"] is True
     answer = get_applicable_requirements(classification, norms_payload, dump)["answer"]
     assert answer["provisional"] is True
     assert "the answer would become the Article 2(2) one" in answer["provisional_note"]
-    annex_iii_only = {**_annex_i(None, employment_decisions=True, improves_previous_human_activity=True)}
+    annex_iii_only = {**_annex_i(None, annex_iii_4a_recruitment=True, improves_previous_human_activity=True)}
     annex_iii_only["flags"]["annex_i_covered_product"] = False
     plain = get_applicable_requirements(classify_ai_system(annex_iii_only, dump), norms_payload, dump)
     assert plain["answer"]["provisional"] is True
@@ -740,7 +740,7 @@ def test_an_unknown_section_with_an_annex_iii_match_names_no_section_fact(dump, 
     """R44: with an Annex III match Chapter III is served whatever the section,
     so neither the Article 2(2) note nor the section fact is given; on the
     Article 6(1) route alone both stay."""
-    matched = classify_ai_system(_annex_i(None, employment_decisions=True), dump)
+    matched = classify_ai_system(_annex_i(None, annex_iii_4a_recruitment=True), dump)
     assert matched["answer"]["high_risk_routes"] == ["article_6_1", "article_6_2"]
     envelope = get_applicable_requirements(matched, norms_payload, dump)
     assert not any("Article 2(2)" in n for n in envelope["legal_status_notes"])

@@ -24,6 +24,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 @implements: DEC-18
 @implements: DEC-23
 @implements: DEC-30 (the unacceptable_risk note names a tailored requirement; the sentence of record)
+@implements: DEC-32 (the Annex III rule table over the 25 listed uses; annex_iii_listed_uses)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -237,111 +238,214 @@ PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
     "real_time_remote_biometric_public",
 )
 
-# Article 6(2) + Annex III: the eight high-risk categories, each cited by its
-# real AnnexItem node (eu-ai-act:annex-iii:point-1 .. point-8 in the dump).
-# Checked in point order; the first match becomes annex_iii_category.
+# Article 6(2) + Annex III (B184, spec G D-G91, DEC-32): the eight high-risk
+# points, each cited by its real AnnexItem node (eu-ai-act:annex-iii:point-1
+# .. point-8 in the dump), read through the 25 listed uses, one fact each,
+# paired with the legal unit the fact quotes whole (system_features.schema.json,
+# x-annex-iii-area and x-annex-iii-use). A point matches when one of its
+# listed-use facts is true; point 1 also matches on
+# real_time_remote_biometric_public (also_matching), which reaches point 1(a)
+# and does not count for the domain rule (ruling P5). Points 2 to 8 still
+# match on the system's domain, which stops counting only when every listed
+# use of the point is known false. Checked in point order; the first match
+# becomes annex_iii_category. The introductory words of points 1, 6 and 7
+# ("in so far as their use is permitted under relevant Union or national
+# law") are printed by the schema and are not a fact.
+# @implements: DEC-32
 ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
     {
-        # point 1: "Biometrics ... remote biometric identification systems
-        # ... emotion recognition"; point 1(b) (DEC-18): "AI systems intended
-        # to be used for biometric categorisation, according to sensitive or
-        # protected attributes or characteristics based on the inference of
-        # those attributes or characteristics".
+        # point 1: "Biometrics, in so far as their use is permitted under
+        # relevant Union or national law: (a) remote biometric identification
+        # systems ..."; (b) biometric categorisation according to sensitive or
+        # protected attributes (DEC-18); (c) emotion recognition.
         "node": "eu-ai-act:annex-iii:point-1",
         "label": "biometrics",
-        "flags": (
-            "biometric_identification",
-            "emotion_recognition",
-            "real_time_remote_biometric_public",
-            "biometric_categorisation_sensitive_or_protected_attributes",
+        "uses": (
+            ("biometric_identification", "eu-ai-act:annex-iii:point-1:a"),
+            ("biometric_categorisation_sensitive_or_protected_attributes", "eu-ai-act:annex-iii:point-1:b"),
+            ("emotion_recognition", "eu-ai-act:annex-iii:point-1:c"),
         ),
+        "also_matching": (("real_time_remote_biometric_public", "eu-ai-act:annex-iii:point-1:a"),),
         "domains": (),
     },
     {
         # point 2: "Critical infrastructure: AI systems intended to be used
         # as safety components in the management and operation of critical
         # digital infrastructure, road traffic, or in the supply of water,
-        # gas, heating or electricity."
+        # gas, heating or electricity." The point has no sub-node, so its
+        # listed use is the point itself.
         "node": "eu-ai-act:annex-iii:point-2",
         "label": "critical infrastructure",
-        "flags": ("critical_infrastructure_safety",),
+        "uses": (("critical_infrastructure_safety", "eu-ai-act:annex-iii:point-2"),),
+        "also_matching": (),
         "domains": ("critical_infrastructure",),
     },
     {
-        # point 3: "Education and vocational training: ... determine access
-        # or admission ... evaluate learning outcomes"
+        # point 3: "Education and vocational training: (a) AI systems
+        # intended to be used to determine access or admission ..." and (b)
+        # to (d).
         "node": "eu-ai-act:annex-iii:point-3",
         "label": "education and vocational training",
-        "flags": ("education_scoring_or_access",),
+        "uses": (
+            ("annex_iii_3a_admission", "eu-ai-act:annex-iii:point-3:a"),
+            ("annex_iii_3b_learning_outcomes", "eu-ai-act:annex-iii:point-3:b"),
+            ("annex_iii_3c_education_level", "eu-ai-act:annex-iii:point-3:c"),
+            ("annex_iii_3d_test_monitoring", "eu-ai-act:annex-iii:point-3:d"),
+        ),
+        "also_matching": (),
         "domains": ("education",),
     },
     {
         # point 4: "Employment, workers' management and access to
-        # self-employment: ... recruitment or selection of natural persons"
+        # self-employment: (a) AI systems intended to be used for the
+        # recruitment or selection of natural persons ..." and (b).
         "node": "eu-ai-act:annex-iii:point-4",
         "label": "employment and workers management",
-        "flags": ("employment_decisions",),
+        "uses": (
+            ("annex_iii_4a_recruitment", "eu-ai-act:annex-iii:point-4:a"),
+            ("annex_iii_4b_work_relationships", "eu-ai-act:annex-iii:point-4:b"),
+        ),
+        "also_matching": (),
         "domains": ("employment",),
     },
     {
         # point 5: "Access to and enjoyment of essential private services and
-        # essential public services and benefits: ... evaluate the
-        # eligibility of natural persons for essential public assistance
-        # benefits and services, including healthcare services"
+        # essential public services and benefits: (a) AI systems intended to
+        # be used by public authorities or on behalf of public authorities to
+        # evaluate ..." and (b) to (d). The 5(b) and 5(c) facts also feed the
+        # FRIA rule (fria.py, DEC-14).
         "node": "eu-ai-act:annex-iii:point-5",
         "label": "essential private and public services",
-        "flags": ("essential_services_access",),
-        # Sub-point facts (5(b) creditworthiness, 5(c) life/health insurance
-        # pricing): a true value matches the category, but the domain-yield
-        # rule below stays over the umbrella flag only, because an explicit
-        # false on the umbrella already denies the whole point 5 area
-        # (scenario 161 semantics preserved). These two also feed the FRIA
-        # rule (fria.py, DEC-14).
-        "subflags": (
-            "creditworthiness_evaluation",
-            "life_health_insurance_risk_pricing",
+        "uses": (
+            ("annex_iii_5a_public_benefits", "eu-ai-act:annex-iii:point-5:a"),
+            ("creditworthiness_evaluation", "eu-ai-act:annex-iii:point-5:b"),
+            ("life_health_insurance_risk_pricing", "eu-ai-act:annex-iii:point-5:c"),
+            ("annex_iii_5d_emergency_calls", "eu-ai-act:annex-iii:point-5:d"),
         ),
+        "also_matching": (),
         "domains": ("healthcare", "banking", "insurance"),
     },
     {
         # point 6: "Law enforcement, in so far as their use is permitted
-        # under relevant Union or national law"
+        # under relevant Union or national law: (a) AI systems intended to be
+        # used by or on behalf of law enforcement authorities ..." and (b) to
+        # (e). law_enforcement_use is read by Article 5(1)(h) only.
         "node": "eu-ai-act:annex-iii:point-6",
         "label": "law enforcement",
-        "flags": ("law_enforcement_use",),
+        "uses": (
+            ("annex_iii_6a_victim_risk", "eu-ai-act:annex-iii:point-6:a"),
+            ("annex_iii_6b_polygraphs", "eu-ai-act:annex-iii:point-6:b"),
+            ("annex_iii_6c_evidence_reliability", "eu-ai-act:annex-iii:point-6:c"),
+            ("annex_iii_6d_offending_risk", "eu-ai-act:annex-iii:point-6:d"),
+            ("annex_iii_6e_profiling", "eu-ai-act:annex-iii:point-6:e"),
+        ),
+        "also_matching": (),
         "domains": ("law_enforcement",),
     },
     {
-        # point 7: "Migration, asylum and border control management"
+        # point 7: "Migration, asylum and border control management, in so
+        # far as their use is permitted under relevant Union or national law:
+        # (a) AI systems intended to be used by or on behalf of competent
+        # public authorities ..." and (b) to (d).
         "node": "eu-ai-act:annex-iii:point-7",
         "label": "migration, asylum and border control",
-        "flags": ("migration_asylum_border_use",),
+        "uses": (
+            ("annex_iii_7a_polygraphs", "eu-ai-act:annex-iii:point-7:a"),
+            ("annex_iii_7b_entry_risk", "eu-ai-act:annex-iii:point-7:b"),
+            ("annex_iii_7c_applications", "eu-ai-act:annex-iii:point-7:c"),
+            ("annex_iii_7d_identification", "eu-ai-act:annex-iii:point-7:d"),
+        ),
+        "also_matching": (),
         "domains": ("migration",),
     },
     {
-        # point 8: "Administration of justice and democratic processes"
+        # point 8: "Administration of justice and democratic processes: (a)
+        # AI systems intended to be used by a judicial authority or on their
+        # behalf ..." and (b).
         "node": "eu-ai-act:annex-iii:point-8",
         "label": "administration of justice and democratic processes",
-        "flags": ("justice_democratic_use",),
+        "uses": (
+            ("annex_iii_8a_judicial", "eu-ai-act:annex-iii:point-8:a"),
+            ("annex_iii_8b_elections", "eu-ai-act:annex-iii:point-8:b"),
+        ),
+        "also_matching": (),
         "domains": ("justice",),
     },
 )
 
-# Flags whose unknown value can change an Annex III high-risk outcome. Like
-# the prohibition flags, absence is NOT treated as false: an unknown Annex
-# III fact is surfaced in missing_facts and blocks a confident
-# minimal_risk verdict (audit 2026-07-20 D1). Built from the rule table so
-# it can never drift from the categories. A flag that is also an Article 5
-# flag (real_time_remote_biometric_public) stays in this list: its Article 5
-# path can be ruled out while its Annex III one is not (DEC-18); the ladder
-# skips it here only when the Article 5 side already names it.
+# The 25 listed-use facts, in point order (B184, DEC-32).
+ANNEX_III_LISTED_USE_FACTS: tuple[str, ...] = tuple(
+    fact for rule in ANNEX_III_RULES for fact, _unit in rule["uses"]
+)
+
+# The legal unit each Annex III fact is read for: the 25 listed uses, and
+# real_time_remote_biometric_public, which reaches point 1(a).
+ANNEX_III_UNIT_OF_FACT: dict[str, str] = {
+    fact: unit
+    for rule in ANNEX_III_RULES
+    for fact, unit in (*rule["uses"], *rule["also_matching"])
+}
+
+# Flags whose unknown value can change an Annex III high-risk outcome: the 25
+# listed uses, then real_time_remote_biometric_public. Like the prohibition
+# flags, absence is NOT treated as false: an unknown Annex III fact is
+# surfaced in missing_facts and blocks a confident minimal_risk verdict
+# (audit 2026-07-20 D1). Built from the rule table so it can never drift from
+# the categories. A flag that is also an Article 5 flag
+# (real_time_remote_biometric_public) stays in this list: its Article 5 path
+# can be ruled out while its Annex III one is not (DEC-18); the ladder skips
+# it here only when the Article 5 side already names it.
 ANNEX_III_RELEVANT_FLAGS: tuple[str, ...] = tuple(
     dict.fromkeys(
-        flag
-        for rule in ANNEX_III_RULES
-        for flag in (*rule["flags"], *rule.get("subflags", ()))
+        (
+            *ANNEX_III_LISTED_USE_FACTS,
+            *(fact for rule in ANNEX_III_RULES for fact, _unit in rule["also_matching"]),
+        )
     )
 )
+
+# B184 (ruling P7): the rationale line of each further listed use answered
+# yes. Deliberately not the "rule X: flag Y matches Z" grammar, which
+# scripts/elicitation_error_report.py parses as the classification trigger.
+ANNEX_III_LISTED_USE_LINE = (
+    "Annex III listed use answered yes: flag {fact} is true for {unit}; cited with the answer"
+)
+
+
+def annex_iii_listed_uses(flags: dict[str, Any]) -> list[str]:
+    """The legal units of the listed-use facts that are true, in point order.
+
+    real_time_remote_biometric_public is not among them: it reaches point
+    1(a) through the entailment of Article 3(42) (B184 Task 4).
+
+    @implements: DEC-32
+    """
+    if not isinstance(flags, dict):
+        return []
+    return [
+        unit
+        for rule in ANNEX_III_RULES
+        for fact, unit in rule["uses"]
+        if flags.get(fact) is True
+    ]
+
+
+def _annex_iii_trigger_fact(rule: dict[str, Any], flags: dict[str, Any]) -> str | None:
+    """The first true fact of a point: its listed uses, then also_matching.
+
+    @implements: DEC-32
+    """
+    return next(
+        (fact for fact, _unit in (*rule["uses"], *rule["also_matching"]) if flags.get(fact) is True),
+        None,
+    )
+
+
+def _every_listed_use_false(rule: dict[str, Any], flags: dict[str, Any]) -> bool:
+    """Whether every listed use of a point is known false, so the domain no
+    longer counts (ELICITATION_ERRORS.md, scenario 161; DEC-32)."""
+    return bool(rule["uses"]) and all(flags.get(fact) is False for fact, _unit in rule["uses"])
+
 
 # DEC-18: exculpating facts that settle their Article 5 point even when the
 # point's own flag is absent, because each is the statute's complete element
@@ -667,17 +771,17 @@ def _annex_iii_all_matches(flags: dict[str, Any], domain: str | None) -> list[st
     the FRIA rule can tell a multi-area system apart from a single-area one:
     the Article 27(1) point-2 exception is scoped to the point-2 AREA, not to
     a system that also falls under another point (audit 2026-07-20 D5). Same
-    domain-yield semantics as the scan.
+    domain-yield semantics as the scan: a point matches on a true fact of its
+    listed uses or of also_matching, and on its domain until every listed use
+    is known false (DEC-32).
+
+    @implements: DEC-32
     """
     matches: list[str] = []
     for rule in ANNEX_III_RULES:
-        all_flags = (*rule["flags"], *rule.get("subflags", ()))
-        matched_flag = any(flags.get(f) is True for f in all_flags)
-        matched_domain = domain in rule["domains"]
-        if matched_domain and not matched_flag:
-            if rule["flags"] and all(flags.get(f) is False for f in rule["flags"]):
-                matched_domain = False
-        if matched_flag or matched_domain:
+        matched_fact = _annex_iii_trigger_fact(rule, flags) is not None
+        matched_domain = domain in rule["domains"] and not _every_listed_use_false(rule, flags)
+        if matched_fact or matched_domain:
             matches.append(rule["node"])
     return matches
 
@@ -685,18 +789,20 @@ def _annex_iii_all_matches(flags: dict[str, Any], domain: str | None) -> list[st
 def _unknown_annex_iii_facts(flags: dict[str, Any]) -> dict[str, str]:
     """Every Annex III fact absent from flags, mapped to its point node.
 
-    In point order, from ANNEX_III_RULES (flags and subflags). A flag that
-    is also an Article 5 one (real_time_remote_biometric_public) counts here
-    too: its Annex III side is open whatever the Article 5 side says. Input
-    to the FRIA rule, which reads an unknown Annex III fact where the answer
-    would otherwise be does_not_apply for want of an Annex III area (B125,
-    DEC-14).
+    In point order, from ANNEX_III_RULES (uses, then also_matching). A flag
+    that is also an Article 5 one (real_time_remote_biometric_public) counts
+    here too: its Annex III side is open whatever the Article 5 side says.
+    Input to the FRIA rule, which reads an unknown Annex III fact where the
+    answer would otherwise be does_not_apply for want of an Annex III area
+    (B125, DEC-14).
+
+    @implements: DEC-32
     """
     unknown: dict[str, str] = {}
     for rule in ANNEX_III_RULES:
-        for flag in (*rule["flags"], *rule.get("subflags", ())):
-            if flag not in flags:
-                unknown.setdefault(flag, rule["node"])
+        for fact, _unit in (*rule["uses"], *rule["also_matching"]):
+            if fact not in flags:
+                unknown.setdefault(fact, rule["node"])
     return unknown
 
 
@@ -729,35 +835,34 @@ def _annex_iii_scan(
     Returns (matched rule or None, trigger description or None, rationale
     notes collected on the way, e.g. the domain-yield note). Pure function
     of the structured facts, shared by the classification ladder and the
-    FRIA rule so the two can never disagree on Annex III membership.
+    FRIA rule so the two can never disagree on Annex III membership. The
+    trigger is the first true fact of the point's listed uses, then of
+    also_matching, else the domain (DEC-32).
+
+    @implements: DEC-32
     """
     notes: list[str] = []
     for rule in ANNEX_III_RULES:
-        all_flags = (*rule["flags"], *rule.get("subflags", ()))
-        matched_flag = next((f for f in all_flags if flags.get(f) is True), None)
+        matched_fact = _annex_iii_trigger_fact(rule, flags)
         matched_domain = domain if domain in rule["domains"] else None
         # Evidence-driven fix (eval/results/ELICITATION_ERRORS.md, scenario
-        # 161): a bare domain match must YIELD when every specific flag of
-        # the category is explicitly false. Annex III categories cover
-        # specific uses within a domain, not the domain itself; with the
-        # uses explicitly ruled out, domain alone is not a basis. Unknown
-        # flags keep the match (unknown is never treated as false). The
-        # yield check stays over the umbrella flags, not the subflags.
-        if matched_domain and not matched_flag:
-            all_explicitly_false = rule["flags"] and all(
-                flags.get(f) is False for f in rule["flags"]
+        # 161): a bare domain match must YIELD when every listed use of the
+        # category is known false. Annex III categories cover specific uses
+        # within a domain, not the domain itself; with the uses ruled out,
+        # domain alone is not a basis. An unknown listed use keeps the match
+        # (unknown is never treated as false). An also_matching fact does not
+        # count for this rule (ruling P5).
+        if matched_domain and matched_fact is None and _every_listed_use_false(rule, flags):
+            notes.append(
+                f"domain '{matched_domain}' matches Annex III category "
+                f"'{rule['label']}' but every listed use of the category is "
+                "answered false; domain alone does not gate high-risk "
+                "(ELICITATION_ERRORS.md, scenario 161)"
             )
-            if all_explicitly_false:
-                notes.append(
-                    f"domain '{matched_domain}' matches Annex III category "
-                    f"'{rule['label']}' but every specific flag of the "
-                    "category is explicitly false; domain alone does not "
-                    "gate high-risk (ELICITATION_ERRORS.md, scenario 161)"
-                )
-                matched_domain = None
-        if matched_flag or matched_domain:
+            matched_domain = None
+        if matched_fact or matched_domain:
             trigger = (
-                f"flag {matched_flag}" if matched_flag else f"domain '{matched_domain}'"
+                f"flag {matched_fact}" if matched_fact else f"domain '{matched_domain}'"
             )
             return rule, trigger, notes
     return None, None, notes
@@ -1405,6 +1510,56 @@ def route_of(answer: dict[str, Any]) -> str | None:
     return None
 
 
+def _cite_listed_uses(
+    envelope: dict[str, Any], flags: dict[str, Any], domain: str | None, dump: dict[str, Any]
+) -> None:
+    """Set annex_iii_listed_uses and cite each of its units (B184, ruling R14).
+
+    The rejected input gets an empty list and no citation (no rule ran).
+    Otherwise every legal unit of a listed use answered yes is named in point
+    order; on the unacceptable_risk exit nothing more is done (ruling R14:
+    only the Article 5 provisions are cited there); on every other exit each
+    unit is cited (its node into source_nodes, its span into source_spans,
+    resolved against the dump as _Citations resolves them), with one rationale
+    line each after the core's lines (rulings P7, P10), except for the unit of
+    the fact the Article 6(2) exit's "rule high_risk" line already names.
+
+    @implements: DEC-32
+    """
+    answer = envelope["answer"]
+    if envelope.get("status") == "rejected_as_unsupported":
+        answer["annex_iii_listed_uses"] = []
+        return
+    units = annex_iii_listed_uses(flags)
+    answer["annex_iii_listed_uses"] = units
+    if not units or answer.get("risk_category") == "unacceptable_risk":
+        # Ruling R14 (USER.md domain guardrail: a prohibited system gets only
+        # the Article 5 prohibition citation and a message): on the
+        # unacceptable_risk exit the field names the listed uses, and nothing
+        # is cited or added to the rationale for them.
+        return
+    named_fact = None
+    if answer.get("annex_iii_category"):
+        rule, _trigger, _notes = _annex_iii_scan(flags, domain)
+        if rule is not None:
+            named_fact = _annex_iii_trigger_fact(rule, flags)
+    citations = _Citations(_node_index(dump))
+    citations.node_ids = list(envelope.get("source_nodes") or [])
+    citations.spans = list(envelope.get("source_spans") or [])
+    rationale = answer.setdefault("rationale", [])
+    for fact in ANNEX_III_LISTED_USE_FACTS:
+        if flags.get(fact) is not True:
+            continue
+        unit = ANNEX_III_UNIT_OF_FACT[fact]
+        citations.cite(unit)
+        if fact != named_fact:
+            rationale.append(ANNEX_III_LISTED_USE_LINE.format(fact=fact, unit=unit))
+    envelope["source_nodes"] = citations.node_ids
+    envelope["source_spans"] = citations.spans
+    if citations.unresolved:
+        envelope["missing_facts"] = [*(envelope.get("missing_facts") or []), *citations.unresolved]
+
+
 def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
     """Deterministic classification plus the Article 27(1) FRIA block.
 
@@ -1492,6 +1647,7 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         if holds
     ] if answer.get("risk_category") == "high_risk" else []
     route = route_of(answer)
+    _cite_listed_uses(envelope, flags, domain, dump)
     cited = list(envelope.get("source_nodes") or [])
     if answer.get("annex_i_section") == "B" and HIGH_RISK_ROUTE_ARTICLE_6_2 in answer["high_risk_routes"]:
         # R45: Article 2(2) excludes Article 6(2), Article 6(3) and the rest

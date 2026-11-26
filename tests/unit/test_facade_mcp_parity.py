@@ -51,7 +51,7 @@ TRIAGE_FEATURES = {
     "domain": "healthcare",
     "autonomy": "advisory",
     "flags": {
-        "essential_services_access": True,
+        "annex_iii_5d_emergency_calls": True,
         "subliminal_or_manipulative": False,
         "exploits_vulnerabilities": False,
         "social_scoring": False,

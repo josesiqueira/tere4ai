@@ -147,7 +147,7 @@ def test_facade_does_not_mutate_its_loaded_norms_payload(client, clients):
     assert json.dumps(client.app.state.served.norms, sort_keys=True) == before
     served = client.post("/api/requirements", json={"classification": client.post(
         "/api/classify", json={"features": {"description": "x", "domain": "healthcare", "autonomy": "advisory",
-                                            "flags": {"essential_services_access": True}}}).json()})
+                                            "flags": {"annex_iii_5d_emergency_calls": True}}}).json()})
     assert "source_text" not in json.dumps(served.json()["answer"]["requirements_by_article"])
 
 

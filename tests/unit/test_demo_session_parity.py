@@ -147,3 +147,30 @@ def test_the_rerecord_script_reads_a_recorded_request_through_features_of_record
         envelope = mod.envelope_of(line, dump, norms)
         assert envelope["status"] != "rejected_as_unsupported"
         assert _mask(envelope) == _mask(line["envelope"])
+
+
+@pytest.mark.skipif(not NORMS_PATH.is_file(), reason="norms_core.json dump not built")
+def test_the_rerecord_script_carries_each_new_classification_into_the_next_request(dump, norms):
+    """B184 ruling P20: within one session the script keeps the envelope it has
+    just recorded for a classify_ai_system line and writes it into the
+    classification of each later get_applicable_requirements line before
+    recording that line. Nothing is written here."""
+    from tests.unit.b184_cases import all_false
+    from tests.unit.b184_cases import case as _case
+
+    spec = importlib.util.spec_from_file_location(
+        "rerecord_demo_sessions", ROOT / "scripts" / "rerecord_demo_sessions.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    stale = json.loads((SESSIONS_DIR / "moodwatch-prohibited.jsonl").read_text().splitlines()[0])["envelope"]
+    session = [
+        {"seq": 1, "ts": "2026-11-26T00:00:00Z", "tool": "classify_ai_system", "repo_ref": None,
+         "request": {"features": _case(all_false(creditworthiness_evaluation=True))}, "envelope": stale},
+        {"seq": 2, "ts": "2026-11-26T00:00:01Z", "tool": "get_applicable_requirements", "repo_ref": None,
+         "request": {"classification": stale}, "envelope": {}},
+    ]
+    out = mod.rerecord_session(session, dump, norms)
+    new_classification = out[0]["envelope"]
+    assert new_classification["answer"]["risk_category"] == "high_risk"
+    assert out[1]["request"]["classification"] == new_classification
+    assert _mask(out[1]["envelope"]) == _mask(get_applicable_requirements(new_classification, norms, dump))

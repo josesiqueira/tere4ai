@@ -262,27 +262,7 @@
         },
         "law_enforcement_use": {
           "type": "boolean",
-          "description": "Annex III point 6, the Act's words: 'Law enforcement, in so far as their use is permitted under relevant Union or national law'. True means the system is intended for one of the uses the point lists, for example, the Act's words: 'AI systems intended to be used by or on behalf of law enforcement authorities'; it places the system in Annex III point 6, high-risk under Article 6(2), and it is the law-enforcement purpose Article 5(1)(h) needs together with real_time_remote_biometric_public. Absence is unknown and blocks a confident minimal answer."
-        },
-        "migration_asylum_border_use": {
-          "type": "boolean",
-          "description": "Annex III point 7, the Act's words: 'Migration, asylum and border control management, in so far as their use is permitted under relevant Union or national law'. True means the system is intended for one of the uses the point lists in (a) to (d); it places the system in Annex III point 7, high-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer."
-        },
-        "justice_democratic_use": {
-          "type": "boolean",
-          "description": "Annex III point 8, the Act's words: 'Administration of justice and democratic processes'. True means the system is intended for one of the uses the point lists, such as, the Act's words: 'AI systems intended to be used by a judicial authority or on their behalf to assist a judicial authority in researching and interpreting facts and the law and in applying the law to a concrete set of facts'; it places the system in Annex III point 8, high-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer."
-        },
-        "education_scoring_or_access": {
-          "type": "boolean",
-          "description": "Annex III point 3, the Act's words: 'AI systems intended to be used to determine access or admission or to assign natural persons to educational and vocational training institutions at all levels'. True means the system is intended for that use or for another the point lists in (b) to (d) (evaluating learning outcomes, assessing the appropriate level of education, monitoring prohibited behaviour during tests); it places the system in Annex III point 3, high-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer."
-        },
-        "employment_decisions": {
-          "type": "boolean",
-          "description": "Annex III point 4, the Act's words: 'AI systems intended to be used for the recruitment or selection of natural persons, in particular to place targeted job advertisements, to analyse and filter job applications, and to evaluate candidates'. True means the system is intended for that use or for the one of point 4(b), the Act's words: 'to make decisions affecting terms of work-related relationships, the promotion or termination of work-related contractual relationships'; it places the system in Annex III point 4, high-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer."
-        },
-        "essential_services_access": {
-          "type": "boolean",
-          "description": "Annex III point 5, the Act's words: 'Access to and enjoyment of essential private services and essential public services and benefits'. True means the system is intended for one of the uses the point lists in (a) to (d), such as, the Act's words: 'to evaluate the eligibility of natural persons for essential public assistance benefits and services, including healthcare services'; it places the system in Annex III point 5, high-risk under Article 6(2). Points 5(b) and 5(c) also have their own facts, creditworthiness_evaluation and life_health_insurance_risk_pricing. False denies the whole point 5 area. Absence is unknown and blocks a confident minimal answer."
+          "description": "Article 5(1)(h), the Act's words: 'the use of real-time remote biometric identification systems in publicly accessible spaces for the purposes of law enforcement'. True means the system is used for the purposes of law enforcement; it is read by point (h) only, and the uses Annex III point 6 lists are separate facts. Absence leaves the point (h) ban unsettled while real_time_remote_biometric_public is true."
         },
         "medical_or_safety_component": {
           "type": "boolean",

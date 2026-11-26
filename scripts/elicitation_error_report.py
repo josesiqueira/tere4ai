@@ -292,7 +292,16 @@ def apply_counterfactual(features: dict[str, Any], change: str) -> dict[str, Any
     elif change.startswith("set domain to "):
         edited["domain"] = change.split("'")[1]
     elif change.startswith("add flags.education_scoring_or_access = false"):
-        edited["flags"]["education_scoring_or_access"] = False
+        # B184 (DEC-32, ruling R11): the broad point 3 fact left the schema,
+        # and a removed fact answered false is false on every listed use of
+        # its point; the change keeps the words of the record.
+        for fact in (
+            "annex_iii_3a_admission",
+            "annex_iii_3b_learning_outcomes",
+            "annex_iii_3c_education_level",
+            "annex_iii_3d_test_monitoring",
+        ):
+            edited["flags"][fact] = False
     else:
         raise ValueError(f"unknown counterfactual change: {change!r}")
     return edited

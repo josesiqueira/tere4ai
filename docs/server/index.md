@@ -84,8 +84,7 @@ says so.
     "autonomy": "advisory",
     "flags": {
       "creditworthiness_evaluation": true,
-      "profiling_of_natural_persons": true,
-      "essential_services_access": true
+      "profiling_of_natural_persons": true
     }
   }
 }
@@ -105,7 +104,7 @@ graph build that answered, and the notice above.
     "unacceptable_risk": null,
     "annex_iii_category": "eu-ai-act:annex-iii:point-5",
     "rationale": [
-      "rule high_risk: flag essential_services_access matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)",
+      "rule high_risk: flag creditworthiness_evaluation matches Annex III category 'essential private and public services' (eu-ai-act:annex-iii:point-5), high-risk under Article 6(2)",
       "status lowered to requires_human_review: unknown prohibition-relevant flags could change the outcome to Unacceptable risk"
     ],
     "fria": {
@@ -125,7 +124,8 @@ graph build that answered, and the notice above.
   ],
   "source_nodes": [
     "eu-ai-act:annex-iii:point-5",
-    "eu-ai-act:article-6:paragraph-2"
+    "eu-ai-act:article-6:paragraph-2",
+    "eu-ai-act:annex-iii:point-5:b"
   ]
 }
 ```

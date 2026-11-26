@@ -44,8 +44,8 @@ pytestmark = pytest.mark.skipif(
 
 # Triage scenario: hospital emergency-department triage support. All
 # prohibition-relevant flags are known false, so the deterministic ladder
-# settles on high_risk via Annex III point 5 (essential services incl.
-# healthcare) without a review downgrade.
+# settles on high_risk via Annex III point 5(d) (emergency healthcare
+# patient triage, B184) without a review downgrade.
 TRIAGE_FEATURES = {
     "description": (
         "An AI triage assistant that prioritises emergency department "
@@ -54,7 +54,7 @@ TRIAGE_FEATURES = {
     "domain": "healthcare",
     "autonomy": "advisory",
     "flags": {
-        "essential_services_access": True,
+        "annex_iii_5d_emergency_calls": True,
         "subliminal_or_manipulative": False,
         "exploits_vulnerabilities": False,
         "social_scoring": False,
@@ -404,7 +404,10 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
         "domain": "email",
         "autonomy": "full",
         "flags": {
-            "essential_services_access": False,
+            "annex_iii_5a_public_benefits": False,
+            "creditworthiness_evaluation": False,
+            "life_health_insurance_risk_pricing": False,
+            "annex_iii_5d_emergency_calls": False,
             "subliminal_or_manipulative": False,
             "exploits_vulnerabilities": False,
             "social_scoring": False,
@@ -659,7 +662,10 @@ def test_elicit_system_fields_have_no_banned_terms(client, fake_models):
         "domain": "email",
         "autonomy": "full",
         "flags": {
-            "essential_services_access": False,
+            "annex_iii_5a_public_benefits": False,
+            "creditworthiness_evaluation": False,
+            "life_health_insurance_risk_pricing": False,
+            "annex_iii_5d_emergency_calls": False,
             "subliminal_or_manipulative": False,
             "exploits_vulnerabilities": False,
             "social_scoring": False,

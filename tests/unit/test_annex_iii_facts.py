@@ -78,6 +78,8 @@ def test_the_25_listed_uses_are_facts_with_their_area_and_use():
     assert "x-annex-iii-area" not in flags["real_time_remote_biometric_public"]
     keyed = [n for n, s in flags.items() if "x-annex-iii-use" in s]
     assert keyed == [fact for fact, _u, _n in LISTED_USES]  # point order (P4)
+    keyed_by_area = [n for n, s in flags.items() if "x-annex-iii-area" in s]
+    assert keyed_by_area == [fact for fact, _u, _n in LISTED_USES]
     names = list(flags)
     first = names.index(keyed[0])
     assert names[first:first + 25] == keyed  # contiguous (P4)

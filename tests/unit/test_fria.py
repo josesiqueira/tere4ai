@@ -377,14 +377,28 @@ _ALL_FLAGS_FALSE = {
     "predictive_policing_profiling": False,
     "facial_image_scraping": False,
     "law_enforcement_use": False,
-    "migration_asylum_border_use": False,
-    "justice_democratic_use": False,
-    "education_scoring_or_access": False,
-    "employment_decisions": False,
-    "essential_services_access": False,
+    "critical_infrastructure_safety": False,
+    "annex_iii_3a_admission": False,
+    "annex_iii_3b_learning_outcomes": False,
+    "annex_iii_3c_education_level": False,
+    "annex_iii_3d_test_monitoring": False,
+    "annex_iii_4a_recruitment": False,
+    "annex_iii_4b_work_relationships": False,
+    "annex_iii_5a_public_benefits": False,
     "creditworthiness_evaluation": False,
     "life_health_insurance_risk_pricing": False,
-    "critical_infrastructure_safety": False,
+    "annex_iii_5d_emergency_calls": False,
+    "annex_iii_6a_victim_risk": False,
+    "annex_iii_6b_polygraphs": False,
+    "annex_iii_6c_evidence_reliability": False,
+    "annex_iii_6d_offending_risk": False,
+    "annex_iii_6e_profiling": False,
+    "annex_iii_7a_polygraphs": False,
+    "annex_iii_7b_entry_risk": False,
+    "annex_iii_7c_applications": False,
+    "annex_iii_7d_identification": False,
+    "annex_iii_8a_judicial": False,
+    "annex_iii_8b_elections": False,
     "medical_or_safety_component": False,
     "interacts_with_natural_persons": False,
     "generates_synthetic_content": False,
@@ -395,8 +409,8 @@ _ALL_FLAGS_FALSE = {
 
 
 def test_scenario_161_domain_yield_semantics_are_preserved(dump):
-    """The domain-yield fix stands: when every point-5 fact (umbrella AND
-    both sub-point flags) is explicitly false, a bare banking domain match
+    """The domain-yield fix stands: when every point-5 fact (since B184 the
+    four listed uses of point 5) is explicitly false, a bare banking domain match
     yields to minimal. Post-audit-D1 every Annex III fact must be known
     false, otherwise an unknown one correctly blocks the clear."""
     features = {
@@ -410,9 +424,13 @@ def test_scenario_161_domain_yield_semantics_are_preserved(dump):
 
 
 def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
-    """Audit D1: with the point-5 umbrella explicitly false but a sub-point
-    fact (5(b)) unknown, the system cannot be confidently cleared as
-    minimal; it must be requires_human_review naming the unknown fact."""
+    """Audit D1: with the other listed uses of point 5 explicitly false but
+    5(b) unknown, the system cannot be confidently cleared as minimal, and
+    the unknown fact is named. B184 (D-G91, I8): the banking domain counts
+    until every listed use of point 5 is known false, so the answer is now
+    high_risk through point 5 by the domain alone (it was undetermined while
+    the false umbrella fact denied the whole area); the status of a match by
+    the domain alone is the one it had before (R10, until B185)."""
     flags = dict(_ALL_FLAGS_FALSE)
     del flags["creditworthiness_evaluation"]
     features = {
@@ -421,8 +439,9 @@ def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
         "flags": flags,
     }
     envelope = classify_ai_system(features, dump)
-    assert envelope["answer"]["risk_category"] == "undetermined"
-    assert envelope["status"] == "requires_human_review"
+    assert envelope["answer"]["risk_category"] == "high_risk"
+    assert envelope["answer"]["annex_iii_category"] == POINT_5
+    assert envelope["answer"]["annex_iii_listed_uses"] == []
     assert any(
         "creditworthiness_evaluation" in f for f in envelope["missing_facts"]
     )
@@ -433,7 +452,9 @@ def test_deployer_facts_validate_and_trigger_fria(dump):
         deployer={"body_governed_by_public_law": True}
     )
     features["flags"].pop("creditworthiness_evaluation")
-    features["flags"]["essential_services_access"] = True
+    # B184: the point 5 umbrella left the schema; 5(a), a use whose FRIA
+    # trigger is the deployer (5(b) would trigger it for any deployer).
+    features["flags"]["annex_iii_5a_public_benefits"] = True
     envelope = classify_ai_system(features, dump)
     assert envelope["status"] != "not_applicable", "deployer object must validate"
     assert envelope["answer"]["fria"]["applicability"] == "applies"
@@ -472,7 +493,7 @@ def test_derogation_candidacy_flows_from_ladder_to_fria_block(dump):
         deployer={"body_governed_by_public_law": True}
     )
     features["flags"].pop("creditworthiness_evaluation")
-    features["flags"]["employment_decisions"] = True
+    features["flags"]["annex_iii_4a_recruitment"] = True
     features["flags"]["improves_previous_human_activity"] = True
     features["flags"]["profiling_of_natural_persons"] = False
     envelope = classify_ai_system(features, dump)
@@ -489,7 +510,7 @@ def test_profiling_cancels_derogation_then_branch_logic_proceeds(dump):
         deployer={"body_governed_by_public_law": True}
     )
     features["flags"].pop("creditworthiness_evaluation")
-    features["flags"]["employment_decisions"] = True
+    features["flags"]["annex_iii_4a_recruitment"] = True
     features["flags"]["improves_previous_human_activity"] = True
     features["flags"]["profiling_of_natural_persons"] = True
     envelope = classify_ai_system(features, dump)
@@ -560,7 +581,7 @@ def test_limited_risk_with_every_annex_iii_fact_unknown_is_unknown():
     unknown = {
         "real_time_remote_biometric_public": POINT_1,
         "critical_infrastructure_safety": ANNEX_III_POINT_2,
-        "employment_decisions": "eu-ai-act:annex-iii:point-4",
+        "annex_iii_4a_recruitment": "eu-ai-act:annex-iii:point-4",
         "creditworthiness_evaluation": POINT_5,
     }
     block = assess_fria_applicability(
@@ -572,7 +593,7 @@ def test_limited_risk_with_every_annex_iii_fact_unknown_is_unknown():
         UNKNOWN_LINE.format(flag=f)
         for f in (
             "real_time_remote_biometric_public",
-            "employment_decisions",
+            "annex_iii_4a_recruitment",
             "creditworthiness_evaluation",
         )
     ]
@@ -605,7 +626,7 @@ def test_point_4_unknown_with_deployer_known_neither_does_not_apply():
         None,
         {"creditworthiness_evaluation": False, "life_health_insurance_risk_pricing": False},
         NEITHER_DEPLOYER,
-        unknown_annex_iii_facts={"employment_decisions": "eu-ai-act:annex-iii:point-4"},
+        unknown_annex_iii_facts={"annex_iii_4a_recruitment": "eu-ai-act:annex-iii:point-4"},
     )
     assert block["applicability"] == "does_not_apply"
     assert block["missing_facts"] == []
@@ -631,10 +652,10 @@ def test_minimal_risk_with_point_4_unknown_and_empty_deployer_is_unknown():
         None,
         {},
         {},
-        unknown_annex_iii_facts={"employment_decisions": "eu-ai-act:annex-iii:point-4"},
+        unknown_annex_iii_facts={"annex_iii_4a_recruitment": "eu-ai-act:annex-iii:point-4"},
     )
     assert block["applicability"] == "unknown"
-    assert block["missing_facts"] == [UNKNOWN_LINE.format(flag="employment_decisions")]
+    assert block["missing_facts"] == [UNKNOWN_LINE.format(flag="annex_iii_4a_recruitment")]
     assert any("Minimal risk" in r for r in block["rationale"])
 
 
@@ -644,7 +665,7 @@ def test_one_known_false_deployer_fact_still_leaves_the_deployer_open():
         None,
         {},
         {"body_governed_by_public_law": False},
-        unknown_annex_iii_facts={"employment_decisions": "eu-ai-act:annex-iii:point-4"},
+        unknown_annex_iii_facts={"annex_iii_4a_recruitment": "eu-ai-act:annex-iii:point-4"},
     )
     assert block["applicability"] == "unknown"
 
@@ -706,7 +727,7 @@ def test_point_4_fact_unknown_with_deployer_known_neither_says_only_the_deployer
         None,
         dict(KNOWN_FALSE_5B_5C),
         NEITHER_DEPLOYER,
-        unknown_annex_iii_facts={"employment_decisions": POINT_4},
+        unknown_annex_iii_facts={"annex_iii_4a_recruitment": POINT_4},
     )
     assert block["applicability"] == "does_not_apply"
     assert DEPLOYER_ONLY_LINE in block["rationale"]
@@ -721,7 +742,7 @@ def test_point_2_and_point_4_facts_unknown_say_both_reasons():
         NEITHER_DEPLOYER,
         unknown_annex_iii_facts={
             "critical_infrastructure_safety": ANNEX_III_POINT_2,
-            "employment_decisions": POINT_4,
+            "annex_iii_4a_recruitment": POINT_4,
         },
     )
     assert block["applicability"] == "does_not_apply"
@@ -735,7 +756,7 @@ def test_point_2_and_point_4_facts_unknown_say_both_reasons():
 
 def test_annex_i_route_with_an_unknown_point_4_fact_and_a_public_law_deployer_is_unknown():
     """The lift-door case at rule level: high-risk through Article 6(1) only,
-    5(b) and 5(c) known false, employment_decisions absent, the deployer a
+    5(b) and 5(c) known false, annex_iii_4a_recruitment absent, the deployer a
     public-law body. If the fact were true the system would also be
     high-risk under Article 6(2) and the deployer would trigger the FRIA."""
     block = assess_fria_applicability(
@@ -744,11 +765,11 @@ def test_annex_i_route_with_an_unknown_point_4_fact_and_a_public_law_deployer_is
         dict(KNOWN_FALSE_5B_5C),
         {"body_governed_by_public_law": True},
         annex_points=[],
-        unknown_annex_iii_facts={"employment_decisions": POINT_4},
+        unknown_annex_iii_facts={"annex_iii_4a_recruitment": POINT_4},
     )
     assert block["applicability"] == "unknown"
     assert block["basis_nodes"] == [ARTICLE_27_PARAGRAPH_1]
-    assert block["missing_facts"] == [UNKNOWN_LINE.format(flag="employment_decisions")]
+    assert block["missing_facts"] == [UNKNOWN_LINE.format(flag="annex_iii_4a_recruitment")]
     assert any(
         "Article 6(1) embedded-product route" in r and "cannot be settled yet" in r
         for r in block["rationale"]
@@ -762,7 +783,7 @@ def test_annex_i_route_with_an_unknown_point_4_fact_and_deployer_known_neither_d
         dict(KNOWN_FALSE_5B_5C),
         NEITHER_DEPLOYER,
         annex_points=[],
-        unknown_annex_iii_facts={"employment_decisions": POINT_4},
+        unknown_annex_iii_facts={"annex_iii_4a_recruitment": POINT_4},
     )
     assert block["applicability"] == "does_not_apply"
     assert block["missing_facts"] == []
@@ -784,7 +805,7 @@ def test_annex_i_route_with_only_the_point_2_fact_unknown_does_not_apply():
 
 
 def test_annex_i_route_with_unknown_5b_also_names_another_fact_that_could_trigger():
-    """Re-review N1: 5(b) unknown keeps its own line, and employment_decisions,
+    """Re-review N1: 5(b) unknown keeps its own line, and annex_iii_4a_recruitment,
     which a public-law deployer would also trigger on, is named too."""
     block = assess_fria_applicability(
         "high_risk",
@@ -793,7 +814,7 @@ def test_annex_i_route_with_unknown_5b_also_names_another_fact_that_could_trigge
         {"body_governed_by_public_law": True},
         annex_points=[],
         unknown_annex_iii_facts={
-            "employment_decisions": POINT_4,
+            "annex_iii_4a_recruitment": POINT_4,
             "creditworthiness_evaluation": POINT_5,
         },
     )
@@ -802,12 +823,12 @@ def test_annex_i_route_with_unknown_5b_also_names_another_fact_that_could_trigge
     assert block["missing_facts"][0].startswith(
         "flags.creditworthiness_evaluation is unknown (Article 27(1) FRIA-relevant)"
     )
-    assert block["missing_facts"][1] == UNKNOWN_LINE.format(flag="employment_decisions")
+    assert block["missing_facts"][1] == UNKNOWN_LINE.format(flag="annex_iii_4a_recruitment")
 
 
 def test_annex_i_route_with_5c_and_employment_unknown_names_both():
     """Re-review N1, the reviewer's example: if 5(c) turns out false,
-    employment_decisions decides, so it is named now."""
+    annex_iii_4a_recruitment decides, so it is named now."""
     block = assess_fria_applicability(
         "high_risk",
         None,
@@ -815,7 +836,7 @@ def test_annex_i_route_with_5c_and_employment_unknown_names_both():
         {"body_governed_by_public_law": True},
         annex_points=[],
         unknown_annex_iii_facts={
-            "employment_decisions": POINT_4,
+            "annex_iii_4a_recruitment": POINT_4,
             "life_health_insurance_risk_pricing": POINT_5,
         },
     )
@@ -824,7 +845,7 @@ def test_annex_i_route_with_5c_and_employment_unknown_names_both():
         "flags.life_health_insurance_risk_pricing is unknown (Article 27(1) "
         "FRIA-relevant); if true it places the system under Annex III point "
         "5(b)/(c) and triggers the FRIA, so absence is not treated as false",
-        UNKNOWN_LINE.format(flag="employment_decisions"),
+        UNKNOWN_LINE.format(flag="annex_iii_4a_recruitment"),
     ]
 
 
@@ -839,7 +860,7 @@ def test_annex_i_route_with_5c_unknown_and_deployer_known_neither_names_5c_only(
         annex_points=[],
         unknown_annex_iii_facts={
             "critical_infrastructure_safety": ANNEX_III_POINT_2,
-            "employment_decisions": POINT_4,
+            "annex_iii_4a_recruitment": POINT_4,
             "life_health_insurance_risk_pricing": POINT_5,
         },
     )
@@ -859,7 +880,7 @@ def test_point_2_only_with_5c_and_education_unknown_names_both():
         annex_points=[ANNEX_III_POINT_2],
         unknown_annex_iii_facts={
             "critical_infrastructure_safety": ANNEX_III_POINT_2,
-            "education_scoring_or_access": "eu-ai-act:annex-iii:point-3",
+            "annex_iii_3a_admission": "eu-ai-act:annex-iii:point-3",
             "life_health_insurance_risk_pricing": POINT_5,
         },
     )
@@ -868,7 +889,7 @@ def test_point_2_only_with_5c_and_education_unknown_names_both():
         "flags.life_health_insurance_risk_pricing is unknown (Article 27(1) "
         "FRIA-relevant); if true it places the system under Annex III point "
         "5(b)/(c) and triggers the FRIA, so absence is not treated as false",
-        UNKNOWN_LINE.format(flag="education_scoring_or_access"),
+        UNKNOWN_LINE.format(flag="annex_iii_3a_admission"),
     ]
 
 
@@ -880,13 +901,13 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_is_unknow
         {"body_governed_by_public_law": True},
         annex_points=[ANNEX_III_POINT_2],
         unknown_annex_iii_facts={
-            "education_scoring_or_access": "eu-ai-act:annex-iii:point-3"
+            "annex_iii_3a_admission": "eu-ai-act:annex-iii:point-3"
         },
     )
     assert block["applicability"] == "unknown"
     assert ANNEX_III_POINT_2 in block["basis_nodes"]
     assert block["missing_facts"] == [
-        UNKNOWN_LINE.format(flag="education_scoring_or_access")
+        UNKNOWN_LINE.format(flag="annex_iii_3a_admission")
     ]
     assert any(
         "point 2 of Annex III" in r and "cannot be settled yet" in r
@@ -902,7 +923,7 @@ def test_point_2_only_with_education_unknown_and_deployer_known_neither_does_not
         NEITHER_DEPLOYER,
         annex_points=[ANNEX_III_POINT_2],
         unknown_annex_iii_facts={
-            "education_scoring_or_access": "eu-ai-act:annex-iii:point-3"
+            "annex_iii_3a_admission": "eu-ai-act:annex-iii:point-3"
         },
     )
     assert block["applicability"] == "does_not_apply"

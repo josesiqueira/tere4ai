@@ -2,7 +2,7 @@
 item d, DEC-22).
 
 The request names `features` twice: first a minimal-risk system, then the
-same facts with employment_decisions true (Annex III point 4, high risk).
+same facts with annex_iii_4a_recruitment true (Annex III point 4(a), high risk).
 Each object is valid on its own and gives its own answer, so the answer
 shows which one the surface read. Measured 2026-10-03 and pinned here: the
 facade and the MCP server over stdio both read the last one; neither
@@ -43,7 +43,7 @@ def _features_pair() -> tuple[str, str]:
     minimal = {"description": "An email spam filter for a company mailbox.", "flags": all_false}
     hiring = {
         "description": "A system that ranks job applicants for hiring.",
-        "flags": dict(all_false, employment_decisions=True),
+        "flags": dict(all_false, annex_iii_4a_recruitment=True),
     }
     return json.dumps(minimal), json.dumps(hiring)
 

@@ -45,14 +45,28 @@ ALL_FLAGS = (
     "predictive_policing_profiling",
     "facial_image_scraping",
     "law_enforcement_use",
-    "migration_asylum_border_use",
-    "justice_democratic_use",
-    "education_scoring_or_access",
-    "employment_decisions",
-    "essential_services_access",
+    "critical_infrastructure_safety",
+    "annex_iii_3a_admission",
+    "annex_iii_3b_learning_outcomes",
+    "annex_iii_3c_education_level",
+    "annex_iii_3d_test_monitoring",
+    "annex_iii_4a_recruitment",
+    "annex_iii_4b_work_relationships",
+    "annex_iii_5a_public_benefits",
     "creditworthiness_evaluation",
     "life_health_insurance_risk_pricing",
-    "critical_infrastructure_safety",
+    "annex_iii_5d_emergency_calls",
+    "annex_iii_6a_victim_risk",
+    "annex_iii_6b_polygraphs",
+    "annex_iii_6c_evidence_reliability",
+    "annex_iii_6d_offending_risk",
+    "annex_iii_6e_profiling",
+    "annex_iii_7a_polygraphs",
+    "annex_iii_7b_entry_risk",
+    "annex_iii_7c_applications",
+    "annex_iii_7d_identification",
+    "annex_iii_8a_judicial",
+    "annex_iii_8b_elections",
     "medical_or_safety_component",
     "interacts_with_natural_persons",
     "generates_synthetic_content",
@@ -130,7 +144,7 @@ def test_scenario_b_hospital_triage_is_high_risk(dump, node_ids):
         "description": "Hospital emergency department triage support system.",
         "domain": "healthcare",
         "flags": {
-            "essential_services_access": True,
+            "annex_iii_5d_emergency_calls": True,
             "medical_or_safety_component": True,
         },
     }
@@ -152,7 +166,7 @@ def test_scenario_b_with_prohibition_flags_known_false(dump, node_ids):
         "description": "Hospital emergency department triage support system.",
         "domain": "healthcare",
         "flags": all_false_flags(
-            essential_services_access=True, medical_or_safety_component=True
+            annex_iii_5d_emergency_calls=True, medical_or_safety_component=True
         ),
     }
     envelope = classify_ai_system(features, dump)
@@ -223,7 +237,7 @@ def test_absent_annex_iii_flags_block_a_confident_minimal(dump, node_ids):
     assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     facts = " ".join(envelope["missing_facts"])
-    for flag in ("employment_decisions", "essential_services_access", "creditworthiness_evaluation"):
+    for flag in ("annex_iii_4a_recruitment", "annex_iii_5a_public_benefits", "creditworthiness_evaluation"):
         assert f"flags.{flag}" in facts, flag
 
 
@@ -243,7 +257,7 @@ def test_homoglyph_or_invisible_domain_does_not_silently_clear(dump, node_ids):
     # A zero-width-padded but otherwise exact known domain normalises cleanly.
     clean = classify_ai_system(
         {"description": "Banking eligibility engine.", "domain": "​banking​",
-         "flags": {**flags, "essential_services_access": True}},
+         "flags": {**flags, "creditworthiness_evaluation": True}},
         dump,
     )
     assert clean["answer"]["annex_iii_category"] == "eu-ai-act:annex-iii:point-5"
@@ -328,7 +342,7 @@ def test_article_6_3_candidate_requires_human_review_never_downgrades(dump, node
         "domain": "education",
         "autonomy": "advisory",
         "flags": all_false_flags(
-            education_scoring_or_access=True, preparatory_or_narrow_procedural_task=True
+            annex_iii_3a_admission=True, preparatory_or_narrow_procedural_task=True
         ),
     }
     envelope = classify_ai_system(features, dump)
@@ -347,7 +361,7 @@ def test_no_exception_candidate_without_advisory_autonomy(dump, node_ids):
         "domain": "education",
         "autonomy": "full",
         "flags": all_false_flags(
-            education_scoring_or_access=True, preparatory_or_narrow_procedural_task=True
+            annex_iii_3a_admission=True, preparatory_or_narrow_procedural_task=True
         ),
     }
     envelope = classify_ai_system(features, dump)
@@ -361,7 +375,7 @@ def test_point_b_condition_flags_candidacy_and_cites_the_point(dump, node_ids):
         "domain": "education",
         "autonomy": "full",
         "flags": all_false_flags(
-            education_scoring_or_access=True, improves_previous_human_activity=True
+            annex_iii_3b_learning_outcomes=True, improves_previous_human_activity=True
         ),
     }
     envelope = classify_ai_system(features, dump)
@@ -379,7 +393,7 @@ def test_profiling_cancels_derogation_candidacy(dump, node_ids):
         "domain": "education",
         "autonomy": "advisory",
         "flags": all_false_flags(
-            education_scoring_or_access=True,
+            annex_iii_3a_admission=True,
             preparatory_or_narrow_procedural_task=True,
             profiling_of_natural_persons=True,
         ),
@@ -593,7 +607,7 @@ def test_article_50_exit_names_both_high_risk_kinds(dump, node_ids):
         "flags": _without(
             all_false_flags(interacts_with_natural_persons=True),
             *ARTICLE_6_1_FLAGS,
-            "employment_decisions",
+            "annex_iii_4a_recruitment",
         ),
     }
     envelope = classify_ai_system(features, dump)
@@ -628,7 +642,7 @@ def test_annex_i_unknown_is_named_on_the_prohibited_and_high_risk_exits(dump, no
         all_false_flags(subliminal_or_manipulative=True, causes_significant_harm=True),
         *ARTICLE_6_1_FLAGS,
     )
-    high_risk = _without(all_false_flags(employment_decisions=True), *ARTICLE_6_1_FLAGS)
+    high_risk = _without(all_false_flags(annex_iii_4a_recruitment=True), *ARTICLE_6_1_FLAGS)
     for flags, level in ((prohibited, "unacceptable_risk"), (high_risk, "high_risk")):
         envelope = classify_ai_system(
             {"description": "A system whose product status is unknown.", "domain": "employment", "flags": flags},
@@ -732,7 +746,7 @@ def test_classification_is_deterministic(dump):
     features = {
         "description": "Hospital emergency department triage support system.",
         "domain": "healthcare",
-        "flags": all_false_flags(essential_services_access=True),
+        "flags": all_false_flags(annex_iii_5d_emergency_calls=True),
     }
     first = classify_ai_system(features, dump)
     second = classify_ai_system(features, dump)
@@ -750,13 +764,16 @@ def test_no_model_client_imports_in_module_source():
 
 def test_domain_fallback_yields_to_explicitly_false_flags(dump):
     """Evidence-driven ladder fix (ELICITATION_ERRORS.md, scenario 161):
-    education domain with education_scoring_or_access explicitly false must
-    not gate high_risk on domain alone."""
+    education domain with every listed use of point 3 explicitly false must
+    not gate high_risk on domain alone (B184: the four point 3 facts)."""
     features = {
         "description": "Language learning chatbot for practicing conversation skills",
         "domain": "education",
         "flags": {
-            "education_scoring_or_access": False,
+            "annex_iii_3a_admission": False,
+            "annex_iii_3b_learning_outcomes": False,
+            "annex_iii_3c_education_level": False,
+            "annex_iii_3d_test_monitoring": False,
             "interacts_with_natural_persons": True,
             **{f: False for f in (
                 "social_scoring", "subliminal_or_manipulative",
@@ -773,7 +790,7 @@ def test_domain_fallback_yields_to_explicitly_false_flags(dump):
     # unknown flags keep the domain match (unknown is never false)
     features_unknown = dict(features)
     features_unknown["flags"] = {
-        k: v for k, v in features["flags"].items() if k != "education_scoring_or_access"
+        k: v for k, v in features["flags"].items() if k != "annex_iii_3a_admission"
     }
     envelope2 = classify_ai_system(features_unknown, dump)
     assert envelope2["answer"]["risk_category"] == "high_risk"
@@ -878,7 +895,7 @@ def test_a_section_a_system_and_an_unknown_section(dump, node_ids):
 def test_an_unknown_section_with_an_annex_iii_match_names_no_section_fact(dump):
     """R44: Chapter III is served whatever the section when an Annex III point
     matches, so the section fact is not named; on the Article 6(1) route alone it is."""
-    base = _section_b(employment_decisions=True)
+    base = _section_b(annex_iii_4a_recruitment=True)
     matched = classify_ai_system({**base, "flags": _without(base["flags"], "annex_i_section_b_legislation")}, dump)
     assert matched["answer"]["annex_i_section"] == "unknown"
     assert not any(m.startswith("flags.annex_i_section_b_legislation is unknown") for m in matched["missing_facts"])
@@ -890,7 +907,7 @@ def test_an_unknown_section_with_an_annex_iii_match_names_no_section_fact(dump):
 def test_every_answer_carries_its_dates_and_the_text_it_follows(dump):
     """D7.4 and D7.5: dates by provision as data; the text named."""
     annex_iii = classify_ai_system(
-        {"description": "CV screening tool.", "flags": all_false_flags(employment_decisions=True)}, dump)
+        {"description": "CV screening tool.", "flags": all_false_flags(annex_iii_4a_recruitment=True)}, dump)
     answer = annex_iii["answer"]
     assert answer["legal_text"] == "Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744"
     assert answer["annex_i_section"] is None
@@ -935,7 +952,7 @@ def test_a_section_b_system_matching_annex_iii_takes_the_annex_iii_route(dump, n
     Article 50 duties, and the answer says the product's Section B
     legislation also classifies it under Article 6(1)."""
     features = {
-        **_section_b(annex_i_section_b_legislation=True, employment_decisions=True,
+        **_section_b(annex_i_section_b_legislation=True, annex_iii_4a_recruitment=True,
                      interacts_with_natural_persons=True),
         "deployer": {"body_governed_by_public_law": True},
     }
@@ -981,7 +998,7 @@ def test_a_section_b_product_on_the_annex_iii_route_dates_its_citations_by_point
     only; the Article 6(1) node keeps both points (R43)."""
     for extra in ({}, {"improves_previous_human_activity": True}):
         envelope = classify_ai_system(
-            _section_b(annex_i_section_b_legislation=True, employment_decisions=True, **extra), dump)
+            _section_b(annex_i_section_b_legislation=True, annex_iii_4a_recruitment=True, **extra), dump)
         assert_envelope_invariants(envelope, node_ids)
         answer = envelope["answer"]
         assert answer["annex_i_section"] == "B"
@@ -1006,7 +1023,7 @@ def test_a_system_on_both_routes_names_both_and_carries_both_dates(dump, node_id
     FRIA date (point (c)(i)) is among them."""
     for section in (False, None):
         flags = all_false_flags(annex_i_covered_product=True, third_party_conformity_assessment_required=True,
-                                employment_decisions=True)
+                                annex_iii_4a_recruitment=True)
         if section is None:
             flags.pop("annex_i_section_b_legislation")
         else:
@@ -1036,7 +1053,7 @@ def test_a_section_b_system_with_unknown_annex_iii_facts_requires_human_review(d
     assert answer["risk_category"] == "high_risk" and answer["annex_i_section"] == "B"
     assert answer["high_risk_routes"] == ["article_6_1"]
     assert envelope["status"] == "requires_human_review"
-    assert any(m.startswith("flags.employment_decisions is unknown (Annex III high-risk relevant")
+    assert any(m.startswith("flags.annex_iii_4a_recruitment is unknown (Annex III high-risk relevant")
                for m in envelope["missing_facts"])
     assert any("unknown Annex III facts could put this Section B product on the Annex III route" in r
                for r in answer["rationale"])
@@ -1096,7 +1113,7 @@ def test_case3_uncertain_but_article_5_ruled_out_is_false(dump, node_ids):
     """Research case 3: the overall answer is uncertain because an Annex III
     fact is missing, while every Article 5 path is ruled out."""
     envelope = classify_ai_system(
-        {"description": "A hiring helper.", "flags": _without(all_false_flags(), "employment_decisions")},
+        {"description": "A hiring helper.", "flags": _without(all_false_flags(), "annex_iii_4a_recruitment")},
         dump,
     )
     assert_envelope_invariants(envelope, node_ids)
@@ -1108,7 +1125,7 @@ def test_case3_uncertain_but_article_5_ruled_out_is_false(dump, node_ids):
 def test_case4_article_5_ruled_out_and_high_risk_is_false(dump, node_ids):
     envelope = classify_ai_system(
         {"description": "CV screening for hiring decisions.",
-         "flags": all_false_flags(employment_decisions=True)},
+         "flags": all_false_flags(annex_iii_4a_recruitment=True)},
         dump,
     )
     assert envelope["answer"]["risk_category"] == "high_risk"
@@ -1188,13 +1205,13 @@ def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
     """The field and the status lowering read one resolution (ruling 6)."""
     for flag in ARTICLE_5_POINT_BY_FLAG:
         envelope = classify_ai_system(
-            {"description": "A described AI system.", "flags": _without(all_false_flags(employment_decisions=True), flag)},
+            {"description": "A described AI system.", "flags": _without(all_false_flags(annex_iii_4a_recruitment=True), flag)},
             dump,
         )
         assert envelope["answer"]["unacceptable_risk"] is None, flag
         assert envelope["status"] == "requires_human_review", flag
     # Point (h): the biometric flag and the law enforcement exception each unresolved.
-    base = all_false_flags(employment_decisions=True)
+    base = all_false_flags(annex_iii_4a_recruitment=True)
     scenarios = {
         "both_missing": _without(base, "real_time_remote_biometric_public", "law_enforcement_use"),
         "biometric_true_exception_missing": _without(
@@ -1276,7 +1293,7 @@ def test_the_general_biometric_system_alone_is_not_the_article_5_ban(dump):
 
 def test_point_d_exception_carries_the_acts_words(dump):
     """Jose, 2026-10-01: "Correct both to the Act's words" (point (d))."""
-    flags = all_false_flags(predictive_policing_profiling=True, law_enforcement_use=True)
+    flags = all_false_flags(predictive_policing_profiling=True, annex_iii_6d_offending_risk=True)
     flags["supports_human_assessment_on_verifiable_facts"] = True
     envelope = classify_ai_system({"description": "Supports detectives' case reviews.", "flags": flags}, dump)
     assert envelope["answer"]["risk_category"] == "high_risk"
@@ -1322,7 +1339,7 @@ def test_case5_high_risk_plus_article_50_lists_the_duty(dump, node_ids):
     high_risk and the duty is cited, worded as triggered."""
     envelope = classify_ai_system(
         {"description": "CV screening chatbot that interviews candidates.",
-         "flags": all_false_flags(employment_decisions=True, interacts_with_natural_persons=True)},
+         "flags": all_false_flags(annex_iii_4a_recruitment=True, interacts_with_natural_persons=True)},
         dump,
     )
     assert_envelope_invariants(envelope, node_ids)
@@ -1373,7 +1390,7 @@ def test_transparency_duties_is_a_list_on_every_exit(dump):
         ),
         "second uncertain": (
             {"description": "A hiring helper with one fact unknown.",
-             "flags": _without(all_false_flags(), "employment_decisions")},
+             "flags": _without(all_false_flags(), "annex_iii_4a_recruitment")},
             "undetermined", [],
         ),
         "minimal": (
@@ -1462,7 +1479,7 @@ def test_absent_article_50_fact_wording_when_paragraph_is_listed_through_another
 
 
 def test_absent_article_50_fact_is_named_on_high_risk_without_lowering_it(dump):
-    flags = _without(all_false_flags(employment_decisions=True), "biometric_categorisation_system")
+    flags = _without(all_false_flags(annex_iii_4a_recruitment=True), "biometric_categorisation_system")
     envelope = classify_ai_system({"description": "CV screening for hiring.", "flags": flags}, dump)
     assert envelope["answer"]["risk_category"] == "high_risk"
     assert envelope["status"] == "potentially_applicable"
@@ -1574,9 +1591,9 @@ def test_rtrb_absent_counts_as_an_unknown_annex_iii_fact_for_fria(dump, node_ids
 
 def test_unknown_annex_iii_facts_helper_is_in_point_order_and_skips_known():
     got = classify_module._unknown_annex_iii_facts(
-        {"employment_decisions": False}
+        {"annex_iii_4a_recruitment": False}
     )
-    assert "employment_decisions" not in got
+    assert "annex_iii_4a_recruitment" not in got
     assert got["real_time_remote_biometric_public"] == "eu-ai-act:annex-iii:point-1"
     assert got["critical_infrastructure_safety"] == "eu-ai-act:annex-iii:point-2"
     assert got["creditworthiness_evaluation"] == "eu-ai-act:annex-iii:point-5"
@@ -1625,7 +1642,7 @@ def _lift_door(deployer: dict) -> dict:
                 annex_i_covered_product=True,
                 third_party_conformity_assessment_required=True,
             ),
-            "employment_decisions",
+            "annex_iii_4a_recruitment",
         ),
         "deployer": deployer,
     }
@@ -1643,7 +1660,7 @@ def test_lift_door_with_employment_unknown_and_a_public_law_deployer_has_an_unkn
     fria = envelope["answer"]["fria"]
     assert fria["applicability"] == "unknown"
     assert fria["missing_facts"] == [
-        "flags.employment_decisions is unknown (Annex III high-risk relevant, "
+        "flags.annex_iii_4a_recruitment is unknown (Annex III high-risk relevant, "
         "Article 6(2)); if true the system is high-risk under Article 6(2), which "
         "Article 27(1) covers, so absence is not treated as false"
     ]
@@ -1672,7 +1689,7 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
         "domain": "other",
         "flags": _without(
             all_false_flags(critical_infrastructure_safety=True),
-            "education_scoring_or_access",
+            "annex_iii_3a_admission",
         ),
         "deployer": {"body_governed_by_public_law": True},
     }
@@ -1683,7 +1700,7 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
     fria = envelope["answer"]["fria"]
     assert fria["applicability"] == "unknown"
     assert fria["missing_facts"] == [
-        "flags.education_scoring_or_access is unknown (Annex III high-risk relevant, "
+        "flags.annex_iii_3a_admission is unknown (Annex III high-risk relevant, "
         "Article 6(2)); if true the system is high-risk under Article 6(2), which "
         "Article 27(1) covers, so absence is not treated as false"
     ]
@@ -1715,7 +1732,7 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
             "domain": "other",
             "flags": _without(
                 all_false_flags(critical_infrastructure_safety=True),
-                "education_scoring_or_access",
+                "annex_iii_3a_admission",
             ),
             "deployer": {"body_governed_by_public_law": True},
         },
@@ -1734,6 +1751,10 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     assert "fria" in full["answer"]
     for key in ("fria", "high_risk_routes", "application_dates", "legal_text"):
         full["answer"].pop(key)
+    # B184: annex_iii_listed_uses (and fact_conflicts from Task 4) are added by
+    # the wrapper on every answer.
+    for key in ("annex_iii_listed_uses", "fact_conflicts"):
+        full["answer"].pop(key, None)
     if "annex_i_section" not in core["answer"]:
         assert full["answer"].pop("annex_i_section") is None
     core["generated_at"] = full["generated_at"] = "MASKED"

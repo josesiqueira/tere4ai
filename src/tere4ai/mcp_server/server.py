@@ -427,7 +427,10 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     (unknown: an Article 5 fact is missing). transparency_duties lists the
     Article 50 paragraphs triggered by a known fact, on a high-risk answer
     too (Article 50(6)); a listed paragraph is triggered, not proven, and an
-    empty list means none is triggered by a known fact. A fixed rule ladder
+    empty list means none is triggered by a known fact. annex_iii_listed_uses
+    names the legal unit of every Annex III listed use answered yes, in point
+    order, and each is cited; annex_iii_category is the first matching point.
+    A fixed rule ladder
     decides, never a model; unknown facts that could make the system
     unacceptable risk or high-risk (Article 5, the Article 6(1) route, Annex III)
     surface in missing_facts; where they could change the level the status
