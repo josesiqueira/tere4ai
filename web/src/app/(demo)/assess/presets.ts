@@ -41,7 +41,7 @@ export type ScenarioPreset = {
   flags: Record<string, TriState>;
 };
 
-/* All 54 flags defined in schema/json_schemas/system_features.schema.json,
+/* All 56 flags defined in schema/json_schemas/system_features.schema.json,
    matching schema_flag_names() in src/tere4ai/elicit_features/elicitor.py
    (sorted; the drift gate in
    tests/unit/test_web_copy_honesty.py::test_presets_name_every_schema_flag
@@ -83,7 +83,9 @@ const ALL_FLAG_KEYS = [
   "exploits_vulnerabilities",
   "facial_image_scraping",
   "generates_csam",
+  "generates_deep_fake",
   "generates_nonconsensual_intimate_material",
+  "generates_public_interest_text",
   "generates_synthetic_content",
   "improves_previous_human_activity",
   "interacts_with_natural_persons",

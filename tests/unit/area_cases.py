@@ -7,7 +7,9 @@ a body governed by public law nor a private entity providing public services;
 the domain is education unless the case says otherwise. P61 means
 annex_i_covered_product and third_party_conformity_assessment_required true.
 Each case's "expected" holds a dict per task ("t2", "t3", then the later
-tasks' own), so a task adds its columns and never edits another's.
+tasks' own), so a task adds its columns and never edits another's. The t5
+column (Task 5) says whether the case, with every Article 50 trigger fact it
+does not set true removed, names those facts; test_article_50_facts.py reads it.
 
 @implements: DEC-33
 """
@@ -116,7 +118,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "cites": (ARTICLE_6_2, POINT_3), "notes": (AREA_ALONE_POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t5": {"article_50_absent_named": True}},
     },
     "C2": {
         "features": _features(),
@@ -181,7 +184,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "status": REVIEW,
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t5": {"article_50_absent_named": True}},
     },
     "C9": {
         # The route is open: the Annex I fact is unknown and the third-party
@@ -215,7 +219,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "status": REVIEW, "not_cited": (ARTICLE_6_2, POINT_3), "notes": (SCOPE_UNCONFIRMED_POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t5": {"article_50_absent_named": False}},
     },
     "C12": {
         "features": _features(absent=("annex_iii_3a_admission", "annex_i_section_b_legislation"), **P61),
@@ -279,7 +284,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "cites": (ARTICLE_6_2, POINT_3, ARTICLE_50_1), "notes": (AREA_ALONE_POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t5": {"article_50_absent_named": True}},
     },
     "C18": {
         "features": _features(absent=("annex_iii_3a_admission", "facial_image_scraping")),
@@ -343,6 +349,7 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": [_conflict("emotion_recognition"), _conflict("annex_iii_4b_work_relationships")],
                "status": REVIEW},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t5": {"article_50_absent_named": False}},
     },
 }

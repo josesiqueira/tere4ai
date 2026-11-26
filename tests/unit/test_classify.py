@@ -70,6 +70,9 @@ ALL_FLAGS = (
     "medical_or_safety_component",
     "interacts_with_natural_persons",
     "generates_synthetic_content",
+    # B185 (DEC-33, ruling P10): the two duties of Article 50(4).
+    "generates_deep_fake",
+    "generates_public_interest_text",
     "profiling_of_natural_persons",
     "narrow_procedural_task",
     "improves_previous_human_activity",
@@ -1320,9 +1323,17 @@ def test_point_g_exception_carries_the_acts_words(dump):
 
 
 def test_article_50_rule_nodes_are_paragraphs_in_the_dump(dump):
+    """B185 (ruling P10): the text duty of Article 50(4) is the paragraph's
+    second subparagraph, its own node in the dump; every other rule node is a
+    Paragraph."""
     nodes = {n["id"]: n for n in dump["nodes"]}
+    subparagraph = "eu-ai-act:article-50:paragraph-4:subparagraph-2"
     for flag, node_id, _note in classify_module.ARTICLE_50_RULES:
-        assert nodes[node_id]["type"] == "Paragraph", flag
+        expected = "Subparagraph" if node_id == subparagraph else "Paragraph"
+        assert nodes[node_id]["type"] == expected, flag
+    assert nodes[subparagraph]["text"] in nodes["eu-ai-act:article-50:paragraph-4"]["text"]
+    assert "biometric categorisation system" in nodes[ARTICLE_50_3]["text"]
+    assert "eu-ai-act:article-50" in nodes
     assert "biometric categorisation system" in nodes[ARTICLE_50_3]["text"]
     assert "eu-ai-act:article-50" in nodes
 

@@ -6,6 +6,12 @@ under Article 5(1)(h); narrow_procedural_task and preparatory_task under
 Article 6(3) points (a) and (d). v8 stays as the prompt of tag v2.0.0-beta.1
 (ruling P15). Offline only: the repository's dump, FakeClient replies, no
 model and no network.
+
+B185 (ruling P27): v9 is the prompt of B184's record; from B185 Task 5 on the
+schema has two more facts (the duties of Article 50(4)), so the tests that
+compare v9 with the facts read FLAGS_OF_V9 and ARTICLE_50_RULES_OF_V9 of
+tests/unit/flags_of_record.py, frozen at 09472d6, never the live schema or
+ARTICLE_50_RULES. Task 8 makes v10 the prompt of record.
 """
 
 from __future__ import annotations
@@ -15,6 +21,7 @@ import re
 from pathlib import Path
 
 import pytest
+from tests.unit.flags_of_record import ARTICLE_50_RULES_OF_V9, FLAGS_OF_V9
 
 from tere4ai.elicit_features import elicit
 from tere4ai.elicit_features.elicitor import (
@@ -34,7 +41,6 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_5_SCOPING_PARAGRAPHS,
     ARTICLE_6_3_CONDITIONS,
     ARTICLE_6_3_PROFILING_OVERRIDE,
-    ARTICLE_50_RULES,
     FACT_ENTAILMENTS,
     classify_ai_system,
 )
@@ -100,13 +106,15 @@ def test_v9_is_the_prompt_of_record():
     assert (PROMPTS / "v8.md").is_file()
 
 
+# v9 is the prompt of B184's record; Task 8 makes v10 the prompt of record
+# (B185, ruling P27): the tests below read the facts v9 was written for.
 def test_v9_names_every_schema_flag_and_only_those():
     listed = set(re.findall(r"flags\.([a-z0-9_]+)", V9))
-    assert listed == set(schema_flag_names())
+    assert listed == set(FLAGS_OF_V9)
 
 
 def test_v9_flag_list_is_the_schema_flags_in_the_schema_files_order():
-    assert _top_list() == list(SCHEMA["properties"]["flags"]["properties"])
+    assert _top_list() == list(FLAGS_OF_V9)
 
 
 def test_v9_each_listed_use_fact_quotes_its_own_unit():
@@ -189,13 +197,13 @@ def test_v9_article_5_and_article_50_facts_quote_the_classifiers_nodes():
         for paragraph in paragraphs:
             assert paragraph in table[f"flags.{flag}"], (flag, paragraph)
     assert ARTICLE_6_3_PROFILING_OVERRIDE in table["flags.profiling_of_natural_persons"]
-    for flag, node_id, _note in ARTICLE_50_RULES:
+    for flag, node_id, _note in ARTICLE_50_RULES_OF_V9:
         assert node_id in table.get(f"flags.{flag}", []), flag
 
 
 def test_v9_every_schema_flag_has_a_provision():
     table = fact_provisions(V9)
-    assert [name for name in schema_flag_names() if not table.get(f"flags.{name}")] == []
+    assert [name for name in FLAGS_OF_V9 if not table.get(f"flags.{name}")] == []
 
 
 def test_v9_renders_over_the_build_with_every_provision_resolved(dump):
@@ -347,6 +355,10 @@ def _schema_quote_gaps(text: str, dump: dict) -> tuple[list[tuple[str, str, str]
     gaps: list[tuple[str, str, str]] = []
     used: set[tuple[str, str]] = set()
     for fact, spec in SCHEMA["properties"]["flags"]["properties"].items():
+        if fact not in FLAGS_OF_V9:
+            # B185 (ruling P27): a fact the schema gained after v9 was written
+            # (the two Article 50(4) facts) is not one v9 asks.
+            continue
         attached = set(table.get(f"flags.{fact}", []))
         use_quote = None
         if fact in LISTED_USE_UNIT:

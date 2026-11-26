@@ -970,9 +970,9 @@ ARTICLE_6_3_CONDITIONS: tuple[tuple[str, tuple[str, ...], str], ...] = (
 # candidate is unknown ({label} from ARTICLE_6_3_CONDITIONS); the Article 6(4)
 # line joins legal_status_notes with every candidate (Article 49(2) named, not
 # cited); the last two replace the "rule article_6_3:" lines and the
-# "flagged for human review" note on a system on both routes whose product
-# legislation is not in Annex I Section B, whose level and status the Article
-# 6(1) route gives.
+# "flagged for human review" note on the Article 6(1) exit (a system whose
+# level and status the Article 6(1) route gives, with a listed use that is
+# true or a point that rests on the area, a Section B product among them).
 ARTICLE_6_3_UNKNOWN_CONDITION_LINE = (
     "flags.{flag} is unknown (Article 6(3) {label}); no condition is true, so the derogation candidacy "
     "is unknown, not no"
@@ -1025,24 +1025,54 @@ ARTICLE_50_RULES: tuple[tuple[str, str, str], ...] = (
         "eu-ai-act:article-50:paragraph-3",
         "exposed persons must be informed of biometric categorisation",
     ),
+    # B185 (spec G D-G92 (7), DEC-33, ruling P10): one fact per duty of
+    # 50(4). The first subparagraph: "Deployers of an AI system that
+    # generates or manipulates image, audio or video content constituting a
+    # deep fake, shall disclose ..." (Article 3(60) defines a deep fake).
+    (
+        "generates_deep_fake",
+        "eu-ai-act:article-50:paragraph-4",
+        "a deep fake must be disclosed as artificially generated or manipulated",
+    ),
+    # The second subparagraph, its own node: "Deployers of an AI system that
+    # generates or manipulates text which is published with the purpose of
+    # informing the public on matters of public interest shall disclose ...".
+    # No entailment row reads either fact: a deep fake does not make
+    # generates_synthetic_content follow (D-G92 (x)).
+    (
+        "generates_public_interest_text",
+        "eu-ai-act:article-50:paragraph-4:subparagraph-2",
+        "text published to inform the public on matters of public interest must be disclosed as "
+        "artificially generated or manipulated",
+    ),
 )
 
 # DEC-18: each Article 50 trigger fact once, in rule order. An absent one is
-# named in missing_facts on the high-risk and minimal exits, information
-# only (Jose, 2026-10-01: "Keep minimal, name the fact").
+# named in missing_facts, information only (Jose, 2026-10-01: "Keep minimal,
+# name the fact"); B185 (spec G D-G92 (7)): on every exit on which Article 50
+# can apply, that is every exit but the rejected input, the unacceptable_risk
+# exit and a Section B product served under Article 2(2).
 ARTICLE_50_TRIGGER_FLAGS: tuple[str, ...] = tuple(
     dict.fromkeys(flag for flag, _node_id, _note in ARTICLE_50_RULES)
 )
 
-# DEC-18: a listed paragraph is triggered by a known fact, never proven.
+# DEC-18: a listed paragraph is triggered by a fact that is true, never
+# proven. B185 (spec G D-G92 (7), (8), (x)): the two facts of 50(4) answer
+# no where its exceptions apply, so paragraph 4 is decided by its facts;
+# paragraph 5 stays outside the rules; for a deep fake in an evidently
+# artistic, creative, satirical, fictional or analogous work the duty stays
+# and only its manner changes, which the note states.
 ARTICLE_50_TRIGGERED_NOTE = (
     "eu-ai-act:article-50: the paragraphs in transparency_duties are "
-    "triggered by a known fact, not proven to apply: their own exceptions "
+    "triggered by a fact that is true, not proven to apply: their own exceptions "
     "(an interaction obvious to the person, assistive editing, uses "
     "authorised by law to detect, prevent, investigate or prosecute criminal "
     "offences in 50(1) and 50(2), uses permitted by law to detect, prevent or "
-    "investigate criminal offences in 50(3)) and "
-    "paragraphs 4 and 5 are not decided by the rules"
+    "investigate criminal offences in 50(3)) and paragraph 5 are not decided by "
+    "the rules; the two facts of 50(4) are false where its exceptions apply, and "
+    "for a deep fake that forms part of an evidently artistic, creative, "
+    "satirical, fictional or analogous work or programme the 50(4) duty stays "
+    "and only its manner changes"
 )
 
 
@@ -1180,7 +1210,11 @@ def _annex_iii_candidacy(
         )
         matched_conditions = []
     candidate = article_6_3_candidate(flags)
-    if matched_conditions:
+    # B185 (Task 4's review): the lines follow the returned value, never a
+    # second reading of the facts: a condition that is true and not cancelled
+    # by profiling is exactly a true candidate.
+    assert bool(matched_conditions) == (candidate is True), (matched_conditions, candidate)
+    if candidate is True:
         citations.cite(ARTICLE_6_PARAGRAPH_3)
         for flag, point_nodes, label in matched_conditions:
             for node_id in point_nodes:
@@ -1441,7 +1475,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     # high-risk answer keeps them: under Article 50(6) the transparency
     # obligations "shall not affect the requirements and obligations set out
     # in Chapter III". The list holds the paragraphs whose trigger fact is
-    # true; empty means none is triggered by a known fact, never ruled out.
+    # true; empty means none is triggered by a fact that is true, never ruled out.
     article_50_hits = [
         (flag, node_id, note)
         for flag, node_id, note in ARTICLE_50_RULES
@@ -1465,7 +1499,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             legal_status_notes.append(ARTICLE_50_TRIGGERED_NOTE)
 
     def _name_absent_article_50_facts() -> None:
-        # Information only: the status and the category do not change.
+        # Information only: the status and the category do not change. Called
+        # on every exit on which Article 50 can apply (B185, spec G D-G92 (7)):
+        # never on the rejected input, the unacceptable_risk exit or the
+        # Section B branch that Article 2(2) limits.
         for flag, node_id, _note in ARTICLE_50_RULES:
             if flag not in flags:
                 if node_id in transparency_duties:
@@ -1532,7 +1569,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 if transparency_duties:
                     rationale.append(
                         "Article 50 duties not listed: " + ", ".join(transparency_duties)
-                        + " would be triggered by a known fact, but Article 2(2) applies none of Article 50"
+                        + " would be triggered by a fact that is true, but Article 2(2) applies none of Article 50"
                     )
                 legal_status_notes.append(ARTICLE_50_SECTION_B_NOTE)
                 duties: list[str] = []
@@ -1564,9 +1601,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             # branch only without a true listed use, so its point rests on the
             # area, whose unknown listed uses already mark it (R39), as
             # passage (k) requires.
-            article_6_1_candidate: bool | None = False
+            annex_iii_part_candidate: bool | None = False
             if reading.confirmed or reading.area_point is not None:
-                article_6_1_candidate = _annex_iii_candidacy(
+                annex_iii_part_candidate = _annex_iii_candidacy(
                     flags, citations, rationale, legal_status_notes, missing_facts, both_routes=True
                 )
             missing_facts.extend(citations.unresolved)
@@ -1596,7 +1633,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                     "unacceptable_risk": unacceptable_risk_state,
                     "annex_iii_category": None,
                     "annex_i_section": annex_i_section,
-                    "article_6_3_exception_candidate": article_6_1_candidate,
+                    "article_6_3_exception_candidate": annex_iii_part_candidate,
                     "transparency_duties": duties,
                     "rationale": rationale,
                 },
@@ -1748,8 +1785,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "deterministically from the provided facts"
         )
         # DEC-18 (Codex spec review finding 5): this exit returns before the
-        # Article 50 rule, so a known trigger is listed here too.
+        # Article 50 rule, so a trigger that is true is listed here too, and
+        # (B185, D-G92 (7)) an unknown one is named.
         _carry_transparency_duties()
+        _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
         return make_envelope(
             answer={
@@ -1775,6 +1814,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             citations.cite(node_id)
             rationale.append(f"rule limited_risk: flag {flag} matches {node_id} ({note})")
         legal_status_notes.append(ARTICLE_50_TRIGGERED_NOTE)
+        # B185 (spec G D-G92 (7)): an unknown trigger beside a true one is
+        # named; information only, the status below does not read it.
+        _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"
         confidence = 1.0
@@ -1848,6 +1890,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "deterministically; the named facts must be provided before a "
             "minimal verdict is safe"
         )
+        # B185 (spec G D-G92 (7)): Article 50 can apply here, so an unknown
+        # trigger is named, as on the minimal exit.
+        _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
         return make_envelope(
             answer={

@@ -16,6 +16,7 @@ import pytest
 from tests.unit.flags_of_record import (
     ANNEX_III_FACT_POINTS_OF_V8,
     ARTICLE_6_3_CONDITIONS_OF_V8,
+    ARTICLE_50_RULES_OF_V8,
     FLAGS_OF_V8,
 )
 
@@ -228,10 +229,7 @@ def test_v6_annex_iii_flags_quote_the_classifiers_node_or_one_of_its_points() ->
 
 
 def test_v6_article_6_and_article_50_flags_quote_the_classifiers_nodes() -> None:
-    from tere4ai.mcp_server.classify import (
-        ARTICLE_6_3_PROFILING_OVERRIDE,
-        ARTICLE_50_RULES,
-    )
+    from tere4ai.mcp_server.classify import ARTICLE_6_3_PROFILING_OVERRIDE
 
     table = _v6_table()
     # B184: the three conditions of tag v2.0.0-beta.1 (ruling P15).
@@ -243,7 +241,9 @@ def test_v6_article_6_and_article_50_flags_quote_the_classifiers_nodes() -> None
     assert "eu-ai-act:article-6:paragraph-1:point-b" in table[
         "flags.third_party_conformity_assessment_required"
     ]
-    for flag, node_id, _note in ARTICLE_50_RULES:
+    # B185 (ruling P27): the Article 50 rows of tag v2.0.0-beta.1; the two
+    # Article 50(4) rows came after v6 was written.
+    for flag, node_id, _note in ARTICLE_50_RULES_OF_V8:
         assert node_id in table.get(f"flags.{flag}", []), flag
 
 

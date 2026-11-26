@@ -301,6 +301,14 @@
           "type": "boolean",
           "description": "Article 50(2), the Act's words: 'Providers of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content'. True triggers the Article 50(2) duty to mark the outputs as artificially generated or manipulated; the paragraph names its own exceptions."
         },
+        "generates_deep_fake": {
+          "type": "boolean",
+          "description": "Article 50(4), the Act's words: 'Deployers of an AI system that generates or manipulates image, audio or video content constituting a deep fake, shall disclose that the content has been artificially generated or manipulated'. Article 3(60) defines the term, the Act's words: 'deep fake means AI-generated or manipulated image, audio or video content that resembles existing persons, objects, places, entities or events and would falsely appear to a person to be authentic or truthful'. A use authorised by law to detect, prevent, investigate or prosecute criminal offences is false, the Act's words: 'This obligation shall not apply where the use is authorised by law to detect, prevent, investigate or prosecute criminal offence'. Content that forms part of an evidently artistic, creative, satirical, fictional or analogous work or programme is true: the duty stays and only its manner changes. True triggers the Article 50(4) disclosure duty of deployers; it says nothing about generates_synthetic_content. Absence is unknown."
+        },
+        "generates_public_interest_text": {
+          "type": "boolean",
+          "description": "Article 50(4) second subparagraph, the Act's words: 'Deployers of an AI system that generates or manipulates text which is published with the purpose of informing the public on matters of public interest shall disclose that the text has been artificially generated or manipulated'. False where the Act's exception applies, the Act's words: 'This obligation shall not apply where the use is authorised by law to detect, prevent, investigate or prosecute criminal offences or where the AI-generated content has undergone a process of human review or editorial control and where a natural or legal person holds editorial responsibility for the publication of the content'. True triggers the Article 50(4) disclosure duty of deployers. Absence is unknown."
+        },
         "profiling_of_natural_persons": {
           "type": "boolean",
           "description": "Article 6(3) third subparagraph, the Act's words: 'an AI system referred to in Annex III shall always be considered to be high-risk where the AI system performs profiling of natural persons'. Article 3(52) defines the term, the Act's words: 'profiling means profiling as defined in Article 4, point (4), of Regulation (EU) 2016/679'. True keeps an Annex III system high-risk even when an Article 6(3) condition holds; while it is unknown and a condition holds, the classifier names it as missing."

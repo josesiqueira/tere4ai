@@ -102,7 +102,8 @@ def _assert_quoted_answer(env: dict, build_id: str) -> None:
 
 def test_schema_flag_names_lists_every_flag():
     """B184: the count changes with the schema (58 after task 1; 53, 53 and 54
-    after tasks 2, 3 and 5), so the test reads the schema file's own keys."""
+    after tasks 2, 3 and 5), so the test reads the schema file's own keys.
+    B185 Task 5: 56, with the two facts of Article 50(4)."""
     schema = json.loads(
         (Path(__file__).resolve().parents[2] / "schema" / "json_schemas" / "system_features.schema.json")
         .read_text(encoding="utf-8")
@@ -110,7 +111,7 @@ def test_schema_flag_names_lists_every_flag():
     keys = list(schema["properties"]["flags"]["properties"])
     names = schema_flag_names()
     assert names == sorted(keys)
-    assert len(names) == len(keys) == 54
+    assert len(names) == len(keys) == 56
     assert names == sorted(names)
     assert "social_scoring" in names
     assert "creditworthiness_evaluation" in names
