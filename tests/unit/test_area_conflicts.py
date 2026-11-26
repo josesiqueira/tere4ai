@@ -39,6 +39,9 @@ from tere4ai.mcp_server.fria import (
     assess_fria_applicability,
 )
 from tere4ai.mcp_server.requirements import PROHIBITED_MESSAGE, get_applicable_requirements
+from tere4ai.mcp_server.review_causes import (
+    review_causes,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -136,7 +139,10 @@ def test_both_marks_on_a_prohibited_answer_name_the_fact_conflict_first(dump):
 
 def test_the_block_names_each_mark_that_holds_on_unacceptable_risk():
     def sentence(**marks):
-        block = assess_fria_applicability("unacceptable_risk", None, {}, {}, **marks)
+        # B185 Task 6, fix round 1: the causes come from the one decider,
+        # review_causes.py, built here from the marks of a prohibited answer.
+        answer = {"risk_category": "unacceptable_risk", "unacceptable_risk": True, **marks}
+        block = assess_fria_applicability("unacceptable_risk", None, {}, {}, review_causes=review_causes(answer))
         assert block["applicability"] == "unknown"
         return block["rationale"][0]
 

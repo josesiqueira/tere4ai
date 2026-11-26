@@ -92,6 +92,8 @@ def test_area_case(dump, cid):
             assert a["fria"]["applicability"] == exp["fria"], task
         if "fria_rationale" in exp:
             assert a["fria"]["rationale"] == exp["fria_rationale"], task
+        if "fria_missing" in exp:
+            assert a["fria"]["missing_facts"] == exp["fria_missing"], task
         if "status_causes" in exp:
             status_lines = [line for line in a["rationale"] if line.startswith(STATUS_LINE_PREFIX)]
             assert status_lines == [review_status_line(cause, a) for cause in exp["status_causes"]], task

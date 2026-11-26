@@ -2276,13 +2276,11 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         unknown_annex_iii_facts=_unknown_annex_iii_facts(flags),
         annex_iii_area=area,
         # The causes of review of the classification, the ones its status
-        # lines name. The block reads a true candidate from the field above
-        # (step 4, D-G92 (iv)); beside a proven Article 6(1) route of a
-        # Section A product the candidate is not a cause (passage (k)), so the
-        # block's sentence never says the classification is not settled on an
-        # answer that is settled (B185 Task 6 report, the reading of P12).
+        # lines name (ruling R6). The block reads a true candidate from the
+        # field above (step 4, D-G92 (iv)); where the candidate is no cause
+        # (passage (k)) the block's sentence never says the classification is
+        # not settled on an answer that is settled.
         review_causes=causes,
-        area_conflicts=areas,
     )
     # B132 (spec G D-G68 (6)): the application dates of every provision the
     # answer cites, from the reviewed table of Article 113 as amended, by the

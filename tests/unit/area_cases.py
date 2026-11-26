@@ -11,8 +11,9 @@ tasks' own), so a task adds its columns and never edits another's. The t5
 column (Task 5) says whether the case, with every Article 50 trigger fact it
 does not set true removed, names those facts; test_article_50_facts.py reads it.
 The t6 column (Task 6) holds the Article 27(1) block's applicability of every
-case, its rationale for C1, C11, C16, C18, C21 and C23, and the causes whose
-status lines the answer prints, in order (test_area_case reads all three).
+case, its rationale for C1, C11, C16, C18, C21 and C23, its missing facts for
+C1, C10, C11 and C12 (fix round 1), and the causes whose status lines the
+answer prints, in order (test_area_case reads all four).
 
 @implements: DEC-33
 """
@@ -100,6 +101,16 @@ FRIA_AREA_BESIDE_ARTICLE_6_1_POINT_3 = (
     "III point 3, but no listed use of the point is confirmed, so whether it is also a high-risk AI system referred "
     "to in Article 6(2) is not settled and FRIA applicability stays unknown"
 )
+# The block's line for an unknown listed use of the area: beside a proven
+# Article 6(1) route (fix round 1 of Task 6) and on the area alone.
+FRIA_BESIDE_UNKNOWN_USE_POINT_3 = (
+    "flags.annex_iii_3a_admission is unknown (a listed use of Annex III point 3); whether the system is also one "
+    "referred to in Article 6(2) is open until a listed use of the point is answered"
+)
+FRIA_AREA_ALONE_UNKNOWN_USE_POINT_3 = (
+    "flags.annex_iii_3a_admission is unknown (a listed use of Annex III point 3); the level rests on the area "
+    "alone until a listed use of the point is answered"
+)
 FRIA_CANDIDACY = (
     "the classification flags Article 6(3) derogation candidacy; FRIA applicability stays unknown until a human "
     "reviewer settles whether the system remains high-risk under Article 6(2)"
@@ -153,7 +164,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
         "t5": {"article_50_absent_named": True},
-        "t6": {"fria": "unknown", "fria_rationale": [FRIA_AREA_ALONE_POINT_3], "status_causes": ["area_alone"]}},
+        "t6": {"fria": "unknown", "fria_rationale": [FRIA_AREA_ALONE_POINT_3],
+               "fria_missing": [FRIA_AREA_ALONE_UNKNOWN_USE_POINT_3], "status_causes": ["area_alone"]}},
     },
     "C2": {
         "features": _features(),
@@ -252,7 +264,7 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
-        "t6": {"fria": "unknown", "status_causes": []}},
+        "t6": {"fria": "unknown", "fria_missing": [FRIA_BESIDE_UNKNOWN_USE_POINT_3], "status_causes": []}},
     },
     "C11": {
         "features": _features(absent=("annex_iii_3a_admission",), **P61, annex_i_section_b_legislation=True),
@@ -265,7 +277,7 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
         "t5": {"article_50_absent_named": False},
         "t6": {"fria": "unknown", "fria_rationale": [FRIA_AREA_BESIDE_ARTICLE_6_1_POINT_3, FRIA_OTHER_CAUSES_LISTED_USE],
-               "status_causes": ["listed_use_unknown"]}},
+               "fria_missing": [FRIA_BESIDE_UNKNOWN_USE_POINT_3], "status_causes": ["listed_use_unknown"]}},
     },
     "C12": {
         "features": _features(absent=("annex_iii_3a_admission", "annex_i_section_b_legislation"), **P61),
@@ -276,7 +288,7 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
-        "t6": {"fria": "unknown", "status_causes": []}},
+        "t6": {"fria": "unknown", "fria_missing": [FRIA_BESIDE_UNKNOWN_USE_POINT_3], "status_causes": []}},
     },
     "C13": {
         "features": _features(absent=("critical_infrastructure_safety",), domain="critical_infrastructure",

@@ -16,6 +16,7 @@ skipped when absent.
 
 from __future__ import annotations
 
+import inspect
 import json
 import random
 from pathlib import Path
@@ -30,6 +31,7 @@ from tests.unit.area_cases import (
 )
 from tests.unit.b184_cases import _flag_names, all_false, case
 
+from tere4ai.mcp_server import fria
 from tere4ai.mcp_server.classify import (
     ANNEX_I_SECTION_UNKNOWN_FACT,
     ARTICLE_6_3_CONDITIONS,
@@ -39,6 +41,7 @@ from tere4ai.mcp_server.classify import (
 from tere4ai.mcp_server.fria import (
     FRIA_AREA_ALONE_REASON,
     FRIA_AREA_BESIDE_ARTICLE_6_1_REASON,
+    FRIA_AREA_BESIDE_UNKNOWN_USE_LINE,
     FRIA_AREA_UNKNOWN_USE_LINE,
     FRIA_OTHER_CAUSES_TEMPLATE,
     FRIA_UNSETTLED_TEMPLATE,
@@ -191,10 +194,23 @@ def test_the_block_sentences_word_for_word():
     assert FRIA_AREA_UNKNOWN_USE_LINE == (
         "flags.{fact} is unknown (a listed use of Annex III point {number}); the level rests on the area alone "
         "until a listed use of the point is answered")
+    assert FRIA_AREA_BESIDE_UNKNOWN_USE_LINE == (
+        "flags.{fact} is unknown (a listed use of Annex III point {number}); whether the system is also one "
+        "referred to in Article 6(2) is open until a listed use of the point is answered")
     assert FRIA_OTHER_CAUSES_TEMPLATE == "the classification is also not settled for these reasons: {reasons}"
     assert FRIA_UNSETTLED_TEMPLATE == (
         "the risk classification is high-risk but not settled: {reasons}; FRIA applicability stays unknown until "
         "the classification is confirmed")
+
+
+def test_the_block_has_no_second_decider_of_the_causes():
+    # Fix round 1: review_causes.py is the one decider; the block takes the
+    # causes and reads no mark of its own (at daadd5c fria.py kept
+    # _legacy_causes and the arguments it read).
+    assert not hasattr(fria, "_legacy_causes")
+    params = set(inspect.signature(fria.assess_fria_applicability).parameters)
+    assert params.isdisjoint({"classification_unsettled", "fact_conflicts", "unacceptable_risk", "area_conflicts"})
+    assert "review_causes" in params
 
 
 def test_the_rules_of_each_cause_read_the_answer_fields():
@@ -210,6 +226,7 @@ def test_the_rules_of_each_cause_read_the_answer_fields():
     area = {**high, "annex_iii_area_unconfirmed": "eu-ai-act:annex-iii:point-3"}
     assert review_causes({**area, "high_risk_routes": []}) == ["area_alone"]
     assert review_causes({**area, "high_risk_routes": ["article_6_1"]}) == []
+    annex_iii_line_b = "flags.annex_iii_3a_admission is unknown (Annex III high-risk relevant, Article 6(2)); x"
     candidate = {**high, "article_6_3_exception_candidate": True}
     assert review_causes(candidate) == ["article_6_3_candidate"]
     both = {**candidate, "high_risk_routes": ["article_6_1", "article_6_2"]}
@@ -225,6 +242,12 @@ def test_the_rules_of_each_cause_read_the_answer_fields():
                    "annex_iii_area_unconfirmed": "eu-ai-act:annex-iii:point-3"}
     assert review_causes({**beside_area, "annex_i_section": "unknown"}) == []
     assert review_causes({**beside_area, "annex_i_section": "unknown"}, for_fria=True) == ["article_6_3_candidate"]
+    # Fix round 1 (the coordinator's ruling): with only a point that rests on
+    # the area, a known Section B adds no cause either; the unknown listed use
+    # keeps such an answer under review.
+    assert review_causes({**beside_area, "annex_i_section": "B"}) == []
+    assert review_causes({**beside_area, "annex_i_section": "B"}, [annex_iii_line_b]) == ["listed_use_unknown"]
+    assert review_causes({**beside_area, "annex_i_section": "A"}) == []
     assert review_causes({**high, "article_6_3_exception_candidate": None}) == []
     limited = {**high, "risk_category": "limited_risk", "high_risk_routes": []}
     article_6_1_line = "flags.annex_i_covered_product is unknown (Article 6(1) high-risk relevant, Annex I); x"
@@ -311,7 +334,7 @@ def test_area_beside_article_6_1_other_point_is_unknown(dump):  # C10, C11
     assert c10["answer"]["fria"]["applicability"] == "unknown"
     assert c10["answer"]["fria"]["rationale"] == [beside]
     assert c10["answer"]["fria"]["missing_facts"] == [
-        FRIA_AREA_UNKNOWN_USE_LINE.format(fact="annex_iii_3a_admission", number=3)]
+        FRIA_AREA_BESIDE_UNKNOWN_USE_LINE.format(fact="annex_iii_3a_admission", number=3)]
     c11 = classify_ai_system(AREA_CASES["C11"]["features"], dump)["answer"]["fria"]
     assert c11["rationale"] == [
         beside, FRIA_OTHER_CAUSES_TEMPLATE.format(reasons=REVIEW_CAUSE_REASONS["listed_use_unknown"])]
@@ -330,15 +353,33 @@ def test_a_candidate_beside_article_6_1_with_only_an_area_gets_the_area_sentence
     beside = FRIA_AREA_BESIDE_ARTICLE_6_1_REASON.format(domain="education", number=3)
     assert not any("remains high-risk under Article 6(2)" in line for line in a["fria"]["rationale"])
     if section:
-        # Section B: Annex III would decide what is served, so the candidate is
-        # a cause (passage (k)), named after the area with the unknown listed use.
+        # Section B with only a point that rests on the area: the product is
+        # served as Section B whatever the derogation, so the candidate is no
+        # cause (fix round 1); the unknown listed use keeps the answer under
+        # review and is the cause named after the area.
         assert env["status"] == "requires_human_review"
+        assert review_causes(a, env["missing_facts"]) == ["listed_use_unknown"]
         assert a["fria"]["rationale"] == [beside, FRIA_OTHER_CAUSES_TEMPLATE.format(
-            reasons=review_reason(["article_6_3_candidate", "listed_use_unknown"]))]
+            reasons=REVIEW_CAUSE_REASONS["listed_use_unknown"])]
     else:
         # Section A: the candidate is no cause, and the answer is settled.
         assert env["status"] == "potentially_applicable"
         assert a["fria"]["rationale"] == [beside]
+
+
+@pytest.mark.parametrize("cid", ["C10", "C11", "C12"])
+def test_beside_article_6_1_the_unknown_use_line_never_says_the_level_rests_on_the_area(dump, cid):
+    # Fix round 1: at daadd5c the block's missing line ended "the level rests
+    # on the area alone until a listed use of the point is answered" although
+    # the level rests on the Article 6(1) route there.
+    fria = classify_ai_system(AREA_CASES[cid]["features"], dump)["answer"]["fria"]
+    assert fria["missing_facts"] == [FRIA_AREA_BESIDE_UNKNOWN_USE_LINE.format(fact="annex_iii_3a_admission", number=3)]
+    assert not any("rests on the area alone" in line for line in [*fria["rationale"], *fria["missing_facts"]])
+
+
+def test_on_the_area_alone_the_unknown_use_line_says_so(dump):  # C1
+    fria = classify_ai_system(AREA_CASES["C1"]["features"], dump)["answer"]["fria"]
+    assert fria["missing_facts"] == [FRIA_AREA_UNKNOWN_USE_LINE.format(fact="annex_iii_3a_admission", number=3)]
 
 
 def test_conflict_beside_candidate_names_both(dump):

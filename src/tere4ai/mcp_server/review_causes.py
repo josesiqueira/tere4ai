@@ -22,11 +22,16 @@ only when the envelope's missing facts are given:
 - area_alone: annex_iii_area_unconfirmed is set and high_risk_routes is empty
   (D-G92 (3));
 - article_6_3_candidate: the candidate field is true and Annex III decides
-  what is served (passage (k)): Article 6(1) is not a route, or the Annex I
-  section is B, or (ruling R5) the Annex I section is unknown while a listed
-  use is true (Article 6(2) a route), since if the section were B the
-  derogation would change what is served; for the Article 27(1) block
-  (for_fria) the field true is enough (D-G92 (iv));
+  what is served (passage (k)): Article 6(1) is not a route; or a listed use
+  is true (Article 6(2) a route) and the Annex I section is B, or unknown
+  (ruling R5: if it were B the derogation would change what is served). A
+  product whose Annex III point only rests on the area is served as its
+  section gives whatever the derogation, so a true candidate there is never
+  a cause, for a known Section B as for an unknown section (the
+  coordinator's ruling of fix round 1); such an answer stays under review
+  when another cause holds (an unknown listed use of a Section B product).
+  For the Article 27(1) block (for_fria) the field true is enough (D-G92
+  (iv));
 - article_6_1_open: a limited_risk answer whose missing facts name an
   Article 6(1) fact (B123);
 - listed_use_unknown: a limited_risk answer, or a Section B answer on the
@@ -165,8 +170,7 @@ def review_causes(
     if answer.get("article_6_3_exception_candidate") is True and (
         for_fria
         or _ROUTE_ARTICLE_6_1 not in routes
-        or answer.get("annex_i_section") == "B"
-        or (answer.get("annex_i_section") == "unknown" and _ROUTE_ARTICLE_6_2 in routes)
+        or (_ROUTE_ARTICLE_6_2 in routes and answer.get("annex_i_section") in ("B", "unknown"))
     ):
         holds.add("article_6_3_candidate")
     if missing_facts is not None:
