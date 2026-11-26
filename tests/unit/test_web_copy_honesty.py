@@ -205,6 +205,72 @@ def test_assess_page_reads_the_facts_from_the_schema_and_keeps_no_list():
     assert fact_names_written_in(facts_text) == []
 
 
+def _domain_schema():
+    return json.loads((ROOT / "schema" / "json_schemas" / "system_features.schema.json").read_text())
+
+
+def test_assess_page_keeps_no_list_of_domains():
+    # B185 Task 10 (D-G92 (10)): the domain choices are read from the schema.
+    page = (ASSESS / "page.tsx").read_text()
+    assert "const DOMAINS" not in page and "readDomainChoices" in page and "domainOfSchema" in page
+    assert not any(f'"{w}"' in page for w in ("healthcare", "banking", "insurance", "consumer"))
+
+
+def test_presets_use_values_of_the_schema():
+    presets = (ASSESS / "presets.ts").read_text()
+    values = set(_domain_schema()["properties"]["domain"]["enum"]) - {None}
+    found = re.findall(r'domain: "([^"]*)"', presets)
+    assert found and all(v in values for v in found)
+    assert "none_of_these_areas" not in presets
+
+
+def test_schema_facts_reads_the_area_values_and_the_refusal():
+    text = (ASSESS / "schemaFacts.ts").read_text()
+    assert "x-annex-iii-area-values" in text and "x-refusal" in text and "x-removed-values" in text
+
+
+def test_assess_page_shows_the_new_answer_fields():
+    page = (ASSESS / "page.tsx").read_text()
+    for word in ("annex_iii_area_unconfirmed", "area_conflicts", "article_6_3_exception_candidate"):
+        assert word in page
+    assert "article_6_3_exception_candidate: boolean | null" in page
+
+
+def test_domain_choices_and_refusal_run_under_node():
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    major = int(subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip().lstrip("v").split(".")[0])
+    if major < 22:
+        pytest.skip("node older than 22 cannot strip types")
+    module = (ASSESS / "schemaFacts.ts").resolve().as_uri()
+    payload = json.dumps({"schema": _domain_schema()})
+    script = (
+        f"import({json.dumps(module)}).then((m) => {{ const p = {payload};"
+        "console.log(JSON.stringify({choices: m.readDomainChoices(p),"
+        "kept: m.domainOfSchema('education', p), old: m.domainOfSchema('banking', p),"
+        "other: m.domainOfSchema('x', p), unknown: m.domainOfSchema('', p)})); })"
+    )
+    out = json.loads(subprocess.run(
+        [node, "--experimental-strip-types", "--no-warnings", "-e", script],
+        capture_output=True, text=True, check=True,
+    ).stdout)
+    schema = _domain_schema()["properties"]["domain"]
+    assert [c["value"] for c in out["choices"]] == [v for v in schema["enum"] if v]
+    assert out["choices"][-1]["label"] == "none of the eight areas of Annex III"
+    assert out["choices"][2]["label"] == "Education and vocational training"
+    assert out["kept"] == {"value": "education", "refused": None}
+    assert out["old"] == {
+        "value": None,
+        "refused": "domain 'banking' is not a value of the schema: " + schema["x-removed-values"]["banking"],
+    }
+    assert out["other"] == {"value": None, "refused": "domain 'x' is not a value of the schema"}
+    assert out["unknown"] == {"value": None, "refused": None}
+
+
 def test_assess_page_drops_restored_keys_the_schema_lacks_before_classifying():
     # B184 Task 8, fix round 1 (I2): a permalink made before the card carries
     # removed facts. Once the schema is read, the page keeps only the schema's

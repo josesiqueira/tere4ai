@@ -36,7 +36,7 @@ export type ScenarioPreset = {
      ladder still runs live; this is a stated expectation, not a guarantee. */
   hint: string;
   description: string;
-  domain: string;
+  domain?: string;
   autonomy: string;
   flags: Record<string, TriState>;
 };
@@ -122,7 +122,6 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     hint: "minimal_risk",
     description:
       "SpamGuard is a machine learning email filter deployed by a 20 person company for its own shared inboxes. It classifies incoming mail as ham, spam, or phishing using message text and metadata, moves likely spam to a retrievable quarantine folder, and never blocks, deletes, or answers mail on its own. It does not profile or score people and is not used in employment, credit, education, law enforcement, migration, or any other Annex III context.",
-    domain: "email security",
     autonomy: "partial",
     /* The facts set true are those of
        tests/fixtures/demo_sessions/spamguard-classify.jsonl (the recorded
@@ -145,7 +144,6 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     hint: "limited_risk (Article 50)",
     description:
       "ShopBot is an LLM backed chat assistant embedded in a webshop. It answers questions about order status, return policy, and product details, and escalates to a human agent on request or when unsure. It interacts directly with natural persons and generates text, but does not make decisions about people, does not profile, score, or categorize individuals, and performs no biometric processing or emotion inference.",
-    domain: "consumer",
     autonomy: "",
     flags: allFalse({
       interacts_with_natural_persons: "true",
@@ -158,7 +156,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     hint: "high_risk (Annex III point 5(b)), FRIA applies",
     description:
       "CredScore is a machine learning service that evaluates the creditworthiness of natural persons applying for consumer loans, producing a score and a recommendation that loan officers use in their decisions and can override. It is not a fraud detection tool, and is deployed by a private company under EU jurisdiction as a private entity providing an essential private service (consumer credit).",
-    domain: "banking",
+    domain: "essential_services",
     autonomy: "advisory",
     /* interacts_with_natural_persons and two Article 6(3) facts
        (improves_previous_human_activity,

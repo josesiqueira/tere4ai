@@ -19,9 +19,12 @@ import { FACADE_URL } from "@/lib/facade";
 import { VOCAB_SUBTITLES } from "@/lib/vocab";
 import { SCENARIO_PRESETS, type ScenarioPreset } from "./presets";
 import {
+  domainOfSchema,
   factNamesOf,
+  readDomainChoices,
   readFlagGroups,
   splitFlagsBySchema,
+  type DomainChoice,
   type FlagGroup,
   type SchemaFlag,
 } from "./schemaFacts";
@@ -74,6 +77,11 @@ type ClassificationAnswer = {
   risk_category: string | null;
   unacceptable_risk: boolean | null;
   annex_iii_category: string | null;
+  /* B185: the Annex III point that the level rests on through the domain's
+     area alone (null on every other answer), and the listed uses that are
+     true while domain is none_of_these_areas. */
+  annex_iii_area_unconfirmed?: string | null;
+  area_conflicts?: { domain: string; fact: string; note: string }[];
   article_6_3_exception_candidate: boolean | null;
   rationale: string[];
   fria?: FriaAnswer | null;
@@ -240,19 +248,6 @@ const HLEG_LABELS: Record<string, string> = {
    from the trace envelope itself (answer.caveat, server pass-through). */
 const HLEG_CAVEAT_SHORT =
   "EU-to-HLEG mappings are LLM-generated, not expert-validated.";
-
-const DOMAINS = [
-  "healthcare",
-  "education",
-  "employment",
-  "law_enforcement",
-  "migration",
-  "justice",
-  "banking",
-  "insurance",
-  "critical_infrastructure",
-  "consumer",
-];
 
 const ARTIFACT_TYPES = [
   "risk_management_plan",
@@ -885,11 +880,18 @@ function RequirementsBoard({
 type FlagSchemaState =
   | { kind: "loading" }
   | { kind: "unavailable" }
-  | { kind: "ready"; groups: FlagGroup[] };
+  | { kind: "ready"; groups: FlagGroup[]; domains: DomainChoice[]; payload: unknown };
 
 export default function AssessPage() {
   const [description, setDescription] = useState("");
   const [domain, setDomain] = useState("");
+  /* B185 (D-G92 (10), ruling P17): the schema's refusal of a stored domain
+     that is not a value of the list, shown as text until the person picks a
+     value or unknown. */
+  const [domainRefusal, setDomainRefusal] = useState<string | null>(null);
+  /* Areas the person opened or closed by hand; an area not listed here is
+     open when it is the chosen domain. Opening an area never sets domain. */
+  const [openAreas, setOpenAreas] = useState<Record<number, boolean>>({});
   const [autonomy, setAutonomy] = useState("");
   const [flags, setFlags] = useState<Record<string, string>>({});
   const [flagSchema, setFlagSchema] = useState<FlagSchemaState>({ kind: "loading" });
@@ -980,6 +982,8 @@ export default function AssessPage() {
 
   function updateDomain(value: string) {
     setDomain(value);
+    setDomainRefusal(null);
+    setOpenAreas({});
     syncHashToForm({ description, domain: value, autonomy, flags });
   }
 
@@ -1067,6 +1071,46 @@ export default function AssessPage() {
     );
   }
 
+  /* One area of Annex III: its heading from the schema and its listed uses.
+     Open when it is the chosen domain unless the person has opened or closed
+     it by hand; opening or closing never changes domain (D-G92 (10)). The
+     count is of the answers (yes or no) given in the area. */
+  function renderAreaGroup(group: FlagGroup, index: number) {
+    const area = group.area as number;
+    const chosen =
+      flagSchema.kind === "ready" &&
+      flagSchema.domains.some((choice) => choice.value === domain && choice.area === area);
+    const answered = group.flags.filter((flag) => {
+      const value = flags[flag.name];
+      return value === "true" || value === "false";
+    }).length;
+    return (
+      <details
+        key={`area-${index}`}
+        open={openAreas[area] ?? chosen}
+        onToggle={(e) => {
+          const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+          if (isOpen !== (openAreas[area] ?? chosen)) {
+            setOpenAreas((prev) => ({ ...prev, [area]: isOpen }));
+          }
+        }}
+        className="min-w-0 rounded-md border border-border p-3"
+      >
+        <summary className="cursor-pointer text-sm font-medium leading-tight">
+          {group.heading}
+          {answered > 0 && (
+            <span className="ml-2 font-normal text-muted-foreground">
+              ({answered} answered)
+            </span>
+          )}
+        </summary>
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+          {group.flags.map(renderFlagRow)}
+        </div>
+      </details>
+    );
+  }
+
   /* M6: facts the form sends (true or false); shown as a count when no row
      can show them. */
   const setFactCount = Object.values(flags).filter((v) => v === "true" || v === "false").length;
@@ -1106,9 +1150,22 @@ export default function AssessPage() {
         let nextDomain = domain;
         let nextAutonomy = autonomy;
         let nextFlags = flags;
-        if (typeof features.domain === "string" && features.domain.length > 0) {
-          nextDomain = features.domain;
+        /* B185 (D-G92 (iii)): a proposed none_of_these_areas is never
+           applied, and neither is a word outside the schema's list. */
+        const proposed =
+          typeof features.domain === "string" && features.domain.length > 0
+            ? features.domain
+            : null;
+        if (
+          proposed !== null &&
+          proposed !== "none_of_these_areas" &&
+          flagSchema.kind === "ready" &&
+          flagSchema.domains.some((choice) => choice.value === proposed)
+        ) {
+          nextDomain = proposed;
           setDomain(nextDomain);
+          setDomainRefusal(null);
+          setOpenAreas({});
           filled.domain = true;
         }
         if (features.autonomy) {
@@ -1183,7 +1240,12 @@ export default function AssessPage() {
       .then((payload: unknown) => {
         if (cancelled) return;
         const groups = payload ? readFlagGroups(payload) : null;
-        setFlagSchema(groups ? { kind: "ready", groups } : { kind: "unavailable" });
+        const domains = payload ? readDomainChoices(payload) : null;
+        setFlagSchema(
+          groups && domains
+            ? { kind: "ready", groups, domains, payload }
+            : { kind: "unavailable" }
+        );
       })
       .catch(() => {
         if (!cancelled) setFlagSchema({ kind: "unavailable" });
@@ -1220,8 +1282,14 @@ export default function AssessPage() {
     let form = linked;
     if (flagSchema.kind === "ready") {
       const { kept, dropped } = splitFlagsBySchema(linked.flags, factNamesOf(flagSchema.groups));
-      form = { ...linked, flags: kept };
+      const checked = domainOfSchema(linked.domain, flagSchema.payload);
+      form = { ...linked, domain: checked.value ?? "", flags: kept };
       setDroppedFacts(dropped);
+      setDomainRefusal(checked.refused);
+    } else if (form.domain) {
+      // Without the schema a stored domain cannot be checked, so it is not sent.
+      form = { ...linked, domain: "" };
+      setDomainRefusal(`domain '${linked.domain}' cannot be checked while the features schema is unavailable`);
     }
     setDescription(form.description);
     setDomain(form.domain);
@@ -1274,9 +1342,11 @@ export default function AssessPage() {
       ));
     }
     setDroppedFacts(dropped);
+    setDomainRefusal(null);
+    setOpenAreas({});
     const form: AssessForm = {
       description: preset.description,
-      domain: preset.domain,
+      domain: preset.domain ?? "",
       autonomy: preset.autonomy,
       flags: presetFlags,
     };
@@ -1559,18 +1629,30 @@ export default function AssessPage() {
                   id="domain"
                   className={`${SELECT_CLS} w-full`}
                   value={domain}
+                  disabled={flagSchema.kind !== "ready"}
                   onChange={(e) => {
                     updateDomain(e.target.value);
                     clearElicited("domain");
                   }}
                 >
-                  <option value="">(unspecified)</option>
-                  {DOMAINS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
+                  <option value="">unknown</option>
+                  {flagSchema.kind === "ready" &&
+                    flagSchema.domains.map((choice) => (
+                      <option key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </option>
+                    ))}
                 </select>
+                {flagSchema.kind === "unavailable" && (
+                  <p className="text-sm text-muted-foreground">
+                    The features schema is unavailable, so the domain cannot be chosen.
+                  </p>
+                )}
+                {domainRefusal && (
+                  <p className="text-sm text-destructive" role="alert" id="domain-refusal">
+                    {domainRefusal}. The domain is unknown: choose one of the values.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <label
@@ -1631,17 +1713,7 @@ export default function AssessPage() {
                       {group.flags.map(renderFlagRow)}
                     </div>
                   ) : (
-                    <fieldset
-                      key={`area-${index}`}
-                      className="min-w-0 space-y-2 rounded-md border border-border p-3"
-                    >
-                      <legend className="px-1 text-sm font-medium leading-tight">
-                        {group.heading}
-                      </legend>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {group.flags.map(renderFlagRow)}
-                      </div>
-                    </fieldset>
+                    renderAreaGroup(group, index)
                   )
                 )}
             </div>
@@ -1675,6 +1747,38 @@ export default function AssessPage() {
                 {classification.answer.annex_iii_category && (
                   <Chip>{classification.answer.annex_iii_category}</Chip>
                 )}
+              </div>
+              {classification.answer.annex_iii_area_unconfirmed && (
+                <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                  <span>Annex III point resting on the area alone:</span>
+                  <span className="font-mono text-foreground">
+                    {classification.answer.annex_iii_area_unconfirmed}
+                  </span>
+                </div>
+              )}
+              {(classification.answer.area_conflicts ?? []).length > 0 && (
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>Listed uses true while the domain says none of these areas:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {(classification.answer.area_conflicts ?? []).map((conflict) => (
+                      <li key={conflict.fact}>
+                        <span className="font-mono text-foreground">{conflict.fact}</span>
+                        {": "}
+                        {conflict.note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                <span>Article 6(3) exception candidate:</span>
+                <span className="font-mono text-foreground">
+                  {classification.answer.article_6_3_exception_candidate == null
+                    ? "unknown"
+                    : classification.answer.article_6_3_exception_candidate
+                      ? "yes"
+                      : "no"}
+                </span>
               </div>
               {/* Redteam finding 6: this StatusBadge is the envelope's generic
                   Section 8 `status` field, not a second risk verdict. Shown
