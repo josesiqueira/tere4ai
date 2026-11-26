@@ -117,3 +117,20 @@ def test_area_headings_are_the_acts_headings(dump_texts):
     assert list(areas) == [str(n) for n in range(1, 9)]
     for n, heading in areas.items():
         assert heading == _normalised(dump_texts[f"eu-ai-act:annex-iii:point-{n}"]).split(": ", 1)[0]
+
+
+PERMITTED_USE_SENTENCE = (
+    "Answer for the use the system is intended for; whether that use is permitted under Union or "
+    "national law is not part of this fact."
+)
+
+
+def test_points_1_6_and_7_say_how_to_answer_the_opening_words():
+    """R15: the opening words on lawful use are not a fact, and the twelve facts
+    of areas 1, 6 and 7 say so in one sentence; no other fact carries it."""
+    carrying = [n for n, s in _flags().items() if PERMITTED_USE_SENTENCE in s["description"]]
+    assert carrying == [fact for fact, use, _u in LISTED_USES if use[0] in "167"]
+    assert len(carrying) == 12
+    for fact in carrying:
+        description = _flags()[fact]["description"]
+        assert description.index("are not a fact.") < description.index(PERMITTED_USE_SENTENCE)

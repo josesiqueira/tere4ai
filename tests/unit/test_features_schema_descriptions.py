@@ -78,3 +78,32 @@ def test_the_amended_article_6_and_article_3_14_are_in_the_facts_they_bear_on():
     assert "Article 6(1c)" in flags["third_party_conformity_assessment_required"]["description"]
     assert "Article 2(2)" in flags["annex_i_section_b_legislation"]["description"]
     assert flags["annex_i_section_b_legislation"]["type"] == "boolean"
+
+
+def test_finding_13_article_5f_fact_is_defined_on_biometric_data():
+    d = _flags()["emotion_recognition_workplace_or_education"]["description"]
+    assert "Article 3(39)" in d and "on the basis of their biometric data" in d
+    assert "the project's reading" in d and "True entails emotion_recognition" in d
+
+
+def test_real_time_identification_quotes_article_3_42_and_3_44_whole():
+    d = _normalised(_flags()["real_time_remote_biometric_public"]["description"])
+    assert "comprising not only instant identification, but also limited short delays in order to avoid circumvention" in d
+    assert ("publicly accessible space means any publicly or privately owned physical place accessible to an undetermined "
+            "number of natural persons, regardless of whether certain conditions for access may apply, and regardless of the "
+            "potential capacity restrictions") in d
+    assert "law_enforcement_purpose" in d and "True entails biometric_identification" in d
+
+
+def test_the_point_2_fact_quotes_article_6_1a_and_6_1b():
+    d = _flags()["critical_infrastructure_safety"]["description"]
+    assert ("AI systems that are solely used for non-safety related aspects of user assistance, performance optimisation, "
+            "service efficiency, automation or convenience or quality control shall not qualify as safety components") in d
+    assert "AI systems the failure or malfunctioning of which would endanger health and safety shall qualify as safety components" in d
+
+
+def test_autonomy_description_says_no_classification_rule_reads_it():
+    """Since B184 task 5 no rule of the classifier reads autonomy."""
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    d = schema["properties"]["autonomy"]["description"]
+    assert "no classification rule reads it" in d
