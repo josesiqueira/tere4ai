@@ -715,7 +715,7 @@ an engineering MUST (determinism, reproducibility, security, performance,
 serving, naming) is labelled "Engineering MUST" or "engineering decision",
 claims no literature grounding, and may name sources that bear on it as
 "corroborated by" without claiming they ground it (DEC-01, DEC-02, DEC-13 to
-DEC-18, DEC-20 to DEC-25, DEC-28 to DEC-31). The thesis presents the first kind
+DEC-18, DEC-20 to DEC-25, DEC-28 to DEC-32). The thesis presents the first kind
 as grounded design and the second as engineering practice, never the other
 way round.
 
@@ -2401,6 +2401,104 @@ way round.
   every HLEG word, status and verdict equal without alignments, replay,
   on demand without the keys, the route's groups, limits, 503, no model
   client); CHANGELOG.md names the contract change.
+
+- DEC-32: what a fact of the classifier means is the provision it is read
+  for: each of the 25 uses listed in Annex III is one fact, whose
+  description quotes the whole text of its legal unit (added 2026-11-26;
+  thesis task B184, spec G D-G91, brief and rulings R1 to R12 in
+  sdd/2026-11-26-B184-fact-definitions/ in the private research
+  repository; Jose's words are those D-G91 quotes, among them, on the
+  design, "if the elicited fact is the bigger domain ... then it COULD be
+  chosen which one of them, 5a, 5b, 5c, 5d", and, on the Commission's
+  draft guidelines on high-risk classification, "this cant guide OUR
+  decision on what is elicited fact"). Engineering decision (what the
+  facts mean, read from the Act's text, REF-01); it needs no literature
+  grounding (AGENTS.md grounding bar).
+  The facts (D-G91 (1)). Annex III lists 25 uses (point 1 (a) to (c),
+  point 2, point 3 (a) to (d), point 4 (a) and (b), point 5 (a) to (d),
+  point 6 (a) to (e), point 7 (a) to (d), point 8 (a) and (b)), and each
+  is one fact. Six keep the names they had; the nineteen new ones are
+  named by point and one word (annex_iii_4b_work_relationships). The
+  description of each quotes the whole text of its legal unit, exceptions
+  included, and a system inside an exception answers no; a test compares
+  each quotation with the unit's text in the build and fails on a
+  quotation cut short. The opening words of points 1, 6 and 7 ("in so far
+  as their use is permitted under relevant Union or national law") are
+  printed and are not a fact. The six broad facts and
+  preparatory_or_narrow_procedural_task leave the schema; an input that
+  carries one is rejected_as_unsupported, as any fact outside the schema
+  is. Each of the 25 carries x-annex-iii-area (1 to 8) and
+  x-annex-iii-use ("4(b)"; "2" for point 2), and the flags object carries
+  x-annex-iii-areas, the eight headings in the Act's words, so that a
+  client groups the facts and keeps no list of its own.
+  The rule (D-G91 (2)). A point matches when one of its listed-use facts
+  is true; point 1 also matches on real_time_remote_biometric_public;
+  points 2 to 8 still match on the system's domain, which stops counting
+  only when every listed use of the point is known false; an unknown
+  listed-use fact is named among the missing facts and blocks
+  minimal_risk. The answer gains annex_iii_listed_uses, the legal units
+  of every listed use answered yes, and cites each of them beside the
+  matched point. A match by the domain alone keeps the status it has
+  today until B185.
+  The purpose of law enforcement (D-G91 (3), (4)). Article 5(1)(h) reads
+  the fact law_enforcement_purpose, defined by Article 3(46), and no
+  Annex III fact. This amends DEC-18 for point (h): it is proven with
+  real_time_remote_biometric_public and law_enforcement_purpose both
+  true, and ruled out when either is known false; with the first true and
+  the purpose unknown the answer is marked for human review and names
+  the purpose. When point (h) is the only prohibition that fired, the
+  answer and the applicable requirements say that the Act prohibits the
+  use for the purposes of law enforcement in publicly accessible spaces,
+  that point (h) does not prohibit placing on the market, and that the
+  system is listed in Annex III point 1(a); the level stays
+  unacceptable_risk and no requirement is served.
+  The readings (D-G91 (5) to (7)). emotion_recognition_workplace_or_education
+  means inference from biometric data, as Article 3(39) defines an
+  emotion recognition system, which is the project's reading, recorded as
+  a reading; the drowsiness example leaves the prompt (recital 18). Three
+  entailments come from the definitions (biometric_categorisation entails
+  biometric_categorisation_system and the point 1(b) fact;
+  real_time_remote_biometric_public entails biometric_identification;
+  emotion_recognition_workplace_or_education entails emotion_recognition):
+  a narrower fact true with the wider one false reads the wider as true,
+  names the pair in fact_conflicts and among the missing facts, and gives
+  requires_human_review with confidence 0.5; the wider fact unknown reads
+  as true with a line in the rationale and no entry. The narrower fact is
+  never changed, and the facts are corrected once, where
+  classify_ai_system receives them. The Article 6(3) fact of points (a)
+  and (d) is split into narrow_procedural_task and preparatory_task, each
+  with its quotation and neither depending on autonomy.
+  The prompt of record becomes elicit_features v9; v8 stays as the prompt
+  of tag v2.0.0-beta.1, whose records are not adapted. Overtaken: DEC-30's
+  sentence on the demo sessions, "hold no generate call, so nothing in
+  them is rewritten", read the sessions of its day; B184 records them
+  again in the new facts.
+  Considered and not taken: all 25 facts renamed to one form, or named by
+  point only (the six names are in every record of the tag, and a name
+  with no word says nothing); point (h) taking the level high_risk for a
+  provider (it changes what the level means, a larger decision, and the
+  limit that such a provider is served no requirement goes to the
+  threats register); refusing an input whose facts contradict a
+  definition, or treating the wider fact as unknown (the first stops the
+  work, the second gives a more settled answer to a system that answered
+  no than to one that did not answer); keeping the Article 6(3) fact
+  whole (one answer cannot say which of two points holds); a "none of
+  these" control on an area (an answer the Act does not ask for).
+  Defense: a fact named for a provision and defined by its words can be
+  checked against the Act line by line, where a broad fact with a short
+  description asked the elicitor and a person to decide a legal question
+  the classifier then read as settled. Cost if wrong: before the next
+  paid run, a schema, a rule table, a prompt and the recordings to
+  redo, with no model call; after it, every elicitation made under the
+  facts and every case answered under them.
+  verify: schema/json_schemas/system_features.schema.json (the 25 facts,
+  x-annex-iii-area, x-annex-iii-use, x-annex-iii-areas);
+  tests/unit/test_annex_iii_facts.py (the whole-quotation test against
+  the build's node texts, the area headings, the opening words);
+  tests/unit/flags_of_record.py (the facts and rule tables of tag
+  v2.0.0-beta.1, which the tests of prompts v5 to v8 read);
+  tests/unit/test_elicit_envelope.py (the flag count). Completed in task
+  10 with the rule, the prompt and the answer's fields.
 
 ## 17. Implementation-traceability convention
 

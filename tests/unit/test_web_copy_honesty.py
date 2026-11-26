@@ -160,10 +160,12 @@ def test_presets_cover_every_schema_flag():
     import sys
 
     sys.path.insert(0, str(ROOT / "src"))
-    from tere4ai.elicit_features.elicitor import schema_flag_names
+    # B184 Task 8 rewrites this test over the live schema; until then the demo
+    # site lists the facts of tag v2.0.0-beta.1 (ruling P15).
+    from tests.unit.flags_of_record import FLAGS_OF_V8
 
     presets_text = (WEB_SRC / "app" / "(demo)" / "assess" / "presets.ts").read_text()
-    missing = [f for f in schema_flag_names() if f'"{f}"' not in presets_text]
+    missing = [f for f in FLAGS_OF_V8 if f'"{f}"' not in presets_text]
     assert missing == [], f"presets.ts missing schema flags: {missing}"
 
 
@@ -171,10 +173,12 @@ def test_flag_panel_covers_every_schema_flag():
     import sys
 
     sys.path.insert(0, str(ROOT / "src"))
-    from tere4ai.elicit_features.elicitor import schema_flag_names
+    # B184 Task 8 rewrites this test over the live schema; until then the demo
+    # site lists the facts of tag v2.0.0-beta.1 (ruling P15).
+    from tests.unit.flags_of_record import FLAGS_OF_V8
 
     page_text = (WEB_SRC / "app" / "(demo)" / "assess" / "page.tsx").read_text()
-    missing = [f for f in schema_flag_names() if f'"{f}"' not in page_text]
+    missing = [f for f in FLAGS_OF_V8 if f'"{f}"' not in page_text]
     assert missing == [], f"page.tsx flag panel missing schema flags: {missing}"
 
 

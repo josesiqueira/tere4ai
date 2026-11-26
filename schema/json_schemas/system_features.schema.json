@@ -39,11 +39,17 @@
     "flags": {
       "type": "object",
       "description": "Boolean facts. Absent flag = unknown, which is NOT treated as false for prohibition-relevant flags; unknowns surface in missing_facts.",
+      "x-annex-iii-areas": {
+        "1": "Biometrics, in so far as their use is permitted under relevant Union or national law",
+        "2": "Critical infrastructure",
+        "3": "Education and vocational training",
+        "4": "Employment, workers’ management and access to self-employment",
+        "5": "Access to and enjoyment of essential private services and essential public services and benefits",
+        "6": "Law enforcement, in so far as their use is permitted under relevant Union or national law",
+        "7": "Migration, asylum and border control management, in so far as their use is permitted under relevant Union or national law",
+        "8": "Administration of justice and democratic processes"
+      },
       "properties": {
-        "biometric_identification": {
-          "type": "boolean",
-          "description": "Annex III point 1(a), the Act's words: 'remote biometric identification systems. This shall not include AI systems intended to be used for biometric verification the sole purpose of which is to confirm that a specific natural person is the person he or she claims to be'. Article 3(41) defines the system, the Act's words: 'remote biometric identification system means an AI system for the purpose of identifying natural persons, without their active involvement, typically at a distance through the comparison of a person’s biometric data with the biometric data contained in a reference database'. True places the system in Annex III point 1, high-risk under Article 6(2); verification of a claimed identity alone is false. Absence is unknown and blocks a confident minimal answer."
-        },
         "biometric_categorisation": {
           "type": "boolean",
           "description": "Article 5(1)(g) practice, the Act's words: 'biometric categorisation systems that categorise individually natural persons based on their biometric data to deduce or infer their race, political opinions, trade union membership, religious or philosophical beliefs, sex life or sexual orientation'. True only for those traits. Categorisation by other sensitive or protected attributes is biometric_categorisation_sensitive_or_protected_attributes; the general system is biometric_categorisation_system. When true, those two are true as well. Absence leaves the ban unsettled."
@@ -51,10 +57,6 @@
         "biometric_categorisation_system": {
           "type": "boolean",
           "description": "Article 3(40), the Act's words: 'biometric categorisation system means an AI system for the purpose of assigning natural persons to specific categories on the basis of their biometric data, unless it is ancillary to another commercial service and strictly necessary for objective technical reasons'. A system that is ancillary to another commercial service and strictly necessary for objective technical reasons is not one (false). Triggers the Article 50(3) information duty. If this is false, biometric_categorisation (Article 5(1)(g)) is false too, since point (g) uses the defined term."
-        },
-        "biometric_categorisation_sensitive_or_protected_attributes": {
-          "type": "boolean",
-          "description": "Annex III point 1(b), the Act's words: 'AI systems intended to be used for biometric categorisation, according to sensitive or protected attributes or characteristics based on the inference of those attributes or characteristics'. High-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer."
         },
         "causes_significant_harm": {
           "type": "boolean",
@@ -84,10 +86,6 @@
           "type": "boolean",
           "description": "Article 5(1)(h) practice, the Act's words: 'the use of real-time remote biometric identification systems in publicly accessible spaces for the purposes of law enforcement'. True means the system identifies persons in publicly accessible spaces as Article 3(42) defines it, the Act's words: 'real-time remote biometric identification system means a remote biometric identification system, whereby the capturing of biometric data, the comparison and the identification all occur without a significant delay'. With law_enforcement_use true it is the point (h) practice, unless rtrb_strictly_necessary_authorised is true; it also places the system in Annex III point 1. Absence leaves the ban unsettled."
         },
-        "emotion_recognition": {
-          "type": "boolean",
-          "description": "Annex III point 1(c), the Act's words: 'AI systems intended to be used for emotion recognition'. Article 3(39) defines the system, the Act's words: 'emotion recognition system means an AI system for the purpose of identifying or inferring emotions or intentions of natural persons on the basis of their biometric data'. True places the system in Annex III point 1, high-risk under Article 6(2), and triggers the Article 50(3) information duty. Use in the workplace or in education is the separate Article 5(1)(f) fact, emotion_recognition_workplace_or_education."
-        },
         "emotion_recognition_workplace_or_education": {
           "type": "boolean",
           "description": "Article 5(1)(f) practice, the Act's words: 'the use of AI systems to infer emotions of a natural person in the areas of workplace and education institutions, except where the use of the AI system is intended to be put in place or into the market for medical or safety reasons'. The exception is the separate fact emotion_recognition_medical_or_safety: true there means the prohibition does not apply. Absence leaves the ban unsettled unless that exception is known to hold."
@@ -112,6 +110,156 @@
           "type": "boolean",
           "description": "Article 5(1)(e) practice, the Act's words: 'AI systems that create or expand facial recognition databases through the untargeted scraping of facial images from the internet or CCTV footage'. The point has no exception: true is a confident prohibition. Absence leaves the ban unsettled."
         },
+        "biometric_identification": {
+          "type": "boolean",
+          "description": "Annex III point 1(a), the Act's words: 'remote biometric identification systems. This shall not include AI systems intended to be used for biometric verification the sole purpose of which is to confirm that a specific natural person is the person he or she claims to be'. Point 1 opens with the words 'Biometrics, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. Article 3(41) defines the system, the Act's words: 'remote biometric identification system means an AI system for the purpose of identifying natural persons, without their active involvement, typically at a distance through the comparison of a person’s biometric data with the biometric data contained in a reference database'. True places the system in Annex III point 1, high-risk under Article 6(2); verification of a claimed identity alone is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 1,
+          "x-annex-iii-use": "1(a)"
+        },
+        "biometric_categorisation_sensitive_or_protected_attributes": {
+          "type": "boolean",
+          "description": "Annex III point 1(b), the Act's words: 'AI systems intended to be used for biometric categorisation, according to sensitive or protected attributes or characteristics based on the inference of those attributes or characteristics'. Point 1 opens with the words 'Biometrics, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. High-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 1,
+          "x-annex-iii-use": "1(b)"
+        },
+        "emotion_recognition": {
+          "type": "boolean",
+          "description": "Annex III point 1(c), the Act's words: 'AI systems intended to be used for emotion recognition'. Point 1 opens with the words 'Biometrics, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. Article 3(39) defines the system, the Act's words: 'emotion recognition system means an AI system for the purpose of identifying or inferring emotions or intentions of natural persons on the basis of their biometric data'. True places the system in Annex III point 1, high-risk under Article 6(2), and triggers the Article 50(3) information duty. Use in the workplace or in education is the separate Article 5(1)(f) fact, emotion_recognition_workplace_or_education.",
+          "x-annex-iii-area": 1,
+          "x-annex-iii-use": "1(c)"
+        },
+        "critical_infrastructure_safety": {
+          "type": "boolean",
+          "description": "Annex III point 2, the Act's words: 'AI systems intended to be used as safety components in the management and operation of critical digital infrastructure, road traffic, or in the supply of water, gas, heating or electricity'. True places the system in Annex III point 2, high-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 2,
+          "x-annex-iii-use": "2"
+        },
+        "annex_iii_3a_admission": {
+          "type": "boolean",
+          "description": "Annex III point 3(a), the Act's words: 'AI systems intended to be used to determine access or admission or to assign natural persons to educational and vocational training institutions at all levels'. True places the system in Annex III point 3, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 3,
+          "x-annex-iii-use": "3(a)"
+        },
+        "annex_iii_3b_learning_outcomes": {
+          "type": "boolean",
+          "description": "Annex III point 3(b), the Act's words: 'AI systems intended to be used to evaluate learning outcomes, including when those outcomes are used to steer the learning process of natural persons in educational and vocational training institutions at all levels'. True places the system in Annex III point 3, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 3,
+          "x-annex-iii-use": "3(b)"
+        },
+        "annex_iii_3c_education_level": {
+          "type": "boolean",
+          "description": "Annex III point 3(c), the Act's words: 'AI systems intended to be used for the purpose of assessing the appropriate level of education that an individual will receive or will be able to access, in the context of or within educational and vocational training institutions at all levels'. True places the system in Annex III point 3, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 3,
+          "x-annex-iii-use": "3(c)"
+        },
+        "annex_iii_3d_test_monitoring": {
+          "type": "boolean",
+          "description": "Annex III point 3(d), the Act's words: 'AI systems intended to be used for monitoring and detecting prohibited behaviour of students during tests in the context of or within educational and vocational training institutions at all levels'. True places the system in Annex III point 3, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 3,
+          "x-annex-iii-use": "3(d)"
+        },
+        "annex_iii_4a_recruitment": {
+          "type": "boolean",
+          "description": "Annex III point 4(a), the Act's words: 'AI systems intended to be used for the recruitment or selection of natural persons, in particular to place targeted job advertisements, to analyse and filter job applications, and to evaluate candidates'. True places the system in Annex III point 4, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 4,
+          "x-annex-iii-use": "4(a)"
+        },
+        "annex_iii_4b_work_relationships": {
+          "type": "boolean",
+          "description": "Annex III point 4(b), the Act's words: 'AI systems intended to be used to make decisions affecting terms of work-related relationships, the promotion or termination of work-related contractual relationships, to allocate tasks based on individual behaviour or personal traits or characteristics or to monitor and evaluate the performance and behaviour of persons in such relationships'. True places the system in Annex III point 4, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 4,
+          "x-annex-iii-use": "4(b)"
+        },
+        "annex_iii_5a_public_benefits": {
+          "type": "boolean",
+          "description": "Annex III point 5(a), the Act's words: 'AI systems intended to be used by public authorities or on behalf of public authorities to evaluate the eligibility of natural persons for essential public assistance benefits and services, including healthcare services, as well as to grant, reduce, revoke, or reclaim such benefits and services'. True places the system in Annex III point 5, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 5,
+          "x-annex-iii-use": "5(a)"
+        },
+        "creditworthiness_evaluation": {
+          "type": "boolean",
+          "description": "Annex III point 5(b), the Act's words: 'AI systems intended to be used to evaluate the creditworthiness of natural persons or establish their credit score, with the exception of AI systems used for the purpose of detecting financial fraud'. FRIA-relevant (Article 27(1)).",
+          "x-annex-iii-area": 5,
+          "x-annex-iii-use": "5(b)"
+        },
+        "life_health_insurance_risk_pricing": {
+          "type": "boolean",
+          "description": "Annex III point 5(c), the Act's words: 'AI systems intended to be used for risk assessment and pricing in relation to natural persons in the case of life and health insurance'. FRIA-relevant (Article 27(1)).",
+          "x-annex-iii-area": 5,
+          "x-annex-iii-use": "5(c)"
+        },
+        "annex_iii_5d_emergency_calls": {
+          "type": "boolean",
+          "description": "Annex III point 5(d), the Act's words: 'AI systems intended to evaluate and classify emergency calls by natural persons or to be used to dispatch, or to establish priority in the dispatching of, emergency first response services, including by police, firefighters and medical aid, as well as of emergency healthcare patient triage systems'. True places the system in Annex III point 5, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 5,
+          "x-annex-iii-use": "5(d)"
+        },
+        "annex_iii_6a_victim_risk": {
+          "type": "boolean",
+          "description": "Annex III point 6(a), the Act's words: 'AI systems intended to be used by or on behalf of law enforcement authorities, or by Union institutions, bodies, offices or agencies in support of law enforcement authorities or on their behalf to assess the risk of a natural person becoming the victim of criminal offences'. Point 6 opens with the words 'Law enforcement, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 6, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 6,
+          "x-annex-iii-use": "6(a)"
+        },
+        "annex_iii_6b_polygraphs": {
+          "type": "boolean",
+          "description": "Annex III point 6(b), the Act's words: 'AI systems intended to be used by or on behalf of law enforcement authorities or by Union institutions, bodies, offices or agencies in support of law enforcement authorities as polygraphs or similar tools'. Point 6 opens with the words 'Law enforcement, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 6, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 6,
+          "x-annex-iii-use": "6(b)"
+        },
+        "annex_iii_6c_evidence_reliability": {
+          "type": "boolean",
+          "description": "Annex III point 6(c), the Act's words: 'AI systems intended to be used by or on behalf of law enforcement authorities, or by Union institutions, bodies, offices or agencies, in support of law enforcement authorities to evaluate the reliability of evidence in the course of the investigation or prosecution of criminal offences'. Point 6 opens with the words 'Law enforcement, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 6, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 6,
+          "x-annex-iii-use": "6(c)"
+        },
+        "annex_iii_6d_offending_risk": {
+          "type": "boolean",
+          "description": "Annex III point 6(d), the Act's words: 'AI systems intended to be used by law enforcement authorities or on their behalf or by Union institutions, bodies, offices or agencies in support of law enforcement authorities for assessing the risk of a natural person offending or re-offending not solely on the basis of the profiling of natural persons as referred to in Article 3(4) of Directive (EU) 2016/680, or to assess personality traits and characteristics or past criminal behaviour of natural persons or groups'. Point 6 opens with the words 'Law enforcement, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 6, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 6,
+          "x-annex-iii-use": "6(d)"
+        },
+        "annex_iii_6e_profiling": {
+          "type": "boolean",
+          "description": "Annex III point 6(e), the Act's words: 'AI systems intended to be used by or on behalf of law enforcement authorities or by Union institutions, bodies, offices or agencies in support of law enforcement authorities for the profiling of natural persons as referred to in Article 3(4) of Directive (EU) 2016/680 in the course of the detection, investigation or prosecution of criminal offences'. Point 6 opens with the words 'Law enforcement, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 6, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 6,
+          "x-annex-iii-use": "6(e)"
+        },
+        "annex_iii_7a_polygraphs": {
+          "type": "boolean",
+          "description": "Annex III point 7(a), the Act's words: 'AI systems intended to be used by or on behalf of competent public authorities or by Union institutions, bodies, offices or agencies as polygraphs or similar tools'. Point 7 opens with the words 'Migration, asylum and border control management, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 7, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 7,
+          "x-annex-iii-use": "7(a)"
+        },
+        "annex_iii_7b_entry_risk": {
+          "type": "boolean",
+          "description": "Annex III point 7(b), the Act's words: 'AI systems intended to be used by or on behalf of competent public authorities or by Union institutions, bodies, offices or agencies to assess a risk, including a security risk, a risk of irregular migration, or a health risk, posed by a natural person who intends to enter or who has entered into the territory of a Member State'. Point 7 opens with the words 'Migration, asylum and border control management, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 7, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 7,
+          "x-annex-iii-use": "7(b)"
+        },
+        "annex_iii_7c_applications": {
+          "type": "boolean",
+          "description": "Annex III point 7(c), the Act's words: 'AI systems intended to be used by or on behalf of competent public authorities or by Union institutions, bodies, offices or agencies to assist competent public authorities for the examination of applications for asylum, visa or residence permits and for associated complaints with regard to the eligibility of the natural persons applying for a status, including related assessments of the reliability of evidence'. Point 7 opens with the words 'Migration, asylum and border control management, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 7, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 7,
+          "x-annex-iii-use": "7(c)"
+        },
+        "annex_iii_7d_identification": {
+          "type": "boolean",
+          "description": "Annex III point 7(d), the Act's words: 'AI systems intended to be used by or on behalf of competent public authorities, or by Union institutions, bodies, offices or agencies, in the context of migration, asylum or border control management, for the purpose of detecting, recognising or identifying natural persons, with the exception of the verification of travel documents'. Point 7 opens with the words 'Migration, asylum and border control management, in so far as their use is permitted under relevant Union or national law', which limit the area and are not a fact. True places the system in Annex III point 7, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 7,
+          "x-annex-iii-use": "7(d)"
+        },
+        "annex_iii_8a_judicial": {
+          "type": "boolean",
+          "description": "Annex III point 8(a), the Act's words: 'AI systems intended to be used by a judicial authority or on their behalf to assist a judicial authority in researching and interpreting facts and the law and in applying the law to a concrete set of facts, or to be used in a similar way in alternative dispute resolution'. True places the system in Annex III point 8, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 8,
+          "x-annex-iii-use": "8(a)"
+        },
+        "annex_iii_8b_elections": {
+          "type": "boolean",
+          "description": "Annex III point 8(b), the Act's words: 'AI systems intended to be used for influencing the outcome of an election or referendum or the voting behaviour of natural persons in the exercise of their vote in elections or referenda. This does not include AI systems to the output of which natural persons are not directly exposed, such as tools used to organise, optimise or structure political campaigns from an administrative or logistical point of view'. True places the system in Annex III point 8, high-risk under Article 6(2); a system inside an exception the quotation states is false. Absence is unknown and blocks a confident minimal answer.",
+          "x-annex-iii-area": 8,
+          "x-annex-iii-use": "8(b)"
+        },
         "law_enforcement_use": {
           "type": "boolean",
           "description": "Annex III point 6, the Act's words: 'Law enforcement, in so far as their use is permitted under relevant Union or national law'. True means the system is intended for one of the uses the point lists, for example, the Act's words: 'AI systems intended to be used by or on behalf of law enforcement authorities'; it places the system in Annex III point 6, high-risk under Article 6(2), and it is the law-enforcement purpose Article 5(1)(h) needs together with real_time_remote_biometric_public. Absence is unknown and blocks a confident minimal answer."
@@ -135,18 +283,6 @@
         "essential_services_access": {
           "type": "boolean",
           "description": "Annex III point 5, the Act's words: 'Access to and enjoyment of essential private services and essential public services and benefits'. True means the system is intended for one of the uses the point lists in (a) to (d), such as, the Act's words: 'to evaluate the eligibility of natural persons for essential public assistance benefits and services, including healthcare services'; it places the system in Annex III point 5, high-risk under Article 6(2). Points 5(b) and 5(c) also have their own facts, creditworthiness_evaluation and life_health_insurance_risk_pricing. False denies the whole point 5 area. Absence is unknown and blocks a confident minimal answer."
-        },
-        "creditworthiness_evaluation": {
-          "type": "boolean",
-          "description": "Annex III point 5(b), the Act's words: 'AI systems intended to be used to evaluate the creditworthiness of natural persons or establish their credit score, with the exception of AI systems used for the purpose of detecting financial fraud'. FRIA-relevant (Article 27(1))."
-        },
-        "life_health_insurance_risk_pricing": {
-          "type": "boolean",
-          "description": "Annex III point 5(c), the Act's words: 'AI systems intended to be used for risk assessment and pricing in relation to natural persons in the case of life and health insurance'. FRIA-relevant (Article 27(1))."
-        },
-        "critical_infrastructure_safety": {
-          "type": "boolean",
-          "description": "Annex III point 2, the Act's words: 'AI systems intended to be used as safety components in the management and operation of critical digital infrastructure, road traffic, or in the supply of water, gas, heating or electricity'. True places the system in Annex III point 2, high-risk under Article 6(2). Absence is unknown and blocks a confident minimal answer."
         },
         "medical_or_safety_component": {
           "type": "boolean",

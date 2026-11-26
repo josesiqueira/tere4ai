@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 import pytest
+from tests.unit.flags_of_record import FLAGS_OF_V8
 
 from tere4ai.elicit_features import elicit
 from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION, FACT_NAME_BEFORE_B160
@@ -246,11 +247,10 @@ FLAGS_AFTER_V6 = ("annex_i_section_b_legislation",)
 def test_v5_prompt_names_every_schema_flag():
     """Every fact the schema defines is in the v5 list, the two Omnibus
     prohibition facts included (Jose, 2026-10-01: "Add them to v5")."""
-    from tere4ai.elicit_features.elicitor import schema_flag_names
-
+    # B184: the facts of tag v2.0.0-beta.1, not the live schema (ruling P15).
     prompt = (ROOT / "prompts" / "elicit_features" / "v5.md").read_text(encoding="utf-8")
     listed = set(re.findall(r"[a-z0-9_]+", prompt))
-    missing = [name for name in schema_flag_names() if name not in listed and name not in FLAGS_AFTER_V6]
+    missing = [name for name in FLAGS_OF_V8 if name not in listed and name not in FLAGS_AFTER_V6]
     assert missing == []
 
 
@@ -311,11 +311,10 @@ def test_v6_prompt_carries_the_omnibus_points_verbatim_and_says_why():
 
 def test_v6_prompt_names_every_schema_flag():
     """Every fact the schema defines is in the v6 field list."""
-    from tere4ai.elicit_features.elicitor import schema_flag_names
-
+    # B184: the facts of tag v2.0.0-beta.1, not the live schema (ruling P15).
     prompt = (ROOT / "prompts" / "elicit_features" / "v6.md").read_text(encoding="utf-8")
     listed = set(re.findall(r"[a-z0-9_]+", prompt))
-    missing = [name for name in schema_flag_names() if name not in listed and name not in FLAGS_AFTER_V6]
+    missing = [name for name in FLAGS_OF_V8 if name not in listed and name not in FLAGS_AFTER_V6]
     assert missing == []
 
 

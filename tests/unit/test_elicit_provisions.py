@@ -13,6 +13,11 @@ import re
 from pathlib import Path
 
 import pytest
+from tests.unit.flags_of_record import (
+    ANNEX_III_FACT_POINTS_OF_V8,
+    ARTICLE_6_3_CONDITIONS_OF_V8,
+    FLAGS_OF_V8,
+)
 
 from tere4ai.elicit_features.provisions import (
     ProvisionUnresolved,
@@ -176,12 +181,11 @@ def test_v6_every_schema_flag_but_the_two_omnibus_facts_has_a_provision() -> Non
     """Each flag's list is not empty but the two Omnibus facts': v6 quoted
     the Omnibus points from the amending act (the graph had no node for them
     then; they are graph nodes now, cited by v7), so they carry none."""
-    from tere4ai.elicit_features.elicitor import schema_flag_names
-
+    # B184: the facts of tag v2.0.0-beta.1, not the live schema (ruling P15).
     table = _v6_table()
     without = [
         name
-        for name in schema_flag_names()
+        for name in FLAGS_OF_V8
         if name not in OMNIBUS_FLAGS and name not in FLAGS_AFTER_V6 and not table.get(f"flags.{name}")
     ]
     assert without == []
@@ -211,14 +215,11 @@ def test_v6_article_5_flags_quote_the_point_the_classifier_cites() -> None:
 
 
 def test_v6_annex_iii_flags_quote_the_classifiers_node_or_one_of_its_points() -> None:
-    from tere4ai.mcp_server.classify import ANNEX_III_RULES
-
+    # B184: the rule table of tag v2.0.0-beta.1 (ruling P15).
     table = _v6_table()
-    for rule in ANNEX_III_RULES:
-        node = rule["node"]
-        for flag in (*rule["flags"], *rule.get("subflags", ())):
-            nodes = table.get(f"flags.{flag}", [])
-            assert any(n == node or n.startswith(node + ":") for n in nodes), flag
+    for flag, node in ANNEX_III_FACT_POINTS_OF_V8.items():
+        nodes = table.get(f"flags.{flag}", [])
+        assert any(n == node or n.startswith(node + ":") for n in nodes), flag
     assert "eu-ai-act:annex-iii:point-5:b" in table["flags.creditworthiness_evaluation"]
     assert "eu-ai-act:annex-iii:point-5:c" in table["flags.life_health_insurance_risk_pricing"]
     assert "eu-ai-act:annex-iii:point-1:b" in table[
@@ -228,13 +229,13 @@ def test_v6_annex_iii_flags_quote_the_classifiers_node_or_one_of_its_points() ->
 
 def test_v6_article_6_and_article_50_flags_quote_the_classifiers_nodes() -> None:
     from tere4ai.mcp_server.classify import (
-        ARTICLE_6_3_CONDITIONS,
         ARTICLE_6_3_PROFILING_OVERRIDE,
         ARTICLE_50_RULES,
     )
 
     table = _v6_table()
-    for flag, node_ids, _note in ARTICLE_6_3_CONDITIONS:
+    # B184: the three conditions of tag v2.0.0-beta.1 (ruling P15).
+    for flag, node_ids, _note in ARTICLE_6_3_CONDITIONS_OF_V8:
         for node_id in node_ids:
             assert node_id in table.get(f"flags.{flag}", []), flag
     assert ARTICLE_6_3_PROFILING_OVERRIDE in table["flags.profiling_of_natural_persons"]
@@ -322,10 +323,9 @@ def _v7_table() -> dict[str, list[str]]:
 
 
 def test_v7_every_schema_flag_has_a_provision() -> None:
-    from tere4ai.elicit_features.elicitor import schema_flag_names
-
+    # B184: the facts of tag v2.0.0-beta.1, not the live schema (ruling P15).
     table = _v7_table()
-    assert [name for name in schema_flag_names() if not table.get(f"flags.{name}")] == []
+    assert [name for name in FLAGS_OF_V8 if not table.get(f"flags.{name}")] == []
 
 
 def test_v7_article_5_flags_quote_the_classifiers_nodes_points_ba_and_bb_included() -> None:
