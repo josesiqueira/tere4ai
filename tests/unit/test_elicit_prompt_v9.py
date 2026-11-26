@@ -298,49 +298,92 @@ def test_v9_point_2_fact_quotes_article_6_1a_and_6_1b():
     assert {"eu-ai-act:article-6:paragraph-1a", "eu-ai-act:article-6:paragraph-1b"} <= set(nodes)
 
 
-# Facts whose schema description quotes a legal unit that v9 does not attach to
-# them, each with its reason (fix round 1, I3): (fact, the node holding the
-# quoted words).
-SCHEMA_QUOTE_EXCEPTIONS: dict[tuple[str, str], str] = {
-    **{(fact, "eu-ai-act:annex-iii:point-1"): "P16: the opening words of point 1 are stated in the prompt's words "
-       "under its heading; the whole point node is not printed"
-       for fact, _unit in ANNEX_III_RULES[0]["uses"]},
-    **{(fact, "eu-ai-act:annex-iii:point-6"): "P16: the opening words of point 6 are stated in the prompt's words "
-       "under its heading; the whole point node is not printed"
-       for fact, _unit in ANNEX_III_RULES[5]["uses"]},
-    **{(fact, "eu-ai-act:annex-iii:point-7"): "P16: the opening words of point 7 are stated in the prompt's words "
-       "under its heading; the whole point node is not printed"
-       for fact, _unit in ANNEX_III_RULES[6]["uses"]},
+# Facts whose schema description quotes words that v9 does not attach to them,
+# each with its reason (fix rounds 1 and 2, I3): (fact, the opening words of
+# the quoted passage). Only the opening words of points 1, 6 and 7 are
+# excepted; the quotation of each listed use is never excepted.
+OPENING_WORDS = {
+    0: "Biometrics, in so far as",
+    5: "Law enforcement, in so far as",
+    6: "Migration, asylum and border control management, in so far as",
 }
+SCHEMA_QUOTE_EXCEPTIONS: dict[tuple[str, str], str] = {
+    (fact, words): f"P16: the opening words of point {index + 1} are stated in the prompt's words under its "
+                   "heading; the whole point node is not printed"
+    for index, words in OPENING_WORDS.items()
+    for fact, _unit in ANNEX_III_RULES[index]["uses"]
+}
+# The listed-use fact to its own legal unit, the node its x-annex-iii-use names.
+LISTED_USE_UNIT = {fact: unit for rule in ANNEX_III_RULES for fact, unit in rule["uses"]}
 
 
-def test_v9_attaches_to_each_fact_every_unit_its_schema_description_quotes(dump):
-    """Each passage the schema description of a fact quotes is resolved, as
-    test_features_schema_descriptions.py resolves it, to the nodes whose text
-    holds it; one of those nodes must be a provision v9 attaches to the fact
-    (a parent node counts, since its printed text holds the passage). The
-    exceptions are listed above with their reasons, and each must still apply."""
-    from tests.unit.test_features_schema_descriptions import QUOTED, _normalised
+def _schema_quote_gaps(text: str, dump: dict) -> tuple[list[tuple[str, str, str]], set[tuple[str, str]]]:
+    """The gaps between a prompt template and the schema descriptions, and the
+    exceptions used.
+
+    Each passage a fact's description quotes (the QUOTED pattern of
+    test_features_schema_descriptions.py) is resolved, as that file's
+    test_every_quoted_passage_is_the_text_of_a_node resolves it, to the nodes
+    whose normalised text holds it; one of them must be a provision the
+    template attaches to the fact (a parent node counts, since its printed text
+    holds the passage). For a listed-use fact, the quotation of the use itself
+    (the passage after "the Act's words:") must be held by the use's own legal
+    unit and that unit must be attached to the fact; a parent point never
+    counts for it. A passage opening with the words of an exception is excused
+    for that fact only. A gap is (fact, the reason, the passage's first words).
+    """
+    from tests.unit.test_features_schema_descriptions import QUOTE, QUOTED, _normalised
 
     texts = {n["id"]: _normalised(n.get("text") or "") for n in dump["nodes"]
              if n.get("type") != "UnitVersion" and n.get("text")}
-    table = fact_provisions(V9)
-    missing, used = [], set()
+    table = fact_provisions(text)
+    gaps: list[tuple[str, str, str]] = []
+    used: set[tuple[str, str]] = set()
     for fact, spec in SCHEMA["properties"]["flags"]["properties"].items():
         attached = set(table.get(f"flags.{fact}", []))
+        use_quote = None
+        if fact in LISTED_USE_UNIT:
+            unit = LISTED_USE_UNIT[fact]
+            use_quote = _normalised(QUOTE.search(spec["description"]).group(1))
+            if use_quote not in texts.get(unit, ""):
+                gaps.append((fact, f"the use's quotation is not the text of {unit}", use_quote[:60]))
+            elif unit not in attached:
+                gaps.append((fact, f"{unit} is not attached", use_quote[:60]))
         for quoted in QUOTED.findall(spec["description"]):
             passage = _normalised(quoted)
-            holders = {node for node, text in texts.items() if passage in text}
-            assert holders, (fact, passage[:60])
-            if holders & attached:
+            if passage == use_quote:
                 continue
-            excepted = [key for key in SCHEMA_QUOTE_EXCEPTIONS if key[0] == fact and key[1] in holders]
-            if excepted:
-                used.update(excepted)
-                continue
-            missing.append((fact, sorted(holders), passage[:60]))
-    assert missing == []
+            holders = {node for node, node_text in texts.items() if passage in node_text}
+            if not holders:
+                gaps.append((fact, "no node holds the passage", passage[:60]))
+            elif not holders & attached:
+                excepted = [key for key in SCHEMA_QUOTE_EXCEPTIONS
+                            if key[0] == fact and passage.startswith(key[1])]
+                if excepted:
+                    used.update(excepted)
+                else:
+                    gaps.append((fact, f"none of {sorted(holders)} is attached", passage[:60]))
+    return gaps, used
+
+
+def test_v9_attaches_to_each_fact_every_unit_its_schema_description_quotes(dump):
+    """Every unit a fact's schema description quotes is a provision v9
+    attaches to the fact, the exceptions above excepted, and each exception
+    still applies."""
+    gaps, used = _schema_quote_gaps(V9, dump)
+    assert gaps == []
     assert used == set(SCHEMA_QUOTE_EXCEPTIONS), "an exception no longer applies"
+
+
+@pytest.mark.parametrize("fact", sorted(LISTED_USE_UNIT))
+def test_the_schema_check_fails_when_a_listed_use_loses_its_unit(fact, dump):
+    """Mutation: v9 without the placeholder of the fact's own unit, in memory,
+    gives a gap for that fact (fix round 2)."""
+    placeholder = "{{provision:" + LISTED_USE_UNIT[fact] + "}}"
+    assert placeholder in V9, fact
+    mutated = "\n".join(line for line in V9.splitlines() if line.strip() != placeholder)
+    gaps, _used = _schema_quote_gaps(mutated, dump)
+    assert fact in {gap[0] for gap in gaps}, fact
 
 
 def test_v9_area_headings_are_the_schemas_area_names():
