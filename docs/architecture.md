@@ -2763,6 +2763,188 @@ way round.
   basis (D-G91, brief Q3); the reading taken follows Article 3(39), and
   its cost if wrong is that an emotion inference tool that uses no
   biometric data is not marked prohibited under point (f) (ruling R3).
+- DEC-33: the classifier's domain is a closed list of the eight areas of
+  Annex III and none_of_these_areas, and a listed use decides: the domain
+  is read only when no listed use of any point is true, a level that rests
+  on the area alone says so and is marked for human review, and no value
+  of the domain is a reason to read a fact as false (added 2026-11-26;
+  thesis task B185, spec G D-G92 and the rulings of its plan in
+  sdd/2026-11-26-B185-domain-and-certainty/ in the private research
+  repository; Jose's words are those D-G92 quotes: on a sector word with
+  nothing else known, "i think it should be high risk, and then flagged
+  for human review"; on the values, "looks better that they are comming
+  from Annex III lists", "i dont think you should change the name fo r
+  that but add a tip in the dashboard to show these", and on a typed
+  value "it doesnt seem like a good idea"; on an absent fact, "this should
+  be addressed definetely, because it looks like a silent 'no' and the
+  human can miss this"). Engineering decision (what the input means and
+  how certain an answer says it is, read from the Act's text, REF-01); it
+  needs no literature grounding (AGENTS.md grounding bar). D-G92 was
+  corrected after its second review by items (i) to (xi) and after the
+  plan's review by three added rules; this entry states the corrected
+  text.
+  The values. domain is one of nine values or unknown (null or absent):
+  biometrics (Annex III point 1), critical_infrastructure (2), education
+  (3), employment (4), essential_services (5), law_enforcement (6),
+  migration (7), justice (8) and none_of_these_areas. The schema lists
+  them (enum), maps each of the eight to its area number
+  (x-annex-iii-area-values), from which a client shows the Act's heading
+  of the point (the flags object's x-annex-iii-areas), and holds the one
+  wording of the refusal (x-refusal) with the messages for the four words
+  that left the list (x-removed-values). Any other value, a string with
+  another case or a space added, a list or a number included, is refused
+  as an input outside the schema (rejected_as_unsupported), and the
+  refusal reads "domain '<value>' is not a value of the schema"; for
+  healthcare, banking and insurance it adds "use essential_services if
+  the system is in the area of Annex III point 5, none_of_these_areas if
+  it is in none of the eight areas, or leave the domain unknown", and for
+  consumer "use none_of_these_areas if the system is in none of the eight
+  areas, or leave the domain unknown". No trimming and no change of case
+  is applied. domain is the area a person places the system in; it says
+  nothing about any listed use. A refused input returns before any lookup
+  by domain and carries no Article 27(1) block.
+  A listed use decides (D-G92 (2), (ii)). The Annex III point of the
+  answer is the first point, in order 1 to 8, with a listed use that is
+  true, as answered or by a definition of the Act (point 1 also on
+  real-time remote biometric identification in publicly accessible
+  spaces). This amends DEC-32 for D-G91 (2): the domain's point is read
+  only when no listed use of any point is true.
+  The area alone (D-G92 (3)). When no listed use is true, the domain names
+  an area, at least one listed use of that area is unknown and the
+  Article 6(1) route is not proven, the level is high_risk on the area
+  alone: the point is carried in a new field, annex_iii_area_unconfirmed,
+  with annex_iii_category null and high_risk_routes empty; a fixed line
+  says that the level rests on the area alone, that no listed use of the
+  point is confirmed, and names the unknown listed uses; no listed use is
+  cited; the status is requires_human_review and the confidence 0.5. The
+  answer cites Article 6(2) and the legal unit of the point and is dated
+  as an Annex III system (vii). The applicable requirements of Chapter
+  III are served as on any answer marked for review, with a note that
+  gives this cause, and an answer that carries a point in that field with
+  high_risk_routes empty is unsettled for the applicable requirements and
+  for trace_implementation whether or not an envelope came with it (i).
+  Point 1 gains this answer (domain biometrics). When every listed use of
+  the area is known false the area stops counting and the answer says so
+  in one line.
+  None of these areas (D-G92 (4), (iii)). The classifier cannot tell a
+  person's statement from a value a model proposed or a stored value, so
+  this value is never a reason to read a listed use as no: an unknown
+  listed use stays unknown and is named. A listed use that is true beside
+  this value is not a contradiction of a definition of the Act and goes
+  into a field of its own, area_conflicts, one entry per such listed use
+  (the domain value, the fact and the note "domain is none_of_these_areas
+  while flags.<fact> is true; the fact keeps its effect"); the answer is
+  marked for human review on every exit, unacceptable_risk included, as
+  an entry of fact_conflicts marks it, and the true fact keeps its
+  effect. The elicitor's code drops a proposed none_of_these_areas as a
+  dropped fact, whatever the prompt says, and a proposed value outside the
+  list with the refusal, and no client applies one from a proposal.
+  Routes that rest on an area (D-G92 (5), (vi), (vii)). high_risk_routes
+  holds the routes that hold on confirmed facts and never a route that
+  rests on the area. A product high-risk under Article 6(1) keeps that
+  route whatever the domain; when the domain names an area whose listed
+  uses are not all known false and none is true, annex_iii_area_unconfirmed
+  carries the point and a fixed line says that the Annex III scope is not
+  confirmed, and the answer is cited and dated as on the Article 6(1)
+  route alone. An Annex I Section B product in that case is served as
+  Section B, the provisions Article 2(2) names (D-G68): the check that
+  moves a Section B product to Annex III, and the check that leaves the
+  Annex I section unnamed, read listed uses that are true and never the
+  domain.
+  The Article 27(1) block (D-G92 (5), (v), and the rule added after the
+  plan's review). This amends DEC-14: the block never counts a point that
+  rests on the area as a confirmed area. When the area alone gives the
+  level, the block answers unknown, with a sentence that names the area
+  and its unknown listed uses, before any other reading; beside a proven
+  Article 6(1) route it answers as for that route when the point is 2 and
+  unknown otherwise, with the same sentence. Every cause that holds is
+  named, the area first.
+  Article 6(3) (D-G92 (6), (iv), passage (k)). article_6_3_exception_candidate
+  describes an answer that has an Annex III point, a listed use that is
+  true or a point that rests on the area: true when a condition (points
+  (a) to (d)) is true and profiling is not true; false when profiling is
+  true or every condition is false; null, shown as unknown, otherwise,
+  with an unknown condition or unknown profiling named among the missing
+  facts. On every other answer it is false and no condition fact is
+  named. The level stays high_risk; an unknown candidate changes neither
+  the status nor the Article 27(1) block, which holds at unknown for a
+  candidate only when the field is true. A true candidate marks the
+  answer for human review when Annex III decides what is served (Article
+  6(1) does not also make the system high-risk, or its product
+  legislation is in Annex I Section B); on a system with both routes the
+  field follows this rule and the status stays what the Article 6(1)
+  route gives. With a candidate, a fixed line cites Article 6(4): a
+  provider who considers that the system is not high-risk documents the
+  assessment before placing on the market or putting into service,
+  registers under Article 49(2), and provides the documentation to the
+  national competent authorities on request.
+  Article 50 (D-G92 (7), (x)). This amends DEC-18: Article 50 is named on
+  every exit on which it can apply (not a refused input, not
+  unacceptable_risk, not a Section B product served under Article 2(2)),
+  an unknown trigger fact named there. Paragraph 4 gains two facts, one
+  for each duty of the paragraph, each quoting its sentence: a deep fake
+  as Article 3(60) defines it, and text published to inform the public on
+  matters of public interest. A use authorised by law to detect, prevent,
+  investigate or prosecute criminal offences answers no; for the text
+  also where the content has had human review or editorial control under
+  a person's editorial responsibility; content that is part of an
+  evidently artistic, creative, satirical or fictional work answers yes,
+  since the duty stays and only its manner changes, which the answer's
+  note states. A true fact is a trigger of limited_risk like the other
+  Article 50 facts; a deep fake fact does not make
+  generates_synthetic_content follow. The answer's note no longer says
+  that paragraph 4 is not decided by the rules; paragraph 5 stays so. The
+  facts of Article 50(1) and (2) keep their meaning.
+  The sentences (D-G92 (8), (9)). Every fixed sentence that gives a reason
+  for review, in the answer, the Article 27(1) block and the note of the
+  applicable requirements, names the causes that hold, all of them, in
+  this order: an unknown Article 5 fact; facts that contradict a
+  definition; a listed use true beside none_of_these_areas; the area
+  alone; an Article 6(3) candidate; an open Article 6(1) route; an unknown
+  listed use. No sentence names a change to unacceptable_risk when
+  unacceptable_risk is false. The Article 50 note says "a fact that is
+  true". A system on both routes cites Article 6(1) and Article 6(2). The
+  two deployer facts quote Article 27(1) and say that the Act defines
+  neither category; purposes and affected_persons say that no
+  classification rule reads them.
+  The clients and the records (D-G92 (10), (11), (xi)). The area is chosen
+  first, from the nine values under the Act's headings, with the listed
+  uses of the chosen area under it; changing the area keeps every answer
+  of every area, opening another area never changes domain, and an area
+  with answers shows their count. The dashboard shows a tip beside the
+  choice with, per area, the Act's heading and listed uses and, under
+  them, the words of the Commission's draft guidelines on the
+  classification of high-risk AI systems (19 May 2026), labelled as the
+  Commission's draft and not binding, with the link; the other clients
+  show the Act's headings and listed uses. The draft decides no fact and
+  no rule. A stored domain outside the list is shown with the refusal's
+  message and corrected by the person. The elicitation prompt becomes
+  v10, in which the model proposes an area only from the description's
+  own words. Stored inputs of the tests, the demo sessions, the presets,
+  the dashboard's examples and the answer key are converted: a word that
+  named Annex III point 5 becomes essential_services only where the
+  description states a listed use of point 5, and unknown otherwise; any
+  other word becomes the value of the area whose listed use the
+  description states, and unknown otherwise; no conversion writes
+  none_of_these_areas; each conversion is listed for the owner. Runs made
+  before this decision are read with tag v2.0.0-beta.1.
+  Considered and not taken: positional identifiers or the headings as
+  values; reading unknown listed uses as no on the value
+  none_of_these_areas, a confident low answer on a value no person may
+  have stated; a review mark for an unknown candidate; giving the facts
+  of Article 50(1) and (2) a narrower meaning, which would lower stored
+  answers; a domain of several values; trimming or case folding a given
+  domain (the free-text normalisation of the 2026-07-20 audit, D8, which
+  the closed list makes unneeded).
+  Defense: a sector word read as an Annex III point gave a high-risk
+  answer with full confidence on a word no listed use confirmed, and an
+  absent fact read beside a broad domain looked like a silent no; a closed
+  list of the Act's own areas, a listed use that decides, and a level on
+  the area alone that says so and asks for review keep the answer as
+  certain as its facts. Cost if wrong: a schema list, table rows and
+  sentences in tere4ai2, reversed there with the demo sessions recorded
+  again; no kept data depends on them, since B74 has not run.
+  verify: completed in B185 task 9.
 
 ## 17. Implementation-traceability convention
 

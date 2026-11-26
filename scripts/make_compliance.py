@@ -47,7 +47,9 @@ FEATURES: dict[str, Any] = {
         "natural persons. The deployer is a private company under EU jurisdiction providing an "
         "essential private service, consumer credit."
     ),
-    "domain": "consumer credit and lending",
+    # B185 (P19): the free word to essential_services, the description states
+    # creditworthiness evaluation, Annex III point 5(b).
+    "domain": "essential_services",
     "purposes": [
         "evaluate the creditworthiness of natural persons applying for consumer loans",
         "produce a score and an approve, review, or decline recommendation for loan officers",

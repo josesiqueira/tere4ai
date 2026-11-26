@@ -80,7 +80,7 @@ says so.
 {
   "features": {
     "description": "CredScore evaluates the creditworthiness of natural persons applying for consumer loans and recommends a decision a loan officer can override.",
-    "domain": "banking",
+    "domain": "essential_services",
     "autonomy": "advisory",
     "flags": {
       "creditworthiness_evaluation": true,

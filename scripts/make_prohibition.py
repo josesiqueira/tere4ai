@@ -63,7 +63,9 @@ PURPOSES = [
 # the ladder must refuse to guess.
 ROUND_1: dict[str, Any] = {
     "description": DESCRIPTION,
-    "domain": "workplace monitoring and HR wellbeing analytics",
+    # B185 (P19): the free word to employment, the description states the
+    # monitoring of employees during work hours, Annex III point 4(b).
+    "domain": "employment",
     "purposes": PURPOSES,
     "autonomy": "advisory",
     "affected_persons": ["employees of the deploying employer"],
@@ -82,7 +84,9 @@ ROUND_2: dict[str, Any] = {
     + " It is not a medical device and is not deployed for safety reasons; the stated purpose is "
     "productivity and wellbeing monitoring. Provider and deployer are private companies "
     "established in the EU.",
-    "domain": "workplace monitoring and HR wellbeing analytics",
+    # B185 (P19): the free word to employment, the description states the
+    # monitoring of employees during work hours, Annex III point 4(b).
+    "domain": "employment",
     "purposes": PURPOSES,
     "autonomy": "advisory",
     "affected_persons": ["employees of the deploying employer"],

@@ -60,7 +60,6 @@ SYSTEMS: list[dict[str, Any]] = [
                     "folder and suspected phishing links are flagged for the IT "
                     "admin. It never blocks, deletes, or answers mail on its own."
                 ),
-                "domain": "consumer",
                 "purposes": [
                     "classify incoming email as ham, spam, or phishing",
                     "quarantine likely spam for later retrieval",
@@ -114,7 +113,6 @@ SYSTEMS: list[dict[str, Any]] = [
                     "unsure. It interacts directly with natural persons and "
                     "generates text."
                 ),
-                "domain": "consumer",
                 "purposes": [
                     "answer visitor questions about orders, returns and products",
                     "escalate to a human agent on request or when unsure",
@@ -168,7 +166,9 @@ SYSTEMS: list[dict[str, Any]] = [
                     "income, and payment history. It is not a fraud detection "
                     "tool."
                 ),
-                "domain": "banking",
+                # B185 (P19): banking to essential_services, the description
+                # states creditworthiness evaluation, Annex III point 5(b).
+                "domain": "essential_services",
                 "purposes": [
                     "evaluate the creditworthiness of consumer loan applicants",
                     "produce a score and a recommendation for a loan officer",

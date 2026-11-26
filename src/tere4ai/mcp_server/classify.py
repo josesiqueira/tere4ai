@@ -25,6 +25,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 @implements: DEC-23
 @implements: DEC-30 (the unacceptable_risk note names a tailored requirement; the sentence of record)
 @implements: DEC-32 (the Annex III rule table over the 25 listed uses; annex_iii_listed_uses; the facts corrected by the Act's definitions, fact_conflicts)
+@implements: DEC-33 (domain is one of the nine values of the schema, read as given; a refused input returns before any lookup by domain, with the refusal of a domain outside the schema)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -32,7 +33,6 @@ from __future__ import annotations
 
 import json
 import re
-import unicodedata
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -52,7 +52,11 @@ from tere4ai.mcp_server.levels import (  # noqa: F401
     RISK_CATEGORIES,
     level_name,
 )
-from tere4ai.mcp_server.removed_facts import REMOVED_FACT_REPLACEMENTS
+from tere4ai.mcp_server.removed_facts import (
+    REMOVED_FACT_REPLACEMENTS,
+    domain_is_a_value,
+    domain_refusal,
+)
 from tere4ai.mcp_server.tools import make_envelope
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -255,13 +259,17 @@ PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
 # x-annex-iii-area and x-annex-iii-use). A point matches when one of its
 # listed-use facts is true; point 1 also matches on
 # real_time_remote_biometric_public (also_matching), which reaches point 1(a)
-# and does not count for the domain rule (ruling P5). Points 2 to 8 still
-# match on the system's domain, which stops counting only when every listed
-# use of the point is known false. Checked in point order; the first match
-# becomes annex_iii_category. The introductory words of points 1, 6 and 7
-# ("in so far as their use is permitted under relevant Union or national
-# law") are printed by the schema and are not a fact.
+# and does not count for the domain rule (ruling P5). B185 (DEC-33, ruling
+# P2): each point has one value of `domain`, the schema's value of its area
+# (x-annex-iii-area-values); a point still matches on that value until every
+# listed use of the point is known false, point 1 on biometrics as well
+# (Task 2 of B185 replaces this rule with the reading of D-G92). Checked in
+# point order; the first match becomes annex_iii_category. The introductory
+# words of points 1, 6 and 7 ("in so far as their use is permitted under
+# relevant Union or national law") are printed by the schema and are not a
+# fact.
 # @implements: DEC-32
+# @implements: DEC-33
 ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
     {
         # point 1: "Biometrics, in so far as their use is permitted under
@@ -276,7 +284,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
             ("emotion_recognition", "eu-ai-act:annex-iii:point-1:c"),
         ),
         "also_matching": (("real_time_remote_biometric_public", "eu-ai-act:annex-iii:point-1:a"),),
-        "domains": (),
+        "domain": "biometrics",
     },
     {
         # point 2: "Critical infrastructure: AI systems intended to be used
@@ -288,7 +296,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
         "label": "critical infrastructure",
         "uses": (("critical_infrastructure_safety", "eu-ai-act:annex-iii:point-2"),),
         "also_matching": (),
-        "domains": ("critical_infrastructure",),
+        "domain": "critical_infrastructure",
     },
     {
         # point 3: "Education and vocational training: (a) AI systems
@@ -303,7 +311,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
             ("annex_iii_3d_test_monitoring", "eu-ai-act:annex-iii:point-3:d"),
         ),
         "also_matching": (),
-        "domains": ("education",),
+        "domain": "education",
     },
     {
         # point 4: "Employment, workers' management and access to
@@ -316,7 +324,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
             ("annex_iii_4b_work_relationships", "eu-ai-act:annex-iii:point-4:b"),
         ),
         "also_matching": (),
-        "domains": ("employment",),
+        "domain": "employment",
     },
     {
         # point 5: "Access to and enjoyment of essential private services and
@@ -333,7 +341,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
             ("annex_iii_5d_emergency_calls", "eu-ai-act:annex-iii:point-5:d"),
         ),
         "also_matching": (),
-        "domains": ("healthcare", "banking", "insurance"),
+        "domain": "essential_services",
     },
     {
         # point 6: "Law enforcement, in so far as their use is permitted
@@ -351,7 +359,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
             ("annex_iii_6e_profiling", "eu-ai-act:annex-iii:point-6:e"),
         ),
         "also_matching": (),
-        "domains": ("law_enforcement",),
+        "domain": "law_enforcement",
     },
     {
         # point 7: "Migration, asylum and border control management, in so
@@ -367,7 +375,7 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
             ("annex_iii_7d_identification", "eu-ai-act:annex-iii:point-7:d"),
         ),
         "also_matching": (),
-        "domains": ("migration",),
+        "domain": "migration",
     },
     {
         # point 8: "Administration of justice and democratic processes: (a)
@@ -380,9 +388,14 @@ ANNEX_III_RULES: tuple[dict[str, Any], ...] = (
             ("annex_iii_8b_elections", "eu-ai-act:annex-iii:point-8:b"),
         ),
         "also_matching": (),
-        "domains": ("justice",),
+        "domain": "justice",
     },
 )
+
+# B185 (DEC-33, ruling P2): each value of `domain` that names an area, to the
+# node of its Annex III point; none_of_these_areas names no area.
+ANNEX_III_POINT_OF_DOMAIN: dict[str, str] = {rule["domain"]: rule["node"] for rule in ANNEX_III_RULES}
+DOMAIN_NONE_OF_THESE_AREAS = "none_of_these_areas"
 
 # The 25 listed-use facts, in point order (B184, DEC-32).
 ANNEX_III_LISTED_USE_FACTS: tuple[str, ...] = tuple(
@@ -875,25 +888,6 @@ class _Citations:
             self.spans.append(span)
 
 
-def _normalize_domain(raw: Any) -> str | None:
-    """Normalise a free-text domain token before matching.
-
-    Drops Unicode format and control characters (zero-width space, soft
-    hyphen, bidi marks) and applies NFKC, so an invisible or compatibility
-    character cannot silently turn a known domain into a near-miss that then
-    reads as out-of-scope (audit 2026-07-20 D8). Case-folded and trimmed.
-    Returns None for a blank or non-string value. Note a genuine homoglyph
-    (e.g. a Cyrillic letter) still will not match a Latin domain, which is
-    correct: it is a different string, and the D1 unknown-flag guard then
-    prevents a confident minimal verdict rather than this function guessing.
-    """
-    if not isinstance(raw, str):
-        return None
-    cleaned = "".join(ch for ch in raw if unicodedata.category(ch)[0] != "C")
-    cleaned = unicodedata.normalize("NFKC", cleaned)
-    return cleaned.strip().casefold() or None
-
-
 def _annex_iii_all_matches(flags: dict[str, Any], domain: str | None) -> list[str]:
     """Every Annex III point node the facts match, in point order.
 
@@ -910,7 +904,7 @@ def _annex_iii_all_matches(flags: dict[str, Any], domain: str | None) -> list[st
     matches: list[str] = []
     for rule in ANNEX_III_RULES:
         matched_fact = _annex_iii_trigger_fact(rule, flags) is not None
-        matched_domain = domain in rule["domains"] and not _every_listed_use_false(rule, flags)
+        matched_domain = domain == rule["domain"] and not _every_listed_use_false(rule, flags)
         if matched_fact or matched_domain:
             matches.append(rule["node"])
     return matches
@@ -970,7 +964,7 @@ def _annex_iii_scan(
     notes: list[str] = []
     for rule in ANNEX_III_RULES:
         matched_fact = _annex_iii_trigger_fact(rule, flags)
-        matched_domain = domain if domain in rule["domains"] else None
+        matched_domain = domain if domain == rule["domain"] else None
         # Evidence-driven fix (eval/results/ELICITATION_ERRORS.md, scenario
         # 161): a bare domain match must YIELD when every listed use of the
         # category is known false. Annex III categories cover specific uses
@@ -1036,7 +1030,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         )
 
     flags = features.get("flags") or {}
-    domain = _normalize_domain(features.get("domain"))
+    # B185 (DEC-33): the domain as given; the schema check above refused any
+    # value outside the list, so no trimming and no change of case.
+    domain = features.get("domain")
 
     node_index = _node_index(dump)
     citations = _Citations(node_index)
@@ -1695,6 +1691,46 @@ def _cite_listed_uses(
         envelope["missing_facts"] = [*(envelope.get("missing_facts") or []), *citations.unresolved]
 
 
+def _rejected_answer(
+    envelope: dict[str, Any], features: Any, dump: dict[str, Any]
+) -> dict[str, Any]:
+    """The answer of a refused input: no rule ran, so nothing is read from the facts.
+
+    B185 (DEC-33, the guard I10): the answer's fields are set here and the
+    envelope is returned before any lookup by domain. After the schema's own
+    errors come one line for each fact that left the schema (B184, final
+    review, M2), naming the facts that replace it, then, when the given
+    domain is not a value of the schema and is neither absent nor null, the
+    refusal of P30 (domain_refusal), word for word. Until Task 6 of B185 the
+    fria block is today's: the block of a classification not settled.
+
+    @implements: DEC-32
+    @implements: DEC-33
+    """
+    answer = envelope["answer"]
+    answer["fact_conflicts"] = []
+    missing = list(envelope.get("missing_facts") or [])
+    given = features.get("flags") if isinstance(features, dict) else None
+    if isinstance(given, dict):
+        missing.extend(
+            REMOVED_FACT_LINE.format(removed=removed, replacements=replacements)
+            for removed, replacements in REMOVED_FACT_REPLACEMENTS.items()
+            if removed in given
+        )
+    if isinstance(features, dict) and features.get("domain") is not None:
+        domain = features["domain"]
+        if not domain_is_a_value(domain):
+            missing.append(domain_refusal(domain))
+    envelope["missing_facts"] = missing
+    answer["fria"] = assess_fria_applicability(None, None, {}, {})
+    answer["annex_i_section"] = None
+    answer["high_risk_routes"] = []
+    answer["annex_iii_listed_uses"] = []
+    answer["application_dates"] = []
+    answer["legal_text"] = legal_text(dump)
+    return envelope
+
+
 def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
     """Deterministic classification plus the Article 27(1) FRIA block.
 
@@ -1729,7 +1765,13 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     block is computed (ruling P11), the level unchanged; a wider fact read
     true from unknown adds a rationale line only (ruling R6).
 
+    B185 (spec G D-G92 (1) and (viii), DEC-33): a refused input returns from
+    _rejected_answer before any lookup by domain, and a domain outside the
+    schema's list gets the schema's refusal among the missing facts; every
+    other answer reads the domain as given.
+
     @implements: DEC-32
+    @implements: DEC-33
     """
     conflicts: list[dict[str, str]] = []
     unknown_lines: list[str] = []
@@ -1741,50 +1783,34 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     if not isinstance(answer, dict) or "risk_category" not in answer:
         return envelope
     if envelope.get("status") == "rejected_as_unsupported":
-        # No rule ran, so nothing was read from the facts (Task 2's rejection).
-        answer["fact_conflicts"] = []
-        # B184 (final review, M2): after the schema's own errors, one line for
-        # each fact that left the schema, naming the facts that replace it.
-        given = features.get("flags") if isinstance(features, dict) else None
-        if isinstance(given, dict):
-            envelope["missing_facts"] = [
-                *(envelope.get("missing_facts") or []),
-                *(
-                    REMOVED_FACT_LINE.format(removed=removed, replacements=replacements)
-                    for removed, replacements in REMOVED_FACT_REPLACEMENTS.items()
-                    if removed in given
-                ),
+        return _rejected_answer(envelope, features, dump)
+    answer["fact_conflicts"] = conflicts
+    rationale = answer.setdefault("rationale", [])
+    rationale.extend(unknown_lines)
+    if conflicts:
+        envelope["missing_facts"] = [
+            *(envelope.get("missing_facts") or []),
+            *(entry["note"] for entry in conflicts),
+        ]
+        envelope["status"] = "requires_human_review"
+        envelope["confidence"] = 0.5
+        rationale.append(FACT_CONFLICT_STATUS_LINE)
+        if answer.get("risk_category") == "unacceptable_risk":
+            # B184 (final review, M3): each prohibited-practice note says
+            # the prohibition rests on facts that contradict a definition.
+            envelope["legal_status_notes"] = [
+                f"{note}. {PROHIBITION_FACT_CONFLICT_CLAUSE}" if PROHIBITED_PRACTICE_NOTE_MARK in note else note
+                for note in envelope.get("legal_status_notes") or []
             ]
-    else:
-        answer["fact_conflicts"] = conflicts
-        rationale = answer.setdefault("rationale", [])
-        rationale.extend(unknown_lines)
-        if conflicts:
-            envelope["missing_facts"] = [
-                *(envelope.get("missing_facts") or []),
-                *(entry["note"] for entry in conflicts),
-            ]
-            envelope["status"] = "requires_human_review"
-            envelope["confidence"] = 0.5
-            rationale.append(FACT_CONFLICT_STATUS_LINE)
-            if answer.get("risk_category") == "unacceptable_risk":
-                # B184 (final review, M3): each prohibited-practice note says
-                # the prohibition rests on facts that contradict a definition.
-                envelope["legal_status_notes"] = [
-                    f"{note}. {PROHIBITION_FACT_CONFLICT_CLAUSE}" if PROHIBITED_PRACTICE_NOTE_MARK in note else note
-                    for note in envelope.get("legal_status_notes") or []
-                ]
     flags = features.get("flags") if isinstance(features, dict) else None
     if not isinstance(flags, dict):
         flags = {}
     deployer = features.get("deployer") if isinstance(features, dict) else None
     if not isinstance(deployer, dict):
         deployer = {}
-    # Invalid input still reaches this wrapper (the core reports the schema
-    # errors in its envelope), so never assume field types here.
-    domain = _normalize_domain(
-        features.get("domain") if isinstance(features, dict) else None
-    )
+    # B185 (DEC-33): a rejected input returned above, so the domain here is a
+    # value of the schema or unknown, read as given.
+    domain = features.get("domain") if isinstance(features, dict) else None
     annex_node = answer.get("annex_iii_category")
     # The full set of matched Annex III points, so the FRIA rule can scope
     # the point-2 exception to the area, not the whole system (audit D5).

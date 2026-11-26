@@ -143,7 +143,9 @@ def test_scenario_a_deepfake_generator_is_prohibited(dump, node_ids):
 def test_scenario_b_hospital_triage_is_high_risk(dump, node_ids):
     features = {
         "description": "Hospital emergency department triage support system.",
-        "domain": "healthcare",
+        # B185 (P19): healthcare to essential_services, the description states
+        # an emergency healthcare patient triage system, Annex III point 5(d).
+        "domain": "essential_services",
         "flags": {
             "annex_iii_5d_emergency_calls": True,
             "medical_or_safety_component": True,
@@ -165,7 +167,9 @@ def test_scenario_b_hospital_triage_is_high_risk(dump, node_ids):
 def test_scenario_b_with_prohibition_flags_known_false(dump, node_ids):
     features = {
         "description": "Hospital emergency department triage support system.",
-        "domain": "healthcare",
+        # B185 (P19): healthcare to essential_services, the description states
+        # an emergency healthcare patient triage system, Annex III point 5(d).
+        "domain": "essential_services",
         "flags": all_false_flags(
             annex_iii_5d_emergency_calls=True, medical_or_safety_component=True
         ),
@@ -181,7 +185,6 @@ def test_scenario_b_with_prohibition_flags_known_false(dump, node_ids):
 def test_scenario_c_ecommerce_chatbot_is_limited_risk(dump, node_ids):
     features = {
         "description": "Customer service chatbot for an e-commerce shop.",
-        "domain": "consumer",
         "flags": all_false_flags(interacts_with_natural_persons=True),
     }
     envelope = classify_ai_system(features, dump)
@@ -197,7 +200,6 @@ def test_scenario_c_ecommerce_chatbot_is_limited_risk(dump, node_ids):
 def test_scenario_d_movie_recommender_is_minimal(dump, node_ids):
     features = {
         "description": "Movie recommendation engine for a streaming service.",
-        "domain": "consumer",
         "flags": all_false_flags(),
     }
     envelope = classify_ai_system(features, dump)
@@ -242,26 +244,24 @@ def test_absent_annex_iii_flags_block_a_confident_minimal(dump, node_ids):
         assert f"flags.{flag}" in facts, flag
 
 
-def test_homoglyph_or_invisible_domain_does_not_silently_clear(dump, node_ids):
-    """Audit D8: an invisible or homoglyph character in domain must not turn a
-    known domain into a near-miss that reads as confidently out-of-scope. With
-    Annex III facts unknown the outcome is uncertain, never confident minimal."""
+def test_homoglyph_or_invisible_domain_is_refused(dump, node_ids):
+    """Audit D8, read again by B185 (DEC-33): an invisible or homoglyph
+    character in domain makes a value outside the schema's list, which is
+    refused with the schema's wording, never read as a near-miss and never
+    normalised into a value: no trimming, no change of case, no removal of
+    format characters (spec G D-G92 (viii))."""
     flags = dict.fromkeys(ARTICLE_5_POINT_BY_FLAG, False)
     flags["real_time_remote_biometric_public"] = False
-    for bad_domain in ("banking​", "ban­king", "бanking"):
+    for bad_domain in ("essential_services\u200b", "essential\u00adservices", "\u0435ssential_services",
+                       "\u200bessential_services\u200b"):
         envelope = classify_ai_system(
             {"description": "A finance system, domain obfuscated.", "domain": bad_domain, "flags": flags},
             dump,
         )
-        assert envelope["answer"]["risk_category"] != "minimal_risk", bad_domain
-        assert envelope["status"] != "not_applicable", bad_domain
-    # A zero-width-padded but otherwise exact known domain normalises cleanly.
-    clean = classify_ai_system(
-        {"description": "Banking eligibility engine.", "domain": "​banking​",
-         "flags": {**flags, "creditworthiness_evaluation": True}},
-        dump,
-    )
-    assert clean["answer"]["annex_iii_category"] == "eu-ai-act:annex-iii:point-5"
+        assert_envelope_invariants(envelope, node_ids)
+        assert envelope["status"] == "rejected_as_unsupported", bad_domain
+        assert envelope["answer"]["risk_category"] is None, bad_domain
+        assert f"domain '{bad_domain}' is not a value of the schema" in envelope["missing_facts"]
 
 
 def test_rtrb_without_law_enforcement_context_asks_for_it(dump, node_ids):
@@ -423,7 +423,6 @@ def test_profiling_cancels_derogation_candidacy(dump, node_ids):
 def test_annex_i_route_is_high_risk_without_derogation(dump, node_ids):
     features = {
         "description": "Vision safety component in an industrial machine.",
-        "domain": "manufacturing",
         "flags": all_false_flags(
             annex_i_covered_product=True,
             third_party_conformity_assessment_required=True,
@@ -446,7 +445,6 @@ def test_annex_i_route_is_high_risk_without_derogation(dump, node_ids):
 def test_annex_i_route_unresolved_third_party_fact_never_settles(dump, node_ids):
     features = {
         "description": "Safety component of a regulated product.",
-        "domain": "manufacturing",
         "flags": all_false_flags(annex_i_covered_product=True)
         | {"third_party_conformity_assessment_required": None},
     }
@@ -468,7 +466,6 @@ def test_annex_i_route_unresolved_third_party_fact_never_settles(dump, node_ids)
 def test_annex_i_route_explicitly_ruled_out_continues_ladder(dump, node_ids):
     features = {
         "description": "Component of a product that needs no third-party assessment.",
-        "domain": "consumer",
         "flags": all_false_flags(annex_i_covered_product=True),
     }
     envelope = classify_ai_system(features, dump)
@@ -497,7 +494,6 @@ def test_lift_case_annex_i_unknown_is_named_and_not_minimal(dump, node_ids):
     I fact is named (R1); the FRIA block follows the level."""
     features = {
         "description": "Vision module that detects a jammed lift door.",
-        "domain": "consumer",
         "flags": _without(all_false_flags(), *ARTICLE_6_1_FLAGS),
     }
     envelope = classify_ai_system(features, dump)
@@ -516,7 +512,6 @@ def test_lift_case_annex_i_unknown_is_named_and_not_minimal(dump, node_ids):
 def test_annex_i_unknown_with_third_party_true_is_uncertain(dump, node_ids):
     features = {
         "description": "Module of a product needing third-party assessment.",
-        "domain": "consumer",
         "flags": _without(
             all_false_flags(third_party_conformity_assessment_required=True),
             "annex_i_covered_product",
@@ -532,7 +527,6 @@ def test_third_party_false_rules_out_the_route_whatever_annex_i(dump, node_ids):
     """R4: either fact known false rules the route out; nothing is named."""
     features = {
         "description": "Module of a product assessed without a third party.",
-        "domain": "consumer",
         "flags": _without(all_false_flags(), "annex_i_covered_product"),
     }
     envelope = classify_ai_system(features, dump)
@@ -547,7 +541,6 @@ def test_annex_i_false_rules_out_the_route_whatever_third_party(dump, node_ids):
     absent third-party assessment is not named."""
     features = {
         "description": "Module of a product outside Annex I.",
-        "domain": "consumer",
         "flags": _without(all_false_flags(), "third_party_conformity_assessment_required"),
     }
     envelope = classify_ai_system(features, dump)
@@ -564,7 +557,6 @@ def test_safety_component_with_third_party_false_is_not_held_at_uncertain(dump, 
     """R4: the safety exit's second case holds only while the route is open."""
     features = {
         "description": "Safety component, assessed without a third party.",
-        "domain": "consumer",
         "flags": _without(
             all_false_flags(medical_or_safety_component=True),
             "annex_i_covered_product",
@@ -580,7 +572,6 @@ def test_safety_component_with_annex_i_unknown_stays_uncertain(dump, node_ids):
     exit's own prose line."""
     features = {
         "description": "Safety component of an unknown product.",
-        "domain": "consumer",
         "flags": _without(
             all_false_flags(medical_or_safety_component=True), *ARTICLE_6_1_FLAGS
         ),
@@ -594,7 +585,6 @@ def test_safety_component_with_annex_i_unknown_stays_uncertain(dump, node_ids):
 def test_annex_i_unknown_lowers_the_article_50_exit(dump, node_ids):
     features = {
         "description": "Chatbot whose product status was not given.",
-        "domain": "consumer",
         "flags": _without(
             all_false_flags(interacts_with_natural_persons=True), *ARTICLE_6_1_FLAGS
         ),
@@ -613,7 +603,6 @@ def test_article_50_exit_names_both_high_risk_kinds(dump, node_ids):
     """Each applying kind adds its lowering line (R2)."""
     features = {
         "description": "Chatbot with an Annex III fact and the product status unknown.",
-        "domain": "consumer",
         "flags": _without(
             all_false_flags(interacts_with_natural_persons=True),
             *ARTICLE_6_1_FLAGS,
@@ -673,7 +662,7 @@ def test_rejected_input_names_no_article_6_1_fact(dump):
 
 def test_minimal_rationale_says_the_article_6_1_route_is_ruled_out(dump):
     envelope = classify_ai_system(
-        {"description": "Movie recommendation engine.", "domain": "consumer", "flags": all_false_flags()},
+        {"description": "Movie recommendation engine.", "flags": all_false_flags()},
         dump,
     )
     assert envelope["answer"]["risk_category"] == "minimal_risk"
@@ -708,7 +697,6 @@ def test_invalid_input_is_rejected_as_unsupported_never_raises(dump, node_ids):
     valid_out_of_scope = classify_ai_system(
         {
             "description": "Movie recommendation engine for a streaming service.",
-            "domain": "consumer",
             "flags": all_false_flags(),
         },
         dump,
@@ -755,7 +743,9 @@ def test_annex_iii_category_nodes_exist_and_are_annex_items(dump):
 def test_classification_is_deterministic(dump):
     features = {
         "description": "Hospital emergency department triage support system.",
-        "domain": "healthcare",
+        # B185 (P19): healthcare to essential_services, the description states
+        # an emergency healthcare patient triage system, Annex III point 5(d).
+        "domain": "essential_services",
         "flags": all_false_flags(annex_iii_5d_emergency_calls=True),
     }
     first = classify_ai_system(features, dump)
@@ -1529,7 +1519,7 @@ def test_old_values_map_to_new_ones_for_reading_old_results():
 
 def test_answer_carries_the_unacceptable_risk_field_not_prohibited(dump):
     envelope = classify_ai_system(
-        {"description": "Movie recommendation engine.", "domain": "consumer", "flags": all_false_flags()},
+        {"description": "Movie recommendation engine.", "flags": all_false_flags()},
         dump,
     )
     answer = envelope["answer"]
@@ -1545,7 +1535,6 @@ def test_answer_carries_the_unacceptable_risk_field_not_prohibited(dump):
 def _chatbot(**overrides) -> dict:
     return {
         "description": "Customer service chatbot for an e-commerce shop.",
-        "domain": "consumer",
         "flags": overrides.pop("flags"),
         **overrides,
     }
@@ -1646,7 +1635,6 @@ def test_rtrb_absent_with_law_enforcement_unknown_is_named_by_the_fria_rule(
 def _lift_door(deployer: dict) -> dict:
     return {
         "description": "Vision module that detects a jammed lift door.",
-        "domain": "other",
         "flags": _without(
             all_false_flags(
                 annex_i_covered_product=True,
@@ -1696,7 +1684,6 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
 ):
     features = {
         "description": "Control system for a regional water network.",
-        "domain": "other",
         "flags": _without(
             all_false_flags(critical_infrastructure_safety=True),
             "annex_iii_3a_admission",
@@ -1739,7 +1726,6 @@ def test_point_2_only_with_education_unknown_and_a_public_law_deployer_has_an_un
         _lift_door({"body_governed_by_public_law": True}),
         {
             "description": "Control system for a regional water network.",
-            "domain": "other",
             "flags": _without(
                 all_false_flags(critical_infrastructure_safety=True),
                 "annex_iii_3a_admission",

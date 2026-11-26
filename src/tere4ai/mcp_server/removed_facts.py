@@ -1,14 +1,27 @@
-"""The facts that left the features schema with DEC-32, each with the facts that replace it.
+"""The facts that left the features schema with DEC-32, each with the facts that replace it,
+and the refusal of a `domain` that is not a value of the schema (DEC-33).
 
 Kept in a module of its own so that the guard over the removed fact names
 (tests/unit/test_removed_facts_guard.py) allows these names here and nowhere
 else in the classifier: a removed fact that came back into the classifier's
-logic would still fail the guard.
+logic would still fail the guard. The four words that left the list of
+`domain` (B185) are read from the schema's x-removed-values, never written
+here.
 
 @implements: DEC-32
+@implements: DEC-33
 """
 
 from __future__ import annotations
+
+import json
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+_FEATURES_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[3] / "schema" / "json_schemas" / "system_features.schema.json"
+)
 
 # B184 (DEC-32; final review, M2): the seven facts that left the schema, each
 # with the facts that replace it (CHANGELOG.md, the B184 entry). A rejected
@@ -41,3 +54,34 @@ REMOVED_FACT_REPLACEMENTS: dict[str, str] = {
         "narrow_procedural_task (Article 6(3) point (a)) and preparatory_task (Article 6(3) point (d))"
     ),
 }
+
+
+@lru_cache(maxsize=1)
+def _domain_property() -> dict[str, Any]:
+    """The schema's `domain` property, read once from the schema file."""
+    schema = json.loads(_FEATURES_SCHEMA_PATH.read_text(encoding="utf-8"))
+    return schema["properties"]["domain"]
+
+
+def domain_refusal(value: object) -> str:
+    """The one wording of the refusal of a `domain` outside the schema (B185, ruling P30).
+
+    The schema's x-refusal formatted with the value, a string as it is (no
+    trimming, no change of case) and any other type as its JSON text; for a
+    word of x-removed-values, ": " and the message that names the value to use.
+
+    @implements: DEC-33
+    """
+    domain = _domain_property()
+    shown = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    refusal = domain["x-refusal"].format(value=shown)
+    message = domain["x-removed-values"].get(value) if isinstance(value, str) else None
+    return f"{refusal}: {message}" if message else refusal
+
+
+def domain_is_a_value(value: object) -> bool:
+    """Whether a given `domain` is a value of the schema's enum (null included).
+
+    @implements: DEC-33
+    """
+    return any(value == v and type(value) is type(v) for v in _domain_property()["enum"])

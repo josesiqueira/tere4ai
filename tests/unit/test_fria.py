@@ -319,7 +319,9 @@ def _credit_scorer_features(**extra) -> dict:
             "creditworthiness of natural persons and establishes their "
             "credit score for consumer loan decisions."
         ),
-        "domain": "banking",
+        # B185 (P19): banking to essential_services, the description states
+        # creditworthiness evaluation, Annex III point 5(b).
+        "domain": "essential_services",
         "flags": {
             "creditworthiness_evaluation": True,
             "subliminal_or_manipulative": False,
@@ -413,12 +415,14 @@ _ALL_FLAGS_FALSE = {
 
 def test_scenario_161_domain_yield_semantics_are_preserved(dump):
     """The domain-yield fix stands: when every point-5 fact (since B184 the
-    four listed uses of point 5) is explicitly false, a bare banking domain match
+    four listed uses of point 5) is explicitly false, a bare point 5 domain match
     yields to minimal. Post-audit-D1 every Annex III fact must be known
     false, otherwise an unknown one correctly blocks the clear."""
     features = {
         "description": "A bank tool with no high-risk use, fully specified.",
-        "domain": "banking",
+        # B185: banking to essential_services; the test is about the domain
+        # rule of point 5 itself, which Task 2 of B185 rewrites.
+        "domain": "essential_services",
         "flags": dict(_ALL_FLAGS_FALSE),
     }
     envelope = classify_ai_system(features, dump)
@@ -429,7 +433,7 @@ def test_scenario_161_domain_yield_semantics_are_preserved(dump):
 def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
     """Audit D1: with the other listed uses of point 5 explicitly false but
     5(b) unknown, the system cannot be confidently cleared as minimal, and
-    the unknown fact is named. B184 (D-G91, I8): the banking domain counts
+    the unknown fact is named. B184 (D-G91, I8): the point 5 domain counts
     until every listed use of point 5 is known false, so the answer is now
     high_risk through point 5 by the domain alone (it was undetermined while
     the false umbrella fact denied the whole area); the status of a match by
@@ -438,7 +442,9 @@ def test_unknown_annex_iii_subflag_blocks_a_confident_minimal(dump):
     del flags["creditworthiness_evaluation"]
     features = {
         "description": "A bank tool whose creditworthiness use is unstated.",
-        "domain": "banking",
+        # B185: banking to essential_services; the test is about the domain
+        # rule of point 5 itself, which Task 2 of B185 rewrites.
+        "domain": "essential_services",
         "flags": flags,
     }
     envelope = classify_ai_system(features, dump)
@@ -556,7 +562,7 @@ def test_requirements_pass_the_fria_block_through_verbatim(dump):
 
 def test_fria_rationale_uses_the_shown_name(dump):
     envelope = classify_ai_system(
-        {"description": "Customer service chatbot.", "domain": "consumer",
+        {"description": "Customer service chatbot.",
          "flags": {**_ALL_FLAGS_FALSE, "interacts_with_natural_persons": True,
                    "annex_i_covered_product": False,
                    "third_party_conformity_assessment_required": False}},

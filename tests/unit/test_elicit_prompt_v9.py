@@ -238,11 +238,18 @@ def test_v9_example_quotes_are_in_its_description_and_name_schema_facts():
 def test_v9_example_answers_every_point_5_listed_use_false_and_classifies_without_contradiction(dump):
     """The bank chatbot with the domain banking: with every point 5 listed use
     answered false the domain word stops counting (D-G91 (3)), so the
-    classifier gives no Annex III point and marks no fact conflict."""
+    classifier gives no Annex III point and marks no fact conflict.
+
+    B185 (DEC-33): v9 is a record from B185 Task 1 on, and its example's
+    domain banking is not a value of the schema, so the example is classified
+    with its domain removed; prompt v10 (B185 Task 8) gives the example of
+    record."""
     description, example = _example()
     flags = example["features"]["flags"]
     assert {fact: flags.get(fact) for fact in POINT_5_USES} == dict.fromkeys(POINT_5_USES, False)
-    env = classify_ai_system({"description": description, **example["features"]}, dump)
+    assert example["features"].get("domain") == "banking"
+    features = {k: v for k, v in example["features"].items() if k != "domain"}
+    env = classify_ai_system({"description": description, **features}, dump)
     assert env["answer"]["fact_conflicts"] == []
     assert env["answer"]["annex_iii_category"] is None
     assert env["answer"]["risk_category"] == "limited_risk"

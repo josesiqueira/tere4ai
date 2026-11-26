@@ -14,18 +14,43 @@
       "description": "Plain-language description of the system (context; not the decision basis)"
     },
     "domain": {
-      "type": [
-        "string",
-        "null"
+      "enum": [
+        "biometrics",
+        "critical_infrastructure",
+        "education",
+        "employment",
+        "essential_services",
+        "law_enforcement",
+        "migration",
+        "justice",
+        "none_of_these_areas",
+        null
       ],
-      "description": "Primary domain, free vocabulary (e.g. healthcare, education, employment, law_enforcement, migration, justice, banking, insurance, critical_infrastructure, consumer)"
+      "description": "The Annex III area the person places the system in before answering its listed uses: biometrics (point 1), critical_infrastructure (point 2), education (point 3), employment (point 4), essential_services (point 5), law_enforcement (point 6), migration (point 7), justice (point 8), or none_of_these_areas; null or absent is unknown. It is a statement about the area, not about any listed use: each listed use is answered by its own fact, and no value of domain reads a listed use as false. While no listed use of any point is true and a listed use of the named area is unknown, the level is high_risk on the area alone and the answer requires human review (DEC-33).",
+      "x-annex-iii-area-values": {
+        "biometrics": 1,
+        "critical_infrastructure": 2,
+        "education": 3,
+        "employment": 4,
+        "essential_services": 5,
+        "law_enforcement": 6,
+        "migration": 7,
+        "justice": 8
+      },
+      "x-refusal": "domain '{value}' is not a value of the schema",
+      "x-removed-values": {
+        "healthcare": "use essential_services if the system is in the area of Annex III point 5, none_of_these_areas if it is in none of the eight areas, or leave the domain unknown",
+        "banking": "use essential_services if the system is in the area of Annex III point 5, none_of_these_areas if it is in none of the eight areas, or leave the domain unknown",
+        "insurance": "use essential_services if the system is in the area of Annex III point 5, none_of_these_areas if it is in none of the eight areas, or leave the domain unknown",
+        "consumer": "use none_of_these_areas if the system is in none of the eight areas, or leave the domain unknown"
+      }
     },
     "purposes": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "What the system is intended to do, short phrases"
+      "description": "What the system is intended to do, short phrases. Context only: no classification rule reads it."
     },
     "autonomy": {
       "enum": [
@@ -323,7 +348,8 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "description": "The persons the system affects, short phrases. Context only: no classification rule reads it."
     },
     "deployer_kind": {
       "type": [
@@ -338,11 +364,11 @@
       "properties": {
         "body_governed_by_public_law": {
           "type": "boolean",
-          "description": "The deployer is a body governed by public law (Article 27(1))."
+          "description": "Article 27(1), the Act's words: 'deployers that are bodies governed by public law, or are private entities providing public services'. True when the deployer is a body governed by public law. The Act defines neither category."
         },
         "private_entity_providing_public_services": {
           "type": "boolean",
-          "description": "The deployer is a private entity providing public services (Article 27(1))."
+          "description": "Article 27(1), the Act's words: 'deployers that are bodies governed by public law, or are private entities providing public services'. True when the deployer is a private entity providing public services. The Act defines neither category."
         }
       },
       "additionalProperties": false

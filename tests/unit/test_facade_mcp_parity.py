@@ -48,7 +48,9 @@ TRIAGE_FEATURES = {
         "An AI triage assistant that prioritises emergency department "
         "patients by predicted urgency to support clinician decisions."
     ),
-    "domain": "healthcare",
+    # B185 (P19): healthcare to essential_services, the description states an
+    # emergency healthcare patient triage system, Annex III point 5(d).
+    "domain": "essential_services",
     "autonomy": "advisory",
     "flags": {
         "annex_iii_5d_emergency_calls": True,

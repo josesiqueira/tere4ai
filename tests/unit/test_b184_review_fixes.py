@@ -199,10 +199,12 @@ def test_the_routes_read_the_domain_rule(dump):
     flags = all_false(annex_i_covered_product=True, third_party_conformity_assessment_required=True,
                       annex_i_section_b_legislation=False)
     assert all(flags[fact] is False for fact, _unit in point_5["uses"])
-    env = classify_ai_system(_case(flags, domain="banking"), dump)
+    # B185: banking to essential_services; the test is about the domain rule
+    # of point 5 itself, which Task 2 of B185 rewrites.
+    env = classify_ai_system(_case(flags, domain="essential_services"), dump)
     assert env["answer"]["high_risk_routes"] == ["article_6_1"]
     flags.pop("annex_iii_5a_public_benefits")
-    env = classify_ai_system(_case(flags, domain="banking"), dump)
+    env = classify_ai_system(_case(flags, domain="essential_services"), dump)
     assert env["answer"]["high_risk_routes"] == ["article_6_1", "article_6_2"]
 
 

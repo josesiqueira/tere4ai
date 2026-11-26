@@ -20,10 +20,12 @@ from tests.unit.test_explain_trace_spans import hleg_pair_listed_as_on_disk
 
 import tere4ai.http_facade.app as facade
 from tere4ai.align_hleg.hleg_source import REFUSAL_PREFIX
+from tere4ai.elicit_features.elicitor import DOMAIN_DROP_OUTSIDE_REASON
 from tere4ai.extract_norms.model_clients import FakeClient
 from tere4ai.ingest.hleg_text import RECORD_FILE, TEXT_FILE
 from tere4ai.judge import config as config_module
 from tere4ai.judge.config import ModelConfigError
+from tere4ai.mcp_server.removed_facts import domain_refusal
 from tere4ai.mcp_server.tools import (
     BANNED_CLAIM_TERMS,
     SECTION_8_ENVELOPE_FIELDS,
@@ -51,7 +53,9 @@ TRIAGE_FEATURES = {
         "An AI triage assistant that prioritises emergency department "
         "patients by predicted urgency to support clinician decisions."
     ),
-    "domain": "healthcare",
+    # B185 (P19): healthcare to essential_services, the description states an
+    # emergency healthcare patient triage system, Annex III point 5(d).
+    "domain": "essential_services",
     "autonomy": "advisory",
     "flags": {
         "annex_iii_5d_emergency_calls": True,
@@ -231,7 +235,6 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
         json={
             "features": {
                 "description": "Movie recommendation engine for a streaming service.",
-                "domain": "consumer",
                 "flags": all_false,
             }
         },
@@ -451,9 +454,13 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
     assert resp.headers.get(facade.PAID_HEADER) == "true"
     answer = env["answer"]
     assert set(answer) == {"features", "quotes", "dropped", "notes", "prompt"}
-    assert answer["quotes"]["domain"] == {"text": quote, "start": 0, "end": len(quote)}
+    # B185 (DEC-33): the proposed domain "email" is not a value of the schema,
+    # so the elicitor drops it before the quote check and names it first.
+    assert "domain" not in answer["features"] and "domain" not in answer["quotes"]
+    assert answer["quotes"]["autonomy"] == {"text": quote, "start": 0, "end": len(quote)}
     assert answer["dropped"] == [
-        {"path": "flags.social_scoring", "reason": "quote not in the description"}
+        {"path": "domain", "reason": DOMAIN_DROP_OUTSIDE_REASON.format(refusal=domain_refusal("email"))},
+        {"path": "flags.social_scoring", "reason": "quote not in the description"},
     ]
     assert "social_scoring" not in answer["features"]["flags"]
     # B160: to v8 (deployer_kind).
@@ -730,7 +737,11 @@ def test_elicit_system_fields_have_no_banned_terms(client, fake_models):
                              "quarantines mail retrievably."},
     )
     assert response.status_code == 200
-    assert response.json()["answer"]["features"]["domain"] == "email"
+    # B185 (DEC-33): the proposed domain "email" is dropped by the elicitor.
+    assert "domain" not in response.json()["answer"]["features"]
+    assert {"path": "domain", "reason": DOMAIN_DROP_OUTSIDE_REASON.format(refusal=domain_refusal("email"))} in (
+        response.json()["answer"]["dropped"]
+    )
     serialized = json.dumps(strip_verbatim_quote_fields(response.json())).lower()
     for term in BANNED_CLAIM_TERMS:
         assert term not in serialized

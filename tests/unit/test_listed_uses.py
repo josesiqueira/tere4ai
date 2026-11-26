@@ -42,7 +42,8 @@ def norms() -> dict:
 
 
 def test_finding_8_productivity_scoring_is_high_risk_under_point_4b(dump):
-    env = classify_ai_system(_case(all_false(annex_iii_4b_work_relationships=True), domain="office_software"), dump)
+    # B185 (P19): the domain "office_software" is left out; it names no area.
+    env = classify_ai_system(_case(all_false(annex_iii_4b_work_relationships=True)), dump)
     a = env["answer"]
     assert a["risk_category"] == "high_risk"
     assert a["annex_iii_category"] == "eu-ai-act:annex-iii:point-4"
@@ -76,10 +77,12 @@ def test_domain_counts_until_every_listed_use_is_false(dump):
     point5_false = dict(annex_iii_5a_public_benefits=False, life_health_insurance_risk_pricing=False,
                         annex_iii_5d_emergency_calls=False)
     flags = {k: v for k, v in all_false(**point5_false).items() if k != "creditworthiness_evaluation"}
-    a = classify_ai_system(_case(flags, domain="banking"), dump)["answer"]
+    # B185: banking to essential_services; the test is about the domain rule
+    # of point 5 itself, which Task 2 of B185 rewrites.
+    a = classify_ai_system(_case(flags, domain="essential_services"), dump)["answer"]
     assert a["risk_category"] == "high_risk" and a["annex_iii_category"] == "eu-ai-act:annex-iii:point-5"
     assert a["annex_iii_listed_uses"] == []
-    a = classify_ai_system(_case(all_false(), domain="banking"), dump)["answer"]
+    a = classify_ai_system(_case(all_false(), domain="essential_services"), dump)["answer"]
     assert a["risk_category"] == "minimal_risk"
     assert any("every listed use of the category is answered false" in line for line in a["rationale"])
 

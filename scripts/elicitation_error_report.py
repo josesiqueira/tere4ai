@@ -196,10 +196,14 @@ ANALYSIS: dict[str, dict[str, Any]] = {
             "electricity usage statistics'."
         ),
         "counterfactual": {
-            "change": "set domain to 'consumer' (the supported reading)",
+            # B185 (DEC-33): the word consumer left the schema's list of
+            # domain values; the supported reading is the domain left
+            # unknown, which the classifier reads as it read consumer, an
+            # area of no Annex III point.
+            "change": "leave the domain unknown (the supported reading)",
             "expected_category": "limited_risk",
             "note": (
-                "with the domain read as consumer, the elicited "
+                "with the domain left unknown, the elicited "
                 "interacts_with_natural_persons flag yields "
                 "limited_risk, which matches the benchmark gold "
                 "(limited)"
@@ -337,6 +341,8 @@ def apply_counterfactual(features: dict[str, Any], change: str) -> dict[str, Any
         edited["flags"].pop(change.removeprefix("drop flags."), None)
     elif change.startswith("set domain to "):
         edited["domain"] = change.split("'")[1]
+    elif change.startswith("leave the domain unknown"):
+        edited.pop("domain", None)
     elif change.startswith("set the four point 3 listed uses false"):
         # B184 (DEC-32, ruling R11): the broad point 3 fact left the schema,
         # and a removed fact answered false is false on every listed use of

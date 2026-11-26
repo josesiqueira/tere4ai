@@ -3,6 +3,7 @@
 @implements: DEC-13, DEC-18
 @implements: DEC-23
 @implements: DEC-32
+@implements: DEC-33
 @grounded_by: REF-17, REF-16
 
 The trust split of USER.md holds: the LLM extracts FACTS from the given
@@ -27,6 +28,12 @@ B184 (fix round 1): a field or flag the reply proposes that the schema does
 not define is not kept, and the notes name it once,
 OUTSIDE_SCHEMA_NOTE, whether or not the reply quoted it; the note that its
 quote was ignored is then not added for the same path.
+
+B185 (DEC-33, ruling P3): a proposed `domain` that is none_of_these_areas,
+or that is not a value of the schema, is dropped before the schema check
+(_drop_domain) and named in dropped with its reason, so one wrong word never
+fails the whole elicitation; none_of_these_areas is a person's statement and
+is never taken from a proposal, whatever the prompt says.
 """
 
 from __future__ import annotations
@@ -46,6 +53,7 @@ from tere4ai.elicit_features.provisions import (
     render_template,
 )
 from tere4ai.extract_norms.pipeline import prompt_sha256
+from tere4ai.mcp_server.removed_facts import domain_is_a_value, domain_refusal
 
 ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "system_features.schema.json"
@@ -67,6 +75,12 @@ DEFAULT_PROMPT_VERSION = "v9"
 MIN_QUOTE_WORDS = 3
 # B184 fix round 1: the note for a field or flag outside the schema.
 OUTSIDE_SCHEMA_NOTE = "{path} was proposed but is not a fact of the schema; it was not kept"
+# B185 (DEC-33, rulings P3 and P30): the reasons a proposed domain is dropped.
+DOMAIN_DROP_NONE_REASON = (
+    "none_of_these_areas is never taken from a proposal (DEC-33); the domain is left unknown"
+)
+DOMAIN_DROP_OUTSIDE_REASON = "{refusal}; the domain is left unknown"
+DOMAIN_NONE_OF_THESE_AREAS = "none_of_these_areas"
 # Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
 NESTED_FACT_FIELDS = ("flags", "deployer")
 
@@ -100,7 +114,8 @@ class Elicitation:
     failed. quotes: {fact path: {"text", "start", "end"}}, the words of the
     description each kept fact rests on (start and end are code point
     offsets into the original description, text its slice there). dropped:
-    [{"path", "reason"}] for each fact removed for want of a quote. prompt:
+    [{"path", "reason"}] for each fact removed for want of a quote, and for a
+    proposed domain the elicitor cannot take (B185, _drop_domain). prompt:
     the instrument, {"prompt", "version", "template_sha256",
     "rendered_sha256", "provisions", "graph_version"}.
     """
@@ -205,6 +220,31 @@ def _without_unknowns(features: dict[str, Any]) -> dict[str, Any]:
     if isinstance(deployer, dict):
         kept["deployer"] = {k: v for k, v in deployer.items() if v is not None}
     return kept
+
+
+def _drop_domain(features: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    """features without a proposed domain the elicitor cannot take, and the
+    dropped entry naming it (B185, ruling P3).
+
+    none_of_these_areas is never taken from a proposal (DEC-33, spec G D-G92
+    (iii)); a value that is not a value of the schema is dropped with the
+    schema's refusal (domain_refusal, ruling P30). A null or absent domain,
+    or a value of the list that names an area, is kept as it is. The input
+    is never changed.
+
+    @implements: DEC-33
+    """
+    if "domain" not in features or features["domain"] is None:
+        return features, []
+    proposed = features["domain"]
+    if proposed == DOMAIN_NONE_OF_THESE_AREAS:
+        reason = DOMAIN_DROP_NONE_REASON
+    elif not domain_is_a_value(proposed):
+        reason = DOMAIN_DROP_OUTSIDE_REASON.format(refusal=domain_refusal(proposed))
+    else:
+        return features, []
+    kept = {k: v for k, v in features.items() if k != "domain"}
+    return kept, [{"path": "domain", "reason": reason}]
 
 
 def _fact_paths(features: dict[str, Any]) -> list[str]:
@@ -316,8 +356,8 @@ def elicit(
     """Render the prompt over the served build, then elicit with quotes.
 
     A template without provision placeholders (v1 to v5) parses as before:
-    the whole reply object is the features, and quotes and dropped stay
-    empty. A template with placeholders is rendered from the dump first;
+    the whole reply object is the features, quotes stay empty and dropped
+    names only a domain _drop_domain removed (B185). A template with placeholders is rendered from the dump first;
     ProvisionUnresolved returns features None with no generator call.
     """
     template, unrendered = _template(prompt_version, dump)
@@ -352,6 +392,8 @@ def elicit(
         if not isinstance(candidate, dict):
             notes.append(f"attempt {attempt}: generator output was not an object")
             continue
+        # B185 (ruling P3): after _without_unknowns, before _outside_schema.
+        candidate, domain_dropped = _drop_domain(candidate)
         outside = _outside_schema(candidate)
         cleaned = _clean(candidate, description)
         errors = _schema_errors(cleaned)
@@ -362,8 +404,9 @@ def elicit(
         if not quoted:
             notes.extend(outside_notes)
             notes.append(f"elicited on attempt {attempt}")
-            return Elicitation(features=cleaned, notes=notes, prompt=prompt)
+            return Elicitation(features=cleaned, dropped=domain_dropped, notes=notes, prompt=prompt)
         kept, kept_quotes, dropped, quote_notes = _keep_quoted(cleaned, quotes, description)
+        dropped = [*domain_dropped, *dropped]
         errors = _schema_errors(kept)
         if errors:
             notes.append(
@@ -372,9 +415,12 @@ def elicit(
             )
             continue
         notes.extend(outside_notes)
+        # A dropped domain is named in dropped, so its quote is not also
+        # reported as ignored (B185).
+        named = [*outside, *(entry["path"] for entry in domain_dropped)]
         notes.extend(
             note for note in quote_notes
-            if not any(note.startswith(f"quote for {path} ignored") for path in outside)
+            if not any(note.startswith(f"quote for {path} ignored") for path in named)
         )
         notes.append(f"elicited on attempt {attempt}")
         return Elicitation(

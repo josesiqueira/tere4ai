@@ -57,10 +57,13 @@ def dump() -> dict:
 
 
 def _reply_with_a_dropped_flag() -> str:
-    """Two quoted facts kept, one flag whose quote is not in the description."""
+    """Two quoted facts kept, one flag whose quote is not in the description.
+
+    B185 (P19): the domain "email security" is left out, since a spam filter
+    is in no area the description names and no conversion writes
+    none_of_these_areas; the test is about the quotes alone."""
     return json.dumps({
         "features": {
-            "domain": "email security",
             "flags": {
                 "social_scoring": False,
                 "interacts_with_natural_persons": False,
@@ -68,7 +71,6 @@ def _reply_with_a_dropped_flag() -> str:
             },
         },
         "quotes": {
-            "domain": QUOTE,
             "flags.social_scoring": QUOTE,
             "flags.interacts_with_natural_persons": QUOTE,
             "flags.biometric_categorisation": "it never sorts people by their faces",
@@ -134,8 +136,10 @@ def test_elicit_envelope_is_a_section8_proposal(dump):
 
 def test_elicit_envelope_names_a_dropped_field_outside_the_flags(dump):
     reply = json.dumps({
-        "features": {"domain": "email security", "autonomy": "full"},
-        "quotes": {"domain": QUOTE, "autonomy": "full"},
+        # B185 (P19): the domain "email security" is left out; the test is
+        # about the quote of autonomy alone.
+        "features": {"autonomy": "full"},
+        "quotes": {"autonomy": "full"},
     })
     env = elicit_envelope(SPAM, FakeGenerator(reply), dump=dump, snapshots_dir=SNAPSHOTS_DIR)
     assert "autonomy" not in env["answer"]["features"]

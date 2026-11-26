@@ -15,8 +15,9 @@ DESC = "A chatbot that answers shopper questions and tracks their mood at work."
 
 
 def test_valid_elicitation_passes_schema_and_keeps_description():
+    # B185 (P19): the domain "consumer" is left out; the description names no
+    # area, and no conversion writes none_of_these_areas.
     payload = {
-        "domain": "consumer",
         "autonomy": "advisory",
         "flags": {"interacts_with_natural_persons": True, "social_scoring": False},
         "description": "model tried to overwrite this",
@@ -33,8 +34,8 @@ def test_valid_elicitation_passes_schema_and_keeps_description():
 
 
 def test_unknown_fields_and_non_boolean_flags_stripped():
+    # B185 (P19): the domain "consumer" is left out (see above).
     payload = {
-        "domain": "consumer",
         "risk_category": "high_risk",
         "flags": {"interacts_with_natural_persons": "yes", "social_scoring": False,
                   "invented_flag": True},
@@ -417,12 +418,15 @@ def test_false_flag_with_its_quote_is_kept(dump):
 
 def test_unquoted_flag_is_dropped_and_its_empty_flags_object_removed(dump):
     result, _ = _run(
-        {"features": {"domain": "banking", "flags": {"social_scoring": False}},
+        # B185: banking to essential_services, a value of the schema, so the
+        # test keeps a quoted domain; the reply is mock data about the quote
+        # check, not a reading of the description.
+        {"features": {"domain": "essential_services", "flags": {"social_scoring": False}},
          "quotes": {"domain": "on our bank's website"}},
         dump,
     )
     assert "flags" not in result.features
-    assert result.features["domain"] == "banking"
+    assert result.features["domain"] == "essential_services"
     assert result.dropped == [{"path": "flags.social_scoring", "reason": "no quote"}]
 
 
@@ -442,7 +446,9 @@ def test_quote_not_in_the_description_is_dropped(dump):
 
 def test_two_word_quote_is_dropped(dump):
     result, _ = _run(
-        {"features": {"domain": "banking", "flags": {"interacts_with_natural_persons": True}},
+        # B185: banking to essential_services, so the domain reaches the quote
+        # check (a word outside the list is dropped before it).
+        {"features": {"domain": "essential_services", "flags": {"interacts_with_natural_persons": True}},
          "quotes": {"domain": "bank's website",
                     "flags.interacts_with_natural_persons": "A chatbot on our bank's website"}},
         dump,
@@ -577,7 +583,8 @@ def test_provision_failure_makes_no_generator_call(dump):
 
 def test_v5_still_works_and_returns_no_quotes(dump):
     result, gen = _run(
-        {"domain": "banking", "flags": {"interacts_with_natural_persons": True}},
+        # B185: banking to essential_services, a value of the schema.
+        {"domain": "essential_services", "flags": {"interacts_with_natural_persons": True}},
         dump,
         prompt_version="v5",
     )

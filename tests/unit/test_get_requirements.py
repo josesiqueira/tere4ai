@@ -335,7 +335,9 @@ def test_classify_envelope_feeds_requirements(dump, norms_payload, node_ids):
     classification = classify_ai_system(
         {
             "description": "Hospital emergency department triage support system.",
-            "domain": "healthcare",
+            # B185 (P19): healthcare to essential_services, the description
+            # states an emergency healthcare patient triage system, point 5(d).
+            "domain": "essential_services",
             "flags": {"annex_iii_5d_emergency_calls": True},
         },
         dump,
