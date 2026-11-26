@@ -74,7 +74,7 @@ type ClassificationAnswer = {
   risk_category: string | null;
   unacceptable_risk: boolean | null;
   annex_iii_category: string | null;
-  article_6_3_exception_candidate: boolean;
+  article_6_3_exception_candidate: boolean | null;
   rationale: string[];
   fria?: FriaAnswer | null;
 };

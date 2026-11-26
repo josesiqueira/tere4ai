@@ -29,6 +29,9 @@ ARTICLE_6_1 = "eu-ai-act:article-6:paragraph-1"
 ARTICLE_6_2 = "eu-ai-act:article-6:paragraph-2"
 ANNEX_I = "eu-ai-act:annex-i"
 ARTICLE_50_1 = "eu-ai-act:article-50:paragraph-1"
+ARTICLE_6_3 = "eu-ai-act:article-6:paragraph-3"
+ARTICLE_6_3_A = "eu-ai-act:article-6:paragraph-3:point-a"
+ARTICLE_6_4 = "eu-ai-act:article-6:paragraph-4"
 
 REVIEW = ("requires_human_review", 0.5)
 SETTLED = ("potentially_applicable", 1.0)
@@ -55,6 +58,25 @@ SCOPE_UNCONFIRMED_POINT_2 = (
     "(Critical infrastructure), but no listed use of the point is confirmed, so the Annex III scope is not "
     "confirmed and the answer rests on the Article 6(1) route; the listed uses still unknown: "
     "critical_infrastructure_safety"
+)
+# The candidate's lines (B185 Task 4, spec G D-G92 (6), (iv), rulings P9, P29),
+# written out word for word.
+ARTICLE_6_4_NOTE = (
+    "eu-ai-act:article-6:paragraph-4: a provider who considers that the system is not high-risk documents the "
+    "assessment before placing it on the market or putting it into service, registers under Article 49(2), and "
+    "provides the documentation of the assessment to the national competent authorities on request"
+)
+CANDIDATE_FLAGGED_NOTE = (
+    "eu-ai-act:article-6:paragraph-3: Article 6(3) derogation candidacy is flagged for human review; the "
+    "classification stays high_risk until a human legal reviewer decides"
+)
+CANDIDATE_BOTH_ROUTES_NOTE = (
+    "eu-ai-act:article-6:paragraph-3: an Article 6(3) condition is true for the Annex III part of the answer; "
+    "the level stays high_risk under Article 6(1), which the derogation does not reach"
+)
+UNKNOWN_CONDITION_POINT_A = (
+    "flags.narrow_procedural_task is unknown (Article 6(3) narrow procedural task (point a)); no condition is "
+    "true, so the derogation candidacy is unknown, not no"
 )
 AREA_RULED_OUT_POINT_3 = (
     "domain 'education' names Annex III point 3 (eu-ai-act:annex-iii:point-3), but every listed use of the "
@@ -93,7 +115,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "annex_i_section": None, "transparency_duties": [], "status": REVIEW,
             "cites": (ARTICLE_6_2, POINT_3), "notes": (AREA_ALONE_POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C2": {
         "features": _features(),
@@ -101,7 +124,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "minimal_risk", "annex_iii_category": None, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": [], "status": ("not_applicable", 1.0), "not_cited": (POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C3": {
         "features": _features(true=("annex_iii_4a_recruitment",), absent=("annex_iii_3a_admission",)),
@@ -110,7 +134,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_2"], "status": SETTLED, "cites": (ARTICLE_6_2, POINT_4),
             "not_cited": (POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C4": {
         "features": _features(true=("annex_iii_4a_recruitment",), domain="employment"),
@@ -119,7 +144,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_2"], "status": SETTLED, "cites": (ARTICLE_6_2, POINT_4),
             "not_cited": (POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C5": {
         "features": _features(true=("annex_iii_4a_recruitment",), domain="none_of_these_areas"),
@@ -127,7 +153,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "high_risk", "annex_iii_category": POINT_4, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": ["article_6_2"],
         },
-        "t3": {"area_conflicts": [_conflict("annex_iii_4a_recruitment")], "status": REVIEW}},
+        "t3": {"area_conflicts": [_conflict("annex_iii_4a_recruitment")], "status": REVIEW},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C6": {
         "features": _features(domain="none_of_these_areas"),
@@ -135,7 +162,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "minimal_risk", "annex_iii_category": None, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": [], "status": ("not_applicable", 1.0),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C7": {
         "features": _features(absent=("annex_iii_3a_admission",), domain="none_of_these_areas"),
@@ -143,7 +171,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "undetermined", "annex_iii_category": None, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": [], "status": REVIEW,
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C8": {
         "features": _features(absent=("annex_iii_3a_admission",), domain=None),
@@ -151,7 +180,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "undetermined", "annex_iii_category": None, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": [], "status": REVIEW,
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C9": {
         # The route is open: the Annex I fact is unknown and the third-party
@@ -163,7 +193,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "annex_i_section": None, "status": REVIEW,
             "cites": (ARTICLE_6_2, POINT_3), "notes": (AREA_ALONE_POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C10": {
         "features": _features(absent=("annex_iii_3a_admission",), **P61, annex_i_section_b_legislation=False),
@@ -173,7 +204,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "cites": (ARTICLE_6_1, ANNEX_I), "not_cited": (ARTICLE_6_2, POINT_3),
             "notes": (SCOPE_UNCONFIRMED_POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C11": {
         "features": _features(absent=("annex_iii_3a_admission",), **P61, annex_i_section_b_legislation=True),
@@ -182,7 +214,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_1"], "annex_i_section": "B", "transparency_duties": [],
             "status": REVIEW, "not_cited": (ARTICLE_6_2, POINT_3), "notes": (SCOPE_UNCONFIRMED_POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C12": {
         "features": _features(absent=("annex_iii_3a_admission", "annex_i_section_b_legislation"), **P61),
@@ -191,7 +224,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_1"], "annex_i_section": "unknown", "status": SETTLED,
             "notes": (SCOPE_UNCONFIRMED_POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C13": {
         "features": _features(absent=("critical_infrastructure_safety",), domain="critical_infrastructure",
@@ -201,7 +235,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_1"], "annex_i_section": "A", "status": SETTLED,
             "not_cited": (POINT_2,), "notes": (SCOPE_UNCONFIRMED_POINT_2,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C14": {
         "features": _features(absent=("biometric_identification",), domain="biometrics"),
@@ -210,7 +245,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "status": REVIEW, "cites": (ARTICLE_6_2, POINT_1),
             "notes": (AREA_ALONE_POINT_1,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C15": {
         "features": _features(true=("annex_iii_4a_recruitment",), domain=None, **P61,
@@ -220,7 +256,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_1", "article_6_2"], "annex_i_section": "B", "status": SETTLED,
             "cites": (ARTICLE_6_1, ARTICLE_6_2),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C16": {
         "features": _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"), domain=None, **P61,
@@ -230,7 +267,9 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_1", "article_6_2"], "annex_i_section": "A",
             "cites": (ARTICLE_6_1, ARTICLE_6_2),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": True, "status": SETTLED,
+               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_BOTH_ROUTES_NOTE)}},
     },
     "C17": {
         "features": _features(true=("interacts_with_natural_persons",), absent=("annex_iii_3a_admission",)),
@@ -239,7 +278,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "transparency_duties": [ARTICLE_50_1], "status": REVIEW,
             "cites": (ARTICLE_6_2, POINT_3, ARTICLE_50_1), "notes": (AREA_ALONE_POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C18": {
         "features": _features(absent=("annex_iii_3a_admission", "facial_image_scraping")),
@@ -247,7 +287,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "high_risk", "annex_iii_category": None, "annex_iii_area_unconfirmed": POINT_3,
             "high_risk_routes": [], "status": REVIEW, "notes": (AREA_ALONE_POINT_3,),
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C19": {
         "features": _features(true=("annex_iii_4a_recruitment",), absent=("narrow_procedural_task",), domain=None),
@@ -255,7 +296,9 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "high_risk", "annex_iii_category": POINT_4, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": ["article_6_2"],
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": None, "status": SETTLED, "missing": (UNKNOWN_CONDITION_POINT_A,),
+               "not_cited": (ARTICLE_6_3, ARTICLE_6_4)}},
     },
     "C20": {
         "features": _features(true=("real_time_remote_biometric_public",), absent=("biometric_identification",),
@@ -264,7 +307,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "high_risk", "annex_iii_category": POINT_1, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": ["article_6_2"],
         },
-        "t3": {"area_conflicts": [_conflict("biometric_identification")], "status": REVIEW}},
+        "t3": {"area_conflicts": [_conflict("biometric_identification")], "status": REVIEW},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
     "C21": {
         "features": _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"), domain=None, **P61,
@@ -273,7 +317,9 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "high_risk", "annex_iii_category": POINT_4, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": ["article_6_1", "article_6_2"], "annex_i_section": "B",
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": True, "status": REVIEW,
+               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_FLAGGED_NOTE)}},
     },
     "C22": {
         "features": _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"), domain=None),
@@ -281,7 +327,9 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "risk_category": "high_risk", "annex_iii_category": POINT_4, "annex_iii_area_unconfirmed": None,
             "high_risk_routes": ["article_6_2"],
         },
-        "t3": {"area_conflicts": []}},
+        "t3": {"area_conflicts": []},
+        "t4": {"article_6_3_exception_candidate": True, "status": REVIEW,
+               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_FLAGGED_NOTE)}},
     },
     "C23": {
         "features": _features(
@@ -294,6 +342,7 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "transparency_duties": [],
         },
         "t3": {"area_conflicts": [_conflict("emotion_recognition"), _conflict("annex_iii_4b_work_relationships")],
-               "status": REVIEW}},
+               "status": REVIEW},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
     },
 }

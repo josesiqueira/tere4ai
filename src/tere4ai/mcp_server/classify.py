@@ -25,7 +25,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 @implements: DEC-23
 @implements: DEC-30 (the unacceptable_risk note names a tailored requirement; the sentence of record)
 @implements: DEC-32 (the Annex III rule table over the 25 listed uses; annex_iii_listed_uses; the facts corrected by the Act's definitions, fact_conflicts)
-@implements: DEC-33 (domain is one of the nine values of the schema, read as given; a refused input returns before any lookup by domain, with the refusal of a domain outside the schema; one Annex III reading, read_annex_iii, in which a true listed use decides the point and a level that rests on the area alone is said, named in annex_iii_area_unconfirmed and marked for human review; area_conflicts, a listed use that is true while domain is none_of_these_areas, marked for human review on every exit)
+@implements: DEC-33 (domain is one of the nine values of the schema, read as given; a refused input returns before any lookup by domain, with the refusal of a domain outside the schema; one Annex III reading, read_annex_iii, in which a true listed use decides the point and a level that rests on the area alone is said, named in annex_iii_area_unconfirmed and marked for human review; area_conflicts, a listed use that is true while domain is none_of_these_areas, marked for human review on every exit; the Article 6(3) candidate of the Annex III part, true, false or null with the unknown conditions named, Article 6(4) cited with a candidate)
 @grounded_by: REF-30, REF-17, REF-01
 """
 
@@ -773,6 +773,8 @@ def _unresolved_article_5_facts(flags: dict[str, Any]) -> list[str]:
 ARTICLE_6_PARAGRAPH_1 = "eu-ai-act:article-6:paragraph-1"
 ARTICLE_6_PARAGRAPH_2 = "eu-ai-act:article-6:paragraph-2"
 ARTICLE_6_PARAGRAPH_3 = "eu-ai-act:article-6:paragraph-3"
+# B185 (spec G D-G92 (6), ruling P9): cited with every Article 6(3) candidate.
+ARTICLE_6_PARAGRAPH_4 = "eu-ai-act:article-6:paragraph-4"
 ANNEX_I = "eu-ai-act:annex-i"
 # Article 6(3) third subparagraph: "shall always be considered to be
 # high-risk where the AI system performs profiling of natural persons".
@@ -963,6 +965,36 @@ ARTICLE_6_3_CONDITIONS: tuple[tuple[str, tuple[str, ...], str], ...] = (
     ),
 )
 
+# B185 (spec G D-G92 (6), (iv), DEC-33, rulings P9 and P29): the fixed lines
+# of the candidate field. The first two join the missing facts when the
+# candidate is unknown ({label} from ARTICLE_6_3_CONDITIONS); the Article 6(4)
+# line joins legal_status_notes with every candidate (Article 49(2) named, not
+# cited); the last two replace the "rule article_6_3:" lines and the
+# "flagged for human review" note on a system on both routes whose product
+# legislation is not in Annex I Section B, whose level and status the Article
+# 6(1) route gives.
+ARTICLE_6_3_UNKNOWN_CONDITION_LINE = (
+    "flags.{flag} is unknown (Article 6(3) {label}); no condition is true, so the derogation candidacy "
+    "is unknown, not no"
+)
+ARTICLE_6_3_UNKNOWN_PROFILING_LINE = (
+    "flags.profiling_of_natural_persons is unknown while the Article 6(3) derogation candidacy is unknown; "
+    "profiling cancels the derogation (Article 6(3) third subparagraph)"
+)
+ARTICLE_6_4_LINE = (
+    "eu-ai-act:article-6:paragraph-4: a provider who considers that the system is not high-risk documents the "
+    "assessment before placing it on the market or putting it into service, registers under Article 49(2), "
+    "and provides the documentation of the assessment to the national competent authorities on request"
+)
+ARTICLE_6_3_BOTH_ROUTES_LINE = (
+    "Article 6(3) condition for the Annex III part: '{label}' met by {flag}; the level stays high_risk under "
+    "Article 6(1), which the derogation does not reach"
+)
+ARTICLE_6_3_BOTH_ROUTES_NOTE = (
+    "eu-ai-act:article-6:paragraph-3: an Article 6(3) condition is true for the Annex III part of the answer; "
+    "the level stays high_risk under Article 6(1), which the derogation does not reach"
+)
+
 # Article 50 transparency rules: flag -> the real Paragraph node.
 ARTICLE_50_RULES: tuple[tuple[str, str, str], ...] = (
     # 50(1): "Providers shall ensure that AI systems intended to interact
@@ -1075,21 +1107,119 @@ def _unknown_annex_iii_facts(flags: dict[str, Any]) -> dict[str, str]:
     return unknown
 
 
-def _article_6_3_candidate(flags: dict[str, Any]) -> bool:
-    """Whether an Article 6(3) derogation candidacy is flagged for this system.
+def article_6_3_candidate(flags: dict[str, Any]) -> bool | None:
+    """The Article 6(3) derogation candidacy of the facts (spec G D-G92 (6)).
 
-    The boolean half of the ladder's 6(3) logic, extracted so the FRIA rule
-    can apply it to the 6(2) side of a dual 6(1)+6(2) route system (audit
-    2026-07-20 D7). A matched second-subparagraph condition raises
-    candidacy, whatever the system's autonomy (B184, D-G91 (7)), which the
-    third-subparagraph profiling override then cancels.
+    True when a second-subparagraph condition (points (a) to (d)) is true and
+    profiling is not true; false when profiling is true (the third
+    subparagraph keeps a profiling system high-risk) or every condition is
+    false; None, shown as unknown, otherwise. Each condition is the one fact
+    of its point (B184, D-G91 (7)). The value describes the Annex III
+    part of an answer only: _annex_iii_candidacy reads it on the exits that
+    have an Annex III point (ruling P9), and every other answer carries false.
 
     @implements: DEC-32
+    @implements: DEC-33
     """
-    matched = any(flags.get(flag) is True for flag, _points, _label in ARTICLE_6_3_CONDITIONS)
-    if matched and flags.get("profiling_of_natural_persons") is True:
+    conditions = [flags.get(flag) for flag, _points, _label in ARTICLE_6_3_CONDITIONS]
+    profiling = flags.get("profiling_of_natural_persons")
+    if profiling is True:
         return False
-    return matched
+    if any(value is True for value in conditions):
+        return True
+    if all(value is False for value in conditions):
+        return False
+    return None
+
+
+def _annex_iii_candidacy(
+    flags: dict[str, Any],
+    citations: _Citations,
+    rationale: list[str],
+    legal_status_notes: list[str],
+    missing_facts: list[str],
+    *,
+    both_routes: bool,
+) -> bool | None:
+    """The candidate field of an answer that has an Annex III point, with its
+    lines and citations (spec G D-G92 (6), (iv), rulings P9, P28, P29).
+
+    Used by the three exits that have an Annex III point: the Annex III exit
+    and the area-alone exit (both_routes False), and the Article 6(1) exit
+    with a listed use that is true or a point that rests on the area
+    (both_routes True). A matched condition with profiling true is cancelled
+    by the third subparagraph, cited and said in the rationale. A true
+    candidate cites Article 6(3), its points and Article 6(4), with
+    ARTICLE_6_4_LINE; with both_routes False each condition gives its "rule
+    article_6_3:" line and the note says the candidacy is flagged for human
+    review, with both_routes True each gives ARTICLE_6_3_BOTH_ROUTES_LINE and
+    the note is ARTICLE_6_3_BOTH_ROUTES_NOTE (the level and status stay the
+    Article 6(1) route's). An unknown profiling fact beside a true condition is
+    named as before. An unknown candidate names each unknown condition and
+    an unknown profiling fact among the missing facts and cites nothing. The
+    status is the caller's. The derogation needs human legal judgment; it is
+    flagged, never applied.
+
+    @implements: DEC-32
+    @implements: DEC-33
+    """
+    matched_conditions = [
+        (flag, point_nodes, label)
+        for flag, point_nodes, label in ARTICLE_6_3_CONDITIONS
+        if flags.get(flag) is True
+    ]
+    if matched_conditions and flags.get("profiling_of_natural_persons") is True:
+        # Article 6(3) third subparagraph: profiling systems are always
+        # high-risk, so candidacy is cancelled, not merely flagged.
+        citations.cite(ARTICLE_6_3_PROFILING_OVERRIDE)
+        rationale.append(
+            "rule article_6_3_profiling: a derogation condition matched but "
+            "profiling_of_natural_persons is true; Article 6(3) third "
+            "subparagraph keeps profiling systems high-risk, so no "
+            "derogation candidacy"
+        )
+        matched_conditions = []
+    candidate = article_6_3_candidate(flags)
+    if matched_conditions:
+        citations.cite(ARTICLE_6_PARAGRAPH_3)
+        for flag, point_nodes, label in matched_conditions:
+            for node_id in point_nodes:
+                citations.cite(node_id)
+            if both_routes:
+                rationale.append(ARTICLE_6_3_BOTH_ROUTES_LINE.format(label=label, flag=flag))
+            else:
+                # Wording note: this line must not read "rule X: flag Y
+                # matches Z", which is the classification-trigger grammar
+                # parsed by scripts/elicitation_error_report.py; derogation
+                # candidacy is not a classification trigger.
+                rationale.append(
+                    f"rule article_6_3: derogation condition '{label}' met "
+                    f"by {flag}; the Article 6(3) derogation may apply but "
+                    "requires human legal judgment, no automatic downgrade"
+                )
+        if both_routes:
+            legal_status_notes.append(ARTICLE_6_3_BOTH_ROUTES_NOTE)
+        else:
+            legal_status_notes.append(
+                f"{ARTICLE_6_PARAGRAPH_3}: Article 6(3) derogation candidacy is "
+                "flagged for human review; the classification stays high_risk "
+                "until a human legal reviewer decides"
+            )
+        citations.cite(ARTICLE_6_PARAGRAPH_4)
+        legal_status_notes.append(ARTICLE_6_4_LINE)
+        if "profiling_of_natural_persons" not in flags:
+            missing_facts.append(
+                "flags.profiling_of_natural_persons is unknown while an "
+                "Article 6(3) derogation condition matched; profiling "
+                "cancels the derogation (Article 6(3) third subparagraph)"
+            )
+    elif candidate is None:
+        for flag, _point_nodes, label in ARTICLE_6_3_CONDITIONS:
+            if flags.get(flag) is None:
+                missing_facts.append(ARTICLE_6_3_UNKNOWN_CONDITION_LINE.format(flag=flag, label=label))
+        if flags.get("profiling_of_natural_persons") is None:
+            missing_facts.append(ARTICLE_6_3_UNKNOWN_PROFILING_LINE)
+    return candidate
 
 
 def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, Any]:
@@ -1426,6 +1556,19 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 # is known false, so the area stops counting, and the answer
                 # says so in the same line as the Annex III branch below.
                 rationale.append(annex_iii_area_line(ANNEX_III_AREA_RULED_OUT_LINE, reading, domain))
+            # B185 (spec G D-G92 (iv), rulings P9 and P29): with an Annex III
+            # point (a listed use that is true, or a point that rests on the
+            # area) the field follows (6) for the Annex III part, and the
+            # status stays the one the Article 6(1) route gives: a true
+            # candidate adds no mark here. A Section B product reaches this
+            # branch only without a true listed use, so its point rests on the
+            # area, whose unknown listed uses already mark it (R39), as
+            # passage (k) requires.
+            article_6_1_candidate: bool | None = False
+            if reading.confirmed or reading.area_point is not None:
+                article_6_1_candidate = _annex_iii_candidacy(
+                    flags, citations, rationale, legal_status_notes, missing_facts, both_routes=True
+                )
             missing_facts.extend(citations.unresolved)
             status = "potentially_applicable"
             confidence = 1.0
@@ -1453,7 +1596,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                     "unacceptable_risk": unacceptable_risk_state,
                     "annex_iii_category": None,
                     "annex_i_section": annex_i_section,
-                    "article_6_3_exception_candidate": False,
+                    "article_6_3_exception_candidate": article_6_1_candidate,
                     "transparency_duties": duties,
                     "rationale": rationale,
                 },
@@ -1491,64 +1634,26 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "under Article 6(2)"
         )
 
-    exception_candidate = False
     if annex_match is not None:
         citations.cite(annex_match["node"])
         citations.cite(ARTICLE_6_PARAGRAPH_2)
 
         # Rule 3: Article 6(3) derogation candidacy over the real second-
-        # subparagraph conditions. The derogation needs human legal judgment;
-        # it is flagged, never auto-applied. Each point (a) to (d) has its own
-        # fact and none depends on the system's autonomy (B184, D-G91 (7)).
-        matched_conditions = [
-            (flag, point_nodes, label)
-            for flag, point_nodes, label in ARTICLE_6_3_CONDITIONS
-            if flags.get(flag) is True
-        ]
-        if matched_conditions and flags.get("profiling_of_natural_persons") is True:
-            # Article 6(3) third subparagraph: profiling systems are always
-            # high-risk, so candidacy is cancelled, not merely flagged.
-            citations.cite(ARTICLE_6_3_PROFILING_OVERRIDE)
-            rationale.append(
-                "rule article_6_3_profiling: a derogation condition matched but "
-                "profiling_of_natural_persons is true; Article 6(3) third "
-                "subparagraph keeps profiling systems high-risk, so no "
-                "derogation candidacy"
-            )
-            matched_conditions = []
-        if matched_conditions:
-            exception_candidate = True
-            citations.cite(ARTICLE_6_PARAGRAPH_3)
-            for flag, point_nodes, label in matched_conditions:
-                for node_id in point_nodes:
-                    citations.cite(node_id)
-                # Wording note: this line must not read "rule X: flag Y
-                # matches Z", which is the classification-trigger grammar
-                # parsed by scripts/elicitation_error_report.py; derogation
-                # candidacy is not a classification trigger.
-                rationale.append(
-                    f"rule article_6_3: derogation condition '{label}' met "
-                    f"by {flag}; the Article 6(3) derogation may apply but "
-                    "requires human legal judgment, no automatic downgrade"
-                )
-            legal_status_notes.append(
-                f"{ARTICLE_6_PARAGRAPH_3}: Article 6(3) derogation candidacy is "
-                "flagged for human review; the classification stays high_risk "
-                "until a human legal reviewer decides"
-            )
-            if "profiling_of_natural_persons" not in flags:
-                missing_facts.append(
-                    "flags.profiling_of_natural_persons is unknown while an "
-                    "Article 6(3) derogation condition matched; profiling "
-                    "cancels the derogation (Article 6(3) third subparagraph)"
-                )
+        # subparagraph conditions (B185, ruling P28: the logic lives in
+        # _annex_iii_candidacy, shared with the area-alone and Article 6(1)
+        # exits). Annex III decides what is served here, a Section B product
+        # on both routes included (R26), so a true candidate marks the answer
+        # for review (passage (k)); an unknown one does not (D-G92 (iv)).
+        exception_candidate = _annex_iii_candidacy(
+            flags, citations, rationale, legal_status_notes, missing_facts, both_routes=False
+        )
 
         _carry_transparency_duties()
         _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
         status = "potentially_applicable"
         confidence = 1.0
-        if exception_candidate:
+        if exception_candidate is True:
             status = "requires_human_review"
             confidence = 0.5
         elif unknown_prohibition_flags:
@@ -1591,6 +1696,11 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         citations.cite(ARTICLE_6_PARAGRAPH_2)
         rationale.append(annex_iii_area_line(ANNEX_III_AREA_ALONE_RULE_LINE, reading, domain))
         legal_status_notes.append(annex_iii_area_line(ANNEX_III_AREA_ALONE_LINE, reading, domain))
+        # B185 (spec G D-G92 (iv), ruling P9): the field describes the point
+        # that rests on the area; the answer is already marked for review.
+        area_candidate = _annex_iii_candidacy(
+            flags, citations, rationale, legal_status_notes, missing_facts, both_routes=False
+        )
         if unknown_prohibition_flags:
             rationale.append(
                 "status lowered to requires_human_review: unknown "
@@ -1604,7 +1714,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "risk_category": "high_risk",
                 "unacceptable_risk": unacceptable_risk_state,
                 "annex_iii_category": None,
-                "article_6_3_exception_candidate": False,
+                "article_6_3_exception_candidate": area_candidate,
                 "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
@@ -1967,6 +2077,14 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     unchanged, and on unacceptable_risk each prohibited-practice note gains
     PROHIBITION_AREA_CONFLICT_CLAUSE.
 
+    B185 (spec G D-G92 (6), (iv), passage (k), DEC-33, rulings P9, P28,
+    P29): answer["article_6_3_exception_candidate"] is true, false or null
+    for the Annex III part of an answer that has an Annex III point (a listed
+    use that is true, or a point that rests on the area), whatever other
+    route holds, and false on every other answer; the core sets it
+    (_annex_iii_candidacy) and the Article 27 block reads that one value,
+    holding at unknown for the candidacy only when it is true.
+
     @implements: DEC-32
     @implements: DEC-33
     """
@@ -2040,12 +2158,11 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     annex_points = [*reading.confirmed, *([reading.area_point] if reading.area_point else [])]
     if annex_node is None and annex_points:
         annex_node = annex_points[0]
-    # Recompute Article 6(3) candidacy for the 6(2) side even when the ladder
-    # returned via the 6(1) route (its answer flag is False there): a
-    # dual-route system's 6(2) derogation candidacy still blocks FRIA (D7).
-    candidate = answer.get("article_6_3_exception_candidate") is True or (
-        bool(annex_points) and _article_6_3_candidate(flags)
-    )
+    # B185 (spec G D-G92 (iv)): the block reads the answer's own field, which
+    # every exit with an Annex III point computes for the Annex III part
+    # (the Article 6(1) exit of a dual-route system included, audit D7); it
+    # holds at unknown for a candidate only when the field is true.
+    candidate = answer.get("article_6_3_exception_candidate") is True
     answer["fria"] = assess_fria_applicability(
         answer.get("risk_category"),
         annex_node,

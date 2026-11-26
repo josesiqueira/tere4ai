@@ -73,7 +73,11 @@ def test_the_hiring_agent_stays_high_risk_under_point_4(dump):
     a = env["answer"]
     assert a["risk_category"] == "high_risk" and a["annex_iii_category"] == "eu-ai-act:annex-iii:point-4"
     assert env["status"] == "requires_human_review"
-    assert a["article_6_3_exception_candidate"] is False  # Task 4: None (points (b) and (c) unknown, none true)
+    # B185 Task 4 (spec G D-G92 (6)): points (b) and (c) are unknown and none
+    # is true, but profiling_of_natural_persons is true, so the candidate is
+    # false, not unknown, and no condition is named.
+    assert a["article_6_3_exception_candidate"] is False
+    assert not any(line.endswith("the derogation candidacy is unknown, not no") for line in env["missing_facts"])
     assert a["transparency_duties"] == ["eu-ai-act:article-50:paragraph-2"]
 
 
@@ -82,5 +86,9 @@ def test_totalsegmentator_stays_high_risk_under_point_1(dump):
     a = env["answer"]
     assert a["risk_category"] == "high_risk" and a["annex_iii_category"] == "eu-ai-act:annex-iii:point-1"
     assert env["status"] == "requires_human_review"
-    assert a["article_6_3_exception_candidate"] is False  # Task 4: None (every condition unknown)
+    # B185 Task 4 (spec G D-G92 (6)): every condition is unknown, but
+    # profiling_of_natural_persons is true, so the candidate is false, not
+    # unknown, and no condition is named.
+    assert a["article_6_3_exception_candidate"] is False
+    assert not any(line.endswith("the derogation candidacy is unknown, not no") for line in env["missing_facts"])
     assert a["transparency_duties"] == ["eu-ai-act:article-50:paragraph-3"]

@@ -83,6 +83,8 @@ def test_area_case(dump, cid):
             assert node not in env["source_nodes"], (task, node)
         for line in exp.get("notes", ()):
             assert line in env["legal_status_notes"], (task, line)
+        for line in exp.get("missing", ()):
+            assert line in env["missing_facts"], (task, line)
 
 
 def test_finding_1_area_alone_is_marked_and_says_so(dump):
