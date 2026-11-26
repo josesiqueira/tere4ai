@@ -2719,6 +2719,40 @@ way round.
   336, the limited-risk session's 13 to 21) come from that change of
   build, not from DEC-32. The sessions under tests/fixtures/demo_sessions
   carry build-bab25bf2e5d6, read from data/graph_dumps. (Corrected 2026-11-26 after the re-review: this holds for the classification answers of those sessions; the applicable requirements answers of credscore-highrisk.jsonl and shopbot-transparency.jsonl carry norms_build_id build-3b753e5e9297, the build of data/graph_dumps/norms_core.json, from which scripts/rerecord_demo_sessions.py records them.) Added 2026-11-26 (B184, after the stress harness was run on the finished code): the applicable requirements of a prohibited classification marked for human review by a fact conflict carry every missing fact of that classification, as the requirements of every other unsettled classification do; a settled prohibited classification carries none.
+  Added 2026-11-26 (B184, after the two whole-change reviews):
+  annex_iii_category is the first matching point when Annex III decided the
+  level and null when the Article 6(1) route or a prohibition decided it,
+  even when annex_iii_listed_uses names a listed use; on the Article 6(1)
+  exit the listed-use units are cited without their point and without
+  Article 6(2). An Annex I Section B product with a domain word and one
+  listed use of that point unknown (the point's other listed uses false,
+  every other fact known) now takes the Annex III route on the domain
+  alone, settled (status potentially_applicable, confidence 1.0), with the
+  Chapter III requirements served, where tag v2.0.0-beta.1 marked it for
+  review and served none (probe of the same day, domain banking, every
+  other fact false: life_health_insurance_risk_pricing unknown gives
+  high_risk_routes article_6_1 and article_6_2 and 236 requirements
+  served, as point 5(a) unknown does; at the tag the same input gave the
+  Article 6(1) route only, requires_human_review, none served). This is the study's finding 4
+  made more frequent by the domain rule reading every listed use (R10), and
+  card B185 owns it.
+  Three fixed texts came with the same reviews. An input that carries a
+  removed fact is still rejected_as_unsupported, and after the schema's own
+  error line the answer names, for each removed fact it carries, the facts
+  that replace it (REMOVED_FACT_REPLACEMENTS). A prohibited answer marked by
+  a fact conflict ends each of its prohibited-practice notes, and its
+  applicable requirements message, with one clause saying that it rests on
+  the facts as read and stands for human review
+  (PROHIBITION_FACT_CONFLICT_CLAUSE); an unmarked prohibited answer keeps
+  its sentences. The applicable requirements read the point that fired from
+  the answer's own rationale when they are given the bare answer, so point
+  (h) alone gets its own message in both forms; a bare answer that names no
+  point gets a message that makes no statement about placing on the market
+  (PROHIBITED_MESSAGE_POINT_NOT_NAMED), and for points (ba) and (bb) the
+  bare form does not carry the Article 5(1a) and 5(1b) citations the
+  envelope form carries. The ablation harness also refuses stored facts
+  elicited by a prompt other than the prompt of record, where the facts
+  file records its prompt version.
   Not done in this decision, the benchmark features: 12 of the 32 items of
   eval/gold/benchmark_features.json and 92 of the 339 of
   eval/gold/benchmark_features_full.json carry facts of the earlier

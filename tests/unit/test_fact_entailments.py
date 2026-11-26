@@ -29,6 +29,7 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_5_POINT_H,
     FACT_ENTAILMENTS,
     POINT_H_PRACTICE_NOTE_END,
+    PROHIBITION_FACT_CONFLICT_CLAUSE,
     apply_entailments,
     classify_ai_system,
     fact_conflict_line,
@@ -167,7 +168,8 @@ def test_point_h_sentence_with_biometric_identification_false_is_a_conflict(dump
     env = classify_ai_system(_case(all_false(**POLICE_LFR)), dump)
     a = env["answer"]
     assert a["risk_category"] == "unacceptable_risk" and a["unacceptable_risk"] is True
-    assert env["legal_status_notes"][-1].endswith(POINT_H_PRACTICE_NOTE_END)
+    # Final fix wave (M3): the marked answer's note adds the clause after the point (h) sentence.
+    assert env["legal_status_notes"][-1].endswith(f"{POINT_H_PRACTICE_NOTE_END}. {PROHIBITION_FACT_CONFLICT_CLAUSE}")
     assert a["annex_iii_listed_uses"] == [POINT_1A]
     assert [(c["narrower"], c["wider"]) for c in a["fact_conflicts"]] == [
         ("real_time_remote_biometric_public", "biometric_identification")]
@@ -273,7 +275,8 @@ def test_requirements_of_a_marked_prohibited_answer_keep_the_mark(dump, norms): 
         assert req["status"] == "requires_human_review" and req["confidence"] == 0.5
         assert all(note in req["missing_facts"] for note in notes)
         assert req["answer"]["requirements_by_article"] == {} and req["answer"]["summary"] == {"returned": 0}
-        assert req["answer"]["message"] == PROHIBITED_MESSAGE
+        # Final fix wave (M3): the message of a marked prohibited answer adds the clause.
+        assert req["answer"]["message"] == f"{PROHIBITED_MESSAGE} {PROHIBITION_FACT_CONFLICT_CLAUSE}"
     # Fix round 2: the envelope's requirements carry every missing fact of the classification.
     assert get_applicable_requirements(cls, norms, dump)["missing_facts"] == cls["missing_facts"]
     assert get_applicable_requirements(cls, norms, dump)["source_nodes"] == [POINT_G]  # ruling R14
@@ -293,7 +296,7 @@ def test_requirements_of_a_marked_prohibited_answer_carry_every_missing_fact(dum
     assert len(envelope_form["missing_facts"]) == len(set(envelope_form["missing_facts"]))
     assert envelope_form["status"] == "requires_human_review" and envelope_form["confidence"] == 0.5
     assert envelope_form["answer"]["requirements_by_article"] == {}
-    assert envelope_form["answer"]["message"] == PROHIBITED_MESSAGE
+    assert envelope_form["answer"]["message"] == f"{PROHIBITED_MESSAGE} {PROHIBITION_FACT_CONFLICT_CLAUSE}"  # M3
     assert envelope_form["source_nodes"] == [POINT_G]  # ruling R14
     # The bare answer holds no missing facts, only fact_conflicts: its requirements carry the conflict lines,
     # each a line of the classification.

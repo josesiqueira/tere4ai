@@ -31,6 +31,7 @@ classification-logic source and baseline (REF-30, architecture.md Section
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from functools import lru_cache
 from pathlib import Path
@@ -234,8 +235,44 @@ ARTICLE_5_POINT_H_EXCULPATING = (
     "the point (h) strict-necessity and authorisation carve-out (i) to (iii)",
 )
 
+# B184 (DEC-32; final review, M2): the seven facts that left the schema, each
+# with the facts that replace it (CHANGELOG.md, the B184 entry). A rejected
+# input that carries one gets a line naming them, after the schema's errors.
+REMOVED_FACT_REPLACEMENTS: dict[str, str] = {
+    "education_scoring_or_access": (
+        "annex_iii_3a_admission, annex_iii_3b_learning_outcomes, annex_iii_3c_education_level and "
+        "annex_iii_3d_test_monitoring (Annex III points 3(a) to 3(d))"
+    ),
+    "employment_decisions": (
+        "annex_iii_4a_recruitment and annex_iii_4b_work_relationships (Annex III points 4(a) and 4(b))"
+    ),
+    "essential_services_access": (
+        "annex_iii_5a_public_benefits and annex_iii_5d_emergency_calls (Annex III points 5(a) and 5(d)), "
+        "beside creditworthiness_evaluation and life_health_insurance_risk_pricing (points 5(b) and 5(c))"
+    ),
+    "law_enforcement_use": (
+        "law_enforcement_purpose for Article 5(1) point (h), and annex_iii_6a_victim_risk, "
+        "annex_iii_6b_polygraphs, annex_iii_6c_evidence_reliability, annex_iii_6d_offending_risk and "
+        "annex_iii_6e_profiling for Annex III points 6(a) to 6(e)"
+    ),
+    "migration_asylum_border_use": (
+        "annex_iii_7a_polygraphs, annex_iii_7b_entry_risk, annex_iii_7c_applications and "
+        "annex_iii_7d_identification (Annex III points 7(a) to 7(d))"
+    ),
+    "justice_democratic_use": (
+        "annex_iii_8a_judicial and annex_iii_8b_elections (Annex III points 8(a) and 8(b))"
+    ),
+    "preparatory_or_narrow_procedural_task": (
+        "narrow_procedural_task (Article 6(3) point (a)) and preparatory_task (Article 6(3) point (d))"
+    ),
+}
+REMOVED_FACT_LINE = "flags.{removed} left the schema (DEC-32); answer {replacements}"
+
 # Flags whose unknown value can change the prohibition outcome. Absence is
-# NOT treated as false (system_features.schema.json).
+# NOT treated as false (system_features.schema.json). law_enforcement_purpose
+# can change it too, but only while real_time_remote_biometric_public is true,
+# so the point (h) rule names it there and it is not listed here (B184,
+# DEC-32); the exculpating facts are named by their own rule in the same way.
 PROHIBITION_RELEVANT_FLAGS: tuple[str, ...] = (
     *ARTICLE_5_POINT_BY_FLAG.keys(),
     "real_time_remote_biometric_public",
@@ -689,6 +726,19 @@ POINT_H_PRACTICE_NOTE_END = (
     "listed in Annex III point 1(a), and no tailored requirement can make the "
     "prohibited use permissible"
 )
+# B184 (DEC-32; final review, M3): the clause a prohibited answer marked by a
+# fact conflict adds to each of its prohibited-practice notes, and the
+# applicable requirements to their message.
+PROHIBITION_FACT_CONFLICT_CLAUSE = (
+    "This rests on the facts as read: answers contradict a definition of the Act (fact_conflicts), so it "
+    "stands for human review."
+)
+# The rationale line of each Article 5 hit ("rule unacceptable_risk: flag X
+# matches <node> (...)"); the applicable requirements read the point from it
+# when they are given the bare answer, which carries no cited provisions.
+PROHIBITED_RULE_LINE = re.compile(r"^rule unacceptable_risk: flag .+? matches (?P<node>eu-ai-act:article-5:\S+) \(")
+PROHIBITED_PRACTICE_NOTE_MARK = "this practice is a prohibited AI practice under Article 5(1)"
+
 # B181 (DEC-30): the end a session recorded before the rename keeps; the
 # parity test reads it through prohibited_practice_note_of_record.
 PROHIBITED_PRACTICE_NOTE_END_BEFORE_B181 = (
@@ -1723,6 +1773,18 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     if envelope.get("status") == "rejected_as_unsupported":
         # No rule ran, so nothing was read from the facts (Task 2's rejection).
         answer["fact_conflicts"] = []
+        # B184 (final review, M2): after the schema's own errors, one line for
+        # each fact that left the schema, naming the facts that replace it.
+        given = features.get("flags") if isinstance(features, dict) else None
+        if isinstance(given, dict):
+            envelope["missing_facts"] = [
+                *(envelope.get("missing_facts") or []),
+                *(
+                    REMOVED_FACT_LINE.format(removed=removed, replacements=replacements)
+                    for removed, replacements in REMOVED_FACT_REPLACEMENTS.items()
+                    if removed in given
+                ),
+            ]
     else:
         answer["fact_conflicts"] = conflicts
         rationale = answer.setdefault("rationale", [])
@@ -1735,6 +1797,13 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
             envelope["status"] = "requires_human_review"
             envelope["confidence"] = 0.5
             rationale.append(FACT_CONFLICT_STATUS_LINE)
+            if answer.get("risk_category") == "unacceptable_risk":
+                # B184 (final review, M3): each prohibited-practice note says
+                # the prohibition rests on facts that contradict a definition.
+                envelope["legal_status_notes"] = [
+                    f"{note}. {PROHIBITION_FACT_CONFLICT_CLAUSE}" if PROHIBITED_PRACTICE_NOTE_MARK in note else note
+                    for note in envelope.get("legal_status_notes") or []
+                ]
     flags = features.get("flags") if isinstance(features, dict) else None
     if not isinstance(flags, dict):
         flags = {}

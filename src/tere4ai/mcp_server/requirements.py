@@ -42,6 +42,8 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_2_2_WORDING,
     ARTICLE_2_PARAGRAPH_2,
     ARTICLE_5_POINT_H,
+    PROHIBITED_RULE_LINE,
+    PROHIBITION_FACT_CONFLICT_CLAUSE,
     route_of,
 )
 from tere4ai.mcp_server.fria import FACT_CONFLICT_REASON
@@ -93,6 +95,14 @@ PROHIBITED_MESSAGE_POINT_H = (
     "system on the market, and the system is listed in Annex III point 1(a). "
     "Prohibited uses receive no applicable requirements, so no tailored requirement "
     "can make that use permissible. Seek legal review."
+)
+# B184 (final review, I1): the message when the classification names no point
+# of Article 5 (a bare answer without its rationale), so it makes no claim
+# about placing on the market either way.
+PROHIBITED_MESSAGE_POINT_NOT_NAMED = (
+    "This system falls under a prohibited AI practice of Article 5; the classification's own note says which "
+    "acts the point prohibits. Prohibited practices receive no applicable requirements, so no tailored "
+    "requirement can make the prohibited practice permissible. Seek legal review."
 )
 # B181 (DEC-30): a session recorded before the rename keeps its sentence; the
 # parity test reads it through this function.
@@ -372,8 +382,24 @@ def get_applicable_requirements(
     # cited provisions; point (h) alone gets its own message.
     if risk_category == "unacceptable_risk":
         prohibition_nodes = [n for n in classification_nodes if ":article-5" in n]
+        named_point = bool(prohibition_nodes)
         if not prohibition_nodes:
-            # Bare answer without citations: fall back to the Article 5 node.
+            # B184 (final review, I1): the bare answer carries no cited
+            # provisions, but its rationale names each point that fired, in
+            # the "rule unacceptable_risk: flag X matches <node>" line.
+            rationale_in = answer_in.get("rationale")
+            prohibition_nodes = list(dict.fromkeys(
+                match.group("node")
+                for line in (rationale_in if isinstance(rationale_in, list) else [])
+                if isinstance(line, str)
+                for match in [PROHIBITED_RULE_LINE.match(line)]
+                if match is not None
+            ))
+            named_point = bool(prohibition_nodes)
+        if not prohibition_nodes:
+            # Neither the cited provisions nor the rationale name a point:
+            # fall back to the Article 5 node and a message that makes no
+            # claim about placing on the market.
             prohibition_nodes = ["eu-ai-act:article-5"]
         cited = [n for n in prohibition_nodes if n in node_index]
         spans = [
@@ -393,7 +419,12 @@ def get_applicable_requirements(
                 "message": (
                     PROHIBITED_MESSAGE_POINT_H
                     if prohibition_nodes == [ARTICLE_5_POINT_H]
-                    else PROHIBITED_MESSAGE
+                    else PROHIBITED_MESSAGE if named_point
+                    else PROHIBITED_MESSAGE_POINT_NOT_NAMED
+                ) + (
+                    # B184 (final review, M3): a prohibition resting on facts that
+                    # contradict a definition of the Act stands for review.
+                    " " + PROHIBITION_FACT_CONFLICT_CLAUSE if conflict_marked else ""
                 ),
                 "legal_text": text,
             },

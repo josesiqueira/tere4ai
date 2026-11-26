@@ -85,7 +85,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from tere4ai import parallel_calls  # noqa: E402
-from tere4ai.elicit_features.elicitor import features_of_record  # noqa: E402
+from tere4ai.elicit_features.elicitor import (  # noqa: E402
+    DEFAULT_PROMPT_VERSION,
+    features_of_record,
+)
 from tere4ai.eval import harness, metrics, strategies  # noqa: E402
 from tere4ai.eval.ablation_declaration import (  # noqa: E402
     DECLARATION_PATH,
@@ -327,6 +330,10 @@ def _attach_features(bench: list[dict], features_path: Path) -> int:
     """Attach the cached elicited facts to the free-text scenarios that have none."""
     cache = json.loads(features_path.read_text(encoding="utf-8"))
     by_item = cache.get("features_by_item", {})
+    # B184 (final review, Codex P2): the prompt that elicited the file's facts, kept on each item so the
+    # stored-facts check can refuse facts elicited by a prompt other than the prompt of record
+    prompt = cache.get("prompt")
+    version = prompt.get("version") if isinstance(prompt, dict) else cache.get("prompt_version")
     enriched = 0
     for item in bench:
         feats = by_item.get(item["id"])
@@ -334,6 +341,8 @@ def _attach_features(bench: list[dict], features_path: Path) -> int:
             # B160 ruling R6: a facts file elicited before B160 names the old key
             item["system_features"] = features_of_record(feats)
             item["features_provenance"] = "llm_elicited"
+            if version is not None:
+                item["features_prompt_version"] = version
             enriched += 1
     return enriched
 
@@ -355,7 +364,15 @@ def stored_facts_refusal(items: list[dict], schema: dict, shown: int = 5) -> str
     flag the schema does not define, those flags and STORED_FACTS_ADVICE (a
     fact outside the schema comes from an earlier prompt); when some item
     fails for another reason, the first such item and its first schema error,
-    without that advice. Pure: no file, no model."""
+    without that advice; flags that are not an object (true, a string) are
+    such a reason, their names never read. B184 (final review, Codex P2):
+    facts elicited by a prompt other than the prompt of record
+    (DEFAULT_PROMPT_VERSION; the version _attach_features keeps from the
+    facts file as features_prompt_version) are refused too, even when they
+    fit the schema, so a run never mixes prompt versions; the message names
+    their count, the versions found and the prompt of record. Hand-made
+    items carry no prompt version and pass this part. Pure: no file, no
+    model."""
     validator = Draft202012Validator(schema)
     known = set(((schema.get("properties") or {}).get("flags") or {}).get("properties") or {})
     failing: list[str] = []
@@ -369,13 +386,27 @@ def stored_facts_refusal(items: list[dict], schema: dict, shown: int = 5) -> str
         if error is None:
             continue
         failing.append(item["id"])
-        outside = set(features.get("flags") or {}) - known
+        flags = features.get("flags")
+        outside = set(flags) - known if isinstance(flags, dict) else set()
         unknown |= outside
         if not outside:
             where = ".".join(str(part) for part in error.absolute_path) or "the features"
             other.append((item["id"], f"{where}: {error.message}"))
-    if not failing:
+    elicited_by_another = [
+        (item["id"], item["features_prompt_version"])
+        for item in items
+        if item.get("kind") == "classification" and isinstance(item.get("system_features"), dict)
+        and item.get("features_prompt_version") not in (None, DEFAULT_PROMPT_VERSION)
+        and item["id"] not in failing
+    ]
+    if not failing and not elicited_by_another:
         return None
+    if not failing:
+        versions = sorted({str(version) for _id, version in elicited_by_another})
+        return (f"refusing to run: the stored features of {len(elicited_by_another)} item(s) were elicited by "
+                f"prompt {', '.join(versions)}, not by the prompt of record, {DEFAULT_PROMPT_VERSION}, so the run "
+                f"would mix prompt versions; first: {', '.join(i for i, _v in elicited_by_another[:shown])}; "
+                f"{STORED_FACTS_ADVICE}")
     message = (f"refusing to run: the stored features of {len(failing)} item(s) do not fit "
                f"system_features.schema.json, so they would be refused and scored as wrong answers; first: "
                f"{', '.join(failing[:shown])}")
@@ -384,6 +415,10 @@ def stored_facts_refusal(items: list[dict], schema: dict, shown: int = 5) -> str
     if other:
         item_id, what = other[0]
         message += f"; another schema error in {len(other)} item(s), first {item_id}: {what}"
+    if elicited_by_another:
+        versions = sorted({str(version) for _id, version in elicited_by_another})
+        message += (f"; the stored features of {len(elicited_by_another)} further item(s) were elicited by prompt "
+                    f"{', '.join(versions)}, not by the prompt of record, {DEFAULT_PROMPT_VERSION}")
     return message
 
 

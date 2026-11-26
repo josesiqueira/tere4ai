@@ -113,3 +113,55 @@ def test_a_development_run_stops_on_stored_facts_outside_the_schema(runner, tmp_
     out = capsys.readouterr().out
     assert "bench:scenario:200" in out and "law_enforcement_use" in out and ADVICE in out
     assert not (tmp_path / "evaluation_records").exists()
+
+
+# Final fix wave (M9, Codex P2): flags that are not an object, and facts elicited by an earlier prompt.
+
+NOT_AN_OBJECT = {"id": "bench:scenario:13", "kind": "classification",
+                 "system_features": {"description": "A movie recommender.", "flags": "social_scoring"}}
+FLAGS_TRUE = {"id": "bench:scenario:14", "kind": "classification",
+              "system_features": {"description": "A movie recommender.", "flags": True}}
+
+
+def test_flags_that_are_not_an_object_get_the_schema_error_and_no_advice(runner):  # noqa: F811
+    for item in (NOT_AN_OBJECT, FLAGS_TRUE):
+        message = runner.stored_facts_refusal([VALID, item], SCHEMA)
+        assert message is not None and item["id"] in message
+        assert "is not of type 'object'" in message
+        assert ADVICE not in message and "facts not in the schema" not in message
+
+
+def _elicited(item_id: str, version: str | None) -> dict:
+    item = {"id": item_id, "kind": "classification", "features_provenance": "llm_elicited",
+            "system_features": {"description": "A movie recommender.", "flags": {"social_scoring": False}}}
+    if version is not None:
+        item["features_prompt_version"] = version
+    return item
+
+
+def test_facts_elicited_by_an_earlier_prompt_are_refused_even_when_they_fit_the_schema(runner):  # noqa: F811
+    from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
+    items = [VALID, _elicited("bench:scenario:1", "v8"), _elicited("bench:scenario:2", "v7"),
+             _elicited("bench:scenario:3", DEFAULT_PROMPT_VERSION)]
+    message = runner.stored_facts_refusal(items, SCHEMA)
+    assert message is not None
+    assert "2 item(s)" in message and "bench:scenario:1" in message and "bench:scenario:2" in message
+    assert "bench:scenario:3" not in message and "gold:cls-x" not in message
+    assert "v7, v8" in message and f"the prompt of record, {DEFAULT_PROMPT_VERSION}" in message
+
+
+def test_facts_elicited_by_the_prompt_of_record_and_hand_made_items_pass(runner):  # noqa: F811
+    from tere4ai.elicit_features.elicitor import DEFAULT_PROMPT_VERSION
+    assert runner.stored_facts_refusal([VALID, _elicited("bench:scenario:3", DEFAULT_PROMPT_VERSION)], SCHEMA) is None
+
+
+def test_attached_facts_carry_the_prompt_version_of_their_file(runner, tmp_path):  # noqa: F811
+    feats = tmp_path / "features.json"
+    feats.write_text(json.dumps({"prompt_version": "v8", "features_by_item": {
+        "bench:scenario:5": {"description": "A movie recommender.", "flags": {"social_scoring": False}}}}),
+                     encoding="utf-8")
+    bench = [{"id": "bench:scenario:5", "kind": "classification", "system_features": None}]
+    assert runner._attach_features(bench, feats) == 1
+    assert bench[0]["features_prompt_version"] == "v8"
+    message = runner.stored_facts_refusal(bench, SCHEMA)
+    assert message is not None and "v8" in message

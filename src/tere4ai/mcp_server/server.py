@@ -432,10 +432,14 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     the legal unit of every Annex III listed use that is true, as answered or
     as it follows from another fact by a definition of the Act, in point
     order, and each is cited, except on an unacceptable_risk answer, which
-    cites only Article 5; annex_iii_category is the first matching point.
+    cites only Article 5; on the Article 6(1) route the listed uses are cited
+    without their point. annex_iii_category is the first matching point when
+    Annex III decided the level, and is null when the Article 6(1) route or a
+    prohibition decided it, even if annex_iii_listed_uses names a listed use.
     fact_conflicts names each pair of facts where a fact that a definition of
     the Act makes follow was answered false; that fact is read as true and the
-    answer requires human review. The list is empty when there is no such
+    answer requires human review; an entry holds narrower, wider, provision
+    (the legal unit of the definition) and note. The list is empty when there is no such
     pair, and on a rejected input; a fact left unknown that a definition makes
     follow is read as true as well, with a line in the rationale and no entry.
     A fixed rule ladder decides, never a model; unknown facts that could make
@@ -450,7 +454,10 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     deployer.private_entity_providing_public_services); it is unknown, not
     does_not_apply, while an unknown Annex III fact could still make the
     system high-risk under Article 6(2) and the assessment apply, and it
-    names that fact. Free, no model calls."""
+    names that fact. An input the schema refuses returns status
+    rejected_as_unsupported with the schema's errors in missing_facts, and a
+    line for each fact that left the schema naming the facts that replace it.
+    Free, no model calls."""
     loaded = _active()
     dump = loaded.dump
     if dump is None:

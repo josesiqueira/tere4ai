@@ -65,6 +65,9 @@ ALLOWED: dict[str, str] = {
                                            "outside the schema",
     "tests/unit/test_web_copy_honesty.py": "it tests that the demo site's assess page drops a stored removed fact",
     "tests/unit/test_run_ablations_stored_facts.py": "it tests that the ablation harness stops on stored facts that carry a removed fact",
+    "src/tere4ai/mcp_server/classify.py": "its table REMOVED_FACT_REPLACEMENTS names each removed fact, so that a "
+                                          "rejected input that carries one is told the facts that replace it",
+    "tests/unit/test_b184_review_fixes.py": "it tests the line a rejected input gets for each removed fact it carries",
 }
 
 _WORD = re.compile(rb"\b(?:" + b"|".join(name.encode() for name in REMOVED) + rb")\b")
