@@ -2718,7 +2718,7 @@ way round.
   shown with them (the high-risk session's returned requirements 277 to
   336, the limited-risk session's 13 to 21) come from that change of
   build, not from DEC-32. The sessions under tests/fixtures/demo_sessions
-  carry build-bab25bf2e5d6, read from data/graph_dumps. (Corrected 2026-11-26 after the re-review: this holds for the classification answers of those sessions; the applicable requirements answers of credscore-highrisk.jsonl and shopbot-transparency.jsonl carry norms_build_id build-3b753e5e9297, the build of data/graph_dumps/norms_core.json, from which scripts/rerecord_demo_sessions.py records them.)
+  carry build-bab25bf2e5d6, read from data/graph_dumps. (Corrected 2026-11-26 after the re-review: this holds for the classification answers of those sessions; the applicable requirements answers of credscore-highrisk.jsonl and shopbot-transparency.jsonl carry norms_build_id build-3b753e5e9297, the build of data/graph_dumps/norms_core.json, from which scripts/rerecord_demo_sessions.py records them.) Added 2026-11-26 (B184, after the stress harness was run on the finished code): the applicable requirements of a prohibited classification marked for human review by a fact conflict carry every missing fact of that classification, as the requirements of every other unsettled classification do; a settled prohibited classification carries none.
   Not done in this decision, the benchmark features: 12 of the 32 items of
   eval/gold/benchmark_features.json and 92 of the 339 of
   eval/gold/benchmark_features_full.json carry facts of the earlier

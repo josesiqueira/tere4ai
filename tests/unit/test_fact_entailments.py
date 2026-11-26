@@ -274,7 +274,33 @@ def test_requirements_of_a_marked_prohibited_answer_keep_the_mark(dump, norms): 
         assert all(note in req["missing_facts"] for note in notes)
         assert req["answer"]["requirements_by_article"] == {} and req["answer"]["summary"] == {"returned": 0}
         assert req["answer"]["message"] == PROHIBITED_MESSAGE
+    # Fix round 2: the envelope's requirements carry every missing fact of the classification.
+    assert get_applicable_requirements(cls, norms, dump)["missing_facts"] == cls["missing_facts"]
     assert get_applicable_requirements(cls, norms, dump)["source_nodes"] == [POINT_G]  # ruling R14
+
+
+SMALLEST_MARKED_PROHIBITED = {"biometric_categorisation": True, "biometric_categorisation_system": False,
+                              "biometric_categorisation_lawful_or_law_enforcement": False}
+
+
+def test_requirements_of_a_marked_prohibited_answer_carry_every_missing_fact(dump, norms):  # fix round 2
+    cls = classify_ai_system(_case(dict(SMALLEST_MARKED_PROHIBITED)), dump)
+    assert cls["answer"]["risk_category"] == "unacceptable_risk" and cls["status"] == "requires_human_review"
+    notes = [c["note"] for c in cls["answer"]["fact_conflicts"]]
+    assert len(cls["missing_facts"]) > len(notes)  # unknown facts beside the conflict line
+    envelope_form = get_applicable_requirements(cls, norms, dump)
+    assert envelope_form["missing_facts"] == cls["missing_facts"]  # every one, in the classification's order
+    assert len(envelope_form["missing_facts"]) == len(set(envelope_form["missing_facts"]))
+    assert envelope_form["status"] == "requires_human_review" and envelope_form["confidence"] == 0.5
+    assert envelope_form["answer"]["requirements_by_article"] == {}
+    assert envelope_form["answer"]["message"] == PROHIBITED_MESSAGE
+    assert envelope_form["source_nodes"] == [POINT_G]  # ruling R14
+    # The bare answer holds no missing facts, only fact_conflicts: its requirements carry the conflict lines,
+    # each a line of the classification.
+    bare_form = get_applicable_requirements(cls["answer"], norms, dump)
+    assert bare_form["missing_facts"] == notes
+    assert all(line in cls["missing_facts"] for line in bare_form["missing_facts"])
+    assert bare_form["status"] == "requires_human_review" and bare_form["answer"]["requirements_by_article"] == {}
 
 
 def test_requirements_of_an_unmarked_prohibited_answer_stay_settled(dump, norms):

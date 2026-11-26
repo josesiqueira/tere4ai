@@ -383,7 +383,7 @@ def get_applicable_requirements(
         ]
         # B184 (review of Task 4, I1): a prohibited classification marked for
         # review by a fact conflict keeps its status, its confidence and its
-        # conflict lines here (DEC-08); still no requirement is served.
+        # missing facts here (DEC-08); still no requirement is served.
         prohibited_marked = unsettled
         return make_envelope(
             answer={
@@ -409,14 +409,19 @@ def get_applicable_requirements(
                 f"{n}: {PROHIBITED_NOTE}"
                 for n in cited
             ],
-            missing_facts=[
-                *(conflict_notes if prohibited_marked else []),
+            # Fix round 2 of the Task 4 review: every missing fact of a marked
+            # classification, in its order, without duplicates (if the narrower
+            # answer of a pair is the wrong one the prohibition lifts and these
+            # facts decide the level); the bare answer form brings only its
+            # conflict lines. A settled prohibited classification carries none.
+            missing_facts=list(dict.fromkeys([
+                *((*upstream_missing, *conflict_notes) if prohibited_marked else ()),
                 *(
                     f"prohibition node '{n}' from the classification is not present in the graph dump"
                     for n in prohibition_nodes
                     if n not in node_index
                 ),
-            ],
+            ])),
         )
 
     if risk_category == "minimal_risk":
