@@ -59,6 +59,12 @@ from tere4ai.mcp_server.removed_facts import (
     domain_is_a_value,
     domain_refusal,
 )
+from tere4ai.mcp_server.review_causes import (
+    ANNEX_III_UNKNOWN_TAG,
+    STATUS_LINE_PREFIX,
+    review_causes,
+    review_status_line,
+)
 from tere4ai.mcp_server.tools import make_envelope
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -549,8 +555,9 @@ def read_annex_iii(flags: dict[str, Any], domain: str | None) -> AnnexIIIReading
     it is not known false, and the area stops counting when every listed use
     of it is false (ELICITATION_ERRORS.md, scenario 161). A true listed use
     anywhere means the domain is not read. Every reader of Annex III (the
-    exits, the Section B checks, the routes, the citations, the dates and,
-    until Task 6 of B185, the FRIA block) reads this one reading.
+    exits, the Section B checks, the routes, the citations, the dates and
+    the FRIA block, which counts only the confirmed points as areas) reads
+    this one reading.
 
     @implements: DEC-32
     @implements: DEC-33
@@ -648,9 +655,8 @@ FACT_ENTAILED_FROM_UNKNOWN_LINE = (
     "flags.{wider} is unknown while flags.{narrower} is true; {provision} makes the "
     "first follow from the second, so it is read as true"
 )
-FACT_CONFLICT_STATUS_LINE = (
-    "status lowered to requires_human_review: answers contradict a definition of the Act: see fact_conflicts"
-)
+# B185 Task 6 (ruling P11): the status line of the cause fact_conflict.
+FACT_CONFLICT_STATUS_LINE = review_status_line("fact_conflict", {})
 
 
 def fact_conflict_line(narrower: str, wider: str, provision: str) -> str:
@@ -664,13 +670,10 @@ def fact_conflict_line(narrower: str, wider: str, provision: str) -> str:
 
 # B185 (spec G D-G92 (4) and (iii), DEC-33): the note of each entry of
 # area_conflicts, the spec's words, which also joins the missing facts, and
-# the rationale's status line of an answer it marks (Task 6 of B185 keeps it as
-# this cause's line).
+# the rationale's status line of an answer it marks (B185 Task 6: the status
+# line of the cause area_conflict, from review_causes.py).
 AREA_CONFLICT_NOTE = "domain is none_of_these_areas while flags.{fact} is true; the fact keeps its effect"
-AREA_CONFLICT_STATUS_LINE = (
-    "status lowered to requires_human_review: a listed use is true while domain is none_of_these_areas: "
-    "see area_conflicts"
-)
+AREA_CONFLICT_STATUS_LINE = review_status_line("area_conflict", {})
 
 
 def area_conflicts(flags: dict[str, Any], domain: str | None) -> list[dict[str, str]]:
@@ -849,8 +852,9 @@ ARTICLE_50_SECTION_B_NOTE = (
 HIGH_RISK_ROUTE_ARTICLE_6_1 = "article_6_1"
 HIGH_RISK_ROUTE_ARTICLE_6_2 = "article_6_2"
 # R39: the words that mark an unknown Annex III fact among the missing facts,
-# which get_applicable_requirements reads for a Section B system.
-ANNEX_III_UNKNOWN_TAG = "(Annex III high-risk relevant, Article 6(2))"
+# which get_applicable_requirements reads for a Section B system, are
+# ANNEX_III_UNKNOWN_TAG, imported from review_causes.py (B185 Task 6), where
+# the cause listed_use_unknown reads them.
 # The end of the legal_status_notes line each Article 5 hit of an
 # unacceptable_risk answer gives.
 PROHIBITED_PRACTICE_NOTE_END = (
@@ -1212,8 +1216,8 @@ def _annex_iii_candidacy(
     candidate = article_6_3_candidate(flags)
     # B185 (Task 4's review): the lines follow the returned value, never a
     # second reading of the facts: a condition that is true and not cancelled
-    # by profiling is exactly a true candidate.
-    assert bool(matched_conditions) == (candidate is True), (matched_conditions, candidate)
+    # by profiling is exactly a true candidate (tests/unit/test_review_causes.py
+    # holds this over the table of area cases and a generated set).
     if candidate is True:
         citations.cite(ARTICLE_6_PARAGRAPH_3)
         for flag, point_nodes, label in matched_conditions:
@@ -1597,7 +1601,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             # point (a listed use that is true, or a point that rests on the
             # area) the field follows (6) for the Annex III part, and the
             # status stays the one the Article 6(1) route gives: a true
-            # candidate adds no mark here. A Section B product reaches this
+            # candidate adds no mark on a Section A product (with the section
+            # unknown ruling R5 makes it a cause of review, which the wrapper
+            # reads through review_causes). A Section B product reaches this
             # branch only without a true listed use, so its point rests on the
             # area, whose unknown listed uses already mark it (R39), as
             # passage (k) requires.
@@ -1606,6 +1612,12 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 annex_iii_part_candidate = _annex_iii_candidacy(
                     flags, citations, rationale, legal_status_notes, missing_facts, both_routes=True
                 )
+            if annex_i_section == "unknown" and reading.confirmed and annex_iii_part_candidate is True:
+                # B185 Task 6 (ruling R5): with a true listed use the section
+                # fact decides whether the derogation would change what is
+                # served (Section B, passage (k)), so it is named, and the
+                # candidate is a cause of review (review_causes.py).
+                missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
             missing_facts.extend(citations.unresolved)
             status = "potentially_applicable"
             confidence = 1.0
@@ -2034,8 +2046,9 @@ def _rejected_answer(
     errors come one line for each fact that left the schema (B184, final
     review, M2), naming the facts that replace it, then, when the given
     domain is not a value of the schema and is neither absent nor null, the
-    refusal of P30 (domain_refusal), word for word. Until Task 6 of B185 the
-    fria block is today's: the block of a classification not settled.
+    refusal of P30 (domain_refusal), word for word. B185 Task 6 (spec G
+    D-G92 (9), ruling P14): a refused input carries no Article 27(1) block,
+    so answer["fria"] is null, the key kept.
 
     @implements: DEC-32
     @implements: DEC-33
@@ -2059,7 +2072,7 @@ def _rejected_answer(
         if not domain_is_a_value(domain):
             missing.append(domain_refusal(domain))
     envelope["missing_facts"] = missing
-    answer["fria"] = assess_fria_applicability(None, None, {}, {})
+    answer["fria"] = None
     answer["annex_i_section"] = None
     answer["high_risk_routes"] = []
     answer["annex_iii_listed_uses"] = []
@@ -2130,6 +2143,17 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     (_annex_iii_candidacy) and the Article 27 block reads that one value,
     holding at unknown for the candidacy only when it is true.
 
+    B185 Task 6 (spec G D-G92 (8), (9), (v), DEC-33, rulings P11 to P14,
+    P32, P33, R5): the causes of review are decided in one place
+    (review_causes.py) from the answer's own fields. The core's lines that
+    start "status lowered to requires_human_review:" are replaced by one line
+    per cause that holds, in the spec's order, and the status is
+    requires_human_review with confidence 0.5 exactly when a cause holds (an
+    undetermined answer keeps its "rule undetermined:" line and prints no
+    cause). The Article 27 block reads the confirmed points only, the point
+    that rests on the area apart with its unknown listed uses, and names
+    every cause, the area first. A refused input carries "fria": null.
+
     @implements: DEC-32
     @implements: DEC-33
     """
@@ -2161,12 +2185,13 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     rationale = answer.setdefault("rationale", [])
     rationale.extend(unknown_lines)
     # B184 (ruling P11) and B185 (the rule added after the plan's review of
-    # D-G92): each mark lowers the status on every exit, unacceptable_risk
-    # included, the level unchanged, before the Article 27 block is computed.
+    # D-G92): each mark joins its notes to the missing facts on every exit,
+    # unacceptable_risk included, the level unchanged; the status follows the
+    # causes of review below, before the Article 27 block is computed.
     clauses: list[str] = []
-    for entries, status_line, clause in (
-        (conflicts, FACT_CONFLICT_STATUS_LINE, PROHIBITION_FACT_CONFLICT_CLAUSE),
-        (areas, AREA_CONFLICT_STATUS_LINE, PROHIBITION_AREA_CONFLICT_CLAUSE),
+    for entries, clause in (
+        (conflicts, PROHIBITION_FACT_CONFLICT_CLAUSE),
+        (areas, PROHIBITION_AREA_CONFLICT_CLAUSE),
     ):
         if not entries:
             continue
@@ -2174,9 +2199,6 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
             *(envelope.get("missing_facts") or []),
             *(entry["note"] for entry in entries),
         ]
-        envelope["status"] = "requires_human_review"
-        envelope["confidence"] = 0.5
-        rationale.append(status_line)
         clauses.append(clause)
     if clauses and answer.get("risk_category") == "unacceptable_risk":
         # B184 (final review, M3) and B185 (ruling P26): each prohibited-
@@ -2193,50 +2215,8 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
     answer["annex_iii_area_unconfirmed"] = (
         reading.area_point if answer.get("risk_category") == "high_risk" else None
     )
-    annex_node = answer.get("annex_iii_category")
-    # The full set of Annex III points, so the FRIA rule can scope the point-2
-    # exception to the area, not the whole system (audit D5). This also
-    # recovers the 6(2) side of a system that took the 6(1) route. Until
-    # Task 6 of B185 rewrites the Article 27 block for a point that rests on
-    # the area, the block keeps today's inputs: the confirmed points, then the
-    # area's point when one is set.
-    annex_points = [*reading.confirmed, *([reading.area_point] if reading.area_point else [])]
-    if annex_node is None and annex_points:
-        annex_node = annex_points[0]
-    # B185 (spec G D-G92 (iv)): the block reads the answer's own field, which
-    # every exit with an Annex III point computes for the Annex III part
-    # (the Article 6(1) exit of a dual-route system included, audit D7); it
-    # holds at unknown for a candidate only when the field is true.
-    candidate = answer.get("article_6_3_exception_candidate") is True
-    answer["fria"] = assess_fria_applicability(
-        answer.get("risk_category"),
-        annex_node,
-        flags,
-        deployer,
-        article_6_3_exception_candidate=candidate,
-        annex_points=annex_points,
-        # An unsettled high-risk classification (requires_human_review) must
-        # not carry a settled FRIA verdict (audit D6).
-        classification_unsettled=(envelope.get("status") == "requires_human_review"),
-        # An unknown Annex III fact keeps the FRIA block open when it could
-        # make Article 27(1) apply (B125); only the fria block reads it,
-        # never the level or status.
-        unknown_annex_iii_facts=_unknown_annex_iii_facts(flags),
-        # B184 (review of Task 4, I1 and I2): the classification's own fields
-        # tell the FRIA rule that the review mark comes from a fact conflict.
-        fact_conflicts=answer.get("fact_conflicts"),
-        unacceptable_risk=answer.get("unacceptable_risk"),
-        # B185 (ruling P26): an area conflict marks the block as a fact
-        # conflict does on the unacceptable_risk exit.
-        area_conflicts=areas,
-    )
     # B132 (spec G D-G68 (6)): the Annex I section on every answer (null off
-    # the Article 6(1) route), the high-risk routes that hold (R37: computed
-    # with the same Annex III check the FRIA rule reads above), the
-    # application dates of every provision the answer cites, from the reviewed
-    # table of Article 113 as amended, by those routes (both points of
-    # Article 113(c) when both hold; data, never control flow: nothing above
-    # reads them), and the text it follows.
+    # the Article 6(1) route) and the high-risk routes that hold (R37).
     answer.setdefault("annex_i_section", None)
     article_6_1_holds = (
         flags.get("annex_i_covered_product") is True
@@ -2251,6 +2231,63 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         )
         if holds
     ] if answer.get("risk_category") == "high_risk" else []
+    # B185 Task 6 (spec G D-G92 (8), rulings P11, P12, P32, R5): the causes of
+    # review decide the status and are named in order. The core's status
+    # lines are replaced by one line per cause that holds; the status is
+    # requires_human_review with confidence 0.5 whenever a cause holds, the
+    # level unchanged. An undetermined answer keeps its "rule undetermined:"
+    # line as its reason and prints no cause (P32).
+    causes = review_causes(answer, envelope.get("missing_facts") or [])
+    rationale[:] = [line for line in rationale if not line.startswith(STATUS_LINE_PREFIX)]
+    if answer.get("risk_category") != "undetermined" and causes:
+        envelope["status"] = "requires_human_review"
+        envelope["confidence"] = 0.5
+        rationale.extend(review_status_line(cause, answer) for cause in causes)
+    # B185 Task 6 (spec G D-G92 (5), (v), passage (j), ruling P13): the
+    # Article 27 block reads the confirmed points only; a point that rests on
+    # the area comes apart, with its unknown listed uses, and is never
+    # counted as a confirmed area. The full set of confirmed points scopes
+    # the point-2 exception to the area, not the whole system (audit D5), and
+    # recovers the 6(2) side of a system that took the 6(1) route.
+    annex_points = list(reading.confirmed)
+    annex_node = answer.get("annex_iii_category") or (annex_points[0] if annex_points else None)
+    area = None
+    if answer["annex_iii_area_unconfirmed"] is not None:
+        area = {
+            "domain": domain,
+            "point": reading.area_point,
+            "number": _features_schema()["properties"]["domain"]["x-annex-iii-area-values"][domain],
+            "unknown_uses": list(reading.area_unknown_uses),
+        }
+    answer["fria"] = assess_fria_applicability(
+        answer.get("risk_category"),
+        annex_node,
+        flags,
+        deployer,
+        # B185 (spec G D-G92 (iv)): the answer's own field, which every exit
+        # with an Annex III point computes for the Annex III part (the
+        # Article 6(1) exit of a dual-route system included, audit D7); the
+        # block holds at unknown for a candidate only when it is true.
+        article_6_3_exception_candidate=answer.get("article_6_3_exception_candidate") is True,
+        annex_points=annex_points,
+        # An unknown Annex III fact keeps the FRIA block open when it could
+        # make Article 27(1) apply (B125); only the fria block reads it,
+        # never the level or status.
+        unknown_annex_iii_facts=_unknown_annex_iii_facts(flags),
+        annex_iii_area=area,
+        # The causes of review of the classification, the ones its status
+        # lines name. The block reads a true candidate from the field above
+        # (step 4, D-G92 (iv)); beside a proven Article 6(1) route of a
+        # Section A product the candidate is not a cause (passage (k)), so the
+        # block's sentence never says the classification is not settled on an
+        # answer that is settled (B185 Task 6 report, the reading of P12).
+        review_causes=causes,
+        area_conflicts=areas,
+    )
+    # B132 (spec G D-G68 (6)): the application dates of every provision the
+    # answer cites, from the reviewed table of Article 113 as amended, by the
+    # routes (both points of Article 113(c) when both hold; data, never
+    # control flow: nothing above reads them), and the text it follows.
     route = route_of(answer)
     _cite_listed_uses(envelope, flags, reading, dump)
     if answer["high_risk_routes"] == [HIGH_RISK_ROUTE_ARTICLE_6_1, HIGH_RISK_ROUTE_ARTICLE_6_2]:

@@ -24,6 +24,14 @@ obligation applies. It does not generate or evaluate the assessment
 itself (the content elements of Article 27(1) points (a) to (f) and the
 Article 27(5) template are a separate, source-gated work item).
 
+A point of Annex III that rests on the domain alone, with no listed use of
+it confirmed, is never counted as a confirmed area (B185, spec G D-G92 (5),
+(v)): while the level itself rests on it the block answers unknown, and
+beside a proven Article 6(1) route it answers as for that route for point 2
+and unknown otherwise. Every cause of review that holds is named in the
+block's sentence, the area first (D-G92 (8) and the rule added after the
+plan's review).
+
 An Annex III fact absent from the input is not read as false (B125): on a
 limited_risk or minimal_risk answer, and on a high-risk answer through the
 Article 6(1) route only or in the point 2 area only, while the fact could
@@ -39,7 +47,9 @@ legal categories. Only the structured deployer facts decide.
 @implements: DEC-20
 @implements: DEC-23
 @implements: DEC-32 (a classification marked by a fact conflict keeps the block unknown)
-@implements: DEC-33 (a prohibited classification marked by an area conflict keeps the block unknown)
+@implements: DEC-33 (a prohibited classification marked by an area conflict keeps the block unknown;
+B185 Task 6: the block names every cause of review, the area first, and never counts a point that
+rests on the area as a confirmed area)
 @grounded_by: REF-01, REF-30
 """
 
@@ -49,6 +59,11 @@ from typing import Any
 
 from tere4ai.mcp_server.application_dates import fria_applies_from
 from tere4ai.mcp_server.levels import level_name
+
+# Re-exported for the readers that import them from here (requirements.py).
+from tere4ai.mcp_server.review_causes import AREA_CONFLICT_REASON as AREA_CONFLICT_REASON
+from tere4ai.mcp_server.review_causes import FACT_CONFLICT_REASON as FACT_CONFLICT_REASON
+from tere4ai.mcp_server.review_causes import review_reason
 
 ARTICLE_27_PARAGRAPH_1 = "eu-ai-act:article-27:paragraph-1"
 ARTICLE_6_PARAGRAPH_3 = "eu-ai-act:article-6:paragraph-3"
@@ -114,19 +129,32 @@ def _block(
     }
 
 
-# B184 (DEC-32; review of Task 4, I1 and I2): the reason a classification
-# marked by a fact conflict is not settled. Count-neutral, since one narrower
-# fact can contradict two definitions.
-FACT_CONFLICT_REASON = (
-    "answers contradict a definition of the Act (fact_conflicts) and one answer of each pair is "
-    "wrong, so the classification could change once they are corrected"
+# B185 Task 6 (ruling P11): the reasons of review live in review_causes.py,
+# which decides which causes hold; FACT_CONFLICT_REASON and
+# AREA_CONFLICT_REASON are imported from there with their text unchanged.
+
+# B185 Task 6 (spec G D-G92 (5), (v), (8), the rules added after the plan's
+# review, ruling P13): the block's sentences for a point that rests on the
+# area and for the causes of review, word for word. The area sentences say
+# only what holds for every point, point 2 included (I4).
+FRIA_AREA_ALONE_REASON = (
+    "the level rests on the area alone: domain '{domain}' places the system in Annex III point {number}, and "
+    "no listed use of the point is confirmed, so whether the system is a high-risk AI system referred to in "
+    "Article 6(2) is not settled and FRIA applicability stays unknown"
 )
-# B185 (DEC-33, ruling P26): the reason a classification marked by an area
-# conflict is not settled, the text of REVIEW_CAUSE_REASONS["area_conflict"]
-# (Task 6 of B185 moves it into review_causes.py).
-AREA_CONFLICT_REASON = (
-    "a listed use of Annex III is true while the domain says none of these areas (area_conflicts), so one "
-    "of the two answers is wrong"
+FRIA_AREA_BESIDE_ARTICLE_6_1_REASON = (
+    "the system is high-risk via the Article 6(1) embedded-product route; domain '{domain}' places it in "
+    "Annex III point {number}, but no listed use of the point is confirmed, so whether it is also a high-risk "
+    "AI system referred to in Article 6(2) is not settled and FRIA applicability stays unknown"
+)
+FRIA_AREA_UNKNOWN_USE_LINE = (
+    "flags.{fact} is unknown (a listed use of Annex III point {number}); the level rests on the area alone "
+    "until a listed use of the point is answered"
+)
+FRIA_OTHER_CAUSES_TEMPLATE = "the classification is also not settled for these reasons: {reasons}"
+FRIA_UNSETTLED_TEMPLATE = (
+    "the risk classification is high-risk but not settled: {reasons}; FRIA applicability stays unknown until "
+    "the classification is confirmed"
 )
 
 _UNKNOWN_ANNEX_III_NONE_CAN = (
@@ -181,6 +209,30 @@ def _unknown_annex_iii_line(flag: str) -> str:
     )
 
 
+def _legacy_causes(
+    risk_category: str | None,
+    classification_unsettled: bool,
+    fact_conflicts: list[Any] | None,
+    unacceptable_risk: bool | None,
+    area_conflicts: list[Any] | None,
+) -> list[str]:
+    """The causes of review read from the arguments a caller passed before B185
+    Task 6, for a caller that passes no review_causes: a fact conflict, an area
+    conflict, and an unknown Article 5 fact when the classification is marked
+    unsettled on a high_risk answer whose unacceptable_risk is null (audit D6).
+
+    @implements: DEC-33
+    """
+    causes = []
+    if classification_unsettled and risk_category == "high_risk" and unacceptable_risk is None:
+        causes.append("article_5_unknown")
+    if fact_conflicts:
+        causes.append("fact_conflict")
+    if area_conflicts:
+        causes.append("area_conflict")
+    return causes
+
+
 def assess_fria_applicability(
     risk_category: str | None,
     annex_iii_category: str | None,
@@ -192,6 +244,8 @@ def assess_fria_applicability(
     unknown_annex_iii_facts: dict[str, str] | None = None,
     fact_conflicts: list[Any] | None = None,
     unacceptable_risk: bool | None = None,
+    annex_iii_area: dict[str, Any] | None = None,
+    review_causes: list[str] | None = None,
     area_conflicts: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Decide whether the Article 27(1) FRIA obligation applies.
@@ -203,48 +257,60 @@ def assess_fria_applicability(
     when they could change the outcome the answer is "unknown" with each
     missing fact named.
 
-    annex_points is the FULL set of matched Annex III point nodes, so the
-    point-2 exception is scoped to the point-2 AREA and never erases the
-    obligation of a system that also falls under another point (audit D5).
-    classification_unsettled is true when the classification itself is not
-    settled (for example an unknown prohibition flag could flip it to
-    unacceptable risk); the obligation then stays unknown (audit D6). A pending
-    Article 6(3) derogation likewise blocks the decision (audit D7): a
-    confirmed derogation would take the system out of Article 6(2).
+    annex_points is the FULL set of Annex III point nodes confirmed by a
+    listed use that is true, so the point-2 exception is scoped to the
+    point-2 AREA and never erases the obligation of a system that also falls
+    under another point (audit D5). B185 (spec G D-G92 (5), passage (j)): a
+    point that rests on the area is never among them; it comes in
+    annex_iii_area ({"domain", "point", "number", "unknown_uses"}) and the
+    block never counts it as a confirmed area.
+
+    review_causes are the causes of review of the classification that hold
+    (review_causes.py), in the order of spec G D-G92 (8); the classifier
+    passes the ones its status lines name. A true candidate is read from
+    article_6_3_exception_candidate (step 4 below, D-G92 (iv)), so beside a
+    proven Article 6(1) route of a Section A product, where the candidate is
+    no cause (passage (k)), the block never says the classification is not
+    settled. A caller that passes none gets them from classification_unsettled,
+    fact_conflicts, unacceptable_risk and area_conflicts as before B185 Task
+    6 (_legacy_causes); such a caller passes no annex_iii_area.
 
     unknown_annex_iii_facts maps each Annex III fact absent from the input to
     the Annex III point node it belongs to, in point order (the classifier
     builds it; this module never imports classify). It is read where the
     answer would otherwise be does_not_apply for want of an Annex III
     area: on a limited_risk or minimal_risk answer, and on a high_risk
-    answer with no Annex III point matched (the Article 6(1) route only)
-    or with only the point 2 area matched. While an unknown fact could make
-    the system high-risk under Article 6(2) and the assessment apply, the
-    block is unknown, not does_not_apply, and names that fact; on those two
-    high-risk answers an unknown 5(b) or 5(c) fact keeps its own line, and
-    the other facts that could trigger are named beside it. Facts that cannot
-    change the outcome are not named: the point 2 area (excepted by
-    Article 27(1)), and, once the deployer is known to be neither a
-    public-law body nor a private entity providing public services, every
-    area except points 5(b) and 5(c), which trigger for any deployer; the
-    does_not_apply rationale then says which of these two reasons holds.
-    None or empty keeps the plain does_not_apply.
+    answer with no Annex III point confirmed (the Article 6(1) route only,
+    or beside it a point 2 area that rests on the domain) or with only the
+    point 2 area confirmed. While an unknown fact could make the system
+    high-risk under Article 6(2) and the assessment apply, the block is
+    unknown, not does_not_apply, and names that fact; on those high-risk
+    answers an unknown 5(b) or 5(c) fact keeps its own line, and the other
+    facts that could trigger are named beside it. Facts that cannot change
+    the outcome are not named: the point 2 area (excepted by Article 27(1)),
+    and, once the deployer is known to be neither a public-law body nor a
+    private entity providing public services, every area except points 5(b)
+    and 5(c), which trigger for any deployer; the does_not_apply rationale
+    then says which of these two reasons holds.
 
-    fact_conflicts and unacceptable_risk are the classification's own fields
-    (B184, DEC-32; review of Task 4, I1 and I2). A classification marked for
-    review by a fact conflict leaves the block unknown on an unacceptable_risk
-    answer too (ruling P11), with a reason naming the conflict; on a high-risk
-    answer marked by a conflict alone (no Article 5 fact unknown, so
-    unacceptable_risk is not null) the reason names the conflict instead of a
-    change to Unacceptable risk. Every other cause keeps its sentence.
+    The order on a high_risk answer (B185 Task 6, spec G D-G92 (v), (8), the
+    rules added after the plan's review, ruling P13): (1) the level rests on
+    the area alone: unknown, FRIA_AREA_ALONE_REASON, then
+    FRIA_OTHER_CAUSES_TEMPLATE naming every other cause, before any other
+    reading; (2) a point that rests on the area beside the Article 6(1)
+    route: for point 2 the Article 6(1)-only reading, for any other point
+    unknown with FRIA_AREA_BESIDE_ARTICLE_6_1_REASON; (3) no Annex III point:
+    the Article 6(1)-only reading; (4) a true candidate: the candidacy
+    sentence (audit D7); (5) any other cause: unknown with
+    FRIA_UNSETTLED_TEMPLATE naming every cause (audit D6); (6) the triggers.
+    Wherever (2) to (4) answer unknown while other causes hold, the sentence
+    after it names them. On an unacceptable_risk answer a fact conflict or
+    an area conflict leaves the block unknown, the sentence naming each
+    (ruling P26); limited_risk and minimal_risk answers keep their reading
+    and name no cause (ruling P33).
 
-    area_conflicts is the classification's own field too (B185, DEC-33,
-    ruling P26): on an unacceptable_risk answer an area conflict leaves the
-    block unknown as a fact conflict does, the sentence naming the reason of
-    each mark that holds, the fact conflict first.
+    @implements: DEC-33
     """
-    conflict_marked = bool(fact_conflicts)
-    area_marked = bool(area_conflicts)
     rationale: list[str] = []
     basis = [ARTICLE_27_PARAGRAPH_1]
     missing: list[str] = []
@@ -257,20 +323,21 @@ def assess_fria_applicability(
         )
         return _block("unknown", rationale, basis, missing)
 
-    if risk_category == "unacceptable_risk" and (conflict_marked or area_marked):
-        reasons = [
-            reason
-            for marked, reason in ((conflict_marked, FACT_CONFLICT_REASON), (area_marked, AREA_CONFLICT_REASON))
-            if marked
-        ]
-        rationale.append(
-            "the system falls under an Article 5 prohibited practice on the facts as read, but "
-            + "; ".join(reasons)
-            + "; FRIA applicability stays unknown until the classification is confirmed"
-        )
-        return _block("unknown", rationale, basis, missing)
+    causes = (
+        list(review_causes)
+        if review_causes is not None
+        else _legacy_causes(risk_category, classification_unsettled, fact_conflicts, unacceptable_risk, area_conflicts)
+    )
 
     if risk_category == "unacceptable_risk":
+        marks = [cause for cause in causes if cause in ("fact_conflict", "area_conflict")]
+        if marks:
+            rationale.append(
+                "the system falls under an Article 5 prohibited practice on the facts as read, but "
+                + review_reason(marks)
+                + "; FRIA applicability stays unknown until the classification is confirmed"
+            )
+            return _block("unknown", rationale, basis, missing)
         rationale.append(
             "the system falls under an Article 5 prohibited practice; there "
             "is no lawful deployment for Article 27(1) to attach to, and no "
@@ -299,10 +366,46 @@ def assess_fria_applicability(
             rationale.append(none_can)
         return _block("does_not_apply", rationale, basis, missing)
 
-    # high_risk from here on. Resolve the matched Annex III points.
+    # high_risk from here on. Resolve the confirmed Annex III points.
     if annex_points is None:
         annex_points = [annex_iii_category] if annex_iii_category else []
     annex_points = [p for p in annex_points if p]
+
+    def _naming_other_causes(block: dict[str, Any], others: list[str]) -> dict[str, Any]:
+        # B185 (the rule added after the plan's review: every cause that holds
+        # is named): a block that answers unknown names the other causes.
+        if block["applicability"] == "unknown" and others:
+            block["rationale"].append(FRIA_OTHER_CAUSES_TEMPLATE.format(reasons=review_reason(others)))
+        return block
+
+    if annex_iii_area is not None:
+        # B185 (spec G D-G92 (5), (v), ruling P13): a point that rests on the
+        # area is never counted as a confirmed area.
+        area_lines = [
+            FRIA_AREA_UNKNOWN_USE_LINE.format(fact=fact, number=annex_iii_area["number"])
+            for fact in annex_iii_area.get("unknown_uses") or ()
+        ]
+        if "area_alone" in causes:
+            # The level itself rests on the area: unknown before any other
+            # reading, even where no listed use of the area could bring
+            # Article 27(1) in (the choice D-G92 records after Codex's review).
+            rationale.append(
+                FRIA_AREA_ALONE_REASON.format(domain=annex_iii_area["domain"], number=annex_iii_area["number"])
+            )
+            missing.extend(area_lines)
+            return _naming_other_causes(
+                _block("unknown", rationale, basis, missing), [c for c in causes if c != "area_alone"]
+            )
+        if annex_iii_area["point"] != ANNEX_III_POINT_2:
+            rationale.append(
+                FRIA_AREA_BESIDE_ARTICLE_6_1_REASON.format(
+                    domain=annex_iii_area["domain"], number=annex_iii_area["number"]
+                )
+            )
+            missing.extend(area_lines)
+            return _naming_other_causes(_block("unknown", rationale, basis, missing), causes)
+        # Point 2 beside the Article 6(1) route: Article 27(1) excepts the
+        # point 2 area, so the block answers as for that route (item (v)).
 
     # An unknown 5(b)/5(c) fact means annex_points may be INCOMPLETE: if the
     # fact were true the system would fall under Annex III point 5 and the
@@ -331,7 +434,7 @@ def assess_fria_applicability(
         "is named as well"
     )
 
-    if not annex_points:
+    def _article_6_1_only() -> dict[str, Any]:
         if unknown_system_triggers:
             named_others = _name_unknown_triggers()
             rationale.append(
@@ -367,11 +470,15 @@ def assess_fria_applicability(
             rationale.append(none_can)
         return _block("does_not_apply", rationale, basis, missing)
 
+    if not annex_points:
+        return _naming_other_causes(_article_6_1_only(), causes)
+
     if article_6_3_exception_candidate:
         # The ladder never auto-applies the Article 6(3) derogation; it
         # flags candidacy for a human legal decision. Until that decision
         # exists the system's Article 6(2) status is unsettled, and so is
-        # the Article 27(1) obligation that presupposes it.
+        # the Article 27(1) obligation that presupposes it (audit D7). On a
+        # system on both routes this is the sentence too (D-G92 (8), I6).
         basis.append(ARTICLE_6_PARAGRAPH_3)
         missing.append(
             "the Article 6(3) derogation candidacy is pending human legal "
@@ -383,29 +490,15 @@ def assess_fria_applicability(
             "FRIA applicability stays unknown until a human reviewer "
             "settles whether the system remains high-risk under Article 6(2)"
         )
-        return _block("unknown", rationale, basis, missing)
-
-    if classification_unsettled and conflict_marked and unacceptable_risk is not None:
-        # B184 (review of Task 4, I2): the mark comes from a fact conflict
-        # alone, so a change to Unacceptable risk is not the reason.
-        rationale.append(
-            "the risk classification is high-risk but not settled: "
-            + FACT_CONFLICT_REASON
-            + "; FRIA applicability stays unknown until the classification is confirmed"
+        return _naming_other_causes(
+            _block("unknown", rationale, basis, missing), [c for c in causes if c != "article_6_3_candidate"]
         )
-        return _block("unknown", rationale, basis, missing)
 
-    if classification_unsettled:
-        # The high-risk classification is provisional (for example an unknown
-        # Article 5 prohibition fact could still flip it to unacceptable risk, in
-        # which case FRIA does_not_apply). Do not present the obligation as
-        # settled while its own premise is not (audit D6).
-        rationale.append(
-            "the risk classification is high-risk but not settled (see the "
-            "classification's own missing facts); FRIA applicability stays "
-            "unknown until the classification is confirmed, because a change "
-            "to Unacceptable risk would remove the obligation"
-        )
+    if causes:
+        # The high-risk classification is not settled (audit D6): the
+        # sentence names every cause that holds, so it never names a change
+        # to Unacceptable risk unless an Article 5 fact is unknown.
+        rationale.append(FRIA_UNSETTLED_TEMPLATE.format(reasons=review_reason(causes)))
         return _block("unknown", rationale, basis, missing)
 
     # Branches (b)/(c): a point 5(b) or 5(c) system triggers the FRIA for

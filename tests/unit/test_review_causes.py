@@ -1,0 +1,486 @@
+"""The causes of review in one place (B185 Task 6, spec G D-G92 (8), (9), (v), DEC-33).
+
+Every fixed sentence that gives a reason for review names the causes that
+hold, all of them, in the order of D-G92 (8); the status is
+requires_human_review exactly when a cause holds or the level is
+undetermined (rulings P11, P12, P32, R5); the Article 27(1) block never
+counts a point that rests on the area as a confirmed area and names every
+cause, the area first (D-G92 (5), (v), the rules added after the plan's
+review, ruling P13); a refused input carries no block (D-G92 (9), P14). The
+cases are the table of area cases (tests/unit/area_cases.py) and a fixed set
+of 6,000 generated mock inputs. Offline: the published Layer 1 dump on disk,
+skipped when absent.
+
+@implements: DEC-33
+"""
+
+from __future__ import annotations
+
+import json
+import random
+from pathlib import Path
+from typing import Any
+
+import pytest
+from tests.unit.area_cases import (
+    AREA_CASES,
+    DEPLOYER,
+    P61,
+    _features,
+)
+from tests.unit.b184_cases import _flag_names, all_false, case
+
+from tere4ai.mcp_server.classify import (
+    ANNEX_I_SECTION_UNKNOWN_FACT,
+    ARTICLE_6_3_CONDITIONS,
+    article_6_3_candidate,
+    classify_ai_system,
+)
+from tere4ai.mcp_server.fria import (
+    FRIA_AREA_ALONE_REASON,
+    FRIA_AREA_BESIDE_ARTICLE_6_1_REASON,
+    FRIA_AREA_UNKNOWN_USE_LINE,
+    FRIA_OTHER_CAUSES_TEMPLATE,
+    FRIA_UNSETTLED_TEMPLATE,
+)
+from tere4ai.mcp_server.review_causes import (
+    FACT_CONFLICT_REASON,
+    REVIEW_CAUSE_REASONS,
+    REVIEW_CAUSES,
+    STATUS_LINE_PREFIX,
+    review_causes,
+    review_reason,
+    review_status_line,
+)
+
+ROOT = Path(__file__).resolve().parents[2]
+DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
+
+ARTICLE_6_4 = "eu-ai-act:article-6:paragraph-4"
+CANDIDACY_SENTENCE = (
+    "the classification flags Article 6(3) derogation candidacy; FRIA applicability stays unknown until a human "
+    "reviewer settles whether the system remains high-risk under Article 6(2)"
+)
+# Words that say the classification itself is not settled, or that the level
+# could change; none may stand on an answer whose status is not review.
+UNSETTLED_WORDS = (
+    "the classification is also not settled",
+    "high-risk but not settled",
+    "flagged for human review",
+    "could change the outcome",
+    "could change the level",
+    "a change to Unacceptable risk",
+)
+
+DOMAINS = ("biometrics", "critical_infrastructure", "education", "employment", "essential_services",
+           "law_enforcement", "migration", "justice", "none_of_these_areas", None)
+ARTICLE_6_3_FACTS = ("narrow_procedural_task", "improves_previous_human_activity",
+                     "detects_patterns_without_replacing_human_assessment", "preparatory_task",
+                     "profiling_of_natural_persons")
+GENERATED_COUNT = 6000
+
+
+def generated_inputs(count: int = GENERATED_COUNT, seed: int = 185) -> list[dict[str, Any]]:
+    """A fixed set of mock inputs: every flag false, then a few true and a few
+    absent, the Article 6(1) facts, the Annex I section, the Article 6(3)
+    facts, the domain and the deployer drawn from a seeded generator, so the
+    same inputs come back on every run."""
+    rng = random.Random(seed)
+    names = _flag_names()
+    inputs = []
+    for _ in range(count):
+        flags = all_false()
+        for fact in rng.sample(names, rng.randint(0, 4)):
+            flags[fact] = True
+        if rng.random() < 0.3:
+            flags["annex_i_covered_product"] = True
+            flags["third_party_conformity_assessment_required"] = rng.choice((True, True, None))
+            flags["annex_i_section_b_legislation"] = rng.choice((True, False, None))
+        if rng.random() < 0.4:
+            flags[rng.choice(ARTICLE_6_3_FACTS)] = rng.choice((True, None))
+        for fact in rng.sample(names, rng.randint(0, 4)):
+            flags[fact] = None
+        flags = {k: v for k, v in flags.items() if v is not None}
+        deployer = {
+            fact: value
+            for fact in ("body_governed_by_public_law", "private_entity_providing_public_services")
+            if (value := rng.choice((True, False, False, None))) is not None
+        }
+        inputs.append(case(flags, domain=rng.choice(DOMAINS), deployer=deployer))
+    return inputs
+
+
+@pytest.fixture(scope="module")
+def dump() -> dict:
+    if not DUMP_PATH.is_file():
+        pytest.skip("layer1.json dump not built")
+    return json.loads(DUMP_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def answered(dump) -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
+    """(name, features, envelope) for every table case and generated input."""
+    named = [(cid, c["features"]) for cid, c in AREA_CASES.items()]
+    named += [(f"G{i}", features) for i, features in enumerate(generated_inputs())]
+    return [(name, features, classify_ai_system(features, dump)) for name, features in named]
+
+
+def _status_lines(answer: dict[str, Any]) -> list[str]:
+    return [line for line in answer["rationale"] if line.startswith(STATUS_LINE_PREFIX)]
+
+
+# The fixed words of the module (the brief of Task 6, word for word) ---------
+
+def test_the_causes_and_their_reasons_are_the_spec_order_word_for_word():
+    assert REVIEW_CAUSES == ("article_5_unknown", "fact_conflict", "area_conflict", "area_alone",
+                             "article_6_3_candidate", "article_6_1_open", "listed_use_unknown")
+    assert list(REVIEW_CAUSE_REASONS) == list(REVIEW_CAUSES)
+    assert REVIEW_CAUSE_REASONS == {
+        "article_5_unknown": "an unknown Article 5 fact could change the level to Unacceptable risk",
+        "fact_conflict": FACT_CONFLICT_REASON,
+        "area_conflict": "a listed use of Annex III is true while the domain says none of these areas "
+                         "(area_conflicts), so one of the two answers is wrong",
+        "area_alone": "the level rests on the area alone: no listed use of the area is confirmed "
+                      "(annex_iii_area_unconfirmed)",
+        "article_6_3_candidate": "an Article 6(3) derogation candidacy is pending human legal review, and a "
+                                 "confirmed derogation takes the system out of Article 6(2)",
+        "article_6_1_open": "an unknown Article 6(1) fact could make the system high-risk",
+        "listed_use_unknown": "an unknown Annex III listed use could put the system on the Annex III route",
+    }
+    assert FACT_CONFLICT_REASON == (
+        "answers contradict a definition of the Act (fact_conflicts) and one answer of each pair is wrong, so "
+        "the classification could change once they are corrected")
+    assert review_reason(["listed_use_unknown", "article_5_unknown"]) == (
+        REVIEW_CAUSE_REASONS["article_5_unknown"] + "; " + REVIEW_CAUSE_REASONS["listed_use_unknown"])
+
+
+def test_the_status_lines_word_for_word():
+    prefix = "status lowered to requires_human_review: "
+    limited = {"risk_category": "limited_risk"}
+    section_b = {"risk_category": "high_risk", "annex_i_section": "B"}
+    assert review_status_line("article_5_unknown", limited) == (
+        prefix + "unknown prohibition-relevant flags could change the outcome to Unacceptable risk")
+    assert review_status_line("fact_conflict", limited) == (
+        prefix + "answers contradict a definition of the Act: see fact_conflicts")
+    assert review_status_line("area_conflict", limited) == (
+        prefix + "a listed use is true while domain is none_of_these_areas: see area_conflicts")
+    assert review_status_line("area_alone", section_b) == (
+        prefix + "the level rests on the area alone; no listed use of the area is confirmed")
+    assert review_status_line("article_6_3_candidate", section_b) == (
+        prefix + "an Article 6(3) derogation candidacy is flagged for human legal review")
+    assert review_status_line("article_6_1_open", limited) == (
+        prefix + "unknown Article 6(1) facts could add high-risk obligations on top of the Article 50 "
+        "transparency duty")
+    assert review_status_line("listed_use_unknown", limited) == (
+        prefix + "unknown Annex III high-risk flags could add high-risk obligations on top of the Article 50 "
+        "transparency duty")
+    assert review_status_line("listed_use_unknown", section_b) == (
+        prefix + "unknown Annex III facts could put this Section B product on the Annex III route, which brings "
+        "the Chapter III requirements and the Article 50 duties Article 2(2) does not")
+
+
+def test_the_block_sentences_word_for_word():
+    assert FRIA_AREA_ALONE_REASON == (
+        "the level rests on the area alone: domain '{domain}' places the system in Annex III point {number}, and "
+        "no listed use of the point is confirmed, so whether the system is a high-risk AI system referred to in "
+        "Article 6(2) is not settled and FRIA applicability stays unknown")
+    assert FRIA_AREA_BESIDE_ARTICLE_6_1_REASON == (
+        "the system is high-risk via the Article 6(1) embedded-product route; domain '{domain}' places it in "
+        "Annex III point {number}, but no listed use of the point is confirmed, so whether it is also a "
+        "high-risk AI system referred to in Article 6(2) is not settled and FRIA applicability stays unknown")
+    assert FRIA_AREA_UNKNOWN_USE_LINE == (
+        "flags.{fact} is unknown (a listed use of Annex III point {number}); the level rests on the area alone "
+        "until a listed use of the point is answered")
+    assert FRIA_OTHER_CAUSES_TEMPLATE == "the classification is also not settled for these reasons: {reasons}"
+    assert FRIA_UNSETTLED_TEMPLATE == (
+        "the risk classification is high-risk but not settled: {reasons}; FRIA applicability stays unknown until "
+        "the classification is confirmed")
+
+
+def test_the_rules_of_each_cause_read_the_answer_fields():
+    high = {"risk_category": "high_risk", "unacceptable_risk": False, "fact_conflicts": [], "area_conflicts": [],
+            "annex_iii_area_unconfirmed": None, "high_risk_routes": ["article_6_2"],
+            "article_6_3_exception_candidate": False, "annex_i_section": None}
+    assert review_causes(high) == []
+    assert review_causes({**high, "unacceptable_risk": None}) == ["article_5_unknown"]
+    assert review_causes({**high, "risk_category": "minimal_risk", "unacceptable_risk": None}) == []
+    assert review_causes({**high, "risk_category": "undetermined", "fact_conflicts": [{}]}) == []
+    assert review_causes({**high, "risk_category": "unacceptable_risk", "unacceptable_risk": True,
+                          "fact_conflicts": [{}], "area_conflicts": [{}]}) == ["fact_conflict", "area_conflict"]
+    area = {**high, "annex_iii_area_unconfirmed": "eu-ai-act:annex-iii:point-3"}
+    assert review_causes({**area, "high_risk_routes": []}) == ["area_alone"]
+    assert review_causes({**area, "high_risk_routes": ["article_6_1"]}) == []
+    candidate = {**high, "article_6_3_exception_candidate": True}
+    assert review_causes(candidate) == ["article_6_3_candidate"]
+    both = {**candidate, "high_risk_routes": ["article_6_1", "article_6_2"]}
+    assert review_causes({**both, "annex_i_section": "A"}) == []
+    assert review_causes({**both, "annex_i_section": "A"}, for_fria=True) == ["article_6_3_candidate"]
+    assert review_causes({**both, "annex_i_section": "B"}) == ["article_6_3_candidate"]
+    # Ruling R5: with a listed use that is true an unknown section could be B,
+    # where the derogation changes what is served; with only a point that
+    # rests on the area a Section B product is served as Section B whatever
+    # the derogation, so the unknown section adds no cause there.
+    assert review_causes({**both, "annex_i_section": "unknown"}) == ["article_6_3_candidate"]
+    beside_area = {**candidate, "high_risk_routes": ["article_6_1"],
+                   "annex_iii_area_unconfirmed": "eu-ai-act:annex-iii:point-3"}
+    assert review_causes({**beside_area, "annex_i_section": "unknown"}) == []
+    assert review_causes({**beside_area, "annex_i_section": "unknown"}, for_fria=True) == ["article_6_3_candidate"]
+    assert review_causes({**high, "article_6_3_exception_candidate": None}) == []
+    limited = {**high, "risk_category": "limited_risk", "high_risk_routes": []}
+    article_6_1_line = "flags.annex_i_covered_product is unknown (Article 6(1) high-risk relevant, Annex I); x"
+    annex_iii_line = "flags.annex_iii_3a_admission is unknown (Annex III high-risk relevant, Article 6(2)); x"
+    assert review_causes(limited, [article_6_1_line, annex_iii_line]) == ["article_6_1_open", "listed_use_unknown"]
+    assert review_causes(limited) == []
+    section_b = {**high, "annex_i_section": "B", "high_risk_routes": ["article_6_1"]}
+    assert review_causes(section_b, [annex_iii_line]) == ["listed_use_unknown"]
+    assert review_causes({**section_b, "annex_i_section": "A"}, [annex_iii_line]) == []
+
+
+# The table of cases and the findings ---------------------------------------
+
+def test_causes_follow_the_order_of_d_g92(dump):  # C18
+    env = classify_ai_system(AREA_CASES["C18"]["features"], dump)
+    assert _status_lines(env["answer"]) == [review_status_line("article_5_unknown", env["answer"]),
+                                            review_status_line("area_alone", env["answer"])]
+
+
+def test_block_names_the_area_first_then_every_other_cause(dump):  # C18 (I5)
+    fria = classify_ai_system(AREA_CASES["C18"]["features"], dump)["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert fria["rationale"] == [
+        FRIA_AREA_ALONE_REASON.format(domain="education", number=3),
+        FRIA_OTHER_CAUSES_TEMPLATE.format(reasons=REVIEW_CAUSE_REASONS["article_5_unknown"])]
+    assert FRIA_AREA_UNKNOWN_USE_LINE.format(fact="annex_iii_3a_admission", number=3) in fria["missing_facts"]
+
+
+@pytest.mark.parametrize("cid", ["C5", "C20"])
+def test_an_area_conflict_alone_is_named_and_never_unacceptable_risk(dump, cid):
+    # Task 3's review: at 12eec31 the block printed the generic sentence that
+    # names a change to Unacceptable risk although unacceptable_risk is false.
+    env = classify_ai_system(AREA_CASES[cid]["features"], dump)
+    a = env["answer"]
+    assert a["unacceptable_risk"] is False
+    texts = [*a["rationale"], *env["legal_status_notes"], *a["fria"]["rationale"], *a["fria"]["missing_facts"]]
+    assert not any("Unacceptable risk" in text for text in texts)
+    assert _status_lines(a) == [review_status_line("area_conflict", a)]
+    assert a["fria"]["rationale"] == [
+        FRIA_UNSETTLED_TEMPLATE.format(reasons=REVIEW_CAUSE_REASONS["area_conflict"])]
+
+
+def test_finding_16_both_routes_block_follows_the_candidate_field(dump):  # C16
+    a = classify_ai_system(AREA_CASES["C16"]["features"], dump)["answer"]
+    assert a["article_6_3_exception_candidate"] is True
+    assert a["fria"]["rationale"][0].startswith("the classification flags Article 6(3) derogation candidacy")
+    assert not any("not settled" in line for line in a["fria"]["rationale"])
+
+
+def test_finding_3_the_block_never_counts_an_area_as_confirmed(dump):
+    # domain education, annex_iii_3a_admission absent, deployer a body
+    # governed by public law: at 12eec31 the block answered "applies".
+    features = _features(absent=("annex_iii_3a_admission",))
+    features["deployer"] = {"body_governed_by_public_law": True, "private_entity_providing_public_services": False}
+    fria = classify_ai_system(features, dump)["answer"]["fria"]
+    assert fria["applicability"] == "unknown"
+    assert fria["rationale"] == [FRIA_AREA_ALONE_REASON.format(domain="education", number=3)]
+    assert "eu-ai-act:annex-iii:point-3" not in fria["basis_nodes"]
+
+
+def test_area_alone_on_point_2_is_unknown_with_a_true_sentence(dump):  # I4
+    env = classify_ai_system(_features(absent=("critical_infrastructure_safety",),
+                                       domain="critical_infrastructure"), dump)
+    a = env["answer"]
+    assert a["risk_category"] == "high_risk" and a["high_risk_routes"] == []
+    assert a["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-2"
+    assert a["fria"]["applicability"] == "unknown"
+    assert a["fria"]["rationale"] == [FRIA_AREA_ALONE_REASON.format(domain="critical_infrastructure", number=2)]
+    assert a["fria"]["missing_facts"] == [
+        FRIA_AREA_UNKNOWN_USE_LINE.format(fact="critical_infrastructure_safety", number=2)]
+    assert not any("which Article 27(1) covers" in line for line in a["fria"]["missing_facts"])
+
+
+def test_area_beside_article_6_1_point_2_reads_as_that_route(dump):  # C13
+    fria = classify_ai_system(AREA_CASES["C13"]["features"], dump)["answer"]["fria"]
+    assert fria["applicability"] == "does_not_apply"
+    assert fria["rationale"][0].startswith("the system is high-risk via the Article 6(1) embedded-product route only")
+
+
+def test_area_beside_article_6_1_other_point_is_unknown(dump):  # C10, C11
+    c10 = classify_ai_system(AREA_CASES["C10"]["features"], dump)
+    beside = FRIA_AREA_BESIDE_ARTICLE_6_1_REASON.format(domain="education", number=3)
+    assert c10["status"] == "potentially_applicable"
+    assert c10["answer"]["fria"]["applicability"] == "unknown"
+    assert c10["answer"]["fria"]["rationale"] == [beside]
+    assert c10["answer"]["fria"]["missing_facts"] == [
+        FRIA_AREA_UNKNOWN_USE_LINE.format(fact="annex_iii_3a_admission", number=3)]
+    c11 = classify_ai_system(AREA_CASES["C11"]["features"], dump)["answer"]["fria"]
+    assert c11["rationale"] == [
+        beside, FRIA_OTHER_CAUSES_TEMPLATE.format(reasons=REVIEW_CAUSE_REASONS["listed_use_unknown"])]
+
+
+@pytest.mark.parametrize("section", [False, True])
+def test_a_candidate_beside_article_6_1_with_only_an_area_gets_the_area_sentence(dump, section):
+    # Task 4's review: at 12eec31 the block said "until a human reviewer
+    # settles whether the system remains high-risk under Article 6(2)" although
+    # the system is not on Article 6(2) there.
+    features = _features(true=("narrow_procedural_task",), absent=("annex_iii_3a_admission",), **P61,
+                         annex_i_section_b_legislation=section)
+    env = classify_ai_system(features, dump)
+    a = env["answer"]
+    assert a["article_6_3_exception_candidate"] is True and a["high_risk_routes"] == ["article_6_1"]
+    beside = FRIA_AREA_BESIDE_ARTICLE_6_1_REASON.format(domain="education", number=3)
+    assert not any("remains high-risk under Article 6(2)" in line for line in a["fria"]["rationale"])
+    if section:
+        # Section B: Annex III would decide what is served, so the candidate is
+        # a cause (passage (k)), named after the area with the unknown listed use.
+        assert env["status"] == "requires_human_review"
+        assert a["fria"]["rationale"] == [beside, FRIA_OTHER_CAUSES_TEMPLATE.format(
+            reasons=review_reason(["article_6_3_candidate", "listed_use_unknown"]))]
+    else:
+        # Section A: the candidate is no cause, and the answer is settled.
+        assert env["status"] == "potentially_applicable"
+        assert a["fria"]["rationale"] == [beside]
+
+
+def test_conflict_beside_candidate_names_both(dump):
+    # 4(a) and the Article 6(3) point (a) true, and emotion_recognition answered
+    # false while emotion_recognition_workplace_or_education is true (Article
+    # 3(39)); the medical or safety exception rules out Article 5(1)(f).
+    features = case(all_false(annex_iii_4a_recruitment=True, narrow_procedural_task=True,
+                              emotion_recognition_workplace_or_education=True,
+                              emotion_recognition_medical_or_safety=True),
+                    deployer=dict(DEPLOYER))
+    env = classify_ai_system(features, dump)
+    a = env["answer"]
+    assert a["risk_category"] == "high_risk" and a["fact_conflicts"] and a["article_6_3_exception_candidate"] is True
+    assert _status_lines(a) == [review_status_line("fact_conflict", a),
+                                review_status_line("article_6_3_candidate", a)]
+    assert a["fria"]["rationale"] == [
+        CANDIDACY_SENTENCE, FRIA_OTHER_CAUSES_TEMPLATE.format(reasons=REVIEW_CAUSE_REASONS["fact_conflict"])]
+
+
+def test_refused_input_has_no_article_27_block(dump):
+    env = classify_ai_system(case(all_false(), domain="banking"), dump)
+    assert env["status"] == "rejected_as_unsupported"
+    assert "fria" in env["answer"] and env["answer"]["fria"] is None
+
+
+def test_ruling_r5_candidate_with_the_section_unknown_is_marked_and_names_the_section(dump):
+    # A true listed use, a proven Article 6(1) route, a true candidate and the
+    # Annex I section unknown: at 12eec31 potentially_applicable 1.0, the
+    # section fact not named.
+    features = _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"),
+                         absent=("annex_i_section_b_legislation",), domain=None, **P61)
+    env = classify_ai_system(features, dump)
+    a = env["answer"]
+    assert a["risk_category"] == "high_risk"
+    assert a["high_risk_routes"] == ["article_6_1", "article_6_2"] and a["annex_i_section"] == "unknown"
+    assert a["article_6_3_exception_candidate"] is True
+    assert (env["status"], env["confidence"]) == ("requires_human_review", 0.5)
+    assert review_causes(a, env["missing_facts"]) == ["article_6_3_candidate"]
+    assert _status_lines(a) == [review_status_line("article_6_3_candidate", a)]
+    assert ANNEX_I_SECTION_UNKNOWN_FACT in env["missing_facts"]
+    # With the section known to be A the candidate is no cause and the
+    # section fact is not named.
+    known = _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"), domain=None, **P61,
+                      annex_i_section_b_legislation=False)
+    env_a = classify_ai_system(known, dump)
+    assert env_a["status"] == "potentially_applicable" and ANNEX_I_SECTION_UNKNOWN_FACT not in env_a["missing_facts"]
+
+
+# The invariant over the table and the generated set -------------------------
+
+def test_the_generated_set_is_large_and_reaches_every_cause(answered):
+    assert len(answered) >= 5000 + len(AREA_CASES)
+    seen = {cause for _n, _f, env in answered for cause in review_causes(env["answer"], env["missing_facts"])}
+    assert seen == set(REVIEW_CAUSES)
+
+
+def test_status_is_review_exactly_when_a_cause_holds(answered):
+    broken = []
+    for name, _features_in, env in answered:
+        a = env["answer"]
+        if env["status"] == "rejected_as_unsupported":
+            continue
+        causes = review_causes(a, env["missing_facts"])
+        if a["risk_category"] == "undetermined":
+            ok = env["status"] == "requires_human_review" and not _status_lines(a)
+        else:
+            ok = (env["status"] == "requires_human_review") == bool(causes)
+            ok = ok and env["confidence"] == (0.5 if causes else 1.0)
+            ok = ok and _status_lines(a) == [review_status_line(cause, a) for cause in causes]
+        if not ok:
+            broken.append(name)
+    assert broken == []
+
+
+def test_the_block_names_every_cause_when_it_answers_unknown(answered):
+    # On a high_risk or unacceptable_risk answer whose block answers unknown,
+    # every cause of review that holds is named in the block's sentences, the
+    # area first, then in the order of D-G92 (8) (the rule added after the
+    # plan's review).
+    broken = []
+    for name, _features_in, env in answered:
+        a = env["answer"]
+        if a.get("risk_category") not in ("high_risk", "unacceptable_risk") or a["fria"]["applicability"] != "unknown":
+            continue
+        causes = review_causes(a, env["missing_facts"])
+        text = " ".join(a["fria"]["rationale"])
+        # The area alone is named by the block's own area sentence, first.
+        words = {**REVIEW_CAUSE_REASONS, "area_alone": "the level rests on the area alone"}
+        # In the block the area comes first, then the spec's order.
+        in_block_order = sorted(causes, key=lambda cause: cause != "area_alone")
+        positions = [text.find(words[cause]) for cause in in_block_order if cause != "article_6_3_candidate"]
+        if "article_6_3_candidate" in causes and not (
+            CANDIDACY_SENTENCE in text or REVIEW_CAUSE_REASONS["article_6_3_candidate"] in text
+        ):
+            broken.append(name)
+        if -1 in positions or positions != sorted(positions):
+            broken.append(name)
+    assert broken == []
+
+
+def test_no_sentence_names_unacceptable_risk_unless_it_is_unknown(answered):
+    # The note of the applicable requirements is Task 7's and is not read here.
+    broken = []
+    for name, _features_in, env in answered:
+        a = env["answer"]
+        if a["unacceptable_risk"] is None or a["fria"] is None:
+            continue
+        texts = [*a["rationale"], *env["legal_status_notes"], *a["fria"]["rationale"], *a["fria"]["missing_facts"]]
+        if any("Unacceptable risk" in text for text in texts):
+            broken.append(name)
+    assert broken == []
+
+
+def test_no_sentence_says_not_settled_on_an_answer_that_is_not_review(answered):
+    broken = []
+    for name, _features_in, env in answered:
+        a = env["answer"]
+        if env["status"] in ("requires_human_review", "rejected_as_unsupported"):
+            continue
+        texts = [*a["rationale"], *env["legal_status_notes"], *a["fria"]["rationale"], *a["fria"]["missing_facts"]]
+        if any(words in text for text in texts for words in UNSETTLED_WORDS):
+            broken.append(name)
+    assert broken == []
+
+
+def test_the_candidate_lines_follow_the_returned_value(answered):
+    # Task 5's review: the invariant the assert in _annex_iii_candidacy held,
+    # now a test. A condition that is true and not cancelled by profiling is
+    # exactly a true candidate; on an answer with an Annex III point the
+    # Article 6(4) citation and the condition lines stand exactly then.
+    broken = []
+    for name, features_in, env in answered:
+        flags = features_in["flags"]
+        matched = [flag for flag, _points, _label in ARTICLE_6_3_CONDITIONS if flags.get(flag) is True]
+        if flags.get("profiling_of_natural_persons") is True:
+            matched = []
+        if bool(matched) != (article_6_3_candidate(flags) is True):
+            broken.append(name)
+        a = env["answer"]
+        has_point = a.get("annex_iii_category") or a.get("annex_iii_area_unconfirmed")
+        if a.get("risk_category") == "high_risk" and has_point:
+            cites_6_4 = ARTICLE_6_4 in env["source_nodes"]
+            if cites_6_4 != (a["article_6_3_exception_candidate"] is True):
+                broken.append(name)
+    assert broken == []

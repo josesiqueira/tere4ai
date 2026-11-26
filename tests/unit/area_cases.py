@@ -10,6 +10,9 @@ Each case's "expected" holds a dict per task ("t2", "t3", then the later
 tasks' own), so a task adds its columns and never edits another's. The t5
 column (Task 5) says whether the case, with every Article 50 trigger fact it
 does not set true removed, names those facts; test_article_50_facts.py reads it.
+The t6 column (Task 6) holds the Article 27(1) block's applicability of every
+case, its rationale for C1, C11, C16, C18, C21 and C23, and the causes whose
+status lines the answer prints, in order (test_area_case reads all three).
 
 @implements: DEC-33
 """
@@ -85,6 +88,36 @@ AREA_RULED_OUT_POINT_3 = (
     "category is answered false, so the area does not count (ELICITATION_ERRORS.md, scenario 161)"
 )
 
+# The Article 27(1) block's sentences (B185 Task 6, spec G D-G92 (5), (v), (8),
+# ruling P13), written out word for word.
+FRIA_AREA_ALONE_POINT_3 = (
+    "the level rests on the area alone: domain 'education' places the system in Annex III point 3, and no listed "
+    "use of the point is confirmed, so whether the system is a high-risk AI system referred to in Article 6(2) is "
+    "not settled and FRIA applicability stays unknown"
+)
+FRIA_AREA_BESIDE_ARTICLE_6_1_POINT_3 = (
+    "the system is high-risk via the Article 6(1) embedded-product route; domain 'education' places it in Annex "
+    "III point 3, but no listed use of the point is confirmed, so whether it is also a high-risk AI system referred "
+    "to in Article 6(2) is not settled and FRIA applicability stays unknown"
+)
+FRIA_CANDIDACY = (
+    "the classification flags Article 6(3) derogation candidacy; FRIA applicability stays unknown until a human "
+    "reviewer settles whether the system remains high-risk under Article 6(2)"
+)
+FRIA_OTHER_CAUSES_ARTICLE_5 = (
+    "the classification is also not settled for these reasons: an unknown Article 5 fact could change the level "
+    "to Unacceptable risk"
+)
+FRIA_OTHER_CAUSES_LISTED_USE = (
+    "the classification is also not settled for these reasons: an unknown Annex III listed use could put the "
+    "system on the Annex III route"
+)
+FRIA_PROHIBITED_AREA_CONFLICT = (
+    "the system falls under an Article 5 prohibited practice on the facts as read, but a listed use of Annex III "
+    "is true while the domain says none of these areas (area_conflicts), so one of the two answers is wrong; FRIA "
+    "applicability stays unknown until the classification is confirmed"
+)
+
 
 def _features(
     true: tuple[str, ...] = (),
@@ -119,7 +152,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
-        "t5": {"article_50_absent_named": True}},
+        "t5": {"article_50_absent_named": True},
+        "t6": {"fria": "unknown", "fria_rationale": [FRIA_AREA_ALONE_POINT_3], "status_causes": ["area_alone"]}},
     },
     "C2": {
         "features": _features(),
@@ -128,7 +162,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "status": ("not_applicable", 1.0), "not_cited": (POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "does_not_apply", "status_causes": []}},
     },
     "C3": {
         "features": _features(true=("annex_iii_4a_recruitment",), absent=("annex_iii_3a_admission",)),
@@ -138,7 +173,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "not_cited": (POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "does_not_apply", "status_causes": []}},
     },
     "C4": {
         "features": _features(true=("annex_iii_4a_recruitment",), domain="employment"),
@@ -148,7 +184,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "not_cited": (POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "does_not_apply", "status_causes": []}},
     },
     "C5": {
         "features": _features(true=("annex_iii_4a_recruitment",), domain="none_of_these_areas"),
@@ -157,7 +194,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_2"],
         },
         "t3": {"area_conflicts": [_conflict("annex_iii_4a_recruitment")], "status": REVIEW},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "status_causes": ["area_conflict"]}},
     },
     "C6": {
         "features": _features(domain="none_of_these_areas"),
@@ -166,7 +204,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "status": ("not_applicable", 1.0),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "does_not_apply", "status_causes": []}},
     },
     "C7": {
         "features": _features(absent=("annex_iii_3a_admission",), domain="none_of_these_areas"),
@@ -175,7 +214,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "status": REVIEW,
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "status_causes": []}},
     },
     "C8": {
         "features": _features(absent=("annex_iii_3a_admission",), domain=None),
@@ -185,7 +225,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
-        "t5": {"article_50_absent_named": True}},
+        "t5": {"article_50_absent_named": True},
+        "t6": {"fria": "unknown", "status_causes": []}},
     },
     "C9": {
         # The route is open: the Annex I fact is unknown and the third-party
@@ -198,7 +239,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "cites": (ARTICLE_6_2, POINT_3), "notes": (AREA_ALONE_POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "status_causes": ["area_alone"]}},
     },
     "C10": {
         "features": _features(absent=("annex_iii_3a_admission",), **P61, annex_i_section_b_legislation=False),
@@ -209,7 +251,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "notes": (SCOPE_UNCONFIRMED_POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "status_causes": []}},
     },
     "C11": {
         "features": _features(absent=("annex_iii_3a_admission",), **P61, annex_i_section_b_legislation=True),
@@ -220,7 +263,9 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
-        "t5": {"article_50_absent_named": False}},
+        "t5": {"article_50_absent_named": False},
+        "t6": {"fria": "unknown", "fria_rationale": [FRIA_AREA_BESIDE_ARTICLE_6_1_POINT_3, FRIA_OTHER_CAUSES_LISTED_USE],
+               "status_causes": ["listed_use_unknown"]}},
     },
     "C12": {
         "features": _features(absent=("annex_iii_3a_admission", "annex_i_section_b_legislation"), **P61),
@@ -230,7 +275,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "notes": (SCOPE_UNCONFIRMED_POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "status_causes": []}},
     },
     "C13": {
         "features": _features(absent=("critical_infrastructure_safety",), domain="critical_infrastructure",
@@ -241,7 +287,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "not_cited": (POINT_2,), "notes": (SCOPE_UNCONFIRMED_POINT_2,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "does_not_apply", "status_causes": []}},
     },
     "C14": {
         "features": _features(absent=("biometric_identification",), domain="biometrics"),
@@ -251,7 +298,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "notes": (AREA_ALONE_POINT_1,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "status_causes": ["area_alone"]}},
     },
     "C15": {
         "features": _features(true=("annex_iii_4a_recruitment",), domain=None, **P61,
@@ -262,7 +310,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "cites": (ARTICLE_6_1, ARTICLE_6_2),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "does_not_apply", "status_causes": []}},
     },
     "C16": {
         "features": _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"), domain=None, **P61,
@@ -274,7 +323,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": True, "status": SETTLED,
-               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_BOTH_ROUTES_NOTE)}},
+               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_BOTH_ROUTES_NOTE)},
+        "t6": {"fria": "unknown", "fria_rationale": [FRIA_CANDIDACY], "status_causes": []}},
     },
     "C17": {
         "features": _features(true=("interacts_with_natural_persons",), absent=("annex_iii_3a_admission",)),
@@ -285,7 +335,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
-        "t5": {"article_50_absent_named": True}},
+        "t5": {"article_50_absent_named": True},
+        "t6": {"fria": "unknown", "status_causes": ["area_alone"]}},
     },
     "C18": {
         "features": _features(absent=("annex_iii_3a_admission", "facial_image_scraping")),
@@ -294,7 +345,9 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": [], "status": REVIEW, "notes": (AREA_ALONE_POINT_3,),
         },
         "t3": {"area_conflicts": []},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "fria_rationale": [FRIA_AREA_ALONE_POINT_3, FRIA_OTHER_CAUSES_ARTICLE_5],
+               "status_causes": ["article_5_unknown", "area_alone"]}},
     },
     "C19": {
         "features": _features(true=("annex_iii_4a_recruitment",), absent=("narrow_procedural_task",), domain=None),
@@ -304,7 +357,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": None, "status": SETTLED, "missing": (UNKNOWN_CONDITION_POINT_A,),
-               "not_cited": (ARTICLE_6_3, ARTICLE_6_4)}},
+               "not_cited": (ARTICLE_6_3, ARTICLE_6_4)},
+        "t6": {"fria": "does_not_apply", "status_causes": []}},
     },
     "C20": {
         "features": _features(true=("real_time_remote_biometric_public",), absent=("biometric_identification",),
@@ -314,7 +368,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
             "high_risk_routes": ["article_6_2"],
         },
         "t3": {"area_conflicts": [_conflict("biometric_identification")], "status": REVIEW},
-        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)}},
+        "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
+        "t6": {"fria": "unknown", "status_causes": ["area_conflict"]}},
     },
     "C21": {
         "features": _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"), domain=None, **P61,
@@ -325,7 +380,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": True, "status": REVIEW,
-               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_FLAGGED_NOTE)}},
+               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_FLAGGED_NOTE)},
+        "t6": {"fria": "unknown", "fria_rationale": [FRIA_CANDIDACY], "status_causes": ["article_6_3_candidate"]}},
     },
     "C22": {
         "features": _features(true=("annex_iii_4a_recruitment", "narrow_procedural_task"), domain=None),
@@ -335,7 +391,8 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         },
         "t3": {"area_conflicts": []},
         "t4": {"article_6_3_exception_candidate": True, "status": REVIEW,
-               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_FLAGGED_NOTE)}},
+               "cites": (ARTICLE_6_3, ARTICLE_6_3_A, ARTICLE_6_4), "notes": (ARTICLE_6_4_NOTE, CANDIDATE_FLAGGED_NOTE)},
+        "t6": {"fria": "unknown", "status_causes": ["article_6_3_candidate"]}},
     },
     "C23": {
         "features": _features(
@@ -350,6 +407,7 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         "t3": {"area_conflicts": [_conflict("emotion_recognition"), _conflict("annex_iii_4b_work_relationships")],
                "status": REVIEW},
         "t4": {"article_6_3_exception_candidate": False, "not_cited": (ARTICLE_6_4,)},
-        "t5": {"article_50_absent_named": False}},
+        "t5": {"article_50_absent_named": False},
+        "t6": {"fria": "unknown", "fria_rationale": [FRIA_PROHIBITED_AREA_CONFLICT], "status_causes": ["area_conflict"]}},
     },
 }

@@ -200,6 +200,21 @@ def test_false_prohibited_renders_verbatim(tmp_path: Path) -> None:
     assert 'data-envelope-field="unacceptable_risk">unknown<' not in html
 
 
+def test_null_candidate_renders_as_unknown(tmp_path: Path) -> None:
+    """B185 (spec G D-G92 (6), the text added from Codex's review): the report
+    is a reader of article_6_3_exception_candidate and prints a null
+    candidate as unknown, never as the literal null."""
+    lines = SHOPBOT.read_text(encoding="utf-8").splitlines()
+    first = json.loads(lines[0])
+    assert first["tool"] == "classify_ai_system"
+    first["envelope"]["answer"]["article_6_3_exception_candidate"] = None
+    doctored = tmp_path / "candidate-null.jsonl"
+    doctored.write_text("\n".join([json.dumps(first), *lines[1:]]) + "\n", encoding="utf-8")
+    html = render_report_from_paths([doctored])
+    assert 'data-envelope-field="article_6_3_exception_candidate">unknown<' in html
+    assert 'data-envelope-field="article_6_3_exception_candidate">null<' not in html
+
+
 def test_null_prohibited_renders_as_unknown(tmp_path: Path) -> None:
     """DEC-18: a null unacceptable_risk is printed as unknown, never as null."""
     # Start from a known non-null value so the test reads as a change.

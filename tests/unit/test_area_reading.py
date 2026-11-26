@@ -40,6 +40,7 @@ from tere4ai.mcp_server.requirements import (
     SECTION_B_ANNEX_III_UNKNOWN_MESSAGE,
     get_applicable_requirements,
 )
+from tere4ai.mcp_server.review_causes import STATUS_LINE_PREFIX, review_status_line
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -85,6 +86,15 @@ def test_area_case(dump, cid):
             assert line in env["legal_status_notes"], (task, line)
         for line in exp.get("missing", ()):
             assert line in env["missing_facts"], (task, line)
+        # B185 Task 6 (the t6 column): the Article 27(1) block and the status
+        # lines of the causes of review, in order.
+        if "fria" in exp:
+            assert a["fria"]["applicability"] == exp["fria"], task
+        if "fria_rationale" in exp:
+            assert a["fria"]["rationale"] == exp["fria_rationale"], task
+        if "status_causes" in exp:
+            status_lines = [line for line in a["rationale"] if line.startswith(STATUS_LINE_PREFIX)]
+            assert status_lines == [review_status_line(cause, a) for cause in exp["status_causes"]], task
 
 
 def test_finding_1_area_alone_is_marked_and_says_so(dump):

@@ -37,6 +37,12 @@ from tere4ai.mcp_server.classify import (
     article_6_3_candidate,
     classify_ai_system,
 )
+from tere4ai.mcp_server.fria import (
+    FRIA_AREA_ALONE_REASON,
+    FRIA_AREA_BESIDE_ARTICLE_6_1_REASON,
+    FRIA_OTHER_CAUSES_TEMPLATE,
+)
+from tere4ai.mcp_server.review_causes import REVIEW_CAUSE_REASONS
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
@@ -186,9 +192,14 @@ def test_area_alone_answer_carries_the_candidate(dump):  # C1 with narrow_proced
             "the Article 6(3) derogation may apply but requires human legal judgment, no automatic downgrade"
             ) in a["rationale"]
     assert env["status"] == "requires_human_review" and env["confidence"] == 0.5
-    # The field and what the Article 27 block reads are one value.
+    # B185 Task 6 (spec G D-G92 (v), (8), ruling P13): the level rests on the
+    # area, so the block gives the area's sentence first, then names the
+    # candidate among the other causes; the field is the value it reads.
     assert a["fria"]["applicability"] == "unknown"
-    assert ARTICLE_6_3 in a["fria"]["basis_nodes"]
+    assert a["fria"]["rationale"] == [
+        FRIA_AREA_ALONE_REASON.format(domain="education", number=3),
+        FRIA_OTHER_CAUSES_TEMPLATE.format(reasons=REVIEW_CAUSE_REASONS["article_6_3_candidate"]),
+    ]
 
 
 def test_area_alone_answer_with_profiling_true_has_candidate_false(dump):
@@ -230,7 +241,12 @@ def test_article_6_1_exit_with_an_unconfirmed_area_carries_the_candidate(dump):
     assert a["article_6_3_exception_candidate"] is True
     assert env["status"] == "potentially_applicable" and env["confidence"] == 1.0
     assert ARTICLE_6_3_BOTH_ROUTES_NOTE in env["legal_status_notes"] and ARTICLE_6_4_LINE in env["legal_status_notes"]
-    assert a["fria"]["applicability"] == "unknown" and ARTICLE_6_3 in a["fria"]["basis_nodes"]
+    # B185 Task 6 (spec G D-G92 (v), passage (k)): beside the Article 6(1)
+    # route the block gives the area's sentence; on a Section A product the
+    # candidate is no cause of review, so no sentence says the classification
+    # is not settled, and none says the system remains under Article 6(2).
+    assert a["fria"]["applicability"] == "unknown"
+    assert a["fria"]["rationale"] == [FRIA_AREA_BESIDE_ARTICLE_6_1_REASON.format(domain="education", number=3)]
 
 
 def test_both_routes_candidate_follows_the_annex_iii_part_and_keeps_the_route_status(dump):  # C16

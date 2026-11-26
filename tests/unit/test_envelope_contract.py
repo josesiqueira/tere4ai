@@ -160,6 +160,15 @@ def test_make_envelope_matches_the_declared_field_set():
     assert set(env) == set(SECTION_8_ENVELOPE_FIELDS)
 
 
+def test_a_refused_classify_input_is_a_calibrated_envelope_with_no_article_27_block(client):
+    # B185 Task 6 (spec G D-G92 (9), ruling P14): the refused input keeps the
+    # Section 8 envelope and the fria key, null: no Article 27(1) block.
+    env = client.post("/api/classify", json={"features": {**MINIMAL_FEATURES, "domain": "banking"}}).json()
+    assert_section8_envelope(env)
+    assert env["status"] == "rejected_as_unsupported"
+    assert "fria" in env["answer"] and env["answer"]["fria"] is None
+
+
 @pytest.mark.parametrize(
     "features", [HIGH_RISK_FEATURES, PROHIBITED_FEATURES, MINIMAL_FEATURES]
 )

@@ -903,7 +903,12 @@ def _render_classification(
         + "</dd></div><div><dt>Article 6(3) exception candidate</dt><dd>"
         + emit_field(
             "article_6_3_exception_candidate",
-            ans.get("article_6_3_exception_candidate"),
+            # B185 (spec G D-G92 (6), the text added from Codex's review): a
+            # null candidate is unknown, printed as "unknown", never "null".
+            "unknown"
+            if "article_6_3_exception_candidate" in ans
+            and ans["article_6_3_exception_candidate"] is None
+            else ans.get("article_6_3_exception_candidate"),
         )
         + "</dd></div></dl>"
     )

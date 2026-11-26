@@ -10,6 +10,8 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
+from tests.unit.area_cases import AREA_CASES, FRIA_AREA_ALONE_POINT_3
+from tests.unit.b184_cases import all_false, case
 
 from tere4ai import act_parties as ap
 from tere4ai.mcp_server import classify as classify_module
@@ -789,3 +791,17 @@ def test_the_prohibited_note_names_applicable_requirements_and_reads_a_recorded_
     assert prohibited_note_of_record(recorded) == envelope["legal_status_notes"][0]
     other = "eu-ai-act:article-50: a note of another kind"
     assert prohibited_note_of_record(other) == other
+
+
+def test_the_article_27_block_of_task_6_is_passed_through_and_a_refused_input_has_none(dump, norms_payload):
+    """B185 Task 6 (spec G D-G92 (5), (v), (9)): the block of an answer whose
+    level rests on the area alone, with its area sentence, reaches the
+    requirements answer verbatim; a refused input carries no block, and the
+    requirements answer adds none."""
+    classification = classify_ai_system(AREA_CASES["C1"]["features"], dump)
+    assert classification["answer"]["fria"]["rationale"] == [FRIA_AREA_ALONE_POINT_3]
+    answer = get_applicable_requirements(classification, norms_payload, dump)["answer"]
+    assert answer["fria"] == classification["answer"]["fria"]
+    refused = classify_ai_system(case(all_false(), domain="banking"), dump)
+    assert refused["answer"]["fria"] is None
+    assert get_applicable_requirements(refused, norms_payload, dump)["answer"].get("fria") is None

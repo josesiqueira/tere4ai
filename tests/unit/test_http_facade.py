@@ -213,6 +213,9 @@ def test_classify_invalid_features_surfaces_schema_errors_cleanly(client):
     # DEC-18 (B36.2): the list is present on the rejected answer, empty.
     assert envelope["answer"]["transparency_duties"] == []
     assert any("schema validation" in fact for fact in envelope["missing_facts"])
+    # B185 Task 6 (spec G D-G92 (9), ruling P14): a refused input carries no
+    # Article 27(1) block; the key survives the serialization boundary, null.
+    assert "fria" in envelope["answer"] and envelope["answer"]["fria"] is None
 
     # No regression: a well-formed, genuinely out-of-scope system still returns
     # not_applicable, keeping the rejection and the in-scope verdict distinct.

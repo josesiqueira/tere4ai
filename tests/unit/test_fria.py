@@ -479,7 +479,9 @@ def test_unknown_deployer_property_is_rejected_by_the_schema(dump):
     # never the substantive not_applicable verdict (C5 honesty fix).
     assert envelope["status"] == "rejected_as_unsupported"
     assert envelope["answer"]["risk_category"] is None
-    assert envelope["answer"]["fria"]["applicability"] == "unknown"
+    # B185 Task 6 (spec G D-G92 (9), ruling P14): a refused input carries no
+    # Article 27(1) block; the key stays, null.
+    assert envelope["answer"]["fria"] is None
 
 
 def test_article_6_1_route_still_checks_6_2_membership_for_fria(dump):
