@@ -466,6 +466,29 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
     assert named == ["flags.social_scoring dropped: quote not in the description"]
 
 
+def test_elicit_names_a_proposed_fact_outside_the_schema_in_the_notes(client, fake_models):
+    """B184 fix round 1 (M7): a flag the schema does not define is not kept,
+    and the answer's notes name it, as the MCP tool's answer does."""
+    quote = "A spam filter for a small team inbox"
+    gen_response = json.dumps({
+        "features": {"flags": {"social_scoring": False, "employment_decisions": False}},
+        "quotes": {"flags.social_scoring": quote, "flags.employment_decisions": quote},
+    })
+    fake_models({"spam filter": gen_response}, {})
+    resp = client.post(
+        "/api/elicit",
+        json={"description": "A spam filter for a small team inbox, "
+                             "quarantines mail retrievably."},
+    )
+    assert resp.status_code == 200
+    answer = resp.json()["answer"]
+    assert answer["features"]["flags"] == {"social_scoring": False}
+    assert answer["dropped"] == []
+    assert [n for n in answer["notes"] if "employment_decisions" in n] == [
+        "flags.employment_decisions was proposed but is not a fact of the schema; it was not kept"
+    ]
+
+
 def test_elicit_degrades_without_model_config(client, monkeypatch):
     """Missing model config returns clean 503."""
     message = (

@@ -205,6 +205,22 @@ def test_mcp_elicit_features_answers_with_quotes_dropped_and_prompt(mcp_server, 
     _assert_quoted_answer(env, dump["build"]["build_id"])
 
 
+def test_mcp_elicit_features_names_a_proposed_fact_outside_the_schema_in_the_notes(mcp_server):
+    """B184 fix round 1 (M7): a flag the schema does not define is not kept,
+    and the answer's notes name it, with or without a quote."""
+    gen = FakeGenerator(json.dumps({
+        "features": {"flags": {"social_scoring": False, "employment_decisions": False}},
+        "quotes": {"flags.social_scoring": QUOTE},
+    }))
+    mcp_server(gen)
+    answer = server.elicit_features(SPAM)["answer"]
+    assert answer["features"]["flags"] == {"social_scoring": False}
+    assert answer["dropped"] == []
+    assert [n for n in answer["notes"] if "employment_decisions" in n] == [
+        "flags.employment_decisions was proposed but is not a fact of the schema; it was not kept"
+    ]
+
+
 @pytest.mark.parametrize("bad", ["", "   ", None, 42])
 def test_mcp_elicit_features_refuses_an_empty_description(mcp_server, bad):
     built = mcp_server(FakeGenerator("{}"))

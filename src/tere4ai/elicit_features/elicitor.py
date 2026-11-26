@@ -22,6 +22,11 @@ whitespace runs, no case folding, starting and ending on word boundaries);
 every other fact is dropped and named. A field set to null or to an empty
 list states no fact: it is removed as unknown, needs no quote and is not
 named as dropped.
+
+B184 (fix round 1): a field or flag the reply proposes that the schema does
+not define is not kept, and the notes name it once,
+OUTSIDE_SCHEMA_NOTE, whether or not the reply quoted it; the note that its
+quote was ignored is then not added for the same path.
 """
 
 from __future__ import annotations
@@ -60,6 +65,8 @@ PROMPT_NAME = "elicit_features"
 # facts; v8 stays as the prompt of tag v2.0.0-beta.1.
 DEFAULT_PROMPT_VERSION = "v9"
 MIN_QUOTE_WORDS = 3
+# B184 fix round 1: the note for a field or flag outside the schema.
+OUTSIDE_SCHEMA_NOTE = "{path} was proposed but is not a fact of the schema; it was not kept"
 # Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
 NESTED_FACT_FIELDS = ("flags", "deployer")
 
@@ -117,6 +124,19 @@ def _clean(candidate: dict[str, Any], description: str) -> dict[str, Any]:
             k: v for k, v in flags.items() if k in allowed_flags and isinstance(v, bool)
         }
     return cleaned
+
+
+def _outside_schema(candidate: dict[str, Any]) -> list[str]:
+    """The paths of the fields and flags the candidate proposes that the
+    schema does not define, in the candidate's order: the ones _clean drops
+    by name ("description" is the schema's own field and never counted)."""
+    allowed = set(_schema["properties"])
+    paths = [k for k in candidate if k not in allowed]
+    flags = candidate.get("flags")
+    if isinstance(flags, dict):
+        allowed_flags = set(_schema["properties"]["flags"]["properties"])
+        paths.extend(f"flags.{k}" for k in flags if k not in allowed_flags)
+    return paths
 
 
 def _schema_errors(features: dict[str, Any]) -> list[str]:
@@ -332,12 +352,15 @@ def elicit(
         if not isinstance(candidate, dict):
             notes.append(f"attempt {attempt}: generator output was not an object")
             continue
+        outside = _outside_schema(candidate)
         cleaned = _clean(candidate, description)
         errors = _schema_errors(cleaned)
         if errors:
             notes.append(f"attempt {attempt}: schema violations: " + "; ".join(errors[:3]))
             continue
+        outside_notes = [OUTSIDE_SCHEMA_NOTE.format(path=path) for path in outside]
         if not quoted:
+            notes.extend(outside_notes)
             notes.append(f"elicited on attempt {attempt}")
             return Elicitation(features=cleaned, notes=notes, prompt=prompt)
         kept, kept_quotes, dropped, quote_notes = _keep_quoted(cleaned, quotes, description)
@@ -348,7 +371,11 @@ def elicit(
                 + "; ".join(errors[:3])
             )
             continue
-        notes.extend(quote_notes)
+        notes.extend(outside_notes)
+        notes.extend(
+            note for note in quote_notes
+            if not any(note.startswith(f"quote for {path} ignored") for path in outside)
+        )
         notes.append(f"elicited on attempt {attempt}")
         return Elicitation(
             features=kept, quotes=kept_quotes, dropped=dropped, notes=notes, prompt=prompt

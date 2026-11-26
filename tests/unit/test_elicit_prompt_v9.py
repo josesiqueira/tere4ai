@@ -53,6 +53,8 @@ LAWFUL_USE_SENTENCE = (
     "Answer for the use the system is intended for; whether that use is permitted "
     "under Union or national law is not part of this fact."
 )
+# Fix round 1, M7: the note for a key the schema does not define.
+OUTSIDE_NOTE = "{path} was proposed but is not a fact of the schema; it was not kept"
 POINT_5_USES = tuple(fact for fact, _unit in ANNEX_III_RULES[4]["uses"])
 
 
@@ -260,23 +262,105 @@ def test_v9_elicitation_with_a_fake_client_keeps_a_listed_use_fact(dump):
     assert result.prompt["version"] == "v9"
 
 
-def test_a_proposed_fact_outside_the_schema_is_removed_before_the_quote_check(dump):
+def test_a_proposed_fact_outside_the_schema_is_named_in_the_notes_and_not_kept(dump):
     """A flag the schema does not define (here employment_decisions, removed by
-    B184) is removed by the cleaning step: it is neither kept nor named in
-    dropped; its quote, when the reply gives one, is named in the notes as
-    ignored. The same reply without that quote leaves no trace."""
+    B184) is removed by the cleaning step and is not in dropped; the notes name
+    it once, in a fixed form, whether or not the reply quoted it (fix round 1,
+    M7). A top-level field outside the schema is named the same way."""
     quote = "scores each office worker's productivity"
-    reply = {"features": {"flags": {"annex_iii_4b_work_relationships": True, "employment_decisions": True}},
+    reply = {"features": {"risk_category": "high_risk",
+                          "flags": {"annex_iii_4b_work_relationships": True, "employment_decisions": True}},
              "quotes": {"flags.annex_iii_4b_work_relationships": quote, "flags.employment_decisions": quote}}
     fake = FakeClient({DESCRIPTION[:30]: json.dumps(reply)})
     result = elicit(DESCRIPTION, fake, dump=dump, snapshots_dir=SNAPSHOTS_DIR)
     assert result.features["flags"] == {"annex_iii_4b_work_relationships": True}
+    assert "risk_category" not in result.features
     assert result.dropped == []
-    assert "quote for flags.employment_decisions ignored: the features carry no such fact" in result.notes
+    named = [note for note in result.notes if "employment_decisions" in note or "risk_category" in note]
+    assert named == [OUTSIDE_NOTE.format(path="risk_category"),
+                     OUTSIDE_NOTE.format(path="flags.employment_decisions")]
 
     del reply["quotes"]["flags.employment_decisions"]
     fake = FakeClient({DESCRIPTION[:30]: json.dumps(reply)})
     result = elicit(DESCRIPTION, fake, dump=dump, snapshots_dir=SNAPSHOTS_DIR)
     assert result.features["flags"] == {"annex_iii_4b_work_relationships": True}
     assert result.dropped == []
-    assert not any("employment_decisions" in note for note in result.notes)
+    assert [note for note in result.notes if "employment_decisions" in note] == [
+        OUTSIDE_NOTE.format(path="flags.employment_decisions")]
+
+
+def test_v9_real_time_identification_quotes_article_3_44():
+    assert "eu-ai-act:definition:publicly-accessible-space" in fact_provisions(V9)["flags.real_time_remote_biometric_public"]
+
+
+def test_v9_point_2_fact_quotes_article_6_1a_and_6_1b():
+    nodes = fact_provisions(V9)["flags.critical_infrastructure_safety"]
+    assert {"eu-ai-act:article-6:paragraph-1a", "eu-ai-act:article-6:paragraph-1b"} <= set(nodes)
+
+
+# Facts whose schema description quotes a legal unit that v9 does not attach to
+# them, each with its reason (fix round 1, I3): (fact, the node holding the
+# quoted words).
+SCHEMA_QUOTE_EXCEPTIONS: dict[tuple[str, str], str] = {
+    **{(fact, "eu-ai-act:annex-iii:point-1"): "P16: the opening words of point 1 are stated in the prompt's words "
+       "under its heading; the whole point node is not printed"
+       for fact, _unit in ANNEX_III_RULES[0]["uses"]},
+    **{(fact, "eu-ai-act:annex-iii:point-6"): "P16: the opening words of point 6 are stated in the prompt's words "
+       "under its heading; the whole point node is not printed"
+       for fact, _unit in ANNEX_III_RULES[5]["uses"]},
+    **{(fact, "eu-ai-act:annex-iii:point-7"): "P16: the opening words of point 7 are stated in the prompt's words "
+       "under its heading; the whole point node is not printed"
+       for fact, _unit in ANNEX_III_RULES[6]["uses"]},
+}
+
+
+def test_v9_attaches_to_each_fact_every_unit_its_schema_description_quotes(dump):
+    """Each passage the schema description of a fact quotes is resolved, as
+    test_features_schema_descriptions.py resolves it, to the nodes whose text
+    holds it; one of those nodes must be a provision v9 attaches to the fact
+    (a parent node counts, since its printed text holds the passage). The
+    exceptions are listed above with their reasons, and each must still apply."""
+    from tests.unit.test_features_schema_descriptions import QUOTED, _normalised
+
+    texts = {n["id"]: _normalised(n.get("text") or "") for n in dump["nodes"]
+             if n.get("type") != "UnitVersion" and n.get("text")}
+    table = fact_provisions(V9)
+    missing, used = [], set()
+    for fact, spec in SCHEMA["properties"]["flags"]["properties"].items():
+        attached = set(table.get(f"flags.{fact}", []))
+        for quoted in QUOTED.findall(spec["description"]):
+            passage = _normalised(quoted)
+            holders = {node for node, text in texts.items() if passage in text}
+            assert holders, (fact, passage[:60])
+            if holders & attached:
+                continue
+            excepted = [key for key in SCHEMA_QUOTE_EXCEPTIONS if key[0] == fact and key[1] in holders]
+            if excepted:
+                used.update(excepted)
+                continue
+            missing.append((fact, sorted(holders), passage[:60]))
+    assert missing == []
+    assert used == set(SCHEMA_QUOTE_EXCEPTIONS), "an exception no longer applies"
+
+
+def test_v9_area_headings_are_the_schemas_area_names():
+    areas = SCHEMA["properties"]["flags"]["x-annex-iii-areas"]
+    headings = [h for h in _sections(V9) if h.startswith("Annex III point ")]
+    assert headings == [f"Annex III point {key}: {areas[key]}" for key in sorted(areas, key=int)]
+
+
+def test_v9_names_the_facts_under_points_1_and_2_that_are_not_listed_uses():
+    point_1 = " ".join(_point_section(1).split())
+    point_2 = " ".join(_point_section(2).split())
+    assert "Each listed-use fact under this heading" in point_1
+    assert "Each fact under this heading" not in V9
+    assert re.search(r"real_time_remote_biometric_public [^.]*not a listed use of point 1", point_1)
+    assert re.search(r"medical_or_safety_component and annex_i_covered_product [^.]*not listed uses of point 2",
+                     point_2)
+
+
+def test_v9_consistency_paragraph_gives_the_emotion_pair_as_the_projects_reading():
+    paragraph = " ".join(V9[V9.index("Consistency:"):].split("\n\n")[0].split())
+    sentence = next(s for s in re.split(r"(?<=\.) ", paragraph)
+                    if s.startswith("When emotion_recognition_workplace_or_education is true"))
+    assert "the project's reading of point (f)" in sentence
