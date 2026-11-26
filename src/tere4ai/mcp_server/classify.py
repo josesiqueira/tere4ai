@@ -1069,7 +1069,7 @@ ARTICLE_50_TRIGGER_FLAGS: tuple[str, ...] = tuple(
 # artistic, creative, satirical, fictional or analogous work the duty stays
 # and only its manner changes, which the note states.
 ARTICLE_50_TRIGGERED_NOTE = (
-    "eu-ai-act:article-50: the paragraphs in transparency_duties are "
+    "eu-ai-act:article-50: the paragraphs or subparagraphs in transparency_duties are "
     "triggered by a fact that is true, not proven to apply: their own exceptions "
     "(an interaction obvious to the person, assistive editing, uses "
     "authorised by law to detect, prevent, investigate or prosecute criminal "

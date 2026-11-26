@@ -140,6 +140,11 @@ ROUND_2: dict[str, Any] = {
         "third_party_conformity_assessment_required": False,
         "interacts_with_natural_persons": False,
         "generates_synthetic_content": False,
+        # B185 (DEC-33): the two facts of Article 50(4); the README states a
+        # dashboard for management, no deep fake and no text published to
+        # inform the public on matters of public interest.
+        "generates_deep_fake": False,
+        "generates_public_interest_text": False,
         "causes_significant_harm": False,
     },
 }

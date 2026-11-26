@@ -297,8 +297,8 @@ def test_a_bare_section_b_answer_with_a_listed_use_unknown_names_it_among_its_mi
 
 def test_the_listed_use_line_is_worded_once():
     assert SECTION_B_LISTED_USE_UNKNOWN_FACT == (
-        "a listed use of Annex III, or real_time_remote_biometric_public, which also gives Annex III point 1, "
-        "is unknown, as the answer's status line says; the classification's missing facts name which")
+        "an Annex III fact is unknown: a listed use, or real_time_remote_biometric_public, which also gives "
+        "point 1; the answer's status line says so, and the classification's missing facts name which")
 
 
 def test_the_causes_of_a_bare_answer_read_the_two_that_need_missing_facts_from_its_status_lines():

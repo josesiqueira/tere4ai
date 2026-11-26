@@ -882,6 +882,21 @@ way round.
   verify: src/tere4ai/mcp_server/fria.py (no model imports); classify answers
   carry the fria block and get_applicable_requirements passes it through;
   tests/unit/test_fria.py.
+  Amended 2026-11-26 (B185, DEC-33): the block never counts a point that
+  rests on the area as a confirmed area. When the level rests on the area
+  alone it answers unknown, with a sentence that names the area and its
+  unknown listed uses (FRIA_AREA_ALONE_REASON), before any other reading;
+  beside a proven Article 6(1) route it answers as for that route when the
+  point is 2 and unknown otherwise (FRIA_AREA_BESIDE_ARTICLE_6_1_REASON).
+  Every cause of review the classification holds is named, the area first,
+  and never a cause it does not hold (DEC-33, ruling R6); a candidacy holds
+  the block at unknown only when article_6_3_exception_candidate is true,
+  so an unknown candidate does not. The unacceptable_risk branch answers
+  unknown for an area conflict as for a fact conflict. A refused input
+  carries fria null, no block, where the text above and the block of its
+  day gave a block on every answer. On limited_risk and minimal_risk
+  answers the reading of B125 above stays. Tests:
+  tests/unit/test_review_causes.py and tests/unit/test_area_reading.py.
 
 - DEC-15: requirement-to-code traceability for consumer projects, stored in
   the code and generated on demand, never hand-maintained (added 2026-08-24).
@@ -1101,6 +1116,28 @@ way round.
   prohibition that fired, its legal_status_notes line and the applicable
   requirements' message carry the point (h) sentence of DEC-32; the text
   above, which names law_enforcement_use, is the reading of its day.
+  Amended 2026-11-26 (B185, DEC-33): Article 50(4) is decided by two facts,
+  one per duty: generates_deep_fake (Article 3(60), cited
+  eu-ai-act:article-50:paragraph-4) and generates_public_interest_text
+  (cited eu-ai-act:article-50:paragraph-4:subparagraph-2); each answers no
+  for a use authorised by law to detect, prevent, investigate or
+  prosecute criminal offences, the text also under human review or
+  editorial control with a person's editorial responsibility, and a deep
+  fake in an evidently artistic, creative, satirical, fictional or
+  analogous work answers yes, since only the manner of the duty changes.
+  A true fact is a trigger of limited_risk like the other Article 50
+  facts, and the triggers above gain the two. The words "triggered by a
+  known fact" and "paragraphs 4 and 5 are not decided by the rules" above
+  are of their day: transparency_duties lists the paragraphs or
+  subparagraphs triggered by a fact that is true, and the note says so and
+  leaves only paragraph 5 and the exceptions of 50(1) to 50(3) outside the
+  rules. An absent trigger fact is named on every exit on which Article 50
+  can apply, the limited_risk exit and the undetermined exits included,
+  and still leaves a minimal_risk answer as it is; it is not named on a
+  refused input, the unacceptable_risk exit or a Section B product
+  Article 2(2) limits. get_applicable_requirements still serves the whole
+  Article 50 group to every high-risk system; of the paragraphs the
+  triggers do not cover, 50(5) remains.
 
 - DEC-19: every operator obligation or prohibition among the norms, and
   every generated control, carries its requirement type, functional,
@@ -1566,6 +1603,8 @@ way round.
   prompt is v7, the version of record for B74", is of its day; the
   prompt of record is elicit_features v9 since DEC-32 (v8 was between,
   from B160).
+  Amended 2026-11-26 (B185, DEC-33): the prompt of record is
+  elicit_features v10 since DEC-33; v9 stays the prompt of B184's record.
 
 - DEC-24: the HTTP facade can run the generator of /api/backlog and
   /api/evidence without the judge and judge the kept answer on a later
@@ -2763,6 +2802,32 @@ way round.
   basis (D-G91, brief Q3); the reading taken follows Article 3(39), and
   its cost if wrong is that an emotion inference tool that uses no
   biometric data is not marked prohibited under point (f) (ruling R3).
+  Amended 2026-11-26 (B185, DEC-33): DEC-33 changes four statements of
+  this decision. The rule: a listed use that is true decides the Annex III
+  point, and the domain is read only when no listed use of any point is
+  true; the domain is one of the eight areas of Annex III or
+  none_of_these_areas, and the domain words of "The domain words until
+  B185" above that are not values of the list (healthcare, banking and
+  insurance) are refused with the schema's message. A match by the domain
+  alone, which this decision kept settled with confidence 1.0 (ruling
+  R10), is now high_risk on the area alone, with annex_iii_category null,
+  annex_iii_area_unconfirmed set, high_risk_routes empty,
+  requires_human_review and confidence 0.5; the Section B product of the
+  probe above (domain banking, one point 5 use unknown) is served as
+  Section B under Article 2(2), with essential_services as its domain,
+  and is no longer moved to the Annex III route on the domain. Article
+  6(3): article_6_3_exception_candidate is null when a condition is
+  unknown and none is true, and on a system with both routes it describes
+  the Annex III part, which closes the audit's D7 handed to B185 above.
+  The prompt: the text above that names elicit_features v9 as the default
+  and the prompt of record, and the sentence that the benchmark features
+  wait for elicitation with prompt v9, are of their day; the prompt of
+  record is elicit_features v10, and the benchmark features are elicited
+  again with it. The flags object holds 56 facts, the two of Article
+  50(4) added. The words "known fact" of the Article 50 note and the note
+  for a fact conflict beside an Article 6(3) candidacy, left to B185
+  above, are done: the note says "a fact that is true", and the causes of
+  review are named together, in order, by review_causes.py.
 - DEC-33: the classifier's domain is a closed list of the eight areas of
   Annex III and none_of_these_areas, and a listed use decides: the domain
   is read only when no listed use of any point is true, a level that rests
@@ -2945,6 +3010,217 @@ way round.
   sentences in tere4ai2, reversed there with the demo sessions recorded
   again; no kept data depends on them, since B74 has not run.
   verify: completed in B185 task 9.
+  Completed 2026-11-26 (B185 task 9), as built in tasks 1 to 9; where this
+  paragraph and the text above differ, this paragraph describes the code.
+  The rulings named are those of the plan (P1 to P33) and of its execution
+  (R0 to R7), in sdd/2026-11-26-B185-domain-and-certainty/ in the private
+  research repository; the cases (C1 to C23) are the table of area cases
+  of the same plan, built as tests/unit/area_cases.py.
+  The values and the refusal (rulings P1, P2, P3, P30). The schema's
+  domain carries the enum, x-annex-iii-area-values, x-refusal and
+  x-removed-values; ANNEX_III_RULES holds one domain value per point and
+  ANNEX_III_POINT_OF_DOMAIN the point of each value. removed_facts.py
+  builds the one wording of the refusal (domain_refusal, from x-refusal
+  and x-removed-values) and holds DOMAIN_NONE_OF_THESE_AREAS. A value of
+  another type, a list, a number or a set, is refused with its JSON text
+  and never raises. The refused input's answer (rejected_as_unsupported)
+  is returned before any lookup by domain, with fria null (P14),
+  annex_iii_area_unconfirmed null and area_conflicts empty, and its
+  missing facts hold the schema's error line and the refusal after it,
+  once. The elicitor drops a proposed none_of_these_areas
+  (DOMAIN_DROP_NONE_REASON) and a proposed value outside the list
+  (DOMAIN_DROP_OUTSIDE_REASON) as dropped facts before the schema check,
+  so one wrong word never fails a whole elicitation, and a dropped
+  domain's quote is not reported as ignored.
+  The Annex III reading (P4 to P7). read_annex_iii(flags, domain) returns
+  one AnnexIIIReading that every reader of Annex III in classify.py reads:
+  the confirmed points (a listed use true, as answered or by an
+  entailment), the first rule and its trigger fact, and the point the area
+  gives (area_point) only when no listed use of any point is true. The
+  area-alone exit stands after the Annex III exit and before the
+  undetermined exit of an open Article 6(1) route (P5), so an open route
+  with an area gives high_risk on the area alone (C9). It writes the rule
+  line ANNEX_III_AREA_ALONE_RULE_LINE ("rule high_risk_area_alone: ..."),
+  whose grammar differs from the "rule high_risk: domain ... matches" of
+  the runs before B185, which scripts/elicitation_error_report.py still
+  reads (TRIGGER_DOMAIN_RE beside TRIGGER_AREA_RE, ruling R4), and puts
+  ANNEX_III_AREA_ALONE_LINE in legal_status_notes. Case C1 (domain
+  education, annex_iii_3a_admission absent, every other fact false) was
+  high_risk under point 3, potentially_applicable, confidence 1.0, at
+  09472d6; it is now high_risk with annex_iii_category null,
+  annex_iii_area_unconfirmed point 3, high_risk_routes empty,
+  requires_human_review and 0.5, the area line naming
+  annex_iii_3a_admission. annex_iii_area_unconfirmed is null on every
+  answer whose level is not high_risk (P6). Beside a proven Article 6(1)
+  route the point is carried with ANNEX_III_SCOPE_UNCONFIRMED_LINE and
+  the routes hold article_6_1 alone (C10); a Section B product there is
+  served as Section B with SECTION_B_ANNEX_III_UNKNOWN_MESSAGE and no
+  Chapter III norm (C11). When every listed use of the area is known
+  false, ANNEX_III_AREA_RULED_OUT_LINE says so (C2). Point 1 gains the
+  area-alone answer (C14, domain biometrics with biometric_identification
+  absent, undetermined at 09472d6). A system on both routes cites Article
+  6(1) and Article 6(2) (C15). route_of reads routes empty with the area
+  set on a high_risk answer as the Annex III route.
+  area_conflicts (P26, R0). area_conflicts(flags, domain) gives one entry
+  {domain, fact, note} per listed use true after the entailments, in point
+  order, while domain is none_of_these_areas, with AREA_CONFLICT_NOTE; it
+  marks the answer for review with confidence 0.5 on every exit,
+  unacceptable_risk included, the level unchanged. A prohibited answer's
+  notes and the applicable requirements' message end with
+  PROHIBITION_AREA_CONFLICT_CLAUSE. Case C23 (emotion recognition at work,
+  domain none_of_these_areas) has two entries, emotion_recognition (the
+  listed use of point 1(c)) and annex_iii_4b_work_relationships, where the
+  plan's table first said one; the table was corrected (task 3). Case C20
+  shows the entailed listed use: real_time_remote_biometric_public true
+  makes biometric_identification true by Article 3(42), and that fact goes
+  into area_conflicts although nobody answered it.
+  The Article 6(3) candidate (P9, P28, P29, R5). article_6_3_candidate(flags)
+  returns true, false or None; _annex_iii_candidacy keeps the profiling
+  override and computes the field on the Annex III exit, the area-alone
+  exit and the Article 6(1) exit when the reading has a confirmed or an
+  area point; elsewhere it is false and no condition fact is named. An
+  unknown condition is named with ARTICLE_6_3_UNKNOWN_CONDITION_LINE
+  (C19: candidate null, status potentially_applicable), unknown profiling
+  with ARTICLE_6_3_UNKNOWN_PROFILING_LINE. A candidate cites Article 6(3),
+  its points and Article 6(4) with ARTICLE_6_4_LINE; Article 49(2) is named
+  in the line and not cited, being outside the classification's cited set.
+  On the Article 6(1) exit a true candidate writes
+  ARTICLE_6_3_BOTH_ROUTES_LINE and ARTICLE_6_3_BOTH_ROUTES_NOTE and keeps
+  the status the route gives (C16). The candidate is a cause of review
+  when it is true and Article 6(1) is not a route, or when it is true,
+  Article 6(2) is a route and the Annex I section is B or unknown (R5 as
+  corrected): a Section B product with a true listed use would be served
+  differently if the derogation held (C21), and a point that rests on the
+  area alone never makes the candidate a cause. The two systems of the
+  REFSQ 2027 study keep the candidate false, since both profile natural
+  persons (tests/unit/test_refsq_systems.py, ruling P20).
+  Article 50 (P10, P27). The flags object holds 56 facts: the two of
+  Article 50(4), generates_deep_fake (cited
+  eu-ai-act:article-50:paragraph-4) and generates_public_interest_text
+  (cited eu-ai-act:article-50:paragraph-4:subparagraph-2), stand after
+  generates_synthetic_content, each description quoting its sentence and
+  its exceptions whole, and Article 3(60) for the deep fake; no entailment
+  reads or writes them. An absent trigger fact is now named on the
+  limited_risk exit and the two undetermined exits too, besides the exits
+  that named it before; not on a refused input, the unacceptable_risk exit
+  or a Section B product Article 2(2) limits. ARTICLE_50_TRIGGERED_NOTE
+  says "a fact that is true", names the paragraphs or subparagraphs in
+  transparency_duties (task 9), says that the two facts of 50(4) are false
+  where its exceptions apply and that for a deep fake in an evidently
+  artistic, creative, satirical, fictional or analogous work the duty
+  stays and only its manner changes; paragraph 5 stays outside the rules.
+  Prompt v9 reads the 54 facts of its day from tests/unit/flags_of_record.py
+  (FLAGS_OF_V9, ARTICLE_50_RULES_OF_V9).
+  The causes of review (P11, P12, P32, P33, R6, R7). review_causes.py
+  decides the causes from the answer's own fields, in the order
+  REVIEW_CAUSES gives: article_5_unknown, fact_conflict, area_conflict,
+  area_alone, article_6_3_candidate, article_6_1_open,
+  listed_use_unknown. The classifier writes one status line per cause
+  that holds (review_status_line), on every exit marked for review except
+  the undetermined exits, whose "rule undetermined:" line gives the reason
+  (P32). Across the table of cases and the generated inputs of the task
+  reviews, the status is requires_human_review exactly when the causes are
+  not empty or the level is undetermined. The Article 27(1) block names the
+  causes the classification holds, never a wider set (R6): on an area-alone
+  answer it answers unknown with FRIA_AREA_ALONE_REASON first (C1),
+  beside a proven Article 6(1) route with FRIA_AREA_BESIDE_ARTICLE_6_1_REASON
+  unless the point is 2 (C10, C13), then FRIA_OTHER_CAUSES_TEMPLATE or
+  FRIA_UNSETTLED_TEMPLATE with the other reasons; on limited_risk and
+  minimal_risk answers it keeps the reading of B125 (P33). The applicable
+  requirements read annex_iii_area_unconfirmed and area_conflicts from the
+  classification they are given, so an envelope and its bare answer give
+  the same status, note, groups and dates; on a bare answer the two causes
+  decided from missing facts are read from its status lines (R7), so more
+  bare answers are served as provisional than item (i) names, every cause
+  being read alike. PROVISIONAL_NOTE_TEMPLATE names the reasons that hold,
+  and no sentence names Unacceptable risk where unacceptable_risk is false
+  (C21, C22). A Section B answer on the Article 6(1) route alone whose
+  point rests on the area gets SECTION_B_ANNEX_III_UNKNOWN_MESSAGE and
+  requires_human_review from the bare answer too (P25), with
+  SECTION_B_AREA_UNCONFIRMED_FACT, or SECTION_B_LISTED_USE_UNKNOWN_FACT
+  when only the status line names an unknown listed use.
+  A defect older than the card, fixed in task 7: with
+  real_time_remote_biometric_public absent and Article 5(1)(h) open, the
+  fact was named only as a prohibition fact, so the unknown listed use of
+  point 1(a) was not given as a cause; it is now named under both tags.
+  The prompt and the tool description (P24, P27). elicit_features v10 is
+  the default and the prompt of record: the domain bullet offers the eight
+  areas with their point numbers, has the model propose an area only from
+  the description's own words and never none_of_these_areas, and omits the
+  field when the description does not settle it; the flag list holds the 56
+  facts in the schema's order; "### Article 50(4)" prints the paragraph,
+  its second subparagraph and Article 3(60) with the two facts and their
+  answer rules; the worked example leaves out domain. v9 stays the prompt
+  of B184's record, pinned by its sha256. The classify_ai_system tool
+  description defines annex_iii_area_unconfirmed, names the nine values,
+  area_conflicts, the candidate's null and the refused input's null fria.
+  Measured by the reviewers of tasks 2, 4, 5, 6 and 7, on generated inputs
+  paired against the commit before each task (the card's execution log in
+  the private research repository holds each count): no level changed in
+  any run; the statuses that moved went to requires_human_review only (300
+  of 12,000 for the area alone in task 2, 38 for R5 in task 6), and task 7
+  changed no classification answer.
+  The records (P19, P20, P21, R1). The stored inputs converted in tasks 1
+  and 9 are listed one by one for the owner, with the classifier's answer
+  at 09472d6 and after, in the card's folder in the private research
+  repository: the demo sessions' requests, the recording scripts' systems,
+  the answer key gold_seed.json, the example request of docs/server, and
+  the test inputs; test inputs whose subject is the domain rule keep an
+  area value although their description states no listed use (R1), and
+  are listed apart. The recording scripts state the two facts of Article
+  50(4) false for the four titled demo systems, whose descriptions state
+  neither (scripts/record_mcp_demo.py EVERY_FACT,
+  scripts/make_compliance.py, scripts/make_prohibition.py), and
+  tests/unit/test_stored_domains.py fails on a stored domain outside the
+  enum. The benchmark features stay records of the tag (P21).
+  The recordings (task 9): the five sessions under demo/mcp_demo/sessions
+  were recorded again on build-bab25bf2e5d6+chain-24ea1a5ab6ca, the build
+  of the recordings they replace, and the pages of /mcp-demo rebuilt from
+  them; the four sessions under tests/fixtures/demo_sessions were recorded
+  again from data/graph_dumps. Against the recordings of B184, no session
+  changed its level, status, confidence, Annex III point, routes, groups
+  served or dates. What changed: the requests (CredScore's domain banking
+  to essential_services, SpamGuard's and ShopBot's consumer left out, the
+  two facts of Article 50(4) stated false by the four titled systems);
+  every answer carries annex_iii_area_unconfirmed null and area_conflicts
+  empty; the Article 50 note's words; the abstention session names the two
+  new facts as unknown, and its Article 27(1) block and provisional note
+  name the cause, an unknown Article 5 fact, where they named Unacceptable
+  risk as an example; the first round of the prohibited session names
+  real_time_remote_biometric_public as an Annex III fact too (the fix of
+  task 7). demo/mcp_demo/projects/credscore/COMPLIANCE.md changed only in
+  its two timestamps.
+  Not done in this decision, and open: the demo site, the dashboard, its
+  examples and tere4ai-web are converted in tasks 10 to 14 and the study's
+  cases in task 15; four questions to the owner are open in the card's
+  execution log (Q1, the identifiers of the values; Q2, one action that
+  answers no to every listed use as a person's own answers, which task 16
+  waits for; Q3, no review mark for an unknown candidate; Q4, two facts
+  for Article 50(4)), each built as the provisional choice D-G92 states;
+  prompt v10 has not been run with a model, a paid run that needs the
+  owner's word, and does not say what places a hospital or a bank system
+  in Annex III point 5 (Q5); the benchmark features hold facts of earlier
+  prompts and are elicited again before B74; the Article 27(1) block
+  answers unknown on an area-alone answer even where no listed use of the
+  area could bring Article 27(1) in (D-G92 (v), the cost a block that
+  abstains where it could have said does_not_apply); on the Article 6(1)
+  exit with an area point and a true candidate the both-routes lines are
+  used, which say that the level stays high_risk under Article 6(1), true
+  there although the second route is only the area's.
+  verify (task 9): schema/json_schemas/system_features.schema.json (domain:
+  enum, x-annex-iii-area-values, x-refusal, x-removed-values; the two
+  facts of Article 50(4)); src/tere4ai/mcp_server/classify.py
+  (read_annex_iii, area_conflicts, article_6_3_candidate,
+  _annex_iii_candidacy, ARTICLE_50_RULES, route_of);
+  src/tere4ai/mcp_server/review_causes.py; src/tere4ai/mcp_server/fria.py;
+  src/tere4ai/mcp_server/requirements.py;
+  src/tere4ai/mcp_server/removed_facts.py;
+  src/tere4ai/elicit_features/elicitor.py; prompts/elicit_features/v10.md;
+  tests/unit/test_domain_values.py, test_refsq_systems.py,
+  test_area_reading.py, test_area_conflicts.py, test_candidate_field.py,
+  test_article_50_facts.py, test_review_causes.py,
+  test_requirements_area.py, test_elicit_prompt_v10.py and
+  test_stored_domains.py; CHANGELOG.md names the contract change.
 
 ## 17. Implementation-traceability convention
 

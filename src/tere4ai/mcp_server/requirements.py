@@ -227,8 +227,8 @@ SECTION_B_AREA_UNCONFIRMED_FACT = (
 # ANNEX_III_UNKNOWN_TAG, that is a listed use or the fact named beside point
 # 1(a), is unknown) and where the facts are named.
 SECTION_B_LISTED_USE_UNKNOWN_FACT = (
-    "a listed use of Annex III, or real_time_remote_biometric_public, which also gives Annex III point 1, "
-    "is unknown, as the answer's status line says; the classification's missing facts name which"
+    "an Annex III fact is unknown: a listed use, or real_time_remote_biometric_public, which also gives point 1; "
+    "the answer's status line says so, and the classification's missing facts name which"
 )
 # R26 path: what an Article 6(3) derogation candidate can change for a
 # Section B product on the Annex III route.

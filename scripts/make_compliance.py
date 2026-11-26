@@ -114,6 +114,11 @@ FEATURES: dict[str, Any] = {
         "third_party_conformity_assessment_required": False,
         "interacts_with_natural_persons": False,
         "generates_synthetic_content": False,
+        # B185 (DEC-33): the two facts of Article 50(4); the README states
+        # scores and recommendations for loan officers, no deep fake and no
+        # text published to inform the public on matters of public interest.
+        "generates_deep_fake": False,
+        "generates_public_interest_text": False,
     },
 }
 

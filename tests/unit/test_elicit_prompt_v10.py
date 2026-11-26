@@ -236,21 +236,54 @@ def test_the_schema_check_fails_when_a_fact_loses_its_unit(fact, placeholder, du
     assert fact in {gap[0] for gap in gaps}, fact
 
 
-def test_every_quotation_of_the_act_in_v10_is_exact(dump):
-    """Every passage in double quotes in the section of facts and provisions is
-    the text of a node of layer1.json (whitespace collapsed), and the section
-    quotes the Act at least once (the Article 50(4) answer rules)."""
+def _misplaced_quotations(text: str, dump: dict) -> tuple[int, list[tuple[str, str]]]:
+    """The passages in double quotes in the section of facts and provisions of
+    a prompt text, checked against the units of their own group: returns the
+    count of passages under a "- Facts:" line and the (group, passage) pairs
+    whose passage is not in the text (whitespace collapsed) of a unit that
+    group attaches to its facts. A passage before the first group counts as
+    misplaced under the group name "introduction"; there "- Facts:" is the
+    prompt's own syntax, named in the section's first paragraph, and no
+    quotation of the Act."""
     from tests.unit.test_features_schema_descriptions import _normalised
 
-    section = V10[V10.index("## Facts and their provisions"):V10.index("## Output")]
-    # "- Facts:" is the prompt's own syntax, named in the section's first
-    # paragraph, not a quotation of the Act.
-    passages = [p for p in re.findall(r'"([^"]+)"', section) if p != "- Facts:"]
-    assert passages, "the section quotes no passage of the Act"
-    texts = [_normalised(n.get("text") or "") for n in dump["nodes"]
-             if n.get("type") != "UnitVersion" and n.get("text")]
-    missing = [p for p in passages if not any(_normalised(p) in t for t in texts)]
-    assert missing == []
+    section = text[text.index("## Facts and their provisions"):text.index("## Output")]
+    texts = {n["id"]: _normalised(n.get("text") or "") for n in dump["nodes"]
+             if n.get("type") != "UnitVersion" and n.get("text")}
+    groups = section.split("\n- Facts:")
+    misplaced = [("introduction", p) for p in re.findall(r'"([^"]+)"', groups[0]) if p != "- Facts:"]
+    quoted = 0
+    for group in groups[1:]:
+        units = PLACEHOLDER_RE.findall(group)
+        for passage in re.findall(r'"([^"]+)"', group):
+            quoted += 1
+            if not any(_normalised(passage) in texts.get(unit, "") for unit in units):
+                misplaced.append((group.splitlines()[0].strip(), passage))
+    return quoted, misplaced
+
+
+def test_every_quotation_of_the_act_in_v10_is_exact(dump):
+    """Every passage in double quotes in the section of facts and provisions
+    stands under a "- Facts:" line and is the text of a unit that group
+    attaches to its facts, so a passage found only in another node of
+    layer1.json fails (B185 Task 9, from Task 8's review); the section quotes
+    the Act at least once (the Article 50(4) answer rules)."""
+    quoted, misplaced = _misplaced_quotations(V10, dump)
+    assert quoted, "the section quotes no passage of the Act"
+    assert misplaced == []
+
+
+def test_a_passage_quoted_under_the_wrong_fact_fails_the_exactness_check(dump):
+    """Mutation, in memory: a passage of Article 3(60) quoted under
+    generates_public_interest_text is in a node of the build (the definition
+    of a deep fake) but not in the unit that fact cites (the second
+    subparagraph of Article 50(4)), so the check names it."""
+    passage = "resembles existing persons, objects, places, entities or events"
+    anchor = "  {{provision:eu-ai-act:article-50:paragraph-4:subparagraph-2}}"
+    assert V10.count(anchor) == 1
+    mutated = V10.replace(anchor, f'  A deep fake "{passage}".\n{anchor}')
+    _quoted, misplaced = _misplaced_quotations(mutated, dump)
+    assert misplaced == [("flags.generates_public_interest_text", passage)]
 
 
 # The Annex III headings, the listed uses and the other facts, as in v9 -------------

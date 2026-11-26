@@ -74,9 +74,9 @@ PUBLIC_INTEREST_TEXT_DESCRIPTION = (
 )
 # The answer's note, word for word.
 NOTE = (
-    "eu-ai-act:article-50: the paragraphs in transparency_duties are triggered by a fact that is true, not proven "
-    "to apply: their own exceptions (an interaction obvious to the person, assistive editing, uses authorised by "
-    "law to detect, prevent, investigate or prosecute criminal offences in 50(1) and 50(2), uses permitted by law "
+    "eu-ai-act:article-50: the paragraphs or subparagraphs in transparency_duties are triggered by a fact that is "
+    "true, not proven to apply: their own exceptions (an interaction obvious to the person, assistive editing, "
+    "uses authorised by law to detect, prevent, investigate or prosecute criminal offences in 50(1) and 50(2), uses permitted by law "
     "to detect, prevent or investigate criminal offences in 50(3)) and paragraph 5 are not decided by the rules; "
     "the two facts of 50(4) are false where its exceptions apply, and for a deep fake that forms part of an "
     "evidently artistic, creative, satirical, fictional or analogous work or programme the 50(4) duty stays and "

@@ -350,6 +350,13 @@ SYSTEMS: list[dict[str, Any]] = [
 # of Annex III and the two Article 6(3) facts. law_enforcement_purpose is not
 # completed: by the plan's table it stays absent unless a system sets
 # real_time_remote_biometric_public true, and none does.
+# B185 (DEC-33, spec G D-G92 (7)): the two facts of Article 50(4) join the
+# list after generates_synthetic_content. No description of the four titled
+# systems states a deep fake or text published to inform the public on
+# matters of public interest (SpamGuard sorts mail, ShopBot answers webshop
+# visitors, CredScore scores loan applicants, MoodWatch shows management a
+# dashboard), so each states both false; the abstention system is completed
+# from COMPLETION, not from this list, and leaves them absent.
 EVERY_FACT: tuple[str, ...] = (
     "biometric_identification",
     "biometric_categorisation",
@@ -390,6 +397,8 @@ EVERY_FACT: tuple[str, ...] = (
     "medical_or_safety_component",
     "interacts_with_natural_persons",
     "generates_synthetic_content",
+    "generates_deep_fake",
+    "generates_public_interest_text",
     "profiling_of_natural_persons",
     "narrow_procedural_task",
     "preparatory_task",
