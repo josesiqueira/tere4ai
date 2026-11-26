@@ -2,6 +2,7 @@
 
 @implements: DEC-13, DEC-18
 @implements: DEC-23
+@implements: DEC-32
 @grounded_by: REF-17, REF-16
 
 The trust split of USER.md holds: the LLM extracts FACTS from the given
@@ -53,7 +54,11 @@ PROMPT_NAME = "elicit_features"
 # points, points (ba) and (bb) as Article 5 nodes, the Annex I section fact).
 # B160: v8 is v7 with the fact deployer_actor renamed deployer_kind, the
 # version of record for B74.
-DEFAULT_PROMPT_VERSION = "v8"
+# B184 (spec G D-G91, DEC-32): v9 asks the 54 facts of the schema, the 25
+# Annex III listed uses under one heading per point, law_enforcement_purpose
+# under Article 5(1)(h), and the Article 6(3) points (a) and (d) as two
+# facts; v8 stays as the prompt of tag v2.0.0-beta.1.
+DEFAULT_PROMPT_VERSION = "v9"
 MIN_QUOTE_WORDS = 3
 # Fact paths with a level below the top: "flags.<name>", "deployer.<key>".
 NESTED_FACT_FIELDS = ("flags", "deployer")

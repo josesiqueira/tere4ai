@@ -25,7 +25,8 @@ ROOT = Path(__file__).resolve().parents[2]
 DUMP_PATH = ROOT / "data" / "graph_dumps" / "layer1.json"
 SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
 # B160: to v8 (deployer_kind).
-V8_PATH = ROOT / "prompts" / "elicit_features" / "v8.md"
+# B184: to v9 (DEC-32).
+V9_PATH = ROOT / "prompts" / "elicit_features" / "v9.md"
 
 SPAM = "A spam filter for a small company's inboxes. It quarantines mail retrievably."
 QUOTE = "A spam filter for a small company's inboxes."
@@ -85,7 +86,7 @@ def _assert_quoted_answer(env: dict, build_id: str) -> None:
         {"path": "flags.biometric_categorisation", "reason": "quote not in the description"}
     ]
     assert "biometric_categorisation" not in answer["features"]["flags"]
-    assert answer["prompt"]["version"] == "v8"
+    assert answer["prompt"]["version"] == "v9"
     assert re.fullmatch(r"[0-9a-f]{64}", answer["prompt"]["template_sha256"])
     assert answer["prompt"]["graph_version"] == build_id
     # Other flag names start with this one, so match the whole name.
@@ -153,7 +154,7 @@ def test_elicit_envelope_degrades_when_elicitation_fails(dump):
 
 def test_elicit_envelope_names_an_unresolved_definition(dump):
     broken = copy.deepcopy(dump)
-    first = PLACEHOLDER_RE.findall(V8_PATH.read_text(encoding="utf-8"))[0]
+    first = PLACEHOLDER_RE.findall(V9_PATH.read_text(encoding="utf-8"))[0]
     broken["nodes"] = [n for n in broken["nodes"] if n.get("id") != first]
     gen = FakeGenerator(_reply_with_a_dropped_flag())
     env = elicit_envelope(SPAM, gen, dump=broken, snapshots_dir=SNAPSHOTS_DIR)

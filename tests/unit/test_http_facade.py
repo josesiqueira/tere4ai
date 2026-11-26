@@ -457,7 +457,8 @@ def test_elicit_returns_a_proposal_envelope(client, fake_models):
     ]
     assert "social_scoring" not in answer["features"]["flags"]
     # B160: to v8 (deployer_kind).
-    assert answer["prompt"]["version"] == "v8"
+    # B184: to v9 (DEC-32).
+    assert answer["prompt"]["version"] == "v9"
     assert re.fullmatch(r"[0-9a-f]{64}", answer["prompt"]["template_sha256"])
     served = client.app.state.served.dump["build"]["build_id"]
     assert answer["prompt"]["graph_version"] == served == env["graph_version"]

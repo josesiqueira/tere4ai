@@ -42,12 +42,13 @@ def test_the_old_key_is_refused_by_the_schema():
     assert not validator.is_valid({**described, OLD: "private_company"})
 
 
-def test_v8_is_v7_with_the_fact_renamed_and_the_default():
+def test_v8_is_v7_with_the_fact_renamed_and_v9_is_the_default():
     v7 = (PROMPTS / "v7.md").read_text(encoding="utf-8")
     v8 = (PROMPTS / "v8.md").read_text(encoding="utf-8")
     assert v7.count(OLD) == 2
     assert v8 == v7.replace(OLD, "deployer_kind")
-    assert DEFAULT_PROMPT_VERSION == "v8"
+    # B184: v9 is the default; v8 stays as the prompt of tag v2.0.0-beta.1.
+    assert DEFAULT_PROMPT_VERSION == "v9"
 
 
 def test_no_live_file_names_the_old_key():
