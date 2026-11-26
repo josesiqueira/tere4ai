@@ -94,3 +94,25 @@ def test_draft_mode_refuses_at_this_commit_and_names_the_tag(tmp_path, capsys):
     err = capsys.readouterr().err
     assert "v2.0.0-beta.1" in err and "run it at that tag" in err
     assert not out.exists()
+
+
+def test_draft_payload_names_every_node_not_in_the_dump(monkeypatch):
+    # the check of the drafting as the tag ran it: every unresolved node is named, as the old CLI printed one
+    # line per node before refusing
+    def drafts_from_unknown_nodes(dump, norms_payload, limit=30):
+        return [{"id": f"draft:qa-{n:02d}", "kind": "qa", "drafted_from": {"node_id": f"eu-ai-act:article-999:{n}"}}
+                for n in (1, 2)]
+
+    monkeypatch.setattr(draft_mod, "draft_qa", drafts_from_unknown_nodes)
+    with pytest.raises(ValueError) as caught:
+        draft_mod.draft_payload()
+    message = str(caught.value)
+    assert "draft:qa-01 is drafted from eu-ai-act:article-999:1, not in the dump" in message
+    assert "draft:qa-02 is drafted from eu-ai-act:article-999:2, not in the dump" in message
+
+
+def test_the_draft_help_says_draft_mode_refuses_at_this_commit(capsys):
+    with pytest.raises(SystemExit):
+        draft_mod.main(["draft", "--help"])
+    out = " ".join(capsys.readouterr().out.split())
+    assert "refuses at this commit" in out and "v2.0.0-beta.1" in out

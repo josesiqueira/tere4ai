@@ -1562,6 +1562,10 @@ way round.
   test_in_force_build.py, test_application_dates.py, test_classify.py,
   test_get_requirements.py, test_validate_graph.py,
   tests/integration/test_acceptance_in_force.py.
+  Added 2026-11-26 (B184, DEC-32): the sentence above, "The elicitor
+  prompt is v7, the version of record for B74", is of its day; the
+  prompt of record is elicit_features v9 since DEC-32 (v8 was between,
+  from B160).
 
 - DEC-24: the HTTP facade can run the generator of /api/backlog and
   /api/evidence without the judge and judge the kept answer on a later
@@ -2656,6 +2660,75 @@ way round.
   test_elicit_prompt_v9.py, test_removed_facts_guard.py,
   test_demo_session_parity.py, test_run_ablations_stored_facts.py and
   test_gold_drafting.py; CHANGELOG.md names the contract change.
+  Added 2026-11-26 (B184 task 10, after its review).
+  Names: the nineteen new facts are named by point and one or two words
+  (ruling P2; annex_iii_3c_education_level, annex_iii_4b_work_relationships),
+  which corrects "one word" in the text of 2026-11-26 above.
+  The domain words until B185. ANNEX_III_RULES holds nine domain words:
+  critical_infrastructure (point 2), education (point 3), employment
+  (point 4), healthcare, banking and insurance (point 5),
+  law_enforcement (point 6), migration (point 7) and justice (point 8).
+  The domain rule keeps its form but reads every listed use of the point,
+  so a domain word now counts where the main fact of the point at tag
+  v2.0.0-beta.1 was known false and a narrower fact unknown. Domain
+  banking, points 5(a), 5(c) and 5(d) false, 5(b) unknown and every other
+  fact false: high_risk through point 5, status potentially_applicable,
+  confidence 1.0, no listed use, and flags.creditworthiness_evaluation
+  named among the missing facts. At the tag the corresponding input
+  (essential_services_access false, 5(b) unknown, every other fact false)
+  gave undetermined, requires_human_review, confidence 0.5. Such an answer
+  raises the level with full confidence on the domain word alone. Reading
+  the owner's rule for an area ("ruled out only when every use of it is
+  answered no") on the nine domain words is Claude's ruling (R10; cost if
+  wrong: more domain-only high_risk answers for the days between the two
+  cards). Card B185 makes a high-risk answer that rests on the domain
+  alone say so and marks it for human review.
+  Point (h) with the purpose unknown: with
+  real_time_remote_biometric_public true and law_enforcement_purpose
+  unknown (the other facts false) the answer is high_risk through point
+  1(a), unacceptable_risk null, status requires_human_review, confidence
+  0.5, not undetermined.
+  The schema: real_time_remote_biometric_public carries neither
+  x-annex-iii-area nor x-annex-iii-use, so a client shows it as it shows
+  the facts outside Annex III.
+  Article 6(3) and the Article 27 block: the split makes a candidacy more
+  frequent, since at the tag the combined fact raised it only with the
+  autonomy advisory. On a system with both high-risk routes (Article 6(1)
+  and Article 6(2)) the Article 27 block says that the classification
+  flags an Article 6(3) candidacy while the answer's
+  article_6_3_exception_candidate is false (the 2026-07-20 audit's D7),
+  which is handed to card B185.
+  Exceptions: quoting each listed use whole lets a system inside an
+  exception answer no where the broad fact was answered yes (financial
+  fraud detection in 5(b), the verification of travel documents in 7(d),
+  "tools used to organise, optimise or structure political campaigns from
+  an administrative or logistical point of view" in 8(b)); the lower
+  level that follows is the Act's.
+  gold_seed.json: a removed fact that was false became false on every
+  listed use of its point, one that was absent stayed absent, and one that
+  was true became the listed use its item's description states (gold:cls-02
+  annex_iii_5d_emergency_calls; gold:cls-05 annex_iii_4a_recruitment and
+  preparatory_task); only system_features.flags changed (gold:cls-02 to
+  cls-05), the
+  descriptions, gold answers, gold_citations and notes as written (ruling
+  P13).
+  The recordings: the demo sessions under demo/mcp_demo/sessions were
+  recorded on build-bab25bf2e5d6+chain-24ea1a5ab6ca; the earlier ones were
+  of build-3b753e5e9297+chain-7442562dce5c. The changes of the counts
+  shown with them (the high-risk session's returned requirements 277 to
+  336, the limited-risk session's 13 to 21) come from that change of
+  build, not from DEC-32. The sessions under tests/fixtures/demo_sessions
+  carry build-bab25bf2e5d6, read from data/graph_dumps.
+  Not done in this decision, the benchmark features: 12 of the 32 items of
+  eval/gold/benchmark_features.json and 92 of the 339 of
+  eval/gold/benchmark_features_full.json carry facts of the earlier
+  prompts (a removed fact in each), so a main run of the ablation harness
+  stops (ruling R16) until those features are elicited again with prompt
+  v9, a paid run that needs the owner's word.
+  Considered and not taken, added: Article 5(1)(f) without the biometric
+  basis (D-G91, brief Q3); the reading taken follows Article 3(39), and
+  its cost if wrong is that an emotion inference tool that uses no
+  biometric data is not marked prohibited under point (f) (ruling R3).
 
 ## 17. Implementation-traceability convention
 

@@ -278,8 +278,8 @@ DRAFT_MODE_REFUSAL = (
 
 def draft_payload() -> dict[str, Any]:
     """The drafts as tag v2.0.0-beta.1 wrote them, every node a draft was
-    drafted from checked against the dump; ValueError names the first node
-    that is not in it."""
+    drafted from checked against the dump; ValueError names every node that
+    is not in it, one per line, as the CLI of the tag printed them."""
     dump = json.loads(DUMP_PATH.read_text(encoding="utf-8"))
     norms_payload = json.loads(NORMS_PATH.read_text(encoding="utf-8"))
     node_ids = {n["id"] for n in dump["nodes"]}
@@ -296,8 +296,8 @@ def draft_payload() -> dict[str, Any]:
         and item["drafted_from"]["node_id"] not in node_ids
     ]
     if unresolved:
-        item_id, cited = unresolved[0]
-        raise ValueError(f"{item_id} is drafted from {cited}, not in the dump")
+        raise ValueError("\n".join(f"{item_id} is drafted from {cited}, not in the dump"
+                                   for item_id, cited in unresolved))
 
     counts = {k: sum(1 for i in items if i["kind"] == k) for k in ("classification", "retrieval", "qa")}
     return {
@@ -345,8 +345,14 @@ def cmd_agreement(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    draft = sub.add_parser("draft", help="draft candidate items from the graph")
-    draft.add_argument("--out", default=str(DEFAULT_OUT))
+    draft = sub.add_parser(
+        "draft",
+        help="refuses at this commit (exit code 2): it drafts in the facts of tag v2.0.0-beta.1; run it at that tag",
+        description=DRAFT_MODE_REFUSAL.removeprefix("refusing: "),
+    )
+    draft.add_argument("--out", default=str(DEFAULT_OUT),
+                       help="where the tag writes the drafts; at this commit nothing is written, since draft "
+                            "mode refuses at this commit")
     agree = sub.add_parser("agreement", help="the two labellers' agreement by kind")
     agree.add_argument("items", nargs="?", default=str(GOLD_SEED_PATH))
     agree.add_argument("--json", default=None, help="also write the report as JSON here")
