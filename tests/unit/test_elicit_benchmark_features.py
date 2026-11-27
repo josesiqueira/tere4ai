@@ -62,6 +62,7 @@ def _script(monkeypatch, fail_on=None, failure=None, cfg=None, prompt=None, load
     mod._TEST_LOADS = loads
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: policies.append(kw.get("retry_policy")) or object())
     # B10: the build and the rendered prompt are mock data unless a test asks for the repository's
+    monkeypatch.setattr(mod, "load_model_prices", lambda: {"g": {"input": 10.0, "output": 50.0}})
     monkeypatch.setattr(mod, "load_active", lambda d: loaded or LoadedBuild(DUMP, None, None, "build-x", "legacy", None))
     run_prompt = dict(prompt or PROMPT)
 
@@ -83,7 +84,7 @@ def _script(monkeypatch, fail_on=None, failure=None, cfg=None, prompt=None, load
 
 def test_a_backend_stop_keeps_the_checkpoint_prints_the_resume_and_a_rerun_finishes(tmp_path, monkeypatch, capsys):
     out = tmp_path / "features.json"
-    argv = ["--out", str(out)]
+    argv = ["--max-usd", "1", "--out", str(out)]
     mod, policies = _script(monkeypatch, fail_on=ITEMS[1]["system_text"],
                             failure=InferenceBackendUnavailable(6, "HTTP 529"))
     assert mod.main(argv) == 3
@@ -103,7 +104,7 @@ def test_a_backend_stop_keeps_the_checkpoint_prints_the_resume_and_a_rerun_finis
 def test_a_backend_refusal_names_the_item_and_exits_5(tmp_path, monkeypatch, capsys):
     """B101 ruling S5: the item refused is fixed before the rerun, never skipped."""
     mod, _ = _script(monkeypatch, fail_on=ITEMS[0]["system_text"], failure=InferenceBackendRefused("HTTP 413"))
-    assert mod.main(["--out", str(tmp_path / "features.json")]) == 5
+    assert mod.main(["--max-usd", "1", "--out", str(tmp_path / "features.json")]) == 5
     assert "stopped: inference backend refused the request: HTTP 413 (item bench:1)" in capsys.readouterr().err
 
 
@@ -111,11 +112,11 @@ def test_the_entries_and_the_output_name_the_declaration_and_the_config_is_loade
     """B99 (spec F D-F29) final review M1."""
     out = tmp_path / "features.json"
     mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
-    assert mod.main(["--out", str(out)]) == 3
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 3
     (entry,) = [json.loads(line) for line in out.with_suffix(".checkpoint.jsonl").read_text().splitlines()]
     assert entry["models"] == _cfg().as_public_dict() and entry["elicitor_model"] == "g"
     mod, _ = _script(monkeypatch)
-    assert mod.main(["--out", str(out)]) == 0
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 0
     assert mod._TEST_LOADS == [1]
     payload = json.loads(out.read_text())
     assert payload["models"] == _cfg().as_public_dict() and payload["elicitor_model"] == "g"
@@ -126,11 +127,11 @@ def test_a_rerun_under_another_declaration_is_refused_by_name(tmp_path, monkeypa
     elicited under two declarations."""
     out = tmp_path / "features.json"
     mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
-    assert mod.main(["--out", str(out)]) == 3
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 3
     ckpt = out.with_suffix(".checkpoint.jsonl")
     before = ckpt.read_bytes()
     mod, _ = _script(monkeypatch, cfg=_cfg(effort="high"))
-    assert mod.main(["--out", str(out)]) == 2
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 2
     assert (f"refusing to resume {ckpt.name}: an elicited item was run under different models: "
             "model_parameters_sha256; restore the row in config/model_parameters.json to resume it, or move "
             "the checkpoint away to start again") in capsys.readouterr().out
@@ -141,7 +142,7 @@ def test_a_refused_declared_parameter_exits_4_and_keeps_the_checkpoint(tmp_path,
     out = tmp_path / "features.json"
     refused = DeclaredParameterRefused("openai", "g", "effort", "xhigh", "HTTP 400: effort unsupported")
     mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=refused)
-    assert mod.main(["--out", str(out)]) == 4
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 4
     assert ("stopped: configuration error: openai:g refused the declared effort xhigh (HTTP 400: effort "
             "unsupported); correct its row in config/model_parameters.json") in capsys.readouterr().err
     assert out.with_suffix(".checkpoint.jsonl").exists() and not out.exists()
@@ -161,7 +162,7 @@ def test_the_default_prompt_version_is_the_elicitors(tmp_path, monkeypatch):
                            prompt=dict(PROMPT, version=prompt_version))
 
     monkeypatch.setattr(mod, "elicit", elicit)
-    assert mod.main(["--out", str(out)]) == 0
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 0
     assert seen == [DEFAULT_PROMPT_VERSION, DEFAULT_PROMPT_VERSION]
     # B10: the elicitor's default moved from v5 to v6 (quotes per fact);
     # B132: to v7 (the Act as amended).
@@ -178,11 +179,11 @@ def test_the_entries_and_the_output_carry_quotes_dropped_facts_and_the_prompt(tm
     quotes_by_item, dropped_by_item and the unchanged features_by_item."""
     out = tmp_path / "features.json"
     mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
-    assert mod.main(["--out", str(out)]) == 3
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 3
     (entry,) = [json.loads(line) for line in out.with_suffix(".checkpoint.jsonl").read_text().splitlines()]
     assert entry["quotes"] == QUOTES and entry["dropped"] == DROPPED and entry["prompt"] == PROMPT
     mod, _ = _script(monkeypatch)
-    assert mod.main(["--out", str(out)]) == 0
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 0
     payload = json.loads(out.read_text())
     assert payload["prompt"] == PROMPT
     assert payload["features_by_item"] == {"bench:1": {"flag": True}, "bench:2": {"flag": True}}
@@ -197,7 +198,7 @@ def test_an_item_without_text_carries_the_runs_prompt_and_no_quotes(tmp_path, mo
     mod, _ = _script(monkeypatch)
     monkeypatch.setattr(mod.harness, "load_benchmark_items",
                         lambda path: [{"id": "bench:0", "kind": "classification", "system_text": "short"}])
-    assert mod.main(["--out", str(out)]) == 0
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 0
     payload = json.loads(out.read_text())
     assert payload["features_by_item"] == {"bench:0": None}
     assert payload["quotes_by_item"] == {"bench:0": {}} and payload["dropped_by_item"] == {"bench:0": []}
@@ -211,12 +212,12 @@ def test_a_rerun_under_another_prompt_is_refused_by_name(tmp_path, monkeypatch, 
     one prompt record untrue; mirrors the models check."""
     out = tmp_path / "features.json"
     mod, _ = _script(monkeypatch, fail_on=ITEMS[1]["system_text"], failure=InferenceBackendUnavailable(6, "HTTP 529"))
-    assert mod.main(["--out", str(out)]) == 3
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 3
     ckpt = out.with_suffix(".checkpoint.jsonl")
     before = ckpt.read_bytes()
     other = dict(PROMPT, **{key: "v5" if key == "version" else "c" * 64})
     mod, policies = _script(monkeypatch, prompt=other)
-    argv = ["--out", str(out)] + (["--prompt-version", "v5"] if key == "version" else [])
+    argv = ["--max-usd", "1", "--out", str(out)] + (["--prompt-version", "v5"] if key == "version" else [])
     assert mod.main(argv) == 2
     assert (f"refusing to resume {ckpt.name}: an elicited item was run under a different prompt: {key}; "
             "rerun with the prompt version and the build the checkpoint names to resume it, or move the "
@@ -231,7 +232,7 @@ def test_a_checkpoint_entry_without_a_prompt_record_is_refused(tmp_path, monkeyp
     ckpt.write_text(json.dumps({"item_id": "bench:1", "features": None, "notes": [],
                                 "models": _cfg().as_public_dict()}) + "\n")
     mod, _ = _script(monkeypatch)
-    assert mod.main(["--out", str(out)]) == 2
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 2
     assert "an elicited item was run under a different prompt: graph_version, rendered_sha256, " \
            "template_sha256, version;" in capsys.readouterr().out
 
@@ -240,7 +241,7 @@ def test_a_build_that_does_not_load_is_refused_before_any_client(tmp_path, monke
     out = tmp_path / "features.json"
     failed = LoadedBuild(None, None, None, None, "manifest", "the activation pointer is unreadable")
     mod, policies = _script(monkeypatch, loaded=failed)
-    assert mod.main(["--out", str(out)]) == 2
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 2
     assert "refusing to elicit: no build is served: the activation pointer is unreadable" in capsys.readouterr().out
     assert policies == [] and not out.exists()
 
@@ -249,7 +250,7 @@ def test_a_provision_that_does_not_resolve_is_refused_before_any_client(tmp_path
     out = tmp_path / "features.json"
     exc = ProvisionUnresolved("eu-ai-act:definition:nowhere", "build-x", "unknown node")
     mod, policies = _script(monkeypatch, unresolved=exc)
-    assert mod.main(["--out", str(out)]) == 2
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 2
     assert ("refusing to elicit: definition eu-ai-act:definition:nowhere does not resolve in build-x: "
             "unknown node; no model call made") in capsys.readouterr().out
     assert policies == [] and not out.exists()
@@ -266,12 +267,13 @@ def test_the_prompt_record_is_the_rendered_v6_over_the_repositorys_build(tmp_pat
     spec.loader.exec_module(mod)
     monkeypatch.setattr(mod.harness, "load_benchmark_items", lambda path: [dict(ITEMS[0])])
     monkeypatch.setattr(mod, "load_model_config", lambda: _cfg())
+    monkeypatch.setattr(mod, "load_model_prices", lambda: {"g": {"input": 10.0, "output": 50.0}})
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: object())
     monkeypatch.setattr(mod, "elicit", lambda description, generator, *, dump, snapshots_dir, prompt_version:
                         Elicitation(features=None, notes=["mock"], prompt=mod.render_prompt(
                             dump, snapshots_dir, prompt_version)[1]))
     out = tmp_path / "features.json"
-    assert mod.main(["--out", str(out)]) == 0
+    assert mod.main(["--max-usd", "1", "--out", str(out)]) == 0
     prompt = json.loads(out.read_text())["prompt"]
     # B160: to v8 (deployer_kind).
     # B184: to v9 (DEC-32).
@@ -280,3 +282,83 @@ def test_the_prompt_record_is_the_rendered_v6_over_the_repositorys_build(tmp_pat
     assert prompt["version"] == "v10" and prompt["template_sha256"] == hashlib.sha256(v10).hexdigest()
     assert prompt["graph_version"] == mod.load_active(mod.DUMP_DIR).build_id
     assert len(prompt["rendered_sha256"]) == 64 and prompt["provisions"]
+
+
+class _Metered:
+    """A client whose usage the replaced elicitor adds to, as the real client's
+    usage record grows with each reply."""
+
+    def __init__(self):
+        self.usage = {"input_tokens": 0, "output_tokens": 0}
+
+
+def _metered(monkeypatch, per_call):
+    """The script with a metered client: each elicitation adds per_call tokens."""
+    mod, _ = _script(monkeypatch)
+    client = _Metered()
+    built: list = []
+    monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: built.append(1) or client)
+    calls: list = []
+
+    def elicit(description, generator, *, dump, snapshots_dir, prompt_version):
+        calls.append(description)
+        generator.usage["input_tokens"] += per_call["input_tokens"]
+        generator.usage["output_tokens"] += per_call["output_tokens"]
+        return Elicitation(features={"flag": True}, quotes=QUOTES, dropped=DROPPED, notes=[],
+                           prompt=dict(PROMPT, version=prompt_version))
+    monkeypatch.setattr(mod, "elicit", elicit)
+    return mod, calls, built
+
+
+def test_max_usd_is_required_and_positive(tmp_path, monkeypatch):
+    mod, _ = _script(monkeypatch)
+    for argv in (["--out", str(tmp_path / "f.json")], ["--max-usd", "0", "--out", str(tmp_path / "f.json")],
+                 ["--max-usd", "much", "--out", str(tmp_path / "f.json")]):
+        with pytest.raises(SystemExit) as stop:
+            mod.main(argv)
+        assert stop.value.code == 2
+
+
+def test_a_dry_run_prints_the_priced_plan_and_builds_no_client(tmp_path, monkeypatch, capsys):
+    mod, calls, built = _metered(monkeypatch, {"input_tokens": 1, "output_tokens": 1})
+    out = tmp_path / "features.json"
+    assert mod.main(["--max-usd", "1", "--dry-run", "--out", str(out)]) == 0
+    assert calls == [] and built == []
+    assert not out.exists() and not out.with_suffix(".checkpoint.jsonl").exists()
+    # two scenarios; input (len("system") + 26) * 2 / 4.0 = 16 tokens; output 2 * 1100 = 2200 tokens;
+    # (16 * 10 + 2200 * 50) / 1,000,000 = 0.11016 USD
+    printed = capsys.readouterr().out
+    assert "dry run, no model call made: 2 calls to g (prompt v10, build build-x)" in printed
+    assert "about 16 input tokens" in printed and "2200 output tokens" in printed
+    assert "about 0.1102 USD; ceiling 1.0000 USD" in printed
+
+
+def test_the_run_stops_before_the_ceiling_keeps_the_checkpoint_and_exits_6(tmp_path, monkeypatch, capsys):
+    # each call costs (10,000 * 10 + 1,000 * 50) / 1,000,000 = 0.15 USD; at one call in flight the
+    # second call would bring the spend to 0.30 USD, past a ceiling of 0.25 USD, so it never starts
+    mod, calls, _ = _metered(monkeypatch, {"input_tokens": 10_000, "output_tokens": 1_000})
+    out = tmp_path / "features.json"
+    assert mod.main(["--max-usd", "0.25", "--max-in-flight", "1", "--out", str(out)]) == 6
+    assert calls == [ITEMS[0]["system_text"]]
+    ckpt = out.with_suffix(".checkpoint.jsonl")
+    assert [json.loads(line)["item_id"] for line in ckpt.read_text().splitlines()] == ["bench:1"]
+    assert not out.exists()
+    err = capsys.readouterr().err
+    assert "stopped: cost stop: spent 0.1500 USD of 0.2500 USD" in err
+    assert f"the checkpoint {ckpt.name} is kept (1 of 2 items done); this run spent 0.1500 USD at list price" in err
+
+
+def test_a_run_under_the_ceiling_finishes_and_prints_its_spend(tmp_path, monkeypatch, capsys):
+    mod, calls, _ = _metered(monkeypatch, {"input_tokens": 10_000, "output_tokens": 1_000})
+    out = tmp_path / "features.json"
+    assert mod.main(["--max-usd", "1", "--max-in-flight", "1", "--out", str(out)]) == 0
+    assert len(calls) == 2
+    assert "spent 0.3000 USD at list price of 1.0000 USD" in capsys.readouterr().out
+
+
+def test_a_generator_model_without_a_price_row_is_refused_before_any_call(tmp_path, monkeypatch, capsys):
+    mod, calls, built = _metered(monkeypatch, {"input_tokens": 1, "output_tokens": 1})
+    monkeypatch.setattr(mod, "load_model_prices", lambda: {})
+    assert mod.main(["--max-usd", "1", "--out", str(tmp_path / "features.json")]) == 2
+    assert calls == [] and built == []
+    assert "has no price row for the generator model 'g'" in capsys.readouterr().out

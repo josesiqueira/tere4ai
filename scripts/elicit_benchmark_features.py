@@ -26,6 +26,14 @@ scenarios are elicited at once; the checkpoint lines are written and the items
 printed in the benchmark's order, and the output lists the items in that order
 (ruling R16), so a run at 8 writes the files a run at 1 writes; the output names
 the setting (max_in_flight).
+
+--max-usd (required) is the ceiling of this run's spend, at the list prices of
+config/model_prices.json over the usage the inference backend reports: before
+a scenario's call starts, the run stops when the spend so far plus a reserve
+for the calls in flight (the dearest finished call times --max-in-flight)
+would pass the ceiling; the checkpoint is kept and the exit code is 6. The
+spend of an earlier, stopped run is not in a rerun's count. --dry-run prints
+the priced plan and makes no model call.
 """
 
 from __future__ import annotations
@@ -53,10 +61,16 @@ from tere4ai.extract_norms.model_clients import (  # noqa: E402
     InferenceBackendRefused,
     InferenceBackendUnavailable,
     OpenAIGenerator,
+    usage_snapshot,
 )
 from tere4ai.graph_store.publication import load_active  # noqa: E402
-from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
+from tere4ai.judge.config import (  # noqa: E402
+    ConfigurationError,
+    load_model_config,
+    load_model_prices,
+)
 from tere4ai.parallel_calls import run_in_flight  # noqa: E402
+from tere4ai.rejudge.cost import CostStop, usage_cost, usd  # noqa: E402
 
 DEFAULT_OUT = ROOT / "eval" / "gold" / "benchmark_features.json"
 # B10: the prompt record's fields a resumed entry must share with the run:
@@ -64,6 +78,22 @@ DEFAULT_OUT = ROOT / "eval" / "gold" / "benchmark_features.json"
 # over (graph_version, rendered_sha256), so the output's one record is true
 # of every item
 PROMPT_RESUME_KEYS = ("version", "template_sha256", "rendered_sha256", "graph_version")
+# --dry-run: characters per token of the plan's input count, and the reply
+# size (reasoning included) it assumes per call; docs/benchmark_cost_estimate.md
+# holds the measured ratio and the band
+DRY_RUN_CHARS_PER_TOKEN = 4.0
+DRY_RUN_OUTPUT_TOKENS_PER_CALL = 1100
+
+
+def _max_usd(text: str) -> float:
+    """The argparse type of --max-usd: a positive amount in USD."""
+    try:
+        value = float(text)
+    except ValueError:
+        value = 0.0
+    if not value > 0:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a positive amount in USD")
+    return value
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -77,6 +107,10 @@ def main(argv: list[str] | None = None) -> int:
         "--prompt-version", default=DEFAULT_PROMPT_VERSION,
         help="elicitor prompt version, recorded in the output (default: the elicitor's own)",
     )
+    parser.add_argument("--max-usd", type=_max_usd, required=True,
+                        help="ceiling of this run's spend in USD at list price; the run stops before passing it")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="print the priced plan and make no model call")
     parallel_calls.add_max_in_flight_argument(parser)
     args = parser.parse_args(argv)
     run_argv = list(sys.argv[1:] if argv is None else argv)
@@ -114,8 +148,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"refusing to elicit: no build is served: {loaded.error}")
         return 2
     dump = loaded.dump
+    prices = load_model_prices()
+    if cfg.generator_model not in prices:
+        print(f"refusing to elicit: config/model_prices.json has no price row for the generator model "
+              f"{cfg.generator_model!r}, so the spend cannot be known; no model call made")
+        return 2
+    price = prices[cfg.generator_model]
     try:
-        _, prompt = render_prompt(dump, SNAPSHOTS_DIR, args.prompt_version)
+        system, prompt = render_prompt(dump, SNAPSHOTS_DIR, args.prompt_version)
     except ProvisionUnresolved as exc:
         print(f"refusing to elicit: definition {exc.node_id} does not resolve in {exc.build}: {exc.reason}; "
               "no model call made")
@@ -127,13 +167,33 @@ def main(argv: list[str] | None = None) -> int:
               f"{', '.join(differing)}; rerun with the prompt version and the build the checkpoint names to "
               "resume it, or move the checkpoint away to start again")
         return 2
+    if args.dry_run:
+        texts = [i.get("system_text") or "" for i in items if i["id"] not in done]
+        texts = [t for t in texts if len(t) >= 10]
+        tokens_in = int(round(sum(len(system) + len(t) for t in texts) / DRY_RUN_CHARS_PER_TOKEN))
+        tokens_out = DRY_RUN_OUTPUT_TOKENS_PER_CALL * len(texts)
+        cost = usage_cost({"input_tokens": tokens_in, "output_tokens": tokens_out}, price)
+        print(f"dry run, no model call made: {len(texts)} calls to {cfg.generator_model} (prompt "
+              f"{args.prompt_version}, build {prompt['graph_version']}); about {tokens_in} input tokens "
+              f"({DRY_RUN_CHARS_PER_TOKEN} characters per token) at {price['input']} USD per million and "
+              f"{tokens_out} output tokens ({DRY_RUN_OUTPUT_TOKENS_PER_CALL} per call, reasoning included, "
+              f"assumed) at {price['output']} USD per million: about {usd(cost)} USD; ceiling {usd(args.max_usd)} USD")
+        return 0
     generator = OpenAIGenerator(cfg, retry_policy=TERMINAL_POLICY)  # spec F D-F30: a terminal run with a checkpoint waits out an overload
     print(f"calls in flight: at most {args.max_in_flight} (--max-in-flight)", flush=True)
+
+    def spent() -> float:
+        return usage_cost(usage_snapshot(generator), price)
+
+    dearest = [0.0]  # the dearest finished call so far, the reserve per call in flight
 
     def entry_for(item: dict) -> tuple[dict, str]:
         """One scenario's entry and the word printed for it (B164: on a worker thread when
         --max-in-flight > 1; it writes nothing)."""
         description = item.get("system_text") or ""
+        so_far = spent()
+        if len(description) >= 10 and so_far + dearest[0] * args.max_in_flight >= args.max_usd:
+            raise CostStop(so_far, args.max_usd)
         if len(description) < 10:
             return {
                 "item_id": item["id"],
@@ -173,8 +233,12 @@ def main(argv: list[str] | None = None) -> int:
                 ckpt.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 ckpt.flush()
                 done[entry["item_id"]] = entry
+                now = spent()
+                dearest[0] = max(dearest[0], now - keep.last)
+                keep.last = now
                 print(f"  {entry['item_id']}: {word}", flush=True)
 
+            keep.last = 0.0
             run_in_flight([item for item in items if item["id"] not in done], entry_for,
                           max_in_flight=args.max_in_flight, on_result=keep)
     except (InferenceBackendUnavailable, InferenceBackendRefused) as exc:
@@ -185,6 +249,11 @@ def main(argv: list[str] | None = None) -> int:
         print("  " + shlex.join([".venv/bin/python", "scripts/elicit_benchmark_features.py", *run_argv]),
               file=sys.stderr)
         return 3 if isinstance(exc, InferenceBackendUnavailable) else 5
+    except CostStop as exc:
+        print(f"stopped: {exc}, with the reserve for the calls in flight counted", file=sys.stderr)
+        print(f"the checkpoint {CKPT.name} is kept ({sum(i['id'] in done for i in items)} of {len(items)} "
+              f"items done); this run spent {usd(spent())} USD at list price", file=sys.stderr)
+        return 6
     except ConfigurationError as exc:
         # spec F D-F29: a declared parameter the inference backend refused stops the run
         print(f"stopped: {exc}", file=sys.stderr)
@@ -219,6 +288,7 @@ def main(argv: list[str] | None = None) -> int:
     CKPT.unlink(missing_ok=True)
     failed = sum(1 for v in done.values() if not v["features"])
     print(f"wrote {OUT} ({len(done)} items, {failed} failed elicitations)")
+    print(f"spent {usd(spent())} USD at list price of {usd(args.max_usd)} USD; usage {usage_snapshot(generator)}")
     return 0
 
 

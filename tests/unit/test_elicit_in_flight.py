@@ -57,6 +57,7 @@ def _script(monkeypatch, fail_on=None, gauge=None, pause=0.003):
     monkeypatch.setattr(mod.harness, "load_benchmark_items", lambda path: [dict(i) for i in ITEMS])
     monkeypatch.setattr(mod, "load_model_config", _cfg)
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: object())
+    monkeypatch.setattr(mod, "load_model_prices", lambda: {"g": {"input": 10.0, "output": 50.0}})
     monkeypatch.setattr(mod, "load_active", lambda d: LoadedBuild(DUMP, None, None, "build-x", "legacy", None))
     monkeypatch.setattr(mod, "render_prompt", lambda dump, snapshots_dir, version: ("system", dict(PROMPT, version=version)))
 
@@ -88,7 +89,7 @@ def test_four_in_flight_write_the_checkpoint_and_the_file_of_one_at_a_time(tmp_p
     for setting in (1, 4):
         out = tmp_path / f"features_{setting}.json"
         gauge = Gauge()
-        assert _script(monkeypatch, gauge=gauge).main(["--out", str(out), "--max-in-flight", str(setting)]) == 0
+        assert _script(monkeypatch, gauge=gauge).main(["--max-usd", "1", "--out", str(out), "--max-in-flight", str(setting)]) == 0
         most[setting] = gauge.most
         printed = capsys.readouterr().out
         assert f"calls in flight: at most {setting} (--max-in-flight)\n" in printed
@@ -105,15 +106,15 @@ def test_a_stop_with_a_gap_reruns_to_the_uninterrupted_file(tmp_path, monkeypatc
     """Review Focus 3: scenario 3 stops the run with 4 in flight; the finished ones are
     kept in order without it, and the rerun writes the file in the benchmark's order."""
     reference = tmp_path / "reference.json"
-    assert _script(monkeypatch).main(["--out", str(reference), "--max-in-flight", "1"]) == 0
+    assert _script(monkeypatch).main(["--max-usd", "1", "--out", str(reference), "--max-in-flight", "1"]) == 0
     out = tmp_path / "features.json"
     mod = _script(monkeypatch, fail_on="a scoring system number 3")
-    assert mod.main(["--out", str(out), "--max-in-flight", "4"]) == 3
+    assert mod.main(["--max-usd", "1", "--out", str(out), "--max-in-flight", "4"]) == 3
     assert "stopped: inference backend unavailable after 6 attempts: HTTP 529" in capsys.readouterr().err
     kept = [json.loads(line)["item_id"] for line in out.with_suffix(".checkpoint.jsonl").read_text().splitlines()]
     assert "bench:3" not in kept and kept[:2] == ["bench:1", "bench:2"] and "bench:4" in kept
     assert kept == [i["id"] for i in ITEMS if i["id"] in kept]
-    assert _script(monkeypatch).main(["--out", str(out), "--max-in-flight", "4"]) == 0
+    assert _script(monkeypatch).main(["--max-usd", "1", "--out", str(out), "--max-in-flight", "4"]) == 0
     assert _payload(out)[1] == _payload(reference)[1]
 
 
@@ -121,6 +122,6 @@ def test_instant_work_writes_the_same_file_at_four_as_at_one(tmp_path, monkeypat
     payloads = {}
     for setting in (1, 4):
         out = tmp_path / f"instant_{setting}.json"
-        assert _script(monkeypatch, pause=0).main(["--out", str(out), "--max-in-flight", str(setting)]) == 0
+        assert _script(monkeypatch, pause=0).main(["--max-usd", "1", "--out", str(out), "--max-in-flight", str(setting)]) == 0
         payloads[setting] = _payload(out)
     assert payloads[4][1] == payloads[1][1]
