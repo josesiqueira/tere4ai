@@ -2127,6 +2127,355 @@ found by the tool landscape check of 2026-11-25
 Jose, 2026-11-25: "cool, take note of this", then "you can do it now". Note
 written 2026-11-25 (../thesis/refs/notes/ADD-143.md).
 
+**[ADD-144]** PRAC. "Risk Classification Database. A comprehensive list of practical
+examples of high risk and non-high risk use cases on AI systems", appliedAI Institute
+for Europe gGmbH, Version 1.0 (September 2024), a presentation of 24 September 2024,
+Munich,
+https://www.appliedai-institute.de/media/downloads/Risk-Classification-Database-appliedAI-Institute-for-Europe-gGmbH.pdf
+(title, publisher, version and date as printed in the held PDF). Held as
+../thesis/refs/ADD-144_AppliedAIRiskDatabase.pdf: the publisher's PDF under CC BY 4.0,
+17 pages; the database table itself was not read. Practitioner source, not peer
+reviewed. SUPPORTING. Grounds: no paper yet; held for 641 descriptions of AI systems
+with a risk level assigned by hand, made before Article 6(3) existed, found by the
+search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-144.md).
+
+**[ADD-145]** PRAC. "AI Act: Risk Classification of AI Systems from a Practical
+Perspective. A study to identify uncertainties of AI users based on the risk
+classification of more than 100 AI systems in enterprise functions", Liebl and Klein,
+appliedAI Initiative GmbH with the Bavarian State Ministry for Digital Affairs, March
+2023,
+https://www.appliedai.de/uploads/files/Whitepapers/appliedAI-Whitepaper-Risk-Classification-of-AI-Systems-from-a-Practical-Perspective-2023-EN.pdf
+(title, date and publisher as printed; the authors from page 55). Held as
+../thesis/refs/ADD-145_AppliedAIWhitepaper.pdf: the publisher's PDF, licence not stated,
+read in part. Practitioner source, not peer reviewed. SUPPORTING. Grounds: no paper yet;
+held for the share of AI systems whose risk level its authors could not decide, and the
+reason they give, found by the search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-145.md).
+
+**[ADD-146]** PRE. "Quantitative study about the estimated impact of the AI Act", Hauer,
+Krafft, Sesing-Wagenpfeil and Zweig, arXiv:2304.06503v1 [cs.CY], 29 March 2023,
+https://arxiv.org/abs/2304.06503 (fields as printed in the held PDF; no published
+version found in one search on 2026-11-27). Held as
+../thesis/refs/ADD-146_HauerImpactAIAct_PREPRINT.pdf: the arXiv preprint, read in full.
+A preprint: it may support and is never the sole grounding. SUPPORTING. Grounds: no
+paper yet; held for three people assigning a risk level to 514 system descriptions, with
+their agreement and the cases they could not decide, found by the search for labelled
+data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-146.md).
+
+**[ADD-147]** PEER. "The landscape of facial processing applications in the context of
+the European AI Act and the development of trustworthy systems", Hupont, Tolan, Gunes
+and Gómez, Scientific Reports 12, article 10688, 2022, DOI 10.1038/s41598-022-14981-6
+(fields as printed in the held PDF). Held as
+../thesis/refs/ADD-147_HupontFacialProcessing.pdf: the published version, open access
+under CC BY 4.0, read in part. SUPPORTING. Grounds: no paper yet; held for 60 facial
+processing applications with a risk level assigned by the authors on their own reading
+of the Act, found by the search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-147.md).
+
+**[ADD-148]** OFF. "Commission Guidelines on prohibited artificial intelligence
+practices established by Regulation (EU) 2024/1689 (AI Act)", Communication from the
+Commission, C(2025) 5052 final, Brussels, 29 July 2025,
+https://ec.europa.eu/newsroom/dae/redirection/document/112367 (number, date and title as
+printed in the held PDF). Held as
+../thesis/refs/ADD-148_ECGuidelinesProhibitedPractices.pdf: the Commission's English
+PDF, read in part. Official and, by its own paragraph 5, non-binding. SUPPORTING.
+Grounds: no paper yet; held for the Commission's examples of systems inside and outside
+the prohibitions of Article 5, found by the search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-148.md).
+
+**[ADD-149]** OFF. "Results Report. First Pilot of the Spanish Artificial Intelligence
+Sandbox", Directorate-General for Artificial Intelligence (Secretariat of State for
+Digitalisation and Artificial Intelligence), version 1, September 2026, NIPO 230260497,
+https://digital.gob.es/content/dam/portal-mtdfp/avance-digital/telecomunicacion-e-infraestructuras-digitales/estadisticas-e-informes/sandbox-ia-informes/Informe-de-resultados-ENG.pdf
+(fields as printed in the held PDF). Held as
+../thesis/refs/ADD-149_SpanishSandboxResults.pdf: the English PDF under CC BY 4.0, 111
+pages, read in part. An official report. SUPPORTING. Grounds: no paper yet; held for
+twelve systems an authority selected as high-risk, each described, found by the search
+for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-149.md).
+
+**[ADD-150]** PEER. "The Creation and Analysis of a Website Privacy Policy Corpus" (the
+corpus OPP-115), Wilson, Schaub, Dara, Liu, Cherivirala, Leon, Andersen, Zimmeck,
+Sathyendra, Russell, Norton, Hovy, Reidenberg and Sadeh, Proceedings of the 54th Annual
+Meeting of the Association for Computational Linguistics, pp. 1330 to 1340, Berlin,
+2016, https://aclanthology.org/P16-1126.pdf (fields as printed in the held PDF). Held as
+../thesis/refs/ADD-150_WilsonOPP115.pdf: the published ACL Anthology version, read in
+part. SUPPORTING. Grounds: no paper yet; held for a precedent for labelling legal text
+with a value for absent information and three annotators per document, found by the
+search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-150.md).
+
+**[ADD-151]** PEER. "ExploreGen: Large Language Models for Envisioning the Uses and
+Risks of AI Technologies", Herdel, Šćepanović, Bogucka and Quercia, Proceedings of the
+AAAI/ACM Conference on AI, Ethics, and Society 7, pp. 584 to 596, 2024, DOI
+10.1609/aies.v7i1.31660 (title and authors from the held PDF; venue, volume, pages and
+DOI from Crossref, checked 2026-11-27). Held as
+../thesis/refs/ADD-151_ExploreGen_PREPRINT.pdf: the arXiv preprint arXiv:2407.12454v1
+(17 July 2024); the publisher's site refused the automated download, so the published
+version is still to be obtained through a browser and the quotes re-read against it
+before a paper cites them. SUPPORTING. Grounds: no paper yet; held for a language
+model's risk levels for 138 uses checked against three compliance experts, with the
+experts' own agreement, found by the search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-151.md).
+
+**[ADD-152]** PEER. "A taxonomy for mining and classifying privacy requirements in issue
+reports", Sangaroonsilp, Dam, Choetkiertikul, Ragkhitwetsagul and Ghose, Information and
+Software Technology 157, article 107162, 2023, DOI 10.1016/j.infsof.2023.107162 (title
+and authors from the held PDF; journal, volume, article number and DOI from Crossref,
+checked 2026-11-27). Held as ../thesis/refs/ADD-152_PrivacyIssueTaxonomy_PREPRINT.pdf:
+the arXiv preprint arXiv:2101.01298v2 (6 February 2023); the published Elsevier version
+is not held and needs institutional access, and the quotes are re-read against it before
+a paper cites them. SUPPORTING. Grounds: no paper yet; held for an empirical software
+engineering precedent for low agreement between coders caused by thin descriptions,
+found by the search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-152.md).
+
+**[ADD-153]** OFF. "Provvedimento del 14 maggio 2026" [doc. web 10255494], Garante per
+la protezione dei dati personali, addressed to Myndoor S.r.l., on garanteprivacy.it (the
+address of each page is in ../thesis/refs/MANIFEST.md), with the
+press release of 28 May 2026 [doc. web 10255522] (fields as printed on the two pages,
+fetched 2026-11-27). Held as ../thesis/refs/ADD-153_GaranteMyndoor.txt: the text of the
+two web pages, tags stripped by a script, in Italian. An official decision of a data
+protection authority. SUPPORTING. Grounds: no paper yet; held for an authority naming
+the prohibition of Article 5(1)(f) of the AI Act for a product, without ruling that the
+product is a prohibited practice, found by the search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-153.md).
+
+**[ADD-154]** PRE. "Are LLM Assistants Regulatory Ready? Answers from regenold's 2026 EU
+AI Act Q&A Challenge", Virgolin, Haszprunar and Regenold, arXiv:2611.04546v1 [cs.AI], 3
+November 2026, https://arxiv.org/abs/2611.04546; code and data at
+https://github.com/regenold-GmbH/eu-ai-act-benchmark-2026 under Apache-2.0 (fields as
+printed in the held PDF). Held as
+../thesis/refs/ADD-154_RegenoldQABenchmark_PREPRINT.pdf: the arXiv preprint. A preprint:
+it may support and is never the sole grounding. SUPPORTING. Grounds: no paper yet; held
+for 110 questions on the AI Act with exemplary answers written by experts, found by the
+search for labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-154.md).
+
+**[ADD-155]** PRE. "Self-Service or Not? How to Guide Practitioners in Classifying AI
+Systems Under the EU AI Act", Schnitzer, Hoeving and Zillner, arXiv:2603.00065v1
+[cs.CY], 10 February 2026, https://arxiv.org/abs/2603.00065 (fields as printed in the
+held PDF). Held as ../thesis/refs/ADD-155_SelfServiceClassification_PREPRINT.pdf: the
+arXiv preprint. A preprint: it may support and is never the sole grounding. SUPPORTING.
+Grounds: no paper yet; held for 78 practitioners assigning a risk level to their own
+systems with a tool, a study built on Design Science Research, found by the search for
+labelled data and precedents
+(../thesis/research/2026-11-27-elicitation-testing/labelled-data-and-precedents.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-155.md).
+
+**[ADD-156]** PEER. "The Oracle Problem in Software Testing: A Survey", Barr, Harman,
+McMinn, Shahbaz and Yoo, IEEE Transactions on Software Engineering 41(5), pp. 507 to
+525, 2015, DOI 10.1109/TSE.2014.2372785 (fields from Crossref, looked up 2026-11-27).
+Held as ../thesis/refs/ADD-156_OracleProblem_PREPRINT.pdf: a copy from a course reading
+page (https://web.eecs.umich.edu/~weimerw/2018-481/readings/testoracles.pdf) that prints
+no journal header, so its version is not stated; the published IEEE version needs
+institutional access, and the quotes are re-read against it before a paper cites them.
+SUPPORTING. Grounds: no paper yet; held for the definition of the test oracle problem,
+pseudo-oracles and metamorphic relations, found by the report on testing without an
+answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-156.md).
+
+**[ADD-157]** PEER. "A Survey on Metamorphic Testing", Segura, Fraser, Sanchez and
+Ruiz-Cortés, IEEE Transactions on Software Engineering 42(9), pp. 805 to 824, 2016, DOI
+10.1109/TSE.2016.2532875 (fields from the repository cover page of the held PDF and
+Crossref, looked up 2026-11-27). Held as
+../thesis/refs/ADD-157_MetamorphicTestingSurvey_PREPRINT.pdf: the accepted version from
+the White Rose repository (https://eprints.whiterose.ac.uk/110335/1/segura16-tse.pdf,
+cover page "Version: Accepted Version"); the published IEEE version needs institutional
+access. SUPPORTING. Grounds: no paper yet; held for how many metamorphic relations a
+test needs and how their fault detection is measured, found by the report on testing
+without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-157.md).
+
+**[ADD-158]** PEER. "Metamorphic Testing of Large Language Models for Natural Language
+Processing", Cho, Ruberto and Terragni, 2025 IEEE International Conference on Software
+Maintenance and Evolution (ICSME), pp. 174 to 186, 2025, DOI
+10.1109/ICSME64153.2025.00025 (title and authors from the held PDF; venue, pages and DOI
+from Crossref, looked up 2026-11-27). Held as
+../thesis/refs/ADD-158_MetamorphicTestingLLM_PREPRINT.pdf: the arXiv preprint
+arXiv:2511.02108v1 (3 November 2025); the published IEEE version needs institutional
+access, and the quotes are re-read against it before a paper cites them. SUPPORTING.
+Grounds: no paper yet; held for metamorphic testing applied to language models, with the
+share of its violations that were real failures, found by the report on testing without
+an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-158.md).
+
+**[ADD-159]** PEER. "Beyond Accuracy: Behavioral Testing of NLP Models with CheckList",
+Ribeiro, Wu, Guestrin and Singh, Proceedings of the 58th Annual Meeting of the
+Association for Computational Linguistics, pp. 4902 to 4912, 2020, DOI
+10.18653/v1/2020.acl-main.442 (fields as printed in the held PDF). Held as
+../thesis/refs/ADD-159_CheckList.pdf: the published ACL Anthology version. SUPPORTING.
+Grounds: no paper yet; held for the three test types of CheckList, two of which need no
+labelled answer, found by the report on testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-159.md).
+
+**[ADD-160]** PEER. "Measuring Attribution in Natural Language Generation Models",
+Rashkin, Nikolaev, Lamm, Aroyo, Collins, Das, Petrov, Tomar, Turc and Reitter,
+Computational Linguistics 49(4), pp. 777 to 840, 2023, DOI 10.1162/coli_a_00486 (title,
+authors, volume, issue and DOI as printed in the held PDF; pages from Crossref, looked
+up 2026-11-27). Held as ../thesis/refs/ADD-160_MeasuringAttribution.pdf: the published
+ACL Anthology version under CC BY-NC-ND 4.0; printed page = PDF page + 776. SUPPORTING.
+Grounds: no paper yet; held for the definition of a statement attributable to a source
+(AIS) and how people judge it, found by the report on testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-160.md).
+
+**[ADD-161]** PEER. "Automatic Evaluation of Attribution by Large Language Models", Yue,
+Wang, Chen, Zhang, Su and Sun, Findings of the Association for Computational
+Linguistics: EMNLP 2023, pp. 4615 to 4635, 2023, DOI 10.18653/v1/2023.findings-emnlp.307
+(fields as printed in the held PDF). Held as
+../thesis/refs/ADD-161_AutomaticAttribution.pdf: the published ACL Anthology version.
+SUPPORTING. Grounds: no paper yet; held for three classes for whether a reference
+supports a statement, judged by a language model, found by the report on testing without
+an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-161.md).
+
+**[ADD-162]** PEER. "Selective Question Answering under Domain Shift", Kamath, Jia and
+Liang, Proceedings of the 58th Annual Meeting of the Association for Computational
+Linguistics, pp. 5684 to 5696, 2020, DOI 10.18653/v1/2020.acl-main.503 (fields as
+printed in the held PDF). Held as ../thesis/refs/ADD-162_SelectiveQA.pdf: the published
+ACL Anthology version. SUPPORTING. Grounds: no paper yet; held for the risk-coverage
+curve for a system that may decline to answer, found by the report on testing without an
+answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-162.md).
+
+**[ADD-163]** PEER. "Know Your Limits: A Survey of Abstention in Large Language Models",
+Wen, Yao, Feng, Xu, Tsvetkov, Howe and Wang, Transactions of the Association for
+Computational Linguistics 13, pp. 529 to 556, 2025, DOI 10.1162/tacl_a_00754 (fields as
+printed in the held PDF). Held as ../thesis/refs/ADD-163_AbstentionSurvey.pdf: the
+published ACL Anthology version. SUPPORTING. Grounds: no paper yet; held for the
+measures for a model that abstains, found by the report on testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-163.md).
+
+**[ADD-164]** PEER. "Reliable Visual Question Answering: Abstain Rather Than Answer
+Incorrectly", Whitehead, Petryk, Shakib, Gonzalez, Darrell, Rohrbach and Rohrbach,
+Computer Vision, ECCV 2022, Lecture Notes in Computer Science, pp. 148 to 166, 2022, DOI
+10.1007/978-3-031-20059-5_9 (title and authors from the held PDF; series, pages and DOI
+from Crossref, looked up 2026-11-27). Held as
+../thesis/refs/ADD-164_ReliableVQA_PREPRINT.pdf: the arXiv preprint arXiv:2204.13631v3
+(20 October 2022); the published Springer version needs institutional access. A computer
+vision venue, held for its scoring rule only. SUPPORTING. Grounds: no paper yet; held
+for a score that rewards a correct answer, penalises a wrong one and gives zero for
+abstaining, found by the report on testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-164.md).
+
+**[ADD-165]** PEER. "Empirical evaluation of tools for hairy requirements engineering
+tasks", Berry, Empirical Software Engineering 26(6), 2021, DOI
+10.1007/s10664-021-09986-0 (fields from Crossref, looked up 2026-11-27; the article
+itself was not read, the publisher refusing automated access). Held as
+../thesis/refs/ADD-165_HairyTasks_PREPRINT.pdf: the author's technical report
+"Evaluation of Tools for Hairy Requirements Engineering and Software Engineering Tasks"
+(https://cs.uwaterloo.ca/~dberry/FTP_SITE/tech.reports/HTpaperII.pdf), whose title
+differs from the article's, so that it corresponds to the article is not established;
+the report is not peer reviewed, and no paper cites the article before the published
+version is held and read. SUPPORTING. Grounds: no paper yet; held for how a tool for a
+task that needs near-total recall is evaluated against a person working without it,
+found by the report on testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-165.md).
+
+**[ADD-166]** PEER. "How software engineering research aligns with design science: a
+review", Engström, Storey, Runeson, Höst and Baldassarre, Empirical Software Engineering
+25, pp. 2630 to 2660, 2020, DOI 10.1007/s10664-020-09818-7 (fields as printed in the
+held PDF). Held as ../thesis/refs/ADD-166_DesignScienceSE.pdf: the published Springer
+version, open access. SUPPORTING. Grounds: no paper yet; held for the technological rule
+and what rigor of validation means in Design Science Research, found by the report on
+testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-166.md).
+
+**[ADD-167]** PEER. "ContractNLI: A Dataset for Document-level Natural Language
+Inference for Contracts", Koreeda and Manning, Findings of the Association for
+Computational Linguistics: EMNLP 2021, pp. 1907 to 1919, 2021, DOI
+10.18653/v1/2021.findings-emnlp.164 (fields as printed in the held PDF). Held as
+../thesis/refs/ADD-167_ContractNLI.pdf: the published ACL Anthology version. SUPPORTING.
+Grounds: no paper yet; held for a legal text task with the three answers entailed,
+contradicted and not mentioned, each with its evidence spans, found by the report on
+testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-167.md).
+
+**[ADD-168]** PEER. "The 'Problem' of Human Label Variation: On Ground Truth in Data,
+Modeling and Evaluation", Plank, Proceedings of the 2022 Conference on Empirical Methods
+in Natural Language Processing, pp. 10671 to 10682, 2022, DOI
+10.18653/v1/2022.emnlp-main.731 (fields as printed in the held PDF, whose title prints
+Problem in double quotation marks). Held as
+../thesis/refs/ADD-168_HumanLabelVariation.pdf: the published ACL Anthology version. A
+position paper. SUPPORTING. Grounds: no paper yet; held for the argument that people's
+labels vary for real reasons and that evaluation against one hard label neglects it,
+found by the report on testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-168.md).
+
+**[ADD-169]** PEER. "Lost in the Middle: How Language Models Use Long Contexts", Liu,
+Lin, Hewitt, Paranjape, Bevilacqua, Petroni and Liang, Transactions of the Association
+for Computational Linguistics 12, pp. 157 to 173, 2024, DOI 10.1162/tacl_a_00638 (fields
+as printed in the held PDF). Held as ../thesis/refs/ADD-169_LostInTheMiddle.pdf: the
+published ACL Anthology version. SUPPORTING. Grounds: no paper yet; held for the
+position of a fact in a long input changing whether a model uses it, found by the report
+on testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-169.md).
+
+**[ADD-170]** PEER. "Same Task, More Tokens: the Impact of Input Length on the Reasoning
+Performance of Large Language Models", Levy, Jacoby and Goldberg, Proceedings of the
+62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long
+Papers), pp. 15339 to 15353, 2024, DOI 10.18653/v1/2024.acl-long.818 (fields as printed
+in the held PDF). Held as ../thesis/refs/ADD-170_SameTaskMoreTokens.pdf: the published
+ACL Anthology version. SUPPORTING. Grounds: no paper yet; held for the same task
+answered worse when the input is padded to a longer length, found by the report on
+testing without an answer key
+(../thesis/research/2026-11-27-elicitation-testing/testing-without-an-answer-key.md).
+Jose, 2026-11-27: "Approval of the 31 staged sources on testing elicitation. Also
+approved". Note written 2026-11-27 (../thesis/refs/notes/ADD-170.md).
+
 ## Dropped in the 2026-07 consolidation (do not cite, do not re-add)
 
 These were removed from the register. They are recorded here in plain text (not
