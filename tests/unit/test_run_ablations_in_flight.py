@@ -76,6 +76,7 @@ def _runner(monkeypatch, run_dir, gauge=None, pause=0.002):
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: _stub("g", gauge, pause))
     monkeypatch.setattr(mod, "AnthropicJudge", lambda cfg, **kw: _stub("j"))
     monkeypatch.setattr(mod, "load_model_config", lambda: object())
+    monkeypatch.setattr(mod, "load_model_prices", lambda: {m: {"input": 0.0, "output": 0.0} for m in ("g", "j")})
     monkeypatch.setattr(mod, "RESULTS_DIR", run_dir / "results")
     return mod
 
@@ -88,7 +89,7 @@ def test_eight_in_flight_write_the_summary_and_checkpoint_of_one_at_a_time(tmp_p
         gauge = Gauge()
         mod = _runner(monkeypatch, run_dir, gauge)
         results = run_dir / "results"
-        argv = ["--dump-dir", str(run_dir), "--checkpoint", str(results / "ablation_checkpoint.jsonl"),
+        argv = ["--max-usd", "1000", "--dump-dir", str(run_dir), "--checkpoint", str(results / "ablation_checkpoint.jsonl"),
                 "--summary", str(results / "ablation_summary.json"), "--features", str(run_dir / "no_features.json"),
                 "--max-in-flight", str(setting)]
         assert mod.main(argv) == 0
@@ -117,7 +118,7 @@ def test_instant_work_writes_the_same_files_at_eight_as_at_one(tmp_path, monkeyp
         run_dir.mkdir()
         mod = _runner(monkeypatch, run_dir, pause=0)
         results = run_dir / "results"
-        argv = ["--dump-dir", str(run_dir), "--checkpoint", str(results / "ablation_checkpoint.jsonl"),
+        argv = ["--max-usd", "1000", "--dump-dir", str(run_dir), "--checkpoint", str(results / "ablation_checkpoint.jsonl"),
                 "--summary", str(results / "ablation_summary.json"), "--features", str(run_dir / "no_features.json"),
                 "--max-in-flight", str(setting)]
         assert mod.main(argv) == 0

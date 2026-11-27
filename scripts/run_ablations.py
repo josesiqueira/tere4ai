@@ -60,6 +60,26 @@ were made on that tag with its facts. gold_seed.json carries the facts of B184
 (task 9) and passes the check; the model conditions print an item's facts as
 its known facts.
 
+The build (DEC-29): without --dump-dir the run reads the directory
+served_build.resolve_served names (TERE4AI_DUMP_DIR when pinned, else the
+newest published build of TERE4AI_BUILDS_DIR, else data/graph_dumps, as the
+facade and the MCP server do), and its evaluation record is written there; a
+builds directory with no published build refuses the run. With --dump-dir
+that directory is read, and a line says so when a newer published build
+exists.
+
+--max-usd (required) is the ceiling of this run's spend, at the list prices
+of config/model_prices.json over the usage the inference backends report for
+the generator and the judge: before a unit starts, the run stops when the
+spend so far plus a reserve for that unit (the dearest unit this run
+finished) would pass the ceiling; the checkpoint is kept, the record ends
+partial and the exit code is 6. The spend of an earlier, stopped run is not
+in a resumed run's count. A model without a price row refuses the run.
+--dry-run prints the priced plan and makes no model call: it runs every
+condition over the items still to run with stand-in clients that count the
+calls and the prompt characters, needs no TERE4AI_LIVE_TESTS, and writes no
+record, checkpoint or summary.
+
 Gates: requires TERE4AI_LIVE_TESTS=1 and the model config of record
 (eval/config_evaluated.yaml); refuses to start otherwise. Cost: roughly
 (items x strategies) generator calls in the first run, plus question and
@@ -121,9 +141,15 @@ from tere4ai.extract_norms.model_clients import (  # noqa: E402
 )
 from tere4ai.graph_store.build_chain import sha256_of_file  # noqa: E402
 from tere4ai.graph_store.present import exception_reason  # noqa: E402
-from tere4ai.judge.config import ConfigurationError, load_model_config  # noqa: E402
+from tere4ai.graph_store.served_build import resolve_served  # noqa: E402
+from tere4ai.judge.config import (  # noqa: E402
+    ConfigurationError,
+    load_model_config,
+    load_model_prices,
+)
 from tere4ai.mcp_server.classify import FEATURES_SCHEMA_PATH  # noqa: E402
 from tere4ai.parallel_calls import run_in_flight  # noqa: E402
+from tere4ai.rejudge.cost import CostStop, usage_cost, usd  # noqa: E402
 
 RESULTS_DIR = ROOT / "eval" / "results"
 DEVELOPMENT_FEATURES_PATH = ROOT / "eval" / "gold" / "development_features.json"
@@ -610,6 +636,83 @@ def contested_block(results: dict, contested: list[dict]) -> dict:
     }
 
 
+COMPONENTS = ("generator", "judge")
+# --dry-run: characters per token of each component's input count and the reply
+# size (reasoning included) assumed per call; docs/benchmark_cost_estimate.md
+# holds the measured ratios (4.12 and 2.92) and the band its E6 rows give
+# (about 1,100 billed output tokens per generator call, 1,200 per judge call)
+DRY_RUN_CHARS_PER_TOKEN = {"generator": 4.12, "judge": 2.92}
+DRY_RUN_OUTPUT_TOKENS_PER_CALL = {"generator": 1100, "judge": 1200}
+DRY_RUN_REPLY = {"generator": {"answer_text": "dry run", "citations": [], "risk_category": None},
+                 "judge": {"verdict": "accepted", "scores": {}, "rationale": "dry run"}}
+
+
+def _max_usd(text: str) -> float:
+    """The argparse type of --max-usd: a positive amount in USD."""
+    try:
+        value = float(text)
+    except ValueError:
+        value = 0.0
+    if not value > 0:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a positive amount in USD")
+    return value
+
+
+class PlanClient:
+    """--dry-run stand-in for a model client: counts the calls and the prompt
+    characters it is given and returns a parseable reply; it calls nothing."""
+
+    def __init__(self, component: str):
+        self.model = f"dry-run {component}"
+        self._reply = json.dumps(DRY_RUN_REPLY[component])
+        self.calls = self.chars = 0
+
+    def complete(self, *parts: Any, **_: Any) -> str:
+        self.calls += 1
+        self.chars += sum(len(part) for part in parts if isinstance(part, str))
+        return self._reply
+
+
+def price_rows(config: dict[str, Any]) -> tuple[dict[str, dict[str, Any]] | None, str | None]:
+    """The price row of each component's model, or the sentence that refuses
+    the run: without a row the spend cannot be known."""
+    try:
+        prices = load_model_prices()
+    except ConfigurationError as exc:
+        return None, f"refusing to run: {exc}; no model call made"
+    missing = [f"the {c} model {config.get(f'{c}_model')!r}" for c in COMPONENTS
+               if config.get(f"{c}_model") not in prices]
+    if missing:
+        return None, ("refusing to run: config/model_prices.json has no price row for " + " and ".join(missing)
+                      + ", so the spend cannot be known; no model call made")
+    return {c: prices[config[f"{c}_model"]] for c in COMPONENTS}, None
+
+
+def dry_run_plan(to_run: dict[str, list[dict]], dump: dict, norms_payload: dict) -> dict[str, dict[str, int]]:
+    """Per component the calls and the prompt characters of the items still to
+    run, counted by running every condition with PlanClient stand-ins (the
+    conditions' own code runs; only the model boundary is replaced), and the
+    items a condition could not be counted for. The runtime judge's log goes
+    to a temporary directory."""
+    plan = {c: {"calls": 0, "chars": 0} for c in COMPONENTS}
+    plan["uncounted"] = {"items": 0}
+    with tempfile.TemporaryDirectory() as tmp:
+        for strategy_name, own in to_run.items():
+            clients = {c: PlanClient(c) for c in COMPONENTS}
+            fn = strategies.build_strategy(strategy_name, generator=clients["generator"], judge=clients["judge"],
+                                           dump=dump, norms_payload=norms_payload,
+                                           judge_log_path=Path(tmp) / "runtime_log.jsonl")
+            for item in own:
+                try:
+                    fn(item)
+                except Exception:  # noqa: BLE001 - counted, the plan says how many
+                    plan["uncounted"]["items"] += 1
+            for c in COMPONENTS:
+                plan[c]["calls"] += clients[c].calls
+                plan[c]["chars"] += clients[c].chars
+    return plan
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--benchmark", type=Path, default=None,
@@ -626,8 +729,13 @@ def main(argv: list[str] | None = None) -> int:
                              "eval/results/runs/<record id>/ablation_checkpoint.jsonl)")
     parser.add_argument("--summary", type=Path, default=None,
                         help="summary to write (default: eval/results/runs/<record id>/ablation_summary.json)")
-    parser.add_argument("--dump-dir", type=Path, default=ROOT / "data" / "graph_dumps",
-                        help="where layer1.json, norms_core.json and evaluation_records/ live")
+    parser.add_argument("--dump-dir", type=Path, default=None,
+                        help="where layer1.json, norms_core.json and evaluation_records/ live (default: the "
+                             "served build, DEC-29)")
+    parser.add_argument("--max-usd", type=_max_usd, required=True,
+                        help="ceiling of this run's spend in USD at list price; the run stops before passing it")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="print the priced plan and make no model call")
     parser.add_argument("--no-record", action="store_true", help="do not write an evaluation record (D-G33)")
     parser.add_argument("--repeat-of", default=None, help="record id of the run this run repeats")
     parser.add_argument("--resume-unrecorded", action="store_true",
@@ -649,6 +757,16 @@ def main(argv: list[str] | None = None) -> int:
         print("refusing to run: a --no-record run has no record id to name its directory; "
               "pass --checkpoint and --summary")
         return 2
+    # DEC-29: the directory the facade and the MCP server serve, unless one is named
+    resolution = resolve_served(args.dump_dir)
+    if resolution.error:
+        print(f"refusing to run: no build is served: {resolution.error}")
+        return 2
+    args.dump_dir = resolution.dump_dir
+    print(f"build directory: {args.dump_dir.name} ({resolution.source})")
+    if resolution.newest is not None and resolution.newest.dump_dir.resolve() != args.dump_dir.resolve():
+        print(f"note: the newest published build is {resolution.newest.dump_dir.name}; this run reads "
+              f"{args.dump_dir.name} because it was named ({resolution.source})")
     checkpoint_path, summary_path = args.checkpoint, args.summary
     # the July files are protected whether or not the run records (F1)
     for target in (p for p in (checkpoint_path, summary_path) if p is not None):
@@ -696,12 +814,18 @@ def main(argv: list[str] | None = None) -> int:
         print(refusal)
         return 2
 
-    # live gates up front, zero cost on refusal
-    harness._require_live_gate()
+    # live gates up front, zero cost on refusal (a dry run calls no model and needs no gate)
+    if not args.dry_run:
+        harness._require_live_gate()
     config = harness.guard_live_config().as_public_dict()
     print(f"config of record OK: {config}")
+    price, refusal = price_rows(config)
+    if refusal is not None:
+        print(refusal)
+        return 2
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    if not args.dry_run:
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     done: set[str] = set()
     unit_results: list[dict] = []
     if checkpoint_path is not None and checkpoint_path.exists():
@@ -785,6 +909,36 @@ def main(argv: list[str] | None = None) -> int:
             if refusal is not None:
                 print(refusal)
                 return 2
+    # spec G D-G84 (5): in a repetition the run-once conditions leave out the run-once cases
+    skipped = set(run_once["conditions"]) if args.repeat_of is not None else set()
+    if args.dry_run:
+        to_run: dict[str, list[dict]] = {}
+        units = 0
+        for name in strategies.STRATEGY_NAMES:
+            own = run_items(items, name, skipped, run_once["case_kind"])
+            batches = [own[i : i + BATCH_SIZE] for i in range(0, len(own), BATCH_SIZE)]
+            left = [batch for bi, batch in enumerate(batches) if f"{name}:batch{bi}" not in done]
+            units += len(left)
+            to_run[name] = [item for batch in left for item in batch]
+        plan = dry_run_plan(to_run, dump, norms_payload)
+        total = 0.0
+        print(f"dry run, no model call made: {units} unit(s) to run, "
+              f"{sum(len(own) for own in to_run.values())} item answers over {len(to_run)} condition(s), "
+              f"build directory {args.dump_dir.name}")
+        for c in COMPONENTS:
+            tokens_in = int(round(plan[c]["chars"] / DRY_RUN_CHARS_PER_TOKEN[c]))
+            tokens_out = plan[c]["calls"] * DRY_RUN_OUTPUT_TOKENS_PER_CALL[c]
+            cost = usage_cost({"input_tokens": tokens_in, "output_tokens": tokens_out}, price[c])
+            total += cost
+            print(f"  {c} ({config[f'{c}_model']}): {plan[c]['calls']} calls; about {tokens_in} input tokens "
+                  f"({DRY_RUN_CHARS_PER_TOKEN[c]} characters per token) at {price[c]['input']} USD per million and "
+                  f"{tokens_out} output tokens ({DRY_RUN_OUTPUT_TOKENS_PER_CALL[c]} per call, reasoning included, "
+                  f"assumed) at {price[c]['output']} USD per million: about {usd(cost)} USD")
+        if plan["uncounted"]["items"]:
+            print(f"  not counted: {plan['uncounted']['items']} item answer(s) a condition raised on with the "
+                  "stand-in reply; their calls up to the error are counted")
+        print(f"total: about {usd(total)} USD at list price; ceiling {usd(args.max_usd)} USD")
+        return 0
     store = None if args.no_record else EvaluationRecordStore(args.dump_dir)
     if store is not None:
         record_id = store.begin(
@@ -804,8 +958,6 @@ def main(argv: list[str] | None = None) -> int:
         checkpoint_path = checkpoint_path or run_dir / CHECKPOINT_NAME
         summary_path = summary_path or run_dir / SUMMARY_NAME
 
-    # spec G D-G84 (5): in a repetition the run-once conditions leave out the run-once cases
-    skipped = set(run_once["conditions"]) if args.repeat_of is not None else set()
     expected = {name: [i["id"] for i in run_items(items, name, skipped, run_once["case_kind"])]
                 for name in strategies.STRATEGY_NAMES}
     generator = judge = None
@@ -815,6 +967,13 @@ def main(argv: list[str] | None = None) -> int:
     # construction (spec F D-F29)
     built: dict[str, Any] = {}
     ran: set[str] = set()  # the strategies with at least one unit run by this invocation
+
+    def spent() -> float:
+        """This invocation's spend so far, USD at list price, over both clients."""
+        return sum(usage_cost(dict(client.usage), price[c])
+                   for c, client in (("generator", generator), ("judge", judge)) if client is not None)
+
+    dearest_unit = 0.0  # the dearest unit this run finished, the reserve for the next one
     try:
         if store is not None and record_id is not None:
             # the newest record owns the checkpoint from now on (G2)
@@ -841,6 +1000,9 @@ def main(argv: list[str] | None = None) -> int:
                     unit = f"{strategy_name}:batch{bi}"
                     if unit in done:
                         continue
+                    so_far = spent()
+                    if so_far + dearest_unit >= args.max_usd:
+                        raise CostStop(so_far, args.max_usd)
                     ran.add(strategy_name)
                     usage_before = {
                         "generator": dict(generator.usage),
@@ -886,6 +1048,7 @@ def main(argv: list[str] | None = None) -> int:
                     ckpt.flush()
                     units_run += 1
                     unit_results.append(entry)
+                    dearest_unit = max(dearest_unit, sum(usage_cost(usage[c], price[c]) for c in COMPONENTS))
                     errors = sum(1 for r in per_item.values() if "error" in r)
                     print(f"  {unit}: {len(per_item)} items, {errors} errors", flush=True)
 
@@ -1073,12 +1236,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"evaluation record {record_id} written under {store.dir}")
 
         print(f"wrote {summary_path}")
+        print(f"spent {usd(spent())} USD at list price of {usd(args.max_usd)} USD")
     except BaseException as exc:
         # spec F D-F30: an inference backend stop ends the record partial and the run
         # resumable from its checkpoint, and a refusal no retry fixes ends it
         # failed at once (ruling P21); spec F D-F29: a refused declaration ends
         # it failed; any other failure ends it failed and is raised
-        stopped = isinstance(exc, InferenceBackendUnavailable)
+        # the cost stop ends the record partial too, resumable under a new ceiling (exit code 6)
+        cost_stopped = isinstance(exc, CostStop)
+        stopped = isinstance(exc, InferenceBackendUnavailable) or cost_stopped
         backend_refused = isinstance(exc, InferenceBackendRefused)
         refused = isinstance(exc, ConfigurationError)
         if store is not None and record_id is not None:
@@ -1095,7 +1261,8 @@ def main(argv: list[str] | None = None) -> int:
                        prompt_versions={**(models_now or {}), **elicitor_versions} or None,
                        prompt_sha256=harness.runtime_judge_prompt_sha256(models_now) if models_now else None)
         if stopped or backend_refused:
-            print(f"stopped: {exc}", file=sys.stderr)
+            print(f"stopped: {exc}" + (", with the reserve for the next unit counted; this run spent "
+                                       f"{usd(spent())} USD at list price" if cost_stopped else ""), file=sys.stderr)
             if len(done) + units_run:
                 print(f"the checkpoint {checkpoint_path} is kept ({len(done) + units_run} unit(s) done); "
                       "continue with:", file=sys.stderr)
@@ -1106,7 +1273,7 @@ def main(argv: list[str] | None = None) -> int:
                       file=sys.stderr)
             print(f"  {_resume_line(list(argv) if argv is not None else sys.argv[1:], checkpoint_path)}",
                   file=sys.stderr)
-            return 3 if stopped else 5
+            return 6 if cost_stopped else 3 if stopped else 5
         if refused:
             print(f"stopped: {exc}", file=sys.stderr)
             return 4

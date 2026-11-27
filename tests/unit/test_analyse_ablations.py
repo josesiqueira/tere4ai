@@ -171,7 +171,7 @@ def _files(tmp_path):
 def _group(runner, tmp_path, tag, count, extra):  # noqa: F811
     ids = []
     for n in range(count):
-        argv = ["--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / f"{tag}{n}.jsonl"),
+        argv = ["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / f"{tag}{n}.jsonl"),
                 "--summary", str(tmp_path / "results" / f"{tag}{n}.json"), *extra]
         if ids:
             argv += ["--repeat-of", ids[0]]
@@ -557,7 +557,7 @@ def test_a_first_run_stopped_and_never_resumed_is_refused(made, runner, tmp_path
     stops.add(("vector_rag", "gold:cls-1", 0))
     paths = [["--checkpoint", str(tmp_path / "results" / f"cut{n}.jsonl"),
               "--summary", str(tmp_path / "results" / f"cut{n}.json")] for n in range(3)]
-    base = ["--dump-dir", str(tmp_path), "--benchmark", made["base"][-1]]
+    base = ["--max-usd", "1000", "--dump-dir", str(tmp_path), "--benchmark", made["base"][-1]]
     assert runner.main(base + paths[0]) == 3
     (cut,) = [r for r in store.list_records() if (r.get("config") or {}).get("checkpoint_file") == "cut0.jsonl"]
     assert cut["outcome"]["status"] == "partial"

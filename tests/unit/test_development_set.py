@@ -168,7 +168,8 @@ def _feats(tmp_path, by_item):
 
 
 def _argv(tmp_path, tag, *extra):
-    return ["--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / f"{tag}.jsonl"),
+    return ["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint",
+            str(tmp_path / "results" / f"{tag}.jsonl"),
             "--summary", str(tmp_path / "results" / f"{tag}.json"), *extra]
 
 

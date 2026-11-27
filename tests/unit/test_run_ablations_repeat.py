@@ -47,7 +47,7 @@ def _install(runner, monkeypatch, items=ITEMS, stop_once=None):  # noqa: F811
 
 
 def _run(runner, tmp_path, tag, *extra):  # noqa: F811
-    argv = ["--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / f"{tag}.jsonl"),
+    argv = ["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / f"{tag}.jsonl"),
             "--summary", str(tmp_path / "results" / f"{tag}.json"), *extra]
     code = runner.main(argv)
     records = [r for r in EvaluationRecordStore(tmp_path, create=False).list_records()
@@ -240,7 +240,7 @@ def test_a_repetition_never_resumes_from_a_checkpoint_no_record_names(
     records_before = len(EvaluationRecordStore(tmp_path, create=False).list_records())
     before = sum(calls.values())
     capsys.readouterr()
-    code = runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / "orphan.jsonl"),
+    code = runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / "orphan.jsonl"),
                         "--summary", str(tmp_path / "results" / "orphan.json"), "--resume-unrecorded",
                         "--repeat-of", first["record_id"]])
     assert code == 2 and sum(calls.values()) == before

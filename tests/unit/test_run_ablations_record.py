@@ -57,6 +57,16 @@ class _Client:
         return self.reply
 
 
+class _FreePrices(dict):
+    """A price table that holds a row for every model, at zero."""
+
+    def __contains__(self, key):
+        return True
+
+    def __missing__(self, key):
+        return {"input": 0.0, "output": 0.0}
+
+
 def _dumps(tmp_path):
     (tmp_path / "layer1.json").write_text(json.dumps({"build": {"build_id": "build-b"}, "nodes": [], "edges": []}))
     (tmp_path / "norms_core.json").write_text(json.dumps({"build": {"build_id": "build-b"}, "norms": [], "judge_runs": []}))
@@ -105,13 +115,16 @@ def runner(monkeypatch, tmp_path):
                         or _Client("y", "API default"), raising=False)
     calls["policies"] = policies
     monkeypatch.setattr(mod, "load_model_config", lambda: object(), raising=False)
+    # the spend ceiling is not what these tests are about: every model has a price row, at zero
+    monkeypatch.setattr(mod, "load_model_prices", lambda: _FreePrices(), raising=False)
     monkeypatch.setattr(mod, "RESULTS_DIR", tmp_path / "results")
     mod._TEST_CALLS = calls
     return mod
 
 
 def _argv(tmp_path, *extra):
-    return ["--dump-dir", str(tmp_path), "--checkpoint", str(tmp_path / "results" / "ablation_checkpoint.jsonl"),
+    return ["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint",
+            str(tmp_path / "results" / "ablation_checkpoint.jsonl"),
             "--summary", str(tmp_path / "results" / "ablation_summary.json"), *extra]
 
 
@@ -253,7 +266,7 @@ def test_a_default_run_writes_a_fresh_directory_and_never_touches_the_july_files
     results.mkdir()
     july = results / "ablation_checkpoint.jsonl"
     july.write_bytes(_july("ablation_checkpoint.jsonl"))
-    assert runner.main(["--dump-dir", str(tmp_path)]) == 0
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path)]) == 0
     (rec,) = EvaluationRecordStore(tmp_path, create=False).list_records()
     run_dir = results / "runs" / rec["record_id"]
     assert (run_dir / "ablation_checkpoint.jsonl").is_file() and (run_dir / "ablation_summary.json").is_file()
@@ -261,7 +274,7 @@ def test_a_default_run_writes_a_fresh_directory_and_never_touches_the_july_files
     assert rec["config"]["checkpoint_file"] == "ablation_checkpoint.jsonl"
     assert july.read_bytes() == _july("ablation_checkpoint.jsonl")
     # a second default run is fresh: it resumes nothing
-    assert runner.main(["--dump-dir", str(tmp_path)]) == 0
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path)]) == 0
     second = next(r for r in EvaluationRecordStore(tmp_path, create=False).list_records()
                   if r["record_id"] != rec["record_id"])
     assert second["relations"]["resumes_record_id"] is None and second["counts"]["units_resumed"] == 0
@@ -273,13 +286,13 @@ def test_an_explicit_july_checkpoint_path_is_still_refused(runner, tmp_path, cap
     ckpt = results / "ablation_checkpoint.jsonl"
     ckpt.write_bytes(_july("ablation_checkpoint.jsonl"))
     for extra in ((), ("--resume-unrecorded",)):
-        assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(ckpt), *extra]) == 2
+        assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(ckpt), *extra]) == 2
         assert f"refusing to write {ckpt}: its bytes are the July 2026 measurement" in capsys.readouterr().out
     assert ckpt.read_bytes() == _july("ablation_checkpoint.jsonl")
 
 
 def test_a_no_record_run_must_name_both_paths(runner, tmp_path, capsys):
-    assert runner.main(["--dump-dir", str(tmp_path), "--no-record"]) == 2
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--no-record"]) == 2
     assert "pass --checkpoint and --summary" in capsys.readouterr().out
     assert not (tmp_path / "results" / "runs").exists()
 
@@ -289,7 +302,7 @@ def test_a_summary_target_holding_the_july_bytes_refuses(runner, tmp_path, capsy
     results.mkdir()
     summary = results / "ablation_summary.json"
     summary.write_bytes(_july("ablation_full_summary.json"))
-    argv = ["--dump-dir", str(tmp_path), "--checkpoint", str(results / "fresh.jsonl"), "--summary", str(summary)]
+    argv = ["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(results / "fresh.jsonl"), "--summary", str(summary)]
     for extra in ((), ("--no-record",)):
         assert runner.main([*argv, *extra]) == 2
         assert f"refusing to write {summary}: its bytes are the July 2026 measurement" in capsys.readouterr().out
@@ -506,7 +519,7 @@ def test_the_features_cache_is_recorded_only_when_the_run_read_one(runner, tmp_p
     default = tmp_path / "second"
     default.mkdir()
     _dumps(default)
-    assert runner.main(["--dump-dir", str(default), "--checkpoint", str(default / "c.jsonl"),
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(default), "--checkpoint", str(default / "c.jsonl"),
                         "--summary", str(default / "s.json")]) == 0
     (rec2,) = EvaluationRecordStore(default, create=False).list_records()
     features = [i for i in rec2["inputs"] if i["input_kind"] == "features"]
@@ -591,7 +604,7 @@ def test_the_summary_sums_the_two_counts_and_drops_them_when_a_unit_lacks_them(r
             component.pop("replies_with_usage", None)
     old = tmp_path / "results" / "old_checkpoint.jsonl"
     old.write_text("".join(json.dumps(e) + "\n" for e in lines))
-    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(old), "--summary",
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(old), "--summary",
                         str(tmp_path / "results" / "old_summary.json"), "--resume-unrecorded"]) == 0
     old_by_component = json.loads((tmp_path / "results" / "old_summary.json").read_text())[
         "usage_reported_by_backend"]["by_component"]
@@ -611,7 +624,7 @@ def test_a_unit_without_any_usage_drops_the_counts_too(runner, monkeypatch, tmp_
     del lines[0]["usage"]
     mixed = tmp_path / "results" / "mixed_checkpoint.jsonl"
     mixed.write_text("".join(json.dumps(e) + "\n" for e in lines))
-    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(mixed), "--summary",
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(mixed), "--summary",
                         str(tmp_path / "results" / "mixed_summary.json"), "--resume-unrecorded"]) == 0
     usage = json.loads((tmp_path / "results" / "mixed_summary.json").read_text())["usage_reported_by_backend"]
     assert usage["units_without_usage"] == 1 and "requests_sent" not in usage["by_component"]["generator"]
@@ -653,7 +666,7 @@ def test_the_summary_sums_requests_refused_and_drops_only_it_when_a_unit_lacks_i
         component.pop("requests_refused", None)
     older = tmp_path / "results" / "b91_checkpoint.jsonl"
     older.write_text("".join(json.dumps(e) + "\n" for e in lines))
-    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
                         str(tmp_path / "results" / "b91_summary.json"), "--resume-unrecorded"]) == 0
     by_component = json.loads((tmp_path / "results" / "b91_summary.json").read_text())["usage_reported_by_backend"]["by_component"]
     assert "requests_refused" not in by_component["generator"] and by_component["generator"]["requests_sent"] == 2
@@ -679,7 +692,7 @@ def test_the_summary_sums_the_rejected_count_and_drops_only_it_when_a_unit_lacks
         generator["requests_rejected_before_processing"] += 1
     rejected = tmp_path / "results" / "rejected_checkpoint.jsonl"
     rejected.write_text("".join(json.dumps(e) + "\n" for e in lines))
-    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(rejected), "--summary",
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(rejected), "--summary",
                         str(tmp_path / "results" / "rejected_summary.json"), "--resume-unrecorded"]) == 0
     summed = json.loads((tmp_path / "results" / "rejected_summary.json").read_text())[
         "usage_reported_by_backend"]["by_component"]["generator"]
@@ -690,7 +703,7 @@ def test_the_summary_sums_the_rejected_count_and_drops_only_it_when_a_unit_lacks
         component.pop("requests_rejected_before_processing", None)
     older = tmp_path / "results" / "a3_checkpoint.jsonl"
     older.write_text("".join(json.dumps(e) + "\n" for e in lines))
-    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
                         str(tmp_path / "results" / "a3_summary.json"), "--resume-unrecorded"]) == 0
     by_component = json.loads((tmp_path / "results" / "a3_summary.json").read_text())["usage_reported_by_backend"]["by_component"]
     assert "requests_rejected_before_processing" not in by_component["generator"]
@@ -712,7 +725,7 @@ def test_the_summary_sums_the_reasoning_counts_and_drops_both_when_a_unit_lacks_
         lines[0]["usage"]["generator"].pop(key)
     older = tmp_path / "results" / "b133_checkpoint.jsonl"
     older.write_text("".join(json.dumps(e) + "\n" for e in lines))
-    assert runner.main(["--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
+    assert runner.main(["--max-usd", "1000", "--dump-dir", str(tmp_path), "--checkpoint", str(older), "--summary",
                         str(tmp_path / "results" / "b133_summary.json"), "--resume-unrecorded"]) == 0
     by_component = json.loads((tmp_path / "results" / "b133_summary.json").read_text())["usage_reported_by_backend"]["by_component"]
     assert "reasoning_tokens" not in by_component["generator"] and "replies_with_reasoning" not in by_component["generator"]
