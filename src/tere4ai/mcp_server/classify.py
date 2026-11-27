@@ -775,6 +775,83 @@ def _unresolved_article_5_facts(flags: dict[str, Any]) -> list[str]:
         missing.append("real_time_remote_biometric_public")
     return missing
 
+
+ARTICLE_5_OTHER_FACT_LINE = (
+    "flags.{fact} is unknown (prohibition-relevant, Article 5); answered {value}, it rules out {points} "
+    "while {open_facts} {verb} unknown, so absence is not treated as false"
+)
+
+
+def _joined(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _article_5_other_fact_lines(flags: dict[str, Any]) -> list[tuple[str, str]]:
+    """The other fact of each open Article 5 point, with its line (B185, the
+    evidence task; DEC-18).
+
+    A point whose own flag is unknown is open, and _unresolved_article_5_facts
+    names that flag. The point's other fact can rule it out on its own where
+    it is the statute's complete element or exception (the points of
+    ARTICLE_5_CLEARS_ABSENT_FLAG: (a) and (b) significant harm, (c) the
+    detrimental treatment, (f) the medical or safety exception) and, for point
+    (h), the purpose of law enforcement (false) and the strict-necessity
+    carve-out (true). Absent, it was named nowhere, so the answer read as if
+    it were the value that keeps the point open. It is returned here, as
+    (fact, line), while its point is open and only then: never when the point
+    is ruled out by another fact, never for the point (d) and (g) exception
+    facts, which rule out nothing while their flag is unknown (DEC-18), and
+    the caller adds the lines past the Article 5 rule only, since on the
+    unacceptable_risk exit no other point can change the answer. A fact whose
+    point has its flag true is named by the Article 5 rule itself (pending
+    exception) and the purpose beside a true biometric fact by the point (h)
+    rule (DEC-32), so the caller skips a fact already named.
+
+    @implements: DEC-18
+    @implements: DEC-33
+    """
+    open_points: dict[str, list[str]] = {}
+    for flag, (node_id, _fragment) in ARTICLE_5_POINT_BY_FLAG.items():
+        if flag not in ARTICLE_5_CLEARS_ABSENT_FLAG or flag in flags:
+            continue
+        fact, _value, _desc = ARTICLE_5_EXCULPATING_FACT[flag]
+        if fact not in flags:
+            open_points.setdefault(fact, []).append(flag)
+    lines: list[tuple[str, str]] = []
+    for fact, point_flags in open_points.items():
+        value = ARTICLE_5_EXCULPATING_FACT[point_flags[0]][1]
+        letters = [f"({ARTICLE_5_POINT_BY_FLAG[f][0].rsplit('-', 1)[1]})" for f in point_flags]
+        lines.append((fact, ARTICLE_5_OTHER_FACT_LINE.format(
+            fact=fact,
+            value=str(value).lower(),
+            points=("point " if len(letters) == 1 else "points ") + _joined(letters),
+            open_facts=_joined([f"flags.{f}" for f in point_flags]),
+            verb="is" if len(point_flags) == 1 else "are",
+        )))
+    biometric = "real_time_remote_biometric_public"
+    carve_out, carve_out_value, _desc = ARTICLE_5_POINT_H_EXCULPATING
+    point_h_ruled_out = (
+        flags.get(biometric) is False
+        or flags.get(LAW_ENFORCEMENT_PURPOSE_FACT) is False
+        or flags.get(carve_out) is carve_out_value
+    )
+    unknown_h = [f for f in (biometric, LAW_ENFORCEMENT_PURPOSE_FACT) if f not in flags]
+    if not point_h_ruled_out and unknown_h:
+        for fact, value in ((LAW_ENFORCEMENT_PURPOSE_FACT, False), (carve_out, carve_out_value)):
+            if fact in flags:
+                continue
+            keeping_open = [f for f in unknown_h if f != fact]
+            if not keeping_open:
+                continue
+            lines.append((fact, ARTICLE_5_OTHER_FACT_LINE.format(
+                fact=fact,
+                value=str(value).lower(),
+                points="point (h)",
+                open_facts=_joined([f"flags.{f}" for f in keeping_open]),
+                verb="is" if len(keeping_open) == 1 else "are",
+            )))
+    return lines
+
 ARTICLE_6_PARAGRAPH_1 = "eu-ai-act:article-6:paragraph-1"
 ARTICLE_6_PARAGRAPH_2 = "eu-ai-act:article-6:paragraph-2"
 ARTICLE_6_PARAGRAPH_3 = "eu-ai-act:article-6:paragraph-3"
@@ -942,6 +1019,20 @@ def _unresolved_article_6_1_facts(flags: dict[str, Any]) -> list[str]:
     if flags.get(annex_i) is True and third_party not in flags:
         return [third_party]
     return []
+
+
+# B185, the evidence task (DEC-18, the sentence "a medical or safety component
+# with the Annex I fact unknown holds the answer at uncertain only while the
+# route is open"): the safety component is named where it could change the
+# level and only there, on the limited_risk exit while the Annex I fact is
+# unknown and the third-party assessment is not known false, where answered
+# true it gives undetermined. The third-party assessment keeps ruling R1: it
+# is named once the product is known to be covered by Annex I.
+MEDICAL_OR_SAFETY_UNKNOWN_FACT = (
+    "flags.medical_or_safety_component is unknown while flags.annex_i_covered_product is unknown (Article 6(1) "
+    "high-risk relevant, Annex I); a safety component whose Annex I coverage is unknown holds the classification "
+    "at undetermined, so absence is not treated as false"
+)
 
 # Article 6(3) second-subparagraph conditions: flag -> the real Point node, in
 # point order a, b, c, d, one fact per point (B184, D-G91 (7), ruling R5: the
@@ -1468,6 +1559,12 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             missing_facts=missing_facts,
         )
 
+    # B185, the evidence task (DEC-18): past the Article 5 rule, the other
+    # fact of each open point is named, unless a line already names it.
+    for fact, line in _article_5_other_fact_lines(flags):
+        if not any(m.startswith(f"flags.{fact} is unknown") for m in missing_facts):
+            missing_facts.append(line)
+
     # Pending Article 5 exception facts keep the ban unsettled: fold them into
     # the unknown-prohibition set so every downstream exit lowers to
     # requires_human_review and a bare no-match yields undetermined rather than a
@@ -1826,6 +1923,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
 
     # Rule 4: Article 50 transparency obligations (the hits read above).
     if article_50_hits:
+        if annex_i_covered is None and third_party_required is not False and "medical_or_safety_component" not in flags:
+            # B185, the evidence task: answered true, the safety component
+            # gives the undetermined exit above.
+            missing_facts.append(MEDICAL_OR_SAFETY_UNKNOWN_FACT)
         for flag, node_id, note in article_50_hits:
             citations.cite(node_id)
             rationale.append(f"rule limited_risk: flag {flag} matches {node_id} ({note})")

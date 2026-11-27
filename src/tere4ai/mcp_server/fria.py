@@ -207,6 +207,42 @@ def _read_unknown_annex_iii_facts(
     return could_trigger, _UNKNOWN_ANNEX_III_NONE_CAN + ", or in ".join(reasons)
 
 
+# B185, the evidence task (DEC-14, DEC-18): the deployer fact that settles a
+# block held at unknown only by listed uses whose trigger is the deployer.
+DEPLOYER_FACT_SETTLES_LINE = (
+    "deployer.{fact} is unknown (Article 27(1) FRIA-relevant); deployer.{other} is false, so if this is false too "
+    "no unknown Annex III fact named here can make Article 27(1) apply; absence is not treated as false"
+)
+
+
+def _deployer_fact_that_settles(could_trigger: list[str], deployer: dict[str, Any]) -> list[str]:
+    """The line of the absent deployer fact that would settle the block
+    (B185, the evidence task).
+
+    The block is unknown because the facts in could_trigger are unknown. When
+    none of them is a point 5(b) or 5(c) fact, which trigger for any deployer,
+    each is an area whose trigger is the deployer, and once the deployer is
+    known to be neither category none of them can bring Article 27(1) in (R1).
+    So when one deployer fact is known false and the other is absent, the
+    absent one answered false settles the block at does_not_apply: it is
+    named, in the block's missing facts only. With both absent neither alone
+    settles it, and with one true the deployer already triggers, so nothing
+    is named then.
+
+    @implements: DEC-14
+    @implements: DEC-33
+    """
+    if not could_trigger or any(flag in SYSTEM_TRIGGER_FLAGS for flag in could_trigger):
+        return []
+    absent = [fact for fact in DEPLOYER_TRIGGER_FACTS if fact not in deployer]
+    if len(absent) != 1:
+        return []
+    other = next(fact for fact in DEPLOYER_TRIGGER_FACTS if fact != absent[0])
+    if deployer.get(other) is not False:
+        return []
+    return [DEPLOYER_FACT_SETTLES_LINE.format(fact=absent[0], other=other)]
+
+
 def _unknown_annex_iii_line(flag: str) -> str:
     return (
         f"flags.{flag} is unknown (Annex III high-risk relevant, Article 6(2)); "
@@ -333,6 +369,7 @@ def assess_fria_applicability(
                 "FRIA applicability cannot be settled yet"
             )
             missing.extend(_unknown_annex_iii_line(f) for f in could_trigger)
+            missing.extend(_deployer_fact_that_settles(could_trigger, deployer))
             return _block("unknown", rationale, basis, missing)
         rationale.append(
             f"the system is classified {level_name(risk_category)}; Article 27(1) "
@@ -432,6 +469,7 @@ def assess_fria_applicability(
         could_trigger, none_can = _read_unknown_annex_iii_facts(unknown_facts, deployer)
         if could_trigger:
             missing.extend(_unknown_annex_iii_line(f) for f in could_trigger)
+            missing.extend(_deployer_fact_that_settles(could_trigger, deployer))
             rationale.append(
                 "the system is high-risk via the Article 6(1) embedded-product "
                 "route and no Annex III category matched the provided facts, "
@@ -537,6 +575,7 @@ def assess_fria_applicability(
         could_trigger, none_can = _read_unknown_annex_iii_facts(unknown_facts, deployer)
         if could_trigger:
             missing.extend(_unknown_annex_iii_line(f) for f in could_trigger)
+            missing.extend(_deployer_fact_that_settles(could_trigger, deployer))
             rationale.append(
                 "the only settled Annex III area is the area listed in point 2 "
                 "of Annex III (critical infrastructure, which Article 27(1) "

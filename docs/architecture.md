@@ -3221,6 +3221,46 @@ way round.
   test_article_50_facts.py, test_review_causes.py,
   test_requirements_area.py, test_elicit_prompt_v10.py and
   test_stored_domains.py; CHANGELOG.md names the contract change.
+  Added 2026-11-27 (B185, the evidence task): the card's evidence run
+  (enumeration-b185-summary.json in the card's folder of the private
+  research repository, 72,336 generated inputs at ddd2e32) found 3,849
+  rows of its invariant K-unnamed, an absent fact whose completion changes
+  the answer while the answer names it nowhere; 1,584 of them were four
+  facts, left unnamed against the owner's rule on the card ("An absent
+  fact is never a silent no") and DEC-18's rule. Three are named now, each
+  only where it could change the answer: (1) medical_or_safety_component
+  (434 rows), on the limited_risk exit while annex_i_covered_product is
+  unknown and the third-party assessment is not known false, where
+  answered true it gives undetermined (MEDICAL_OR_SAFETY_UNKNOWN_FACT); (2)
+  the other fact of an open Article 5 point (990 rows):
+  causes_significant_harm, social_score_detrimental_treatment and
+  emotion_recognition_medical_or_safety while the flag of their point ((a)
+  and (b), (c), (f)) is unknown, and law_enforcement_purpose and
+  rtrb_strictly_necessary_authorised while point (h) is open by an unknown
+  fact, each named past the Article 5 rule, never on the unacceptable_risk
+  exit, never for the point (d) and (g) exception facts, and never twice
+  (_article_5_other_fact_lines); (3) the deployer fact of the Article
+  27(1) block (87 rows), in the block's missing facts only, when the other
+  deployer fact is known false and only listed uses whose trigger is the
+  deployer keep the block unknown, so that answered false it settles the
+  block at does_not_apply (fria.py, _deployer_fact_that_settles). The
+  fourth, third_party_conformity_assessment_required while
+  annex_i_covered_product is unknown (73 rows, on the undetermined
+  exits), stays unnamed: ruling R1 above names it only once the product is
+  known to be covered by Annex I, and tests/unit/test_classify.py's lift
+  case holds that, although answered false it rules the route out (R4);
+  whether to name it is put to the owner. The same invariant at ddd2e32
+  and after: the three kinds fall from 434, 990 and 87 rows to none, the
+  fourth stays at 73, and the other 2,265 rows, which the spec decides, are
+  unchanged. Compared with ddd2e32 on the 23 table cases and 7,500
+  generated inputs, the envelope and the bare answer through
+  get_applicable_requirements: 647 inputs gain missing-fact
+  lines (the table cases none), and no level, status, confidence, duty,
+  candidate, route, date or requirement served changes.
+  tests/unit/test_classify.py's ALL_FLAGS now holds the schema's 56 facts
+  (the six exception facts were missing). Tests:
+  tests/unit/test_absent_facts_named.py, the invariant over the table cases
+  and 1,500 generated inputs with its allow list.
 
 ## 17. Implementation-traceability convention
 

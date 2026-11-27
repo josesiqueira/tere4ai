@@ -14,6 +14,7 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_2_2_CONDITION,
     ARTICLE_2_2_PROVISIONS,
     ARTICLE_2_2_WORDING,
+    ARTICLE_5_EXCULPATING_FACT,
     ARTICLE_5_POINT_BY_FLAG,
     ARTICLE_5_POINT_H,
     ARTICLE_6_1_FLAGS,
@@ -29,7 +30,9 @@ pytestmark = pytest.mark.skipif(
     not DUMP_PATH.is_file(), reason="layer1.json dump not built"
 )
 
-# All flags defined in system_features.schema.json, for the all-false scenarios.
+# All flags defined in system_features.schema.json, for the all-false scenarios
+# (test_all_flags_are_the_schemas_facts holds the list to the schema; B185, the
+# evidence task, added the six exception facts the stress study found missing).
 ALL_FLAGS = (
     "biometric_identification",
     "biometric_categorisation",
@@ -82,7 +85,20 @@ ALL_FLAGS = (
     "annex_i_covered_product",
     "third_party_conformity_assessment_required",
     "annex_i_section_b_legislation",
+    # The Article 5 statutory qualifiers and exceptions (DEC-18, DEC-32).
+    "causes_significant_harm",
+    "social_score_detrimental_treatment",
+    "supports_human_assessment_on_verifiable_facts",
+    "emotion_recognition_medical_or_safety",
+    "biometric_categorisation_lawful_or_law_enforcement",
+    "rtrb_strictly_necessary_authorised",
 )
+
+
+def test_all_flags_are_the_schemas_facts():
+    schema = json.loads((ROOT / "schema" / "json_schemas" / "system_features.schema.json").read_text(encoding="utf-8"))
+    assert sorted(ALL_FLAGS) == sorted(schema["properties"]["flags"]["properties"])
+    assert len(ALL_FLAGS) == len(set(ALL_FLAGS))
 
 
 @pytest.fixture(scope="module")
@@ -314,7 +330,11 @@ def test_article_5_exception_fact_unknown_routes_to_review_not_ban(dump, node_id
     envelope = classify_ai_system(
         {
             "description": "In-cab driver drowsiness detector inferring fatigue.",
-            "flags": all_false_flags(emotion_recognition_workplace_or_education=True),
+            # The exception fact unknown (B185: ALL_FLAGS holds it since).
+            "flags": _without(
+                all_false_flags(emotion_recognition_workplace_or_education=True),
+                "emotion_recognition_medical_or_safety",
+            ),
         },
         dump,
     )
@@ -1106,7 +1126,10 @@ def test_case2_unresolved_article_5_path_is_unknown(dump, node_ids):
 
 def test_case2_unresolved_with_nothing_else_is_uncertain_and_unknown(dump, node_ids):
     envelope = classify_ai_system(
-        {"description": "A scoring system.", "flags": _without(all_false_flags(), "social_scoring")},
+        # The point (c) element unknown too, or its false value rules the
+        # point out (DEC-18); B185: ALL_FLAGS holds it since.
+        {"description": "A scoring system.",
+         "flags": _without(all_false_flags(), "social_scoring", "social_score_detrimental_treatment")},
         dump,
     )
     assert envelope["answer"]["risk_category"] == "undetermined"
@@ -1208,8 +1231,12 @@ def test_rejected_input_has_prohibited_null(dump):
 def test_prohibited_is_never_false_beside_an_unresolved_article_5_path(dump):
     """The field and the status lowering read one resolution (ruling 6)."""
     for flag in ARTICLE_5_POINT_BY_FLAG:
+        # The point's other fact unknown too: answered, it could rule the
+        # point out (DEC-18); B185: ALL_FLAGS holds it since.
+        other = ARTICLE_5_EXCULPATING_FACT.get(flag, (flag,))[0]
         envelope = classify_ai_system(
-            {"description": "A described AI system.", "flags": _without(all_false_flags(annex_iii_4a_recruitment=True), flag)},
+            {"description": "A described AI system.",
+             "flags": _without(all_false_flags(annex_iii_4a_recruitment=True), flag, other)},
             dump,
         )
         assert envelope["answer"]["unacceptable_risk"] is None, flag
