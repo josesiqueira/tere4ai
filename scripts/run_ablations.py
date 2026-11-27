@@ -817,7 +817,11 @@ def main(argv: list[str] | None = None) -> int:
     # live gates up front, zero cost on refusal (a dry run calls no model and needs no gate)
     if not args.dry_run:
         harness._require_live_gate()
-    config = harness.guard_live_config().as_public_dict()
+    try:
+        config = harness.guard_live_config().as_public_dict()
+    except harness.EvalConfigMismatch as exc:
+        print(f"refusing to run: {exc}")
+        return 2
     print(f"config of record OK: {config}")
     price, refusal = price_rows(config)
     if refusal is not None:

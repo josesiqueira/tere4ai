@@ -128,3 +128,13 @@ def test_a_named_directory_older_than_the_newest_build_is_said(runner, tmp_path,
     assert runner.main(_argv(tmp_path)) == 0
     assert (f"note: the newest published build is 2026-10-16-newer; this run reads {tmp_path.name} because it was "
             "named (explicit)") in capsys.readouterr().out
+
+
+def test_a_config_that_differs_from_the_config_of_record_refuses_in_one_line(runner, tmp_path, monkeypatch, capsys):  # noqa: F811
+    def differs():
+        raise runner.harness.EvalConfigMismatch("live eval refused, loaded model config does not match the config of record")
+
+    monkeypatch.setattr(runner.harness, "guard_live_config", differs)
+    assert runner.main(_argv(tmp_path)) == 2
+    out = capsys.readouterr().out
+    assert "refusing to run: live eval refused" in out

@@ -1,0 +1,1658 @@
+{
+ "provenance": "llm_elicited",
+ "elicitor_model": "gpt-6-astra",
+ "models": {
+  "generator_model": "gpt-6-astra",
+  "judge_model": "claude-opus-5-5",
+  "generator_effort": "high",
+  "judge_effort": "high",
+  "generator_temperature": "N/A",
+  "judge_temperature": "N/A",
+  "generator_json_mode": "sent",
+  "model_parameters_sha256": "a7908c43148b231dc370aab3b5e5fb223008bd802d8178aff89df288150eace5"
+ },
+ "prompt_version": "v10",
+ "prompt": {
+  "prompt": "elicit_features",
+  "version": "v10",
+  "template_sha256": "51093c53d7a5766b3b872f02c9667f7ecc6dac7134e699aa12de13e753e79836",
+  "rendered_sha256": "2d360e8e0863b1c51fcbba52c66dbe8038ddd90e89302e5f9cd7baf4f00d1fcd",
+  "provisions": [
+   "eu-ai-act:definition:remote-biometric-identification-system",
+   "eu-ai-act:definition:real-time-remote-biometric-identification-system",
+   "eu-ai-act:definition:publicly-accessible-space",
+   "eu-ai-act:article-5:paragraph-1:point-h",
+   "eu-ai-act:definition:law-enforcement",
+   "eu-ai-act:article-5:paragraph-3",
+   "eu-ai-act:definition:biometric-categorisation-system",
+   "eu-ai-act:article-5:paragraph-1:point-g",
+   "eu-ai-act:definition:emotion-recognition-system",
+   "eu-ai-act:recital-18",
+   "eu-ai-act:article-5:paragraph-1:point-f",
+   "eu-ai-act:article-5:paragraph-1:point-a",
+   "eu-ai-act:article-5:paragraph-1:point-b",
+   "eu-ai-act:article-5:paragraph-1:point-ba",
+   "eu-ai-act:article-5:paragraph-1a",
+   "eu-ai-act:article-5:paragraph-1b",
+   "eu-ai-act:article-5:paragraph-1:point-bb",
+   "eu-ai-act:article-5:paragraph-1:point-c",
+   "eu-ai-act:article-5:paragraph-1:point-d",
+   "eu-ai-act:definition:profiling",
+   "eu-ai-act:article-5:paragraph-1:point-e",
+   "eu-ai-act:annex-iii:point-1:a",
+   "eu-ai-act:annex-iii:point-1:b",
+   "eu-ai-act:annex-iii:point-1:c",
+   "eu-ai-act:annex-iii:point-2",
+   "eu-ai-act:definition:safety-component",
+   "eu-ai-act:article-6:paragraph-1a",
+   "eu-ai-act:article-6:paragraph-1b",
+   "eu-ai-act:annex-iii:point-3:a",
+   "eu-ai-act:annex-iii:point-3:b",
+   "eu-ai-act:annex-iii:point-3:c",
+   "eu-ai-act:annex-iii:point-3:d",
+   "eu-ai-act:annex-iii:point-4:a",
+   "eu-ai-act:annex-iii:point-4:b",
+   "eu-ai-act:annex-iii:point-5:a",
+   "eu-ai-act:annex-iii:point-5:b",
+   "eu-ai-act:annex-iii:point-5:c",
+   "eu-ai-act:annex-iii:point-5:d",
+   "eu-ai-act:annex-iii:point-6:a",
+   "eu-ai-act:annex-iii:point-6:b",
+   "eu-ai-act:annex-iii:point-6:c",
+   "eu-ai-act:annex-iii:point-6:d",
+   "eu-ai-act:annex-iii:point-6:e",
+   "eu-ai-act:annex-iii:point-7:a",
+   "eu-ai-act:annex-iii:point-7:b",
+   "eu-ai-act:annex-iii:point-7:c",
+   "eu-ai-act:annex-iii:point-7:d",
+   "eu-ai-act:annex-iii:point-8:a",
+   "eu-ai-act:annex-iii:point-8:b",
+   "eu-ai-act:article-6:paragraph-3:point-a",
+   "eu-ai-act:article-6:paragraph-3:point-b",
+   "eu-ai-act:article-6:paragraph-3:point-c",
+   "eu-ai-act:article-6:paragraph-3:point-d",
+   "eu-ai-act:article-6:paragraph-3:subparagraph-3",
+   "eu-ai-act:article-6:paragraph-1:point-a",
+   "eu-ai-act:annex-i:section-a:point-2",
+   "eu-ai-act:annex-i:section-a:point-3",
+   "eu-ai-act:annex-i:section-a:point-4",
+   "eu-ai-act:annex-i:section-a:point-5",
+   "eu-ai-act:annex-i:section-a:point-6",
+   "eu-ai-act:annex-i:section-a:point-7",
+   "eu-ai-act:annex-i:section-a:point-8",
+   "eu-ai-act:annex-i:section-a:point-9",
+   "eu-ai-act:annex-i:section-a:point-10",
+   "eu-ai-act:annex-i:section-a:point-11",
+   "eu-ai-act:annex-i:section-a:point-12",
+   "eu-ai-act:annex-i:section-b:point-13",
+   "eu-ai-act:annex-i:section-b:point-14",
+   "eu-ai-act:annex-i:section-b:point-15",
+   "eu-ai-act:annex-i:section-b:point-16",
+   "eu-ai-act:annex-i:section-b:point-17",
+   "eu-ai-act:annex-i:section-b:point-18",
+   "eu-ai-act:annex-i:section-b:point-19",
+   "eu-ai-act:annex-i:section-b:point-20",
+   "eu-ai-act:annex-i:section-b:point-21",
+   "eu-ai-act:article-2:paragraph-2",
+   "eu-ai-act:article-6:paragraph-1:point-b",
+   "eu-ai-act:article-6:paragraph-1c",
+   "eu-ai-act:article-50:paragraph-1",
+   "eu-ai-act:article-50:paragraph-2",
+   "eu-ai-act:article-50:paragraph-3",
+   "eu-ai-act:article-50:paragraph-4",
+   "eu-ai-act:definition:deep-fake",
+   "eu-ai-act:article-50:paragraph-4:subparagraph-2"
+  ],
+  "graph_version": "build-bab25bf2e5d6+chain-24ea1a5ab6ca"
+ },
+ "max_in_flight": 4,
+ "note": "Machine-elicited features for benchmark free-text scenarios. The deterministic classifier still decides; elicitation only supplies facts, and omitted flags surface as missing_facts. Human-verified features per the annotation protocol supersede these.",
+ "features_by_item": {
+  "bench:scenario:19": {
+   "purposes": [
+    "rate citizens using behavioural scores",
+    "limit eligibility for municipal permits"
+   ],
+   "affected_persons": [
+    "citizens seeking municipal permits"
+   ],
+   "flags": {
+    "social_scoring": true,
+    "social_score_detrimental_treatment": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: Implement a city‑wide citizen rating platform that limits eligibility for municipal permits based on a behavioural score. System type: Behavioural evaluation and scoring system. Input data: Public transport usage, waste disposal records, online interactions, demographic data. Domain: Local government."
+  },
+  "bench:scenario:21": {
+   "domain": "essential_services",
+   "purposes": [
+    "assess credit based on social interactions",
+    "reduce loan limits for users with low social engagement scores"
+   ],
+   "autonomy": "full",
+   "affected_persons": [
+    "users with low social engagement scores"
+   ],
+   "flags": {
+    "social_scoring": true,
+    "social_score_detrimental_treatment": true,
+    "creditworthiness_evaluation": true,
+    "profiling_of_natural_persons": true,
+    "annex_iii_5a_public_benefits": false,
+    "life_health_insurance_risk_pricing": false,
+    "annex_iii_5d_emergency_calls": false
+   },
+   "description": "Role: Deployer. Intended use: Deploy a banking AI that reduces loan limits for users with low social engagement scores. System type: Social interaction based credit assessment system. Input data: Social media engagement, transaction history, credit score, age. Domain: Banking."
+  },
+  "bench:scenario:25": {
+   "domain": "education",
+   "purposes": [
+    "evaluate social media influence for university admissions",
+    "lower acceptance chances for applicants with low social media influence scores"
+   ],
+   "affected_persons": [
+    "university applicants"
+   ],
+   "flags": {
+    "annex_iii_3a_admission": true,
+    "social_scoring": true,
+    "social_score_detrimental_treatment": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Deployer. Intended use: Implement a university admissions AI that lowers acceptance chances for applicants with low social media influence scores. System type: Social influence evaluation platform. Input data: Follower counts, post engagement, extracurricular activity logs, academic records. Domain: Education."
+  },
+  "bench:scenario:40": {
+   "domain": "biometrics",
+   "purposes": [
+    "Harvest tourists’ facial photos from travel blogs to enrich a facial-recognition database for future marketing"
+   ],
+   "affected_persons": [
+    "Tourists whose facial photos appear on travel blogs"
+   ],
+   "flags": {
+    "facial_image_scraping": true,
+    "biometric_identification": false,
+    "real_time_remote_biometric_public": false,
+    "biometric_categorisation_system": false,
+    "biometric_categorisation": false,
+    "biometric_categorisation_sensitive_or_protected_attributes": false,
+    "emotion_recognition": false
+   },
+   "description": "Role: Provider. Intended use: Offer a tourism‑promotion platform that harvests tourists’ facial photos from travel blogs to enrich a facial‑recognition database for future marketing. System type: Travel photo facial data scraper. Input data: Blog images, GPS tags, user comments, travel dates. Domain: Tourism."
+  },
+  "bench:scenario:44": {
+   "domain": "employment",
+   "purposes": [
+    "evaluate employees’ feelings in real time for workplace monitoring and performance bonus adjustments"
+   ],
+   "affected_persons": [
+    "employees"
+   ],
+   "flags": {
+    "emotion_recognition": true,
+    "emotion_recognition_workplace_or_education": true,
+    "emotion_recognition_medical_or_safety": false,
+    "annex_iii_4a_recruitment": false,
+    "annex_iii_4b_work_relationships": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Offer an emotion‑detection system for workplace monitoring that evaluates employees’ feelings in real time to adjust performance bonuses. System type: Workplace emotion analytics platform. Input data: Facial video streams, voice tone analysis, keystroke dynamics, employee ID. Domain: Human resources."
+  },
+  "bench:scenario:46": {
+   "domain": "biometrics",
+   "purposes": [
+    "infer shopper satisfaction from micro-expressions",
+    "trigger upselling prompts"
+   ],
+   "affected_persons": [
+    "shoppers"
+   ],
+   "flags": {
+    "emotion_recognition": true,
+    "emotion_recognition_workplace_or_education": false,
+    "emotion_recognition_medical_or_safety": false,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Sell a retail‑store AI that analyzes shoppers’ micro‑expressions to gauge satisfaction and trigger upselling prompts. System type: In‑store emotion detection system. Input data: CCTV facial video, purchase history, demographic data, time‑of‑day. Domain: Retail."
+  },
+  "bench:scenario:64": {
+   "domain": "biometrics",
+   "purposes": [
+    "real-time facial identification of customers",
+    "flag customers for personalized advertising"
+   ],
+   "affected_persons": [
+    "shopping centre customers"
+   ],
+   "flags": {
+    "biometric_identification": true,
+    "real_time_remote_biometric_public": true,
+    "law_enforcement_purpose": false,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: Provide a real‑time facial recognition system for a shopping centre that flags all customers for personalized ad delivery without consent. System type: Instantaneous facial ID advertising engine. Input data: Live video streams, facial templates, purchase history, demographic profiles. Domain: Retail."
+  },
+  "bench:scenario:69": {
+   "domain": "biometrics",
+   "purposes": [
+    "monitor crowd density",
+    "sell real-time occupancy data to event organizers"
+   ],
+   "affected_persons": [
+    "people in the public square"
+   ],
+   "flags": {
+    "biometric_identification": true,
+    "law_enforcement_purpose": false
+   },
+   "description": "Role: Deployer. Intended use: Deploy a public‑square AI that uses remote biometric identification to monitor crowd density and sell real‑time occupancy data to event organizers. System type: Crowd density biometric monitoring system. Input data: CCTV video, facial detection data, location coordinates, time stamps. Domain: Public spaces."
+  },
+  "bench:scenario:86": {
+   "domain": "essential_services",
+   "purposes": [
+    "calculate credit scores for loan applicants",
+    "influence creditworthiness decisions"
+   ],
+   "affected_persons": [
+    "loan applicants"
+   ],
+   "flags": {
+    "creditworthiness_evaluation": true,
+    "profiling_of_natural_persons": true,
+    "annex_iii_5a_public_benefits": false,
+    "life_health_insurance_risk_pricing": false,
+    "annex_iii_5d_emergency_calls": false
+   },
+   "description": "Role: Provider. Intended use: AI that calculates credit scores for loan applicants, influencing creditworthiness decisions. System type: Credit scoring AI. Input data: Financial history, transaction data, employment records. Domain: Access to and enjoyment of essential private services and essential public services and benefits."
+  },
+  "bench:scenario:88": {
+   "domain": "law_enforcement",
+   "purposes": [
+    "predict recidivism risk to inform parole and release decisions"
+   ],
+   "affected_persons": [
+    "persons being considered for parole"
+   ],
+   "flags": {
+    "law_enforcement_purpose": true,
+    "profiling_of_natural_persons": true,
+    "annex_iii_6a_victim_risk": false,
+    "annex_iii_6b_polygraphs": false,
+    "annex_iii_6c_evidence_reliability": false,
+    "annex_iii_6d_offending_risk": true,
+    "annex_iii_6e_profiling": false
+   },
+   "description": "Role: Provider. Intended use: AI tool that predicts recidivism risk for parole decisions, influencing release. System type: Recidivism risk assessment AI. Input data: Criminal record, behavioural reports, socio‑economic data. Domain: Law enforcement."
+  },
+  "bench:scenario:91": {
+   "domain": "migration",
+   "purposes": [
+    "assist officials in examining asylum applications",
+    "extract relevant facts",
+    "score credibility"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "asylum applicants"
+   ],
+   "flags": {
+    "annex_iii_7c_applications": true
+   },
+   "description": "Role: Deployer. Intended use: AI system that assists officials in examining asylum applications by extracting relevant facts and scoring credibility. System type: Asylum application analysis AI. Input data: Applicant statements, country‑of‑origin reports, supporting documents. Domain: Migration, asylum and border‑control management."
+  },
+  "bench:scenario:112": {
+   "domain": "employment",
+   "purposes": [
+    "automate evaluation of job applicants",
+    "provide bias-mitigation scoring"
+   ],
+   "affected_persons": [
+    "job applicants"
+   ],
+   "deployer_kind": "private_company",
+   "flags": {
+    "annex_iii_4a_recruitment": true,
+    "annex_iii_4b_work_relationships": false,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: AI platform that automates the evaluation of job applicants for a multinational corporation, including bias‑mitigation scoring. System type: Corporate recruitment AI. Input data: Resumes, online profiles, assessment results. Domain: Employment, workers’ management and access to self‑employment."
+  },
+  "bench:scenario:131": {
+   "domain": "biometrics",
+   "purposes": [
+    "detect signs of depression",
+    "trigger alerts to clinicians"
+   ],
+   "affected_persons": [
+    "mental-health app users",
+    "clinicians"
+   ],
+   "flags": {
+    "emotion_recognition": true,
+    "emotion_recognition_medical_or_safety": true
+   },
+   "description": "Role: Deployer. Intended use: Emotion recognition AI used in mental‑health apps to detect signs of depression and trigger alerts to clinicians. System type: Mental‑health emotion detection AI. Input data: Facial video, voice tone, interaction patterns. Domain: Biometrics."
+  },
+  "bench:scenario:142": {
+   "domain": "employment",
+   "purposes": [
+    "automate candidate screening for a multinational's leadership development program"
+   ],
+   "affected_persons": [
+    "candidates for a multinational's leadership development program"
+   ],
+   "flags": {
+    "annex_iii_4a_recruitment": true,
+    "profiling_of_natural_persons": true
+   },
+   "description": "Role: Provider. Intended use: AI platform that automates the screening of candidates for a multinational's leadership development program. System type: Leadership development recruitment AI. Input data: Performance reviews, psychometric tests, career trajectories. Domain: Employment, workers’ management and access to self‑employment."
+  },
+  "bench:scenario:143": {
+   "domain": "essential_services",
+   "purposes": [
+    "evaluate eligibility for social security disability benefits using medical and employment data"
+   ],
+   "affected_persons": [
+    "people evaluated for social security disability benefits"
+   ],
+   "flags": {
+    "annex_iii_5a_public_benefits": true,
+    "profiling_of_natural_persons": true,
+    "creditworthiness_evaluation": false,
+    "life_health_insurance_risk_pricing": false,
+    "annex_iii_5d_emergency_calls": false
+   },
+   "description": "Role: Deployer. Intended use: AI that evaluates eligibility for social security disability benefits based on medical and employment data. System type: Social security disability AI. Input data: Medical reports, employment history, income statements. Domain: Access to and enjoyment of essential private services and essential public services and benefits."
+  },
+  "bench:scenario:149": {
+   "domain": "education",
+   "purposes": [
+    "evaluate candidates' suitability for doctoral scholarships"
+   ],
+   "affected_persons": [
+    "candidates for doctoral scholarships"
+   ],
+   "flags": {
+    "profiling_of_natural_persons": true,
+    "annex_iii_3d_test_monitoring": false
+   },
+   "description": "Role: Deployer. Intended use: AI that evaluates the suitability of candidates for doctoral scholarships based on research output and academic record. System type: Doctoral scholarship allocation AI. Input data: Publications, citation counts, grades, demographic data. Domain: Education and vocational training."
+  },
+  "bench:scenario:177": {
+   "purposes": [
+    "translate travel documents"
+   ],
+   "flags": {
+    "generates_synthetic_content": true,
+    "generates_deep_fake": false
+   },
+   "description": "Role: Deployer. Intended use: AI‑based language translation service for travel documents. System type: Neural machine translation model. Input data: Public multilingual corpora, anonymised user inputs. Domain: Travel."
+  },
+  "bench:scenario:178": {
+   "purposes": [
+    "predict waste-collection truck routes to improve efficiency"
+   ],
+   "flags": {
+    "critical_infrastructure_safety": false,
+    "medical_or_safety_component": false,
+    "annex_iii_5d_emergency_calls": false,
+    "profiling_of_natural_persons": false
+   },
+   "description": "Role: Provider. Intended use: System that predicts waste‑collection truck routes to improve efficiency without affecting emergency services. System type: Route optimisation algorithm. Input data: Public road network data, anonymised waste‑generation statistics, traffic forecasts. Domain: Waste Management."
+  },
+  "bench:scenario:182": {
+   "purposes": [
+    "predict optimal lighting schedules for office buildings to reduce energy use"
+   ],
+   "flags": {
+    "critical_infrastructure_safety": false,
+    "medical_or_safety_component": false,
+    "profiling_of_natural_persons": false,
+    "annex_iii_4b_work_relationships": false
+   },
+   "description": "Role: Provider. Intended use: System that predicts optimal lighting schedules for office buildings to reduce energy use. System type: Rule‑based optimizer. Input data: Public daylight data, anonymised building occupancy patterns. Domain: Facilities Management."
+  },
+  "bench:scenario:196": {
+   "purposes": [
+    "analyse public sentiment on product reviews",
+    "provide manufacturers with insights"
+   ],
+   "flags": {
+    "emotion_recognition": false,
+    "emotion_recognition_workplace_or_education": false,
+    "biometric_identification": false,
+    "biometric_categorisation_system": false,
+    "biometric_categorisation": false,
+    "biometric_categorisation_sensitive_or_protected_attributes": false,
+    "social_scoring": false
+   },
+   "description": "Role: Provider. Intended use: Tool that analyses public sentiment on product reviews to provide manufacturers with insights. System type: Sentiment aggregation platform. Input data: Public product review texts, anonymised rating data. Domain: Manufacturing."
+  },
+  "bench:scenario:209": {
+   "purposes": [
+    "offer non-medical advice on personal sleep quality"
+   ],
+   "autonomy": "advisory",
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "medical_or_safety_component": false
+   },
+   "description": "Role: Deployer. Intended use: AI‑based personal sleep‑quality coach that offers non‑medical advice. System type: Pattern‑recognition model. Input data: Anonymised sleep sensor data, public sleep research findings. Domain: Health & Wellness."
+  },
+  "bench:scenario:220": {
+   "purposes": [
+    "forecast short-term demand for public parking spaces in city centres"
+   ],
+   "flags": {
+    "critical_infrastructure_safety": false,
+    "medical_or_safety_component": false,
+    "profiling_of_natural_persons": false,
+    "generates_synthetic_content": false
+   },
+   "description": "Role: Provider. Intended use: Tool that forecasts short‑term demand for public parking spaces in city centres. System type: Occupancy prediction model. Input data: Public parking sensor data, anonymised historical occupancy, event calendars. Domain: Urban Mobility."
+  },
+  "bench:scenario:226": {
+   "purposes": [
+    "predict short-term demand for community-center meeting rooms"
+   ],
+   "flags": {
+    "annex_iii_5a_public_benefits": false,
+    "creditworthiness_evaluation": false,
+    "life_health_insurance_risk_pricing": false,
+    "annex_iii_5d_emergency_calls": false,
+    "profiling_of_natural_persons": false
+   },
+   "description": "Role: Provider. Intended use: System that predicts short‑term demand for community‑center meeting rooms. System type: Reservation demand predictor. Input data: Public meeting‑room booking data, anonymised usage logs, local event calendars. Domain: Community Services."
+  },
+  "bench:scenario:239": {
+   "purposes": [
+    "track personal finance goals",
+    "suggest saving milestones"
+   ],
+   "autonomy": "advisory",
+   "flags": {
+    "annex_iii_5a_public_benefits": false,
+    "creditworthiness_evaluation": false,
+    "life_health_insurance_risk_pricing": false,
+    "annex_iii_5d_emergency_calls": false
+   },
+   "description": "Role: Deployer. Intended use: AI‑based personal finance goal tracker that suggests saving milestones. System type: Goal‑recommendation engine. Input data: Anonymised financial transaction categories, public cost‑of‑living data. Domain: FinTech."
+  },
+  "bench:scenario:248": {
+   "purposes": [
+    "generate decorative holiday greeting cards from user-provided text"
+   ],
+   "flags": {
+    "generates_synthetic_content": true,
+    "generates_public_interest_text": false,
+    "generates_nonconsensual_intimate_material": false,
+    "generates_csam": false
+   },
+   "description": "Role: Deployer. Intended use: AI that generates decorative holiday greeting cards from user‑provided text. System type: Template‑based graphic generator. Input data: User text, public holiday image assets. Domain: Personalisation."
+  },
+  "bench:scenario:251": {
+   "purposes": [
+    "create simple meme captions from user-provided images"
+   ],
+   "flags": {
+    "generates_synthetic_content": true,
+    "generates_deep_fake": false,
+    "generates_nonconsensual_intimate_material": false,
+    "generates_csam": false
+   },
+   "description": "Role: Provider. Intended use: AI that creates simple meme captions from user‑provided images. System type: Generative text model with limited scope. Input data: User images, public meme text corpus. Domain: Social media."
+  },
+  "bench:scenario:275": {
+   "purposes": [
+    "generate short social media captions from user-provided image descriptions"
+   ],
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "generates_synthetic_content": true,
+    "generates_deep_fake": false
+   },
+   "description": "Role: Provider. Intended use: AI that creates short social media captions from user‑provided image description. System type: Template‑based caption generator. Input data: User image description, public caption corpus. Domain: Social media."
+  },
+  "bench:scenario:276": {
+   "purposes": [
+    "suggest simple bike route alternatives between user-selected start and end points"
+   ],
+   "autonomy": "advisory",
+   "affected_persons": [
+    "bike route users"
+   ],
+   "flags": {
+    "critical_infrastructure_safety": false,
+    "medical_or_safety_component": false,
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": false
+   },
+   "description": "Role: Deployer. Intended use: AI that suggests simple bike route alternatives based on user‑selected start and end points. System type: Rule‑based routing assistant. Input data: User locations, public map data. Domain: Transportation (non‑critical)."
+  },
+  "bench:scenario:281": {
+   "purposes": [
+    "generate short jokes from user-provided topics"
+   ],
+   "affected_persons": [
+    "users providing topics"
+   ],
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "generates_synthetic_content": true,
+    "generates_deep_fake": false,
+    "generates_public_interest_text": false
+   },
+   "description": "Role: Provider. Intended use: AI that generates short jokes from user‑provided topics. System type: Template‑based joke generator. Input data: User topics, public joke corpus. Domain: Entertainment."
+  },
+  "bench:scenario:313": {
+   "purposes": [
+    "generate short product description snippets from user-provided feature lists"
+   ],
+   "flags": {
+    "generates_synthetic_content": true,
+    "generates_deep_fake": false,
+    "generates_public_interest_text": false
+   },
+   "description": "Role: Provider. Intended use: AI that generates short product description snippets from user‑provided feature list. System type: Template‑based description generator. Input data: User feature list, public marketing copy. Domain: E‑commerce."
+  },
+  "bench:scenario:318": {
+   "purposes": [
+    "offer indoor plant fertilisation schedules based on user-entered plant type"
+   ],
+   "affected_persons": [
+    "users entering plant types"
+   ],
+   "flags": {
+    "interacts_with_natural_persons": true,
+    "profiling_of_natural_persons": false,
+    "medical_or_safety_component": false
+   },
+   "description": "Role: Deployer. Intended use: AI that offers simple indoor plant fertilisation schedule based on plant type entered by the user. System type: Rule‑based scheduler. Input data: User plant type, public fertilisation guidelines. Domain: Home gardening."
+  },
+  "bench:scenario:335": {
+   "purposes": [
+    "create short social media story captions from user-provided event descriptions"
+   ],
+   "flags": {
+    "generates_synthetic_content": true,
+    "generates_deep_fake": false
+   },
+   "description": "Role: Provider. Intended use: AI that creates short social media story captions from user‑provided event description. System type: Template‑based caption generator. Input data: User event description, public story caption corpus. Domain: Social media."
+  }
+ },
+ "quotes_by_item": {
+  "bench:scenario:19": {
+   "purposes": {
+    "text": "Implement a city‑wide citizen rating platform that limits eligibility for municipal permits based on a behavioural score.",
+    "start": 30,
+    "end": 151
+   },
+   "affected_persons": {
+    "text": "a city‑wide citizen rating platform that limits eligibility for municipal permits",
+    "start": 40,
+    "end": 121
+   },
+   "flags.social_scoring": {
+    "text": "Implement a city‑wide citizen rating platform that limits eligibility for municipal permits based on a behavioural score. System type: Behavioural evaluation and scoring system. Input data: Public transport usage, waste disposal records, online interactions, demographic data.",
+    "start": 30,
+    "end": 306
+   },
+   "flags.social_score_detrimental_treatment": {
+    "text": "Implement a city‑wide citizen rating platform that limits eligibility for municipal permits based on a behavioural score. System type: Behavioural evaluation and scoring system. Input data: Public transport usage, waste disposal records, online interactions, demographic data.",
+    "start": 30,
+    "end": 306
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "a city‑wide citizen rating platform that limits eligibility for municipal permits based on a behavioural score",
+    "start": 40,
+    "end": 150
+   }
+  },
+  "bench:scenario:21": {
+   "domain": {
+    "text": "Deploy a banking AI that reduces loan limits for users with low social engagement scores.",
+    "start": 30,
+    "end": 119
+   },
+   "purposes": {
+    "text": "Deploy a banking AI that reduces loan limits for users with low social engagement scores. System type: Social interaction based credit assessment system.",
+    "start": 30,
+    "end": 183
+   },
+   "autonomy": {
+    "text": "a banking AI that reduces loan limits for users with low social engagement scores",
+    "start": 37,
+    "end": 118
+   },
+   "affected_persons": {
+    "text": "users with low social engagement scores",
+    "start": 79,
+    "end": 118
+   },
+   "flags.social_scoring": {
+    "text": "Deploy a banking AI that reduces loan limits for users with low social engagement scores.",
+    "start": 30,
+    "end": 119
+   },
+   "flags.social_score_detrimental_treatment": {
+    "text": "Deploy a banking AI that reduces loan limits for users with low social engagement scores. System type: Social interaction based credit assessment system. Input data: Social media engagement, transaction history, credit score, age.",
+    "start": 30,
+    "end": 260
+   },
+   "flags.creditworthiness_evaluation": {
+    "text": "Social interaction based credit assessment system.",
+    "start": 133,
+    "end": 183
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "Social interaction based credit assessment system. Input data: Social media engagement, transaction history, credit score, age.",
+    "start": 133,
+    "end": 260
+   },
+   "flags.annex_iii_5a_public_benefits": {
+    "text": "Deploy a banking AI that reduces loan limits for users with low social engagement scores.",
+    "start": 30,
+    "end": 119
+   },
+   "flags.life_health_insurance_risk_pricing": {
+    "text": "Deploy a banking AI that reduces loan limits for users with low social engagement scores.",
+    "start": 30,
+    "end": 119
+   },
+   "flags.annex_iii_5d_emergency_calls": {
+    "text": "Deploy a banking AI that reduces loan limits for users with low social engagement scores.",
+    "start": 30,
+    "end": 119
+   }
+  },
+  "bench:scenario:25": {
+   "domain": {
+    "text": "Implement a university admissions AI",
+    "start": 30,
+    "end": 66
+   },
+   "purposes": {
+    "text": "Implement a university admissions AI that lowers acceptance chances for applicants with low social media influence scores.",
+    "start": 30,
+    "end": 152
+   },
+   "affected_persons": {
+    "text": "Implement a university admissions AI that lowers acceptance chances for applicants with low social media influence scores.",
+    "start": 30,
+    "end": 152
+   },
+   "flags.annex_iii_3a_admission": {
+    "text": "Implement a university admissions AI that lowers acceptance chances for applicants with low social media influence scores.",
+    "start": 30,
+    "end": 152
+   },
+   "flags.social_scoring": {
+    "text": "Implement a university admissions AI that lowers acceptance chances for applicants with low social media influence scores. System type: Social influence evaluation platform. Input data: Follower counts, post engagement, extracurricular activity logs, academic records.",
+    "start": 30,
+    "end": 298
+   },
+   "flags.social_score_detrimental_treatment": {
+    "text": "Implement a university admissions AI that lowers acceptance chances for applicants with low social media influence scores.",
+    "start": 30,
+    "end": 152
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "lowers acceptance chances for applicants with low social media influence scores. System type: Social influence evaluation platform. Input data: Follower counts, post engagement, extracurricular activity logs, academic records.",
+    "start": 72,
+    "end": 298
+   }
+  },
+  "bench:scenario:40": {
+   "domain": {
+    "text": "harvests tourists’ facial photos from travel blogs to enrich a facial‑recognition database",
+    "start": 70,
+    "end": 160
+   },
+   "purposes": {
+    "text": "harvests tourists’ facial photos from travel blogs to enrich a facial‑recognition database for future marketing",
+    "start": 70,
+    "end": 181
+   },
+   "affected_persons": {
+    "text": "harvests tourists’ facial photos from travel blogs",
+    "start": 70,
+    "end": 120
+   },
+   "flags.facial_image_scraping": {
+    "text": "harvests tourists’ facial photos from travel blogs to enrich a facial‑recognition database for future marketing",
+    "start": 70,
+    "end": 181
+   },
+   "flags.biometric_identification": {
+    "text": "System type: Travel photo facial data scraper.",
+    "start": 183,
+    "end": 229
+   },
+   "flags.real_time_remote_biometric_public": {
+    "text": "System type: Travel photo facial data scraper.",
+    "start": 183,
+    "end": 229
+   },
+   "flags.biometric_categorisation_system": {
+    "text": "System type: Travel photo facial data scraper.",
+    "start": 183,
+    "end": 229
+   },
+   "flags.biometric_categorisation": {
+    "text": "System type: Travel photo facial data scraper.",
+    "start": 183,
+    "end": 229
+   },
+   "flags.biometric_categorisation_sensitive_or_protected_attributes": {
+    "text": "System type: Travel photo facial data scraper.",
+    "start": 183,
+    "end": 229
+   },
+   "flags.emotion_recognition": {
+    "text": "System type: Travel photo facial data scraper.",
+    "start": 183,
+    "end": 229
+   }
+  },
+  "bench:scenario:44": {
+   "domain": {
+    "text": "system for workplace monitoring",
+    "start": 57,
+    "end": 88
+   },
+   "purposes": {
+    "text": "workplace monitoring that evaluates employees’ feelings in real time to adjust performance bonuses",
+    "start": 68,
+    "end": 166
+   },
+   "affected_persons": {
+    "text": "evaluates employees’ feelings",
+    "start": 94,
+    "end": 123
+   },
+   "flags.emotion_recognition": {
+    "text": "emotion‑detection system for workplace monitoring that evaluates employees’ feelings in real time to adjust performance bonuses. System type: Workplace emotion analytics platform. Input data: Facial video streams, voice tone analysis, keystroke dynamics, employee ID.",
+    "start": 39,
+    "end": 306
+   },
+   "flags.emotion_recognition_workplace_or_education": {
+    "text": "emotion‑detection system for workplace monitoring that evaluates employees’ feelings in real time to adjust performance bonuses. System type: Workplace emotion analytics platform. Input data: Facial video streams, voice tone analysis, keystroke dynamics, employee ID.",
+    "start": 39,
+    "end": 306
+   },
+   "flags.emotion_recognition_medical_or_safety": {
+    "text": "evaluates employees’ feelings in real time to adjust performance bonuses",
+    "start": 94,
+    "end": 166
+   },
+   "flags.annex_iii_4a_recruitment": {
+    "text": "workplace monitoring that evaluates employees’ feelings in real time to adjust performance bonuses",
+    "start": 68,
+    "end": 166
+   },
+   "flags.annex_iii_4b_work_relationships": {
+    "text": "workplace monitoring that evaluates employees’ feelings in real time to adjust performance bonuses",
+    "start": 68,
+    "end": 166
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "workplace monitoring that evaluates employees’ feelings in real time to adjust performance bonuses",
+    "start": 68,
+    "end": 166
+   }
+  },
+  "bench:scenario:46": {
+   "domain": {
+    "text": "In‑store emotion detection system. Input data: CCTV facial video",
+    "start": 161,
+    "end": 225
+   },
+   "purposes": {
+    "text": "analyzes shoppers’ micro‑expressions to gauge satisfaction and trigger upselling prompts",
+    "start": 58,
+    "end": 146
+   },
+   "affected_persons": {
+    "text": "analyzes shoppers’ micro‑expressions",
+    "start": 58,
+    "end": 94
+   },
+   "flags.emotion_recognition": {
+    "text": "analyzes shoppers’ micro‑expressions to gauge satisfaction",
+    "start": 58,
+    "end": 116
+   },
+   "flags.emotion_recognition_workplace_or_education": {
+    "text": "a retail‑store AI that analyzes shoppers’ micro‑expressions to gauge satisfaction and trigger upselling prompts",
+    "start": 35,
+    "end": 146
+   },
+   "flags.emotion_recognition_medical_or_safety": {
+    "text": "analyzes shoppers’ micro‑expressions to gauge satisfaction and trigger upselling prompts",
+    "start": 58,
+    "end": 146
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "analyzes shoppers’ micro‑expressions to gauge satisfaction and trigger upselling prompts",
+    "start": 58,
+    "end": 146
+   }
+  },
+  "bench:scenario:64": {
+   "domain": {
+    "text": "real‑time facial recognition system",
+    "start": 40,
+    "end": 75
+   },
+   "purposes": {
+    "text": "Provide a real‑time facial recognition system for a shopping centre that flags all customers for personalized ad delivery without consent.",
+    "start": 30,
+    "end": 168
+   },
+   "affected_persons": {
+    "text": "a shopping centre that flags all customers",
+    "start": 80,
+    "end": 122
+   },
+   "flags.biometric_identification": {
+    "text": "Provide a real‑time facial recognition system for a shopping centre that flags all customers for personalized ad delivery without consent.",
+    "start": 30,
+    "end": 168
+   },
+   "flags.real_time_remote_biometric_public": {
+    "text": "Provide a real‑time facial recognition system for a shopping centre that flags all customers for personalized ad delivery without consent.",
+    "start": 30,
+    "end": 168
+   },
+   "flags.law_enforcement_purpose": {
+    "text": "Provide a real‑time facial recognition system for a shopping centre that flags all customers for personalized ad delivery without consent.",
+    "start": 30,
+    "end": 168
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "flags all customers for personalized ad delivery without consent. System type: Instantaneous facial ID advertising engine. Input data: Live video streams, facial templates, purchase history, demographic profiles.",
+    "start": 103,
+    "end": 315
+   }
+  },
+  "bench:scenario:69": {
+   "domain": {
+    "text": "uses remote biometric identification",
+    "start": 61,
+    "end": 97
+   },
+   "purposes": {
+    "text": "monitor crowd density and sell real‑time occupancy data to event organizers",
+    "start": 101,
+    "end": 176
+   },
+   "affected_persons": {
+    "text": "Deploy a public‑square AI that uses remote biometric identification to monitor crowd density",
+    "start": 30,
+    "end": 122
+   },
+   "flags.biometric_identification": {
+    "text": "uses remote biometric identification",
+    "start": 61,
+    "end": 97
+   },
+   "flags.law_enforcement_purpose": {
+    "text": "Intended use: Deploy a public‑square AI that uses remote biometric identification to monitor crowd density and sell real‑time occupancy data to event organizers.",
+    "start": 16,
+    "end": 177
+   }
+  },
+  "bench:scenario:86": {
+   "domain": {
+    "text": "Access to and enjoyment of essential private services and essential public services and benefits",
+    "start": 233,
+    "end": 329
+   },
+   "purposes": {
+    "text": "AI that calculates credit scores for loan applicants, influencing creditworthiness decisions.",
+    "start": 30,
+    "end": 123
+   },
+   "affected_persons": {
+    "text": "for loan applicants",
+    "start": 63,
+    "end": 82
+   },
+   "flags.creditworthiness_evaluation": {
+    "text": "AI that calculates credit scores for loan applicants, influencing creditworthiness decisions.",
+    "start": 30,
+    "end": 123
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "AI that calculates credit scores for loan applicants, influencing creditworthiness decisions.",
+    "start": 30,
+    "end": 123
+   },
+   "flags.annex_iii_5a_public_benefits": {
+    "text": "AI that calculates credit scores for loan applicants, influencing creditworthiness decisions.",
+    "start": 30,
+    "end": 123
+   },
+   "flags.life_health_insurance_risk_pricing": {
+    "text": "AI that calculates credit scores for loan applicants, influencing creditworthiness decisions.",
+    "start": 30,
+    "end": 123
+   },
+   "flags.annex_iii_5d_emergency_calls": {
+    "text": "AI that calculates credit scores for loan applicants, influencing creditworthiness decisions.",
+    "start": 30,
+    "end": 123
+   }
+  },
+  "bench:scenario:88": {
+   "domain": {
+    "text": "Domain: Law enforcement.",
+    "start": 226,
+    "end": 250
+   },
+   "purposes": {
+    "text": "predicts recidivism risk for parole decisions, influencing release.",
+    "start": 43,
+    "end": 110
+   },
+   "affected_persons": {
+    "text": "predicts recidivism risk for parole decisions, influencing release.",
+    "start": 43,
+    "end": 110
+   },
+   "flags.law_enforcement_purpose": {
+    "text": "AI tool that predicts recidivism risk for parole decisions, influencing release.",
+    "start": 30,
+    "end": 110
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "System type: Recidivism risk assessment AI. Input data: Criminal record, behavioural reports, socio‑economic data.",
+    "start": 111,
+    "end": 225
+   },
+   "flags.annex_iii_6a_victim_risk": {
+    "text": "Intended use: AI tool that predicts recidivism risk for parole decisions, influencing release.",
+    "start": 16,
+    "end": 110
+   },
+   "flags.annex_iii_6b_polygraphs": {
+    "text": "Intended use: AI tool that predicts recidivism risk for parole decisions, influencing release.",
+    "start": 16,
+    "end": 110
+   },
+   "flags.annex_iii_6c_evidence_reliability": {
+    "text": "Intended use: AI tool that predicts recidivism risk for parole decisions, influencing release.",
+    "start": 16,
+    "end": 110
+   },
+   "flags.annex_iii_6d_offending_risk": {
+    "text": "Intended use: AI tool that predicts recidivism risk for parole decisions, influencing release. System type: Recidivism risk assessment AI. Input data: Criminal record, behavioural reports, socio‑economic data. Domain: Law enforcement.",
+    "start": 16,
+    "end": 250
+   },
+   "flags.annex_iii_6e_profiling": {
+    "text": "Intended use: AI tool that predicts recidivism risk for parole decisions, influencing release.",
+    "start": 16,
+    "end": 110
+   }
+  },
+  "bench:scenario:91": {
+   "domain": {
+    "text": "Migration, asylum and border‑control management.",
+    "start": 286,
+    "end": 334
+   },
+   "purposes": {
+    "text": "assists officials in examining asylum applications by extracting relevant facts and scoring credibility",
+    "start": 45,
+    "end": 148
+   },
+   "autonomy": {
+    "text": "assists officials in examining asylum applications",
+    "start": 45,
+    "end": 95
+   },
+   "affected_persons": {
+    "text": "examining asylum applications",
+    "start": 66,
+    "end": 95
+   },
+   "flags.annex_iii_7c_applications": {
+    "text": "AI system that assists officials in examining asylum applications by extracting relevant facts and scoring credibility.",
+    "start": 30,
+    "end": 149
+   }
+  },
+  "bench:scenario:112": {
+   "domain": {
+    "text": "Employment, workers’ management and access to self‑employment",
+    "start": 263,
+    "end": 324
+   },
+   "purposes": {
+    "text": "automates the evaluation of job applicants for a multinational corporation, including bias‑mitigation scoring",
+    "start": 47,
+    "end": 156
+   },
+   "affected_persons": {
+    "text": "evaluation of job applicants",
+    "start": 61,
+    "end": 89
+   },
+   "deployer_kind": {
+    "text": "for a multinational corporation",
+    "start": 90,
+    "end": 121
+   },
+   "flags.annex_iii_4a_recruitment": {
+    "text": "automates the evaluation of job applicants",
+    "start": 47,
+    "end": 89
+   },
+   "flags.annex_iii_4b_work_relationships": {
+    "text": "System type: Corporate recruitment AI.",
+    "start": 158,
+    "end": 196
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "AI platform that automates the evaluation of job applicants for a multinational corporation, including bias‑mitigation scoring. System type: Corporate recruitment AI. Input data: Resumes, online profiles, assessment results.",
+    "start": 30,
+    "end": 254
+   }
+  },
+  "bench:scenario:131": {
+   "domain": {
+    "text": "interaction patterns. Domain: Biometrics.",
+    "start": 231,
+    "end": 272
+   },
+   "purposes": {
+    "text": "detect signs of depression and trigger alerts to clinicians",
+    "start": 83,
+    "end": 142
+   },
+   "affected_persons": {
+    "text": "Emotion recognition AI used in mental‑health apps to detect signs of depression and trigger alerts to clinicians.",
+    "start": 30,
+    "end": 143
+   },
+   "flags.emotion_recognition": {
+    "text": "System type: Mental‑health emotion detection AI. Input data: Facial video, voice tone, interaction patterns.",
+    "start": 144,
+    "end": 252
+   },
+   "flags.emotion_recognition_medical_or_safety": {
+    "text": "Emotion recognition AI used in mental‑health apps to detect signs of depression and trigger alerts to clinicians.",
+    "start": 30,
+    "end": 143
+   }
+  },
+  "bench:scenario:142": {
+   "domain": {
+    "text": "Employment, workers’ management and access to self‑employment",
+    "start": 273,
+    "end": 334
+   },
+   "purposes": {
+    "text": "automates the screening of candidates for a multinational's leadership development program",
+    "start": 47,
+    "end": 137
+   },
+   "affected_persons": {
+    "text": "candidates for a multinational's leadership development program",
+    "start": 74,
+    "end": 137
+   },
+   "flags.annex_iii_4a_recruitment": {
+    "text": "AI platform that automates the screening of candidates for a multinational's leadership development program.",
+    "start": 30,
+    "end": 138
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "AI platform that automates the screening of candidates for a multinational's leadership development program. System type: Leadership development recruitment AI. Input data: Performance reviews, psychometric tests, career trajectories.",
+    "start": 30,
+    "end": 264
+   }
+  },
+  "bench:scenario:143": {
+   "domain": {
+    "text": "Access to and enjoyment of essential private services and essential public services and benefits",
+    "start": 258,
+    "end": 354
+   },
+   "purposes": {
+    "text": "AI that evaluates eligibility for social security disability benefits based on medical and employment data.",
+    "start": 30,
+    "end": 137
+   },
+   "affected_persons": {
+    "text": "AI that evaluates eligibility for social security disability benefits",
+    "start": 30,
+    "end": 99
+   },
+   "flags.annex_iii_5a_public_benefits": {
+    "text": "AI that evaluates eligibility for social security disability benefits",
+    "start": 30,
+    "end": 99
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "AI that evaluates eligibility for social security disability benefits based on medical and employment data.",
+    "start": 30,
+    "end": 137
+   },
+   "flags.creditworthiness_evaluation": {
+    "text": "Intended use: AI that evaluates eligibility for social security disability benefits based on medical and employment data.",
+    "start": 16,
+    "end": 137
+   },
+   "flags.life_health_insurance_risk_pricing": {
+    "text": "Intended use: AI that evaluates eligibility for social security disability benefits based on medical and employment data.",
+    "start": 16,
+    "end": 137
+   },
+   "flags.annex_iii_5d_emergency_calls": {
+    "text": "Intended use: AI that evaluates eligibility for social security disability benefits based on medical and employment data.",
+    "start": 16,
+    "end": 137
+   }
+  },
+  "bench:scenario:149": {
+   "domain": {
+    "text": "Education and vocational training",
+    "start": 276,
+    "end": 309
+   },
+   "purposes": {
+    "text": "AI that evaluates the suitability of candidates for doctoral scholarships based on research output and academic record.",
+    "start": 30,
+    "end": 149
+   },
+   "affected_persons": {
+    "text": "candidates for doctoral scholarships",
+    "start": 67,
+    "end": 103
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "AI that evaluates the suitability of candidates for doctoral scholarships based on research output and academic record.",
+    "start": 30,
+    "end": 149
+   },
+   "flags.annex_iii_3d_test_monitoring": {
+    "text": "AI that evaluates the suitability of candidates for doctoral scholarships based on research output and academic record.",
+    "start": 30,
+    "end": 149
+   }
+  },
+  "bench:scenario:177": {
+   "purposes": {
+    "text": "AI‑based language translation service for travel documents.",
+    "start": 30,
+    "end": 89
+   },
+   "flags.generates_synthetic_content": {
+    "text": "AI‑based language translation service for travel documents.",
+    "start": 30,
+    "end": 89
+   },
+   "flags.generates_deep_fake": {
+    "text": "System type: Neural machine translation model.",
+    "start": 90,
+    "end": 136
+   }
+  },
+  "bench:scenario:178": {
+   "purposes": {
+    "text": "predicts waste‑collection truck routes to improve efficiency",
+    "start": 42,
+    "end": 102
+   },
+   "flags.critical_infrastructure_safety": {
+    "text": "System that predicts waste‑collection truck routes to improve efficiency without affecting emergency services.",
+    "start": 30,
+    "end": 140
+   },
+   "flags.medical_or_safety_component": {
+    "text": "System that predicts waste‑collection truck routes to improve efficiency without affecting emergency services.",
+    "start": 30,
+    "end": 140
+   },
+   "flags.annex_iii_5d_emergency_calls": {
+    "text": "without affecting emergency services",
+    "start": 103,
+    "end": 139
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "Input data: Public road network data, anonymised waste‑generation statistics, traffic forecasts.",
+    "start": 184,
+    "end": 280
+   }
+  },
+  "bench:scenario:182": {
+   "purposes": {
+    "text": "System that predicts optimal lighting schedules for office buildings to reduce energy use.",
+    "start": 30,
+    "end": 120
+   },
+   "flags.critical_infrastructure_safety": {
+    "text": "System that predicts optimal lighting schedules for office buildings to reduce energy use.",
+    "start": 30,
+    "end": 120
+   },
+   "flags.medical_or_safety_component": {
+    "text": "System that predicts optimal lighting schedules for office buildings to reduce energy use.",
+    "start": 30,
+    "end": 120
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "Input data: Public daylight data, anonymised building occupancy patterns.",
+    "start": 156,
+    "end": 229
+   },
+   "flags.annex_iii_4b_work_relationships": {
+    "text": "System that predicts optimal lighting schedules for office buildings to reduce energy use.",
+    "start": 30,
+    "end": 120
+   }
+  },
+  "bench:scenario:196": {
+   "purposes": {
+    "text": "Tool that analyses public sentiment on product reviews to provide manufacturers with insights.",
+    "start": 30,
+    "end": 124
+   },
+   "flags.emotion_recognition": {
+    "text": "Input data: Public product review texts, anonymised rating data.",
+    "start": 170,
+    "end": 234
+   },
+   "flags.emotion_recognition_workplace_or_education": {
+    "text": "Input data: Public product review texts, anonymised rating data.",
+    "start": 170,
+    "end": 234
+   },
+   "flags.biometric_identification": {
+    "text": "Input data: Public product review texts, anonymised rating data.",
+    "start": 170,
+    "end": 234
+   },
+   "flags.biometric_categorisation_system": {
+    "text": "Input data: Public product review texts, anonymised rating data.",
+    "start": 170,
+    "end": 234
+   },
+   "flags.biometric_categorisation": {
+    "text": "Input data: Public product review texts, anonymised rating data.",
+    "start": 170,
+    "end": 234
+   },
+   "flags.biometric_categorisation_sensitive_or_protected_attributes": {
+    "text": "Input data: Public product review texts, anonymised rating data.",
+    "start": 170,
+    "end": 234
+   },
+   "flags.social_scoring": {
+    "text": "Tool that analyses public sentiment on product reviews to provide manufacturers with insights.",
+    "start": 30,
+    "end": 124
+   }
+  },
+  "bench:scenario:209": {
+   "purposes": {
+    "text": "AI‑based personal sleep‑quality coach that offers non‑medical advice",
+    "start": 30,
+    "end": 98
+   },
+   "autonomy": {
+    "text": "offers non‑medical advice",
+    "start": 73,
+    "end": 98
+   },
+   "flags.interacts_with_natural_persons": {
+    "text": "AI‑based personal sleep‑quality coach that offers non‑medical advice",
+    "start": 30,
+    "end": 98
+   },
+   "flags.medical_or_safety_component": {
+    "text": "AI‑based personal sleep‑quality coach that offers non‑medical advice",
+    "start": 30,
+    "end": 98
+   }
+  },
+  "bench:scenario:220": {
+   "purposes": {
+    "text": "Tool that forecasts short‑term demand for public parking spaces in city centres.",
+    "start": 30,
+    "end": 110
+   },
+   "flags.critical_infrastructure_safety": {
+    "text": "Tool that forecasts short‑term demand for public parking spaces in city centres.",
+    "start": 30,
+    "end": 110
+   },
+   "flags.medical_or_safety_component": {
+    "text": "Tool that forecasts short‑term demand for public parking spaces in city centres.",
+    "start": 30,
+    "end": 110
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "Input data: Public parking sensor data, anonymised historical occupancy, event calendars.",
+    "start": 152,
+    "end": 241
+   },
+   "flags.generates_synthetic_content": {
+    "text": "System type: Occupancy prediction model.",
+    "start": 111,
+    "end": 151
+   }
+  },
+  "bench:scenario:226": {
+   "purposes": {
+    "text": "System that predicts short‑term demand for community‑center meeting rooms.",
+    "start": 30,
+    "end": 104
+   },
+   "flags.annex_iii_5a_public_benefits": {
+    "text": "System that predicts short‑term demand for community‑center meeting rooms.",
+    "start": 30,
+    "end": 104
+   },
+   "flags.creditworthiness_evaluation": {
+    "text": "System that predicts short‑term demand for community‑center meeting rooms.",
+    "start": 30,
+    "end": 104
+   },
+   "flags.life_health_insurance_risk_pricing": {
+    "text": "System that predicts short‑term demand for community‑center meeting rooms.",
+    "start": 30,
+    "end": 104
+   },
+   "flags.annex_iii_5d_emergency_calls": {
+    "text": "System that predicts short‑term demand for community‑center meeting rooms.",
+    "start": 30,
+    "end": 104
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "System that predicts short‑term demand for community‑center meeting rooms.",
+    "start": 30,
+    "end": 104
+   }
+  },
+  "bench:scenario:239": {
+   "purposes": {
+    "text": "personal finance goal tracker that suggests saving milestones",
+    "start": 39,
+    "end": 100
+   },
+   "autonomy": {
+    "text": "suggests saving milestones",
+    "start": 74,
+    "end": 100
+   },
+   "flags.annex_iii_5a_public_benefits": {
+    "text": "personal finance goal tracker that suggests saving milestones",
+    "start": 39,
+    "end": 100
+   },
+   "flags.creditworthiness_evaluation": {
+    "text": "personal finance goal tracker that suggests saving milestones",
+    "start": 39,
+    "end": 100
+   },
+   "flags.life_health_insurance_risk_pricing": {
+    "text": "personal finance goal tracker that suggests saving milestones",
+    "start": 39,
+    "end": 100
+   },
+   "flags.annex_iii_5d_emergency_calls": {
+    "text": "personal finance goal tracker that suggests saving milestones",
+    "start": 39,
+    "end": 100
+   }
+  },
+  "bench:scenario:248": {
+   "purposes": {
+    "text": "generates decorative holiday greeting cards from user‑provided text",
+    "start": 38,
+    "end": 105
+   },
+   "flags.generates_synthetic_content": {
+    "text": "AI that generates decorative holiday greeting cards from user‑provided text.",
+    "start": 30,
+    "end": 106
+   },
+   "flags.generates_public_interest_text": {
+    "text": "Intended use: AI that generates decorative holiday greeting cards from user‑provided text.",
+    "start": 16,
+    "end": 106
+   },
+   "flags.generates_nonconsensual_intimate_material": {
+    "text": "Intended use: AI that generates decorative holiday greeting cards from user‑provided text.",
+    "start": 16,
+    "end": 106
+   },
+   "flags.generates_csam": {
+    "text": "Intended use: AI that generates decorative holiday greeting cards from user‑provided text.",
+    "start": 16,
+    "end": 106
+   }
+  },
+  "bench:scenario:251": {
+   "purposes": {
+    "text": "AI that creates simple meme captions from user‑provided images.",
+    "start": 30,
+    "end": 93
+   },
+   "flags.generates_synthetic_content": {
+    "text": "Generative text model with limited scope.",
+    "start": 107,
+    "end": 148
+   },
+   "flags.generates_deep_fake": {
+    "text": "Generative text model with limited scope.",
+    "start": 107,
+    "end": 148
+   },
+   "flags.generates_nonconsensual_intimate_material": {
+    "text": "AI that creates simple meme captions from user‑provided images.",
+    "start": 30,
+    "end": 93
+   },
+   "flags.generates_csam": {
+    "text": "AI that creates simple meme captions from user‑provided images.",
+    "start": 30,
+    "end": 93
+   }
+  },
+  "bench:scenario:275": {
+   "purposes": {
+    "text": "AI that creates short social media captions from user‑provided image description.",
+    "start": 30,
+    "end": 111
+   },
+   "flags.interacts_with_natural_persons": {
+    "text": "AI that creates short social media captions from user‑provided image description.",
+    "start": 30,
+    "end": 111
+   },
+   "flags.generates_synthetic_content": {
+    "text": "creates short social media captions",
+    "start": 38,
+    "end": 73
+   },
+   "flags.generates_deep_fake": {
+    "text": "AI that creates short social media captions from user‑provided image description.",
+    "start": 30,
+    "end": 111
+   }
+  },
+  "bench:scenario:276": {
+   "purposes": {
+    "text": "suggests simple bike route alternatives based on user‑selected start and end points",
+    "start": 38,
+    "end": 121
+   },
+   "autonomy": {
+    "text": "suggests simple bike route alternatives",
+    "start": 38,
+    "end": 77
+   },
+   "affected_persons": {
+    "text": "AI that suggests simple bike route alternatives based on user‑selected start and end points",
+    "start": 30,
+    "end": 121
+   },
+   "flags.critical_infrastructure_safety": {
+    "text": "Domain: Transportation (non‑critical).",
+    "start": 211,
+    "end": 249
+   },
+   "flags.medical_or_safety_component": {
+    "text": "AI that suggests simple bike route alternatives based on user‑selected start and end points.",
+    "start": 30,
+    "end": 122
+   },
+   "flags.interacts_with_natural_persons": {
+    "text": "AI that suggests simple bike route alternatives based on user‑selected start and end points.",
+    "start": 30,
+    "end": 122
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "AI that suggests simple bike route alternatives based on user‑selected start and end points.",
+    "start": 30,
+    "end": 122
+   }
+  },
+  "bench:scenario:281": {
+   "purposes": {
+    "text": "AI that generates short jokes from user‑provided topics.",
+    "start": 30,
+    "end": 86
+   },
+   "affected_persons": {
+    "text": "from user‑provided topics",
+    "start": 60,
+    "end": 85
+   },
+   "flags.interacts_with_natural_persons": {
+    "text": "AI that generates short jokes from user‑provided topics.",
+    "start": 30,
+    "end": 86
+   },
+   "flags.generates_synthetic_content": {
+    "text": "AI that generates short jokes from user‑provided topics.",
+    "start": 30,
+    "end": 86
+   },
+   "flags.generates_deep_fake": {
+    "text": "System type: Template‑based joke generator.",
+    "start": 87,
+    "end": 130
+   },
+   "flags.generates_public_interest_text": {
+    "text": "Intended use: AI that generates short jokes from user‑provided topics. System type: Template‑based joke generator. Input data: User topics, public joke corpus. Domain: Entertainment.",
+    "start": 16,
+    "end": 198
+   }
+  },
+  "bench:scenario:313": {
+   "purposes": {
+    "text": "AI that generates short product description snippets from user‑provided feature list.",
+    "start": 30,
+    "end": 115
+   },
+   "flags.generates_synthetic_content": {
+    "text": "AI that generates short product description snippets from user‑provided feature list.",
+    "start": 30,
+    "end": 115
+   },
+   "flags.generates_deep_fake": {
+    "text": "AI that generates short product description snippets from user‑provided feature list.",
+    "start": 30,
+    "end": 115
+   },
+   "flags.generates_public_interest_text": {
+    "text": "AI that generates short product description snippets from user‑provided feature list.",
+    "start": 30,
+    "end": 115
+   }
+  },
+  "bench:scenario:318": {
+   "purposes": {
+    "text": "AI that offers simple indoor plant fertilisation schedule based on plant type entered by the user.",
+    "start": 30,
+    "end": 128
+   },
+   "affected_persons": {
+    "text": "plant type entered by the user",
+    "start": 97,
+    "end": 127
+   },
+   "flags.interacts_with_natural_persons": {
+    "text": "AI that offers simple indoor plant fertilisation schedule based on plant type entered by the user.",
+    "start": 30,
+    "end": 128
+   },
+   "flags.profiling_of_natural_persons": {
+    "text": "AI that offers simple indoor plant fertilisation schedule based on plant type entered by the user.",
+    "start": 30,
+    "end": 128
+   },
+   "flags.medical_or_safety_component": {
+    "text": "Intended use: AI that offers simple indoor plant fertilisation schedule based on plant type entered by the user.",
+    "start": 16,
+    "end": 128
+   }
+  },
+  "bench:scenario:335": {
+   "purposes": {
+    "text": "AI that creates short social media story captions from user‑provided event description",
+    "start": 30,
+    "end": 116
+   },
+   "flags.generates_synthetic_content": {
+    "text": "AI that creates short social media story captions from user‑provided event description",
+    "start": 30,
+    "end": 116
+   },
+   "flags.generates_deep_fake": {
+    "text": "System type: Template‑based caption generator. Input data: User event description, public story caption corpus.",
+    "start": 118,
+    "end": 229
+   }
+  }
+ },
+ "dropped_by_item": {
+  "bench:scenario:19": [],
+  "bench:scenario:21": [],
+  "bench:scenario:25": [],
+  "bench:scenario:40": [],
+  "bench:scenario:44": [],
+  "bench:scenario:46": [],
+  "bench:scenario:64": [],
+  "bench:scenario:69": [],
+  "bench:scenario:86": [],
+  "bench:scenario:88": [],
+  "bench:scenario:91": [],
+  "bench:scenario:112": [],
+  "bench:scenario:131": [],
+  "bench:scenario:142": [],
+  "bench:scenario:143": [],
+  "bench:scenario:149": [],
+  "bench:scenario:177": [],
+  "bench:scenario:178": [],
+  "bench:scenario:182": [],
+  "bench:scenario:196": [],
+  "bench:scenario:209": [],
+  "bench:scenario:220": [],
+  "bench:scenario:226": [],
+  "bench:scenario:239": [],
+  "bench:scenario:248": [],
+  "bench:scenario:251": [],
+  "bench:scenario:275": [],
+  "bench:scenario:276": [],
+  "bench:scenario:281": [],
+  "bench:scenario:313": [],
+  "bench:scenario:318": [],
+  "bench:scenario:335": []
+ }
+}
