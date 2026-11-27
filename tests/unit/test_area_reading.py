@@ -24,6 +24,7 @@ from tests.unit.area_cases import (
     AREA_RULED_OUT_POINT_3,
     POINT_3,
     POINT_4,
+    REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE,
     SCOPE_UNCONFIRMED_POINT_3,
     _features,
 )
@@ -137,7 +138,8 @@ def test_finding_4_section_b_product_with_an_area_is_served_as_section_b(dump, n
     served = get_applicable_requirements(env, norms, dump)
     assert served["answer"]["annex_i_section"] == "B"
     assert served["answer"]["requirements_by_article"] == {}
-    assert served["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE
+    # The final fix wave, item 3: the cause of review is named after it.
+    assert served["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE + REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE
 
 
 def test_unknown_section_is_named_by_the_classifier_and_the_requirements(dump, norms):

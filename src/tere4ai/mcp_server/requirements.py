@@ -230,6 +230,20 @@ SECTION_B_LISTED_USE_UNKNOWN_FACT = (
     "an Annex III fact is unknown: a listed use, or real_time_remote_biometric_public, which also gives point 1; "
     "the answer's status line says so, and the classification's missing facts name which"
 )
+# B185, the final fix wave (item 3; Codex's final review, finding 1): the
+# Article 2(2) answer of a classification marked for review names every cause
+# that holds, from the envelope and from the bare answer, in the spec's order,
+# through review_causes.py (review_reason), as the provisional note of the
+# other answers does: the sentence the message gains, and, from the bare
+# answer form, which carries no missing facts, the missing fact for the causes
+# no other line names (a fact or area conflict is named by its note, an
+# unknown listed use by the two lines above).
+SECTION_B_REVIEW_SENTENCE = (
+    " The answer is provisional pending the human-review determination of the classification: {reasons}."
+)
+SECTION_B_CAUSES_FACT = (
+    "the classification stands for human review: {reasons}; the classification's own missing facts name the facts"
+)
 # R26 path: what an Article 6(3) derogation candidate can change for a
 # Section B product on the Annex III route.
 SECTION_B_DEROGATION_NOTE = (
@@ -247,6 +261,48 @@ SECTION_UNKNOWN_NOTE = (
 
 def _graph_version(dump: dict[str, Any]) -> str:
     return str(dump.get("build", {}).get("build_id", "unknown"))
+
+
+# B185, the final fix wave (item 4; the first final review, M10): a
+# classification whose fields this tool reads without a type of their own is
+# refused with words, in the form the server gives a classification that is
+# not an object (server.py _invalid_input_envelope: no answer, status
+# requires_human_review, confidence 0.0, the reason as the one missing fact),
+# never an exception: an input from outside must not raise. The fields: the
+# envelope's missing_facts and source_nodes (a list of strings, or null) and
+# confidence (a number, or null), read into the answer or iterated as text.
+MALFORMED_CLASSIFICATION = (
+    "'classification' must be the classify_ai_system envelope or its bare answer; {field} must be {expected} "
+    "or null, got {got}"
+)
+
+
+def _malformed_classification(classification: dict[str, Any]) -> str | None:
+    """The refusal of a classification whose fields cannot be read, or None.
+
+    @implements: DEC-33
+    """
+    answer = classification.get("answer")
+    if not (isinstance(answer, dict) and "status" in classification and "risk_category" in answer):
+        # The bare answer form: every field the tool reads from it is read
+        # with its type checked (risk_category, rationale, the conflicts, the
+        # area, the routes, the section and the block).
+        return None
+    for field in ("missing_facts", "source_nodes"):
+        value = classification.get(field)
+        if value is None:
+            continue
+        if not isinstance(value, list):
+            return MALFORMED_CLASSIFICATION.format(
+                field=field, expected="a list of strings", got=type(value).__name__)
+        wrong = [type(item).__name__ for item in value if not isinstance(item, str)]
+        if wrong:
+            return MALFORMED_CLASSIFICATION.format(
+                field=field, expected="a list of strings", got=f"a list holding {wrong[0]}")
+    confidence = classification.get("confidence")
+    if confidence is not None and (isinstance(confidence, bool) or not isinstance(confidence, (int, float))):
+        return MALFORMED_CLASSIFICATION.format(field="confidence", expected="a number", got=type(confidence).__name__)
+    return None
 
 
 def _unwrap_classification(
@@ -274,7 +330,7 @@ def _unwrap_classification(
             "confidence": classification.get("confidence"),
             "missing_facts": list(classification.get("missing_facts") or []),
         }
-        return classification["answer"], list(classification.get("source_nodes", [])), upstream
+        return classification["answer"], list(classification.get("source_nodes") or []), upstream
     return classification, [], {}
 
 
@@ -355,6 +411,13 @@ def _entry_notes(entries: Any) -> list[str]:
     ]
 
 
+# The causes of review that a line of the Article 2(2) answer's missing facts
+# already names without the classification's missing facts: the conflicts by
+# their notes, an unknown listed use by SECTION_B_AREA_UNCONFIRMED_FACT or
+# SECTION_B_LISTED_USE_UNKNOWN_FACT.
+_SECTION_B_CAUSES_NAMED_BY_A_LINE = frozenset({"fact_conflict", "area_conflict", "listed_use_unknown"})
+
+
 def _section_b_missing_facts(
     classification_missing: list[str],
     mark_notes: list[str],
@@ -362,6 +425,7 @@ def _section_b_missing_facts(
     marked: bool,
     area_point: Any = None,
     listed_use_from_status_line: bool = False,
+    bare_causes: list[str] | None = None,
 ) -> list[str]:
     """The missing facts of the Article 2(2) answer (R39; B185 ruling P25).
 
@@ -370,8 +434,10 @@ def _section_b_missing_facts(
     point that rests on the area (SECTION_B_AREA_UNCONFIRMED_FACT) where no
     line names an unknown listed use, or, with no area set, the line that a
     listed use is unknown (SECTION_B_LISTED_USE_UNKNOWN_FACT) when the bare
-    answer's status line says so (B185 Task 8); and when the answer stands
-    for review with no fact named, the fallback line.
+    answer's status line says so (B185 Task 8); from the bare answer form
+    also one line naming the causes of review no other line names
+    (SECTION_B_CAUSES_FACT, the final fix wave, item 3); and when the answer
+    stands for review with no fact named, the fallback line.
 
     @implements: DEC-33
     """
@@ -383,6 +449,9 @@ def _section_b_missing_facts(
             missing.append(SECTION_B_AREA_UNCONFIRMED_FACT.format(point=area_point))
         elif listed_use_from_status_line and not area_point and not names_a_use:
             missing.append(SECTION_B_LISTED_USE_UNKNOWN_FACT)
+        unnamed = [cause for cause in (bare_causes or []) if cause not in _SECTION_B_CAUSES_NAMED_BY_A_LINE]
+        if unnamed:
+            missing.append(SECTION_B_CAUSES_FACT.format(reasons=review_reason(unnamed)))
         if not missing:
             missing = [UNSETTLED_FALLBACK_FACT]
     return missing + section_b_missing
@@ -407,6 +476,15 @@ def get_applicable_requirements(
     """
     graph_version = _graph_version(dump)
     text = legal_text(dump)
+    malformed = _malformed_classification(classification_answer)
+    if malformed is not None:
+        return make_envelope(
+            answer=None,
+            status="requires_human_review",
+            graph_version=graph_version,
+            confidence=0.0,
+            missing_facts=[malformed],
+        )
     answer_in, classification_nodes, upstream = _unwrap_classification(classification_answer)
     risk_category = answer_in.get("risk_category")
     node_index = {n["id"]: n for n in dump.get("nodes", []) if isinstance(n, dict) and "id" in n}
@@ -608,13 +686,21 @@ def get_applicable_requirements(
         annex_iii_unknown = [m for m in upstream_missing if ANNEX_III_UNKNOWN_TAG in m]
         # B185 (ruling P25, spec G D-G92 (5), (i)): a point that rests on the
         # area, or an unknown listed use read from the answer's own status
-        # line, keeps the Annex III route open from the bare answer too.
+        # line, keeps the Annex III route open from the bare answer too. On
+        # every classifier output the area comes with an unknown listed use,
+        # so the third clause decides one case only: a bare answer built by
+        # hand with an area and no status line (the final fix wave, item 7;
+        # test_requirements_area.py holds it).
         annex_iii_open = bool(
             annex_iii_unknown
             or "listed_use_unknown" in causes
             or answer_in.get("annex_iii_area_unconfirmed")
         )
         section_b_message = SECTION_B_ANNEX_III_UNKNOWN_MESSAGE if annex_iii_open else SECTION_B_MESSAGE
+        if causes:
+            # The final fix wave, item 3: every cause that holds, in the spec's
+            # order, from the one module, as the provisional note says them.
+            section_b_message += SECTION_B_REVIEW_SENTENCE.format(reasons=review_reason(causes))
         section_b_marked = unsettled or annex_iii_open
         section_b_missing = [f"provision '{n}' named by Article 2(2) is not present in the graph dump"
                              for n in provisions if n not in node_index]
@@ -653,6 +739,7 @@ def get_applicable_requirements(
                 # B185 Task 8: the bare answer form only, whose unknown
                 # listed use is read from its status line.
                 listed_use_from_status_line=not upstream and "listed_use_unknown" in causes,
+                bare_causes=None if upstream else causes,
             ),
         )
 

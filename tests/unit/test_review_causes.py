@@ -268,6 +268,12 @@ def test_the_block_has_no_second_decider_of_the_causes():
     assert "review_causes" in params
 
 
+def test_review_causes_has_no_wider_reading_for_the_block():
+    # B185, the final fix wave (item 7): the for_fria path, which no caller
+    # used since ruling R6, is removed; the block reads the causes as they are.
+    assert set(inspect.signature(review_causes).parameters) == {"answer", "missing_facts"}
+
+
 def test_the_rules_of_each_cause_read_the_answer_fields():
     high = {"risk_category": "high_risk", "unacceptable_risk": False, "fact_conflicts": [], "area_conflicts": [],
             "annex_iii_area_unconfirmed": None, "high_risk_routes": ["article_6_2"],
@@ -286,7 +292,6 @@ def test_the_rules_of_each_cause_read_the_answer_fields():
     assert review_causes(candidate) == ["article_6_3_candidate"]
     both = {**candidate, "high_risk_routes": ["article_6_1", "article_6_2"]}
     assert review_causes({**both, "annex_i_section": "A"}) == []
-    assert review_causes({**both, "annex_i_section": "A"}, for_fria=True) == ["article_6_3_candidate"]
     assert review_causes({**both, "annex_i_section": "B"}) == ["article_6_3_candidate"]
     # Ruling R5: with a listed use that is true an unknown section could be B,
     # where the derogation changes what is served; with only a point that
@@ -296,7 +301,6 @@ def test_the_rules_of_each_cause_read_the_answer_fields():
     beside_area = {**candidate, "high_risk_routes": ["article_6_1"],
                    "annex_iii_area_unconfirmed": "eu-ai-act:annex-iii:point-3"}
     assert review_causes({**beside_area, "annex_i_section": "unknown"}) == []
-    assert review_causes({**beside_area, "annex_i_section": "unknown"}, for_fria=True) == ["article_6_3_candidate"]
     # Fix round 1 (the coordinator's ruling): with only a point that rests on
     # the area, a known Section B adds no cause either; the unknown listed use
     # keeps such an answer under review.
@@ -583,7 +587,11 @@ def test_the_candidate_lines_follow_the_returned_value(answered):
         has_point = a.get("annex_iii_category") or a.get("annex_iii_area_unconfirmed")
         if a.get("risk_category") == "high_risk" and has_point:
             cites_6_4 = ARTICLE_6_4 in env["source_nodes"]
-            if cites_6_4 != (a["article_6_3_exception_candidate"] is True):
+            # Ruling R10 (the final fix wave): beside a proven Article 6(1)
+            # route a point that only rests on the area cites no Article 6(4).
+            area_only_beside_6_1 = a["high_risk_routes"] == ["article_6_1"] and not a.get("annex_iii_category")
+            expected = a["article_6_3_exception_candidate"] is True and not area_only_beside_6_1
+            if cites_6_4 != expected:
                 broken.append(name)
     assert broken == []
 
@@ -655,7 +663,13 @@ def _expected_message(a: dict[str, Any], env: dict[str, Any], causes: list[str])
         return MINIMAL_MESSAGE
     if level == "high_risk" and a.get("annex_i_section") == "B" and a["high_risk_routes"] == ["article_6_1"]:
         unknown = "listed_use_unknown" in causes or a.get("annex_iii_area_unconfirmed")
-        return SECTION_B_ANNEX_III_UNKNOWN_MESSAGE if unknown else SECTION_B_MESSAGE
+        message = SECTION_B_ANNEX_III_UNKNOWN_MESSAGE if unknown else SECTION_B_MESSAGE
+        # The final fix wave, item 3: every cause that holds, in the spec's
+        # order, by the reasons of D-G92 (8), after the Article 2(2) message.
+        if causes:
+            message += (" The answer is provisional pending the human-review determination of the "
+                        "classification: " + "; ".join(REVIEW_CAUSE_REASONS[c] for c in causes) + ".")
+        return message
     if level == "unacceptable_risk":
         points = sorted({n for n in env["source_nodes"] if n.startswith("eu-ai-act:article-5:paragraph-1:point-")})
         message = PROHIBITED_MESSAGE_POINT_H if points == [ARTICLE_5_POINT_H] else PROHIBITED_MESSAGE
@@ -734,6 +748,9 @@ UNDETERMINED_FALLBACK_FACT = (
 )
 
 
+SECTION_B_CAUSES_FACT_START = "the classification stands for human review: "
+
+
 def test_an_envelope_and_its_bare_answer_read_alike(answered, served):
     # The status, confidence, provisional flag, note, message, requirements
     # served and dates are the same. The missing facts differ only by the
@@ -759,10 +776,31 @@ def test_an_envelope_and_its_bare_answer_read_alike(answered, served):
             return (m not in classification_missing
                     and m not in (UNSETTLED_FALLBACK_FACT, UNDETERMINED_FALLBACK_FACT,
                                   SECTION_B_LISTED_USE_UNKNOWN_FACT)
-                    and not m.startswith(AREA_UNCONFIRMED_FACT_START))
+                    and not m.startswith(AREA_UNCONFIRMED_FACT_START)
+                    # The final fix wave, item 3: the line of the causes a bare
+                    # Section B answer gives in place of the classification's lines.
+                    and not m.startswith(SECTION_B_CAUSES_FACT_START))
 
         added_envelope = [m for m in from_envelope["missing_facts"] if kept(m)]
         added_bare = [m for m in from_bare["missing_facts"] if kept(m)]
         if added_envelope != added_bare:
             broken.append(name)
     assert broken == []
+
+
+# The final fix wave, item 8 (the first final review, M1) ---------------------
+
+def test_the_area_field_is_null_on_every_answer_whose_level_is_not_high_risk(dump, answered):
+    # An unacceptable_risk answer with an area domain and no listed use true:
+    # the domain names a point, and still the field is null off high_risk.
+    flags = {k: v for k, v in all_false(facial_image_scraping=True).items() if k != "annex_iii_3a_admission"}
+    env = classify_ai_system(case(flags, domain="education"), dump)
+    assert env["answer"]["risk_category"] == "unacceptable_risk"
+    assert env["answer"]["annex_iii_listed_uses"] == []
+    assert env["answer"]["annex_iii_area_unconfirmed"] is None
+    # And over the table cases and the generated set.
+    wrong = [name for name, _f, e in answered
+             if e["answer"].get("risk_category") != "high_risk" and e["answer"].get("annex_iii_area_unconfirmed")]
+    assert wrong == []
+    assert any(e["answer"].get("risk_category") == "unacceptable_risk" and _f.get("domain") not in
+               (None, "none_of_these_areas") for _n, _f, e in answered)

@@ -169,6 +169,12 @@ REQUIREMENTS_SECTION_B_ANNEX_III_UNKNOWN = (
     "whether one does are unknown (see the missing facts); the provisions are cited, without norms, "
     "until they are known."
 )
+# The final fix wave, item 3: the Article 2(2) answer of a classification
+# marked for review names every cause, as the provisional note says them.
+REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE = (
+    " The answer is provisional pending the human-review determination of the classification: an unknown "
+    "Annex III listed use could put the system on the Annex III route."
+)
 
 
 def _features(
@@ -322,7 +328,7 @@ AREA_CASES: dict[str, dict[str, Any]] = {
         "t6": {"fria": "unknown", "fria_rationale": [FRIA_AREA_BESIDE_ARTICLE_6_1_POINT_3, FRIA_OTHER_CAUSES_LISTED_USE],
                "fria_missing": [FRIA_BESIDE_UNKNOWN_USE_POINT_3], "status_causes": ["listed_use_unknown"]},
         "t7": {"requirements_status": REVIEW, "requirements_note": None,
-               "requirements_message": REQUIREMENTS_SECTION_B_ANNEX_III_UNKNOWN}},
+               "requirements_message": REQUIREMENTS_SECTION_B_ANNEX_III_UNKNOWN + REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE}},
     },
     "C12": {
         "features": _features(absent=("annex_iii_3a_admission", "annex_i_section_b_legislation"), **P61),

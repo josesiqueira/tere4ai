@@ -271,6 +271,62 @@ def test_domain_choices_and_refusal_run_under_node():
     assert out["unknown"] == {"value": None, "refused": None}
 
 
+def test_assess_page_words_of_the_final_fix_wave():
+    # B185, the final fix wave, item 12 (the clients' review, M2, M3, M4).
+    page = (ASSESS / "page.tsx").read_text()
+    # (i) The candidate's label is the other clients' one, and the candidate,
+    # the area point and the area conflicts are not shown under a rejected input.
+    assert "Article 6(3) derogation candidate:" in page
+    assert "exception candidate" not in page
+    for field in ("classification.answer.annex_iii_area_unconfirmed &&",
+                  "(classification.answer.area_conflicts ?? []).length > 0 &&"):
+        at = page.index(field)
+        assert 'classification.status !== "rejected_as_unsupported" &&' in page[at - 90:at], field
+    at = page.index("Article 6(3) derogation candidate:")
+    assert 'classification.status !== "rejected_as_unsupported" && (' in page[at - 300:at]
+    # (ii) An area conflict is printed by its fact only: its note is among the
+    # missing facts.
+    assert "conflict.note" not in page
+    # (iii) The refusal paragraph is tied to the select.
+    select = page[page.index('id="domain"'):page.index("</select>", page.index('id="domain"'))]
+    assert "aria-describedby" in select and '"domain-refusal"' in select
+    assert 'id="domain-refusal"' in page
+    # (iv) No sentence that contradicts the refusal: the domain was left
+    # unknown, and it can be chosen only while the list can be used.
+    assert "choose one of the values" not in page
+    assert "The domain was left unknown and can be chosen in the list." in page
+    refusal = page[page.index('id="domain-refusal"'):page.index("</p>", page.index('id="domain-refusal"'))]
+    assert 'flagSchema.kind === "ready"' in refusal and '"The domain was left unknown."' in refusal
+
+
+def test_the_demo_refusal_cuts_and_escapes_as_the_classifier_does():
+    # B185, the final fix wave, item 5: the demo's refusal of a stored domain
+    # follows the classifier's rule (removed_facts.domain_value_shown).
+    import shutil
+    import subprocess
+
+    from tere4ai.mcp_server.removed_facts import domain_refusal
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    major = int(subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip().lstrip("v").split(".")[0])
+    if major < 22:
+        pytest.skip("node older than 22 cannot strip types")
+    values = ["b" * 200, "x\x1b[31m\ny", "é" * 90, "c" * 80, "banking", "😀" * 85, "a$&b$'c"]
+    module = (ASSESS / "schemaFacts.ts").resolve().as_uri()
+    payload = json.dumps({"schema": _domain_schema()})
+    script = (
+        f"import({json.dumps(module)}).then((m) => {{ const p = {payload}; const v = {json.dumps(values)};"
+        "console.log(JSON.stringify(v.map((x) => m.domainOfSchema(x, p).refused))); })"
+    )
+    out = json.loads(subprocess.run(
+        [node, "--experimental-strip-types", "--no-warnings", "-e", script],
+        capture_output=True, text=True, check=True,
+    ).stdout)
+    assert out == [domain_refusal(v) for v in values]
+
+
 def test_assess_page_drops_restored_keys_the_schema_lacks_before_classifying():
     # B184 Task 8, fix round 1 (I2): a permalink made before the card carries
     # removed facts. Once the schema is read, the page keeps only the schema's

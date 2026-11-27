@@ -88,8 +88,17 @@ DESCRIPTION_SENTENCES = (
     "law_enforcement, migration, justice, none_of_these_areas, or unknown; any other value is refused with a "
     "message, and no value of domain reads a listed use as false. area_conflicts names each listed use that is "
     "true while domain is none_of_these_areas; the answer then requires human review. "
-    "article_6_3_exception_candidate describes the Annex III part of the answer: true, false, or null when an "
-    "Article 6(3) condition is unknown and none is true. A refused input carries no fria block (null)."
+    "article_6_3_exception_candidate describes the Annex III part of the answer: true, false (always when "
+    "profiling is true), or null when an Article 6(3) condition is unknown, none is true and profiling is not "
+    "true. A refused input carries no fria block (null)."
+)
+# The final fix wave, item 10: when the area gives the level, the four
+# conditions of the schema's description of domain.
+AREA_SENTENCE = (
+    "The area gives the level only when no listed use of any point is true, a listed use of the named area is "
+    "unknown, the Article 6(1) route is not proven and no prohibition applies: the level is then high_risk on "
+    "the area alone and the answer requires human review; beside a proven Article 6(1) route the Annex III "
+    "scope is not confirmed."
 )
 ANNEX_III_CATEGORY_SENTENCE = (
     "annex_iii_category is the first matching point when Annex III decided the level, and is null when the "
@@ -431,8 +440,39 @@ def test_v10_example_validates_and_carries_no_domain():
 
 
 def test_v10_example_says_why_it_has_no_domain():
+    # The final fix wave, item 11 (i): the sentence the first final review
+    # found garbled ("Its scope sentence places the chatbot in no area the
+    # description names") says what places the chatbot nowhere.
     before = _flat(V10[V10.index("## Output"):V10.index("```text")])
-    assert "places the chatbot in no area" in before
+    assert ("Example. The description places the chatbot in none of the listed uses of the eight areas, so the "
+            "reply leaves out domain, and it answers each listed use of point 5 false from the scope sentence."
+            ) in before
+    assert "no area the description names" not in before
+
+
+# The final fix wave, item 11 (ii) (Codex's final review, finding 2): the facts
+# of Article 50(1) and (2) keep their meaning (D-G92 (7)) and are answered by
+# what the system does, whatever exception of the paragraph applies, while the
+# two facts of Article 50(4) are answered with their exceptions.
+ARTICLE_50_SENTENCE = (
+    "The facts of Article 50(1) and (2) are answered by what the system does, whatever exception of the "
+    "paragraph applies: interacts_with_natural_persons is true for a system intended to interact directly with "
+    "natural persons, even where the interaction is obvious to the person (an obviously labelled chatbot still "
+    "interacts with natural persons: true), and generates_synthetic_content is true for a system that generates "
+    "synthetic audio, image, video or text content, even where the paragraph's exceptions (assistive editing, a "
+    "use authorised by law) apply. Do not answer false for an excepted case. The two facts of Article 50(4) "
+    "below are different: each is answered with the exceptions its subparagraph states."
+)
+
+
+def test_v10_says_the_article_50_1_and_2_facts_ignore_the_paragraphs_exceptions():
+    section = _flat(V10[V10.index("### Article 50 transparency facts"):V10.index("### Article 50(4)")])
+    assert ARTICLE_50_SENTENCE in section
+    # It stands where the prompt gives those paragraphs, before their facts.
+    assert section.index(ARTICLE_50_SENTENCE) < section.index("- Facts: flags.interacts_with_natural_persons")
+    # Article 50(4)'s facts still answer false where their exceptions apply.
+    fourth = _flat(V10[V10.index("### Article 50(4)"):V10.index("## Output")])
+    assert "A use authorised by law to detect, prevent, investigate or prosecute criminal offences is false" in fourth
 
 
 def test_v10_example_answers_every_point_5_listed_use_false_and_classifies_without_contradiction(dump):
@@ -474,6 +514,14 @@ def test_a_proposed_none_of_these_areas_is_dropped_under_v10(dump):
 def test_the_tool_description_names_the_new_fields_word_for_word():
     served = _docstring("classify_ai_system")
     assert ANNEX_III_CATEGORY_SENTENCE + " " + DESCRIPTION_SENTENCES in served
+
+
+def test_the_tool_description_says_when_the_area_gives_the_level_and_what_profiling_does():
+    # The final fix wave, item 10 (Codex's final review, finding 4).
+    served = _docstring("classify_ai_system")
+    assert AREA_SENTENCE in served
+    assert "null when an Article 6(3) condition is unknown, none is true and profiling is not true" in served
+    assert "unknown and none is true." not in served
 
 
 def test_the_tool_description_says_an_article_50_duty_can_be_a_subparagraph():

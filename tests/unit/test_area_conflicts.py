@@ -25,7 +25,6 @@ from tests.unit.area_cases import AREA_CASES, AREA_RULED_OUT_POINT_3, P61, _feat
 
 from tere4ai.mcp_server.classify import (
     AREA_CONFLICT_NOTE,
-    AREA_CONFLICT_STATUS_LINE,
     PROHIBITED_PRACTICE_NOTE_MARK,
     PROHIBITION_AREA_CONFLICT_CLAUSE,
     PROHIBITION_FACT_CONFLICT_CLAUSE,
@@ -41,6 +40,7 @@ from tere4ai.mcp_server.fria import (
 from tere4ai.mcp_server.requirements import PROHIBITED_MESSAGE, get_applicable_requirements
 from tere4ai.mcp_server.review_causes import (
     review_causes,
+    review_status_line,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -74,10 +74,6 @@ def test_the_fixed_words():
         "a listed use of Annex III is true while the domain says none of these areas (area_conflicts), so one "
         "of the two answers is wrong"
     )
-    assert AREA_CONFLICT_STATUS_LINE == (
-        "status lowered to requires_human_review: a listed use is true while domain is none_of_these_areas: "
-        "see area_conflicts"
-    )
 
 
 def test_none_of_these_areas_beside_a_true_listed_use_is_an_area_conflict(dump):  # C5
@@ -88,7 +84,10 @@ def test_none_of_these_areas_beside_a_true_listed_use_is_an_area_conflict(dump):
     assert a["fact_conflicts"] == [] and a["annex_iii_category"] == "eu-ai-act:annex-iii:point-4"
     assert env["status"] == "requires_human_review" and env["confidence"] == 0.5
     assert a["area_conflicts"][0]["note"] in env["missing_facts"]
-    assert AREA_CONFLICT_STATUS_LINE in a["rationale"]
+    # The status line of the cause area_conflict (review_causes.py, worded in
+    # test_review_causes.py; the constant classify.py kept of it had no reader
+    # and left with the final fix wave, item 7).
+    assert review_status_line("area_conflict", a) in a["rationale"]
     # The mark reaches the Article 27 block, computed after it.
     assert a["fria"]["applicability"] == "unknown"
 

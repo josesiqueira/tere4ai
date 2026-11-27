@@ -240,7 +240,10 @@ def test_article_6_1_exit_with_an_unconfirmed_area_carries_the_candidate(dump):
     assert a["high_risk_routes"] == ["article_6_1"] and a["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-3"
     assert a["article_6_3_exception_candidate"] is True
     assert env["status"] == "potentially_applicable" and env["confidence"] == 1.0
-    assert ARTICLE_6_3_BOTH_ROUTES_NOTE in env["legal_status_notes"] and ARTICLE_6_4_LINE in env["legal_status_notes"]
+    # Ruling R10 (the final fix wave): with a point that only rests on the
+    # area, no Article 6(4) line and no both-routes line; the field stays.
+    assert ARTICLE_6_3_BOTH_ROUTES_NOTE not in env["legal_status_notes"]
+    assert ARTICLE_6_4_LINE not in env["legal_status_notes"]
     # B185 Task 6 (spec G D-G92 (v), passage (k)): beside the Article 6(1)
     # route the block gives the area's sentence; on a Section A product the
     # candidate is no cause of review, so no sentence says the classification
@@ -327,4 +330,110 @@ def test_section_b_product_with_an_unconfirmed_area_and_a_candidate_stays_marked
     assert a["high_risk_routes"] == ["article_6_1"] and a["annex_i_section"] == "B"
     assert a["article_6_3_exception_candidate"] is True
     assert env["status"] == "requires_human_review" and env["confidence"] == 0.5
-    assert ARTICLE_6_3_BOTH_ROUTES_NOTE in env["legal_status_notes"]
+    # Ruling R10 (the final fix wave): no both-routes note, no Article 6(4).
+    assert ARTICLE_6_3_BOTH_ROUTES_NOTE not in env["legal_status_notes"]
+    assert ARTICLE_6_4_LINE not in env["legal_status_notes"]
+
+
+# Ruling R10 (the final fix wave; the first final review, I1): on the Article
+# 6(1) exit with a point that only rests on the area (routes [article_6_1], no
+# listed use true), a true candidate brings no citation of Article 6(3), its
+# points or Article 6(4), no Article 6(4) line and no both-routes line, on
+# Section A, B and unknown; the field stays as computed, and the dates are
+# those of the Article 6(1) route alone (D-G92 (vii)).
+POINT_C_I = "eu-ai-act:article-113:paragraph-1:point-c:point-i"
+ARTICLE_6_3_POINTS = tuple(node for _flag, points, _label in ARTICLE_6_3_CONDITIONS for node in points)
+BOTH_ROUTES_LINE_A = ARTICLE_6_3_BOTH_ROUTES_LINE.format(
+    label="narrow procedural task (point a)", flag="narrow_procedural_task")
+
+
+@pytest.mark.parametrize("section", [False, True, None], ids=["A", "B", "unknown"])
+def test_r10_a_point_that_only_rests_on_the_area_cites_nothing_of_article_6_3_or_6_4(dump, section):
+    extra = {} if section is None else {"annex_i_section_b_legislation": section}
+    absent = ("annex_iii_3a_admission",) + (("annex_i_section_b_legislation",) if section is None else ())
+    features = _features(true=("narrow_procedural_task",), absent=absent, **P61, **extra)
+    env = classify_ai_system(features, dump)
+    a = env["answer"]
+    assert a["risk_category"] == "high_risk" and a["high_risk_routes"] == ["article_6_1"]
+    assert a["annex_iii_category"] is None and a["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-3"
+    assert a["article_6_3_exception_candidate"] is True
+    cited = set(env["source_nodes"])
+    assert not cited & {ARTICLE_6_3, ARTICLE_6_PARAGRAPH_4, *ARTICLE_6_3_POINTS}
+    dated = {entry["provision"] for entry in a["application_dates"]}
+    assert not dated & {ARTICLE_6_3, ARTICLE_6_PARAGRAPH_4, *ARTICLE_6_3_POINTS}
+    texts = [*a["rationale"], *env["legal_status_notes"]]
+    assert ARTICLE_6_4_LINE not in texts and ARTICLE_6_3_BOTH_ROUTES_NOTE not in texts
+    assert BOTH_ROUTES_LINE_A not in texts
+    # Dated as on the Article 6(1) route alone: no date of Article 113(c)(i),
+    # the Annex III point, is given.
+    assert a["application_dates"]
+    assert not any(entry["basis_node"] == POINT_C_I for entry in a["application_dates"])
+
+
+@pytest.mark.parametrize("section", [False, True, None], ids=["A", "B", "unknown"])
+def test_r10_a_confirmed_listed_use_beside_article_6_1_keeps_the_citations_and_lines(dump, section):
+    extra = {} if section is None else {"annex_i_section_b_legislation": section}
+    absent = ("annex_i_section_b_legislation",) if section is None else ()
+    features = _features(true=("narrow_procedural_task", "annex_iii_3a_admission"), absent=absent, **P61, **extra)
+    env = classify_ai_system(features, dump)
+    a = env["answer"]
+    assert a["high_risk_routes"] == ["article_6_1", "article_6_2"]
+    assert a["article_6_3_exception_candidate"] is True
+    cited = set(env["source_nodes"])
+    assert {ARTICLE_6_3, ARTICLE_6_PARAGRAPH_4, POINT_A} <= cited
+    dated = {entry["provision"] for entry in a["application_dates"]}
+    assert {ARTICLE_6_3, ARTICLE_6_PARAGRAPH_4} <= dated
+    assert ARTICLE_6_4_LINE in env["legal_status_notes"]
+    if section is True:
+        # A Section B product with a true listed use takes the Annex III exit
+        # (R26), whose candidate lines are the "rule article_6_3:" ones.
+        assert any(line.startswith("rule article_6_3:") for line in a["rationale"])
+    else:
+        assert ARTICLE_6_3_BOTH_ROUTES_NOTE in env["legal_status_notes"]
+        assert BOTH_ROUTES_LINE_A in a["rationale"]
+
+
+# Ruling R10 as extended by the coordinator to its whole case (the final fix
+# wave, addendum): on the Article 6(1) exit with a point that only rests on the
+# area, nothing of Article 6(3) or 6(4) is cited or dated and no line about the
+# derogation is written, whatever the candidate; the missing-fact lines that
+# name unknown facts and the candidate field stay.
+PROFILING_OVERRIDE = "eu-ai-act:article-6:paragraph-3:subparagraph-3"
+ARTICLE_6_3_NODES = {ARTICLE_6_3, ARTICLE_6_PARAGRAPH_4, PROFILING_OVERRIDE, *ARTICLE_6_3_POINTS}
+
+
+@pytest.mark.parametrize("section", [False, True, None], ids=["A", "B", "unknown"])
+@pytest.mark.parametrize("profiling,candidate", [(True, False), (None, True)], ids=["profiling_true", "profiling_unknown"])
+def test_r10_whole_case_nothing_of_article_6_3_beside_article_6_1_with_an_area_point(
+    dump, section, profiling, candidate
+):
+    extra = {} if section is None else {"annex_i_section_b_legislation": section}
+    absent = ["annex_iii_3a_admission"]
+    if section is None:
+        absent.append("annex_i_section_b_legislation")
+    if profiling is None:
+        absent.append("profiling_of_natural_persons")
+    else:
+        extra["profiling_of_natural_persons"] = profiling
+    features = _features(true=("narrow_procedural_task",), absent=tuple(absent), **P61, **extra)
+    env = classify_ai_system(features, dump)
+    a = env["answer"]
+    assert a["high_risk_routes"] == ["article_6_1"] and a["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-3"
+    assert a["article_6_3_exception_candidate"] is candidate
+    assert not set(env["source_nodes"]) & ARTICLE_6_3_NODES
+    assert not {entry["provision"] for entry in a["application_dates"]} & ARTICLE_6_3_NODES
+    assert not any(line.startswith(("rule article_6_3", "Article 6(3) condition")) for line in a["rationale"])
+    assert ARTICLE_6_4_LINE not in env["legal_status_notes"]
+    assert ARTICLE_6_3_BOTH_ROUTES_NOTE not in env["legal_status_notes"]
+    profiling_line = [m for m in env["missing_facts"] if m.startswith("flags.profiling_of_natural_persons is unknown")]
+    # The missing-fact line naming the unknown profiling fact stays.
+    assert len(profiling_line) == (1 if profiling is None else 0)
+
+
+def test_r10_whole_case_profiling_true_beside_a_confirmed_listed_use_keeps_the_override(dump):
+    features = _features(true=("narrow_procedural_task", "annex_iii_3a_admission"), **P61,
+                         annex_i_section_b_legislation=False, profiling_of_natural_persons=True)
+    env = classify_ai_system(features, dump)
+    assert env["answer"]["article_6_3_exception_candidate"] is False
+    assert PROFILING_OVERRIDE in env["source_nodes"]
+    assert any(line.startswith("rule article_6_3_profiling:") for line in env["answer"]["rationale"])

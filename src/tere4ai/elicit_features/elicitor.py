@@ -222,8 +222,12 @@ def _is_unknown(value: Any) -> bool:
 def _without_unknowns(features: dict[str, Any]) -> dict[str, Any]:
     """features without the fields that state no fact (None or an empty
     list, and a deployer key set to None): such a field is unknown, so it
-    needs no quote and is not a dropped fact (B10 final review)."""
-    kept = {k: v for k, v in features.items() if not _is_unknown(v)}
+    needs no quote and is not a dropped fact (B10 final review). B185, the
+    final fix wave (item 6): `domain` is unknown only when null; any other
+    value that is not a string (an empty list among them) is kept here, so
+    that _drop_domain drops it and names it with the reason of a value
+    outside the list."""
+    kept = {k: v for k, v in features.items() if not (v is None if k == "domain" else _is_unknown(v))}
     deployer = kept.get("deployer")
     if isinstance(deployer, dict):
         kept["deployer"] = {k: v for k, v in deployer.items() if v is not None}
@@ -235,8 +239,10 @@ def _drop_domain(features: dict[str, Any]) -> tuple[dict[str, Any], list[dict[st
     dropped entry naming it (B185, ruling P3).
 
     none_of_these_areas is never taken from a proposal (DEC-33, spec G D-G92
-    (iii)); a value that is not a value of the schema is dropped with the
-    schema's refusal (domain_refusal, ruling P30). A null or absent domain,
+    (iii)); a value that is not a value of the schema, whatever its type (a
+    number, true or false, an object, a list, an empty list included), is
+    dropped with the schema's refusal (domain_refusal, ruling P30), and the
+    valid facts of the reply are kept. A null or absent domain,
     or a value of the list that names an area, is kept as it is. The input
     is never changed.
 

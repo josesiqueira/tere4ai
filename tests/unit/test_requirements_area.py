@@ -26,7 +26,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from tests.unit.area_cases import AREA_CASES, DEPLOYER, P61, _features
+from tests.unit.area_cases import (
+    AREA_CASES,
+    DEPLOYER,
+    P61,
+    REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE,
+    _features,
+)
 from tests.unit.b184_cases import all_false, case
 
 from tere4ai.mcp_server.application_dates import ROUTE_ANNEX_I, ROUTE_ANNEX_III, provision_dates
@@ -152,8 +158,8 @@ def test_section_b_with_an_area_is_served_as_section_b_and_unsettled(dump, norms
         a = given["answer"]
         assert (given["status"], given["confidence"]) == ("requires_human_review", 0.5)
         assert a["requirements_by_article"] == {} and "article_2_2" in a
-        assert a["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE
-        assert given["legal_status_notes"] == [SECTION_B_ANNEX_III_UNKNOWN_MESSAGE]
+        assert a["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE + REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE
+        assert given["legal_status_notes"] == [SECTION_B_ANNEX_III_UNKNOWN_MESSAGE + REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE]
         assert a["application_dates"] == {n: provision_dates(n, dump, ROUTE_ANNEX_I) for n in provisions}
         assert "provisional_note" not in a
     assert any("Annex III high-risk relevant" in m for m in env["missing_facts"])
@@ -269,7 +275,7 @@ def test_a_section_b_product_with_a_listed_use_unknown_reads_the_same_bare(dump,
     assert cls["answer"]["annex_iii_area_unconfirmed"] is None and cls["status"] == "requires_human_review"
     for given in (env, bare):
         assert given["status"] == "requires_human_review"
-        assert given["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE
+        assert given["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE + REQUIREMENTS_SECTION_B_REVIEW_LISTED_USE
     assert _view(env) == _view(bare)
 
 
@@ -370,8 +376,11 @@ def test_case_b_section_b_product_with_the_real_time_fact_unknown_gets_the_unkno
     features = _real_time_unknown(**P61, annex_i_section_b_legislation=True)
     cls, env, bare = _both(features, dump, norms)
     assert cls["answer"]["high_risk_routes"] == ["article_6_1"] and cls["answer"]["annex_i_section"] == "B"
+    # The final fix wave, item 3: the message names both causes, in order.
+    sentence = (" The answer is provisional pending the human-review determination of the classification: "
+                + review_reason(["article_5_unknown", "listed_use_unknown"]) + ".")
     for given in (env, bare):
-        assert given["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE
+        assert given["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE + sentence
         assert given["status"] == "requires_human_review"
     assert _view(env) == _view(bare)
 
@@ -386,3 +395,124 @@ def test_the_real_time_fact_with_point_h_ruled_out_reads_as_before(dump, norms):
     assert [line for line in a["rationale"] if line.startswith("status lowered")] == [LISTED_USE_STATUS_LINE]
     for given in (env, bare):
         assert given["answer"]["provisional_note"] == _note("listed_use_unknown")
+
+
+# The final fix wave, item 3 (Codex's final review, finding 1) ----------------
+
+def test_a_section_b_answer_names_every_cause_from_the_envelope_and_the_bare_answer(dump, norms):
+    # Codex's example: a Section B product on the Article 6(1) route alone,
+    # every listed use false, facial_image_scraping absent: the cause of
+    # review is the unknown Article 5 fact, which the Article 2(2) answer
+    # explained only as Article 2(2) did.
+    from tere4ai.mcp_server.requirements import (
+        SECTION_B_CAUSES_FACT,
+        SECTION_B_MESSAGE,
+        SECTION_B_REVIEW_SENTENCE,
+    )
+
+    flags = {k: v for k, v in all_false(**P61, annex_i_section_b_legislation=True).items()
+             if k != "facial_image_scraping"}
+    env = classify_ai_system(case(flags), dump)
+    assert env["status"] == "requires_human_review"
+    assert env["answer"]["annex_i_section"] == "B" and env["answer"]["high_risk_routes"] == ["article_6_1"]
+    from_envelope = get_applicable_requirements(env, norms, dump)
+    from_bare = get_applicable_requirements(env["answer"], norms, dump)
+    reasons = review_reason(["article_5_unknown"])
+    expected = SECTION_B_MESSAGE + SECTION_B_REVIEW_SENTENCE.format(reasons=reasons)
+    for served in (from_envelope, from_bare):
+        assert served["status"] == "requires_human_review"
+        assert served["answer"]["message"] == expected
+        assert served["legal_status_notes"] == [expected]
+    assert REVIEW_CAUSE_REASONS["article_5_unknown"] in expected
+    # The envelope keeps the classification's own line naming the fact; the
+    # bare answer, which carries none, names the cause instead of the fallback.
+    assert any(m.startswith("flags.facial_image_scraping is unknown") for m in from_envelope["missing_facts"])
+    assert SECTION_B_CAUSES_FACT.format(reasons=reasons) in from_bare["missing_facts"]
+    assert UNSETTLED_FALLBACK_FACT not in from_bare["missing_facts"]
+
+
+def test_a_section_b_answer_with_several_causes_names_them_in_the_spec_order(dump, norms):
+    from tere4ai.mcp_server.requirements import SECTION_B_CAUSES_FACT, SECTION_B_REVIEW_SENTENCE
+
+    flags = {k: v for k, v in all_false(**P61, annex_i_section_b_legislation=True).items()
+             if k not in ("facial_image_scraping", "annex_iii_4a_recruitment")}
+    env = classify_ai_system(case(flags), dump)
+    causes = review_causes_of_answer(env["answer"], env["missing_facts"])
+    assert causes == ["article_5_unknown", "listed_use_unknown"]
+    sentence = SECTION_B_REVIEW_SENTENCE.format(reasons=review_reason(causes))
+    for served in (get_applicable_requirements(env, norms, dump),
+                   get_applicable_requirements(env["answer"], norms, dump)):
+        assert served["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE + sentence
+    bare = get_applicable_requirements(env["answer"], norms, dump)
+    # The unknown listed use is named by its own line; the line of the causes
+    # names only the cause no other line names.
+    assert SECTION_B_LISTED_USE_UNKNOWN_FACT in bare["missing_facts"]
+    assert SECTION_B_CAUSES_FACT.format(reasons=review_reason(["article_5_unknown"])) in bare["missing_facts"]
+
+
+def test_a_settled_section_b_answer_gains_no_sentence(dump, norms):
+    from tere4ai.mcp_server.requirements import SECTION_B_MESSAGE
+
+    env = classify_ai_system(case(all_false(**P61, annex_i_section_b_legislation=True)), dump)
+    assert env["status"] == "potentially_applicable"
+    for served in (get_applicable_requirements(env, norms, dump),
+                   get_applicable_requirements(env["answer"], norms, dump)):
+        assert served["answer"]["message"] == SECTION_B_MESSAGE
+        assert served["status"] == "potentially_applicable"
+
+
+def test_a_bare_section_b_answer_with_an_area_and_no_status_line_stays_open(dump, norms):
+    # The final fix wave, item 7: the clause that reads annex_iii_area_unconfirmed
+    # for a Section B answer decides this case and only this one: a bare answer
+    # built by hand, with an area and no status line (its rationale stripped).
+    from tere4ai.mcp_server.requirements import SECTION_B_AREA_UNCONFIRMED_FACT
+
+    flags = {k: v for k, v in all_false(**P61, annex_i_section_b_legislation=True).items()
+             if k != "annex_iii_3a_admission"}
+    env = classify_ai_system(case(flags, domain="education"), dump)
+    assert env["answer"]["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-3"
+    bare = {**env["answer"], "rationale": []}
+    assert review_causes_of_answer(bare) == []
+    served = get_applicable_requirements(bare, norms, dump)
+    assert served["answer"]["message"] == SECTION_B_ANNEX_III_UNKNOWN_MESSAGE
+    assert served["status"] == "requires_human_review"
+    assert SECTION_B_AREA_UNCONFIRMED_FACT.format(point="eu-ai-act:annex-iii:point-3") in served["missing_facts"]
+
+
+# The final fix wave, item 4 (the first final review, M10) ----------------------
+
+@pytest.mark.parametrize("field,value,got", [
+    ("missing_facts", 3, "int"),
+    ("missing_facts", "flags.x is unknown", "str"),
+    ("missing_facts", {"a": 1}, "dict"),
+    ("missing_facts", ["a line", 3], "a list holding int"),
+    ("missing_facts", [["nested"]], "a list holding list"),
+    ("source_nodes", 7, "int"),
+    ("source_nodes", ["eu-ai-act:article-5", None], "a list holding NoneType"),
+    ("confidence", "high", "str"),
+    ("confidence", True, "bool"),
+])
+def test_a_malformed_envelope_is_refused_with_words_never_an_exception(dump, norms, field, value, got):
+    from tere4ai.mcp_server.requirements import MALFORMED_CLASSIFICATION
+    from tere4ai.mcp_server.trace_code import trace_implementation
+
+    expected = {"missing_facts": "a list of strings", "source_nodes": "a list of strings",
+                "confidence": "a number"}[field]
+    refusal = MALFORMED_CLASSIFICATION.format(field=field, expected=expected, got=got)
+    for features in (case(all_false(annex_iii_4a_recruitment=True)), case(all_false(facial_image_scraping=True)),
+                     case(all_false(**P61, annex_i_section_b_legislation=True))):
+        env = classify_ai_system(features, dump)
+        env[field] = value
+        served = get_applicable_requirements(env, norms, dump)
+        assert served["answer"] is None
+        assert served["status"] == "requires_human_review" and served["confidence"] == 0.0
+        assert served["missing_facts"] == [refusal]
+        traced = trace_implementation(env, [], norms, {"alignments": []}, dump)
+        assert traced["status"] == "requires_human_review" and traced["missing_facts"] == [refusal]
+
+
+def test_a_null_field_of_the_envelope_is_read_as_absent(dump, norms):
+    env = classify_ai_system(case(all_false(facial_image_scraping=True)), dump)
+    for field in ("missing_facts", "source_nodes", "confidence"):
+        served = get_applicable_requirements({**env, field: None}, norms, dump)
+        assert served["answer"] is not None and served["answer"]["risk_category"] == "unacceptable_risk", field

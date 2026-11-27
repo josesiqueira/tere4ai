@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 import pytest
+from tests.unit.b184_cases import ARTICLE_50_TRIGGER_FLAGS
 
 from tere4ai.mcp_server import classify as classify_module
 from tere4ai.mcp_server.classify import (
@@ -18,6 +19,7 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_5_POINT_BY_FLAG,
     ARTICLE_5_POINT_H,
     ARTICLE_6_1_FLAGS,
+    ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT,
     classify_ai_system,
 )
 from tere4ai.mcp_server.review_causes import review_causes, review_status_line
@@ -514,8 +516,11 @@ def _without(flags: dict, *names: str) -> dict:
 
 def test_lift_case_annex_i_unknown_is_named_and_not_minimal(dump, node_ids):
     """The brief's lift example: every fact false except the two Article
-    6(1) facts, which are absent. Never a confident minimal; only the Annex
-    I fact is named (R1); the FRIA block follows the level."""
+    6(1) facts, which are absent. Never a confident minimal; the FRIA block
+    follows the level. Both facts are named, once each (B185, ruling R9,
+    which replaces ruling R1 of B123): answered false, the third-party
+    assessment rules the route out (R4) and the answer becomes minimal_risk,
+    so leaving it unnamed read its absence as a silent no."""
     features = {
         "description": "Vision module that detects a jammed lift door.",
         "flags": _without(all_false_flags(), *ARTICLE_6_1_FLAGS),
@@ -525,12 +530,19 @@ def test_lift_case_annex_i_unknown_is_named_and_not_minimal(dump, node_ids):
     assert envelope["answer"]["risk_category"] == "undetermined"
     assert envelope["status"] == "requires_human_review"
     assert envelope["missing_facts"].count(ANNEX_I_LINE) == 1
-    assert not any(
-        "third_party_conformity_assessment_required" in f
-        for f in envelope["missing_facts"]
-    )
+    third_party = [f for f in envelope["missing_facts"] if "third_party_conformity_assessment_required" in f]
+    assert third_party == [ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT]
+    # In the form and tag of the Article 6(1) facts, right after the Annex I line.
+    at = envelope["missing_facts"].index(ANNEX_I_LINE)
+    assert envelope["missing_facts"][at + 1] == ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT
+    assert ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT.startswith(
+        "flags.third_party_conformity_assessment_required is unknown (Article 6(1) high-risk relevant, Annex I); ")
     assert any("Article 6(1) (Annex I)" in r for r in envelope["answer"]["rationale"])
     assert envelope["answer"]["fria"]["applicability"] == "unknown"
+    # Why it is named: answered false it changes the answer.
+    completed = classify_ai_system(
+        {**features, "flags": {**features["flags"], "third_party_conformity_assessment_required": False}}, dump)
+    assert completed["answer"]["risk_category"] == "minimal_risk"
 
 
 def test_annex_i_unknown_with_third_party_true_is_uncertain(dump, node_ids):
@@ -1449,7 +1461,7 @@ def test_limited_risk_is_never_returned_with_high_risk(dump):
     # fact, so it is left out of the triggers: otherwise every iteration
     # would be high-risk through point 1 whatever flag the loop sets.
     triggers = dict.fromkeys(
-        (f for f in classify_module.ARTICLE_50_TRIGGER_FLAGS if f != "emotion_recognition"), True
+        (f for f in ARTICLE_50_TRIGGER_FLAGS if f != "emotion_recognition"), True
     )
     for flag in classify_module.ANNEX_III_RELEVANT_FLAGS:
         if flag in classify_module.PROHIBITION_RELEVANT_FLAGS:
@@ -1833,6 +1845,14 @@ def test_envelope_without_the_fria_block_equals_the_ladder_envelope(features, du
     assert len(lines) == len(added) and all(line.startswith("Annex III listed use true: flag ") for line in lines)
     full["source_nodes"], full["source_spans"] = core["source_nodes"], core["source_spans"]
     full["answer"]["rationale"] = core["answer"]["rationale"]
+    # B185, the final fix wave (item 7): the ladder writes no status line and
+    # lowers no status for a cause; the wrapper sets requires_human_review with
+    # confidence 0.5 exactly when a cause holds (the level not undetermined),
+    # and otherwise the ladder's status stands.
+    assert not any(line.startswith(prefix) for line in core["answer"]["rationale"])
+    if causes and full["answer"]["risk_category"] != "undetermined":
+        assert (full["status"], full["confidence"]) == ("requires_human_review", 0.5)
+        full["status"], full["confidence"] = core["status"], core["confidence"]
     if "annex_i_section" not in core["answer"]:
         assert full["answer"].pop("annex_i_section") is None
     core["generated_at"] = full["generated_at"] = "MASKED"

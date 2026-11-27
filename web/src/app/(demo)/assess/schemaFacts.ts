@@ -117,9 +117,33 @@ export function readDomainChoices(payload: unknown): DomainChoice[] | null {
   return choices.length > 0 ? choices : null;
 }
 
+/* B185, the final fix wave (item 5): how a refusal shows a given domain, the
+   rule the classifier follows (removed_facts.domain_value_shown): a string as
+   it is, its control characters (U+0000 to U+001F) escaped as JSON text
+   escapes them; any other value as its JSON text; then, when the text is
+   longer than the schema's x-refusal-value-limit characters (code points,
+   not UTF-16 units), its first that many characters and the schema's
+   x-refusal-value-cut with {count}, the characters left out. */
+export function domainValueShown(value: unknown, node: Record<string, unknown> | null): string {
+  let text =
+    typeof value === "string"
+      ? value.replace(/[\u0000-\u001f]/g, (c) => JSON.stringify(c).slice(1, -1))
+      : String(JSON.stringify(value));
+  const limit = node?.["x-refusal-value-limit"];
+  const cut = node?.["x-refusal-value-cut"];
+  if (typeof limit === "number" && typeof cut === "string") {
+    const chars = Array.from(text);
+    if (chars.length > limit) {
+      text = chars.slice(0, limit).join("") + cut.replace("{count}", String(chars.length - limit));
+    }
+  }
+  return text;
+}
+
 /* A value of the list is kept. Any other value is not kept and carries the
-   schema's refusal: x-refusal with {value} filled in and, for a word of
-   x-removed-values, ": " and its message. An empty value is unknown. */
+   schema's refusal: x-refusal with {value} filled in as domainValueShown
+   shows it and, for a word of x-removed-values, ": " and its message. An
+   empty value is unknown. */
 export function domainOfSchema(
   value: unknown,
   payload: unknown
@@ -134,10 +158,12 @@ export function domainOfSchema(
   }
   const template = typeof node?.["x-refusal"] === "string" ? (node["x-refusal"] as string) : null;
   if (template === null) return { value: null, refused: null };
-  const word = String(value);
-  let refused = template.replace("{value}", word);
+  // A replacement function, so a "$&" or "$'" in the value is never read as
+  // a replacement pattern.
+  const shown = domainValueShown(value, node);
+  let refused = template.replace("{value}", () => shown);
   const removed = asRecord(node?.["x-removed-values"]);
-  const message = removed?.[word];
+  const message = typeof value === "string" ? removed?.[value] : undefined;
   if (typeof message === "string") refused = `${refused}: ${message}`;
   return { value: null, refused };
 }

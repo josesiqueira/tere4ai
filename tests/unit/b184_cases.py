@@ -10,7 +10,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tere4ai.mcp_server.classify import ARTICLE_50_RULES
+
 ROOT = Path(__file__).resolve().parents[2]
+# Each Article 50 trigger fact once, in rule order (B185, the final fix wave,
+# item 7: moved here from classify.py, where no code read it).
+ARTICLE_50_TRIGGER_FLAGS: tuple[str, ...] = tuple(dict.fromkeys(flag for flag, _node, _note in ARTICLE_50_RULES))
 SCHEMA_PATH = ROOT / "schema" / "json_schemas" / "system_features.schema.json"
 
 

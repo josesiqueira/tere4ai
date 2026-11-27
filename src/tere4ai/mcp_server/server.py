@@ -435,11 +435,13 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     order, and each is cited, except on an unacceptable_risk answer, which
     cites only Article 5; on the Article 6(1) route the listed uses are cited
     without their point. annex_iii_area_unconfirmed names the Annex III point
-    the domain gives when no listed use of any point is true and a listed use
-    of that point is unknown: the level is then high_risk on the area alone
-    and the answer requires human review, or, beside a proven Article 6(1)
-    route, the Annex III scope is not confirmed; no listed use is cited for
-    it. annex_iii_category is the first matching point when
+    the domain gives on a high_risk answer when no listed use of any point is
+    true and a listed use of that point is unknown. The area gives the level
+    only when no listed use of any point is true, a listed use of the named
+    area is unknown, the Article 6(1) route is not proven and no prohibition
+    applies: the level is then high_risk on the area alone and the answer
+    requires human review; beside a proven Article 6(1) route the Annex III
+    scope is not confirmed. No listed use is cited for it. annex_iii_category is the first matching point when
     Annex III decided the level, and is null when the Article 6(1) route or a
     prohibition decided it, even if annex_iii_listed_uses names a listed use.
     annex_iii_category is also null when the point rests on the area:
@@ -450,8 +452,9 @@ def classify_ai_system(features: dict[str, Any]) -> dict[str, Any]:
     listed use as false. area_conflicts names each listed use that is true
     while domain is none_of_these_areas; the answer then requires human
     review. article_6_3_exception_candidate describes the Annex III part of
-    the answer: true, false, or null when an Article 6(3) condition is
-    unknown and none is true. A refused input carries no fria block (null).
+    the answer: true, false (always when profiling is true), or null when an
+    Article 6(3) condition is unknown, none is true and profiling is not true.
+    A refused input carries no fria block (null).
     fact_conflicts names each pair of facts where a fact that a definition of
     the Act makes follow was answered false; that fact is read as true and the
     answer requires human review; an entry holds narrower, wider, provision

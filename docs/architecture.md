@@ -1138,6 +1138,20 @@ way round.
   Article 2(2) limits. get_applicable_requirements still serves the whole
   Article 50 group to every high-risk system; of the paragraphs the
   triggers do not cover, 50(5) remains.
+  Amended 2026-11-27 (B185, DEC-33, ruling R9 of the card): the words above
+  "the third-party assessment only once the product is known to be covered
+  by Annex I" state ruling R1 of B123, which R9 replaces. While
+  annex_i_covered_product is unknown, third_party_conformity_assessment_required
+  is named too, in the form and tag of the Article 6(1) facts
+  (ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT), wherever answering it false, which
+  rules the route out (R4), changes the answer: on the undetermined exits
+  where the answer would then be limited_risk or minimal_risk, and on the
+  limited_risk exit where the open route is the only cause of review, so the
+  status would be settled. R1 rested on the premise that the assessment
+  "decides the route only once the product is known to be covered", untrue
+  since R4; the owner's rule on card B185, "An absent fact is never a silent
+  no", is later. The line of the same fact once the product is covered by
+  Annex I is unchanged and never stands beside the new one.
 
 - DEC-19: every operator obligation or prohibition among the norms, and
   every generated control, carries its requirement type, functional,
@@ -3261,6 +3275,115 @@ way round.
   (the six exception facts were missing). Tests:
   tests/unit/test_absent_facts_named.py, the invariant over the table cases
   and 1,500 generated inputs with its allow list.
+  Added 2026-11-27 (B185, the final fix wave, after the two final reviews of
+  tere4ai2 and the review of the three clients, the findings tables in the
+  card's folder of the private research repository): what the code now does.
+  (1) Ruling R9: the fourth fact of the paragraph above,
+  third_party_conformity_assessment_required while annex_i_covered_product
+  is unknown, is named, in the form and tag of the Article 6(1) facts and
+  once, wherever answering it false changes the answer: on the undetermined
+  exits where the answer would then be limited_risk or minimal_risk, and on
+  the limited_risk exit where the open route is the only cause of review
+  (DEC-18 as amended the same day). The paragraph above says that this fact
+  mattered "on the undetermined exits" and stayed unnamed; it is now named,
+  and it also changed the status on the limited_risk exit, where answered
+  false it settles the answer. The allow entry of R1 left
+  test_absent_facts_named.py, and test_classify.py's lift case asserts the
+  fact is named. Naming it makes no cause of review hold where none held:
+  the Annex I line already gives "an open Article 6(1) route" on those
+  answers. (2) Ruling R10, extended by the coordinator the same day to its
+  whole case: on the Article 6(1) exit with a point that only rests on the
+  area (routes [article_6_1], no listed use true), nothing of Article 6(3)
+  or 6(4) is cited or dated and no line about the derogation is written,
+  whatever the candidate (not the third subparagraph of Article 6(3) when
+  profiling is true beside a true condition, not a point, not Article 6(4);
+  no Article 6(4), both-routes or profiling line), on Section A, B or
+  unknown; the missing-fact lines that name unknown facts and the
+  candidate field stay as computed, and the answer is cited and dated as on
+  that route alone (D-G92 (vii) holds over (6) there). The note of every
+  Article 6(1) exit that the derogation applies only under Article 6(2)
+  stays: it belongs to the route, cites nothing and is dated nowhere. The sentence of the paragraph "Not done in this decision, and
+  open" above, that on this exit the both-routes lines are used, is of its
+  day. A confirmed listed use beside Article 6(1) keeps them. (3) The
+  Article 2(2) answer of get_applicable_requirements names every cause of
+  review that holds, from the envelope and from the bare answer, in the
+  order of D-G92 (8), through review_causes.py: its message gains
+  SECTION_B_REVIEW_SENTENCE, and from the bare answer form, which carries no
+  missing facts, a line names the causes no other line names
+  (SECTION_B_CAUSES_FACT), in place of the general fallback line; a Section
+  B product with an unknown Article 5 fact was explained only by Article
+  2(2) before. The clause that reads annex_iii_area_unconfirmed for a
+  Section B answer stays: it decides one case, a bare answer built by hand
+  with an area and no status line, which a test holds. (4) A classification
+  envelope whose missing_facts or source_nodes is not a list of strings, or
+  whose confidence is not a number, is refused with words in the form the
+  server gives a classification that is not an object (no answer, status
+  requires_human_review, confidence 0.0, the reason as the one missing
+  fact), by get_applicable_requirements and so by trace_implementation; it
+  raised before, or was served with the wrong field echoed. A null field is
+  read as absent. (5) A refused domain is never echoed whole: the schema's
+  x-refusal-value-limit (80 characters, counted as code points) and
+  x-refusal-value-cut ("... ({count} characters left out)") cut the shown
+  value, in the refusal and in the schema-validation line for the field; a
+  string's control characters are escaped as JSON text escapes them, and a
+  value that is not a string is shown as its compact JSON text (removed_facts.py
+  domain_value_shown); the demo site follows the same rule. (6) The
+  elicitor drops a proposed domain that is not a string, an empty list
+  included, as a dropped fact with the reason of a value outside the list,
+  and keeps the valid facts of the reply; the empty list was removed as
+  unknown before it could be named. (7) One place decides the causes of
+  review: the ladder writes no status line and lowers no status for a
+  cause; the wrapper sets the status, the confidence and the lines from
+  review_causes.py, and a status is settled exactly when no cause holds and
+  the level is not undetermined. The for_fria path of review_causes.py,
+  which no caller used since ruling R6, is removed, the two Article 6(1)
+  fact names are defined once (review_causes.ARTICLE_6_1_FACTS), and the
+  constants FACT_CONFLICT_STATUS_LINE, AREA_CONFLICT_STATUS_LINE and
+  ARTICLE_50_TRIGGER_FLAGS, which no code read, left classify.py (the last
+  is the tests' own now). (8) The schema's descriptions a client shows hold
+  no decision id, and the description of domain, like the tool
+  description, says when the area gives the level: no listed use of any
+  point is true, a listed use of that area is unknown, the Article 6(1)
+  route is not proven and no prohibition applies; the tool description and
+  the changelog say the candidate is null only while profiling is not true.
+  Prompt v10 says that the facts of Article 50(1) and (2) are answered by
+  what the system does, whatever exception of the paragraph applies, while
+  the two facts of Article 50(4) are answered with their exceptions, and
+  its worked example says that the description places the chatbot in none
+  of the eight areas' listed uses; v10 has still not been run with a model.
+  A cost ruling R7 names, stated here as the first final review asked: a
+  bare answer stripped of its rationale carries none of the status lines
+  from which an open Article 6(1) route and an unknown listed use are read,
+  so get_applicable_requirements serves it as settled where its envelope
+  is under review; a client that passes the envelope, or the answer as
+  classify_ai_system returned it, is not affected.
+  Measured against 0818236 on the 23 table cases, 8,200 generated inputs and
+  17 refused domains (8,240 in all, every exit reached), the envelope and the
+  bare answer through get_applicable_requirements: no level changed and no status or
+  confidence changed; 68 classifications (and their envelopes' requirements)
+  gained the line of (1); 96 classifications lost the citations, lines and
+  dates of (2) as first ruled; the extension to the whole case changed none
+  of these 8,240 answers (none has profiling true beside a true condition
+  on that exit), and on 600 inputs built for it, against the code before
+  the extension, 279 classifications lost the citation of Article 6(3)
+  third subparagraph, its date and the "rule article_6_3_profiling" line,
+  with no other field and no requirement served changed; 208 Article 2(2) answers changed their message and note by
+  (3), in both forms, and 57 bare ones gained the line of the causes (15 of
+  them in place of the fallback line); 9 refused inputs changed their
+  refusal by (5); nothing changed by (7). Of 450 malformed envelopes, 162
+  raised and 288 were served at 0818236; 400 are now refused with words,
+  and the 50 with source_nodes null are served as if it were absent.
+  verify (the final fix wave): src/tere4ai/mcp_server/classify.py
+  (ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT, _annex_iii_candidacy's area_only,
+  _schema_error_line, the wrapper's status); review_causes.py;
+  requirements.py (SECTION_B_REVIEW_SENTENCE, SECTION_B_CAUSES_FACT,
+  _malformed_classification); removed_facts.py (domain_value_shown);
+  elicit_features/elicitor.py; schema/json_schemas/system_features.schema.json;
+  prompts/elicit_features/v10.md; web/src/app/(demo)/assess/page.tsx and
+  schemaFacts.ts; tests/unit/test_absent_facts_named.py, test_classify.py,
+  test_candidate_field.py, test_requirements_area.py, test_review_causes.py,
+  test_domain_values.py, test_elicit_prompt_v10.py and
+  test_web_copy_honesty.py.
 
 ## 17. Implementation-traceability convention
 

@@ -20,16 +20,20 @@ completed and were named nowhere when absent:
 4. the third-party conformity assessment while annex_i_covered_product is
    unknown, on the undetermined exits.
 
-The first three are now named where they could change the answer and only
-there. The fourth stays unnamed by ruling R1 (DEC-18: the assessment is
-named once the product is known to be covered by Annex I), which
-test_classify's lift case pins; it is put to the owner (task 15b report). The
-invariant itself is tested over the table of area cases and a fixed set of
-generated mock inputs: every absent fact whose completion (true or false)
-changes the level, the status, the duties, the candidate, the routes or the
-Article 27(1) block's applicability is named, in the envelope's missing
-facts or in the block's, but for the classes ALLOWED below decides. Offline:
-the published Layer 1 dump on disk, skipped when absent.
+The first three are named where they could change the answer and only
+there. The fourth was left unnamed by ruling R1 of B123 until the final fix
+wave of B185: ruling R9 replaces R1, and the assessment is now named while the
+Annex I fact is unknown, wherever answering it false (which rules the route
+out, B123 R4) changes the answer: on the undetermined exits, where it gives
+minimal_risk or limited_risk, and on the limited_risk exit, where it settles
+the status. The invariant itself is tested over the table of area cases and a
+fixed set of generated mock inputs: every absent fact whose completion (true
+or false) changes the level, the status, the confidence, the duties, the
+candidate, the routes, the Annex III point (annex_iii_category or
+annex_iii_area_unconfirmed) or the Article 27(1) block's applicability is
+named, in the envelope's missing facts or in the block's, but for the classes
+_allowed below decides. Offline: the published Layer 1 dump on disk, skipped
+when absent.
 
 @implements: DEC-18
 @implements: DEC-33
@@ -46,7 +50,7 @@ from typing import Any
 
 import pytest
 from tests.unit.area_cases import AREA_CASES
-from tests.unit.b184_cases import _flag_names, all_false, case
+from tests.unit.b184_cases import ARTICLE_50_TRIGGER_FLAGS, _flag_names, all_false, case
 
 from tere4ai.mcp_server import classify as classify_module
 from tere4ai.mcp_server.classify import (
@@ -54,8 +58,8 @@ from tere4ai.mcp_server.classify import (
     ARTICLE_5_EXCULPATING_FACT,
     ARTICLE_5_POINT_BY_FLAG,
     ARTICLE_5_POINT_H_EXCULPATING,
+    ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT,
     ARTICLE_6_3_CONDITIONS,
-    ARTICLE_50_TRIGGER_FLAGS,
     FACT_ENTAILMENTS,
     classify_ai_system,
 )
@@ -305,28 +309,76 @@ def test_group_3_not_named_where_it_cannot_settle_the_block(dump, deployer, flag
     assert not any(line.startswith("deployer.body_governed_by_public_law") for line in lines), why
 
 
-# Group 4: the third-party conformity assessment (ruling R1 stands) ----------
+# Group 4: the third-party conformity assessment (ruling R9) ---------------
+
+
+SIX_1_ABSENT = ("annex_i_covered_product", "third_party_conformity_assessment_required")
+
+
+@pytest.mark.parametrize(
+    "flags,completed_level,completed_status,why",
+    [
+        # The evidence run's rows: every Article 5 and Annex III fact known,
+        # the two Article 6(1) facts absent (the lift case of B123).
+        (_without(all_false(), *SIX_1_ABSENT), "minimal_risk", "not_applicable", "last undetermined exit"),
+        # The exit a safety component gives.
+        (_without(all_false(medical_or_safety_component=True), *SIX_1_ABSENT), "minimal_risk", "not_applicable",
+         "safety component"),
+        (_without(all_false(medical_or_safety_component=True, interacts_with_natural_persons=True),
+                  *SIX_1_ABSENT), "limited_risk", "potentially_applicable", "safety component, Article 50"),
+        # The limited_risk exit: the open route is the only cause of review.
+        (_without(all_false(interacts_with_natural_persons=True), *SIX_1_ABSENT), "limited_risk",
+         "potentially_applicable", "limited_risk"),
+    ],
+)
+def test_group_4_ruling_r9_names_the_third_party_fact_while_annex_i_is_unknown(
+    dump, flags, completed_level, completed_status, why
+):
+    env = classify_ai_system(case(flags), dump)
+    assert env["missing_facts"].count(ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT) == 1, why
+    assert [m for m in env["missing_facts"] if "flags.third_party_conformity_assessment_required" in m] == [
+        ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT], why
+    assert any(line.startswith("flags.annex_i_covered_product is unknown") for line in env["missing_facts"]), why
+    assert env["status"] == "requires_human_review", why
+    # Answered false it changes the answer, the change the line announces.
+    done = classify_ai_system(case({**flags, "third_party_conformity_assessment_required": False}), dump)
+    assert (done["answer"]["risk_category"], done["status"]) == (completed_level, completed_status), why
 
 
 @pytest.mark.parametrize(
     "flags,why",
     [
-        # The evidence run's rows: every Article 5 and Annex III fact known,
-        # the two Article 6(1) facts absent (the lift case of B123).
-        (_without(all_false(), "annex_i_covered_product", "third_party_conformity_assessment_required"),
-         "last undetermined exit"),
-        # The exit a safety component gives.
-        (_without(all_false(medical_or_safety_component=True), "annex_i_covered_product",
-                  "third_party_conformity_assessment_required"), "safety component"),
-        # The limited_risk exit.
-        (_without(all_false(interacts_with_natural_persons=True), "annex_i_covered_product",
-                  "third_party_conformity_assessment_required"), "limited_risk"),
+        # Another unknown fact keeps the last undetermined exit undetermined.
+        (_without(all_false(), *SIX_1_ABSENT, "annex_iii_4a_recruitment"), "an Annex III fact unknown too"),
+        (_without(all_false(), *SIX_1_ABSENT, "facial_image_scraping"), "an Article 5 fact unknown too"),
+        # On the limited_risk exit another cause keeps the status.
+        (_without(all_false(interacts_with_natural_persons=True), *SIX_1_ABSENT, "annex_iii_4a_recruitment"),
+         "limited_risk with an unknown listed use"),
+        (_without(all_false(interacts_with_natural_persons=True), *SIX_1_ABSENT, "facial_image_scraping"),
+         "limited_risk with an unknown Article 5 fact"),
+        # A high_risk answer on a listed use, and the unacceptable_risk exit.
+        (_without(all_false(annex_iii_4a_recruitment=True), *SIX_1_ABSENT), "high_risk"),
+        (_without(all_false(facial_image_scraping=True), *SIX_1_ABSENT), "unacceptable_risk"),
     ],
 )
-def test_group_4_ruling_r1_keeps_the_third_party_fact_unnamed_while_annex_i_is_unknown(dump, flags, why):
+def test_group_4_not_named_where_it_cannot_change_the_answer(dump, flags, why):
     env = classify_ai_system(case(flags), dump)
     assert not _named(env, "flags.third_party_conformity_assessment_required"), why
-    assert any(line.startswith("flags.annex_i_covered_product is unknown") for line in env["missing_facts"]), why
+
+
+def test_group_4_the_area_alone_exit_does_not_name_it(dump):
+    env = classify_ai_system(case(_without(all_false(), *SIX_1_ABSENT, "annex_iii_3a_admission"),
+                                  domain="education"), dump)
+    assert env["answer"]["annex_iii_area_unconfirmed"] == "eu-ai-act:annex-iii:point-3"
+    assert not _named(env, "flags.third_party_conformity_assessment_required")
+
+
+def test_group_4_never_twice_once_the_product_is_covered(dump):
+    # With the Annex I fact true the B123 line names the assessment, alone.
+    env = classify_ai_system(case(_without(all_false(annex_i_covered_product=True),
+                                           "third_party_conformity_assessment_required")), dump)
+    lines = [m for m in env["missing_facts"] if "flags.third_party_conformity_assessment_required" in m]
+    assert len(lines) == 1 and lines[0] != ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT
 
 
 # The invariant over the table cases and a generated set ----------------------
@@ -407,6 +459,9 @@ def _view(env: dict[str, Any], features: dict[str, Any]) -> dict[str, Any]:
         "duties": tuple(a.get("transparency_duties") or ()),
         "candidate": a.get("article_6_3_exception_candidate"),
         "routes": (tuple(a.get("high_risk_routes") or ()), a.get("annex_i_section")),
+        "category": a.get("annex_iii_category"),
+        "area": a.get("annex_iii_area_unconfirmed"),
+        "confidence": env.get("confidence"),
         "fria": ((a.get("fria") or {}).get("applicability")),
         "conflicts": len(a.get("fact_conflicts") or ()) + len(a.get("area_conflicts") or ()),
     }
@@ -436,28 +491,27 @@ def _completions(features: dict[str, Any]):
 def _allowed(name: str, base: dict[str, Any], done: dict[str, Any], features: dict[str, Any]) -> str | None:
     """The classes the spec decides, each with its reason; None when the row
     is not allowed."""
-    if done["conflicts"] > base["conflicts"]:
+    fact = name.removeprefix("flags.")
+    creates_conflict = name.startswith("flags.") and (
+        fact in ENTAILMENT_FACTS
+        or (fact in ANNEX_III_LISTED_USE_FACTS and features.get("domain") == "none_of_these_areas")
+    )
+    if done["conflicts"] > base["conflicts"] and creates_conflict:
         # The completion itself contradicts a definition of the Act or the
         # domain (fact_conflicts, area_conflicts; DEC-32, DEC-33 ruling P26):
-        # the change comes from the conflict the completion creates, which the
+        # a completed fact that is one side of a FACT_ENTAILMENTS pair, or a
+        # listed use answered while the domain is none_of_these_areas. The
+        # change comes from the conflict the completion creates, which the
         # completed answer names, not from a fact the base answer left unnamed.
         return "a conflict the completion itself creates"
-    flags = features.get("flags") or {}
     if name.startswith("flags.") and done["entailed"] - base["entailed"]:
         # The completion answers a wider fact by a definition of the Act
         # (FACT_ENTAILMENTS; DEC-32, ruling R6): emotion recognition at the
         # workplace is emotion recognition (Article 3(39)). The change is the
         # wider fact's, and the wider fact, absent, is named itself.
         wider = done["entailed"] - base["entailed"]
-        if all(_named_in(base["lines"], f"flags.{fact}") for fact in wider):
+        if all(_named_in(base["lines"], f"flags.{w}") for w in wider):
             return "a wider fact the completion answers by a definition of the Act (R6)"
-    if name == "flags.third_party_conformity_assessment_required" and "annex_i_covered_product" not in flags:
-        # Ruling R1 (DEC-18, B123): the third-party assessment is named once
-        # the product is known to be covered by Annex I; while the Annex I
-        # fact is unknown that fact is named instead. Answered false, the
-        # assessment rules the route out (R4) and can change the level or
-        # the status: the evidence run's 73 rows; put to the owner.
-        return "the third-party assessment while the Annex I fact is unknown (R1)"
     if name == "flags.annex_i_section_b_legislation" and "article_6_2" in base["routes"][0]:
         # Ruling R44: with a listed use true Chapter III is served whatever the
         # section, so the section fact is not named beside it; completing it
@@ -467,6 +521,11 @@ def _allowed(name: str, base: dict[str, Any], done: dict[str, Any], features: di
     return None
 
 
+COMPARED = ("level", "status", "confidence", "duties", "candidate", "routes", "category", "area", "fria")
+# The facts of the pairs of FACT_ENTAILMENTS, either side.
+ENTAILMENT_FACTS = frozenset(fact for narrower, wider, _p in FACT_ENTAILMENTS for fact in (narrower, wider))
+
+
 def _check(features: dict[str, Any], dump: dict[str, Any], unnamed: list[str]) -> None:
     env = classify_ai_system(copy.deepcopy(features), dump)
     if env["status"] == "rejected_as_unsupported":
@@ -474,7 +533,7 @@ def _check(features: dict[str, Any], dump: dict[str, Any], unnamed: list[str]) -
     base = _view(env, features)
     for name, value, new in _completions(features):
         done = _view(classify_ai_system(new, dump), new)
-        changed = [k for k in ("level", "status", "duties", "candidate", "routes", "fria") if done[k] != base[k]]
+        changed = [k for k in COMPARED if done[k] != base[k]]
         if not changed or _named(env, name) or _allowed(name, base, done, features):
             continue
         unnamed.append(f"{name}={value} changes {'+'.join(changed)} on {base['level']}/{base['status']}: "

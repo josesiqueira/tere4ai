@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tere4ai.org/schema/system_features.schema.json",
   "title": "TERE4AI v2 runtime input: AI system features",
-  "description": "Structured facts about the consumer's AI system, provided by the human or coding agent. classify_ai_system consumes this; it never guesses missing facts, it reports them in missing_facts (docs/architecture.md Sections 7 and 8). Free-text description is context only; classification decisions rest on the structured fields.",
+  "description": "Structured facts about the consumer's AI system, provided by the human or coding agent. classify_ai_system consumes this; it never guesses missing facts, it reports them in missing_facts. Free-text description is context only; classification decisions rest on the structured fields.",
   "type": "object",
   "required": [
     "description"
@@ -26,7 +26,7 @@
         "none_of_these_areas",
         null
       ],
-      "description": "The Annex III area the person places the system in before answering its listed uses: biometrics (point 1), critical_infrastructure (point 2), education (point 3), employment (point 4), essential_services (point 5), law_enforcement (point 6), migration (point 7), justice (point 8), or none_of_these_areas; null or absent is unknown. It is a statement about the area, not about any listed use: each listed use is answered by its own fact, and no value of domain reads a listed use as false. While no listed use of any point is true and a listed use of the named area is unknown, the level is high_risk on the area alone and the answer requires human review (DEC-33).",
+      "description": "The Annex III area the person places the system in before answering its listed uses: biometrics (point 1), critical_infrastructure (point 2), education (point 3), employment (point 4), essential_services (point 5), law_enforcement (point 6), migration (point 7), justice (point 8), or none_of_these_areas; null or absent is unknown. It is a statement about the area, not about any listed use: each listed use is answered by its own fact, and no value of domain reads a listed use as false. The area gives the level only when no listed use of any point is true, a listed use of the named area is unknown, the Article 6(1) route is not proven and no prohibition applies; the level is then high_risk on the area alone and the answer requires human review.",
       "x-annex-iii-area-values": {
         "biometrics": 1,
         "critical_infrastructure": 2,
@@ -38,6 +38,8 @@
         "justice": 8
       },
       "x-refusal": "domain '{value}' is not a value of the schema",
+      "x-refusal-value-limit": 80,
+      "x-refusal-value-cut": "... ({count} characters left out)",
       "x-removed-values": {
         "healthcare": "use essential_services if the system is in the area of Annex III point 5, none_of_these_areas if it is in none of the eight areas, or leave the domain unknown",
         "banking": "use essential_services if the system is in the area of Annex III point 5, none_of_these_areas if it is in none of the eight areas, or leave the domain unknown",
@@ -117,7 +119,7 @@
         },
         "emotion_recognition_workplace_or_education": {
           "type": "boolean",
-          "description": "Article 5(1)(f) practice, the Act's words: 'the use of AI systems to infer emotions of a natural person in the areas of workplace and education institutions, except where the use of the AI system is intended to be put in place or into the market for medical or safety reasons'. The exception is the separate fact emotion_recognition_medical_or_safety: true there means the prohibition does not apply. Absence leaves the ban unsettled unless that exception is known to hold. Emotion recognition here is inference from biometric data, as Article 3(39) defines an emotion recognition system, the Act's words: 'emotion recognition system means an AI system for the purpose of identifying or inferring emotions or intentions of natural persons on the basis of their biometric data'; this is the project's reading of point (f) (DEC-32), so a system that infers emotions from other data, such as text alone, is false. True entails emotion_recognition (Annex III point 1(c))."
+          "description": "Article 5(1)(f) practice, the Act's words: 'the use of AI systems to infer emotions of a natural person in the areas of workplace and education institutions, except where the use of the AI system is intended to be put in place or into the market for medical or safety reasons'. The exception is the separate fact emotion_recognition_medical_or_safety: true there means the prohibition does not apply. Absence leaves the ban unsettled unless that exception is known to hold. Emotion recognition here is inference from biometric data, as Article 3(39) defines an emotion recognition system, the Act's words: 'emotion recognition system means an AI system for the purpose of identifying or inferring emotions or intentions of natural persons on the basis of their biometric data'; this is the project's reading of point (f), so a system that infers emotions from other data, such as text alone, is false. True entails emotion_recognition (Annex III point 1(c))."
         },
         "social_scoring": {
           "type": "boolean",

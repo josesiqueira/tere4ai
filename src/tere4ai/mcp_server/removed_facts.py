@@ -69,19 +69,50 @@ def _domain_property() -> dict[str, Any]:
     return schema["properties"]["domain"]
 
 
-def domain_refusal(value: object) -> str:
-    """The one wording of the refusal of a `domain` outside the schema (B185, ruling P30).
+def _json_escaped_controls(text: str) -> str:
+    """text with each control character (U+0000 to U+001F) written as JSON
+    text writes it: \\b, \\t, \\n, \\f, \\r, otherwise \\u00 and two lowercase
+    hexadecimal digits; every other character as it is."""
+    return "".join(json.dumps(char)[1:-1] if ord(char) < 0x20 else char for char in text)
 
-    The schema's x-refusal formatted with the value, a string as it is (no
-    trimming, no change of case) and any other type as its JSON text (a value
-    JSON cannot encode, a set for one, as the JSON text of its str); for a
-    word of x-removed-values, ": " and the message that names the value to use.
+
+def domain_value_shown(value: object) -> str:
+    """How a refusal shows a given `domain` (B185, ruling P30; the final fix
+    wave, item 5).
+
+    A string as it is (no trimming, no change of case), its control
+    characters escaped as JSON text escapes them; any other type as its
+    compact JSON text, the text JSON.stringify gives (separators "," and ":",
+    non-ASCII characters as they are; a value JSON cannot encode, a set for
+    one, as the JSON text of its str). Then, when the text is longer than the
+    schema's x-refusal-value-limit characters (code points), its first that
+    many characters and the schema's x-refusal-value-cut with the count of the
+    characters left out, so a long value is never echoed whole.
 
     @implements: DEC-33
     """
     domain = _domain_property()
-    shown = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
-    refusal = domain["x-refusal"].format(value=shown)
+    if isinstance(value, str):
+        shown = _json_escaped_controls(value)
+    else:
+        shown = json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
+    limit = domain["x-refusal-value-limit"]
+    if len(shown) > limit:
+        shown = shown[:limit] + domain["x-refusal-value-cut"].format(count=len(shown) - limit)
+    return shown
+
+
+def domain_refusal(value: object) -> str:
+    """The one wording of the refusal of a `domain` outside the schema (B185, ruling P30).
+
+    The schema's x-refusal formatted with the value as domain_value_shown
+    shows it; for a word of x-removed-values, ": " and the message that names
+    the value to use.
+
+    @implements: DEC-33
+    """
+    domain = _domain_property()
+    refusal = domain["x-refusal"].format(value=domain_value_shown(value))
     message = domain["x-removed-values"].get(value) if isinstance(value, str) else None
     return f"{refusal}: {message}" if message else refusal
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 from tests.unit.area_cases import AREA_CASES, FRIA_AREA_ALONE_POINT_3
-from tests.unit.b184_cases import all_false, case
+from tests.unit.b184_cases import ARTICLE_50_TRIGGER_FLAGS, all_false, case
 
 from tere4ai import act_parties as ap
 from tere4ai.mcp_server import classify as classify_module
@@ -520,7 +520,7 @@ def test_high_risk_keeps_the_whole_article_50_group_without_a_trigger(dump, norm
     flags = {
         **dict.fromkeys(classify_module.PROHIBITION_RELEVANT_FLAGS, False),
         **dict.fromkeys(classify_module.ANNEX_III_RELEVANT_FLAGS, False),
-        **dict.fromkeys(classify_module.ARTICLE_50_TRIGGER_FLAGS, False),
+        **dict.fromkeys(ARTICLE_50_TRIGGER_FLAGS, False),
         "annex_iii_4a_recruitment": True,
     }
     classification = classify_ai_system({"description": "CV screening for hiring.", "flags": flags}, dump)

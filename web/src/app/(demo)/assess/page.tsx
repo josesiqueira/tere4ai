@@ -1630,6 +1630,16 @@ export default function AssessPage() {
                   className={`${SELECT_CLS} w-full`}
                   value={domain}
                   disabled={flagSchema.kind !== "ready"}
+                  /* B185, the final fix wave (item 12 (iii)): the refusal and
+                     the schema's absence are tied to the select. */
+                  aria-describedby={
+                    [
+                      flagSchema.kind === "unavailable" ? "domain-unavailable" : null,
+                      domainRefusal ? "domain-refusal" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
                   onChange={(e) => {
                     updateDomain(e.target.value);
                     clearElicited("domain");
@@ -1644,13 +1654,19 @@ export default function AssessPage() {
                     ))}
                 </select>
                 {flagSchema.kind === "unavailable" && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground" id="domain-unavailable">
                     The features schema is unavailable, so the domain cannot be chosen.
                   </p>
                 )}
+                {/* B185, the final fix wave (item 12 (iv)): after the schema's
+                    refusal, only that the domain was left unknown, and that it
+                    can be chosen only while the list can be used. */}
                 {domainRefusal && (
                   <p className="text-sm text-destructive" role="alert" id="domain-refusal">
-                    {domainRefusal}. The domain is unknown: choose one of the values.
+                    {domainRefusal}.{" "}
+                    {flagSchema.kind === "ready"
+                      ? "The domain was left unknown and can be chosen in the list."
+                      : "The domain was left unknown."}
                   </p>
                 )}
               </div>
@@ -1748,38 +1764,44 @@ export default function AssessPage() {
                   <Chip>{classification.answer.annex_iii_category}</Chip>
                 )}
               </div>
-              {classification.answer.annex_iii_area_unconfirmed && (
+              {/* B185, the final fix wave (item 12 (i), (ii)): no area point,
+                  area conflict or candidate under a rejected input, where no
+                  rule ran; each area conflict by its fact only, since its note
+                  is among the missing facts, as the other clients print it. */}
+              {classification.status !== "rejected_as_unsupported" &&
+                classification.answer.annex_iii_area_unconfirmed && (
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                    <span>Annex III point resting on the area alone:</span>
+                    <span className="font-mono text-foreground">
+                      {classification.answer.annex_iii_area_unconfirmed}
+                    </span>
+                  </div>
+                )}
+              {classification.status !== "rejected_as_unsupported" &&
+                (classification.answer.area_conflicts ?? []).length > 0 && (
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p>Listed uses true while the domain says none of these areas:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {(classification.answer.area_conflicts ?? []).map((conflict) => (
+                        <li key={conflict.fact}>
+                          <span className="font-mono text-foreground">{conflict.fact}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              {classification.status !== "rejected_as_unsupported" && (
                 <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                  <span>Annex III point resting on the area alone:</span>
+                  <span>Article 6(3) derogation candidate:</span>
                   <span className="font-mono text-foreground">
-                    {classification.answer.annex_iii_area_unconfirmed}
+                    {classification.answer.article_6_3_exception_candidate == null
+                      ? "unknown"
+                      : classification.answer.article_6_3_exception_candidate
+                        ? "yes"
+                        : "no"}
                   </span>
                 </div>
               )}
-              {(classification.answer.area_conflicts ?? []).length > 0 && (
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>Listed uses true while the domain says none of these areas:</p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {(classification.answer.area_conflicts ?? []).map((conflict) => (
-                      <li key={conflict.fact}>
-                        <span className="font-mono text-foreground">{conflict.fact}</span>
-                        {": "}
-                        {conflict.note}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                <span>Article 6(3) exception candidate:</span>
-                <span className="font-mono text-foreground">
-                  {classification.answer.article_6_3_exception_candidate == null
-                    ? "unknown"
-                    : classification.answer.article_6_3_exception_candidate
-                      ? "yes"
-                      : "no"}
-                </span>
-              </div>
               {/* Redteam finding 6: this StatusBadge is the envelope's generic
                   Section 8 `status` field, not a second risk verdict. Shown
                   on its own labelled line, never beside the risk category

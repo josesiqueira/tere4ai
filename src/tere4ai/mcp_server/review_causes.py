@@ -33,8 +33,8 @@ only when the envelope's missing facts are given:
   a cause, for a known Section B as for an unknown section (the
   coordinator's ruling of fix round 1); such an answer stays under review
   when another cause holds (an unknown listed use of a Section B product).
-  For the Article 27(1) block (for_fria) the field true is enough (D-G92
-  (iv));
+  The Article 27(1) block reads these causes as they are, never a wider set
+  of its own (ruling R6);
 - article_6_1_open: a limited_risk answer whose missing facts name an
   Article 6(1) fact (B123);
 - listed_use_unknown: a limited_risk answer, or a Section B answer on the
@@ -110,8 +110,10 @@ _LISTED_USE_UNKNOWN_SECTION_B = (
 # The words that mark an unknown Annex III fact among the missing facts (R39);
 # classify.py and requirements.py import it from here.
 ANNEX_III_UNKNOWN_TAG = "(Annex III high-risk relevant, Article 6(2))"
-# The two facts of the Article 6(1) route; the classifier's missing line for
-# each starts "flags.<fact> is unknown" (B123).
+# The two facts of the Article 6(1) route, defined here once (B185, the final
+# fix wave); classify.py reads them as ARTICLE_6_1_FLAGS. The classifier's
+# missing line for each starts "flags.<fact> is unknown" (B123; ruling R9 for
+# the third-party assessment while the Annex I fact is unknown).
 ARTICLE_6_1_FACTS: tuple[str, ...] = ("annex_i_covered_product", "third_party_conformity_assessment_required")
 _ROUTE_ARTICLE_6_1 = "article_6_1"
 _ROUTE_ARTICLE_6_2 = "article_6_2"
@@ -137,18 +139,14 @@ def _section_b_on_article_6_1_alone(answer: dict[str, Any]) -> bool:
     )
 
 
-def review_causes(
-    answer: dict[str, Any], missing_facts: list[str] | None = None, *, for_fria: bool = False
-) -> list[str]:
+def review_causes(answer: dict[str, Any], missing_facts: list[str] | None = None) -> list[str]:
     """The causes of review that hold for a classification answer, in the
     order of REVIEW_CAUSES (spec G D-G92 (8), rulings P12 and R5).
 
     answer is the classification's answer (the bare answer is enough for the
     first five causes); missing_facts the envelope's missing facts, without
-    which article_6_1_open and listed_use_unknown are not read. for_fria drops
-    the condition that Annex III decides what is served from
-    article_6_3_candidate: the Article 27(1) block holds at unknown for a
-    candidate whenever the field is true (D-G92 (iv)). An undetermined answer
+    which article_6_1_open and listed_use_unknown are not read. An
+    undetermined answer
     gets its reason from its missing facts and is never given a cause here
     (ruling P32).
 
@@ -171,8 +169,7 @@ def review_causes(
     if level == "high_risk" and answer.get("annex_iii_area_unconfirmed") and not routes:
         holds.add("area_alone")
     if answer.get("article_6_3_exception_candidate") is True and (
-        for_fria
-        or _ROUTE_ARTICLE_6_1 not in routes
+        _ROUTE_ARTICLE_6_1 not in routes
         or (_ROUTE_ARTICLE_6_2 in routes and answer.get("annex_i_section") in ("B", "unknown"))
     ):
         holds.add("article_6_3_candidate")

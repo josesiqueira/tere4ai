@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 from tests.unit.area_cases import AREA_CASES
-from tests.unit.b184_cases import all_false, case
+from tests.unit.b184_cases import ARTICLE_50_TRIGGER_FLAGS, all_false, case
 from tests.unit.flags_of_record import ARTICLE_50_RULES_OF_V9, FLAGS_OF_V9
 from tests.unit.test_features_schema_descriptions import _normalised
 
@@ -32,7 +32,6 @@ from tere4ai.mcp_server.application_dates import dates_for
 from tere4ai.mcp_server.classify import (
     ARTICLE_50_RULES,
     ARTICLE_50_SECTION_B_NOTE,
-    ARTICLE_50_TRIGGER_FLAGS,
     ARTICLE_50_TRIGGERED_NOTE,
     FACT_ENTAILMENTS,
     classify_ai_system,

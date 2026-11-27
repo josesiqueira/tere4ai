@@ -58,10 +58,11 @@ from tere4ai.mcp_server.removed_facts import (
     REMOVED_FACT_REPLACEMENTS,
     domain_is_a_value,
     domain_refusal,
+    domain_value_shown,
 )
 from tere4ai.mcp_server.review_causes import (
     ANNEX_III_UNKNOWN_TAG,
-    STATUS_LINE_PREFIX,
+    ARTICLE_6_1_FACTS,
     review_causes,
     review_status_line,
 )
@@ -647,8 +648,9 @@ FACT_ENTAILMENTS: tuple[tuple[str, str, str], ...] = (
 )
 
 # The line among the missing facts for a pair answered against its definition
-# (the spec's sentence, D-G91 (10)), the rationale line for a wider fact read
-# true from unknown, and the status line of a marked answer (ruling P10).
+# (the spec's sentence, D-G91 (10)) and the rationale line for a wider fact
+# read true from unknown. The status line of a marked answer is the one of the
+# cause fact_conflict, which review_causes.py writes (B185 Task 6).
 FACT_CONFLICT_LINE = (
     "flags.{wider} was answered false while flags.{narrower} is true; {provision} makes the "
     "first follow from the second, so it is read as true; one of the two answers is wrong"
@@ -657,8 +659,6 @@ FACT_ENTAILED_FROM_UNKNOWN_LINE = (
     "flags.{wider} is unknown while flags.{narrower} is true; {provision} makes the "
     "first follow from the second, so it is read as true"
 )
-# B185 Task 6 (ruling P11): the status line of the cause fact_conflict.
-FACT_CONFLICT_STATUS_LINE = review_status_line("fact_conflict", {})
 
 
 def fact_conflict_line(narrower: str, wider: str, provision: str) -> str:
@@ -671,11 +671,10 @@ def fact_conflict_line(narrower: str, wider: str, provision: str) -> str:
 
 
 # B185 (spec G D-G92 (4) and (iii), DEC-33): the note of each entry of
-# area_conflicts, the spec's words, which also joins the missing facts, and
-# the rationale's status line of an answer it marks (B185 Task 6: the status
-# line of the cause area_conflict, from review_causes.py).
+# area_conflicts, the spec's words, which also joins the missing facts. The
+# rationale's status line of an answer it marks is the one of the cause
+# area_conflict, which review_causes.py writes (B185 Task 6).
 AREA_CONFLICT_NOTE = "domain is none_of_these_areas while flags.{fact} is true; the fact keeps its effect"
-AREA_CONFLICT_STATUS_LINE = review_status_line("area_conflict", {})
 
 
 def area_conflicts(flags: dict[str, Any], domain: str | None) -> list[dict[str, str]]:
@@ -865,11 +864,10 @@ ARTICLE_6_3_PROFILING_OVERRIDE = "eu-ai-act:article-6:paragraph-3:subparagraph-3
 # B123 (spec G D-G59): the two facts of the Article 6(1) route. Article
 # 6(1) points (a) and (b) are cumulative, so the route is resolved like an
 # Article 5 path (DEC-18): proven when both are true, ruled out when either
-# is known false, open otherwise.
-ARTICLE_6_1_FLAGS: tuple[str, str] = (
-    "annex_i_covered_product",
-    "third_party_conformity_assessment_required",
-)
+# is known false, open otherwise. B185 (the final fix wave): the two names
+# are defined once, in review_causes.py (ARTICLE_6_1_FACTS), and read here
+# under this name.
+ARTICLE_6_1_FLAGS: tuple[str, ...] = ARTICLE_6_1_FACTS
 
 # B132 (spec G D-G68 (6), rulings R6, R14, R26 and R36): the Annex I section
 # of an Article 6(1) system's product legislation, a third fact of the
@@ -1003,13 +1001,16 @@ SECTION_B_ALSO_ANNEX_III_NOTE = (
 def _unresolved_article_6_1_facts(flags: dict[str, Any]) -> list[str]:
     """The absent fact that leaves the Article 6(1) route open (B123).
 
-    Empty when the route is proven or ruled out. The third-party
-    assessment is returned only once the product is known to be covered
-    by Annex I: before that it decides nothing (ruling R1, the way
-    law_enforcement_purpose is asked for only when the biometric flag is
-    true).
+    Empty when the route is proven or ruled out. The Annex I fact is returned
+    while it is unknown; the third-party assessment is returned here once the
+    product is known to be covered by Annex I. While the Annex I fact is
+    unknown the assessment is not returned here, but it is not without
+    effect: answered false it rules the route out (B123, R4), so the exits
+    on which that changes the answer name it (B185, ruling R9, which
+    replaces ruling R1 of B123; ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT).
 
     @implements: DEC-18
+    @implements: DEC-33
     """
     annex_i, third_party = ARTICLE_6_1_FLAGS
     if flags.get(annex_i) is False or flags.get(third_party) is False:
@@ -1026,13 +1027,48 @@ def _unresolved_article_6_1_facts(flags: dict[str, Any]) -> list[str]:
 # route is open"): the safety component is named where it could change the
 # level and only there, on the limited_risk exit while the Annex I fact is
 # unknown and the third-party assessment is not known false, where answered
-# true it gives undetermined. The third-party assessment keeps ruling R1: it
-# is named once the product is known to be covered by Annex I.
+# true it gives undetermined.
 MEDICAL_OR_SAFETY_UNKNOWN_FACT = (
     "flags.medical_or_safety_component is unknown while flags.annex_i_covered_product is unknown (Article 6(1) "
     "high-risk relevant, Annex I); a safety component whose Annex I coverage is unknown holds the classification "
     "at undetermined, so absence is not treated as false"
 )
+
+# B185, the final fix wave (ruling R9, which replaces ruling R1 of B123): the
+# third-party conformity assessment while the Annex I fact is unknown, in the
+# form and tag of the Article 6(1) facts. Answered false it rules the route
+# out (B123, R4), so it is named where that changes the answer and only
+# there: on the undetermined exits where the answer would no longer be
+# undetermined (it gives minimal_risk or limited_risk), and on the
+# limited_risk exit where the open route is the only cause of review (the
+# status would be settled). Never beside the line of the same fact that
+# _unresolved_article_6_1_facts gives once the product is covered by Annex I.
+ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT = (
+    "flags.third_party_conformity_assessment_required is unknown (Article 6(1) high-risk relevant, Annex I); "
+    "answered false, it rules out the Article 6(1) route while flags.annex_i_covered_product is unknown, so "
+    "absence is not treated as false"
+)
+ARTICLE_6_1_ANNEX_I_UNKNOWN_FACT = (
+    "flags.annex_i_covered_product is unknown (Article 6(1) high-risk relevant, Annex I); absence is not "
+    "treated as false"
+)
+
+
+def _name_third_party_assessment(missing_facts: list[str]) -> None:
+    """Insert ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT after the Annex I line, or
+    at the end when that line is not there, once (ruling R9).
+
+    @implements: DEC-18
+    @implements: DEC-33
+    """
+    if ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT in missing_facts:
+        return
+    at = (
+        missing_facts.index(ARTICLE_6_1_ANNEX_I_UNKNOWN_FACT) + 1
+        if ARTICLE_6_1_ANNEX_I_UNKNOWN_FACT in missing_facts
+        else len(missing_facts)
+    )
+    missing_facts.insert(at, ARTICLE_6_1_THIRD_PARTY_UNKNOWN_FACT)
 
 # Article 6(3) second-subparagraph conditions: flag -> the real Point node, in
 # point order a, b, c, d, one fact per point (B184, D-G91 (7), ruling R5: the
@@ -1144,14 +1180,14 @@ ARTICLE_50_RULES: tuple[tuple[str, str, str], ...] = (
     ),
 )
 
-# DEC-18: each Article 50 trigger fact once, in rule order. An absent one is
+# DEC-18: an absent Article 50 trigger fact (a flag of ARTICLE_50_RULES) is
 # named in missing_facts, information only (Jose, 2026-10-01: "Keep minimal,
 # name the fact"); B185 (spec G D-G92 (7)): on every exit on which Article 50
 # can apply, that is every exit but the rejected input, the unacceptable_risk
-# exit and a Section B product served under Article 2(2).
-ARTICLE_50_TRIGGER_FLAGS: tuple[str, ...] = tuple(
-    dict.fromkeys(flag for flag, _node_id, _note in ARTICLE_50_RULES)
-)
+# exit and a Section B product served under Article 2(2)
+# (_name_absent_article_50_facts). B185, the final fix wave (item 7): the
+# list ARTICLE_50_TRIGGER_FLAGS, which no code read, is now the tests' own
+# (tests/unit/b184_cases.py), built from ARTICLE_50_RULES.
 
 # DEC-18: a listed paragraph or subparagraph is triggered by a fact that is
 # true, never proven. B185 (spec G D-G92 (7), (8), (x)): the two facts of 50(4) answer
@@ -1178,6 +1214,27 @@ def _features_validator() -> Draft202012Validator:
     # One read of the schema file (_features_schema), shared with the area
     # headings and values.
     return Draft202012Validator(_features_schema())
+
+
+def _schema_error_line(error: Any) -> str:
+    """The missing-facts line of one schema error of a refused input.
+
+    B185, the final fix wave (item 5): the line for a `domain` outside the
+    schema's list shows the given value as the refusal shows it
+    (domain_value_shown: control characters escaped as JSON text does, a long
+    value cut to the schema's x-refusal-value-limit characters with the count
+    left out), never the whole value as the validator's own message echoes it;
+    every other line is the validator's message.
+
+    @implements: DEC-33
+    """
+    path = "/".join(str(part) for part in error.path) or "(root)"
+    if list(error.path) == ["domain"] and error.validator == "enum":
+        value = error.instance
+        shown = domain_value_shown(value)
+        quoted = f"'{shown}'" if isinstance(value, str) else shown
+        return f"schema validation: {path}: {quoted} is not one of {error.validator_value!r}"
+    return f"schema validation: {path}: {error.message}"
 
 
 def _graph_version(dump: dict[str, Any]) -> str:
@@ -1267,6 +1324,7 @@ def _annex_iii_candidacy(
     missing_facts: list[str],
     *,
     both_routes: bool,
+    area_only: bool = False,
 ) -> bool | None:
     """The candidate field of an answer that has an Annex III point, with its
     lines and citations (spec G D-G92 (6), (iv), rulings P9, P28, P29).
@@ -1281,11 +1339,21 @@ def _annex_iii_candidacy(
     article_6_3:" line and the note says the candidacy is flagged for human
     review, with both_routes True each gives ARTICLE_6_3_BOTH_ROUTES_LINE and
     the note is ARTICLE_6_3_BOTH_ROUTES_NOTE (the level and status stay the
-    Article 6(1) route's). An unknown profiling fact beside a true condition is
-    named as before. An unknown candidate names each unknown condition and
-    an unknown profiling fact among the missing facts and cites nothing. The
-    status is the caller's. The derogation needs human legal judgment; it is
-    flagged, never applied.
+    Article 6(1) route's). area_only (B185, ruling R10 as extended by the
+    coordinator to its whole case; both_routes True only): on the Article
+    6(1) exit with a point that only rests on the area and no listed use
+    true, nothing of Article 6(3) or 6(4) is cited or dated and no line about
+    the derogation is written, whatever the candidate (not the third
+    subparagraph when profiling is true beside a true condition, not a
+    point, not Article 6(4), no Article 6(4), both-routes or profiling line),
+    since the derogation does not reach Article 6(1) and no listed use is
+    confirmed (D-G92 (vii): cited and dated as on that route alone); the
+    returned value and the missing-fact lines naming unknown facts are the
+    same. An unknown profiling fact beside a true
+    condition is named as before. An unknown candidate names each unknown
+    condition and an unknown profiling fact among the missing facts and cites
+    nothing. The status is the caller's. The derogation needs human legal
+    judgment; it is flagged, never applied.
 
     @implements: DEC-32
     @implements: DEC-33
@@ -1297,14 +1365,18 @@ def _annex_iii_candidacy(
     ]
     if matched_conditions and flags.get("profiling_of_natural_persons") is True:
         # Article 6(3) third subparagraph: profiling systems are always
-        # high-risk, so candidacy is cancelled, not merely flagged.
-        citations.cite(ARTICLE_6_3_PROFILING_OVERRIDE)
-        rationale.append(
-            "rule article_6_3_profiling: a derogation condition matched but "
-            "profiling_of_natural_persons is true; Article 6(3) third "
-            "subparagraph keeps profiling systems high-risk, so no "
-            "derogation candidacy"
-        )
+        # high-risk, so candidacy is cancelled, not merely flagged. B185
+        # (ruling R10 as extended by the coordinator): with a point that only
+        # rests on the area beside Article 6(1), nothing of Article 6(3) is
+        # cited or said.
+        if not area_only:
+            citations.cite(ARTICLE_6_3_PROFILING_OVERRIDE)
+            rationale.append(
+                "rule article_6_3_profiling: a derogation condition matched but "
+                "profiling_of_natural_persons is true; Article 6(3) third "
+                "subparagraph keeps profiling systems high-risk, so no "
+                "derogation candidacy"
+            )
         matched_conditions = []
     candidate = article_6_3_candidate(flags)
     # B185 (Task 4's review): the lines follow the returned value, never a
@@ -1312,32 +1384,35 @@ def _annex_iii_candidacy(
     # by profiling is exactly a true candidate (tests/unit/test_review_causes.py
     # holds this over the table of area cases and a generated set).
     if candidate is True:
-        citations.cite(ARTICLE_6_PARAGRAPH_3)
-        for flag, point_nodes, label in matched_conditions:
-            for node_id in point_nodes:
-                citations.cite(node_id)
+        # B185 (ruling R10): beside a proven Article 6(1) route a point that
+        # only rests on the area cites nothing of Article 6(3) or 6(4).
+        if not area_only:
+            citations.cite(ARTICLE_6_PARAGRAPH_3)
+            for flag, point_nodes, label in matched_conditions:
+                for node_id in point_nodes:
+                    citations.cite(node_id)
+                if both_routes:
+                    rationale.append(ARTICLE_6_3_BOTH_ROUTES_LINE.format(label=label, flag=flag))
+                else:
+                    # Wording note: this line must not read "rule X: flag Y
+                    # matches Z", which is the classification-trigger grammar
+                    # parsed by scripts/elicitation_error_report.py; derogation
+                    # candidacy is not a classification trigger.
+                    rationale.append(
+                        f"rule article_6_3: derogation condition '{label}' met "
+                        f"by {flag}; the Article 6(3) derogation may apply but "
+                        "requires human legal judgment, no automatic downgrade"
+                    )
             if both_routes:
-                rationale.append(ARTICLE_6_3_BOTH_ROUTES_LINE.format(label=label, flag=flag))
+                legal_status_notes.append(ARTICLE_6_3_BOTH_ROUTES_NOTE)
             else:
-                # Wording note: this line must not read "rule X: flag Y
-                # matches Z", which is the classification-trigger grammar
-                # parsed by scripts/elicitation_error_report.py; derogation
-                # candidacy is not a classification trigger.
-                rationale.append(
-                    f"rule article_6_3: derogation condition '{label}' met "
-                    f"by {flag}; the Article 6(3) derogation may apply but "
-                    "requires human legal judgment, no automatic downgrade"
+                legal_status_notes.append(
+                    f"{ARTICLE_6_PARAGRAPH_3}: Article 6(3) derogation candidacy is "
+                    "flagged for human review; the classification stays high_risk "
+                    "until a human legal reviewer decides"
                 )
-        if both_routes:
-            legal_status_notes.append(ARTICLE_6_3_BOTH_ROUTES_NOTE)
-        else:
-            legal_status_notes.append(
-                f"{ARTICLE_6_PARAGRAPH_3}: Article 6(3) derogation candidacy is "
-                "flagged for human review; the classification stays high_risk "
-                "until a human legal reviewer decides"
-            )
-        citations.cite(ARTICLE_6_PARAGRAPH_4)
-        legal_status_notes.append(ARTICLE_6_4_LINE)
+            citations.cite(ARTICLE_6_PARAGRAPH_4)
+            legal_status_notes.append(ARTICLE_6_4_LINE)
         if "profiling_of_natural_persons" not in flags:
             missing_facts.append(
                 "flags.profiling_of_natural_persons is unknown while an "
@@ -1388,10 +1463,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             status="rejected_as_unsupported",
             graph_version=graph_version,
             confidence=0.0,
-            missing_facts=[
-                f"schema validation: {'/'.join(str(p) for p in e.path) or '(root)'}: {e.message}"
-                for e in errors
-            ],
+            missing_facts=[_schema_error_line(e) for e in errors],
         )
 
     flags = features.get("flags") or {}
@@ -1437,10 +1509,7 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     unknown_article_6_1_facts = _unresolved_article_6_1_facts(flags)
     for flag in unknown_article_6_1_facts:
         if flag == "annex_i_covered_product":
-            missing_facts.append(
-                "flags.annex_i_covered_product is unknown (Article 6(1) "
-                "high-risk relevant, Annex I); absence is not treated as false"
-            )
+            missing_facts.append(ARTICLE_6_1_ANNEX_I_UNKNOWN_FACT)
         else:
             missing_facts.append(
                 "flags.third_party_conformity_assessment_required is unknown while "
@@ -1707,11 +1776,15 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             # reads through review_causes). A Section B product reaches this
             # branch only without a true listed use, so its point rests on the
             # area, whose unknown listed uses already mark it (R39), as
-            # passage (k) requires.
+            # passage (k) requires. With a point that only rests on the area
+            # (no listed use true), nothing of Article 6(3) or 6(4) is cited,
+            # dated or said, whatever the candidate, on Section A, B or
+            # unknown (ruling R10 as extended, D-G92 (vii)).
             annex_iii_part_candidate: bool | None = False
             if reading.confirmed or reading.area_point is not None:
                 annex_iii_part_candidate = _annex_iii_candidacy(
-                    flags, citations, rationale, legal_status_notes, missing_facts, both_routes=True
+                    flags, citations, rationale, legal_status_notes, missing_facts, both_routes=True,
+                    area_only=not reading.confirmed,
                 )
             if annex_i_section == "unknown" and reading.confirmed and annex_iii_part_candidate is True:
                 # B185 Task 6 (ruling R5): with a true listed use the section
@@ -1720,26 +1793,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 # candidate is a cause of review (review_causes.py).
                 missing_facts.append(ANNEX_I_SECTION_UNKNOWN_FACT)
             missing_facts.extend(citations.unresolved)
-            status = "potentially_applicable"
-            confidence = 1.0
-            if unknown_prohibition_flags:
-                status = "requires_human_review"
-                confidence = 0.5
-                rationale.append(
-                    "status lowered to requires_human_review: unknown "
-                    "prohibition-relevant flags could change the outcome to Unacceptable risk"
-                )
-            if annex_i_section == "B" and unknown_annex_flags:
-                # R39: an unknown Annex III fact could put this Section B
-                # product on the Annex III route (R26), which brings what
-                # Article 2(2) does not; never read as the answer that serves less.
-                status = "requires_human_review"
-                confidence = 0.5
-                rationale.append(
-                    "status lowered to requires_human_review: unknown Annex III facts could "
-                    "put this Section B product on the Annex III route, which brings the "
-                    "Chapter III requirements and the Article 50 duties Article 2(2) does not"
-                )
+            # B185, the final fix wave (item 7): the causes of review (an
+            # unknown Article 5 fact; R39, an unknown Annex III fact of a
+            # Section B product) are decided in one place, review_causes.py,
+            # which the wrapper reads; the ladder gives the settled status.
             return make_envelope(
                 answer={
                     "risk_category": "high_risk",
@@ -1750,9 +1807,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                     "transparency_duties": duties,
                     "rationale": rationale,
                 },
-                status=status,
+                status="potentially_applicable",
                 graph_version=graph_version,
-                confidence=confidence,
+                confidence=1.0,
                 source_nodes=citations.node_ids,
                 source_spans=citations.spans,
                 legal_status_notes=legal_status_notes,
@@ -1761,6 +1818,11 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
     if annex_i_covered is True and third_party_required is None:
         # Named at the top (B123); here it only holds the route open.
         article_6_1_unresolved = True
+    # B185 (ruling R9): the third-party assessment while the Annex I fact is
+    # unknown; the exits on which answering it false changes the answer name it.
+    third_party_open = (
+        ARTICLE_6_1_FLAGS[0] not in flags and ARTICLE_6_1_FLAGS[1] not in flags
+    )
     if annex_i_covered is True and third_party_required is False:
         citations.cite(ARTICLE_6_PARAGRAPH_1)
         rationale.append(
@@ -1801,20 +1863,8 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         _carry_transparency_duties()
         _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
-        status = "potentially_applicable"
-        confidence = 1.0
-        if exception_candidate is True:
-            status = "requires_human_review"
-            confidence = 0.5
-        elif unknown_prohibition_flags:
-            # An unknown prohibition flag could change high_risk to
-            # unacceptable_risk, so the outcome is not settled.
-            status = "requires_human_review"
-            confidence = 0.5
-            rationale.append(
-                "status lowered to requires_human_review: unknown "
-                "prohibition-relevant flags could change the outcome to Unacceptable risk"
-            )
+        # B185, the final fix wave (item 7): a true candidate and an unknown
+        # Article 5 fact are causes of review, decided in review_causes.py.
         return make_envelope(
             answer={
                 "risk_category": "high_risk",
@@ -1826,9 +1876,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
-            status=status,
+            status="potentially_applicable",
             graph_version=graph_version,
-            confidence=confidence,
+            confidence=1.0,
             source_nodes=citations.node_ids,
             source_spans=citations.spans,
             legal_status_notes=legal_status_notes,
@@ -1851,11 +1901,6 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
         area_candidate = _annex_iii_candidacy(
             flags, citations, rationale, legal_status_notes, missing_facts, both_routes=False
         )
-        if unknown_prohibition_flags:
-            rationale.append(
-                "status lowered to requires_human_review: unknown "
-                "prohibition-relevant flags could change the outcome to Unacceptable risk"
-            )
         _carry_transparency_duties()
         _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
@@ -1868,9 +1913,11 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
-            status="requires_human_review",
+            # B185, the final fix wave (item 7): the area alone is a cause of
+            # review (review_causes.py), which marks this answer in the wrapper.
+            status="potentially_applicable",
             graph_version=graph_version,
-            confidence=0.5,
+            confidence=1.0,
             source_nodes=citations.node_ids,
             source_spans=citations.spans,
             legal_status_notes=legal_status_notes,
@@ -1897,6 +1944,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "conformity assessment (Article 6(1)) cannot be decided "
             "deterministically from the provided facts"
         )
+        if third_party_open and (article_50_hits or not (unknown_prohibition_flags or unknown_annex_flags)):
+            # B185 (ruling R9): answered false the assessment rules the route
+            # out, and the answer is then limited_risk or minimal_risk.
+            _name_third_party_assessment(missing_facts)
         # DEC-18 (Codex spec review finding 5): this exit returns before the
         # Article 50 rule, so a trigger that is true is listed here too, and
         # (B185, D-G92 (7)) an unknown one is named.
@@ -1931,44 +1982,20 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             citations.cite(node_id)
             rationale.append(f"rule limited_risk: flag {flag} matches {node_id} ({note})")
         legal_status_notes.append(ARTICLE_50_TRIGGERED_NOTE)
+        if third_party_open and not (unknown_prohibition_flags or unknown_annex_flags):
+            # B185 (ruling R9): the open route is then the only cause of
+            # review, and answered false the assessment settles the status.
+            _name_third_party_assessment(missing_facts)
         # B185 (spec G D-G92 (7)): an unknown trigger beside a true one is
-        # named; information only, the status below does not read it.
+        # named; information only, the status does not read it.
         _name_absent_article_50_facts()
         missing_facts.extend(citations.unresolved)
-        status = "potentially_applicable"
-        confidence = 1.0
-        if unknown_prohibition_flags:
-            status = "requires_human_review"
-            confidence = 0.5
-            rationale.append(
-                "status lowered to requires_human_review: unknown "
-                "prohibition-relevant flags could change the outcome to Unacceptable risk"
-            )
-        else:
-            # A transparency system could also be high-risk under Annex III
-            # or Article 6(1); with those facts unknown, do not present
-            # transparency-only as settled (audit 2026-07-20 D1; B123). When
-            # no Article 5 fact is unknown, each high-risk kind that applies
-            # (Annex III, Article 6(1)) adds its line and the status is
-            # lowered once; an unknown Article 5 fact takes precedence with
-            # its own line, as before.
-            lowering: list[str] = []
-            if unknown_annex_flags:
-                lowering.append(
-                    "status lowered to requires_human_review: unknown Annex III "
-                    "high-risk flags could add high-risk obligations on top of the "
-                    "Article 50 transparency duty"
-                )
-            if unknown_article_6_1_facts:
-                lowering.append(
-                    "status lowered to requires_human_review: unknown Article "
-                    "6(1) facts could add high-risk obligations on top of the "
-                    "Article 50 transparency duty"
-                )
-            if lowering:
-                status = "requires_human_review"
-                confidence = 0.5
-                rationale.extend(lowering)
+        # A transparency system could also be high-risk under Annex III or
+        # Article 6(1), and an unknown Article 5 fact could change the level;
+        # with such facts unknown transparency-only is not settled (audit
+        # 2026-07-20 D1; B123). B185, the final fix wave (item 7): these are
+        # causes of review, decided in review_causes.py, which the wrapper
+        # reads; the ladder gives the settled status.
         return make_envelope(
             answer={
                 "risk_category": "limited_risk",
@@ -1978,9 +2005,9 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
                 "transparency_duties": transparency_duties,
                 "rationale": rationale,
             },
-            status=status,
+            status="potentially_applicable",
             graph_version=graph_version,
-            confidence=confidence,
+            confidence=1.0,
             source_nodes=citations.node_ids,
             source_spans=citations.spans,
             legal_status_notes=legal_status_notes,
@@ -2007,6 +2034,10 @@ def _classify_core(features: dict[str, Any], dump: dict[str, Any]) -> dict[str, 
             "deterministically; the named facts must be provided before a "
             "minimal verdict is safe"
         )
+        if unknown_article_6_1_facts and third_party_open and not (unknown_prohibition_flags or unknown_annex_flags):
+            # B185 (ruling R9): the open route is then the only reason, and
+            # answered false the assessment gives minimal_risk.
+            _name_third_party_assessment(missing_facts)
         # B185 (spec G D-G92 (7)): Article 50 can apply here, so an unknown
         # trigger is named, as on the minimal exit.
         _name_absent_article_50_facts()
@@ -2250,12 +2281,12 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
 
     B185 Task 6 (spec G D-G92 (8), (9), (v), DEC-33, rulings P11 to P14,
     P32, P33, R5): the causes of review are decided in one place
-    (review_causes.py) from the answer's own fields. The core's lines that
-    start "status lowered to requires_human_review:" are replaced by one line
-    per cause that holds, in the spec's order, and the status is
-    requires_human_review with confidence 0.5 exactly when a cause holds (an
-    undetermined answer keeps its "rule undetermined:" line and prints no
-    cause). The Article 27 block reads the confirmed points only, the point
+    (review_causes.py) from the answer's own fields. One line per cause that
+    holds, starting "status lowered to requires_human_review:", is written
+    here in the spec's order, and the status is requires_human_review with
+    confidence 0.5 exactly when a cause holds (an undetermined answer keeps
+    its "rule undetermined:" line and prints no cause); the ladder gives the
+    settled status and writes no such line (the final fix wave, item 7). The Article 27 block reads the confirmed points only, the point
     that rests on the area apart with its unknown listed uses, and names
     every cause, the area first. A refused input carries "fria": null.
 
@@ -2337,13 +2368,14 @@ def classify_ai_system(features: dict[str, Any], dump: dict[str, Any]) -> dict[s
         if holds
     ] if answer.get("risk_category") == "high_risk" else []
     # B185 Task 6 (spec G D-G92 (8), rulings P11, P12, P32, R5): the causes of
-    # review decide the status and are named in order. The core's status
-    # lines are replaced by one line per cause that holds; the status is
-    # requires_human_review with confidence 0.5 whenever a cause holds, the
-    # level unchanged. An undetermined answer keeps its "rule undetermined:"
-    # line as its reason and prints no cause (P32).
+    # review decide the status and are named in order, here and nowhere else
+    # (the final fix wave, item 7: the ladder writes no status line and
+    # lowers no status for a cause). The status is requires_human_review with
+    # confidence 0.5 whenever a cause holds, with one line per cause, the
+    # level unchanged; with no cause the ladder's settled status stands. An
+    # undetermined answer keeps the ladder's requires_human_review and its
+    # "rule undetermined:" line as its reason, and prints no cause (P32).
     causes = review_causes(answer, envelope.get("missing_facts") or [])
-    rationale[:] = [line for line in rationale if not line.startswith(STATUS_LINE_PREFIX)]
     if answer.get("risk_category") != "undetermined" and causes:
         envelope["status"] = "requires_human_review"
         envelope["confidence"] = 0.5
