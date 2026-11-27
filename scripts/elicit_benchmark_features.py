@@ -12,7 +12,10 @@ declaration is refused. Writes eval/gold/benchmark_features.json with
 provenance llm_elicited so ablation summaries can separate authored from
 elicited features.
 
-B10: the run serves the build load_active reads from data/graph_dumps and
+B10: the run serves the build load_active reads from the directory
+served_build.resolve_served names (DEC-29: TERE4AI_DUMP_DIR when pinned, else
+the newest published build of TERE4AI_BUILDS_DIR, else data/graph_dumps, as
+the facade and the MCP server do) and
 renders the prompt over it once before the first item (render_prompt; a
 provision that does not resolve refuses the run before any model call).
 Each item is elicited with elicit(); every checkpoint entry carries its
@@ -51,7 +54,6 @@ from tere4ai import parallel_calls  # noqa: E402
 from tere4ai.elicit_features import elicit, render_prompt  # noqa: E402
 from tere4ai.elicit_features.elicitor import (  # noqa: E402
     DEFAULT_PROMPT_VERSION,
-    DUMP_DIR,
     SNAPSHOTS_DIR,
 )
 from tere4ai.elicit_features.provisions import ProvisionUnresolved  # noqa: E402
@@ -64,6 +66,7 @@ from tere4ai.extract_norms.model_clients import (  # noqa: E402
     usage_snapshot,
 )
 from tere4ai.graph_store.publication import load_active  # noqa: E402
+from tere4ai.graph_store.served_build import resolve_served  # noqa: E402
 from tere4ai.judge.config import (  # noqa: E402
     ConfigurationError,
     load_model_config,
@@ -143,7 +146,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     # B10: the build is loaded and the prompt rendered before any client is
     # built, so a build or a provision that does not resolve costs nothing
-    loaded = load_active(DUMP_DIR)
+    resolution = resolve_served()
+    if resolution.error:
+        print(f"refusing to elicit: no build is served: {resolution.error}")
+        return 2
+    loaded = load_active(resolution.dump_dir)
     if loaded.dump is None:
         print(f"refusing to elicit: no build is served: {loaded.error}")
         return 2

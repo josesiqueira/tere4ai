@@ -28,6 +28,7 @@ from tere4ai.extract_norms.model_clients import (
     InferenceBackendUnavailable,
 )
 from tere4ai.graph_store.publication import LoadedBuild
+from tere4ai.graph_store.served_build import Resolution
 from tere4ai.judge.config import DeclaredParameterRefused, ModelConfig
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,6 +64,7 @@ def _script(monkeypatch, fail_on=None, failure=None, cfg=None, prompt=None, load
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: policies.append(kw.get("retry_policy")) or object())
     # B10: the build and the rendered prompt are mock data unless a test asks for the repository's
     monkeypatch.setattr(mod, "load_model_prices", lambda: {"g": {"input": 10.0, "output": 50.0}})
+    monkeypatch.setattr(mod, "resolve_served", lambda: Resolution(ROOT / "data" / "graph_dumps", "default", None, None))
     monkeypatch.setattr(mod, "load_active", lambda d: loaded or LoadedBuild(DUMP, None, None, "build-x", "legacy", None))
     run_prompt = dict(prompt or PROMPT)
 
@@ -268,6 +270,7 @@ def test_the_prompt_record_is_the_rendered_v6_over_the_repositorys_build(tmp_pat
     monkeypatch.setattr(mod.harness, "load_benchmark_items", lambda path: [dict(ITEMS[0])])
     monkeypatch.setattr(mod, "load_model_config", lambda: _cfg())
     monkeypatch.setattr(mod, "load_model_prices", lambda: {"g": {"input": 10.0, "output": 50.0}})
+    monkeypatch.setattr(mod, "resolve_served", lambda: Resolution(ROOT / "data" / "graph_dumps", "default", None, None))
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: object())
     monkeypatch.setattr(mod, "elicit", lambda description, generator, *, dump, snapshots_dir, prompt_version:
                         Elicitation(features=None, notes=["mock"], prompt=mod.render_prompt(
@@ -280,7 +283,7 @@ def test_the_prompt_record_is_the_rendered_v6_over_the_repositorys_build(tmp_pat
     # B185: to v10 (DEC-33).
     v10 = (ROOT / "prompts" / "elicit_features" / "v10.md").read_bytes()
     assert prompt["version"] == "v10" and prompt["template_sha256"] == hashlib.sha256(v10).hexdigest()
-    assert prompt["graph_version"] == mod.load_active(mod.DUMP_DIR).build_id
+    assert prompt["graph_version"] == mod.load_active(ROOT / "data" / "graph_dumps").build_id
     assert len(prompt["rendered_sha256"]) == 64 and prompt["provisions"]
 
 
@@ -362,3 +365,20 @@ def test_a_generator_model_without_a_price_row_is_refused_before_any_call(tmp_pa
     assert mod.main(["--max-usd", "1", "--out", str(tmp_path / "features.json")]) == 2
     assert calls == [] and built == []
     assert "has no price row for the generator model 'g'" in capsys.readouterr().out
+
+
+def test_the_build_is_the_one_the_resolver_names_and_its_error_refuses_the_run(tmp_path, monkeypatch, capsys):
+    """DEC-29: the run serves the directory resolve_served names, as the facade does."""
+    mod, calls, built = _metered(monkeypatch, {"input_tokens": 1, "output_tokens": 1})
+    served = tmp_path / "newest-build"
+    monkeypatch.setattr(mod, "resolve_served", lambda: Resolution(served, "newest", None, None))
+    asked: list = []
+    monkeypatch.setattr(mod, "load_active",
+                        lambda d: asked.append(d) or LoadedBuild(DUMP, None, None, "build-x", "legacy", None))
+    assert mod.main(["--max-usd", "1", "--dry-run", "--out", str(tmp_path / "features.json")]) == 0
+    assert asked == [served]
+    monkeypatch.setattr(mod, "resolve_served",
+                        lambda: Resolution(served, "newest", None, "no published build in the builds directory b"))
+    assert mod.main(["--max-usd", "1", "--out", str(tmp_path / "features.json")]) == 2
+    assert calls == [] and built == [] and asked == [served]
+    assert "refusing to elicit: no build is served: no published build in the builds directory b" in capsys.readouterr().out

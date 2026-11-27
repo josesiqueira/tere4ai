@@ -15,6 +15,7 @@ from tests.fixtures.model_parameters import declared
 from tere4ai.elicit_features import Elicitation
 from tere4ai.extract_norms.model_clients import InferenceBackendUnavailable
 from tere4ai.graph_store.publication import LoadedBuild
+from tere4ai.graph_store.served_build import Resolution
 from tere4ai.judge.config import ModelConfig
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -58,6 +59,7 @@ def _script(monkeypatch, fail_on=None, gauge=None, pause=0.003):
     monkeypatch.setattr(mod, "load_model_config", _cfg)
     monkeypatch.setattr(mod, "OpenAIGenerator", lambda cfg, **kw: object())
     monkeypatch.setattr(mod, "load_model_prices", lambda: {"g": {"input": 10.0, "output": 50.0}})
+    monkeypatch.setattr(mod, "resolve_served", lambda: Resolution(ROOT / "data" / "graph_dumps", "default", None, None))
     monkeypatch.setattr(mod, "load_active", lambda d: LoadedBuild(DUMP, None, None, "build-x", "legacy", None))
     monkeypatch.setattr(mod, "render_prompt", lambda dump, snapshots_dir, version: ("system", dict(PROMPT, version=version)))
 
